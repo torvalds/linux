@@ -454,8 +454,8 @@ static int cas_page_free(struct cas *cp, cas_page_t *page)
 #define RX_USED_ADD(x, y)       ((x)->used += (y))
 #define RX_USED_SET(x, y)       ((x)->used  = (y))
 #else
-#define RX_USED_ADD(x, y)
-#define RX_USED_SET(x, y)
+#define RX_USED_ADD(x, y) do { } while(0)
+#define RX_USED_SET(x, y) do { } while(0)
 #endif
 
 /* local page allocation routines for the receive buffers. jumbo pages

@@ -25,6 +25,7 @@
 #include <linux/error-injection.h>
 #include <linux/tracepoint-defs.h>
 #include <linux/srcu.h>
+#include <linux/static_call_types.h>
 
 #include <linux/percpu.h>
 #include <asm/module.h>
@@ -65,7 +66,7 @@ struct module_version_attribute {
 	struct module_attribute mattr;
 	const char *module_name;
 	const char *version;
-} __attribute__ ((__aligned__(sizeof(void *))));
+};
 
 extern ssize_t __modver_version_show(struct module_attribute *,
 				     struct module_kobject *, char *);
@@ -265,20 +266,20 @@ extern typeof(name) __mod_##type##__##name##_device_table		\
 #else
 #define MODULE_VERSION(_version)					\
 	MODULE_INFO(version, _version);					\
-	static struct module_version_attribute ___modver_attr = {	\
-		.mattr	= {						\
-			.attr	= {					\
-				.name	= "version",			\
-				.mode	= S_IRUGO,			\
+	static struct module_version_attribute __modver_attr		\
+		__used __section("__modver")				\
+		__aligned(__alignof__(struct module_version_attribute)) \
+		= {							\
+			.mattr	= {					\
+				.attr	= {				\
+					.name	= "version",		\
+					.mode	= S_IRUGO,		\
+				},					\
+				.show	= __modver_version_show,	\
 			},						\
-			.show	= __modver_version_show,		\
-		},							\
-		.module_name	= KBUILD_MODNAME,			\
-		.version	= _version,				\
-	};								\
-	static const struct module_version_attribute			\
-	__used __attribute__ ((__section__ ("__modver")))		\
-	* __moduleparam_const __modver_attr = &___modver_attr
+			.module_name	= KBUILD_MODNAME,		\
+			.version	= _version,			\
+		}
 #endif
 
 /* Optional firmware file (or files) needed by the module
@@ -474,6 +475,10 @@ struct module {
 	unsigned int num_bpf_raw_events;
 	struct bpf_raw_event_map *bpf_raw_events;
 #endif
+#ifdef CONFIG_DEBUG_INFO_BTF_MODULES
+	unsigned int btf_data_size;
+	void *btf_data;
+#endif
 #ifdef CONFIG_JUMP_LABEL
 	struct jump_entry *jump_entries;
 	unsigned int num_jump_entries;
@@ -497,6 +502,10 @@ struct module {
 	unsigned int kprobes_text_size;
 	unsigned long *kprobe_blacklist;
 	unsigned int num_kprobe_blacklist;
+#endif
+#ifdef CONFIG_HAVE_STATIC_CALL_INLINE
+	int num_static_call_sites;
+	struct static_call_site *static_call_sites;
 #endif
 
 #ifdef CONFIG_LIVEPATCH
@@ -735,7 +744,7 @@ static inline bool within_module(unsigned long addr, const struct module *mod)
 }
 
 /* Get/put a kernel symbol (calls should be symmetric) */
-#define symbol_get(x) ({ extern typeof(x) x __attribute__((weak)); &(x); })
+#define symbol_get(x) ({ extern typeof(x) x __attribute__((weak,visibility("hidden"))); &(x); })
 #define symbol_put(x) do { } while (0)
 #define symbol_put_addr(x) do { } while (0)
 

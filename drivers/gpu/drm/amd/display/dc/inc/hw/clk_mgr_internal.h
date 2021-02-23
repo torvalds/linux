@@ -89,6 +89,11 @@ enum dentist_divider_range {
 	.DPREFCLK_CNTL = mmDPREFCLK_CNTL, \
 	.DENTIST_DISPCLK_CNTL = mmDENTIST_DISPCLK_CNTL
 
+#if defined(CONFIG_DRM_AMD_DC_SI)
+#define CLK_COMMON_REG_LIST_DCE60_BASE() \
+	SR(DENTIST_DISPCLK_CNTL)
+#endif
+
 #define CLK_COMMON_REG_LIST_DCN_BASE() \
 	SR(DENTIST_DISPCLK_CNTL)
 
@@ -102,11 +107,9 @@ enum dentist_divider_range {
 	CLK_SRI(CLK3_CLK_PLL_REQ, CLK3, 0), \
 	CLK_SRI(CLK3_CLK2_DFS_CNTL, CLK3, 0)
 
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 // TODO:
 #define CLK_REG_LIST_DCN3()	  \
 	SR(DENTIST_DISPCLK_CNTL)
-#endif
 
 #define CLK_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
@@ -114,6 +117,12 @@ enum dentist_divider_range {
 #define CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(mask_sh) \
 	CLK_SF(DPREFCLK_CNTL, DPREFCLK_SRC_SEL, mask_sh), \
 	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DPREFCLK_WDIVIDER, mask_sh)
+
+#if defined(CONFIG_DRM_AMD_DC_SI)
+#define CLK_COMMON_MASK_SH_LIST_DCE60_COMMON_BASE(mask_sh) \
+	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_WDIVIDER, mask_sh),\
+	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_CHG_DONE, mask_sh)
+#endif
 
 #define CLK_COMMON_MASK_SH_LIST_DCN_COMMON_BASE(mask_sh) \
 	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_WDIVIDER, mask_sh),\
@@ -174,10 +183,9 @@ struct clk_mgr_registers {
 	uint32_t CLK3_CLK2_DFS_CNTL;
 	uint32_t CLK3_CLK_PLL_REQ;
 
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 	uint32_t CLK0_CLK2_DFS_CNTL;
 	uint32_t CLK0_CLK_PLL_REQ;
-#endif
+
 	uint32_t MP1_SMN_C2PMSG_67;
 	uint32_t MP1_SMN_C2PMSG_83;
 	uint32_t MP1_SMN_C2PMSG_91;
@@ -274,12 +282,10 @@ struct clk_mgr_internal {
 	bool periodic_retraining_disabled;
 
 	unsigned int cur_phyclk_req_table[MAX_PIPES * 2];
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 
 	bool smu_present;
 	void *wm_range_table;
 	long long wm_range_table_addr;
-#endif
 };
 
 struct clk_mgr_internal_funcs {

@@ -46,7 +46,7 @@ Procedura per sottomettere patch per i sorgenti -stable
    :ref:`Documentation/translations/it_IT/networking/netdev-FAQ.rst <it_netdev-FAQ>`;
    ma solo dopo aver verificato al seguente indirizzo che la patch non sia
    già in coda:
-   https://patchwork.ozlabs.org/bundle/davem/stable/?series=&submitter=&state=*&q=&archive=
+   https://patchwork.kernel.org/bundle/netdev/stable/?state=*
  - Una patch di sicurezza non dovrebbero essere gestite (solamente) dal processo
    di revisione -stable, ma dovrebbe seguire le procedure descritte in
    :ref:`Documentation/translations/it_IT/admin-guide/security-bugs.rst <it_securitybugs>`.

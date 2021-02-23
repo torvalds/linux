@@ -15,4 +15,3 @@ Open Firmware and Device Tree
    overlay-notes
 
    bindings/index
-   booting-without-of

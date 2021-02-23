@@ -15,7 +15,7 @@
 #include <linux/netdevice.h>
 #include <linux/stmmac.h>
 #include <linux/phy.h>
-#include <linux/mdio-xpcs.h>
+#include <linux/pcs/pcs-xpcs.h>
 #include <linux/module.h>
 #if IS_ENABLED(CONFIG_VLAN_8021Q)
 #define STMMAC_VLAN_TAG_USED
@@ -42,9 +42,16 @@
 
 #define STMMAC_CHAN0	0	/* Always supported and default for all chips */
 
-/* These need to be power of two, and >= 4 */
-#define DMA_TX_SIZE 512
-#define DMA_RX_SIZE 512
+/* TX and RX Descriptor Length, these need to be power of two.
+ * TX descriptor length less than 64 may cause transmit queue timed out error.
+ * RX descriptor length less than 64 may cause inconsistent Rx chain error.
+ */
+#define DMA_MIN_TX_SIZE		64
+#define DMA_MAX_TX_SIZE		1024
+#define DMA_DEFAULT_TX_SIZE	512
+#define DMA_MIN_RX_SIZE		64
+#define DMA_MAX_RX_SIZE		1024
+#define DMA_DEFAULT_RX_SIZE	512
 #define STMMAC_GET_ENTRY(x, size)	((x + 1) & (size - 1))
 
 #undef FRAME_FILTER_DEBUG
@@ -395,6 +402,7 @@ struct dma_features {
 /* Default LPI timers */
 #define STMMAC_DEFAULT_LIT_LS	0x3E8
 #define STMMAC_DEFAULT_TWT_LS	0x1E
+#define STMMAC_ET_MAX		0xFFFFF
 
 #define STMMAC_CHAIN_MODE	0x1
 #define STMMAC_RING_MODE	0x2
@@ -474,6 +482,8 @@ struct mac_device_info {
 	unsigned int num_vlan;
 	u32 vlan_filter[32];
 	unsigned int promisc;
+	bool vlan_fail_q_en;
+	u8 vlan_fail_q;
 };
 
 struct stmmac_rx_routing {

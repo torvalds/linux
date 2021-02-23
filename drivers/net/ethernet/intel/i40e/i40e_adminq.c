@@ -541,6 +541,12 @@ static void i40e_set_hw_flags(struct i40e_hw *hw)
 		    (aq->api_maj_ver == 1 &&
 		     aq->api_min_ver >= I40E_MINOR_VER_GET_LINK_INFO_X722))
 			hw->flags |= I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE;
+
+		if (aq->api_maj_ver > 1 ||
+		    (aq->api_maj_ver == 1 &&
+		     aq->api_min_ver >= I40E_MINOR_VER_FW_REQUEST_FEC_X722))
+			hw->flags |= I40E_HW_FLAG_X722_FEC_REQUEST_CAPABLE;
+
 		fallthrough;
 	default:
 		break;

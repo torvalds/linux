@@ -11,6 +11,7 @@
 #include <linux/io.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
@@ -557,10 +558,7 @@ static int hns_nic_poll_rx_skb(struct hns_nic_ring_data *ring_data,
 	va = (unsigned char *)desc_cb->buf + desc_cb->page_offset;
 
 	/* prefetch first cache line of first page */
-	prefetch(va);
-#if L1_CACHE_BYTES < 128
-	prefetch(va + L1_CACHE_BYTES);
-#endif
+	net_prefetch(va);
 
 	skb = *out_skb = napi_alloc_skb(&ring_data->napi,
 					HNS_RX_HEAD_SIZE);
@@ -754,6 +752,8 @@ static void hns_update_rx_rate(struct hnae_ring *ring)
 
 /**
  * smooth_alg - smoothing algrithm for adjusting coalesce parameter
+ * @new_param: new value
+ * @old_param: old value
  **/
 static u32 smooth_alg(u32 new_param, u32 old_param)
 {
@@ -1293,6 +1293,7 @@ static int hns_nic_init_irq(struct hns_nic_priv *priv)
 
 		rd->ring->ring_name[RCB_RING_NAME_LEN - 1] = '\0';
 
+		irq_set_status_flags(rd->ring->irq, IRQ_NOAUTOEN);
 		ret = request_irq(rd->ring->irq,
 				  hns_irq_handle, 0, rd->ring->ring_name, rd);
 		if (ret) {
@@ -1300,7 +1301,6 @@ static int hns_nic_init_irq(struct hns_nic_priv *priv)
 				   rd->ring->irq);
 			goto out_free_irq;
 		}
-		disable_irq(rd->ring->irq);
 
 		cpu = hns_nic_init_affinity_mask(h->q_num, i,
 						 rd->ring, &rd->mask);
@@ -1831,9 +1831,8 @@ static int hns_nic_uc_unsync(struct net_device *netdev,
 }
 
 /**
- * nic_set_multicast_list - set mutl mac address
- * @netdev: net device
- * @p: mac address
+ * hns_set_multicast_list - set mutl mac address
+ * @ndev: net device
  *
  * return void
  */

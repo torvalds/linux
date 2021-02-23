@@ -44,7 +44,7 @@ int ia_css_queue_load(
 				   the value as zero. This causes division by 0
 				   exception as the size is used in a modular
 				   division operation. */
-				return EDOM;
+				return -EDOM;
 			}
 		}
 

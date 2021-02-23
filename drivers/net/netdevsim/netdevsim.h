@@ -15,11 +15,13 @@
 
 #include <linux/debugfs.h>
 #include <linux/device.h>
+#include <linux/ethtool.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/u64_stats_sync.h>
 #include <net/devlink.h>
+#include <net/udp_tunnel.h>
 #include <net/xdp.h>
 
 #define DRV_NAME	"netdevsim"
@@ -50,6 +52,19 @@ struct nsim_ipsec {
 	u32 ok;
 };
 
+struct nsim_ethtool_pauseparam {
+	bool rx;
+	bool tx;
+	bool report_stats_rx;
+	bool report_stats_tx;
+};
+
+struct nsim_ethtool {
+	struct nsim_ethtool_pauseparam pauseparam;
+	struct ethtool_coalesce coalesce;
+	struct ethtool_ringparam ring;
+};
+
 struct netdevsim {
 	struct net_device *netdev;
 	struct nsim_dev *nsim_dev;
@@ -77,14 +92,19 @@ struct netdevsim {
 	struct {
 		u32 inject_error;
 		u32 sleep;
-		u32 ports[2][NSIM_UDP_TUNNEL_N_PORTS];
+		u32 __ports[2][NSIM_UDP_TUNNEL_N_PORTS];
+		u32 (*ports)[NSIM_UDP_TUNNEL_N_PORTS];
 		struct debugfs_u32_array dfs_ports[2];
 	} udp_ports;
+
+	struct nsim_ethtool ethtool;
 };
 
 struct netdevsim *
 nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port);
 void nsim_destroy(struct netdevsim *ns);
+
+void nsim_ethtool_init(struct netdevsim *ns);
 
 void nsim_udp_tunnels_debugfs_create(struct nsim_dev *nsim_dev);
 int nsim_udp_tunnels_info_create(struct nsim_dev *nsim_dev,
@@ -145,6 +165,7 @@ enum nsim_resource_id {
 	NSIM_RESOURCE_IPV6,
 	NSIM_RESOURCE_IPV6_FIB,
 	NSIM_RESOURCE_IPV6_FIB_RULES,
+	NSIM_RESOURCE_NEXTHOPS,
 };
 
 struct nsim_dev_health {
@@ -176,6 +197,7 @@ struct nsim_dev {
 	struct dentry *take_snapshot;
 	struct bpf_offload_dev *bpf_dev;
 	bool bpf_bind_accept;
+	bool bpf_bind_verifier_accept;
 	u32 bpf_bind_verifier_delay;
 	struct dentry *ddir_bpf_bound_progs;
 	u32 prog_id_gen;
@@ -185,6 +207,7 @@ struct nsim_dev {
 	struct list_head port_list;
 	struct mutex port_list_lock; /* protects port list */
 	bool fw_update_status;
+	u32 fw_update_overwrite_mask;
 	u32 max_macs;
 	bool test1;
 	bool dont_allow_reload;
@@ -197,9 +220,13 @@ struct nsim_dev {
 	bool fail_trap_policer_set;
 	bool fail_trap_policer_counter_get;
 	struct {
+		struct udp_tunnel_nic_shared utn_shared;
+		u32 __ports[2][NSIM_UDP_TUNNEL_N_PORTS];
 		bool sync_all;
 		bool open_only;
 		bool ipv4_only;
+		bool shared;
+		bool static_iana_vxlan;
 		u32 sleep;
 	} udp_ports;
 };

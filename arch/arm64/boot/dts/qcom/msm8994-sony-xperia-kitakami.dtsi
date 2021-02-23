@@ -221,7 +221,12 @@
 };
 
 &sdhc1 {
-	status = "okay";
+	/* There is an issue with the eMMC causing permanent
+	 * damage to the card if a quirk isn't addressed.
+	 * Until it's fixed, disable the MMC so as not to brick
+	 * devices.
+	 */
+	status = "disabled";
 
 	/* Downstream pushes 2.95V to the sdhci device,
 	 * but upstream driver REALLY wants to make vmmc 1.8v

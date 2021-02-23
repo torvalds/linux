@@ -246,6 +246,7 @@
 /* Intel Vendor Specific Registers */
 #define HDA_VS_INTEL_EM2		0x1030
 #define HDA_VS_INTEL_EM2_L1SEN		BIT(13)
+#define HDA_VS_INTEL_LTRP_GB_MASK	0x3F
 
 /*  HIPCI */
 #define HDA_DSP_REG_HIPCI_BUSY		BIT(31)
@@ -273,6 +274,7 @@
 #define BXT_D0I3_DELAY 5000
 
 #define FW_CL_STREAM_NUMBER		0x1
+#define HDA_FW_BOOT_ATTEMPTS	3
 
 /* ADSPCS - Audio DSP Control & Status */
 
@@ -303,9 +305,6 @@
  */
 #define HDA_DSP_ADSPCS_CPA_SHIFT	24
 #define HDA_DSP_ADSPCS_CPA_MASK(cm)	((cm) << HDA_DSP_ADSPCS_CPA_SHIFT)
-
-/* Mask for a given core index, c = 0.. number of supported cores - 1 */
-#define HDA_DSP_CORE_MASK(c)		BIT(c)
 
 /*
  * Mask for a given number of cores
@@ -418,6 +417,7 @@ enum sof_hda_D0_substate {
 
 /* represents DSP HDA controller frontend - i.e. host facing control */
 struct sof_intel_hda_dev {
+	int boot_iteration;
 
 	struct hda_bus hbus;
 
@@ -447,6 +447,9 @@ struct sof_intel_hda_dev {
 
 	/* sdw context allocated by SoundWire driver */
 	struct sdw_intel_ctx *sdw;
+
+	/* FW clock config, 0:HPRO, 1:LPRO */
+	bool clk_config_lpro;
 };
 
 static inline struct hdac_bus *sof_to_bus(struct snd_sof_dev *s)
@@ -546,6 +549,9 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 			     struct hdac_ext_stream *stream,
 			     struct snd_dma_buffer *dmab,
 			     struct snd_pcm_hw_params *params);
+int hda_dsp_iccmax_stream_hw_params(struct snd_sof_dev *sdev, struct hdac_ext_stream *stream,
+				    struct snd_dma_buffer *dmab,
+				    struct snd_pcm_hw_params *params);
 int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 			   struct hdac_ext_stream *stream, int cmd);
 irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context);
@@ -608,11 +614,19 @@ int hda_dsp_ipc_cmd_done(struct snd_sof_dev *sdev, int dir);
  * DSP Code loader.
  */
 int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev);
+int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev);
+int hda_dsp_cl_boot_firmware_iccmax_icl(struct snd_sof_dev *sdev);
 int hda_dsp_cl_boot_firmware_skl(struct snd_sof_dev *sdev);
 
 /* pre and post fw run ops */
 int hda_dsp_pre_fw_run(struct snd_sof_dev *sdev);
 int hda_dsp_post_fw_run(struct snd_sof_dev *sdev);
+int hda_dsp_post_fw_run_icl(struct snd_sof_dev *sdev);
+int hda_dsp_core_stall_icl(struct snd_sof_dev *sdev, unsigned int core_mask);
+
+/* parse platform specific ext manifest ops */
+int hda_dsp_ext_man_get_cavs_config_data(struct snd_sof_dev *sdev,
+					 const struct sof_ext_man_elem_header *hdr);
 
 /*
  * HDA Controller Operations.
@@ -636,7 +650,7 @@ void sof_hda_bus_init(struct hdac_bus *bus, struct device *dev);
  */
 void hda_codec_probe_bus(struct snd_sof_dev *sdev,
 			 bool hda_codec_use_common_hdmi);
-void hda_codec_jack_wake_enable(struct snd_sof_dev *sdev);
+void hda_codec_jack_wake_enable(struct snd_sof_dev *sdev, bool enable);
 void hda_codec_jack_check(struct snd_sof_dev *sdev);
 
 #endif /* CONFIG_SND_SOC_SOF_HDA */
@@ -728,14 +742,18 @@ extern struct snd_soc_dai_driver skl_dai[];
  */
 extern const struct snd_sof_dsp_ops sof_apl_ops;
 extern const struct snd_sof_dsp_ops sof_cnl_ops;
+extern const struct snd_sof_dsp_ops sof_tgl_ops;
+extern const struct snd_sof_dsp_ops sof_icl_ops;
 
 extern const struct sof_intel_dsp_desc apl_chip_info;
 extern const struct sof_intel_dsp_desc cnl_chip_info;
 extern const struct sof_intel_dsp_desc skl_chip_info;
 extern const struct sof_intel_dsp_desc icl_chip_info;
 extern const struct sof_intel_dsp_desc tgl_chip_info;
+extern const struct sof_intel_dsp_desc tglh_chip_info;
 extern const struct sof_intel_dsp_desc ehl_chip_info;
 extern const struct sof_intel_dsp_desc jsl_chip_info;
+extern const struct sof_intel_dsp_desc adls_chip_info;
 
 /* machine driver select */
 void hda_machine_select(struct snd_sof_dev *sdev);

@@ -13,13 +13,11 @@ definitions:
 
   frame-master:
     description: Indicates dai-link frame master.
-    $ref: /schemas/types.yaml#/definitions/phandle-array
-    maxItems: 1
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   bitclock-master:
     description: Indicates dai-link bit clock master
-    $ref: /schemas/types.yaml#/definitions/phandle-array
-    maxItems: 1
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   frame-inversion:
     description: dai-link uses frame clock inversion

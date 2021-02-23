@@ -154,7 +154,7 @@ static void adv748x_afe_set_video_standard(struct adv748x_state *state,
 		   (sdpstd & 0xf) << ADV748X_SDP_VID_SEL_SHIFT);
 }
 
-static int adv748x_afe_s_input(struct adv748x_afe *afe, unsigned int input)
+int adv748x_afe_s_input(struct adv748x_afe *afe, unsigned int input)
 {
 	struct adv748x_state *state = adv748x_afe_to_state(afe);
 
@@ -519,10 +519,6 @@ int adv748x_afe_init(struct adv748x_afe *afe)
 			break;
 		}
 	}
-
-	adv748x_afe_s_input(afe, afe->input);
-
-	adv_dbg(state, "AFE Default input set to %d\n", afe->input);
 
 	/* Entity pads and sinks are 0-indexed to match the pads */
 	for (i = ADV748X_AFE_SINK_AIN0; i <= ADV748X_AFE_SINK_AIN7; i++)

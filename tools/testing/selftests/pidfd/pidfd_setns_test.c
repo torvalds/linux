@@ -16,7 +16,6 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <linux/kcmp.h>
 
 #include "pidfd.h"
 #include "../clone3/clone3_selftests.h"
@@ -75,7 +74,7 @@ static int sys_waitid(int which, pid_t pid, int options)
 
 pid_t create_child(int *pidfd, unsigned flags)
 {
-	struct clone_args args = {
+	struct __clone_args args = {
 		.flags		= CLONE_PIDFD | flags,
 		.exit_signal	= SIGCHLD,
 		.pidfd		= ptr_to_u64(pidfd),

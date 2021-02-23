@@ -94,12 +94,7 @@ core-y		+= arch/arc/boot/dts/
 core-y				+= arch/arc/plat-sim/
 core-$(CONFIG_ARC_PLAT_TB10X)	+= arch/arc/plat-tb10x/
 core-$(CONFIG_ARC_PLAT_AXS10X)	+= arch/arc/plat-axs10x/
-core-$(CONFIG_ARC_PLAT_EZNPS)	+= arch/arc/plat-eznps/
 core-$(CONFIG_ARC_SOC_HSDK)	+= arch/arc/plat-hsdk/
-
-ifdef CONFIG_ARC_PLAT_EZNPS
-KBUILD_CPPFLAGS += -I$(srctree)/arch/arc/plat-eznps/include
-endif
 
 drivers-$(CONFIG_OPROFILE)	+= arch/arc/oprofile/
 
@@ -107,16 +102,22 @@ libs-y		+= arch/arc/lib/ $(LIBGCC)
 
 boot		:= arch/arc/boot
 
-#default target for make without any arguments.
-KBUILD_IMAGE	:= $(boot)/bootpImage
+boot_targets := uImage.bin uImage.gz uImage.lzma
 
-all:	bootpImage
-bootpImage: vmlinux
-
-boot_targets += uImage uImage.bin uImage.gz
-
+PHONY += $(boot_targets)
 $(boot_targets): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+
+uimage-default-y			:= uImage.bin
+uimage-default-$(CONFIG_KERNEL_GZIP)	:= uImage.gz
+uimage-default-$(CONFIG_KERNEL_LZMA)	:= uImage.lzma
+
+PHONY += uImage
+uImage: $(uimage-default-y)
+	@ln -sf $< $(boot)/uImage
+	@$(kecho) '  Image $(boot)/uImage is ready'
+
+CLEAN_FILES += $(boot)/uImage
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)

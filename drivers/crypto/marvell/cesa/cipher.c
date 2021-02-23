@@ -11,6 +11,8 @@
 
 #include <crypto/aes.h>
 #include <crypto/internal/des.h>
+#include <linux/device.h>
+#include <linux/dma-mapping.h>
 
 #include "cesa.h"
 
@@ -262,8 +264,7 @@ static int mv_cesa_aes_setkey(struct crypto_skcipher *cipher, const u8 *key,
 	remaining = (ctx->aes.key_length - 16) / 4;
 	offset = ctx->aes.key_length + 24 - remaining;
 	for (i = 0; i < remaining; i++)
-		ctx->aes.key_dec[4 + i] =
-			cpu_to_le32(ctx->aes.key_enc[offset + i]);
+		ctx->aes.key_dec[4 + i] = ctx->aes.key_enc[offset + i];
 
 	return 0;
 }

@@ -101,7 +101,6 @@ source "drivers/i2c/busses/Kconfig"
 config I2C_STUB
 	tristate "I2C/SMBus Test Stub"
 	depends on m
-	default 'n'
 	help
 	  This module may be useful to developers of SMBus client drivers,
 	  especially for certain kinds of sensor chips.
@@ -125,6 +124,14 @@ config I2C_SLAVE_EEPROM
 	help
 	  This backend makes Linux behave like an I2C EEPROM. Please read
 	  Documentation/i2c/slave-eeprom-backend.rst for further details.
+
+config I2C_SLAVE_TESTUNIT
+	tristate "I2C eeprom testunit driver"
+	help
+	  This backend can be used to trigger test cases for I2C bus masters
+	  which require a remote device with certain capabilities, e.g.
+	  multi-master, SMBus Host Notify, etc. Please read
+	  Documentation/i2c/slave-testunit-backend.rst for further details.
 
 endif
 

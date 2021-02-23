@@ -87,6 +87,7 @@ static struct bench epoll_benchmarks[] = {
 static struct bench internals_benchmarks[] = {
 	{ "synthesize", "Benchmark perf event synthesis",	bench_synthesize	},
 	{ "kallsyms-parse", "Benchmark kallsyms parsing",	bench_kallsyms_parse	},
+	{ "inject-build-id", "Benchmark build-id injection",	bench_inject_build_id	},
 	{ NULL,		NULL,					NULL			}
 };
 

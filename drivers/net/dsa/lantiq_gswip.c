@@ -26,6 +26,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/firmware.h>
 #include <linux/if_bridge.h>
@@ -91,9 +92,7 @@
 					 GSWIP_MDIO_PHY_FDUP_MASK)
 
 /* GSWIP MII Registers */
-#define GSWIP_MII_CFG0			0x00
-#define GSWIP_MII_CFG1			0x02
-#define GSWIP_MII_CFG5			0x04
+#define GSWIP_MII_CFGp(p)		(0x2 * (p))
 #define  GSWIP_MII_CFG_EN		BIT(14)
 #define  GSWIP_MII_CFG_LDCLKDIS		BIT(12)
 #define  GSWIP_MII_CFG_MODE_MIIP	0x0
@@ -391,17 +390,9 @@ static void gswip_mii_mask(struct gswip_priv *priv, u32 clear, u32 set,
 static void gswip_mii_mask_cfg(struct gswip_priv *priv, u32 clear, u32 set,
 			       int port)
 {
-	switch (port) {
-	case 0:
-		gswip_mii_mask(priv, clear, set, GSWIP_MII_CFG0);
-		break;
-	case 1:
-		gswip_mii_mask(priv, clear, set, GSWIP_MII_CFG1);
-		break;
-	case 5:
-		gswip_mii_mask(priv, clear, set, GSWIP_MII_CFG5);
-		break;
-	}
+	/* There's no MII_CFG register for the CPU port */
+	if (!dsa_is_cpu_port(priv->ds, port))
+		gswip_mii_mask(priv, clear, set, GSWIP_MII_CFGp(port));
 }
 
 static void gswip_mii_mask_pcdu(struct gswip_priv *priv, u32 clear, u32 set,
@@ -736,14 +727,23 @@ static int gswip_pce_load_microcode(struct gswip_priv *priv)
 }
 
 static int gswip_port_vlan_filtering(struct dsa_switch *ds, int port,
-				     bool vlan_filtering)
+				     bool vlan_filtering,
+				     struct switchdev_trans *trans)
 {
 	struct gswip_priv *priv = ds->priv;
-	struct net_device *bridge = dsa_to_port(ds, port)->bridge_dev;
 
 	/* Do not allow changing the VLAN filtering options while in bridge */
-	if (!!(priv->port_vlan_filter & BIT(port)) != vlan_filtering && bridge)
-		return -EIO;
+	if (switchdev_trans_ph_prepare(trans)) {
+		struct net_device *bridge = dsa_to_port(ds, port)->bridge_dev;
+
+		if (!bridge)
+			return 0;
+
+		if (!!(priv->port_vlan_filter & BIT(port)) != vlan_filtering)
+			return -EIO;
+
+		return 0;
+	}
 
 	if (vlan_filtering) {
 		/* Use port based VLAN tag */
@@ -781,8 +781,15 @@ static int gswip_setup(struct dsa_switch *ds)
 
 	/* disable port fetch/store dma on all ports */
 	for (i = 0; i < priv->hw_info->max_ports; i++) {
+		struct switchdev_trans trans;
+
+		/* Skip the prepare phase, this shouldn't return an error
+		 * during setup.
+		 */
+		trans.ph_prepare = false;
+
 		gswip_port_disable(ds, i);
-		gswip_port_vlan_filtering(ds, i, false);
+		gswip_port_vlan_filtering(ds, i, false, &trans);
 	}
 
 	/* enable Switch */
@@ -805,9 +812,8 @@ static int gswip_setup(struct dsa_switch *ds)
 	gswip_mdio_mask(priv, 0xff, 0x09, GSWIP_MDIO_MDC_CFG1);
 
 	/* Disable the xMII link */
-	gswip_mii_mask_cfg(priv, GSWIP_MII_CFG_EN, 0, 0);
-	gswip_mii_mask_cfg(priv, GSWIP_MII_CFG_EN, 0, 1);
-	gswip_mii_mask_cfg(priv, GSWIP_MII_CFG_EN, 0, 5);
+	for (i = 0; i < priv->hw_info->max_ports; i++)
+		gswip_mii_mask_cfg(priv, GSWIP_MII_CFG_EN, 0, i);
 
 	/* enable special tag insertion on cpu port */
 	gswip_switch_mask(priv, 0, GSWIP_FDMA_PCTRL_STEN,
@@ -1430,11 +1436,12 @@ static void gswip_phylink_validate(struct dsa_switch *ds, int port,
 	phylink_set(mask, Pause);
 	phylink_set(mask, Asym_Pause);
 
-	/* With the exclusion of MII and Reverse MII, we support Gigabit,
-	 * including Half duplex
+	/* With the exclusion of MII, Reverse MII and Reduced MII, we
+	 * support Gigabit, including Half duplex
 	 */
 	if (state->interface != PHY_INTERFACE_MODE_MII &&
-	    state->interface != PHY_INTERFACE_MODE_REVMII) {
+	    state->interface != PHY_INTERFACE_MODE_REVMII &&
+	    state->interface != PHY_INTERFACE_MODE_RMII) {
 		phylink_set(mask, 1000baseT_Full);
 		phylink_set(mask, 1000baseT_Half);
 	}
@@ -1524,9 +1531,7 @@ static void gswip_phylink_mac_link_up(struct dsa_switch *ds, int port,
 {
 	struct gswip_priv *priv = ds->priv;
 
-	/* Enable the xMII interface only for the external PHY */
-	if (interface != PHY_INTERFACE_MODE_INTERNAL)
-		gswip_mii_mask_cfg(priv, 0, GSWIP_MII_CFG_EN, port);
+	gswip_mii_mask_cfg(priv, 0, GSWIP_MII_CFG_EN, port);
 }
 
 static void gswip_get_strings(struct dsa_switch *ds, int port, u32 stringset,
@@ -1820,6 +1825,16 @@ static int gswip_gphy_fw_list(struct gswip_priv *priv,
 			goto remove_gphy;
 		i++;
 	}
+
+	/* The standalone PHY11G requires 300ms to be fully
+	 * initialized and ready for any MDIO communication after being
+	 * taken out of reset. For the SoC-internal GPHY variant there
+	 * is no (known) documentation for the minimum time after a
+	 * reset. Use the same value as for the standalone variant as
+	 * some users have reported internal PHYs not being detected
+	 * without any delay.
+	 */
+	msleep(300);
 
 	return 0;
 

@@ -94,18 +94,7 @@ static struct bcma_driver iproc_pcie_bcma_driver = {
 	.probe		= iproc_pcie_bcma_probe,
 	.remove		= iproc_pcie_bcma_remove,
 };
-
-static int __init iproc_pcie_bcma_init(void)
-{
-	return bcma_driver_register(&iproc_pcie_bcma_driver);
-}
-module_init(iproc_pcie_bcma_init);
-
-static void __exit iproc_pcie_bcma_exit(void)
-{
-	bcma_driver_unregister(&iproc_pcie_bcma_driver);
-}
-module_exit(iproc_pcie_bcma_exit);
+module_bcma_driver(iproc_pcie_bcma_driver);
 
 MODULE_AUTHOR("Hauke Mehrtens");
 MODULE_DESCRIPTION("Broadcom iProc PCIe BCMA driver");

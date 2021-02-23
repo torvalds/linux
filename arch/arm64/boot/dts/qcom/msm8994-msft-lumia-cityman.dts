@@ -1,0 +1,73 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2020, Konrad Dybcio
+ */
+
+/dts-v1/;
+
+#include "msm8994.dtsi"
+#include "pm8994.dtsi"
+#include "pmi8994.dtsi"
+
+/ {
+	model = "Microsoft Lumia 950 XL";
+	compatible = "microsoft,cityman", "qcom,msm8994";
+
+	/*
+	 * Most Lumia 950XL users use GRUB to load their kernels,
+	 * hence there is no need for msm-id and friends.
+	 */
+
+	/*
+	 * This enables graphical output via bootloader-enabled display.
+	 * acpi=no is required due to WP platforms having ACPI support, but
+	 * only for Windows-based OSes.
+	 */
+	chosen {
+		bootargs = "earlycon=efifb console=efifb acpi=no";
+
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+	};
+};
+
+&blsp_i2c1 {
+	status = "okay";
+
+	rmi4-i2c-dev@4b {
+		compatible = "syna,rmi4-i2c";
+		reg = <0x4b>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <77 IRQ_TYPE_EDGE_FALLING>;
+
+		rmi4-f01@1 {
+			reg = <0x01>;
+			syna,nosleep-mode = <1>;
+		};
+
+		rmi4-f12@12 {
+			reg = <0x12>;
+			syna,sensor-type = <1>;
+			syna,clip-x-low = <0>;
+			syna,clip-x-high = <1440>;
+			syna,clip-y-low = <0>;
+			syna,clip-y-high = <2660>;
+		};
+	};
+};
+
+&blsp1_uart2 {
+	status = "okay";
+};
+
+&blsp2_uart2 {
+	status = "okay";
+};
+
+&sdhc1 {
+	status = "okay";
+};

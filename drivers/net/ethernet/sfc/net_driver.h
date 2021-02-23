@@ -38,8 +38,6 @@
  *
  **************************************************************************/
 
-#define EFX_DRIVER_VERSION	"4.1"
-
 #ifdef DEBUG
 #define EFX_WARN_ON_ONCE_PARANOID(x) WARN_ON_ONCE(x)
 #define EFX_WARN_ON_PARANOID(x) WARN_ON(x)
@@ -65,16 +63,22 @@
  * queues. */
 #define EFX_MAX_TX_TC		2
 #define EFX_MAX_CORE_TX_QUEUES	(EFX_MAX_TX_TC * EFX_MAX_CHANNELS)
-#define EFX_TXQ_TYPE_OFFLOAD	1	/* flag */
-#define EFX_TXQ_TYPE_HIGHPRI	2	/* flag */
-#define EFX_TXQ_TYPES		4
-#define EFX_MAX_TX_QUEUES	(EFX_TXQ_TYPES * EFX_MAX_CHANNELS)
+#define EFX_TXQ_TYPE_OUTER_CSUM	1	/* Outer checksum offload */
+#define EFX_TXQ_TYPE_INNER_CSUM	2	/* Inner checksum offload */
+#define EFX_TXQ_TYPE_HIGHPRI	4	/* High-priority (for TC) */
+#define EFX_TXQ_TYPES		8
+/* HIGHPRI is Siena-only, and INNER_CSUM is EF10, so no need for both */
+#define EFX_MAX_TXQ_PER_CHANNEL	4
+#define EFX_MAX_TX_QUEUES	(EFX_MAX_TXQ_PER_CHANNEL * EFX_MAX_CHANNELS)
 
 /* Maximum possible MTU the driver supports */
 #define EFX_MAX_MTU (9 * 1024)
 
 /* Minimum MTU, from RFC791 (IP) */
 #define EFX_MIN_MTU 68
+
+/* Maximum total header length for TSOv2 */
+#define EFX_TSO2_MAX_HDRLEN	208
 
 /* Size of an RX scatter buffer.  Small enough to pack 2 into a 4K page,
  * and should be a multiple of the cache line size.
@@ -192,7 +196,9 @@ struct efx_tx_buffer {
  * @queue: DMA queue number
  * @label: Label for TX completion events.
  *	Is our index within @channel->tx_queue array.
+ * @type: configuration type of this TX queue.  A bitmask of %EFX_TXQ_TYPE_* flags.
  * @tso_version: Version of TSO in use for this queue.
+ * @tso_encap: Is encapsulated TSO supported? Supported in TSOv2 on 8000 series.
  * @channel: The associated channel
  * @core_txq: The networking core TX queue structure
  * @buffer: The software buffer ring
@@ -206,8 +212,6 @@ struct efx_tx_buffer {
  * @initialised: Has hardware queue been initialised?
  * @timestamping: Is timestamping enabled for this channel?
  * @xdp_tx: Is this an XDP tx queue?
- * @handle_tso: TSO xmit preparation handler.  Sets up the TSO metadata and
- *	may also map tx data, depending on the nature of the TSO implementation.
  * @read_count: Current read pointer.
  *	This is the number of buffers that have been removed from both rings.
  * @old_write_count: The value of @write_count when last checked.
@@ -244,7 +248,7 @@ struct efx_tx_buffer {
  * @tso_fallbacks: Number of times TSO fallback used
  * @pushes: Number of times the TX push feature has been used
  * @pio_packets: Number of times the TX PIO feature has been used
- * @xmit_more_available: Are any packets waiting to be pushed to the NIC
+ * @xmit_pending: Are any packets waiting to be pushed to the NIC
  * @cb_packets: Number of times the TX copybreak feature has been used
  * @notify_count: Count of notified descriptors to the NIC
  * @empty_read_count: If the completion path has seen the queue as empty
@@ -256,7 +260,9 @@ struct efx_tx_queue {
 	struct efx_nic *efx ____cacheline_aligned_in_smp;
 	unsigned int queue;
 	unsigned int label;
+	unsigned int type;
 	unsigned int tso_version;
+	bool tso_encap;
 	struct efx_channel *channel;
 	struct netdev_queue *core_txq;
 	struct efx_tx_buffer *buffer;
@@ -268,9 +274,6 @@ struct efx_tx_queue {
 	bool initialised;
 	bool timestamping;
 	bool xdp_tx;
-
-	/* Function pointers used in the fast path. */
-	int (*handle_tso)(struct efx_tx_queue*, struct sk_buff*, bool *);
 
 	/* Members used mainly on the completion path */
 	unsigned int read_count ____cacheline_aligned_in_smp;
@@ -292,7 +295,7 @@ struct efx_tx_queue {
 	unsigned int tso_fallbacks;
 	unsigned int pushes;
 	unsigned int pio_packets;
-	bool xmit_more_available;
+	bool xmit_pending;
 	unsigned int cb_packets;
 	unsigned int notify_count;
 	/* Statistics to supplement MAC stats */
@@ -455,7 +458,7 @@ enum efx_sync_events_state {
  *	were checked for expiry
  * @rfs_expire_index: next accelerated RFS filter ID to check for expiry
  * @n_rfs_succeeded: number of successful accelerated RFS filter insertions
- * @n_rfs_failed; number of failed accelerated RFS filter insertions
+ * @n_rfs_failed: number of failed accelerated RFS filter insertions
  * @filter_work: Work item for efx_filter_rfs_expire()
  * @rps_flow_id: Flow IDs of filters allocated for accelerated RFS,
  *      indexed by filter ID
@@ -481,6 +484,7 @@ enum efx_sync_events_state {
  * @rx_list: list of SKBs from current RX, awaiting processing
  * @rx_queue: RX queue for this channel
  * @tx_queue: TX queues for this channel
+ * @tx_queue_by_type: pointers into @tx_queue, or %NULL, indexed by txq type
  * @sync_events_state: Current state of sync events on this channel
  * @sync_timestamp_major: Major part of the last ptp sync event
  * @sync_timestamp_minor: Minor part of the last ptp sync event
@@ -542,7 +546,8 @@ struct efx_channel {
 	struct list_head *rx_list;
 
 	struct efx_rx_queue rx_queue;
-	struct efx_tx_queue tx_queue[EFX_TXQ_TYPES];
+	struct efx_tx_queue tx_queue[EFX_MAX_TXQ_PER_CHANNEL];
+	struct efx_tx_queue *tx_queue_by_type[EFX_TXQ_TYPES];
 
 	enum efx_sync_events_state sync_events_state;
 	u32 sync_timestamp_major;
@@ -656,51 +661,6 @@ static inline bool efx_link_state_equal(const struct efx_link_state *left,
 	return left->up == right->up && left->fd == right->fd &&
 		left->fc == right->fc && left->speed == right->speed;
 }
-
-/**
- * struct efx_phy_operations - Efx PHY operations table
- * @probe: Probe PHY and initialise efx->mdio.mode_support, efx->mdio.mmds,
- *	efx->loopback_modes.
- * @init: Initialise PHY
- * @fini: Shut down PHY
- * @reconfigure: Reconfigure PHY (e.g. for new link parameters)
- * @poll: Update @link_state and report whether it changed.
- *	Serialised by the mac_lock.
- * @get_link_ksettings: Get ethtool settings. Serialised by the mac_lock.
- * @set_link_ksettings: Set ethtool settings. Serialised by the mac_lock.
- * @get_fecparam: Get Forward Error Correction settings. Serialised by mac_lock.
- * @set_fecparam: Set Forward Error Correction settings. Serialised by mac_lock.
- * @set_npage_adv: Set abilities advertised in (Extended) Next Page
- *	(only needed where AN bit is set in mmds)
- * @test_alive: Test that PHY is 'alive' (online)
- * @test_name: Get the name of a PHY-specific test/result
- * @run_tests: Run tests and record results as appropriate (offline).
- *	Flags are the ethtool tests flags.
- */
-struct efx_phy_operations {
-	int (*probe) (struct efx_nic *efx);
-	int (*init) (struct efx_nic *efx);
-	void (*fini) (struct efx_nic *efx);
-	void (*remove) (struct efx_nic *efx);
-	int (*reconfigure) (struct efx_nic *efx);
-	bool (*poll) (struct efx_nic *efx);
-	void (*get_link_ksettings)(struct efx_nic *efx,
-				   struct ethtool_link_ksettings *cmd);
-	int (*set_link_ksettings)(struct efx_nic *efx,
-				  const struct ethtool_link_ksettings *cmd);
-	int (*get_fecparam)(struct efx_nic *efx, struct ethtool_fecparam *fec);
-	int (*set_fecparam)(struct efx_nic *efx,
-			    const struct ethtool_fecparam *fec);
-	void (*set_npage_adv) (struct efx_nic *efx, u32);
-	int (*test_alive) (struct efx_nic *efx);
-	const char *(*test_name) (struct efx_nic *efx, unsigned int index);
-	int (*run_tests) (struct efx_nic *efx, int *results, unsigned flags);
-	int (*get_module_eeprom) (struct efx_nic *efx,
-			       struct ethtool_eeprom *ee,
-			       u8 *data);
-	int (*get_module_info) (struct efx_nic *efx,
-				struct ethtool_modinfo *modinfo);
-};
 
 /**
  * enum efx_phy_mode - PHY operating mode flags
@@ -920,7 +880,6 @@ struct efx_async_filter_insertion {
  *	field of %MC_CMD_GET_CAPABILITIES_V4 response, or %MC_CMD_MAC_NSTATS)
  * @stats_buffer: DMA buffer for statistics
  * @phy_type: PHY type
- * @phy_op: PHY interface
  * @phy_data: PHY private data (including PHY-specific stats)
  * @mdio: PHY MDIO interface
  * @mdio_bus: PHY MDIO bus ID (only used by Siena)
@@ -1094,7 +1053,6 @@ struct efx_nic {
 	bool rx_nodesc_drops_prev_state;
 
 	unsigned int phy_type;
-	const struct efx_phy_operations *phy_op;
 	void *phy_data;
 	struct mdio_if_info mdio;
 	unsigned int mdio_bus;
@@ -1214,10 +1172,12 @@ struct efx_udp_tunnel {
  * @describe_stats: Describe statistics for ethtool
  * @update_stats: Update statistics not provided by event handling.
  *	Either argument may be %NULL.
+ * @update_stats_atomic: Update statistics while in atomic context, if that
+ *	is more limiting than @update_stats.  Otherwise, leave %NULL and
+ *	driver core will call @update_stats.
  * @start_stats: Start the regular fetching of statistics
  * @pull_stats: Pull stats from the NIC and wait until they arrive.
  * @stop_stats: Stop the regular fetching of statistics
- * @set_id_led: Set state of identifying LED or revert to automatic function
  * @push_irq_moderation: Apply interrupt moderation value
  * @reconfigure_port: Push loopback/power/txdis changes to the MAC and PHY
  * @prepare_enable_fc_tx: Prepare MAC to enable pause frame TX (may be %NULL)
@@ -1250,7 +1210,7 @@ struct efx_udp_tunnel {
  *	a pointer to the &struct efx_msi_context for the channel.
  * @irq_handle_legacy: Handle legacy interrupt.  The @dev_id argument
  *	is a pointer to the &struct efx_nic.
- * @tx_probe: Allocate resources for TX queue
+ * @tx_probe: Allocate resources for TX queue (and select TXQ type)
  * @tx_init: Initialise TX queue on the NIC
  * @tx_remove: Free resources for TX queue
  * @tx_write: Write TX descriptors and doorbell
@@ -1359,10 +1319,11 @@ struct efx_nic_type {
 	size_t (*describe_stats)(struct efx_nic *efx, u8 *names);
 	size_t (*update_stats)(struct efx_nic *efx, u64 *full_stats,
 			       struct rtnl_link_stats64 *core_stats);
+	size_t (*update_stats_atomic)(struct efx_nic *efx, u64 *full_stats,
+				      struct rtnl_link_stats64 *core_stats);
 	void (*start_stats)(struct efx_nic *efx);
 	void (*pull_stats)(struct efx_nic *efx);
 	void (*stop_stats)(struct efx_nic *efx);
-	void (*set_id_led)(struct efx_nic *efx, enum efx_led_mode mode);
 	void (*push_irq_moderation)(struct efx_channel *channel);
 	int (*reconfigure_port)(struct efx_nic *efx);
 	void (*prepare_enable_fc_tx)(struct efx_nic *efx);
@@ -1546,14 +1507,6 @@ efx_get_tx_channel(struct efx_nic *efx, unsigned int index)
 	return efx->channel[efx->tx_channel_offset + index];
 }
 
-static inline struct efx_tx_queue *
-efx_get_tx_queue(struct efx_nic *efx, unsigned index, unsigned type)
-{
-	EFX_WARN_ON_ONCE_PARANOID(index >= efx->n_tx_channels ||
-				  type >= efx->tx_queues_per_channel);
-	return &efx->channel[efx->tx_channel_offset + index]->tx_queue[type];
-}
-
 static inline struct efx_channel *
 efx_get_xdp_channel(struct efx_nic *efx, unsigned int index)
 {
@@ -1580,10 +1533,18 @@ static inline unsigned int efx_channel_num_tx_queues(struct efx_channel *channel
 }
 
 static inline struct efx_tx_queue *
-efx_channel_get_tx_queue(struct efx_channel *channel, unsigned type)
+efx_channel_get_tx_queue(struct efx_channel *channel, unsigned int type)
 {
-	EFX_WARN_ON_ONCE_PARANOID(type >= efx_channel_num_tx_queues(channel));
-	return &channel->tx_queue[type];
+	EFX_WARN_ON_ONCE_PARANOID(type >= EFX_TXQ_TYPES);
+	return channel->tx_queue_by_type[type];
+}
+
+static inline struct efx_tx_queue *
+efx_get_tx_queue(struct efx_nic *efx, unsigned int index, unsigned int type)
+{
+	struct efx_channel *channel = efx_get_tx_channel(efx, index);
+
+	return efx_channel_get_tx_queue(channel, type);
 }
 
 /* Iterate over all TX queues belonging to a channel */
@@ -1683,13 +1644,23 @@ efx_channel_tx_fill_level(struct efx_channel *channel)
 	struct efx_tx_queue *tx_queue;
 	unsigned int fill_level = 0;
 
-	/* This function is currently only used by EF100, which maybe
-	 * could do something simpler and just compute the fill level
-	 * of the single TXQ that's really in use.
-	 */
 	efx_for_each_channel_tx_queue(tx_queue, channel)
 		fill_level = max(fill_level,
 				 tx_queue->insert_count - tx_queue->read_count);
+
+	return fill_level;
+}
+
+/* Conservative approximation of efx_channel_tx_fill_level using cached value */
+static inline unsigned int
+efx_channel_tx_old_fill_level(struct efx_channel *channel)
+{
+	struct efx_tx_queue *tx_queue;
+	unsigned int fill_level = 0;
+
+	efx_for_each_channel_tx_queue(tx_queue, channel)
+		fill_level = max(fill_level,
+				 tx_queue->insert_count - tx_queue->old_read_count);
 
 	return fill_level;
 }

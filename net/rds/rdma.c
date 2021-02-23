@@ -269,7 +269,7 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 		goto out;
 	} else {
 		nents = ret;
-		sg = kcalloc(nents, sizeof(*sg), GFP_KERNEL);
+		sg = kmalloc_array(nents, sizeof(*sg), GFP_KERNEL);
 		if (!sg) {
 			ret = -ENOMEM;
 			goto out;
@@ -564,6 +564,9 @@ int rds_rdma_extra_size(struct rds_rdma_args *args,
 
 	if (args->nr_local == 0)
 		return -EINVAL;
+
+	if (args->nr_local > UIO_MAXIOV)
+		return -EMSGSIZE;
 
 	iov->iov = kcalloc(args->nr_local,
 			   sizeof(struct rds_iovec),

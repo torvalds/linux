@@ -19,7 +19,6 @@ if NET_VENDOR_AQUANTIA
 config AQTION
 	tristate "aQuantia AQtion(tm) Support"
 	depends on PCI
-	depends on X86_64 || ARM64 || COMPILE_TEST
 	depends on MACSEC || MACSEC=n
 	help
 	  This enables the support for the aQuantia AQtion(tm) Ethernet card.

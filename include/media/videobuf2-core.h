@@ -1043,7 +1043,7 @@ __poll_t vb2_core_poll(struct vb2_queue *q, struct file *file,
 size_t vb2_read(struct vb2_queue *q, char __user *data, size_t count,
 		loff_t *ppos, int nonblock);
 /**
- * vb2_read() - implements write() syscall logic.
+ * vb2_write() - implements write() syscall logic.
  * @q:		pointer to &struct vb2_queue with videobuf2 queue.
  * @data:	pointed to target userspace buffer
  * @count:	number of bytes to write

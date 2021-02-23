@@ -20,4 +20,7 @@ properties:
           - st,stih407
           - st,stih410
           - st,stih418
+
+additionalProperties: true
+
 ...

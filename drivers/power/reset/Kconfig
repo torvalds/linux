@@ -129,10 +129,10 @@ config POWER_RESET_QCOM_PON
 
 config POWER_RESET_OCELOT_RESET
 	bool "Microsemi Ocelot reset driver"
-	depends on MSCC_OCELOT || COMPILE_TEST
+	depends on MSCC_OCELOT || ARCH_SPARX5 || COMPILE_TEST
 	select MFD_SYSCON
 	help
-	  This driver supports restart for Microsemi Ocelot SoC.
+	  This driver supports restart for Microsemi Ocelot SoC and similar.
 
 config POWER_RESET_OXNAS
 	bool "OXNAS SoC restart driver"
@@ -176,6 +176,13 @@ config POWER_RESET_QNAP
 	  commands to the microcontroller which controls the main power.
 
 	  Say Y if you have a QNAP NAS.
+
+config POWER_RESET_REGULATOR
+	bool "Regulator subsystem power-off driver"
+	depends on OF && REGULATOR
+	help
+	  This driver supports turning off your board by disabling a
+	  power regulator defined in the devicetree.
 
 config POWER_RESET_RESTART
 	bool "Restart power-off driver"

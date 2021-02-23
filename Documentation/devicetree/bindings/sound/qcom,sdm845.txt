@@ -24,6 +24,14 @@ This binding describes the SDM845 sound card, which uses qdsp for audio.
 	Value type: <stringlist>
 	Definition: The user-visible name of this sound card.
 
+- aux-devs
+	Usage: optional
+	Value type: <array of phandles>
+	Definition: A list of phandles for auxiliary devices (e.g. analog
+		    amplifiers) that do not appear directly within the DAI
+		    links. Should be connected to another audio component
+		    using "audio-routing".
+
 = dailinks
 Each subnode of sndcard represents either a dailink, and subnodes of each
 dailinks would be cpu/codec/platform dais.

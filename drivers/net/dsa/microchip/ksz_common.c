@@ -72,7 +72,7 @@ static void ksz_mib_read_work(struct work_struct *work)
 	struct ksz_port *p;
 	int i;
 
-	for (i = 0; i < dev->mib_port_cnt; i++) {
+	for (i = 0; i < dev->port_cnt; i++) {
 		if (dsa_is_unused_port(dev->ds, i))
 			continue;
 
@@ -103,14 +103,8 @@ void ksz_init_mib_timer(struct ksz_device *dev)
 
 	INIT_DELAYED_WORK(&dev->mib_read, ksz_mib_read_work);
 
-	/* Read MIB counters every 30 seconds to avoid overflow. */
-	dev->mib_read_interval = msecs_to_jiffies(30000);
-
-	for (i = 0; i < dev->mib_port_cnt; i++)
+	for (i = 0; i < dev->port_cnt; i++)
 		dev->dev_ops->port_init_cnt(dev, i);
-
-	/* Start the timer 2 seconds later. */
-	schedule_delayed_work(&dev->mib_read, msecs_to_jiffies(2000));
 }
 EXPORT_SYMBOL_GPL(ksz_init_mib_timer);
 
@@ -143,7 +137,9 @@ void ksz_mac_link_down(struct dsa_switch *ds, int port, unsigned int mode,
 
 	/* Read all MIB counters when the link is going down. */
 	p->read = true;
-	schedule_delayed_work(&dev->mib_read, 0);
+	/* timer started */
+	if (dev->mib_read_interval)
+		schedule_delayed_work(&dev->mib_read, 0);
 }
 EXPORT_SYMBOL_GPL(ksz_mac_link_down);
 
@@ -402,8 +398,9 @@ int ksz_switch_register(struct ksz_device *dev,
 
 	if (dev->reset_gpio) {
 		gpiod_set_value_cansleep(dev->reset_gpio, 1);
-		mdelay(10);
+		usleep_range(10000, 12000);
 		gpiod_set_value_cansleep(dev->reset_gpio, 0);
+		msleep(100);
 	}
 
 	mutex_init(&dev->dev_mutex);
@@ -429,13 +426,15 @@ int ksz_switch_register(struct ksz_device *dev,
 		ret = of_get_phy_mode(dev->dev->of_node, &interface);
 		if (ret == 0)
 			dev->compat_interface = interface;
-		ports = of_get_child_by_name(dev->dev->of_node, "ports");
+		ports = of_get_child_by_name(dev->dev->of_node, "ethernet-ports");
+		if (!ports)
+			ports = of_get_child_by_name(dev->dev->of_node, "ports");
 		if (ports)
 			for_each_available_child_of_node(ports, port) {
 				if (of_property_read_u32(port, "reg",
 							 &port_num))
 					continue;
-				if (port_num >= dev->port_cnt)
+				if (!(dev->port_mask & BIT(port_num)))
 					return -EINVAL;
 				of_get_phy_mode(port,
 						&dev->ports[port_num].interface);
@@ -449,6 +448,12 @@ int ksz_switch_register(struct ksz_device *dev,
 		dev->dev_ops->exit(dev);
 		return ret;
 	}
+
+	/* Read MIB counters every 30 seconds to avoid overflow. */
+	dev->mib_read_interval = msecs_to_jiffies(30000);
+
+	/* Start the MIB timer. */
+	schedule_delayed_work(&dev->mib_read, 0);
 
 	return 0;
 }

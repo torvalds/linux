@@ -104,6 +104,12 @@ void dp_enable_link_phy(
 	struct clock_source *dp_cs =
 			link->dc->res_pool->dp_clock_source;
 	unsigned int i;
+
+	if (link->connector_signal == SIGNAL_TYPE_EDP) {
+		link->dc->hwss.edp_power_control(link, true);
+		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
+	}
+
 	/* If the current pixel clock source is not DTO(happens after
 	 * switching from HDMI passive dongle to DP on the same connector),
 	 * switch the pixel clock source to DTO.
@@ -150,6 +156,13 @@ void dp_enable_link_phy(
 	dp_receiver_power_ctrl(link, true);
 }
 
+void edp_add_delay_for_T9(struct dc_link *link)
+{
+	if (link->local_sink &&
+			link->local_sink->edid_caps.panel_patch.extra_delay_backlight_off > 0)
+		udelay(link->local_sink->edid_caps.panel_patch.extra_delay_backlight_off * 1000);
+}
+
 bool edp_receiver_ready_T9(struct dc_link *link)
 {
 	unsigned int tries = 0;
@@ -159,7 +172,7 @@ bool edp_receiver_ready_T9(struct dc_link *link)
 
 	result = core_link_read_dpcd(link, DP_EDP_DPCD_REV, &edpRev, sizeof(edpRev));
 
-     /* start from eDP version 1.2, SINK_STAUS indicate the sink is ready.*/
+    /* start from eDP version 1.2, SINK_STAUS indicate the sink is ready.*/
 	if (result == DC_OK && edpRev >= DP_EDP_12) {
 		do {
 			sinkstatus = 1;
@@ -171,10 +184,6 @@ bool edp_receiver_ready_T9(struct dc_link *link)
 			udelay(100); //MAx T9
 		} while (++tries < 50);
 	}
-
-	if (link->local_sink &&
-			link->local_sink->edid_caps.panel_patch.extra_delay_backlight_off > 0)
-		udelay(link->local_sink->edid_caps.panel_patch.extra_delay_backlight_off * 1000);
 
 	return result;
 }
@@ -223,6 +232,8 @@ void dp_disable_link_phy(struct dc_link *link, enum signal_type signal)
 		dp_receiver_power_ctrl(link, false);
 
 	if (signal == SIGNAL_TYPE_EDP) {
+		if (link->dc->hwss.edp_backlight_control)
+			link->dc->hwss.edp_backlight_control(link, false);
 		link->link_enc->funcs->disable_output(link->link_enc, signal);
 		link->dc->hwss.edp_power_control(link, false);
 	} else {
@@ -485,13 +496,15 @@ void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 				OPTC_DSC_DISABLED, 0, 0);
 
 		/* disable DSC in stream encoder */
-		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(
-					pipe_ctx->stream_res.stream_enc,
-					OPTC_DSC_DISABLED, 0, 0);
+		if (dc_is_dp_signal(stream->signal)) {
 
-			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_pps_info_packet(
-					pipe_ctx->stream_res.stream_enc, false, NULL);
+			if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+				pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(
+						pipe_ctx->stream_res.stream_enc,
+						OPTC_DSC_DISABLED, 0, 0);
+				pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_pps_info_packet(
+							pipe_ctx->stream_res.stream_enc, false, NULL);
+			}
 		}
 
 		/* disable DSC block */
@@ -528,7 +541,6 @@ out:
 bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable)
 {
 	struct display_stream_compressor *dsc = pipe_ctx->stream_res.dsc;
-	struct dc *dc = pipe_ctx->stream->ctx->dc;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 
 	if (!pipe_ctx->stream->timing.flags.DSC || !dsc)
@@ -551,7 +563,7 @@ bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable)
 
 		DC_LOG_DSC(" ");
 		dsc->funcs->dsc_get_packed_pps(dsc, &dsc_cfg, &dsc_packed_pps[0]);
-		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+		if (dc_is_dp_signal(stream->signal)) {
 			DC_LOG_DSC("Setting stream encoder DSC PPS SDP for engine %d\n", (int)pipe_ctx->stream_res.stream_enc->id);
 			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_pps_info_packet(
 									pipe_ctx->stream_res.stream_enc,
@@ -560,7 +572,7 @@ bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable)
 		}
 	} else {
 		/* disable DSC PPS in stream encoder */
-		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+		if (dc_is_dp_signal(stream->signal)) {
 			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_pps_info_packet(
 						pipe_ctx->stream_res.stream_enc, false, NULL);
 		}

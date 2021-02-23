@@ -132,7 +132,8 @@ struct zpci_dev {
 	u8		rid_available	: 1;
 	u8		has_hp_slot	: 1;
 	u8		is_physfn	: 1;
-	u8		reserved	: 5;
+	u8		util_str_avail	: 1;
+	u8		reserved	: 4;
 	unsigned int	devfn;		/* DEVFN part of the RID*/
 
 	struct mutex lock;
@@ -179,6 +180,7 @@ struct zpci_dev {
 	atomic64_t mapped_pages;
 	atomic64_t unmapped_pages;
 
+	u8		version;
 	enum pci_bus_speed max_bus_speed;
 
 	struct dentry	*debugfs_dev;
@@ -208,9 +210,8 @@ int zpci_unregister_ioat(struct zpci_dev *, u8);
 void zpci_remove_reserved_devices(void);
 
 /* CLP */
+int clp_setup_writeback_mio(void);
 int clp_scan_pci_devices(void);
-int clp_rescan_pci_devices(void);
-int clp_rescan_pci_devices_simple(u32 *fid);
 int clp_add_pci_device(u32, u32, int);
 int clp_enable_fh(struct zpci_dev *, u8);
 int clp_disable_fh(struct zpci_dev *);
@@ -232,12 +233,10 @@ static inline bool zpci_use_mio(struct zpci_dev *zdev)
 /* Error handling and recovery */
 void zpci_event_error(void *);
 void zpci_event_availability(void *);
-void zpci_rescan(void);
 bool zpci_is_enabled(void);
 #else /* CONFIG_PCI */
 static inline void zpci_event_error(void *e) {}
 static inline void zpci_event_availability(void *e) {}
-static inline void zpci_rescan(void) {}
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_HOTPLUG_PCI_S390
@@ -282,7 +281,6 @@ int zpci_debug_init(void);
 void zpci_debug_exit(void);
 void zpci_debug_init_device(struct zpci_dev *, const char *);
 void zpci_debug_exit_device(struct zpci_dev *);
-void zpci_debug_info(struct zpci_dev *, struct seq_file *);
 
 /* Error reporting */
 int zpci_report_error(struct pci_dev *, struct zpci_report_error_header *);

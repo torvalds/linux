@@ -14,7 +14,7 @@
 
 #define FONTDATAMAX 2048
 
-static struct font_data fontdata_pearl8x8 = {
+static const struct font_data fontdata_pearl8x8 = {
    { 0, 0, FONTDATAMAX, 0 }, {
    /* 0 0x00 '^@' */
    0x00, /* 00000000 */
@@ -2582,6 +2582,7 @@ const struct font_desc font_pearl_8x8 = {
 	.name	= "PEARL8x8",
 	.width	= 8,
 	.height	= 8,
+	.charcount = 256,
 	.data	= fontdata_pearl8x8.data,
 	.pref	= 2,
 };

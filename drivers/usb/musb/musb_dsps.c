@@ -429,10 +429,12 @@ static int dsps_musb_init(struct musb *musb)
 	struct platform_device *parent = to_platform_device(dev->parent);
 	const struct dsps_musb_wrapper *wrp = glue->wrp;
 	void __iomem *reg_base;
+	struct resource *r;
 	u32 rev, val;
 	int ret;
 
-	reg_base = devm_platform_ioremap_resource_byname(parent, "control");
+	r = platform_get_resource_byname(parent, IORESOURCE_MEM, "control");
+	reg_base = devm_ioremap_resource(dev, r);
 	if (IS_ERR(reg_base))
 		return PTR_ERR(reg_base);
 	musb->ctrl_base = reg_base;

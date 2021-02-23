@@ -521,8 +521,9 @@ static struct platform_driver sdhci_st_driver = {
 	.remove = sdhci_st_remove,
 	.driver = {
 		   .name = "sdhci-st",
+		   .probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		   .pm = &sdhci_st_pmops,
-		   .of_match_table = of_match_ptr(st_sdhci_match),
+		   .of_match_table = st_sdhci_match,
 		  },
 };
 

@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include "rc-core-priv.h"
 
-#define IMON_UNIT		415662 /* ns */
+#define IMON_UNIT		416 /* us */
 #define IMON_BITS		30
 #define IMON_CHKBITS		(BIT(30) | BIT(25) | BIT(24) | BIT(22) | \
 				 BIT(21) | BIT(20) | BIT(19) | BIT(18) | \
@@ -102,8 +102,7 @@ static int ir_imon_decode(struct rc_dev *dev, struct ir_raw_event ev)
 
 	dev_dbg(&dev->dev,
 		"iMON decode started at state %d bitno %d (%uus %s)\n",
-		data->state, data->count, TO_US(ev.duration),
-		TO_STR(ev.pulse));
+		data->state, data->count, ev.duration, TO_STR(ev.pulse));
 
 	/*
 	 * Since iMON protocol is a series of bits, if at any point
@@ -116,7 +115,7 @@ static int ir_imon_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	 * we're at a new scancode.
 	 */
 	if (data->state == STATE_ERROR) {
-		if (!ev.pulse && ev.duration > MS_TO_NS(10))
+		if (!ev.pulse && ev.duration > MS_TO_US(10))
 			data->state = STATE_INACTIVE;
 		return 0;
 	}
@@ -169,8 +168,7 @@ static int ir_imon_decode(struct rc_dev *dev, struct ir_raw_event ev)
 err_out:
 	dev_dbg(&dev->dev,
 		"iMON decode failed at state %d bitno %d (%uus %s)\n",
-		data->state, data->count, TO_US(ev.duration),
-		TO_STR(ev.pulse));
+		data->state, data->count, ev.duration, TO_STR(ev.pulse));
 
 	data->state = STATE_ERROR;
 

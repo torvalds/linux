@@ -392,8 +392,8 @@ static void set_gs_and_switch_to(unsigned long local,
 		local = read_base(GS);
 
 		/*
-		 * Signal delivery seems to mess up weird selectors.  Put it
-		 * back.
+		 * Signal delivery is quite likely to change a selector
+		 * of 1, 2, or 3 back to 0 due to IRET being defective.
 		 */
 		asm volatile ("mov %0, %%gs" : : "rm" (force_sel));
 	} else {
@@ -411,6 +411,14 @@ static void set_gs_and_switch_to(unsigned long local,
 	if (base == local && sel_pre_sched == sel_post_sched) {
 		printf("[OK]\tGS/BASE remained 0x%hx/0x%lx\n",
 		       sel_pre_sched, local);
+	} else if (base == local && sel_pre_sched >= 1 && sel_pre_sched <= 3 &&
+		   sel_post_sched == 0) {
+		/*
+		 * IRET is misdesigned and will squash selectors 1, 2, or 3
+		 * to zero.  Don't fail the test just because this happened.
+		 */
+		printf("[OK]\tGS/BASE changed from 0x%hx/0x%lx to 0x%hx/0x%lx because IRET is defective\n",
+		       sel_pre_sched, local, sel_post_sched, base);
 	} else {
 		nerrs++;
 		printf("[FAIL]\tGS/BASE changed from 0x%hx/0x%lx to 0x%hx/0x%lx\n",
@@ -442,6 +450,68 @@ static void test_unexpected_base(void)
 }
 
 #define USER_REGS_OFFSET(r) offsetof(struct user_regs_struct, r)
+
+static void test_ptrace_write_gs_read_base(void)
+{
+	int status;
+	pid_t child = fork();
+
+	if (child < 0)
+		err(1, "fork");
+
+	if (child == 0) {
+		printf("[RUN]\tPTRACE_POKE GS, read GSBASE back\n");
+
+		printf("[RUN]\tARCH_SET_GS to 1\n");
+		if (syscall(SYS_arch_prctl, ARCH_SET_GS, 1) != 0)
+			err(1, "ARCH_SET_GS");
+
+		if (ptrace(PTRACE_TRACEME, 0, NULL, NULL) != 0)
+			err(1, "PTRACE_TRACEME");
+
+		raise(SIGTRAP);
+		_exit(0);
+	}
+
+	wait(&status);
+
+	if (WSTOPSIG(status) == SIGTRAP) {
+		unsigned long base;
+		unsigned long gs_offset = USER_REGS_OFFSET(gs);
+		unsigned long base_offset = USER_REGS_OFFSET(gs_base);
+
+		/* Read the initial base.  It should be 1. */
+		base = ptrace(PTRACE_PEEKUSER, child, base_offset, NULL);
+		if (base == 1) {
+			printf("[OK]\tGSBASE started at 1\n");
+		} else {
+			nerrs++;
+			printf("[FAIL]\tGSBASE started at 0x%lx\n", base);
+		}
+
+		printf("[RUN]\tSet GS = 0x7, read GSBASE\n");
+
+		/* Poke an LDT selector into GS. */
+		if (ptrace(PTRACE_POKEUSER, child, gs_offset, 0x7) != 0)
+			err(1, "PTRACE_POKEUSER");
+
+		/* And read the base. */
+		base = ptrace(PTRACE_PEEKUSER, child, base_offset, NULL);
+
+		if (base == 0 || base == 1) {
+			printf("[OK]\tGSBASE reads as 0x%lx with invalid GS\n", base);
+		} else {
+			nerrs++;
+			printf("[FAIL]\tGSBASE=0x%lx (should be 0 or 1)\n", base);
+		}
+	}
+
+	ptrace(PTRACE_CONT, child, NULL, NULL);
+
+	wait(&status);
+	if (!WIFEXITED(status))
+		printf("[WARN]\tChild didn't exit cleanly.\n");
+}
 
 static void test_ptrace_write_gsbase(void)
 {
@@ -517,6 +587,9 @@ static void test_ptrace_write_gsbase(void)
 
 END:
 	ptrace(PTRACE_CONT, child, NULL, NULL);
+	wait(&status);
+	if (!WIFEXITED(status))
+		printf("[WARN]\tChild didn't exit cleanly.\n");
 }
 
 int main()
@@ -525,6 +598,9 @@ int main()
 
 	shared_scratch = mmap(NULL, 4096, PROT_READ | PROT_WRITE,
 			      MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+
+	/* Do these tests before we have an LDT. */
+	test_ptrace_write_gs_read_base();
 
 	/* Probe FSGSBASE */
 	sethandler(SIGILL, sigill, 0);

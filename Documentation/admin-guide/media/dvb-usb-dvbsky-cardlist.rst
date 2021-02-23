@@ -20,13 +20,13 @@ dvb-usb-dvbsky cards list
      - 0572:0320
    * - DVBSky T680CI
      - 0572:680c
-   * - MyGica Mini DVB-T2 USB Stick T230
+   * - MyGica Mini DVB-(T/T2/C) USB Stick T230
      - 0572:c688
-   * - MyGica Mini DVB-T2 USB Stick T230C
+   * - MyGica Mini DVB-(T/T2/C) USB Stick T230C
      - 0572:c689
-   * - MyGica Mini DVB-T2 USB Stick T230C Lite
+   * - MyGica Mini DVB-(T/T2/C) USB Stick T230C Lite
      - 0572:c699
-   * - MyGica Mini DVB-T2 USB Stick T230C v2
+   * - MyGica Mini DVB-(T/T2/C) USB Stick T230C v2
      - 0572:c68a
    * - TechnoTrend TT-connect CT2-4650 CI
      - 0b48:3012

@@ -166,7 +166,7 @@ static void cx2341x_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *ty
 
 /* Must be sorted from low to high control ID! */
 const u32 cx2341x_mpeg_ctrls[] = {
-	V4L2_CID_MPEG_CLASS,
+	V4L2_CID_CODEC_CLASS,
 	V4L2_CID_MPEG_STREAM_TYPE,
 	V4L2_CID_MPEG_STREAM_VBI_FMT,
 	V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ,
@@ -574,7 +574,7 @@ int cx2341x_ctrl_query(const struct cx2341x_mpeg_params *params,
 	int err;
 
 	switch (qctrl->id) {
-	case V4L2_CID_MPEG_CLASS:
+	case V4L2_CID_CODEC_CLASS:
 		return v4l2_ctrl_query_fill(qctrl, 0, 0, 0, 0);
 	case V4L2_CID_MPEG_STREAM_TYPE:
 		return v4l2_ctrl_query_fill(qctrl,

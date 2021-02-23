@@ -37,6 +37,8 @@ struct smcd_dmb {
 #define ISM_EVENT_GID	1
 #define ISM_EVENT_SWR	2
 
+#define ISM_RESERVED_VLANID	0x1FFF
+
 #define ISM_ERROR	0xFFFF
 
 struct smcd_event {
@@ -63,6 +65,8 @@ struct smcd_ops {
 	int (*move_data)(struct smcd_dev *dev, u64 dmb_tok, unsigned int idx,
 			 bool sf, unsigned int offset, void *data,
 			 unsigned int size);
+	void (*get_system_eid)(struct smcd_dev *dev, u8 **eid);
+	u16 (*get_chid)(struct smcd_dev *dev);
 };
 
 struct smcd_dev {

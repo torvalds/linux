@@ -657,8 +657,10 @@ static void block_input(struct net_device *dev, int count,
     outb_p(E8390_RREAD+E8390_START, nic_base + AXNET_CMD);
 
     insw(nic_base + AXNET_DATAPORT,buf,count>>1);
-    if (count & 0x01)
-	buf[count-1] = inb(nic_base + AXNET_DATAPORT), xfer_count++;
+    if (count & 0x01) {
+	buf[count-1] = inb(nic_base + AXNET_DATAPORT);
+	xfer_count++;
+    }
 
 }
 
@@ -1270,10 +1272,12 @@ static void ei_tx_intr(struct net_device *dev)
 			ei_local->txing = 1;
 			NS8390_trigger_send(dev, ei_local->tx2, ei_local->tx_start_page + 6);
 			netif_trans_update(dev);
-			ei_local->tx2 = -1,
+			ei_local->tx2 = -1;
 			ei_local->lasttx = 2;
+		} else {
+			ei_local->lasttx = 20;
+			ei_local->txing = 0;
 		}
-		else ei_local->lasttx = 20, ei_local->txing = 0;	
 	}
 	else if (ei_local->tx2 < 0) 
 	{
@@ -1289,9 +1293,10 @@ static void ei_tx_intr(struct net_device *dev)
 			netif_trans_update(dev);
 			ei_local->tx1 = -1;
 			ei_local->lasttx = 1;
+		} else {
+			ei_local->lasttx = 10;
+			ei_local->txing = 0;
 		}
-		else
-			ei_local->lasttx = 10, ei_local->txing = 0;
 	}
 //	else
 //		netdev_warn(dev, "unexpected TX-done interrupt, lasttx=%d\n",

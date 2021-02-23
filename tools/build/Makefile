@@ -15,10 +15,6 @@ endef
 $(call allow-override,CC,$(CROSS_COMPILE)gcc)
 $(call allow-override,LD,$(CROSS_COMPILE)ld)
 
-HOSTCC ?= gcc
-HOSTLD ?= ld
-HOSTAR ?= ar
-
 export HOSTCC HOSTLD HOSTAR
 
 ifeq ($(V),1)
@@ -38,6 +34,8 @@ clean:
 	$(call QUIET_CLEAN, fixdep)
 	$(Q)find $(if $(OUTPUT),$(OUTPUT),.) -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
 	$(Q)rm -f $(OUTPUT)fixdep
+	$(call QUIET_CLEAN, feature-detect)
+	$(Q)$(MAKE) -C feature/ clean >/dev/null
 
 $(OUTPUT)fixdep-in.o: FORCE
 	$(Q)$(MAKE) $(build)=fixdep

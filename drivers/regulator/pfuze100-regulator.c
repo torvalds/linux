@@ -105,15 +105,6 @@ static const int pfuze3000_sw2hi[] = {
 	2500000, 2800000, 2850000, 3000000, 3100000, 3150000, 3200000, 3300000,
 };
 
-static const struct i2c_device_id pfuze_device_id[] = {
-	{.name = "pfuze100", .driver_data = PFUZE100},
-	{.name = "pfuze200", .driver_data = PFUZE200},
-	{.name = "pfuze3000", .driver_data = PFUZE3000},
-	{.name = "pfuze3001", .driver_data = PFUZE3001},
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, pfuze_device_id);
-
 static const struct of_device_id pfuze_dt_ids[] = {
 	{ .compatible = "fsl,pfuze100", .data = (void *)PFUZE100},
 	{ .compatible = "fsl,pfuze200", .data = (void *)PFUZE200},
@@ -440,7 +431,6 @@ static struct pfuze_regulator pfuze3001_regulators[] = {
 	PFUZE100_VGEN_REG(PFUZE3001, VLDO4, PFUZE100_VGEN6VOL, 1800000, 3300000, 100000),
 };
 
-#ifdef CONFIG_OF
 /* PFUZE100 */
 static struct of_regulator_match pfuze100_matches[] = {
 	{ .name = "sw1ab",	},
@@ -578,22 +568,6 @@ static inline struct device_node *match_of_node(int index)
 {
 	return pfuze_matches[index].of_node;
 }
-#else
-static int pfuze_parse_regulators_dt(struct pfuze_chip *chip)
-{
-	return 0;
-}
-
-static inline struct regulator_init_data *match_init_data(int index)
-{
-	return NULL;
-}
-
-static inline struct device_node *match_of_node(int index)
-{
-	return NULL;
-}
-#endif
 
 static struct pfuze_chip *syspm_pfuze_chip;
 
@@ -708,8 +682,6 @@ static int pfuze100_regulator_probe(struct i2c_client *client,
 				    const struct i2c_device_id *id)
 {
 	struct pfuze_chip *pfuze_chip;
-	struct pfuze_regulator_platform_data *pdata =
-	    dev_get_platdata(&client->dev);
 	struct regulator_config config = { };
 	int i, ret;
 	const struct of_device_id *match;
@@ -802,10 +774,7 @@ static int pfuze100_regulator_probe(struct i2c_client *client,
 
 		desc = &pfuze_chip->regulator_descs[i].desc;
 
-		if (pdata)
-			init_data = pdata->init_data[i];
-		else
-			init_data = match_init_data(i);
+		init_data = match_init_data(i);
 
 		/* SW2~SW4 high bit check and modify the voltage value table */
 		if (i >= sw_check_start && i <= sw_check_end) {
@@ -836,11 +805,14 @@ static int pfuze100_regulator_probe(struct i2c_client *client,
 		 * the switched regulator till yet.
 		 */
 		if (pfuze_chip->flags & PFUZE_FLAG_DISABLE_SW) {
-			if (pfuze_chip->regulator_descs[i].sw_reg) {
-				desc->ops = &pfuze100_sw_disable_regulator_ops;
-				desc->enable_val = 0x8;
-				desc->disable_val = 0x0;
-				desc->enable_time = 500;
+			if (pfuze_chip->chip_id == PFUZE100 ||
+				pfuze_chip->chip_id == PFUZE200) {
+				if (pfuze_chip->regulator_descs[i].sw_reg) {
+					desc->ops = &pfuze100_sw_disable_regulator_ops;
+					desc->enable_val = 0x8;
+					desc->disable_val = 0x0;
+					desc->enable_time = 500;
+				}
 			}
 		}
 
@@ -876,7 +848,6 @@ static int pfuze100_regulator_remove(struct i2c_client *client)
 }
 
 static struct i2c_driver pfuze_driver = {
-	.id_table = pfuze_device_id,
 	.driver = {
 		.name = "pfuze100-regulator",
 		.of_match_table = pfuze_dt_ids,

@@ -18,7 +18,7 @@
 #include <linux/seq_file.h>
 #include <linux/err.h>
 
-#include <plat/cpu-freq-core.h>
+#include <linux/soc/samsung/s3c-cpufreq-core.h>
 
 static struct dentry *dbgfs_root;
 static struct dentry *dbgfs_file_io;

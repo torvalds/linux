@@ -15,12 +15,11 @@
 #include "libbpf_internal.h"
 #include "nlattr.h"
 
-/* make sure libbpf doesn't use kernel-only integer typedefs */
-#pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
-
 #ifndef SOL_NETLINK
 #define SOL_NETLINK 270
 #endif
+
+typedef int (*libbpf_dump_nlmsg_t)(void *cookie, void *msg, struct nlattr **tb);
 
 typedef int (*__dump_nlmsg_t)(struct nlmsghdr *nlmsg, libbpf_dump_nlmsg_t,
 			      void *cookie);
@@ -31,7 +30,7 @@ struct xdp_id_md {
 	struct xdp_link_info info;
 };
 
-int libbpf_netlink_open(__u32 *nl_pid)
+static int libbpf_netlink_open(__u32 *nl_pid)
 {
 	struct sockaddr_nl sa;
 	socklen_t addrlen;
@@ -283,6 +282,9 @@ static int get_xdp_info(void *cookie, void *msg, struct nlattr **tb)
 	return 0;
 }
 
+static int libbpf_nl_get_link(int sock, unsigned int nl_pid,
+			      libbpf_dump_nlmsg_t dump_link_nlmsg, void *cookie);
+
 int bpf_get_link_xdp_info(int ifindex, struct xdp_link_info *info,
 			  size_t info_size, __u32 flags)
 {
@@ -367,122 +369,4 @@ int libbpf_nl_get_link(int sock, unsigned int nl_pid,
 
 	return bpf_netlink_recv(sock, nl_pid, seq, __dump_link_nlmsg,
 				dump_link_nlmsg, cookie);
-}
-
-static int __dump_class_nlmsg(struct nlmsghdr *nlh,
-			      libbpf_dump_nlmsg_t dump_class_nlmsg,
-			      void *cookie)
-{
-	struct nlattr *tb[TCA_MAX + 1], *attr;
-	struct tcmsg *t = NLMSG_DATA(nlh);
-	int len;
-
-	len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*t));
-	attr = (struct nlattr *) ((void *) t + NLMSG_ALIGN(sizeof(*t)));
-	if (libbpf_nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
-		return -LIBBPF_ERRNO__NLPARSE;
-
-	return dump_class_nlmsg(cookie, t, tb);
-}
-
-int libbpf_nl_get_class(int sock, unsigned int nl_pid, int ifindex,
-			libbpf_dump_nlmsg_t dump_class_nlmsg, void *cookie)
-{
-	struct {
-		struct nlmsghdr nlh;
-		struct tcmsg t;
-	} req = {
-		.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct tcmsg)),
-		.nlh.nlmsg_type = RTM_GETTCLASS,
-		.nlh.nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST,
-		.t.tcm_family = AF_UNSPEC,
-		.t.tcm_ifindex = ifindex,
-	};
-	int seq = time(NULL);
-
-	req.nlh.nlmsg_seq = seq;
-	if (send(sock, &req, req.nlh.nlmsg_len, 0) < 0)
-		return -errno;
-
-	return bpf_netlink_recv(sock, nl_pid, seq, __dump_class_nlmsg,
-				dump_class_nlmsg, cookie);
-}
-
-static int __dump_qdisc_nlmsg(struct nlmsghdr *nlh,
-			      libbpf_dump_nlmsg_t dump_qdisc_nlmsg,
-			      void *cookie)
-{
-	struct nlattr *tb[TCA_MAX + 1], *attr;
-	struct tcmsg *t = NLMSG_DATA(nlh);
-	int len;
-
-	len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*t));
-	attr = (struct nlattr *) ((void *) t + NLMSG_ALIGN(sizeof(*t)));
-	if (libbpf_nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
-		return -LIBBPF_ERRNO__NLPARSE;
-
-	return dump_qdisc_nlmsg(cookie, t, tb);
-}
-
-int libbpf_nl_get_qdisc(int sock, unsigned int nl_pid, int ifindex,
-			libbpf_dump_nlmsg_t dump_qdisc_nlmsg, void *cookie)
-{
-	struct {
-		struct nlmsghdr nlh;
-		struct tcmsg t;
-	} req = {
-		.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct tcmsg)),
-		.nlh.nlmsg_type = RTM_GETQDISC,
-		.nlh.nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST,
-		.t.tcm_family = AF_UNSPEC,
-		.t.tcm_ifindex = ifindex,
-	};
-	int seq = time(NULL);
-
-	req.nlh.nlmsg_seq = seq;
-	if (send(sock, &req, req.nlh.nlmsg_len, 0) < 0)
-		return -errno;
-
-	return bpf_netlink_recv(sock, nl_pid, seq, __dump_qdisc_nlmsg,
-				dump_qdisc_nlmsg, cookie);
-}
-
-static int __dump_filter_nlmsg(struct nlmsghdr *nlh,
-			       libbpf_dump_nlmsg_t dump_filter_nlmsg,
-			       void *cookie)
-{
-	struct nlattr *tb[TCA_MAX + 1], *attr;
-	struct tcmsg *t = NLMSG_DATA(nlh);
-	int len;
-
-	len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*t));
-	attr = (struct nlattr *) ((void *) t + NLMSG_ALIGN(sizeof(*t)));
-	if (libbpf_nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
-		return -LIBBPF_ERRNO__NLPARSE;
-
-	return dump_filter_nlmsg(cookie, t, tb);
-}
-
-int libbpf_nl_get_filter(int sock, unsigned int nl_pid, int ifindex, int handle,
-			 libbpf_dump_nlmsg_t dump_filter_nlmsg, void *cookie)
-{
-	struct {
-		struct nlmsghdr nlh;
-		struct tcmsg t;
-	} req = {
-		.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct tcmsg)),
-		.nlh.nlmsg_type = RTM_GETTFILTER,
-		.nlh.nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST,
-		.t.tcm_family = AF_UNSPEC,
-		.t.tcm_ifindex = ifindex,
-		.t.tcm_parent = handle,
-	};
-	int seq = time(NULL);
-
-	req.nlh.nlmsg_seq = seq;
-	if (send(sock, &req, req.nlh.nlmsg_len, 0) < 0)
-		return -errno;
-
-	return bpf_netlink_recv(sock, nl_pid, seq, __dump_filter_nlmsg,
-				dump_filter_nlmsg, cookie);
 }

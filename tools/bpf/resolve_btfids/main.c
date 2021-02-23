@@ -139,6 +139,8 @@ int eprintf(int level, int var, const char *fmt, ...)
 #define pr_debug2(fmt, ...) pr_debugN(2, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_err(fmt, ...) \
 	eprintf(0, verbose, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_info(fmt, ...) \
+	eprintf(0, verbose, pr_fmt(fmt), ##__VA_ARGS__)
 
 static bool is_btf_id(const char *name)
 {
@@ -199,9 +201,16 @@ static char *get_id(const char *prefix_end)
 	/*
 	 * __BTF_ID__func__vfs_truncate__0
 	 * prefix_end =  ^
+	 * pos        =    ^
 	 */
-	char *p, *id = strdup(prefix_end + sizeof("__") - 1);
+	int len = strlen(prefix_end);
+	int pos = sizeof("__") - 1;
+	char *p, *id;
 
+	if (pos >= len)
+		return NULL;
+
+	id = strdup(prefix_end + pos);
 	if (id) {
 		/*
 		 * __BTF_ID__func__vfs_truncate__0
@@ -218,6 +227,24 @@ static char *get_id(const char *prefix_end)
 		*p = '\0';
 	}
 	return id;
+}
+
+static struct btf_id *add_set(struct object *obj, char *name)
+{
+	/*
+	 * __BTF_ID__set__name
+	 * name =    ^
+	 * id   =         ^
+	 */
+	char *id = name + sizeof(BTF_SET "__") - 1;
+	int len = strlen(name);
+
+	if (id >= name + len) {
+		pr_err("FAILED to parse set name: %s\n", name);
+		return NULL;
+	}
+
+	return btf_id__add(&obj->sets, id, true);
 }
 
 static struct btf_id *add_symbol(struct rb_root *root, char *name, size_t size)
@@ -412,7 +439,7 @@ static int symbols_collect(struct object *obj)
 			id = add_symbol(&obj->funcs, prefix, sizeof(BTF_FUNC) - 1);
 		/* set */
 		} else if (!strncmp(prefix, BTF_SET, sizeof(BTF_SET) - 1)) {
-			id = add_symbol(&obj->sets, prefix, sizeof(BTF_SET) - 1);
+			id = add_set(obj, prefix);
 			/*
 			 * SET objects store list's count, which is encoded
 			 * in symbol's size, together with 'cnt' field hence
@@ -429,7 +456,7 @@ static int symbols_collect(struct object *obj)
 			return -ENOMEM;
 
 		if (id->addr_cnt >= ADDR_CNT) {
-			pr_err("FAILED symbol %s crossed the number of allowed lists",
+			pr_err("FAILED symbol %s crossed the number of allowed lists\n",
 				id->name);
 			return -1;
 		}
@@ -447,23 +474,23 @@ static int symbols_resolve(struct object *obj)
 	int nr_funcs    = obj->nr_funcs;
 	int err, type_id;
 	struct btf *btf;
-	__u32 nr;
+	__u32 nr_types;
 
 	btf = btf__parse(obj->btf ?: obj->path, NULL);
 	err = libbpf_get_error(btf);
 	if (err) {
-		pr_err("FAILED: load BTF from %s: %s",
-			obj->path, strerror(err));
+		pr_err("FAILED: load BTF from %s: %s\n",
+			obj->path, strerror(-err));
 		return -1;
 	}
 
 	err = -1;
-	nr  = btf__get_nr_types(btf);
+	nr_types = btf__get_nr_types(btf);
 
 	/*
 	 * Iterate all the BTF types and search for collected symbol IDs.
 	 */
-	for (type_id = 1; type_id <= nr; type_id++) {
+	for (type_id = 1; type_id <= nr_types; type_id++) {
 		const struct btf_type *type;
 		struct rb_root *root;
 		struct btf_id *id;
@@ -501,8 +528,13 @@ static int symbols_resolve(struct object *obj)
 
 		id = btf_id__find(root, str);
 		if (id) {
-			id->id = type_id;
-			(*nr)--;
+			if (id->id) {
+				pr_info("WARN: multiple IDs found for '%s': %d, %d - using %d\n",
+					str, id->id, type_id, id->id);
+			} else {
+				id->id = type_id;
+				(*nr)--;
+			}
 		}
 	}
 

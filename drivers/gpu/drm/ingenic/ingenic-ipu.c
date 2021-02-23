@@ -35,6 +35,7 @@ struct soc_info {
 	const u32 *formats;
 	size_t num_formats;
 	bool has_bicubic;
+	bool manual_restart;
 
 	void (*set_coefs)(struct ingenic_ipu *ipu, unsigned int reg,
 			  unsigned int sharpness, bool downscale,
@@ -48,6 +49,7 @@ struct ingenic_ipu {
 	struct regmap *map;
 	struct clk *clk;
 	const struct soc_info *soc_info;
+	bool clk_enabled;
 
 	unsigned int num_w, num_h, denom_w, denom_h;
 
@@ -287,11 +289,22 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 	const struct drm_format_info *finfo;
 	u32 ctrl, stride = 0, coef_index = 0, format = 0;
 	bool needs_modeset, upscaling_w, upscaling_h;
+	int err;
 
 	if (!state || !state->fb)
 		return;
 
 	finfo = drm_format_info(state->fb->format->format);
+
+	if (!ipu->clk_enabled) {
+		err = clk_enable(ipu->clk);
+		if (err) {
+			dev_err(ipu->dev, "Unable to enable clock: %d\n", err);
+			return;
+		}
+
+		ipu->clk_enabled = true;
+	}
 
 	/* Reset all the registers if needed */
 	needs_modeset = drm_atomic_crtc_needs_modeset(state->crtc->state);
@@ -503,7 +516,7 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
 					  struct drm_plane_state *state)
 {
-	unsigned int num_w, denom_w, num_h, denom_h, xres, yres;
+	unsigned int num_w, denom_w, num_h, denom_h, xres, yres, max_w, max_h;
 	struct ingenic_ipu *ipu = plane_to_ingenic_ipu(plane);
 	struct drm_crtc *crtc = state->crtc ?: plane->state->crtc;
 	struct drm_crtc_state *crtc_state;
@@ -545,19 +558,26 @@ static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
 	xres = state->src_w >> 16;
 	yres = state->src_h >> 16;
 
-	/* Adjust the coefficients until we find a valid configuration */
-	for (denom_w = xres, num_w = state->crtc_w;
-	     num_w <= crtc_state->mode.hdisplay; num_w++)
+	/*
+	 * Increase the scaled image's theorical width/height until we find a
+	 * configuration that has valid scaling coefficients, up to 102% of the
+	 * screen's resolution. This makes sure that we can scale from almost
+	 * every resolution possible at the cost of a very small distorsion.
+	 * The CRTC_W / CRTC_H are not modified.
+	 */
+	max_w = crtc_state->mode.hdisplay * 102 / 100;
+	max_h = crtc_state->mode.vdisplay * 102 / 100;
+
+	for (denom_w = xres, num_w = state->crtc_w; num_w <= max_w; num_w++)
 		if (!reduce_fraction(&num_w, &denom_w))
 			break;
-	if (num_w > crtc_state->mode.hdisplay)
+	if (num_w > max_w)
 		return -EINVAL;
 
-	for (denom_h = yres, num_h = state->crtc_h;
-	     num_h <= crtc_state->mode.vdisplay; num_h++)
+	for (denom_h = yres, num_h = state->crtc_h; num_h <= max_h; num_h++)
 		if (!reduce_fraction(&num_h, &denom_h))
 			break;
-	if (num_h > crtc_state->mode.vdisplay)
+	if (num_h > max_h)
 		return -EINVAL;
 
 	ipu->num_w = num_w;
@@ -577,6 +597,11 @@ static void ingenic_ipu_plane_atomic_disable(struct drm_plane *plane,
 	regmap_clear_bits(ipu->map, JZ_REG_IPU_CTRL, JZ_IPU_CTRL_CHIP_EN);
 
 	ingenic_drm_plane_disable(ipu->master, plane);
+
+	if (ipu->clk_enabled) {
+		clk_disable(ipu->clk);
+		ipu->clk_enabled = false;
+	}
 }
 
 static const struct drm_plane_helper_funcs ingenic_ipu_plane_helper_funcs = {
@@ -645,7 +670,8 @@ static irqreturn_t ingenic_ipu_irq_handler(int irq, void *arg)
 	unsigned int dummy;
 
 	/* dummy read allows CPU to reconfigure IPU */
-	regmap_read(ipu->map, JZ_REG_IPU_STATUS, &dummy);
+	if (ipu->soc_info->manual_restart)
+		regmap_read(ipu->map, JZ_REG_IPU_STATUS, &dummy);
 
 	/* ACK interrupt */
 	regmap_write(ipu->map, JZ_REG_IPU_STATUS, 0);
@@ -656,7 +682,8 @@ static irqreturn_t ingenic_ipu_irq_handler(int irq, void *arg)
 	regmap_write(ipu->map, JZ_REG_IPU_V_ADDR, ipu->addr_v);
 
 	/* Run IPU for the new frame */
-	regmap_set_bits(ipu->map, JZ_REG_IPU_CTRL, JZ_IPU_CTRL_RUN);
+	if (ipu->soc_info->manual_restart)
+		regmap_set_bits(ipu->map, JZ_REG_IPU_CTRL, JZ_IPU_CTRL_RUN);
 
 	drm_crtc_handle_vblank(crtc);
 
@@ -758,9 +785,9 @@ static int ingenic_ipu_bind(struct device *dev, struct device *master, void *d)
 	drm_object_attach_property(&plane->base, ipu->sharpness_prop,
 				   ipu->sharpness);
 
-	err = clk_prepare_enable(ipu->clk);
+	err = clk_prepare(ipu->clk);
 	if (err) {
-		dev_err(dev, "Unable to enable clock\n");
+		dev_err(dev, "Unable to prepare clock\n");
 		return err;
 	}
 
@@ -772,7 +799,7 @@ static void ingenic_ipu_unbind(struct device *dev,
 {
 	struct ingenic_ipu *ipu = dev_get_drvdata(dev);
 
-	clk_disable_unprepare(ipu->clk);
+	clk_unprepare(ipu->clk);
 }
 
 static const struct component_ops ingenic_ipu_ops = {
@@ -792,10 +819,16 @@ static int ingenic_ipu_remove(struct platform_device *pdev)
 }
 
 static const u32 jz4725b_ipu_formats[] = {
+	/*
+	 * While officially supported, packed YUV 4:2:2 formats can cause
+	 * random hardware crashes on JZ4725B under certain circumstances.
+	 * It seems to happen with some specific resize ratios.
+	 * Until a proper workaround or fix is found, disable these formats.
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_YVYU,
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_VYUY,
+	*/
 	DRM_FORMAT_YUV411,
 	DRM_FORMAT_YUV420,
 	DRM_FORMAT_YUV422,
@@ -806,6 +839,7 @@ static const struct soc_info jz4725b_soc_info = {
 	.formats	= jz4725b_ipu_formats,
 	.num_formats	= ARRAY_SIZE(jz4725b_ipu_formats),
 	.has_bicubic	= false,
+	.manual_restart	= true,
 	.set_coefs	= jz4725b_set_coefs,
 };
 
@@ -831,6 +865,7 @@ static const struct soc_info jz4760_soc_info = {
 	.formats	= jz4760_ipu_formats,
 	.num_formats	= ARRAY_SIZE(jz4760_ipu_formats),
 	.has_bicubic	= true,
+	.manual_restart	= false,
 	.set_coefs	= jz4760_set_coefs,
 };
 

@@ -27,8 +27,6 @@ typedef u16		compat_nlink_t;
 typedef u16		compat_ipc_pid_t;
 typedef u32		compat_caddr_t;
 typedef __kernel_fsid_t	compat_fsid_t;
-typedef s64 __attribute__((aligned(4))) compat_s64;
-typedef u64 __attribute__((aligned(4))) compat_u64;
 
 struct compat_stat {
 	compat_dev_t	st_dev;
@@ -179,14 +177,13 @@ typedef struct user_regs_struct compat_elf_gregset_t;
 
 static inline void __user *arch_compat_alloc_user_space(long len)
 {
-	compat_uptr_t sp;
+	compat_uptr_t sp = task_pt_regs(current)->sp;
 
-	if (test_thread_flag(TIF_IA32)) {
-		sp = task_pt_regs(current)->sp;
-	} else {
-		/* -128 for the x32 ABI redzone */
-		sp = task_pt_regs(current)->sp - 128;
-	}
+	/*
+	 * -128 for the x32 ABI redzone.  For IA32, it is not strictly
+	 * necessary, but not harmful.
+	 */
+	sp -= 128;
 
 	return (void __user *)round_down(sp - len, 16);
 }
@@ -211,6 +208,7 @@ static inline bool in_compat_syscall(void)
 	return in_32bit_syscall();
 }
 #define in_compat_syscall in_compat_syscall	/* override the generic impl */
+#define compat_need_64bit_alignment_fixup in_ia32_syscall
 #endif
 
 struct compat_siginfo;

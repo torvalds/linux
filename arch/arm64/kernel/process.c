@@ -21,6 +21,7 @@
 #include <linux/lockdep.h>
 #include <linux/mman.h>
 #include <linux/mm.h>
+#include <linux/nospec.h>
 #include <linux/stddef.h>
 #include <linux/sysctl.h>
 #include <linux/unistd.h>
@@ -52,6 +53,7 @@
 #include <asm/exec.h>
 #include <asm/fpsimd.h>
 #include <asm/mmu_context.h>
+#include <asm/mte.h>
 #include <asm/processor.h>
 #include <asm/pointer_auth.h>
 #include <asm/stacktrace.h>
@@ -70,13 +72,13 @@ EXPORT_SYMBOL_GPL(pm_power_off);
 
 void (*arm_pm_restart)(enum reboot_mode reboot_mode, const char *cmd);
 
-static void __cpu_do_idle(void)
+static void noinstr __cpu_do_idle(void)
 {
 	dsb(sy);
 	wfi();
 }
 
-static void __cpu_do_idle_irqprio(void)
+static void noinstr __cpu_do_idle_irqprio(void)
 {
 	unsigned long pmr;
 	unsigned long daif_bits;
@@ -106,7 +108,7 @@ static void __cpu_do_idle_irqprio(void)
  *	ensure that interrupts are not masked at the PMR (because the core will
  *	not wake up if we block the wake up signal in the interrupt controller).
  */
-void cpu_do_idle(void)
+void noinstr cpu_do_idle(void)
 {
 	if (system_uses_irq_prio_masking())
 		__cpu_do_idle_irqprio();
@@ -117,14 +119,14 @@ void cpu_do_idle(void)
 /*
  * This is our default idle handler.
  */
-void arch_cpu_idle(void)
+void noinstr arch_cpu_idle(void)
 {
 	/*
 	 * This should do all the clock switching and wait for interrupt
 	 * tricks
 	 */
 	cpu_do_idle();
-	local_irq_enable();
+	raw_local_irq_enable();
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -239,7 +241,7 @@ static void print_pstate(struct pt_regs *regs)
 		const char *btype_str = btypes[(pstate & PSR_BTYPE_MASK) >>
 					       PSR_BTYPE_SHIFT];
 
-		printk("pstate: %08llx (%c%c%c%c %c%c%c%c %cPAN %cUAO BTYPE=%s)\n",
+		printk("pstate: %08llx (%c%c%c%c %c%c%c%c %cPAN %cUAO %cTCO BTYPE=%s)\n",
 			pstate,
 			pstate & PSR_N_BIT ? 'N' : 'n',
 			pstate & PSR_Z_BIT ? 'Z' : 'z',
@@ -251,6 +253,7 @@ static void print_pstate(struct pt_regs *regs)
 			pstate & PSR_F_BIT ? 'F' : 'f',
 			pstate & PSR_PAN_BIT ? '+' : '-',
 			pstate & PSR_UAO_BIT ? '+' : '-',
+			pstate & PSR_TCO_BIT ? '+' : '-',
 			btype_str);
 	}
 }
@@ -336,6 +339,7 @@ void flush_thread(void)
 	tls_thread_flush();
 	flush_ptrace_hw_breakpoint(current);
 	flush_tagged_addr_state();
+	flush_mte_state();
 }
 
 void release_thread(struct task_struct *dead_task)
@@ -367,6 +371,9 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	 */
 	dst->thread.sve_state = NULL;
 	clear_tsk_thread_flag(dst, TIF_SVE);
+
+	/* clear any pending asynchronous tag fault raised by the parent */
+	clear_tsk_thread_flag(dst, TIF_MTE_ASYNC_FAULT);
 
 	return 0;
 }
@@ -415,17 +422,15 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 		if (clone_flags & CLONE_SETTLS)
 			p->thread.uw.tp_value = tls;
 	} else {
+		/*
+		 * A kthread has no context to ERET to, so ensure any buggy
+		 * ERET is treated as an illegal exception return.
+		 *
+		 * When a user task is created from a kthread, childregs will
+		 * be initialized by start_thread() or start_compat_thread().
+		 */
 		memset(childregs, 0, sizeof(struct pt_regs));
-		childregs->pstate = PSR_MODE_EL1h;
-		if (IS_ENABLED(CONFIG_ARM64_UAO) &&
-		    cpus_have_const_cap(ARM64_HAS_UAO))
-			childregs->pstate |= PSR_UAO_BIT;
-
-		if (arm64_get_ssbd_state() == ARM64_SSBD_FORCE_DISABLE)
-			set_ssbs_bit(childregs);
-
-		if (system_uses_irq_prio_masking())
-			childregs->pmr_save = GIC_PRIO_IRQON;
+		childregs->pstate = PSR_MODE_EL1h | PSR_IL_BIT;
 
 		p->thread.cpu_context.x19 = stack_start;
 		p->thread.cpu_context.x20 = stk_sz;
@@ -455,25 +460,12 @@ static void tls_thread_switch(struct task_struct *next)
 	write_sysreg(*task_user_tls(next), tpidr_el0);
 }
 
-/* Restore the UAO state depending on next's addr_limit */
-void uao_thread_switch(struct task_struct *next)
-{
-	if (IS_ENABLED(CONFIG_ARM64_UAO)) {
-		if (task_thread_info(next)->addr_limit == KERNEL_DS)
-			asm(ALTERNATIVE("nop", SET_PSTATE_UAO(1), ARM64_HAS_UAO));
-		else
-			asm(ALTERNATIVE("nop", SET_PSTATE_UAO(0), ARM64_HAS_UAO));
-	}
-}
-
 /*
  * Force SSBS state on context-switch, since it may be lost after migrating
  * from a CPU which treats the bit as RES0 in a heterogeneous system.
  */
 static void ssbs_thread_switch(struct task_struct *next)
 {
-	struct pt_regs *regs = task_pt_regs(next);
-
 	/*
 	 * Nothing to do for kernel threads, but 'regs' may be junk
 	 * (e.g. idle task) so check the flags and bail early.
@@ -485,18 +477,10 @@ static void ssbs_thread_switch(struct task_struct *next)
 	 * If all CPUs implement the SSBS extension, then we just need to
 	 * context-switch the PSTATE field.
 	 */
-	if (cpu_have_feature(cpu_feature(SSBS)))
+	if (cpus_have_const_cap(ARM64_SSBS))
 		return;
 
-	/* If the mitigation is enabled, then we leave SSBS clear. */
-	if ((arm64_get_ssbd_state() == ARM64_SSBD_FORCE_ENABLE) ||
-	    test_tsk_thread_flag(next, TIF_SSBD))
-		return;
-
-	if (compat_user_mode(regs))
-		set_compat_ssbs_bit(regs);
-	else if (user_mode(regs))
-		set_ssbs_bit(regs);
+	spectre_v4_enable_task_mitigation(next);
 }
 
 /*
@@ -526,14 +510,13 @@ static void erratum_1418040_thread_switch(struct task_struct *prev,
 	bool prev32, next32;
 	u64 val;
 
-	if (!(IS_ENABLED(CONFIG_ARM64_ERRATUM_1418040) &&
-	      cpus_have_const_cap(ARM64_WORKAROUND_1418040)))
+	if (!IS_ENABLED(CONFIG_ARM64_ERRATUM_1418040))
 		return;
 
 	prev32 = is_compat_thread(task_thread_info(prev));
 	next32 = is_compat_thread(task_thread_info(next));
 
-	if (prev32 == next32)
+	if (prev32 == next32 || !this_cpu_has_cap(ARM64_WORKAROUND_1418040))
 		return;
 
 	val = read_sysreg(cntkctl_el1);
@@ -559,7 +542,6 @@ __notrace_funcgraph struct task_struct *__switch_to(struct task_struct *prev,
 	hw_breakpoint_thread_switch(next);
 	contextidr_thread_switch(next);
 	entry_task_switch(next);
-	uao_thread_switch(next);
 	ssbs_thread_switch(next);
 	erratum_1418040_thread_switch(prev, next);
 
@@ -570,6 +552,13 @@ __notrace_funcgraph struct task_struct *__switch_to(struct task_struct *prev,
 	 * call.
 	 */
 	dsb(ish);
+
+	/*
+	 * MTE thread switching must happen after the DSB above to ensure that
+	 * any asynchronous tag check faults have been logged in the TFSR*_EL1
+	 * registers.
+	 */
+	mte_thread_switch(next);
 
 	/* the actual thread switch */
 	last = cpu_switch_to(prev, next);
@@ -620,6 +609,11 @@ void arch_setup_new_exec(void)
 	current->mm->context.flags = is_compat_task() ? MMCF_AARCH32 : 0;
 
 	ptrauth_thread_init_user(current);
+
+	if (task_spec_ssb_noexec(current)) {
+		arch_prctl_spec_ctrl_set(current, PR_SPEC_STORE_BYPASS,
+					 PR_SPEC_ENABLE);
+	}
 }
 
 #ifdef CONFIG_ARM64_TAGGED_ADDR_ABI
@@ -628,11 +622,18 @@ void arch_setup_new_exec(void)
  */
 static unsigned int tagged_addr_disabled;
 
-long set_tagged_addr_ctrl(unsigned long arg)
+long set_tagged_addr_ctrl(struct task_struct *task, unsigned long arg)
 {
-	if (is_compat_task())
+	unsigned long valid_mask = PR_TAGGED_ADDR_ENABLE;
+	struct thread_info *ti = task_thread_info(task);
+
+	if (is_compat_thread(ti))
 		return -EINVAL;
-	if (arg & ~PR_TAGGED_ADDR_ENABLE)
+
+	if (system_supports_mte())
+		valid_mask |= PR_MTE_TCF_MASK | PR_MTE_TAG_MASK;
+
+	if (arg & ~valid_mask)
 		return -EINVAL;
 
 	/*
@@ -642,20 +643,28 @@ long set_tagged_addr_ctrl(unsigned long arg)
 	if (arg & PR_TAGGED_ADDR_ENABLE && tagged_addr_disabled)
 		return -EINVAL;
 
-	update_thread_flag(TIF_TAGGED_ADDR, arg & PR_TAGGED_ADDR_ENABLE);
+	if (set_mte_ctrl(task, arg) != 0)
+		return -EINVAL;
+
+	update_ti_thread_flag(ti, TIF_TAGGED_ADDR, arg & PR_TAGGED_ADDR_ENABLE);
 
 	return 0;
 }
 
-long get_tagged_addr_ctrl(void)
+long get_tagged_addr_ctrl(struct task_struct *task)
 {
-	if (is_compat_task())
+	long ret = 0;
+	struct thread_info *ti = task_thread_info(task);
+
+	if (is_compat_thread(ti))
 		return -EINVAL;
 
-	if (test_thread_flag(TIF_TAGGED_ADDR))
-		return PR_TAGGED_ADDR_ENABLE;
+	if (test_ti_thread_flag(ti, TIF_TAGGED_ADDR))
+		ret = PR_TAGGED_ADDR_ENABLE;
 
-	return 0;
+	ret |= get_mte_ctrl(task);
+
+	return ret;
 }
 
 /*

@@ -16,8 +16,6 @@
 
 #include <trace/events/kvm.h>
 
-#include <asm/msidef.h>
-
 #include "irq.h"
 
 #include "ioapic.h"
@@ -104,22 +102,19 @@ int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 void kvm_set_msi_irq(struct kvm *kvm, struct kvm_kernel_irq_routing_entry *e,
 		     struct kvm_lapic_irq *irq)
 {
-	trace_kvm_msi_set_irq(e->msi.address_lo | (kvm->arch.x2apic_format ?
-	                                     (u64)e->msi.address_hi << 32 : 0),
-	                      e->msi.data);
+	struct msi_msg msg = { .address_lo = e->msi.address_lo,
+			       .address_hi = e->msi.address_hi,
+			       .data = e->msi.data };
 
-	irq->dest_id = (e->msi.address_lo &
-			MSI_ADDR_DEST_ID_MASK) >> MSI_ADDR_DEST_ID_SHIFT;
-	if (kvm->arch.x2apic_format)
-		irq->dest_id |= MSI_ADDR_EXT_DEST_ID(e->msi.address_hi);
-	irq->vector = (e->msi.data &
-			MSI_DATA_VECTOR_MASK) >> MSI_DATA_VECTOR_SHIFT;
-	irq->dest_mode = kvm_lapic_irq_dest_mode(
-	    !!((1 << MSI_ADDR_DEST_MODE_SHIFT) & e->msi.address_lo));
-	irq->trig_mode = (1 << MSI_DATA_TRIGGER_SHIFT) & e->msi.data;
-	irq->delivery_mode = e->msi.data & 0x700;
-	irq->msi_redir_hint = ((e->msi.address_lo
-		& MSI_ADDR_REDIRECTION_LOWPRI) > 0);
+	trace_kvm_msi_set_irq(msg.address_lo | (kvm->arch.x2apic_format ?
+			      (u64)msg.address_hi << 32 : 0), msg.data);
+
+	irq->dest_id = x86_msi_msg_get_destid(&msg, kvm->arch.x2apic_format);
+	irq->vector = msg.arch_data.vector;
+	irq->dest_mode = kvm_lapic_irq_dest_mode(msg.arch_addr_lo.dest_mode_logical);
+	irq->trig_mode = msg.arch_data.is_level;
+	irq->delivery_mode = msg.arch_data.delivery_mode << 8;
+	irq->msi_redir_hint = msg.arch_addr_lo.redirect_hint;
 	irq->level = 1;
 	irq->shorthand = APIC_DEST_NOSHORT;
 }

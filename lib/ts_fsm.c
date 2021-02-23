@@ -193,7 +193,7 @@ startover:
 				TOKEN_MISMATCH();
 
 			block_idx++;
-			/* fall through */
+			fallthrough;
 
 		case TS_FSM_ANY:
 			if (next == NULL)

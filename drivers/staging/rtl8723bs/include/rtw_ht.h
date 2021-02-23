@@ -33,7 +33,7 @@ struct ht_priv {
 	u8 stbc_cap;
 	u8 beamform_cap;
 
-	struct rtw_ieee80211_ht_cap ht_cap;
+	struct ieee80211_ht_cap ht_cap;
 
 };
 

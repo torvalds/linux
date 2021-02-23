@@ -759,6 +759,7 @@ static void brcmf_pcie_bus_console_init(struct brcmf_pciedev_info *devinfo)
 /**
  * brcmf_pcie_bus_console_read - reads firmware messages
  *
+ * @devinfo: pointer to the device data structure
  * @error: specifies if error has occurred (prints messages unconditionally)
  */
 static void brcmf_pcie_bus_console_read(struct brcmf_pciedev_info *devinfo,
@@ -1936,16 +1937,18 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	fwreq = brcmf_pcie_prepare_fw_request(devinfo);
 	if (!fwreq) {
 		ret = -ENOMEM;
-		goto fail_bus;
+		goto fail_brcmf;
 	}
 
 	ret = brcmf_fw_get_firmwares(bus->dev, fwreq, brcmf_pcie_setup);
 	if (ret < 0) {
 		kfree(fwreq);
-		goto fail_bus;
+		goto fail_brcmf;
 	}
 	return 0;
 
+fail_brcmf:
+	brcmf_free(&devinfo->pdev->dev);
 fail_bus:
 	kfree(bus->msgbuf);
 	kfree(bus);

@@ -4,6 +4,7 @@
 
 #include "aspeed-g6.dtsi"
 #include <dt-bindings/gpio/aspeed-gpio.h>
+#include <dt-bindings/i2c/i2c.h>
 #include <dt-bindings/leds/leds-pca955x.h>
 
 / {
@@ -25,9 +26,18 @@
 		#size-cells = <1>;
 		ranges;
 
-		flash_memory: region@ba000000 {
+		flash_memory: region@b8000000 {
 			no-map;
 			reg = <0xb8000000 0x4000000>; /* 64M */
+		};
+
+		ramoops@bc000000 {
+			compatible = "ramoops";
+			reg = <0xbc000000 0x180000>; /* 16 * (3 * 0x8000) */
+			record-size = <0x8000>;
+			console-size = <0x8000>;
+			pmsg-size = <0x8000>;
+			max-reason = <3>; /* KMSG_DUMP_EMERG */
 		};
 
 		vga_memory: region@bf000000 {
@@ -438,7 +448,13 @@
 };
 
 &i2c0 {
+	multi-master;
 	status = "okay";
+
+	ibm-panel@62 {
+		compatible = "ibm,op-panel";
+		reg = <(0x62 | I2C_OWN_SLAVE_ADDRESS)>;
+	};
 };
 
 &i2c1 {

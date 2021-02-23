@@ -227,7 +227,7 @@ static int cpsw_port_vlan_del(struct cpsw_priv *priv, u16 vid,
 	else
 		port_mask = BIT(priv->emac_port);
 
-	ret = cpsw_ale_del_vlan(cpsw->ale, vid, port_mask);
+	ret = cpsw_ale_vlan_del_modify(cpsw->ale, vid, port_mask);
 	if (ret != 0)
 		return ret;
 

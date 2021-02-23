@@ -1,67 +1,9 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2013 - 2014, 2019 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
- * Copyright(c) 2019 - 2020 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2012 - 2014, 2019 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
- * Copyright(c) 2019 - 2020 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
-
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright (C) 2012-2014, 2019-2020 Intel Corporation
+ * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
+ * Copyright (C) 2015-2016 Intel Deutschland GmbH
+ */
 #include <linux/sort.h>
 
 #include "mvm.h"
@@ -228,24 +170,67 @@ void iwl_mvm_ct_kill_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	iwl_mvm_enter_ctkill(mvm);
 }
 
-static int iwl_mvm_get_temp_cmd(struct iwl_mvm *mvm)
+/*
+ * send the DTS_MEASUREMENT_TRIGGER command with or without waiting for a
+ * response. If we get a response then the measurement is stored in 'temp'
+ */
+static int iwl_mvm_send_temp_cmd(struct iwl_mvm *mvm, bool response, s32 *temp)
 {
-	struct iwl_dts_measurement_cmd cmd = {
+	struct iwl_host_cmd cmd = {};
+	struct iwl_dts_measurement_cmd dts_cmd = {
 		.flags = cpu_to_le32(DTS_TRIGGER_CMD_FLAGS_TEMP),
 	};
-	struct iwl_ext_dts_measurement_cmd extcmd = {
+	struct iwl_ext_dts_measurement_cmd ext_cmd = {
 		.control_mode = cpu_to_le32(DTS_DIRECT_WITHOUT_MEASURE),
 	};
-	u32 cmdid;
+	struct iwl_dts_measurement_resp *resp;
+	void *cmd_ptr;
+	int ret;
+	u32 cmd_flags = 0;
+	u16 len;
 
-	cmdid = iwl_cmd_id(CMD_DTS_MEASUREMENT_TRIGGER_WIDE,
-			   PHY_OPS_GROUP, 0);
+	/* Check which command format is used (regular/extended) */
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_EXTENDED_DTS_MEASURE)) {
+		len = sizeof(ext_cmd);
+		cmd_ptr = &ext_cmd;
+	} else {
+		len = sizeof(dts_cmd);
+		cmd_ptr = &dts_cmd;
+	}
+	/* The command version where we get a response is zero length */
+	if (response) {
+		cmd_flags = CMD_WANT_SKB;
+		len = 0;
+	}
 
-	if (!fw_has_capa(&mvm->fw->ucode_capa,
-			 IWL_UCODE_TLV_CAPA_EXTENDED_DTS_MEASURE))
-		return iwl_mvm_send_cmd_pdu(mvm, cmdid, 0, sizeof(cmd), &cmd);
+	cmd.id =  WIDE_ID(PHY_OPS_GROUP, CMD_DTS_MEASUREMENT_TRIGGER_WIDE);
+	cmd.len[0] = len;
+	cmd.flags = cmd_flags;
+	cmd.data[0] = cmd_ptr;
 
-	return iwl_mvm_send_cmd_pdu(mvm, cmdid, 0, sizeof(extcmd), &extcmd);
+	IWL_DEBUG_TEMP(mvm,
+		       "Sending temperature measurement command - %s response\n",
+		       response ? "with" : "without");
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+
+	if (ret) {
+		IWL_ERR(mvm,
+			"Failed to send the temperature measurement command (err=%d)\n",
+			ret);
+		return ret;
+	}
+
+	if (response) {
+		resp = (void *)cmd.resp_pkt->data;
+		*temp = le32_to_cpu(resp->temp);
+		IWL_DEBUG_TEMP(mvm,
+			       "Got temperature measurement response: temp=%d\n",
+			       *temp);
+		iwl_free_resp(&cmd);
+	}
+
+	return ret;
 }
 
 int iwl_mvm_get_temp(struct iwl_mvm *mvm, s32 *temp)
@@ -254,6 +239,18 @@ int iwl_mvm_get_temp(struct iwl_mvm *mvm, s32 *temp)
 	static u16 temp_notif[] = { WIDE_ID(PHY_OPS_GROUP,
 					    DTS_MEASUREMENT_NOTIF_WIDE) };
 	int ret;
+	u8 cmd_ver;
+
+	/*
+	 * If command version is 1 we send the command and immediately get
+	 * a response. For older versions we send the command and wait for a
+	 * notification (no command TLV for previous versions).
+	 */
+	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, PHY_OPS_GROUP,
+					CMD_DTS_MEASUREMENT_TRIGGER_WIDE,
+					IWL_FW_CMD_VER_UNKNOWN);
+	if (cmd_ver == 1)
+		return iwl_mvm_send_temp_cmd(mvm, true, temp);
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -261,9 +258,8 @@ int iwl_mvm_get_temp(struct iwl_mvm *mvm, s32 *temp)
 				   temp_notif, ARRAY_SIZE(temp_notif),
 				   iwl_mvm_temp_notif_wait, temp);
 
-	ret = iwl_mvm_get_temp_cmd(mvm);
+	ret = iwl_mvm_send_temp_cmd(mvm, false, temp);
 	if (ret) {
-		IWL_ERR(mvm, "Failed to get the temperature (err=%d)\n", ret);
 		iwl_remove_notification(&mvm->notif_wait, &wait_temp_notif);
 		return ret;
 	}
@@ -294,6 +290,8 @@ static void check_exit_ctkill(struct work_struct *work)
 	}
 
 	duration = tt->params.ct_kill_duration;
+
+	flush_work(&mvm->roc_done_wk);
 
 	mutex_lock(&mvm->mutex);
 
@@ -345,7 +343,7 @@ static void iwl_mvm_tt_tx_protection(struct iwl_mvm *mvm, bool enable)
 	struct iwl_mvm_sta *mvmsta;
 	int i, err;
 
-	for (i = 0; i < ARRAY_SIZE(mvm->fw_id_to_mac_id); i++) {
+	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
 		mvmsta = iwl_mvm_sta_from_staid_protected(mvm, i);
 		if (!mvmsta)
 			continue;

@@ -113,7 +113,6 @@ static struct file *__alloc_file(int flags, const struct cred *cred)
 	rwlock_init(&f->f_owner.lock);
 	spin_lock_init(&f->f_lock);
 	mutex_init(&f->f_pos_lock);
-	eventpoll_init_file(f);
 	f->f_flags = flags;
 	f->f_mode = OPEN_FMODE(flags);
 	/* f->f_version: 0 */
@@ -339,7 +338,7 @@ void fput_many(struct file *file, unsigned int refs)
 
 		if (likely(!in_interrupt() && !(task->flags & PF_KTHREAD))) {
 			init_task_work(&file->f_u.fu_rcuhead, ____fput);
-			if (!task_work_add(task, &file->f_u.fu_rcuhead, true))
+			if (!task_work_add(task, &file->f_u.fu_rcuhead, TWA_RESUME))
 				return;
 			/*
 			 * After this task has run exit_task_work(),

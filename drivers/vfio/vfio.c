@@ -1949,8 +1949,10 @@ int vfio_pin_pages(struct device *dev, unsigned long *user_pfn, int npage,
 	if (!group)
 		return -ENODEV;
 
-	if (group->dev_counter > 1)
-		return -EINVAL;
+	if (group->dev_counter > 1) {
+		ret = -EINVAL;
+		goto err_pin_pages;
+	}
 
 	ret = vfio_group_add_container_user(group);
 	if (ret)
@@ -2049,6 +2051,9 @@ int vfio_group_pin_pages(struct vfio_group *group,
 	int ret;
 
 	if (!group || !user_iova_pfn || !phys_pfn || !npage)
+		return -EINVAL;
+
+	if (group->dev_counter > 1)
 		return -EINVAL;
 
 	if (npage > VFIO_PIN_PAGES_MAX_ENTRIES)
@@ -2325,6 +2330,24 @@ int vfio_unregister_notifier(struct device *dev, enum vfio_notify_type type,
 	return ret;
 }
 EXPORT_SYMBOL(vfio_unregister_notifier);
+
+struct iommu_domain *vfio_group_iommu_domain(struct vfio_group *group)
+{
+	struct vfio_container *container;
+	struct vfio_iommu_driver *driver;
+
+	if (!group)
+		return ERR_PTR(-EINVAL);
+
+	container = group->container;
+	driver = container->iommu_driver;
+	if (likely(driver && driver->ops->group_iommu_domain))
+		return driver->ops->group_iommu_domain(container->iommu_data,
+						       group->iommu_group);
+
+	return ERR_PTR(-ENOTTY);
+}
+EXPORT_SYMBOL_GPL(vfio_group_iommu_domain);
 
 /**
  * Module/class support

@@ -28,6 +28,7 @@
 
 #include "i915_drv.h"
 
+#include "intel_breadcrumbs.h"
 #include "intel_context.h"
 #include "intel_engine.h"
 #include "intel_engine_pm.h"
@@ -304,8 +305,9 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	engine->i915 = i915;
 	engine->gt = gt;
 	engine->uncore = gt->uncore;
-	engine->hw_id = engine->guc_id = info->hw_id;
 	engine->mmio_base = __engine_mmio_base(i915, info->mmio_bases);
+	engine->hw_id = info->hw_id;
+	engine->guc_id = MAKE_GUC_ID(info->class, info->instance);
 
 	engine->class = info->class;
 	engine->instance = info->instance;
@@ -370,7 +372,8 @@ static void __setup_engine_capabilities(struct intel_engine_cs *engine)
 		 * instances.
 		 */
 		if ((INTEL_GEN(i915) >= 11 &&
-		     engine->gt->info.vdbox_sfc_access & engine->mask) ||
+		     (engine->gt->info.vdbox_sfc_access &
+		      BIT(engine->instance))) ||
 		    (INTEL_GEN(i915) >= 9 && engine->instance == 0))
 			engine->uabi_capabilities |=
 				I915_VIDEO_AND_ENHANCE_CLASS_CAPABILITY_SFC;
@@ -634,7 +637,7 @@ static int pin_ggtt_status_page(struct intel_engine_cs *engine,
 	else
 		flags = PIN_HIGH;
 
-	return i915_ggtt_pin(vma, 0, flags);
+	return i915_ggtt_pin(vma, NULL, 0, flags);
 }
 
 static int init_status_page(struct intel_engine_cs *engine)
@@ -700,8 +703,13 @@ static int engine_setup_common(struct intel_engine_cs *engine)
 	if (err)
 		return err;
 
+	engine->breadcrumbs = intel_breadcrumbs_create(engine);
+	if (!engine->breadcrumbs) {
+		err = -ENOMEM;
+		goto err_status;
+	}
+
 	intel_engine_init_active(engine, ENGINE_PHYSICAL);
-	intel_engine_init_breadcrumbs(engine);
 	intel_engine_init_execlists(engine);
 	intel_engine_init_cmd_parser(engine);
 	intel_engine_init__pm(engine);
@@ -716,6 +724,10 @@ static int engine_setup_common(struct intel_engine_cs *engine)
 	intel_engine_init_ctx_wa(engine);
 
 	return 0;
+
+err_status:
+	cleanup_status_page(engine);
+	return err;
 }
 
 struct measure_breadcrumb {
@@ -785,9 +797,11 @@ intel_engine_init_active(struct intel_engine_cs *engine, unsigned int subclass)
 }
 
 static struct intel_context *
-create_kernel_context(struct intel_engine_cs *engine)
+create_pinned_context(struct intel_engine_cs *engine,
+		      unsigned int hwsp,
+		      struct lock_class_key *key,
+		      const char *name)
 {
-	static struct lock_class_key kernel;
 	struct intel_context *ce;
 	int err;
 
@@ -796,6 +810,7 @@ create_kernel_context(struct intel_engine_cs *engine)
 		return ce;
 
 	__set_bit(CONTEXT_BARRIER_BIT, &ce->flags);
+	ce->timeline = page_pack_bits(NULL, hwsp);
 
 	err = intel_context_pin(ce); /* perma-pin so it is always available */
 	if (err) {
@@ -809,9 +824,18 @@ create_kernel_context(struct intel_engine_cs *engine)
 	 * should we need to inject GPU operations during their request
 	 * construction.
 	 */
-	lockdep_set_class(&ce->timeline->mutex, &kernel);
+	lockdep_set_class_and_name(&ce->timeline->mutex, key, name);
 
 	return ce;
+}
+
+static struct intel_context *
+create_kernel_context(struct intel_engine_cs *engine)
+{
+	static struct lock_class_key kernel;
+
+	return create_pinned_context(engine, I915_GEM_HWS_SEQNO_ADDR,
+				     &kernel, "kernel_context");
 }
 
 /**
@@ -902,9 +926,9 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	tasklet_kill(&engine->execlists.tasklet); /* flush the callback */
 
 	cleanup_status_page(engine);
+	intel_breadcrumbs_free(engine->breadcrumbs);
 
 	intel_engine_fini_retire(engine);
-	intel_engine_fini_breadcrumbs(engine);
 	intel_engine_cleanup_cmd_parser(engine);
 
 	if (engine->default_state)
@@ -1577,6 +1601,41 @@ static unsigned long list_count(struct list_head *list)
 	return count;
 }
 
+static unsigned long read_ul(void *p, size_t x)
+{
+	return *(unsigned long *)(p + x);
+}
+
+static void print_properties(struct intel_engine_cs *engine,
+			     struct drm_printer *m)
+{
+	static const struct pmap {
+		size_t offset;
+		const char *name;
+	} props[] = {
+#define P(x) { \
+	.offset = offsetof(typeof(engine->props), x), \
+	.name = #x \
+}
+		P(heartbeat_interval_ms),
+		P(max_busywait_duration_ns),
+		P(preempt_timeout_ms),
+		P(stop_timeout_ms),
+		P(timeslice_duration_ms),
+
+		{},
+#undef P
+	};
+	const struct pmap *p;
+
+	drm_printf(m, "\tProperties:\n");
+	for (p = props; p->name; p++)
+		drm_printf(m, "\t\t%s: %lu [default %lu]\n",
+			   p->name,
+			   read_ul(&engine->props, p->offset),
+			   read_ul(&engine->defaults, p->offset));
+}
+
 void intel_engine_dump(struct intel_engine_cs *engine,
 		       struct drm_printer *m,
 		       const char *header, ...)
@@ -1619,6 +1678,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	drm_printf(m, "\tReset count: %d (global %d)\n",
 		   i915_reset_engine_count(error, engine),
 		   i915_reset_count(error));
+	print_properties(engine, m);
 
 	drm_printf(m, "\tRequests:\n");
 

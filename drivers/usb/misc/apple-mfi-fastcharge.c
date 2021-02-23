@@ -120,8 +120,10 @@ static int apple_mfi_fc_set_property(struct power_supply *psy,
 	dev_dbg(&mfi->udev->dev, "prop: %d\n", psp);
 
 	ret = pm_runtime_get_sync(&mfi->udev->dev);
-	if (ret < 0)
+	if (ret < 0) {
+		pm_runtime_put_noidle(&mfi->udev->dev);
 		return ret;
+	}
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
@@ -163,23 +165,27 @@ static const struct power_supply_desc apple_mfi_fc_desc = {
 	.property_is_writeable  = apple_mfi_fc_property_is_writeable
 };
 
+static bool mfi_fc_match(struct usb_device *udev)
+{
+	int idProduct;
+
+	idProduct = le16_to_cpu(udev->descriptor.idProduct);
+	/* See comment above mfi_fc_id_table[] */
+	return (idProduct >= 0x1200 && idProduct <= 0x12ff);
+}
+
 static int mfi_fc_probe(struct usb_device *udev)
 {
 	struct power_supply_config battery_cfg = {};
 	struct mfi_device *mfi = NULL;
-	int err, idProduct;
+	int err;
 
-	idProduct = le16_to_cpu(udev->descriptor.idProduct);
-	/* See comment above mfi_fc_id_table[] */
-	if (idProduct < 0x1200 || idProduct > 0x12ff) {
+	if (!mfi_fc_match(udev))
 		return -ENODEV;
-	}
 
 	mfi = kzalloc(sizeof(struct mfi_device), GFP_KERNEL);
-	if (!mfi) {
-		err = -ENOMEM;
-		goto error;
-	}
+	if (!mfi)
+		return -ENOMEM;
 
 	battery_cfg.drv_data = mfi;
 
@@ -190,17 +196,14 @@ static int mfi_fc_probe(struct usb_device *udev)
 	if (IS_ERR(mfi->battery)) {
 		dev_err(&udev->dev, "Can't register battery\n");
 		err = PTR_ERR(mfi->battery);
-		goto error;
+		kfree(mfi);
+		return err;
 	}
 
 	mfi->udev = usb_get_dev(udev);
 	dev_set_drvdata(&udev->dev, mfi);
 
 	return 0;
-
-error:
-	kfree(mfi);
-	return err;
 }
 
 static void mfi_fc_disconnect(struct usb_device *udev)
@@ -220,6 +223,7 @@ static struct usb_device_driver mfi_fc_driver = {
 	.probe =	mfi_fc_probe,
 	.disconnect =	mfi_fc_disconnect,
 	.id_table =	mfi_fc_id_table,
+	.match =	mfi_fc_match,
 	.generic_subclass = 1,
 };
 

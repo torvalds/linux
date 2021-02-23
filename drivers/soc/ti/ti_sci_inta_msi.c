@@ -89,6 +89,18 @@ static int ti_sci_inta_msi_alloc_descs(struct device *dev,
 			list_add_tail(&msi_desc->list, dev_to_msi_list(dev));
 			count++;
 		}
+		for (i = 0; i < res->desc[set].num_sec; i++) {
+			msi_desc = alloc_msi_entry(dev, 1, NULL);
+			if (!msi_desc) {
+				ti_sci_inta_msi_free_descs(dev);
+				return -ENOMEM;
+			}
+
+			msi_desc->inta.dev_index = res->desc[set].start_sec + i;
+			INIT_LIST_HEAD(&msi_desc->list);
+			list_add_tail(&msi_desc->list, dev_to_msi_list(dev));
+			count++;
+		}
 	}
 
 	return count;

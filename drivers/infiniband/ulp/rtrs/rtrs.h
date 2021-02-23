@@ -63,13 +63,6 @@ struct rtrs_clt *rtrs_clt_open(struct rtrs_clt_ops *ops,
 
 void rtrs_clt_close(struct rtrs_clt *sess);
 
-/**
- * rtrs_permit_to_pdu() - converts rtrs_permit to opaque pdu pointer
- * @permit: RTRS permit pointer, it associates the memory allocation for future
- *          RDMA operation.
- */
-void *rtrs_permit_to_pdu(struct rtrs_permit *permit);
-
 enum {
 	RTRS_PERMIT_NOWAIT = 0,
 	RTRS_PERMIT_WAIT   = 1,

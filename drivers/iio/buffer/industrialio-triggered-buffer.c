@@ -9,18 +9,20 @@
 #include <linux/module.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
+#include <linux/iio/buffer_impl.h>
 #include <linux/iio/kfifo_buf.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
 
 /**
- * iio_triggered_buffer_setup() - Setup triggered buffer and pollfunc
+ * iio_triggered_buffer_setup_ext() - Setup triggered buffer and pollfunc
  * @indio_dev:		IIO device structure
  * @h:			Function which will be used as pollfunc top half
  * @thread:		Function which will be used as pollfunc bottom half
  * @setup_ops:		Buffer setup functions to use for this device.
  *			If NULL the default setup functions for triggered
  *			buffers will be used.
+ * @buffer_attrs:	Extra sysfs buffer attributes for this IIO buffer
  *
  * This function combines some common tasks which will normally be performed
  * when setting up a triggered buffer. It will allocate the buffer and the
@@ -33,10 +35,11 @@
  * To free the resources allocated by this function call
  * iio_triggered_buffer_cleanup().
  */
-int iio_triggered_buffer_setup(struct iio_dev *indio_dev,
+int iio_triggered_buffer_setup_ext(struct iio_dev *indio_dev,
 	irqreturn_t (*h)(int irq, void *p),
 	irqreturn_t (*thread)(int irq, void *p),
-	const struct iio_buffer_setup_ops *setup_ops)
+	const struct iio_buffer_setup_ops *setup_ops,
+	const struct attribute **buffer_attrs)
 {
 	struct iio_buffer *buffer;
 	int ret;
@@ -67,6 +70,8 @@ int iio_triggered_buffer_setup(struct iio_dev *indio_dev,
 	/* Flag that polled ring buffering is possible */
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 
+	buffer->attrs = buffer_attrs;
+
 	return 0;
 
 error_kfifo_free:
@@ -74,10 +79,10 @@ error_kfifo_free:
 error_ret:
 	return ret;
 }
-EXPORT_SYMBOL(iio_triggered_buffer_setup);
+EXPORT_SYMBOL(iio_triggered_buffer_setup_ext);
 
 /**
- * iio_triggered_buffer_cleanup() - Free resources allocated by iio_triggered_buffer_setup()
+ * iio_triggered_buffer_cleanup() - Free resources allocated by iio_triggered_buffer_setup_ext()
  * @indio_dev: IIO device structure
  */
 void iio_triggered_buffer_cleanup(struct iio_dev *indio_dev)
@@ -92,11 +97,12 @@ static void devm_iio_triggered_buffer_clean(struct device *dev, void *res)
 	iio_triggered_buffer_cleanup(*(struct iio_dev **)res);
 }
 
-int devm_iio_triggered_buffer_setup(struct device *dev,
-				    struct iio_dev *indio_dev,
-				    irqreturn_t (*h)(int irq, void *p),
-				    irqreturn_t (*thread)(int irq, void *p),
-				    const struct iio_buffer_setup_ops *ops)
+int devm_iio_triggered_buffer_setup_ext(struct device *dev,
+					struct iio_dev *indio_dev,
+					irqreturn_t (*h)(int irq, void *p),
+					irqreturn_t (*thread)(int irq, void *p),
+					const struct iio_buffer_setup_ops *ops,
+					const struct attribute **buffer_attrs)
 {
 	struct iio_dev **ptr;
 	int ret;
@@ -108,7 +114,8 @@ int devm_iio_triggered_buffer_setup(struct device *dev,
 
 	*ptr = indio_dev;
 
-	ret = iio_triggered_buffer_setup(indio_dev, h, thread, ops);
+	ret = iio_triggered_buffer_setup_ext(indio_dev, h, thread, ops,
+					     buffer_attrs);
 	if (!ret)
 		devres_add(dev, ptr);
 	else
@@ -116,7 +123,7 @@ int devm_iio_triggered_buffer_setup(struct device *dev,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(devm_iio_triggered_buffer_setup);
+EXPORT_SYMBOL_GPL(devm_iio_triggered_buffer_setup_ext);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("IIO helper functions for setting up triggered buffers");

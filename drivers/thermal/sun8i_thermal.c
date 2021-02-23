@@ -8,6 +8,7 @@
  * Based on the work of Josef Gajdusek <atx@atx.name>
  */
 
+#include <linux/bitmap.h>
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
@@ -74,7 +75,7 @@ struct ths_thermal_chip {
 	int		(*calibrate)(struct ths_device *tmdev,
 				     u16 *caldata, int callen);
 	int		(*init)(struct ths_device *tmdev);
-	int             (*irq_ack)(struct ths_device *tmdev);
+	unsigned long	(*irq_ack)(struct ths_device *tmdev);
 	int		(*calc_temp)(struct ths_device *tmdev,
 				     int id, int reg);
 };
@@ -146,9 +147,10 @@ static const struct regmap_config config = {
 	.max_register = 0xfc,
 };
 
-static int sun8i_h3_irq_ack(struct ths_device *tmdev)
+static unsigned long sun8i_h3_irq_ack(struct ths_device *tmdev)
 {
-	int i, state, ret = 0;
+	unsigned long irq_bitmap = 0;
+	int i, state;
 
 	regmap_read(tmdev->regmap, SUN8I_THS_IS, &state);
 
@@ -156,16 +158,17 @@ static int sun8i_h3_irq_ack(struct ths_device *tmdev)
 		if (state & SUN8I_THS_DATA_IRQ_STS(i)) {
 			regmap_write(tmdev->regmap, SUN8I_THS_IS,
 				     SUN8I_THS_DATA_IRQ_STS(i));
-			ret |= BIT(i);
+			bitmap_set(&irq_bitmap, i, 1);
 		}
 	}
 
-	return ret;
+	return irq_bitmap;
 }
 
-static int sun50i_h6_irq_ack(struct ths_device *tmdev)
+static unsigned long sun50i_h6_irq_ack(struct ths_device *tmdev)
 {
-	int i, state, ret = 0;
+	unsigned long irq_bitmap = 0;
+	int i, state;
 
 	regmap_read(tmdev->regmap, SUN50I_H6_THS_DIS, &state);
 
@@ -173,24 +176,22 @@ static int sun50i_h6_irq_ack(struct ths_device *tmdev)
 		if (state & SUN50I_H6_THS_DATA_IRQ_STS(i)) {
 			regmap_write(tmdev->regmap, SUN50I_H6_THS_DIS,
 				     SUN50I_H6_THS_DATA_IRQ_STS(i));
-			ret |= BIT(i);
+			bitmap_set(&irq_bitmap, i, 1);
 		}
 	}
 
-	return ret;
+	return irq_bitmap;
 }
 
 static irqreturn_t sun8i_irq_thread(int irq, void *data)
 {
 	struct ths_device *tmdev = data;
-	int i, state;
+	unsigned long irq_bitmap = tmdev->chip->irq_ack(tmdev);
+	int i;
 
-	state = tmdev->chip->irq_ack(tmdev);
-
-	for (i = 0; i < tmdev->chip->sensor_num; i++) {
-		if (state & BIT(i))
-			thermal_zone_device_update(tmdev->sensor[i].tzd,
-						   THERMAL_EVENT_UNSPECIFIED);
+	for_each_set_bit(i, &irq_bitmap, tmdev->chip->sensor_num) {
+		thermal_zone_device_update(tmdev->sensor[i].tzd,
+					   THERMAL_EVENT_UNSPECIFIED);
 	}
 
 	return IRQ_HANDLED;
@@ -244,7 +245,7 @@ static int sun50i_h6_ths_calibrate(struct ths_device *tmdev,
 	ft_temp = (caldata[0] & FT_TEMP_MASK) * 100;
 
 	for (i = 0; i < tmdev->chip->sensor_num; i++) {
-		int sensor_reg = caldata[i + 1];
+		int sensor_reg = caldata[i + 1] & TEMP_CALIB_MASK;
 		int cdata, offset;
 		int sensor_temp = tmdev->chip->calc_temp(tmdev, i, sensor_reg);
 
@@ -590,6 +591,19 @@ static const struct ths_thermal_chip sun50i_a64_ths = {
 	.calc_temp = sun8i_ths_calc_temp,
 };
 
+static const struct ths_thermal_chip sun50i_a100_ths = {
+	.sensor_num = 3,
+	.has_bus_clk_reset = true,
+	.ft_deviation = 8000,
+	.offset = 187744,
+	.scale = 672,
+	.temp_data_base = SUN50I_H6_THS_TEMP_DATA,
+	.calibrate = sun50i_h6_ths_calibrate,
+	.init = sun50i_h6_thermal_init,
+	.irq_ack = sun50i_h6_irq_ack,
+	.calc_temp = sun8i_ths_calc_temp,
+};
+
 static const struct ths_thermal_chip sun50i_h5_ths = {
 	.sensor_num = 2,
 	.has_mod_clk = true,
@@ -619,6 +633,7 @@ static const struct of_device_id of_ths_match[] = {
 	{ .compatible = "allwinner,sun8i-h3-ths", .data = &sun8i_h3_ths },
 	{ .compatible = "allwinner,sun8i-r40-ths", .data = &sun8i_r40_ths },
 	{ .compatible = "allwinner,sun50i-a64-ths", .data = &sun50i_a64_ths },
+	{ .compatible = "allwinner,sun50i-a100-ths", .data = &sun50i_a100_ths },
 	{ .compatible = "allwinner,sun50i-h5-ths", .data = &sun50i_h5_ths },
 	{ .compatible = "allwinner,sun50i-h6-ths", .data = &sun50i_h6_ths },
 	{ /* sentinel */ },

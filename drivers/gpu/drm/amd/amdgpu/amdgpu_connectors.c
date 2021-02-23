@@ -26,6 +26,7 @@
 
 #include <drm/drm_edid.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_dp_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
@@ -41,7 +42,7 @@
 void amdgpu_connector_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 
 	/* bail if the connector does not have hpd pin, e.g.,
@@ -279,7 +280,7 @@ amdgpu_connector_get_hardcoded_edid(struct amdgpu_device *adev)
 static void amdgpu_connector_get_edid(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 
 	if (amdgpu_connector->edid)
@@ -463,7 +464,7 @@ static int amdgpu_connector_set_property(struct drm_connector *connector,
 					  uint64_t val)
 {
 	struct drm_device *dev = connector->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct drm_encoder *encoder;
 	struct amdgpu_encoder *amdgpu_encoder;
 
@@ -834,7 +835,7 @@ static enum drm_mode_status amdgpu_connector_vga_mode_valid(struct drm_connector
 					    struct drm_display_mode *mode)
 {
 	struct drm_device *dev = connector->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 
 	/* XXX check mode bandwidth */
 
@@ -941,7 +942,7 @@ static bool
 amdgpu_connector_check_hpd_status_unchanged(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 	enum drm_connector_status status;
 
@@ -972,7 +973,7 @@ static enum drm_connector_status
 amdgpu_connector_dvi_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 	const struct drm_encoder_helper_funcs *encoder_funcs;
 	int r;
@@ -1159,7 +1160,7 @@ static enum drm_mode_status amdgpu_connector_dvi_mode_valid(struct drm_connector
 					    struct drm_display_mode *mode)
 {
 	struct drm_device *dev = connector->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 
 	/* XXX check mode bandwidth */
@@ -1311,7 +1312,7 @@ static bool amdgpu_connector_encoder_is_hbr2(struct drm_connector *connector)
 bool amdgpu_connector_is_dp12_capable(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 
 	if ((adev->clock.default_dispclk >= 53900) &&
 	    amdgpu_connector_encoder_is_hbr2(connector)) {
@@ -1325,7 +1326,7 @@ static enum drm_connector_status
 amdgpu_connector_dp_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 	enum drm_connector_status ret = connector_status_disconnected;
 	struct amdgpu_connector_atom_dig *amdgpu_dig_connector = amdgpu_connector->con_priv;
@@ -1413,6 +1414,12 @@ out:
 		pm_runtime_put_autosuspend(connector->dev->dev);
 	}
 
+	if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
+	    connector->connector_type == DRM_MODE_CONNECTOR_eDP)
+		drm_dp_set_subconnector_property(&amdgpu_connector->base,
+						 ret,
+						 amdgpu_dig_connector->dpcd,
+						 amdgpu_dig_connector->downstream_ports);
 	return ret;
 }
 
@@ -1521,7 +1528,7 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 		      struct amdgpu_hpd *hpd,
 		      struct amdgpu_router *router)
 {
-	struct drm_device *dev = adev->ddev;
+	struct drm_device *dev = adev_to_drm(adev);
 	struct drm_connector *connector;
 	struct drm_connector_list_iter iter;
 	struct amdgpu_connector *amdgpu_connector;
@@ -1958,6 +1965,11 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 
 	if (has_aux)
 		amdgpu_atombios_dp_aux_init(amdgpu_connector);
+
+	if (connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
+	    connector_type == DRM_MODE_CONNECTOR_eDP) {
+		drm_connector_attach_dp_subconnector_property(&amdgpu_connector->base);
+	}
 
 	return;
 

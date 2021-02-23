@@ -309,6 +309,11 @@ struct bp_spread_spectrum_parameters {
 	struct spread_spectrum_flags flags;
 };
 
+struct bp_disp_connector_caps_info {
+	uint32_t INTERNAL_DISPLAY    : 1;
+	uint32_t INTERNAL_DISPLAY_BL : 1;
+};
+
 struct bp_encoder_cap_info {
 	uint32_t DP_HBR2_CAP:1;
 	uint32_t DP_HBR2_EN:1;
@@ -316,6 +321,12 @@ struct bp_encoder_cap_info {
 	uint32_t HDMI_6GB_EN:1;
 	uint32_t DP_IS_USB_C:1;
 	uint32_t RESERVED:27;
+};
+
+struct bp_soc_bb_info {
+	uint32_t dram_clock_change_latency_100ns;
+	uint32_t dram_sr_exit_latency_100ns;
+	uint32_t dram_sr_enter_exit_latency_100ns;
 };
 
 #endif /*__DAL_BIOS_PARSER_TYPES_H__ */

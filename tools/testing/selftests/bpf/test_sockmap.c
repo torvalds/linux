@@ -86,6 +86,7 @@ int txmsg_ktls_skb_redir;
 int ktls;
 int peek_flag;
 int skb_use_parser;
+int txmsg_omit_skb_parser;
 
 static const struct option long_options[] = {
 	{"help",	no_argument,		NULL, 'h' },
@@ -111,6 +112,7 @@ static const struct option long_options[] = {
 	{"txmsg_redir_skb", no_argument,	&txmsg_redir_skb, 1 },
 	{"ktls", no_argument,			&ktls, 1 },
 	{"peek", no_argument,			&peek_flag, 1 },
+	{"txmsg_omit_skb_parser", no_argument,      &txmsg_omit_skb_parser, 1},
 	{"whitelist", required_argument,	NULL, 'n' },
 	{"blacklist", required_argument,	NULL, 'b' },
 	{0, 0, NULL, 0 }
@@ -175,6 +177,7 @@ static void test_reset(void)
 	txmsg_apply = txmsg_cork = 0;
 	txmsg_ingress = txmsg_redir_skb = 0;
 	txmsg_ktls_skb = txmsg_ktls_skb_drop = txmsg_ktls_skb_redir = 0;
+	txmsg_omit_skb_parser = 0;
 	skb_use_parser = 0;
 }
 
@@ -518,28 +521,13 @@ static int msg_verify_data(struct msghdr *msg, int size, int chunk_sz)
 		if (i == 0 && txmsg_ktls_skb) {
 			if (msg->msg_iov[i].iov_len < 4)
 				return -EIO;
-			if (txmsg_ktls_skb_redir) {
-				if (memcmp(&d[13], "PASS", 4) != 0) {
-					fprintf(stderr,
-						"detected redirect ktls_skb data error with skb ingress update @iov[%i]:%i \"%02x %02x %02x %02x\" != \"PASS\"\n", i, 0, d[13], d[14], d[15], d[16]);
-					return -EIO;
-				}
-				d[13] = 0;
-				d[14] = 1;
-				d[15] = 2;
-				d[16] = 3;
-				j = 13;
-			} else if (txmsg_ktls_skb) {
-				if (memcmp(d, "PASS", 4) != 0) {
-					fprintf(stderr,
-						"detected ktls_skb data error with skb ingress update @iov[%i]:%i \"%02x %02x %02x %02x\" != \"PASS\"\n", i, 0, d[0], d[1], d[2], d[3]);
-					return -EIO;
-				}
-				d[0] = 0;
-				d[1] = 1;
-				d[2] = 2;
-				d[3] = 3;
+			if (memcmp(d, "PASS", 4) != 0) {
+				fprintf(stderr,
+					"detected skb data error with skb ingress update @iov[%i]:%i \"%02x %02x %02x %02x\" != \"PASS\"\n",
+					i, 0, d[0], d[1], d[2], d[3]);
+				return -EIO;
 			}
+			j = 4; /* advance index past PASS header */
 		}
 
 		for (; j < msg->msg_iov[i].iov_len && size; j++) {
@@ -927,13 +915,15 @@ static int run_options(struct sockmap_options *options, int cg_fd,  int test)
 		goto run;
 
 	/* Attach programs to sockmap */
-	err = bpf_prog_attach(prog_fd[0], map_fd[0],
-				BPF_SK_SKB_STREAM_PARSER, 0);
-	if (err) {
-		fprintf(stderr,
-			"ERROR: bpf_prog_attach (sockmap %i->%i): %d (%s)\n",
-			prog_fd[0], map_fd[0], err, strerror(errno));
-		return err;
+	if (!txmsg_omit_skb_parser) {
+		err = bpf_prog_attach(prog_fd[0], map_fd[0],
+				      BPF_SK_SKB_STREAM_PARSER, 0);
+		if (err) {
+			fprintf(stderr,
+				"ERROR: bpf_prog_attach (sockmap %i->%i): %d (%s)\n",
+				prog_fd[0], map_fd[0], err, strerror(errno));
+			return err;
+		}
 	}
 
 	err = bpf_prog_attach(prog_fd[1], map_fd[0],
@@ -946,13 +936,15 @@ static int run_options(struct sockmap_options *options, int cg_fd,  int test)
 
 	/* Attach programs to TLS sockmap */
 	if (txmsg_ktls_skb) {
-		err = bpf_prog_attach(prog_fd[0], map_fd[8],
-					BPF_SK_SKB_STREAM_PARSER, 0);
-		if (err) {
-			fprintf(stderr,
-				"ERROR: bpf_prog_attach (TLS sockmap %i->%i): %d (%s)\n",
-				prog_fd[0], map_fd[8], err, strerror(errno));
-			return err;
+		if (!txmsg_omit_skb_parser) {
+			err = bpf_prog_attach(prog_fd[0], map_fd[8],
+					      BPF_SK_SKB_STREAM_PARSER, 0);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_prog_attach (TLS sockmap %i->%i): %d (%s)\n",
+					prog_fd[0], map_fd[8], err, strerror(errno));
+				return err;
+			}
 		}
 
 		err = bpf_prog_attach(prog_fd[2], map_fd[8],
@@ -1281,6 +1273,16 @@ static char *test_to_str(int test)
 	return "unknown";
 }
 
+static void append_str(char *dst, const char *src, size_t dst_cap)
+{
+	size_t avail = dst_cap - strlen(dst);
+
+	if (avail <= 1) /* just zero byte could be written */
+		return;
+
+	strncat(dst, src, avail - 1); /* strncat() adds + 1 for zero byte */
+}
+
 #define OPTSTRING 60
 static void test_options(char *options)
 {
@@ -1289,42 +1291,42 @@ static void test_options(char *options)
 	memset(options, 0, OPTSTRING);
 
 	if (txmsg_pass)
-		strncat(options, "pass,", OPTSTRING);
+		append_str(options, "pass,", OPTSTRING);
 	if (txmsg_redir)
-		strncat(options, "redir,", OPTSTRING);
+		append_str(options, "redir,", OPTSTRING);
 	if (txmsg_drop)
-		strncat(options, "drop,", OPTSTRING);
+		append_str(options, "drop,", OPTSTRING);
 	if (txmsg_apply) {
 		snprintf(tstr, OPTSTRING, "apply %d,", txmsg_apply);
-		strncat(options, tstr, OPTSTRING);
+		append_str(options, tstr, OPTSTRING);
 	}
 	if (txmsg_cork) {
 		snprintf(tstr, OPTSTRING, "cork %d,", txmsg_cork);
-		strncat(options, tstr, OPTSTRING);
+		append_str(options, tstr, OPTSTRING);
 	}
 	if (txmsg_start) {
 		snprintf(tstr, OPTSTRING, "start %d,", txmsg_start);
-		strncat(options, tstr, OPTSTRING);
+		append_str(options, tstr, OPTSTRING);
 	}
 	if (txmsg_end) {
 		snprintf(tstr, OPTSTRING, "end %d,", txmsg_end);
-		strncat(options, tstr, OPTSTRING);
+		append_str(options, tstr, OPTSTRING);
 	}
 	if (txmsg_start_pop) {
 		snprintf(tstr, OPTSTRING, "pop (%d,%d),",
 			 txmsg_start_pop, txmsg_start_pop + txmsg_pop);
-		strncat(options, tstr, OPTSTRING);
+		append_str(options, tstr, OPTSTRING);
 	}
 	if (txmsg_ingress)
-		strncat(options, "ingress,", OPTSTRING);
+		append_str(options, "ingress,", OPTSTRING);
 	if (txmsg_redir_skb)
-		strncat(options, "redir_skb,", OPTSTRING);
+		append_str(options, "redir_skb,", OPTSTRING);
 	if (txmsg_ktls_skb)
-		strncat(options, "ktls_skb,", OPTSTRING);
+		append_str(options, "ktls_skb,", OPTSTRING);
 	if (ktls)
-		strncat(options, "ktls,", OPTSTRING);
+		append_str(options, "ktls,", OPTSTRING);
 	if (peek_flag)
-		strncat(options, "peek,", OPTSTRING);
+		append_str(options, "peek,", OPTSTRING);
 }
 
 static int __test_exec(int cgrp, int test, struct sockmap_options *opt)
@@ -1480,11 +1482,28 @@ static void test_txmsg_skb(int cgrp, struct sockmap_options *opt)
 	txmsg_ktls_skb_drop = 0;
 	txmsg_ktls_skb_redir = 1;
 	test_exec(cgrp, opt);
+	txmsg_ktls_skb_redir = 0;
+
+	/* Tests that omit skb_parser */
+	txmsg_omit_skb_parser = 1;
+	ktls = 0;
+	txmsg_ktls_skb = 0;
+	test_exec(cgrp, opt);
+
+	txmsg_ktls_skb_drop = 1;
+	test_exec(cgrp, opt);
+	txmsg_ktls_skb_drop = 0;
+
+	txmsg_ktls_skb_redir = 1;
+	test_exec(cgrp, opt);
+
+	ktls = 1;
+	test_exec(cgrp, opt);
+	txmsg_omit_skb_parser = 0;
 
 	opt->data_test = data;
 	ktls = k;
 }
-
 
 /* Test cork with hung data. This tests poor usage patterns where
  * cork can leave data on the ring if user program is buggy and

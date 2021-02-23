@@ -336,7 +336,7 @@ static int byt_run(struct snd_sof_dev *sdev)
 	}
 	if (tries < 0) {
 		dev_err(sdev->dev, "error:  unable to run DSP firmware\n");
-		byt_dump(sdev, SOF_DBG_REGS | SOF_DBG_MBOX);
+		byt_dump(sdev, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
 		return -ENODEV;
 	}
 
@@ -651,7 +651,7 @@ EXPORT_SYMBOL_NS(sof_tng_ops, SND_SOC_SOF_MERRIFIELD);
 
 const struct sof_intel_dsp_desc tng_chip_info = {
 	.cores_num = 1,
-	.cores_mask = 1,
+	.host_managed_cores_mask = 1,
 };
 EXPORT_SYMBOL_NS(tng_chip_info, SND_SOC_SOF_MERRIFIELD);
 
@@ -896,7 +896,7 @@ EXPORT_SYMBOL_NS(sof_byt_ops, SND_SOC_SOF_BAYTRAIL);
 
 const struct sof_intel_dsp_desc byt_chip_info = {
 	.cores_num = 1,
-	.cores_mask = 1,
+	.host_managed_cores_mask = 1,
 };
 EXPORT_SYMBOL_NS(byt_chip_info, SND_SOC_SOF_BAYTRAIL);
 
@@ -976,7 +976,7 @@ EXPORT_SYMBOL_NS(sof_cht_ops, SND_SOC_SOF_BAYTRAIL);
 
 const struct sof_intel_dsp_desc cht_chip_info = {
 	.cores_num = 1,
-	.cores_mask = 1,
+	.host_managed_cores_mask = 1,
 };
 EXPORT_SYMBOL_NS(cht_chip_info, SND_SOC_SOF_BAYTRAIL);
 

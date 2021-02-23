@@ -419,26 +419,24 @@ del `dominio Sphinx per il C`_.
 Riferimenti usando reStructuredText
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Per fare riferimento a funzioni e tipi di dato definiti nei commenti kernel-doc
-all'interno dei documenti reStructuredText, utilizzate i riferimenti dal
-`dominio Sphinx per il C`_. Per esempio::
+Nei documenti reStructuredText non serve alcuna sintassi speciale per
+fare riferimento a funzioni e tipi definiti nei commenti
+kernel-doc. Sarà sufficiente terminare i nomi di funzione con ``()``,
+e scrivere ``struct``, ``union``, ``enum``, o ``typedef`` prima di un
+tipo. Per esempio::
 
-  See function :c:func:`foo` and struct/union/enum/typedef :c:type:`bar`.
+  See foo()
+  See struct foo.
+  See union bar.
+  See enum baz.
+  See typedef meh.
 
-Nonostante il riferimento ai tipi di dato funzioni col solo nome,
-ovvero senza specificare struct/union/enum/typedef, potreste preferire il
-seguente::
+Tuttavia, la personalizzazione dei collegamenti è possibile solo con
+la seguente sintassi::
 
-  See :c:type:`struct foo <foo>`.
-  See :c:type:`union bar <bar>`.
-  See :c:type:`enum baz <baz>`.
-  See :c:type:`typedef meh <meh>`.
+  See :c:func:`my custom link text for function foo <foo>`.
+  See :c:type:`my custom link text for struct bar <bar>`.
 
-Questo produce dei collegamenti migliori, ed è in linea con il modo in cui
-kernel-doc gestisce i riferimenti.
-
-Per maggiori informazioni, siete pregati di consultare la documentazione
-del `dominio Sphinx per il C`_.
 
 Commenti per una documentazione generale
 ----------------------------------------

@@ -182,8 +182,20 @@ static int efx_ef100_init_datapath_caps(struct efx_nic *efx)
 	if (rc)
 		return rc;
 
-	if (efx_ef100_has_cap(nic_data->datapath_caps2, TX_TSO_V3))
-		efx->net_dev->features |= NETIF_F_TSO | NETIF_F_TSO6;
+	if (efx_ef100_has_cap(nic_data->datapath_caps2, TX_TSO_V3)) {
+		struct net_device *net_dev = efx->net_dev;
+		netdev_features_t tso = NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GSO_PARTIAL |
+					NETIF_F_GSO_UDP_TUNNEL | NETIF_F_GSO_UDP_TUNNEL_CSUM |
+					NETIF_F_GSO_GRE | NETIF_F_GSO_GRE_CSUM;
+
+		net_dev->features |= tso;
+		net_dev->hw_features |= tso;
+		net_dev->hw_enc_features |= tso;
+		/* EF100 HW can only offload outer checksums if they are UDP,
+		 * so for GRE_CSUM we have to use GSO_PARTIAL.
+		 */
+		net_dev->gso_partial_features |= NETIF_F_GSO_GRE_CSUM;
+	}
 	efx->num_mac_stats = MCDI_WORD(outbuf,
 				       GET_CAPABILITIES_V4_OUT_MAC_STATS_NUM_STATS);
 	netif_dbg(efx, probe, efx->net_dev,
@@ -428,23 +440,11 @@ static int ef100_reset(struct efx_nic *efx, enum reset_type reset_type)
 		__clear_bit(reset_type, &efx->reset_pending);
 		rc = dev_open(efx->net_dev, NULL);
 	} else if (reset_type == RESET_TYPE_ALL) {
-		/* A RESET_TYPE_ALL will cause filters to be removed, so we remove filters
-		 * and reprobe after reset to avoid removing filters twice
-		 */
-		down_write(&efx->filter_sem);
-		ef100_filter_table_down(efx);
-		up_write(&efx->filter_sem);
 		rc = efx_mcdi_reset(efx, reset_type);
 		if (rc)
 			return rc;
 
 		netif_device_attach(efx->net_dev);
-
-		down_write(&efx->filter_sem);
-		rc = ef100_filter_table_up(efx);
-		up_write(&efx->filter_sem);
-		if (rc)
-			return rc;
 
 		rc = dev_open(efx->net_dev, NULL);
 	} else {
@@ -696,9 +696,9 @@ static unsigned int ef100_check_caps(const struct efx_nic *efx,
 /*	NIC level access functions
  */
 #define EF100_OFFLOAD_FEATURES	(NETIF_F_HW_CSUM | NETIF_F_RXCSUM |	\
-	NETIF_F_HIGHDMA | NETIF_F_SG | NETIF_F_FRAGLIST |		\
+	NETIF_F_HIGHDMA | NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_NTUPLE | \
 	NETIF_F_RXHASH | NETIF_F_RXFCS | NETIF_F_TSO_ECN | NETIF_F_RXALL | \
-	NETIF_F_TSO_MANGLEID | NETIF_F_HW_VLAN_CTAG_TX)
+	NETIF_F_HW_VLAN_CTAG_TX)
 
 const struct efx_nic_type ef100_pf_nic_type = {
 	.revision = EFX_REV_EF100,
@@ -769,6 +769,7 @@ const struct efx_nic_type ef100_pf_nic_type = {
 	.rx_restore_rss_contexts = efx_mcdi_rx_restore_rss_contexts,
 
 	.reconfigure_mac = ef100_reconfigure_mac,
+	.reconfigure_port = efx_mcdi_port_reconfigure,
 	.test_nvram = efx_new_mcdi_nvram_test_all,
 	.describe_stats = ef100_describe_stats,
 	.start_stats = efx_mcdi_mac_start_stats,
@@ -1112,6 +1113,9 @@ static int ef100_probe_main(struct efx_nic *efx)
 	nic_data->efx = efx;
 	net_dev->features |= efx->type->offload_features;
 	net_dev->hw_features |= efx->type->offload_features;
+	net_dev->hw_enc_features |= efx->type->offload_features;
+	net_dev->vlan_features |= NETIF_F_HW_CSUM | NETIF_F_SG |
+				  NETIF_F_HIGHDMA | NETIF_F_ALL_TSO;
 
 	/* Populate design-parameter defaults */
 	nic_data->tso_max_hdr_len = ESE_EF100_DP_GZ_TSO_MAX_HDR_LEN_DEFAULT;
@@ -1172,6 +1176,10 @@ static int ef100_probe_main(struct efx_nic *efx)
 	rc = efx_mcdi_reset(efx, RESET_TYPE_ALL);
 	if (rc)
 		goto fail;
+	/* Enable event logging */
+	rc = efx_mcdi_log_ctrl(efx, true, false, 0);
+	if (rc)
+		goto fail;
 
 	rc = efx_get_pf_index(efx, &nic_data->pf_index);
 	if (rc)
@@ -1204,10 +1212,6 @@ static int ef100_probe_main(struct efx_nic *efx)
 	}
 
 	rc = ef100_phy_probe(efx);
-	if (rc)
-		goto fail;
-
-	rc = efx_init_channels(efx);
 	if (rc)
 		goto fail;
 

@@ -26,8 +26,8 @@
 #define GUC_VIDEO_ENGINE2		4
 #define GUC_MAX_ENGINES_NUM		(GUC_VIDEO_ENGINE2 + 1)
 
-#define GUC_MAX_ENGINE_CLASSES		5
-#define GUC_MAX_INSTANCES_PER_CLASS	16
+#define GUC_MAX_ENGINE_CLASSES		16
+#define GUC_MAX_INSTANCES_PER_CLASS	32
 
 #define GUC_DOORBELL_INVALID		256
 
@@ -62,12 +62,7 @@
 #define GUC_STAGE_DESC_ATTR_PCH		BIT(6)
 #define GUC_STAGE_DESC_ATTR_TERMINATED	BIT(7)
 
-/* New GuC control data */
-#define GUC_CTL_CTXINFO			0
-#define   GUC_CTL_CTXNUM_IN16_SHIFT	0
-#define   GUC_CTL_BASE_ADDR_SHIFT	12
-
-#define GUC_CTL_LOG_PARAMS		1
+#define GUC_CTL_LOG_PARAMS		0
 #define   GUC_LOG_VALID			(1 << 0)
 #define   GUC_LOG_NOTIFY_ON_HALF_FULL	(1 << 1)
 #define   GUC_LOG_ALLOC_IN_MEGABYTE	(1 << 3)
@@ -79,11 +74,11 @@
 #define   GUC_LOG_ISR_MASK	        (0x7 << GUC_LOG_ISR_SHIFT)
 #define   GUC_LOG_BUF_ADDR_SHIFT	12
 
-#define GUC_CTL_WA			2
-#define GUC_CTL_FEATURE			3
+#define GUC_CTL_WA			1
+#define GUC_CTL_FEATURE			2
 #define   GUC_CTL_DISABLE_SCHEDULER	(1 << 14)
 
-#define GUC_CTL_DEBUG			4
+#define GUC_CTL_DEBUG			3
 #define   GUC_LOG_VERBOSITY_SHIFT	0
 #define   GUC_LOG_VERBOSITY_LOW		(0 << GUC_LOG_VERBOSITY_SHIFT)
 #define   GUC_LOG_VERBOSITY_MED		(1 << GUC_LOG_VERBOSITY_SHIFT)
@@ -97,11 +92,36 @@
 #define   GUC_LOG_DISABLED		(1 << 6)
 #define   GUC_PROFILE_ENABLED		(1 << 7)
 
-#define GUC_CTL_ADS			5
+#define GUC_CTL_ADS			4
 #define   GUC_ADS_ADDR_SHIFT		1
 #define   GUC_ADS_ADDR_MASK		(0xFFFFF << GUC_ADS_ADDR_SHIFT)
 
 #define GUC_CTL_MAX_DWORDS		(SOFT_SCRATCH_COUNT - 2) /* [1..14] */
+
+/* Generic GT SysInfo data types */
+#define GUC_GENERIC_GT_SYSINFO_SLICE_ENABLED		0
+#define GUC_GENERIC_GT_SYSINFO_VDBOX_SFC_SUPPORT_MASK	1
+#define GUC_GENERIC_GT_SYSINFO_DOORBELL_COUNT_PER_SQIDI	2
+#define GUC_GENERIC_GT_SYSINFO_MAX			16
+
+/*
+ * The class goes in bits [0..2] of the GuC ID, the instance in bits [3..6].
+ * Bit 7 can be used for operations that apply to all engine classes&instances.
+ */
+#define GUC_ENGINE_CLASS_SHIFT		0
+#define GUC_ENGINE_CLASS_MASK		(0x7 << GUC_ENGINE_CLASS_SHIFT)
+#define GUC_ENGINE_INSTANCE_SHIFT	3
+#define GUC_ENGINE_INSTANCE_MASK	(0xf << GUC_ENGINE_INSTANCE_SHIFT)
+#define GUC_ENGINE_ALL_INSTANCES	BIT(7)
+
+#define MAKE_GUC_ID(class, instance) \
+	(((class) << GUC_ENGINE_CLASS_SHIFT) | \
+	 ((instance) << GUC_ENGINE_INSTANCE_SHIFT))
+
+#define GUC_ID_TO_ENGINE_CLASS(guc_id) \
+	(((guc_id) & GUC_ENGINE_CLASS_MASK) >> GUC_ENGINE_CLASS_SHIFT)
+#define GUC_ID_TO_ENGINE_INSTANCE(guc_id) \
+	(((guc_id) & GUC_ENGINE_INSTANCE_MASK) >> GUC_ENGINE_INSTANCE_SHIFT)
 
 /* Work item for submitting workloads into work queue of GuC. */
 struct guc_wq_item {
@@ -336,11 +356,6 @@ struct guc_policies {
 } __packed;
 
 /* GuC MMIO reg state struct */
-
-
-#define GUC_REGSET_MAX_REGISTERS	64
-#define GUC_S3_SAVE_SPACE_PAGES		10
-
 struct guc_mmio_reg {
 	u32 offset;
 	u32 value;
@@ -348,28 +363,18 @@ struct guc_mmio_reg {
 #define GUC_REGSET_MASKED		(1 << 0)
 } __packed;
 
-struct guc_mmio_regset {
-	struct guc_mmio_reg registers[GUC_REGSET_MAX_REGISTERS];
-	u32 values_valid;
-	u32 number_of_registers;
-} __packed;
-
 /* GuC register sets */
-struct guc_mmio_reg_state {
-	struct guc_mmio_regset engine_reg[GUC_MAX_ENGINE_CLASSES][GUC_MAX_INSTANCES_PER_CLASS];
-	u32 reserved[98];
+struct guc_mmio_reg_set {
+	u32 address;
+	u16 count;
+	u16 reserved;
 } __packed;
 
 /* HW info */
 struct guc_gt_system_info {
-	u32 slice_enabled;
-	u32 rcs_enabled;
-	u32 reserved0;
-	u32 bcs_enabled;
-	u32 vdbox_enable_mask;
-	u32 vdbox_sfc_support_mask;
-	u32 vebox_enable_mask;
-	u32 reserved[9];
+	u8 mapping_table[GUC_MAX_ENGINE_CLASSES][GUC_MAX_INSTANCES_PER_CLASS];
+	u32 engine_enabled_masks[GUC_MAX_ENGINE_CLASSES];
+	u32 generic_gt_sysinfo[GUC_GENERIC_GT_SYSINFO_MAX];
 } __packed;
 
 /* Clients info */
@@ -390,15 +395,16 @@ struct guc_clients_info {
 
 /* GuC Additional Data Struct */
 struct guc_ads {
-	u32 reg_state_addr;
-	u32 reg_state_buffer;
+	struct guc_mmio_reg_set reg_state_list[GUC_MAX_ENGINE_CLASSES][GUC_MAX_INSTANCES_PER_CLASS];
+	u32 reserved0;
 	u32 scheduler_policies;
 	u32 gt_system_info;
 	u32 clients_info;
 	u32 control_data;
 	u32 golden_context_lrca[GUC_MAX_ENGINE_CLASSES];
 	u32 eng_state_size[GUC_MAX_ENGINE_CLASSES];
-	u32 reserved[16];
+	u32 private_data;
+	u32 reserved[15];
 } __packed;
 
 /* GuC logging structures */

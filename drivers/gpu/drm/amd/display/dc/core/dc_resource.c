@@ -42,6 +42,9 @@
 #include "virtual/virtual_stream_encoder.h"
 #include "dpcd_defs.h"
 
+#if defined(CONFIG_DRM_AMD_DC_SI)
+#include "dce60/dce60_resource.h"
+#endif
 #include "dce80/dce80_resource.h"
 #include "dce100/dce100_resource.h"
 #include "dce110/dce110_resource.h"
@@ -51,9 +54,9 @@
 #include "dcn10/dcn10_resource.h"
 #include "dcn20/dcn20_resource.h"
 #include "dcn21/dcn21_resource.h"
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
-#include "../dcn30/dcn30_resource.h"
+#include "dcn30/dcn30_resource.h"
+#include "dcn301/dcn301_resource.h"
+#include "dcn302/dcn302_resource.h"
 #endif
 
 #define DC_LOGGER_INIT(logger)
@@ -63,6 +66,18 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
 	switch (asic_id.chip_family) {
 
+#if defined(CONFIG_DRM_AMD_DC_SI)
+	case FAMILY_SI:
+		if (ASIC_REV_IS_TAHITI_P(asic_id.hw_internal_rev) ||
+		    ASIC_REV_IS_PITCAIRN_PM(asic_id.hw_internal_rev) ||
+		    ASIC_REV_IS_CAPEVERDE_M(asic_id.hw_internal_rev))
+			dc_version = DCE_VERSION_6_0;
+		else if (ASIC_REV_IS_OLAND_M(asic_id.hw_internal_rev))
+			dc_version = DCE_VERSION_6_4;
+		else
+			dc_version = DCE_VERSION_6_1;
+		break;
+#endif
 	case FAMILY_CI:
 		dc_version = DCE_VERSION_8_0;
 		break;
@@ -105,16 +120,22 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 			dc_version = DCN_VERSION_1_01;
 		if (ASICREV_IS_RENOIR(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_2_1;
+		if (ASICREV_IS_GREEN_SARDINE(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_2_1;
 		break;
-#endif
 
 	case FAMILY_NV:
 		dc_version = DCN_VERSION_2_0;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 		if (ASICREV_IS_SIENNA_CICHLID_P(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_3_0;
-#endif
+		if (ASICREV_IS_DIMGREY_CAVEFISH_P(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_3_02;
 		break;
+
+	case FAMILY_VGH:
+		dc_version = DCN_VERSION_3_01;
+		break;
+#endif
 	default:
 		dc_version = DCE_VERSION_UNKNOWN;
 		break;
@@ -129,6 +150,20 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 	struct resource_pool *res_pool = NULL;
 
 	switch (dc_version) {
+#if defined(CONFIG_DRM_AMD_DC_SI)
+	case DCE_VERSION_6_0:
+		res_pool = dce60_create_resource_pool(
+			init_data->num_virtual_links, dc);
+		break;
+	case DCE_VERSION_6_1:
+		res_pool = dce61_create_resource_pool(
+			init_data->num_virtual_links, dc);
+		break;
+	case DCE_VERSION_6_4:
+		res_pool = dce64_create_resource_pool(
+			init_data->num_virtual_links, dc);
+		break;
+#endif
 	case DCE_VERSION_8_0:
 		res_pool = dce80_create_resource_pool(
 				init_data->num_virtual_links, dc);
@@ -166,21 +201,22 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 	case DCN_VERSION_1_01:
 		res_pool = dcn10_create_resource_pool(init_data, dc);
 		break;
-
-
 	case DCN_VERSION_2_0:
 		res_pool = dcn20_create_resource_pool(init_data, dc);
 		break;
 	case DCN_VERSION_2_1:
 		res_pool = dcn21_create_resource_pool(init_data, dc);
 		break;
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	case DCN_VERSION_3_0:
 		res_pool = dcn30_create_resource_pool(init_data, dc);
 		break;
+	case DCN_VERSION_3_01:
+		res_pool = dcn301_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_3_02:
+		res_pool = dcn302_create_resource_pool(init_data, dc);
+		break;
 #endif
-
 	default:
 		break;
 	}
@@ -294,7 +330,7 @@ bool resource_construct(
 		}
 	}
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	for (i = 0; i < caps->num_mpc_3dlut; i++) {
 		pool->mpc_lut[i] = dc_create_3dlut_func();
 		if (pool->mpc_lut[i] == NULL)
@@ -753,11 +789,20 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx)
 
 	calculate_split_count_and_index(pipe_ctx, &split_count, &split_idx);
 
-	data->recout.x = stream->dst.x;
-	if (stream->src.x < surf_clip.x)
-		data->recout.x += (surf_clip.x - stream->src.x) * stream->dst.width
+	/*
+	 * Only the leftmost ODM pipe should be offset by a nonzero distance
+	 */
+	if (!pipe_ctx->prev_odm_pipe) {
+		data->recout.x = stream->dst.x;
+		if (stream->src.x < surf_clip.x)
+			data->recout.x += (surf_clip.x - stream->src.x) * stream->dst.width
 						/ stream->src.width;
 
+	} else
+		data->recout.x = 0;
+
+	if (stream->src.x > surf_clip.x)
+		surf_clip.width -= stream->src.x - surf_clip.x;
 	data->recout.width = surf_clip.width * stream->dst.width / stream->src.width;
 	if (data->recout.width + data->recout.x > stream->dst.x + stream->dst.width)
 		data->recout.width = stream->dst.x + stream->dst.width - data->recout.x;
@@ -766,6 +811,8 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx)
 	if (stream->src.y < surf_clip.y)
 		data->recout.y += (surf_clip.y - stream->src.y) * stream->dst.height
 						/ stream->src.height;
+	else if (stream->src.y > surf_clip.y)
+		surf_clip.height -= stream->src.y - surf_clip.y;
 
 	data->recout.height = surf_clip.height * stream->dst.height / stream->src.height;
 	if (data->recout.height + data->recout.y > stream->dst.y + stream->dst.height)
@@ -928,7 +975,7 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	const struct dc_stream_state *stream = pipe_ctx->stream;
-	struct pipe_ctx *odm_pipe = pipe_ctx->prev_odm_pipe;
+	struct pipe_ctx *odm_pipe = pipe_ctx;
 	struct scaler_data *data = &pipe_ctx->plane_res.scl_data;
 	struct rect src = pipe_ctx->plane_state->src_rect;
 	int recout_skip_h, recout_skip_v, surf_size_h, surf_size_v;
@@ -959,21 +1006,24 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx)
 		swap(src.width, src.height);
 	}
 
+	/*modified recout_skip_h calculation due to odm having no recout offset*/
+	while (odm_pipe->prev_odm_pipe) {
+		odm_idx++;
+		odm_pipe = odm_pipe->prev_odm_pipe;
+	}
+	/*odm_pipe is the leftmost pipe in the ODM group*/
+	recout_skip_h = odm_idx * data->recout.width;
+
 	/* Recout matching initial vp offset = recout_offset - (stream dst offset +
 	 *			((surf dst offset - stream src offset) * 1/ stream scaling ratio)
 	 *			- (surf surf_src offset * 1/ full scl ratio))
 	 */
-	recout_skip_h = data->recout.x - (stream->dst.x + (plane_state->dst_rect.x - stream->src.x)
+	recout_skip_h += odm_pipe->plane_res.scl_data.recout.x
+				- (stream->dst.x + (plane_state->dst_rect.x - stream->src.x)
 					* stream->dst.width / stream->src.width -
 					src.x * plane_state->dst_rect.width / src.width
 					* stream->dst.width / stream->src.width);
-	/*modified recout_skip_h calculation due to odm having no recout offset*/
-	while (odm_pipe) {
-		odm_idx++;
-		odm_pipe = odm_pipe->prev_odm_pipe;
-	}
-	if (odm_idx)
-		recout_skip_h += odm_idx * data->recout.width;
+
 
 	recout_skip_v = data->recout.y - (stream->dst.y + (plane_state->dst_rect.y - stream->src.y)
 					* stream->dst.height / stream->src.height -
@@ -1440,6 +1490,14 @@ bool dc_add_plane_to_context(
 			free_pipe->clock_source = tail_pipe->clock_source;
 			free_pipe->top_pipe = tail_pipe;
 			tail_pipe->bottom_pipe = free_pipe;
+			if (!free_pipe->next_odm_pipe && tail_pipe->next_odm_pipe && tail_pipe->next_odm_pipe->bottom_pipe) {
+				free_pipe->next_odm_pipe = tail_pipe->next_odm_pipe->bottom_pipe;
+				tail_pipe->next_odm_pipe->bottom_pipe->prev_odm_pipe = free_pipe;
+			}
+			if (!free_pipe->prev_odm_pipe && tail_pipe->prev_odm_pipe && tail_pipe->prev_odm_pipe->bottom_pipe) {
+				free_pipe->prev_odm_pipe = tail_pipe->prev_odm_pipe->bottom_pipe;
+				tail_pipe->prev_odm_pipe->bottom_pipe->next_odm_pipe = free_pipe;
+			}
 		}
 		head_pipe = head_pipe->next_odm_pipe;
 	}
@@ -2089,7 +2147,7 @@ enum dc_status resource_map_pool_resources(
 
 	/* Add ABM to the resource if on EDP */
 	if (pipe_ctx->stream && dc_is_embedded_signal(pipe_ctx->stream->signal)) {
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 		if (pool->abm)
 			pipe_ctx->stream_res.abm = pool->abm;
 		else
@@ -2914,7 +2972,7 @@ unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format)
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010_XR_BIAS:
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	case SURFACE_PIXEL_FORMAT_GRPH_RGBE:
 	case SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA:
 #endif

@@ -33,7 +33,8 @@ struct efa_irq {
 	char name[EFA_IRQNAME_SIZE];
 };
 
-struct efa_sw_stats {
+/* Don't use anything other than atomic64 */
+struct efa_stats {
 	atomic64_t alloc_pd_err;
 	atomic64_t create_qp_err;
 	atomic64_t create_cq_err;
@@ -41,11 +42,6 @@ struct efa_sw_stats {
 	atomic64_t alloc_ucontext_err;
 	atomic64_t create_ah_err;
 	atomic64_t mmap_err;
-};
-
-/* Don't use anything other than atomic64 */
-struct efa_stats {
-	struct efa_sw_stats sw_stats;
 	atomic64_t keep_alive_rcvd;
 };
 
@@ -134,12 +130,12 @@ int efa_query_gid(struct ib_device *ibdev, u8 port, int index,
 int efa_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 		   u16 *pkey);
 int efa_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
-void efa_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
+int efa_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
 int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 			    struct ib_qp_init_attr *init_attr,
 			    struct ib_udata *udata);
-void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
+int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
 int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		  struct ib_udata *udata);
 struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
@@ -156,7 +152,7 @@ void efa_mmap_free(struct rdma_user_mmap_entry *rdma_entry);
 int efa_create_ah(struct ib_ah *ibah,
 		  struct rdma_ah_init_attr *init_attr,
 		  struct ib_udata *udata);
-void efa_destroy_ah(struct ib_ah *ibah, u32 flags);
+int efa_destroy_ah(struct ib_ah *ibah, u32 flags);
 int efa_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 		  int qp_attr_mask, struct ib_udata *udata);
 enum rdma_link_layer efa_port_link_layer(struct ib_device *ibdev,

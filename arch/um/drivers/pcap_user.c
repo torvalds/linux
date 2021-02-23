@@ -32,7 +32,7 @@ static int pcap_user_init(void *data, void *dev)
 	return 0;
 }
 
-static int pcap_open(void *data)
+static int pcap_user_open(void *data)
 {
 	struct pcap_data *pri = data;
 	__u32 netmask;
@@ -44,14 +44,14 @@ static int pcap_open(void *data)
 	if (pri->filter != NULL) {
 		err = dev_netmask(pri->dev, &netmask);
 		if (err < 0) {
-			printk(UM_KERN_ERR "pcap_open : dev_netmask failed\n");
+			printk(UM_KERN_ERR "pcap_user_open : dev_netmask failed\n");
 			return -EIO;
 		}
 
 		pri->compiled = uml_kmalloc(sizeof(struct bpf_program),
 					UM_GFP_KERNEL);
 		if (pri->compiled == NULL) {
-			printk(UM_KERN_ERR "pcap_open : kmalloc failed\n");
+			printk(UM_KERN_ERR "pcap_user_open : kmalloc failed\n");
 			return -ENOMEM;
 		}
 
@@ -59,14 +59,14 @@ static int pcap_open(void *data)
 				   (struct bpf_program *) pri->compiled,
 				   pri->filter, pri->optimize, netmask);
 		if (err < 0) {
-			printk(UM_KERN_ERR "pcap_open : pcap_compile failed - "
+			printk(UM_KERN_ERR "pcap_user_open : pcap_compile failed - "
 			       "'%s'\n", pcap_geterr(pri->pcap));
 			goto out;
 		}
 
 		err = pcap_setfilter(pri->pcap, pri->compiled);
 		if (err < 0) {
-			printk(UM_KERN_ERR "pcap_open : pcap_setfilter "
+			printk(UM_KERN_ERR "pcap_user_open : pcap_setfilter "
 			       "failed - '%s'\n", pcap_geterr(pri->pcap));
 			goto out;
 		}
@@ -127,7 +127,7 @@ int pcap_user_read(int fd, void *buffer, int len, struct pcap_data *pri)
 
 const struct net_user_info pcap_user_info = {
 	.init		= pcap_user_init,
-	.open		= pcap_open,
+	.open		= pcap_user_open,
 	.close	 	= NULL,
 	.remove	 	= pcap_remove,
 	.add_address	= NULL,

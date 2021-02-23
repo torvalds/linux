@@ -1,0 +1,91 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/fsl-mxs-auart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale MXS Application UART (AUART)
+
+maintainers:
+  - Fabio Estevam <fabio.estevam@nxp.com>
+
+allOf:
+  - $ref: "serial.yaml"
+
+properties:
+  compatible:
+    enum:
+      - fsl,imx23-auart
+      - fsl,imx28-auart
+      - alphascale,asm9260-auart
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  dmas:
+    items:
+      - description: DMA controller phandle and request line for RX
+      - description: DMA controller phandle and request line for TX
+
+  dma-names:
+    items:
+      - const: rx
+      - const: tx
+
+  clocks:
+    items:
+      - description: mod clock
+      - description: ahb clock
+    minItems: 1
+
+  clock-names:
+    items:
+      - const: mod
+      - const: ahb
+    minItems: 1
+
+  uart-has-rtscts: true
+  rts-gpios: true
+  cts-gpios: true
+  dtr-gpios: true
+  dsr-gpios: true
+  rng-gpios: true
+  dcd-gpios: true
+
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - alphascale,asm9260-auart
+then:
+  required:
+    - clocks
+    - clock-names
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - dmas
+  - dma-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    aliases {
+        serial0 = &auart0;
+    };
+
+    auart0: serial@8006a000 {
+        compatible = "fsl,imx28-auart";
+        reg = <0x8006a000 0x2000>;
+        interrupts = <112>;
+        dmas = <&dma_apbx 8>, <&dma_apbx 9>;
+        dma-names = "rx", "tx";
+        clocks = <&clks 45>;
+    };

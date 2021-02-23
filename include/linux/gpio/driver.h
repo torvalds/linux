@@ -621,82 +621,11 @@ int gpiochip_irq_domain_activate(struct irq_domain *domain,
 void gpiochip_irq_domain_deactivate(struct irq_domain *domain,
 				    struct irq_data *data);
 
-void gpiochip_set_nested_irqchip(struct gpio_chip *gc,
-		struct irq_chip *irqchip,
-		unsigned int parent_irq);
-
-int gpiochip_irqchip_add_key(struct gpio_chip *gc,
-			     struct irq_chip *irqchip,
-			     unsigned int first_irq,
-			     irq_flow_handler_t handler,
-			     unsigned int type,
-			     bool threaded,
-			     struct lock_class_key *lock_key,
-			     struct lock_class_key *request_key);
-
 bool gpiochip_irqchip_irq_valid(const struct gpio_chip *gc,
 				unsigned int offset);
 
 int gpiochip_irqchip_add_domain(struct gpio_chip *gc,
 				struct irq_domain *domain);
-
-#ifdef CONFIG_LOCKDEP
-
-/*
- * Lockdep requires that each irqchip instance be created with a
- * unique key so as to avoid unnecessary warnings. This upfront
- * boilerplate static inlines provides such a key for each
- * unique instance.
- */
-static inline int gpiochip_irqchip_add(struct gpio_chip *gc,
-				       struct irq_chip *irqchip,
-				       unsigned int first_irq,
-				       irq_flow_handler_t handler,
-				       unsigned int type)
-{
-	static struct lock_class_key lock_key;
-	static struct lock_class_key request_key;
-
-	return gpiochip_irqchip_add_key(gc, irqchip, first_irq,
-					handler, type, false,
-					&lock_key, &request_key);
-}
-
-static inline int gpiochip_irqchip_add_nested(struct gpio_chip *gc,
-			  struct irq_chip *irqchip,
-			  unsigned int first_irq,
-			  irq_flow_handler_t handler,
-			  unsigned int type)
-{
-
-	static struct lock_class_key lock_key;
-	static struct lock_class_key request_key;
-
-	return gpiochip_irqchip_add_key(gc, irqchip, first_irq,
-					handler, type, true,
-					&lock_key, &request_key);
-}
-#else /* ! CONFIG_LOCKDEP */
-static inline int gpiochip_irqchip_add(struct gpio_chip *gc,
-				       struct irq_chip *irqchip,
-				       unsigned int first_irq,
-				       irq_flow_handler_t handler,
-				       unsigned int type)
-{
-	return gpiochip_irqchip_add_key(gc, irqchip, first_irq,
-					handler, type, false, NULL, NULL);
-}
-
-static inline int gpiochip_irqchip_add_nested(struct gpio_chip *gc,
-			  struct irq_chip *irqchip,
-			  unsigned int first_irq,
-			  irq_flow_handler_t handler,
-			  unsigned int type)
-{
-	return gpiochip_irqchip_add_key(gc, irqchip, first_irq,
-					handler, type, true, NULL, NULL);
-}
-#endif /* CONFIG_LOCKDEP */
 
 int gpiochip_generic_request(struct gpio_chip *gc, unsigned int offset);
 void gpiochip_generic_free(struct gpio_chip *gc, unsigned int offset);
@@ -755,9 +684,6 @@ struct gpio_desc *gpiochip_request_own_desc(struct gpio_chip *gc,
 					    enum gpio_lookup_flags lflags,
 					    enum gpiod_flags dflags);
 void gpiochip_free_own_desc(struct gpio_desc *desc);
-
-void devprop_gpiochip_set_names(struct gpio_chip *gc,
-				const struct fwnode_handle *fwnode);
 
 #ifdef CONFIG_GPIOLIB
 

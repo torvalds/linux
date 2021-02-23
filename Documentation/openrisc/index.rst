@@ -10,6 +10,8 @@ OpenRISC Architecture
    openrisc_port
    todo
 
+   features
+
 .. only::  subproject and html
 
    Indices

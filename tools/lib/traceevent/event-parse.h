@@ -578,14 +578,6 @@ void tep_ref(struct tep_handle *tep);
 void tep_unref(struct tep_handle *tep);
 int tep_get_ref(struct tep_handle *tep);
 
-/* access to the internal parser */
-void tep_buffer_init(const char *buf, unsigned long long size);
-enum tep_event_type tep_read_token(char **tok);
-void tep_free_token(char *token);
-int tep_peek_char(void);
-const char *tep_get_input_buf(void);
-unsigned long long tep_get_input_buf_ptr(void);
-
 /* for debugging */
 void tep_print_funcs(struct tep_handle *tep);
 void tep_print_printk(struct tep_handle *tep);

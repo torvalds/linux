@@ -710,7 +710,7 @@ static void ne_block_output(struct net_device *dev, int count,
 retry:
 #endif
 
-#ifdef NE8390_RW_BUGFIX
+#ifdef NE_RW_BUGFIX
 	/* Handle the read-before-write bug the same way as the
 	   Crynwr packet driver -- the NatSemi method doesn't work.
 	   Actually this doesn't always work either, but if you have

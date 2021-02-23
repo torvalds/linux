@@ -1098,7 +1098,7 @@ err:
 /**
  * ath5k_drain_tx_buffs - Empty tx buffers
  *
- * @ah The &struct ath5k_hw
+ * @ah: The &struct ath5k_hw
  *
  * Empty tx buffers from all queues in preparation
  * of a reset or during shutdown.
@@ -1536,12 +1536,12 @@ ath5k_set_current_imask(struct ath5k_hw *ah)
 }
 
 static void
-ath5k_tasklet_rx(unsigned long data)
+ath5k_tasklet_rx(struct tasklet_struct *t)
 {
 	struct ath5k_rx_status rs = {};
 	struct sk_buff *skb, *next_skb;
 	dma_addr_t next_skb_addr;
-	struct ath5k_hw *ah = (void *)data;
+	struct ath5k_hw *ah = from_tasklet(ah, t, rxtq);
 	struct ath_common *common = ath5k_hw_common(ah);
 	struct ath5k_buf *bf;
 	struct ath5k_desc *ds;
@@ -1784,10 +1784,10 @@ ath5k_tx_processq(struct ath5k_hw *ah, struct ath5k_txq *txq)
 }
 
 static void
-ath5k_tasklet_tx(unsigned long data)
+ath5k_tasklet_tx(struct tasklet_struct *t)
 {
 	int i;
-	struct ath5k_hw *ah = (void *)data;
+	struct ath5k_hw *ah = from_tasklet(ah, t, txtq);
 
 	for (i = 0; i < AR5K_NUM_TX_QUEUES; i++)
 		if (ah->txqs[i].setup && (ah->ah_txq_isr_txok_all & BIT(i)))
@@ -2176,9 +2176,9 @@ ath5k_beacon_config(struct ath5k_hw *ah)
 	spin_unlock_bh(&ah->block);
 }
 
-static void ath5k_tasklet_beacon(unsigned long data)
+static void ath5k_tasklet_beacon(struct tasklet_struct *t)
 {
-	struct ath5k_hw *ah = (struct ath5k_hw *) data;
+	struct ath5k_hw *ah = from_tasklet(ah, t, beacontq);
 
 	/*
 	 * Software beacon alert--time to send a beacon.
@@ -2447,9 +2447,9 @@ ath5k_calibrate_work(struct work_struct *work)
 
 
 static void
-ath5k_tasklet_ani(unsigned long data)
+ath5k_tasklet_ani(struct tasklet_struct *t)
 {
-	struct ath5k_hw *ah = (void *)data;
+	struct ath5k_hw *ah = from_tasklet(ah, t, ani_tasklet);
 
 	ah->ah_cal_mask |= AR5K_CALIBRATION_ANI;
 	ath5k_ani_calibration(ah);
@@ -3069,10 +3069,10 @@ ath5k_init(struct ieee80211_hw *hw)
 		hw->queues = 1;
 	}
 
-	tasklet_init(&ah->rxtq, ath5k_tasklet_rx, (unsigned long)ah);
-	tasklet_init(&ah->txtq, ath5k_tasklet_tx, (unsigned long)ah);
-	tasklet_init(&ah->beacontq, ath5k_tasklet_beacon, (unsigned long)ah);
-	tasklet_init(&ah->ani_tasklet, ath5k_tasklet_ani, (unsigned long)ah);
+	tasklet_setup(&ah->rxtq, ath5k_tasklet_rx);
+	tasklet_setup(&ah->txtq, ath5k_tasklet_tx);
+	tasklet_setup(&ah->beacontq, ath5k_tasklet_beacon);
+	tasklet_setup(&ah->ani_tasklet, ath5k_tasklet_ani);
 
 	INIT_WORK(&ah->reset_work, ath5k_reset_work);
 	INIT_WORK(&ah->calib_work, ath5k_calibrate_work);

@@ -37,20 +37,6 @@ Description:
 		The /sys/class/devfreq/.../target_freq shows the next governor
 		predicted target frequency of the corresponding devfreq object.
 
-What:		/sys/class/devfreq/.../polling_interval
-Date:		September 2011
-Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
-Description:
-		The /sys/class/devfreq/.../polling_interval shows and sets
-		the requested polling interval of the corresponding devfreq
-		object. The values are represented in ms. If the value is
-		less than 1 jiffy, it is considered to be 0, which means
-		no polling. This value is meaningless if the governor is
-		not polling; thus. If the governor is not using
-		devfreq-provided central polling
-		(/sys/class/devfreq/.../central_polling is 0), this value
-		may be useless.
-
 What:		/sys/class/devfreq/.../trans_stat
 Date:		October 2012
 Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
@@ -62,16 +48,9 @@ Description:
 		driver should provide the list of available frequencies
 		with its profile. If need to reset the statistics of devfreq
 		behavior on a specific device, enter 0(zero) to 'trans_stat'
-		as following:
-			echo 0 > /sys/class/devfreq/.../trans_stat
+		as following::
 
-What:		/sys/class/devfreq/.../userspace/set_freq
-Date:		September 2011
-Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
-Description:
-		The /sys/class/devfreq/.../userspace/set_freq shows and
-		sets the requested frequency for the devfreq object if
-		userspace governor is in effect.
+			echo 0 > /sys/class/devfreq/.../trans_stat
 
 What:		/sys/class/devfreq/.../available_frequencies
 Date:		October 2012
@@ -109,6 +88,35 @@ Description:
 		The max_freq overrides min_freq because max_freq may be
 		used to throttle devices to avoid overheating.
 
+What:		/sys/class/devfreq/.../polling_interval
+Date:		September 2011
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		The /sys/class/devfreq/.../polling_interval shows and sets
+		the requested polling interval of the corresponding devfreq
+		object. The values are represented in ms. If the value is
+		less than 1 jiffy, it is considered to be 0, which means
+		no polling. This value is meaningless if the governor is
+		not polling; thus. If the governor is not using
+		devfreq-provided central polling
+		(/sys/class/devfreq/.../central_polling is 0), this value
+		may be useless.
+
+		A list of governors that support the node:
+		- simple_ondmenad
+		- tegra_actmon
+
+What:		/sys/class/devfreq/.../userspace/set_freq
+Date:		September 2011
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		The /sys/class/devfreq/.../userspace/set_freq shows and
+		sets the requested frequency for the devfreq object if
+		userspace governor is in effect.
+
+		A list of governors that support the node:
+		- userspace
+
 What:		/sys/class/devfreq/.../timer
 Date:		July 2020
 Contact:	Chanwoo Choi <cw00.choi@samsung.com>
@@ -117,6 +125,10 @@ Description:
 		This work timer is used by devfreq workqueue in order to
 		monitor the device status such as utilization. The user
 		can change the work timer on runtime according to their demand
-		as following:
+		as following::
+
 			echo deferrable > /sys/class/devfreq/.../timer
 			echo delayed > /sys/class/devfreq/.../timer
+
+		A list of governors that support the node:
+		- simple_ondemand

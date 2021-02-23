@@ -22,8 +22,7 @@ int rtw_hal_init_recv_priv(struct adapter *padapter)
 	int i, res = _SUCCESS;
 	struct recv_buf *precvbuf;
 
-	tasklet_init(&precvpriv->recv_tasklet, rtl8188eu_recv_tasklet,
-		     (unsigned long)padapter);
+	tasklet_setup(&precvpriv->recv_tasklet, rtl8188eu_recv_tasklet);
 
 	/* init recv_buf */
 	_rtw_init_queue(&precvpriv->free_recv_buf_queue);

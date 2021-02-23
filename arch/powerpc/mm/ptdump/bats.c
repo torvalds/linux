@@ -12,62 +12,6 @@
 
 #include "ptdump.h"
 
-static char *pp_601(int k, int pp)
-{
-	if (pp == 0)
-		return k ? "   " : "rwx";
-	if (pp == 1)
-		return k ? "r x" : "rwx";
-	if (pp == 2)
-		return "rwx";
-	return "r x";
-}
-
-static void bat_show_601(struct seq_file *m, int idx, u32 lower, u32 upper)
-{
-	u32 blpi = upper & 0xfffe0000;
-	u32 k = (upper >> 2) & 3;
-	u32 pp = upper & 3;
-	phys_addr_t pbn = PHYS_BAT_ADDR(lower);
-	u32 bsm = lower & 0x3ff;
-	u32 size = (bsm + 1) << 17;
-
-	seq_printf(m, "%d: ", idx);
-	if (!(lower & 0x40)) {
-		seq_puts(m, "        -\n");
-		return;
-	}
-
-	seq_printf(m, "0x%08x-0x%08x ", blpi, blpi + size - 1);
-#ifdef CONFIG_PHYS_64BIT
-	seq_printf(m, "0x%016llx ", pbn);
-#else
-	seq_printf(m, "0x%08x ", pbn);
-#endif
-	pt_dump_size(m, size);
-
-	seq_printf(m, "Kernel %s User %s", pp_601(k & 2, pp), pp_601(k & 1, pp));
-
-	seq_puts(m, lower & _PAGE_WRITETHRU ? "w " : "  ");
-	seq_puts(m, lower & _PAGE_NO_CACHE ? "i " : "  ");
-	seq_puts(m, lower & _PAGE_COHERENT ? "m " : "  ");
-	seq_puts(m, "\n");
-}
-
-#define BAT_SHOW_601(_m, _n, _l, _u) bat_show_601(_m, _n, mfspr(_l), mfspr(_u))
-
-static int bats_show_601(struct seq_file *m, void *v)
-{
-	seq_puts(m, "---[ Block Address Translation ]---\n");
-
-	BAT_SHOW_601(m, 0, SPRN_IBAT0L, SPRN_IBAT0U);
-	BAT_SHOW_601(m, 1, SPRN_IBAT1L, SPRN_IBAT1U);
-	BAT_SHOW_601(m, 2, SPRN_IBAT2L, SPRN_IBAT2U);
-	BAT_SHOW_601(m, 3, SPRN_IBAT3L, SPRN_IBAT3U);
-
-	return 0;
-}
-
 static void bat_show_603(struct seq_file *m, int idx, u32 lower, u32 upper, bool is_d)
 {
 	u32 bepi = upper & 0xfffe0000;
@@ -146,9 +90,6 @@ static int bats_show_603(struct seq_file *m, void *v)
 
 static int bats_open(struct inode *inode, struct file *file)
 {
-	if (IS_ENABLED(CONFIG_PPC_BOOK3S_601))
-		return single_open(file, bats_show_601, NULL);
-
 	return single_open(file, bats_show_603, NULL);
 }
 

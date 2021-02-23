@@ -1087,7 +1087,7 @@ static int nand_update_bbt(struct nand_chip *this, loff_t offs)
 }
 
 /**
- * mark_bbt_regions - [GENERIC] mark the bad block table regions
+ * mark_bbt_region - [GENERIC] mark the bad block table regions
  * @this: the NAND device
  * @td: bad block table descriptor
  *

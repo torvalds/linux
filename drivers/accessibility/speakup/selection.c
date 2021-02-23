@@ -22,13 +22,6 @@ struct speakup_selection_work {
 	struct tty_struct *tty;
 };
 
-void speakup_clear_selection(void)
-{
-	console_lock();
-	clear_selection();
-	console_unlock();
-}
-
 static void __speakup_set_selection(struct work_struct *work)
 {
 	struct speakup_selection_work *ssw =
@@ -50,6 +43,10 @@ static void __speakup_set_selection(struct work_struct *work)
 		pr_warn("Selection: mark console not the same as cut\n");
 		goto unref;
 	}
+
+	console_lock();
+	clear_selection();
+	console_unlock();
 
 	set_selection_kernel(&sel, tty);
 

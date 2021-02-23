@@ -217,9 +217,13 @@ static const struct net_device_ops ef100_netdev_ops = {
 	.ndo_open               = ef100_net_open,
 	.ndo_stop               = ef100_net_stop,
 	.ndo_start_xmit         = ef100_hard_start_xmit,
+	.ndo_tx_timeout         = efx_watchdog,
 	.ndo_get_stats64        = efx_net_stats,
+	.ndo_change_mtu         = efx_change_mtu,
 	.ndo_validate_addr      = eth_validate_addr,
+	.ndo_set_mac_address    = efx_set_mac_address,
 	.ndo_set_rx_mode        = efx_set_rx_mode, /* Lookout */
+	.ndo_set_features       = efx_set_features,
 	.ndo_get_phys_port_id   = efx_get_phys_port_id,
 	.ndo_get_phys_port_name = efx_get_phys_port_name,
 #ifdef CONFIG_RFS_ACCEL

@@ -991,9 +991,7 @@ static int jz4740_mmc_probe(struct platform_device* pdev)
 
 	ret = mmc_of_parse(mmc);
 	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"could not parse device properties: %d\n", ret);
+		dev_err_probe(&pdev->dev, ret, "could not parse device properties\n");
 		goto err_free_host;
 	}
 
@@ -1126,6 +1124,7 @@ static struct platform_driver jz4740_mmc_driver = {
 	.remove = jz4740_mmc_remove,
 	.driver = {
 		.name = "jz4740-mmc",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(jz4740_mmc_of_match),
 		.pm = pm_ptr(&jz4740_mmc_pm_ops),
 	},

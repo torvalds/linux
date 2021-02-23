@@ -225,7 +225,7 @@ static int vdec_check_src_change(struct venus_inst *inst)
 
 	if (!(inst->codec_state == VENUS_DEC_STATE_CAPTURE_SETUP) ||
 	    !inst->reconfig)
-		dev_dbg(inst->core->dev, "%s: wrong state\n", __func__);
+		dev_dbg(inst->core->dev, VDBGH "wrong state\n");
 
 done:
 	return 0;
@@ -325,6 +325,10 @@ static int vdec_s_fmt(struct file *file, void *fh, struct v4l2_format *f)
 
 	inst->width = format.fmt.pix_mp.width;
 	inst->height = format.fmt.pix_mp.height;
+	inst->crop.top = 0;
+	inst->crop.left = 0;
+	inst->crop.width = inst->width;
+	inst->crop.height = inst->height;
 
 	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 		inst->fmt_out = fmt;
@@ -342,6 +346,9 @@ vdec_g_selection(struct file *file, void *fh, struct v4l2_selection *s)
 	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
 	    s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		return -EINVAL;
+
+	s->r.top = 0;
+	s->r.left = 0;
 
 	switch (s->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
@@ -363,15 +370,11 @@ vdec_g_selection(struct file *file, void *fh, struct v4l2_selection *s)
 	case V4L2_SEL_TGT_COMPOSE:
 		if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 			return -EINVAL;
-		s->r.width = inst->out_width;
-		s->r.height = inst->out_height;
+		s->r = inst->crop;
 		break;
 	default:
 		return -EINVAL;
 	}
-
-	s->r.top = 0;
-	s->r.left = 0;
 
 	return 0;
 }
@@ -1072,7 +1075,7 @@ static int vdec_stop_capture(struct venus_inst *inst)
 	switch (inst->codec_state) {
 	case VENUS_DEC_STATE_DECODING:
 		ret = hfi_session_flush(inst, HFI_FLUSH_ALL, true);
-		/* fallthrough */
+		fallthrough;
 	case VENUS_DEC_STATE_DRAIN:
 		vdec_cancel_dst_buffers(inst);
 		inst->codec_state = VENUS_DEC_STATE_STOPPED;
@@ -1087,8 +1090,6 @@ static int vdec_stop_capture(struct venus_inst *inst)
 	default:
 		break;
 	}
-
-	INIT_LIST_HEAD(&inst->registeredbufs);
 
 	return ret;
 }
@@ -1189,6 +1190,14 @@ static int vdec_buf_init(struct vb2_buffer *vb)
 static void vdec_buf_cleanup(struct vb2_buffer *vb)
 {
 	struct venus_inst *inst = vb2_get_drv_priv(vb->vb2_queue);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct venus_buffer *buf = to_venus_buffer(vbuf);
+
+	mutex_lock(&inst->lock);
+	if (vb->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		if (!list_empty(&inst->registeredbufs))
+			list_del_init(&buf->reg_list);
+	mutex_unlock(&inst->lock);
 
 	inst->buf_count--;
 	if (!inst->buf_count)
@@ -1303,6 +1312,21 @@ static void vdec_event_change(struct venus_inst *inst,
 
 	inst->width = format.fmt.pix_mp.width;
 	inst->height = format.fmt.pix_mp.height;
+	/*
+	 * Some versions of the firmware do not report crop information for
+	 * all codecs. For these cases, set the crop to the coded resolution.
+	 */
+	if (ev_data->input_crop.width > 0 && ev_data->input_crop.height > 0) {
+		inst->crop.left = ev_data->input_crop.left;
+		inst->crop.top = ev_data->input_crop.top;
+		inst->crop.width = ev_data->input_crop.width;
+		inst->crop.height = ev_data->input_crop.height;
+	} else {
+		inst->crop.left = 0;
+		inst->crop.top = 0;
+		inst->crop.width = ev_data->width;
+		inst->crop.height = ev_data->height;
+	}
 
 	inst->out_width = ev_data->width;
 	inst->out_height = ev_data->height;
@@ -1310,7 +1334,7 @@ static void vdec_event_change(struct venus_inst *inst,
 	if (inst->bit_depth != ev_data->bit_depth)
 		inst->bit_depth = ev_data->bit_depth;
 
-	dev_dbg(dev, "event %s sufficient resources (%ux%u)\n",
+	dev_dbg(dev, VDBGM "event %s sufficient resources (%ux%u)\n",
 		sufficient ? "" : "not", ev_data->width, ev_data->height);
 
 	if (sufficient) {
@@ -1344,7 +1368,7 @@ static void vdec_event_change(struct venus_inst *inst,
 
 		ret = hfi_session_flush(inst, HFI_FLUSH_OUTPUT, false);
 		if (ret)
-			dev_dbg(dev, "flush output error %d\n", ret);
+			dev_dbg(dev, VDBGH "flush output error %d\n", ret);
 	}
 
 	inst->reconfig = true;
@@ -1406,6 +1430,10 @@ static void vdec_inst_init(struct venus_inst *inst)
 	inst->fmt_cap = &vdec_formats[0];
 	inst->width = frame_width_min(inst);
 	inst->height = ALIGN(frame_height_min(inst), 32);
+	inst->crop.left = 0;
+	inst->crop.top = 0;
+	inst->crop.width = inst->width;
+	inst->crop.height = inst->height;
 	inst->out_width = frame_width_min(inst);
 	inst->out_height = frame_height_min(inst);
 	inst->fps = 30;
@@ -1453,13 +1481,7 @@ static int m2m_queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->allow_zero_bytesused = 1;
 	dst_vq->min_buffers_needed = 0;
 	dst_vq->dev = inst->core->dev;
-	ret = vb2_queue_init(dst_vq);
-	if (ret) {
-		vb2_queue_release(src_vq);
-		return ret;
-	}
-
-	return 0;
+	return vb2_queue_init(dst_vq);
 }
 
 static int vdec_open(struct file *file)

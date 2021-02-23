@@ -429,11 +429,11 @@ static int mt76x02_dfs_create_sequence(struct mt76x02_dev *dev,
 {
 	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
 	struct mt76x02_dfs_sw_detector_params *sw_params;
-	u32 width_delta, with_sum, factor, cur_pri;
+	u32 width_delta, with_sum;
 	struct mt76x02_dfs_sequence seq, *seq_p;
 	struct mt76x02_dfs_event_rb *event_rb;
 	struct mt76x02_dfs_event *cur_event;
-	int i, j, end, pri;
+	int i, j, end, pri, factor, cur_pri;
 
 	event_rb = event->engine == 2 ? &dfs_pd->event_rb[1]
 				      : &dfs_pd->event_rb[0];
@@ -517,7 +517,7 @@ static u16 mt76x02_dfs_add_event_to_sequence(struct mt76x02_dev *dev,
 	struct mt76x02_dfs_sw_detector_params *sw_params;
 	struct mt76x02_dfs_sequence *seq, *tmp_seq;
 	u16 max_seq_len = 0;
-	u32 factor, pri;
+	int factor, pri;
 
 	sw_params = &dfs_pd->sw_dpd_params;
 	list_for_each_entry_safe(seq, tmp_seq, &dfs_pd->sequences, head) {
@@ -609,10 +609,11 @@ static void mt76x02_dfs_check_event_window(struct mt76x02_dev *dev)
 	}
 }
 
-static void mt76x02_dfs_tasklet(unsigned long arg)
+static void mt76x02_dfs_tasklet(struct tasklet_struct *t)
 {
-	struct mt76x02_dev *dev = (struct mt76x02_dev *)arg;
-	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
+	struct mt76x02_dfs_pattern_detector *dfs_pd = from_tasklet(dfs_pd, t,
+								   dfs_tasklet);
+	struct mt76x02_dev *dev = container_of(dfs_pd, typeof(*dev), dfs_pd);
 	u32 engine_mask;
 	int i;
 
@@ -860,8 +861,7 @@ void mt76x02_dfs_init_detector(struct mt76x02_dev *dev)
 	INIT_LIST_HEAD(&dfs_pd->seq_pool);
 	dev->mt76.region = NL80211_DFS_UNSET;
 	dfs_pd->last_sw_check = jiffies;
-	tasklet_init(&dfs_pd->dfs_tasklet, mt76x02_dfs_tasklet,
-		     (unsigned long)dev);
+	tasklet_setup(&dfs_pd->dfs_tasklet, mt76x02_dfs_tasklet);
 }
 
 static void

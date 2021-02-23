@@ -1097,7 +1097,7 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 
 	/* see if we can add this page onto our existing bio */
 	if (last) {
-		u64 last_end = (u64)last->bi_iter.bi_sector << 9;
+		u64 last_end = last->bi_iter.bi_sector << 9;
 		last_end += last->bi_iter.bi_size;
 
 		/*
@@ -1163,7 +1163,7 @@ static void index_rbio_pages(struct btrfs_raid_bio *rbio)
 		struct bvec_iter iter;
 		int i = 0;
 
-		start = (u64)bio->bi_iter.bi_sector << 9;
+		start = bio->bi_iter.bi_sector << 9;
 		stripe_offset = start - rbio->bbio->raid_map[0];
 		page_index = stripe_offset >> PAGE_SHIFT;
 
@@ -1374,7 +1374,7 @@ static int find_bio_stripe(struct btrfs_raid_bio *rbio,
 static int find_logical_bio_stripe(struct btrfs_raid_bio *rbio,
 				   struct bio *bio)
 {
-	u64 logical = (u64)bio->bi_iter.bi_sector << 9;
+	u64 logical = bio->bi_iter.bi_sector << 9;
 	int i;
 
 	for (i = 0; i < rbio->nr_data; i++) {
@@ -2150,7 +2150,7 @@ int raid56_parity_recover(struct btrfs_fs_info *fs_info, struct bio *bio,
 	if (rbio->faila == -1) {
 		btrfs_warn(fs_info,
 	"%s could not find the bad stripe in raid56 so that we cannot recover any more (bio has logical %llu len %llu, bbio has map_type %llu)",
-			   __func__, (u64)bio->bi_iter.bi_sector << 9,
+			   __func__, bio->bi_iter.bi_sector << 9,
 			   (u64)bio->bi_iter.bi_size, bbio->map_type);
 		if (generic_io)
 			btrfs_put_bbio(bbio);

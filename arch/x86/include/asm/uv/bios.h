@@ -5,8 +5,9 @@
 /*
  * UV BIOS layer definitions.
  *
- *  Copyright (c) 2008-2009 Silicon Graphics, Inc.  All Rights Reserved.
- *  Copyright (c) Russ Anderson <rja@sgi.com>
+ * (C) Copyright 2020 Hewlett Packard Enterprise Development LP
+ * Copyright (C) 2007-2017 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (c) Russ Anderson <rja@sgi.com>
  */
 
 #include <linux/rtc.h>
@@ -26,6 +27,20 @@ enum uv_bios_cmd {
 	UV_BIOS_GET_PARTITION_ADDR,
 	UV_BIOS_SET_LEGACY_VGA_TARGET
 };
+
+#define UV_BIOS_EXTRA			    0x10000
+#define UV_BIOS_GET_PCI_TOPOLOGY	    0x10001
+#define UV_BIOS_GET_GEOINFO		    0x10003
+
+#define UV_BIOS_EXTRA_OP_MEM_COPYIN	    0x1000
+#define UV_BIOS_EXTRA_OP_MEM_COPYOUT	    0x2000
+#define UV_BIOS_EXTRA_OP_MASK		    0x0fff
+#define UV_BIOS_EXTRA_GET_HEAPSIZE	    1
+#define UV_BIOS_EXTRA_INSTALL_HEAP	    2
+#define UV_BIOS_EXTRA_MASTER_NASID	    3
+#define UV_BIOS_EXTRA_OBJECT_COUNT	    (10|UV_BIOS_EXTRA_OP_MEM_COPYOUT)
+#define UV_BIOS_EXTRA_ENUM_OBJECTS	    (12|UV_BIOS_EXTRA_OP_MEM_COPYOUT)
+#define UV_BIOS_EXTRA_ENUM_PORTS	    (13|UV_BIOS_EXTRA_OP_MEM_COPYOUT)
 
 /*
  * Status values returned from a BIOS call.
@@ -71,6 +86,11 @@ struct uv_gam_range_entry {
 	u32	limit;		/* PA bits 56:26 (UV_GAM_RANGE_SHFT) */
 };
 
+#define	UV_AT_SIZE	8	/* 7 character arch type + NULL char */
+struct uv_arch_type_entry {
+	char	archtype[UV_AT_SIZE];
+};
+
 #define	UV_SYSTAB_SIG			"UVST"
 #define	UV_SYSTAB_VERSION_1		1	/* UV2/3 BIOS version */
 #define	UV_SYSTAB_VERSION_UV4		0x400	/* UV4 BIOS base version */
@@ -79,10 +99,14 @@ struct uv_gam_range_entry {
 #define	UV_SYSTAB_VERSION_UV4_3		0x403	/* - GAM Range PXM Value */
 #define	UV_SYSTAB_VERSION_UV4_LATEST	UV_SYSTAB_VERSION_UV4_3
 
+#define	UV_SYSTAB_VERSION_UV5		0x500	/* UV5 GAM base version */
+#define	UV_SYSTAB_VERSION_UV5_LATEST	UV_SYSTAB_VERSION_UV5
+
 #define	UV_SYSTAB_TYPE_UNUSED		0	/* End of table (offset == 0) */
 #define	UV_SYSTAB_TYPE_GAM_PARAMS	1	/* GAM PARAM conversions */
 #define	UV_SYSTAB_TYPE_GAM_RNG_TBL	2	/* GAM entry table */
-#define	UV_SYSTAB_TYPE_MAX		3
+#define	UV_SYSTAB_TYPE_ARCH_TYPE	3	/* UV arch type */
+#define	UV_SYSTAB_TYPE_MAX		4
 
 /*
  * The UV system table describes specific firmware
@@ -99,6 +123,32 @@ struct uv_systab {
 	} entry[1];		/* additional entries follow */
 };
 extern struct uv_systab *uv_systab;
+
+#define UV_BIOS_MAXSTRING	      128
+struct uv_bios_hub_info {
+	unsigned int id;
+	union {
+		struct {
+			unsigned long long this_part:1;
+			unsigned long long is_shared:1;
+			unsigned long long is_disabled:1;
+		} fields;
+		struct {
+			unsigned long long flags;
+			unsigned long long reserved;
+		} b;
+	} f;
+	char name[UV_BIOS_MAXSTRING];
+	char location[UV_BIOS_MAXSTRING];
+	unsigned int ports;
+};
+
+struct uv_bios_port_info {
+	unsigned int port;
+	unsigned int conn_id;
+	unsigned int conn_port;
+};
+
 /* (... end of definitions from UV BIOS ...) */
 
 enum {
@@ -132,7 +182,17 @@ extern s64 uv_bios_change_memprotect(u64, u64, enum uv_memprotect);
 extern s64 uv_bios_reserved_page_pa(u64, u64 *, u64 *, u64 *);
 extern int uv_bios_set_legacy_vga_target(bool decode, int domain, int bus);
 
+extern s64 uv_bios_get_master_nasid(u64 sz, u64 *nasid);
+extern s64 uv_bios_get_heapsize(u64 nasid, u64 sz, u64 *heap_sz);
+extern s64 uv_bios_install_heap(u64 nasid, u64 sz, u64 *heap);
+extern s64 uv_bios_obj_count(u64 nasid, u64 sz, u64 *objcnt);
+extern s64 uv_bios_enum_objs(u64 nasid, u64 sz, u64 *objbuf);
+extern s64 uv_bios_enum_ports(u64 nasid, u64 obj_id, u64 sz, u64 *portbuf);
+extern s64 uv_bios_get_geoinfo(u64 nasid, u64 sz, u64 *geo);
+extern s64 uv_bios_get_pci_topology(u64 sz, u64 *buf);
+
 extern int uv_bios_init(void);
+extern unsigned long get_uv_systab_phys(bool msg);
 
 extern unsigned long sn_rtc_cycles_per_second;
 extern int uv_type;
@@ -140,6 +200,8 @@ extern long sn_partition_id;
 extern long sn_coherency_id;
 extern long sn_region_size;
 extern long system_serial_number;
+extern ssize_t uv_get_archtype(char *buf, int len);
+extern int uv_get_hubless_system(void);
 
 extern struct kobject *sgi_uv_kobj;	/* /sys/firmware/sgi_uv */
 

@@ -883,11 +883,9 @@ static int si5341_output_set_parent(struct clk_hw *hw, u8 index)
 static u8 si5341_output_get_parent(struct clk_hw *hw)
 {
 	struct clk_si5341_output *output = to_clk_si5341_output(hw);
-	int err;
 	u32 val;
 
-	err = regmap_read(output->data->regmap,
-			SI5341_OUT_MUX_SEL(output), &val);
+	regmap_read(output->data->regmap, SI5341_OUT_MUX_SEL(output), &val);
 
 	return val & 0x7;
 }

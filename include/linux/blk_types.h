@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 #include <linux/bvec.h>
+#include <linux/device.h>
 #include <linux/ktime.h>
 
 struct bio_set;
@@ -20,24 +21,29 @@ typedef void (bio_end_io_t) (struct bio *);
 struct bio_crypt_ctx;
 
 struct block_device {
-	dev_t			bd_dev;  /* not a kdev_t - it's a search key */
+	sector_t		bd_start_sect;
+	struct disk_stats __percpu *bd_stats;
+	unsigned long		bd_stamp;
+	bool			bd_read_only;	/* read-only policy */
+	dev_t			bd_dev;
 	int			bd_openers;
 	struct inode *		bd_inode;	/* will die */
 	struct super_block *	bd_super;
 	struct mutex		bd_mutex;	/* open/close mutex */
 	void *			bd_claiming;
+	struct device		bd_device;
 	void *			bd_holder;
 	int			bd_holders;
 	bool			bd_write_holder;
 #ifdef CONFIG_SYSFS
 	struct list_head	bd_holder_disks;
 #endif
-	struct block_device *	bd_contains;
+	struct kobject		*bd_holder_dir;
 	u8			bd_partno;
-	struct hd_struct *	bd_part;
 	/* number of times partitions within this device have been opened. */
 	unsigned		bd_part_count;
-	int			bd_invalidated;
+
+	spinlock_t		bd_size_lock; /* for bd_inode->i_size updates */
 	struct gendisk *	bd_disk;
 	struct backing_dev_info *bd_bdi;
 
@@ -45,7 +51,22 @@ struct block_device {
 	int			bd_fsfreeze_count;
 	/* Mutex for freeze */
 	struct mutex		bd_fsfreeze_mutex;
+	struct super_block	*bd_fsfreeze_sb;
+
+	struct partition_meta_info *bd_meta_info;
+#ifdef CONFIG_FAIL_MAKE_REQUEST
+	bool			bd_make_it_fail;
+#endif
 } __randomize_layout;
+
+#define bdev_whole(_bdev) \
+	((_bdev)->bd_disk->part0)
+
+#define dev_to_bdev(device) \
+	container_of((device), struct block_device, bd_device)
+
+#define bdev_kobj(_bdev) \
+	(&((_bdev)->bd_device.kobj))
 
 /*
  * Block error status values.  See block/blk-core:blk_errors for the details.
@@ -102,6 +123,24 @@ typedef u8 __bitwise blk_status_t;
  * to the same zone could be served.
  */
 #define BLK_STS_ZONE_RESOURCE	((__force blk_status_t)14)
+
+/*
+ * BLK_STS_ZONE_OPEN_RESOURCE is returned from the driver in the completion
+ * path if the device returns a status indicating that too many zone resources
+ * are currently open. The same command should be successful if resubmitted
+ * after the number of open zones decreases below the device's limits, which is
+ * reported in the request_queue's max_open_zones.
+ */
+#define BLK_STS_ZONE_OPEN_RESOURCE	((__force blk_status_t)15)
+
+/*
+ * BLK_STS_ZONE_ACTIVE_RESOURCE is returned from the driver in the completion
+ * path if the device returns a status indicating that too many zone resources
+ * are currently active. The same command should be successful if resubmitted
+ * after the number of active zones decreases below the device's limits, which
+ * is reported in the request_queue's max_active_zones.
+ */
+#define BLK_STS_ZONE_ACTIVE_RESOURCE	((__force blk_status_t)16)
 
 /**
  * blk_path_error - returns true if error may be path related
@@ -255,8 +294,6 @@ enum {
 	BIO_NO_PAGE_REF,	/* don't put release vec pages */
 	BIO_CLONED,		/* doesn't own data */
 	BIO_BOUNCED,		/* bio is a bounce bio */
-	BIO_USER_MAPPED,	/* contains user pages */
-	BIO_NULL_MAPPED,	/* contains invalid user pages */
 	BIO_WORKINGSET,		/* contains userspace workingset pages */
 	BIO_QUIET,		/* Make BIO Quiet */
 	BIO_CHAIN,		/* chained bio, ->bi_remaining in effect */

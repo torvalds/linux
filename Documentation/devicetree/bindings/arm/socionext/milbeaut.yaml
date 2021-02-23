@@ -19,4 +19,7 @@ properties:
           - enum:
               - socionext,milbeaut-m10v-evb
           - const: socionext,sc2000a
+
+additionalProperties: true
+
 ...

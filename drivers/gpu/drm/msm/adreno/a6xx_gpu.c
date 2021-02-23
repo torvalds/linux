@@ -8,7 +8,9 @@
 #include "a6xx_gpu.h"
 #include "a6xx_gmu.xml.h"
 
+#include <linux/bitfield.h>
 #include <linux/devfreq.h>
+#include <linux/soc/qcom/llcc-qcom.h>
 
 #define GPU_PAS_ID 13
 
@@ -30,7 +32,7 @@ static inline bool _a6xx_check_idle(struct msm_gpu *gpu)
 		A6XX_RBBM_INT_0_MASK_RBBM_HANG_DETECT);
 }
 
-bool a6xx_idle(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
+static bool a6xx_idle(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 {
 	/* wait for CP to drain ringbuffer: */
 	if (!adreno_idle(gpu, ring))
@@ -51,10 +53,21 @@ bool a6xx_idle(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 
 static void a6xx_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 {
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
 	uint32_t wptr;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ring->lock, flags);
+	/* Expanded APRIV doesn't need to issue the WHERE_AM_I opcode */
+	if (a6xx_gpu->has_whereami && !adreno_gpu->base.hw_apriv) {
+		struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+
+		OUT_PKT7(ring, CP_WHERE_AM_I, 2);
+		OUT_RING(ring, lower_32_bits(shadowptr(a6xx_gpu, ring)));
+		OUT_RING(ring, upper_32_bits(shadowptr(a6xx_gpu, ring)));
+	}
+
+	spin_lock_irqsave(&ring->preempt_lock, flags);
 
 	/* Copy the shadow to the actual register */
 	ring->cur = ring->next;
@@ -62,7 +75,7 @@ static void a6xx_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 	/* Make sure to wrap wptr if we need to */
 	wptr = get_wptr(ring);
 
-	spin_unlock_irqrestore(&ring->lock, flags);
+	spin_unlock_irqrestore(&ring->preempt_lock, flags);
 
 	/* Make sure everything is posted before making a decision */
 	mb();
@@ -81,8 +94,50 @@ static void get_stats_counter(struct msm_ringbuffer *ring, u32 counter,
 	OUT_RING(ring, upper_32_bits(iova));
 }
 
-static void a6xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
-	struct msm_file_private *ctx)
+static void a6xx_set_pagetable(struct a6xx_gpu *a6xx_gpu,
+		struct msm_ringbuffer *ring, struct msm_file_private *ctx)
+{
+	phys_addr_t ttbr;
+	u32 asid;
+	u64 memptr = rbmemptr(ring, ttbr0);
+
+	if (ctx == a6xx_gpu->cur_ctx)
+		return;
+
+	if (msm_iommu_pagetable_params(ctx->aspace->mmu, &ttbr, &asid))
+		return;
+
+	/* Execute the table update */
+	OUT_PKT7(ring, CP_SMMU_TABLE_UPDATE, 4);
+	OUT_RING(ring, CP_SMMU_TABLE_UPDATE_0_TTBR0_LO(lower_32_bits(ttbr)));
+
+	OUT_RING(ring,
+		CP_SMMU_TABLE_UPDATE_1_TTBR0_HI(upper_32_bits(ttbr)) |
+		CP_SMMU_TABLE_UPDATE_1_ASID(asid));
+	OUT_RING(ring, CP_SMMU_TABLE_UPDATE_2_CONTEXTIDR(0));
+	OUT_RING(ring, CP_SMMU_TABLE_UPDATE_3_CONTEXTBANK(0));
+
+	/*
+	 * Write the new TTBR0 to the memstore. This is good for debugging.
+	 */
+	OUT_PKT7(ring, CP_MEM_WRITE, 4);
+	OUT_RING(ring, CP_MEM_WRITE_0_ADDR_LO(lower_32_bits(memptr)));
+	OUT_RING(ring, CP_MEM_WRITE_1_ADDR_HI(upper_32_bits(memptr)));
+	OUT_RING(ring, lower_32_bits(ttbr));
+	OUT_RING(ring, (asid << 16) | upper_32_bits(ttbr));
+
+	/*
+	 * And finally, trigger a uche flush to be sure there isn't anything
+	 * lingering in that part of the GPU
+	 */
+
+	OUT_PKT7(ring, CP_EVENT_WRITE, 1);
+	OUT_RING(ring, 0x31);
+
+	a6xx_gpu->cur_ctx = ctx;
+}
+
+static void a6xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 {
 	unsigned int index = submit->seqno % MSM_GPU_SUBMIT_STATS_COUNT;
 	struct msm_drm_private *priv = gpu->dev->dev_private;
@@ -90,6 +145,8 @@ static void a6xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
 	struct msm_ringbuffer *ring = submit->ring;
 	unsigned int i;
+
+	a6xx_set_pagetable(a6xx_gpu, ring, submit->queue->ctx);
 
 	get_stats_counter(ring, REG_A6XX_RBBM_PERFCTR_CP_0_LO,
 		rbmemptr_stats(ring, index, cpcycles_start));
@@ -115,7 +172,7 @@ static void a6xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		case MSM_SUBMIT_CMD_IB_TARGET_BUF:
 			break;
 		case MSM_SUBMIT_CMD_CTX_RESTORE_BUF:
-			if (priv->lastctx == ctx)
+			if (priv->lastctx == submit->queue->ctx)
 				break;
 			fallthrough;
 		case MSM_SUBMIT_CMD_BUF:
@@ -464,6 +521,30 @@ static int a6xx_cp_init(struct msm_gpu *gpu)
 	return a6xx_idle(gpu, ring) ? 0 : -EINVAL;
 }
 
+static void a6xx_ucode_check_version(struct a6xx_gpu *a6xx_gpu,
+		struct drm_gem_object *obj)
+{
+	u32 *buf = msm_gem_get_vaddr(obj);
+
+	if (IS_ERR(buf))
+		return;
+
+	/*
+	 * If the lowest nibble is 0xa that is an indication that this microcode
+	 * has been patched. The actual version is in dword [3] but we only care
+	 * about the patchlevel which is the lowest nibble of dword [3]
+	 *
+	 * Otherwise check that the firmware is greater than or equal to 1.90
+	 * which was the first version that had this fix built in
+	 */
+	if (((buf[0] & 0xf) == 0xa) && (buf[2] & 0xf) >= 1)
+		a6xx_gpu->has_whereami = true;
+	else if ((buf[0] & 0xfff) > 0x190)
+		a6xx_gpu->has_whereami = true;
+
+	msm_gem_put_vaddr(obj);
+}
+
 static int a6xx_ucode_init(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
@@ -484,6 +565,7 @@ static int a6xx_ucode_init(struct msm_gpu *gpu)
 		}
 
 		msm_gem_object_set_name(a6xx_gpu->sqe_bo, "sqefw");
+		a6xx_ucode_check_version(a6xx_gpu, a6xx_gpu->sqe_bo);
 	}
 
 	gpu_write64(gpu, REG_A6XX_CP_SQE_INSTR_BASE_LO,
@@ -699,11 +781,42 @@ static int a6xx_hw_init(struct msm_gpu *gpu)
 	gpu_write64(gpu, REG_A6XX_CP_RB_BASE, REG_A6XX_CP_RB_BASE_HI,
 		gpu->rb[0]->iova);
 
-	gpu_write(gpu, REG_A6XX_CP_RB_CNTL,
-		MSM_GPU_RB_CNTL_DEFAULT | AXXX_CP_RB_CNTL_NO_UPDATE);
+	/* Targets that support extended APRIV can use the RPTR shadow from
+	 * hardware but all the other ones need to disable the feature. Targets
+	 * that support the WHERE_AM_I opcode can use that instead
+	 */
+	if (adreno_gpu->base.hw_apriv)
+		gpu_write(gpu, REG_A6XX_CP_RB_CNTL, MSM_GPU_RB_CNTL_DEFAULT);
+	else
+		gpu_write(gpu, REG_A6XX_CP_RB_CNTL,
+			MSM_GPU_RB_CNTL_DEFAULT | AXXX_CP_RB_CNTL_NO_UPDATE);
+
+	/*
+	 * Expanded APRIV and targets that support WHERE_AM_I both need a
+	 * privileged buffer to store the RPTR shadow
+	 */
+
+	if (adreno_gpu->base.hw_apriv || a6xx_gpu->has_whereami) {
+		if (!a6xx_gpu->shadow_bo) {
+			a6xx_gpu->shadow = msm_gem_kernel_new_locked(gpu->dev,
+				sizeof(u32) * gpu->nr_rings,
+				MSM_BO_UNCACHED | MSM_BO_MAP_PRIV,
+				gpu->aspace, &a6xx_gpu->shadow_bo,
+				&a6xx_gpu->shadow_iova);
+
+			if (IS_ERR(a6xx_gpu->shadow))
+				return PTR_ERR(a6xx_gpu->shadow);
+		}
+
+		gpu_write64(gpu, REG_A6XX_CP_RB_RPTR_ADDR_LO,
+			REG_A6XX_CP_RB_RPTR_ADDR_HI,
+			shadowptr(a6xx_gpu, gpu->rb[0]));
+	}
 
 	/* Always come up on rb 0 */
 	a6xx_gpu->cur_ring = gpu->rb[0];
+
+	a6xx_gpu->cur_ctx = NULL;
 
 	/* Enable the SQE_to start the CP engine */
 	gpu_write(gpu, REG_A6XX_CP_SQE_CNTL, 1);
@@ -854,8 +967,6 @@ static void a6xx_fault_detect_irq(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
-	struct drm_device *dev = gpu->dev;
-	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_ringbuffer *ring = gpu->funcs->active_ring(gpu);
 
 	/*
@@ -878,7 +989,7 @@ static void a6xx_fault_detect_irq(struct msm_gpu *gpu)
 	/* Turn off the hangcheck timer to keep it from bothering us */
 	del_timer(&gpu->hangcheck_timer);
 
-	queue_work(priv->wq, &gpu->recover_work);
+	kthread_queue_work(gpu->worker, &gpu->recover_work);
 }
 
 static irqreturn_t a6xx_irq(struct msm_gpu *gpu)
@@ -911,17 +1022,104 @@ static irqreturn_t a6xx_irq(struct msm_gpu *gpu)
 	return IRQ_HANDLED;
 }
 
-static const u32 a6xx_register_offsets[REG_ADRENO_REGISTER_MAX] = {
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_BASE, REG_A6XX_CP_RB_BASE),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_BASE_HI, REG_A6XX_CP_RB_BASE_HI),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_RPTR_ADDR,
-		REG_A6XX_CP_RB_RPTR_ADDR_LO),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_RPTR_ADDR_HI,
-		REG_A6XX_CP_RB_RPTR_ADDR_HI),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_RPTR, REG_A6XX_CP_RB_RPTR),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_WPTR, REG_A6XX_CP_RB_WPTR),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_CNTL, REG_A6XX_CP_RB_CNTL),
-};
+static void a6xx_llc_rmw(struct a6xx_gpu *a6xx_gpu, u32 reg, u32 mask, u32 or)
+{
+	return msm_rmw(a6xx_gpu->llc_mmio + (reg << 2), mask, or);
+}
+
+static void a6xx_llc_write(struct a6xx_gpu *a6xx_gpu, u32 reg, u32 value)
+{
+	return msm_writel(value, a6xx_gpu->llc_mmio + (reg << 2));
+}
+
+static void a6xx_llc_deactivate(struct a6xx_gpu *a6xx_gpu)
+{
+	llcc_slice_deactivate(a6xx_gpu->llc_slice);
+	llcc_slice_deactivate(a6xx_gpu->htw_llc_slice);
+}
+
+static void a6xx_llc_activate(struct a6xx_gpu *a6xx_gpu)
+{
+	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
+	struct msm_gpu *gpu = &adreno_gpu->base;
+	u32 cntl1_regval = 0;
+
+	if (IS_ERR(a6xx_gpu->llc_mmio))
+		return;
+
+	if (!llcc_slice_activate(a6xx_gpu->llc_slice)) {
+		u32 gpu_scid = llcc_get_slice_id(a6xx_gpu->llc_slice);
+
+		gpu_scid &= 0x1f;
+		cntl1_regval = (gpu_scid << 0) | (gpu_scid << 5) | (gpu_scid << 10) |
+			       (gpu_scid << 15) | (gpu_scid << 20);
+	}
+
+	/*
+	 * For targets with a MMU500, activate the slice but don't program the
+	 * register.  The XBL will take care of that.
+	 */
+	if (!llcc_slice_activate(a6xx_gpu->htw_llc_slice)) {
+		if (!a6xx_gpu->have_mmu500) {
+			u32 gpuhtw_scid = llcc_get_slice_id(a6xx_gpu->htw_llc_slice);
+
+			gpuhtw_scid &= 0x1f;
+			cntl1_regval |= FIELD_PREP(GENMASK(29, 25), gpuhtw_scid);
+		}
+	}
+
+	if (cntl1_regval) {
+		/*
+		 * Program the slice IDs for the various GPU blocks and GPU MMU
+		 * pagetables
+		 */
+		if (a6xx_gpu->have_mmu500)
+			gpu_rmw(gpu, REG_A6XX_GBIF_SCACHE_CNTL1, GENMASK(24, 0),
+				cntl1_regval);
+		else {
+			a6xx_llc_write(a6xx_gpu,
+				REG_A6XX_CX_MISC_SYSTEM_CACHE_CNTL_1, cntl1_regval);
+
+			/*
+			 * Program cacheability overrides to not allocate cache
+			 * lines on a write miss
+			 */
+			a6xx_llc_rmw(a6xx_gpu,
+				REG_A6XX_CX_MISC_SYSTEM_CACHE_CNTL_0, 0xF, 0x03);
+		}
+	}
+}
+
+static void a6xx_llc_slices_destroy(struct a6xx_gpu *a6xx_gpu)
+{
+	llcc_slice_putd(a6xx_gpu->llc_slice);
+	llcc_slice_putd(a6xx_gpu->htw_llc_slice);
+}
+
+static void a6xx_llc_slices_init(struct platform_device *pdev,
+		struct a6xx_gpu *a6xx_gpu)
+{
+	struct device_node *phandle;
+
+	a6xx_gpu->llc_mmio = msm_ioremap(pdev, "cx_mem", "gpu_cx");
+	if (IS_ERR(a6xx_gpu->llc_mmio))
+		return;
+
+	/*
+	 * There is a different programming path for targets with an mmu500
+	 * attached, so detect if that is the case
+	 */
+	phandle = of_parse_phandle(pdev->dev.of_node, "iommus", 0);
+	a6xx_gpu->have_mmu500 = (phandle &&
+		of_device_is_compatible(phandle, "arm,mmu-500"));
+	of_node_put(phandle);
+
+	a6xx_gpu->llc_slice = llcc_slice_getd(LLCC_GPU);
+	a6xx_gpu->htw_llc_slice = llcc_slice_getd(LLCC_GPUHTW);
+
+	if (IS_ERR(a6xx_gpu->llc_slice) && IS_ERR(a6xx_gpu->htw_llc_slice))
+		a6xx_gpu->llc_mmio = ERR_PTR(-EINVAL);
+}
 
 static int a6xx_pm_resume(struct msm_gpu *gpu)
 {
@@ -931,11 +1129,15 @@ static int a6xx_pm_resume(struct msm_gpu *gpu)
 
 	gpu->needs_hw_init = true;
 
+	trace_msm_gpu_resume(0);
+
 	ret = a6xx_gmu_resume(a6xx_gpu);
 	if (ret)
 		return ret;
 
 	msm_gpu_resume_devfreq(gpu);
+
+	a6xx_llc_activate(a6xx_gpu);
 
 	return 0;
 }
@@ -944,10 +1146,23 @@ static int a6xx_pm_suspend(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	int i, ret;
+
+	trace_msm_gpu_suspend(0);
+
+	a6xx_llc_deactivate(a6xx_gpu);
 
 	devfreq_suspend_device(gpu->devfreq.devfreq);
 
-	return a6xx_gmu_stop(a6xx_gpu);
+	ret = a6xx_gmu_stop(a6xx_gpu);
+	if (ret)
+		return ret;
+
+	if (adreno_gpu->base.hw_apriv || a6xx_gpu->has_whereami)
+		for (i = 0; i < gpu->nr_rings; i++)
+			a6xx_gpu->shadow[i] = 0;
+
+	return 0;
 }
 
 static int a6xx_get_timestamp(struct msm_gpu *gpu, uint64_t *value)
@@ -983,6 +1198,13 @@ static void a6xx_destroy(struct msm_gpu *gpu)
 		drm_gem_object_put(a6xx_gpu->sqe_bo);
 	}
 
+	if (a6xx_gpu->shadow_bo) {
+		msm_gem_unpin_iova(a6xx_gpu->shadow_bo, gpu->aspace);
+		drm_gem_object_put(a6xx_gpu->shadow_bo);
+	}
+
+	a6xx_llc_slices_destroy(a6xx_gpu);
+
 	a6xx_gmu_remove(a6xx_gpu);
 
 	adreno_gpu_cleanup(adreno_gpu);
@@ -1017,6 +1239,31 @@ static unsigned long a6xx_gpu_busy(struct msm_gpu *gpu)
 	return (unsigned long)busy_time;
 }
 
+static struct msm_gem_address_space *
+a6xx_create_private_address_space(struct msm_gpu *gpu)
+{
+	struct msm_mmu *mmu;
+
+	mmu = msm_iommu_pagetable_create(gpu->aspace->mmu);
+
+	if (IS_ERR(mmu))
+		return ERR_CAST(mmu);
+
+	return msm_gem_address_space_create(mmu,
+		"gpu", 0x100000000ULL, 0x1ffffffffULL);
+}
+
+static uint32_t a6xx_get_rptr(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+
+	if (adreno_gpu->base.hw_apriv || a6xx_gpu->has_whereami)
+		return a6xx_gpu->shadow[ring->id];
+
+	return ring->memptrs->rptr = gpu_read(gpu, REG_A6XX_CP_RB_RPTR);
+}
+
 static const struct adreno_gpu_funcs funcs = {
 	.base = {
 		.get_param = adreno_get_param,
@@ -1025,7 +1272,6 @@ static const struct adreno_gpu_funcs funcs = {
 		.pm_resume = a6xx_pm_resume,
 		.recover = a6xx_recover,
 		.submit = a6xx_submit,
-		.flush = a6xx_flush,
 		.active_ring = a6xx_active_ring,
 		.irq = a6xx_irq,
 		.destroy = a6xx_destroy,
@@ -1040,6 +1286,8 @@ static const struct adreno_gpu_funcs funcs = {
 		.gpu_state_put = a6xx_gpu_state_put,
 #endif
 		.create_address_space = adreno_iommu_create_address_space,
+		.create_private_address_space = a6xx_create_private_address_space,
+		.get_rptr = a6xx_get_rptr,
 	},
 	.get_timestamp = a6xx_get_timestamp,
 };
@@ -1048,6 +1296,8 @@ struct msm_gpu *a6xx_gpu_init(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct platform_device *pdev = priv->gpu_pdev;
+	struct adreno_platform_config *config = pdev->dev.platform_data;
+	const struct adreno_info *info;
 	struct device_node *node;
 	struct a6xx_gpu *a6xx_gpu;
 	struct adreno_gpu *adreno_gpu;
@@ -1062,10 +1312,18 @@ struct msm_gpu *a6xx_gpu_init(struct drm_device *dev)
 	gpu = &adreno_gpu->base;
 
 	adreno_gpu->registers = NULL;
-	adreno_gpu->reg_offsets = a6xx_register_offsets;
 
-	if (adreno_is_a650(adreno_gpu))
+	/*
+	 * We need to know the platform type before calling into adreno_gpu_init
+	 * so that the hw_apriv flag can be correctly set. Snoop into the info
+	 * and grab the revision number
+	 */
+	info = adreno_info(config->rev);
+
+	if (info && info->revn == 650)
 		adreno_gpu->base.hw_apriv = true;
+
+	a6xx_llc_slices_init(pdev, a6xx_gpu);
 
 	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, 1);
 	if (ret) {

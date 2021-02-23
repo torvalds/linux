@@ -30,33 +30,14 @@
 #include <drm/radeon_drm.h>
 
 #include "radeon.h"
+#include "radeon_prime.h"
 
 struct sg_table *radeon_gem_prime_get_sg_table(struct drm_gem_object *obj)
 {
 	struct radeon_bo *bo = gem_to_radeon_bo(obj);
 	int npages = bo->tbo.num_pages;
 
-	return drm_prime_pages_to_sg(bo->tbo.ttm->pages, npages);
-}
-
-void *radeon_gem_prime_vmap(struct drm_gem_object *obj)
-{
-	struct radeon_bo *bo = gem_to_radeon_bo(obj);
-	int ret;
-
-	ret = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.num_pages,
-			  &bo->dma_buf_vmap);
-	if (ret)
-		return ERR_PTR(ret);
-
-	return bo->dma_buf_vmap.virtual;
-}
-
-void radeon_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
-{
-	struct radeon_bo *bo = gem_to_radeon_bo(obj);
-
-	ttm_bo_kunmap(&bo->dma_buf_vmap);
+	return drm_prime_pages_to_sg(obj->dev, bo->tbo.ttm->pages, npages);
 }
 
 struct drm_gem_object *radeon_gem_prime_import_sg_table(struct drm_device *dev,
@@ -121,7 +102,7 @@ struct dma_buf *radeon_gem_prime_export(struct drm_gem_object *gobj,
 					int flags)
 {
 	struct radeon_bo *bo = gem_to_radeon_bo(gobj);
-	if (radeon_ttm_tt_has_userptr(bo->tbo.ttm))
+	if (radeon_ttm_tt_has_userptr(bo->rdev, bo->tbo.ttm))
 		return ERR_PTR(-EPERM);
 	return drm_gem_prime_export(gobj, flags);
 }

@@ -36,6 +36,8 @@ required:
   - interrupts
   - clocks
 
+additionalProperties: false
+
 examples:
   - |
     ttc0: ttc0@f8001000 {

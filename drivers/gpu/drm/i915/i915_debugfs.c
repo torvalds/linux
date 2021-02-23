@@ -326,6 +326,7 @@ static void print_context_stats(struct seq_file *m,
 		}
 		i915_gem_context_unlock_engines(ctx);
 
+		mutex_lock(&ctx->mutex);
 		if (!IS_ERR_OR_NULL(ctx->file_priv)) {
 			struct file_stats stats = {
 				.vm = rcu_access_pointer(ctx->vm),
@@ -346,6 +347,7 @@ static void print_context_stats(struct seq_file *m,
 
 			print_file_stats(m, name, stats);
 		}
+		mutex_unlock(&ctx->mutex);
 
 		spin_lock(&i915->gem.contexts.lock);
 		list_safe_reset_next(ctx, cn, link);
@@ -723,7 +725,7 @@ static int i915_gpu_info_open(struct inode *inode, struct file *file)
 
 	gpu = NULL;
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-		gpu = i915_gpu_coredump(i915);
+		gpu = i915_gpu_coredump(&i915->gt, ALL_ENGINES);
 	if (IS_ERR(gpu))
 		return PTR_ERR(gpu);
 
@@ -784,7 +786,6 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	struct intel_rps *rps = &dev_priv->gt.rps;
 	intel_wakeref_t wakeref;
-	int ret = 0;
 
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
@@ -1007,7 +1008,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 	seq_printf(m, "Max pixel clock frequency: %d kHz\n", dev_priv->max_dotclk_freq);
 
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-	return ret;
+	return 0;
 }
 
 static int i915_ring_freq_table(struct seq_file *m, void *unused)

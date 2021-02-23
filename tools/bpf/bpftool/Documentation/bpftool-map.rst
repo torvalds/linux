@@ -23,7 +23,8 @@ MAP COMMANDS
 
 |	**bpftool** **map** { **show** | **list** }   [*MAP*]
 |	**bpftool** **map create**     *FILE* **type** *TYPE* **key** *KEY_SIZE* **value** *VALUE_SIZE* \
-|		**entries** *MAX_ENTRIES* **name** *NAME* [**flags** *FLAGS*] [**dev** *NAME*]
+|		**entries** *MAX_ENTRIES* **name** *NAME* [**flags** *FLAGS*] [**inner_map** *MAP*] \
+|		[**dev** *NAME*]
 |	**bpftool** **map dump**       *MAP*
 |	**bpftool** **map update**     *MAP* [**key** *DATA*] [**value** *VALUE*] [*UPDATE_FLAGS*]
 |	**bpftool** **map lookup**     *MAP* [**key** *DATA*]
@@ -49,7 +50,8 @@ MAP COMMANDS
 |		| **lru_percpu_hash** | **lpm_trie** | **array_of_maps** | **hash_of_maps**
 |		| **devmap** | **devmap_hash** | **sockmap** | **cpumap** | **xskmap** | **sockhash**
 |		| **cgroup_storage** | **reuseport_sockarray** | **percpu_cgroup_storage**
-|		| **queue** | **stack** | **sk_storage** | **struct_ops** | **ringbuf** }
+|		| **queue** | **stack** | **sk_storage** | **struct_ops** | **ringbuf** | **inode_storage**
+		| **task_storage** }
 
 DESCRIPTION
 ===========
@@ -67,13 +69,18 @@ DESCRIPTION
 		  maps. On such kernels bpftool will automatically emit this
 		  information as well.
 
-	**bpftool map create** *FILE* **type** *TYPE* **key** *KEY_SIZE* **value** *VALUE_SIZE*  **entries** *MAX_ENTRIES* **name** *NAME* [**flags** *FLAGS*] [**dev** *NAME*]
+	**bpftool map create** *FILE* **type** *TYPE* **key** *KEY_SIZE* **value** *VALUE_SIZE*  **entries** *MAX_ENTRIES* **name** *NAME* [**flags** *FLAGS*] [**inner_map** *MAP*] [**dev** *NAME*]
 		  Create a new map with given parameters and pin it to *bpffs*
 		  as *FILE*.
 
 		  *FLAGS* should be an integer which is the combination of
 		  desired flags, e.g. 1024 for **BPF_F_MMAPABLE** (see bpf.h
 		  UAPI header for existing flags).
+
+		  To create maps of type array-of-maps or hash-of-maps, the
+		  **inner_map** keyword must be used to pass an inner map. The
+		  kernel needs it to collect metadata related to the inner maps
+		  that the new map will work with.
 
 		  Keyword **dev** expects a network interface name, and is used
 		  to request hardware offload for the map.
@@ -155,18 +162,7 @@ DESCRIPTION
 
 OPTIONS
 =======
-	-h, --help
-		  Print short generic help message (similar to **bpftool help**).
-
-	-V, --version
-		  Print version number (similar to **bpftool version**).
-
-	-j, --json
-		  Generate JSON output. For commands that cannot produce JSON, this
-		  option has no effect.
-
-	-p, --pretty
-		  Generate human-readable JSON output. Implies **-j**.
+	.. include:: common_options.rst
 
 	-f, --bpffs
 		  Show file names of pinned maps.
@@ -175,13 +171,10 @@ OPTIONS
 		  Do not automatically attempt to mount any virtual file system
 		  (such as tracefs or BPF virtual file system) when necessary.
 
-	-d, --debug
-		  Print all logs available from libbpf, including debug-level
-		  information.
-
 EXAMPLES
 ========
 **# bpftool map show**
+
 ::
 
   10: hash  name some_map  flags 0x0
@@ -203,6 +196,7 @@ The following three commands are equivalent:
 
 
 **# bpftool map dump id 10**
+
 ::
 
   key: 00 01 02 03  value: 00 01 02 03 04 05 06 07
@@ -210,6 +204,7 @@ The following three commands are equivalent:
   Found 2 elements
 
 **# bpftool map getnext id 10 key 0 1 2 3**
+
 ::
 
   key:
@@ -276,19 +271,3 @@ would be lost as soon as bpftool exits).
 
   key: 00 00 00 00  value: 22 02 00 00
   Found 1 element
-
-SEE ALSO
-========
-	**bpf**\ (2),
-	**bpf-helpers**\ (7),
-	**bpftool**\ (8),
-	**bpftool-btf**\ (8),
-	**bpftool-cgroup**\ (8),
-	**bpftool-feature**\ (8),
-	**bpftool-gen**\ (8),
-	**bpftool-iter**\ (8),
-	**bpftool-link**\ (8),
-	**bpftool-net**\ (8),
-	**bpftool-perf**\ (8),
-	**bpftool-prog**\ (8),
-	**bpftool-struct_ops**\ (8)

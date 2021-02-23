@@ -538,9 +538,7 @@ static int __init of_platform_default_populate_init(void)
 	}
 
 	/* Populate everything else. */
-	fw_devlink_pause();
 	of_platform_default_populate(NULL, NULL, NULL);
-	fw_devlink_resume();
 
 	return 0;
 }
@@ -590,7 +588,7 @@ EXPORT_SYMBOL_GPL(of_platform_device_destroy);
 void of_platform_depopulate(struct device *parent)
 {
 	if (parent->of_node && of_node_check_flag(parent->of_node, OF_POPULATED_BUS)) {
-		device_for_each_child(parent, NULL, of_platform_device_destroy);
+		device_for_each_child_reverse(parent, NULL, of_platform_device_destroy);
 		of_node_clear_flag(parent->of_node, OF_POPULATED_BUS);
 	}
 }

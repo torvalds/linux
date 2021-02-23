@@ -96,6 +96,7 @@ enum dpu_hw_blk_type {
 	DPU_HW_BLK_INTF,
 	DPU_HW_BLK_WB,
 	DPU_HW_BLK_DSPP,
+	DPU_HW_BLK_MERGE_3D,
 	DPU_HW_BLK_MAX,
 };
 
@@ -184,6 +185,13 @@ enum dpu_pingpong {
 	PINGPONG_5,
 	PINGPONG_S0,
 	PINGPONG_MAX
+};
+
+enum dpu_merge_3d {
+	MERGE_3D_0 = 1,
+	MERGE_3D_1,
+	MERGE_3D_2,
+	MERGE_3D_MAX
 };
 
 enum dpu_intf {

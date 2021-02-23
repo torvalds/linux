@@ -190,7 +190,7 @@ static bool bmc150_magn_is_writeable_reg(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static bool bmc150_magn_is_volatile_reg(struct device *dev, unsigned int reg)
@@ -766,20 +766,20 @@ static int bmc150_magn_reset_intr(struct bmc150_magn_data *data)
 	return regmap_read(data->regmap, BMC150_MAGN_REG_X_L, &tmp);
 }
 
-static int bmc150_magn_trig_try_reen(struct iio_trigger *trig)
+static void bmc150_magn_trig_reen(struct iio_trigger *trig)
 {
 	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
 	struct bmc150_magn_data *data = iio_priv(indio_dev);
 	int ret;
 
 	if (!data->dready_trigger_on)
-		return 0;
+		return;
 
 	mutex_lock(&data->mutex);
 	ret = bmc150_magn_reset_intr(data);
 	mutex_unlock(&data->mutex);
-
-	return ret;
+	if (ret)
+		dev_err(data->dev, "Failed to reset interrupt\n");
 }
 
 static int bmc150_magn_data_rdy_trigger_set_state(struct iio_trigger *trig,
@@ -817,7 +817,7 @@ err_unlock:
 
 static const struct iio_trigger_ops bmc150_magn_trigger_ops = {
 	.set_trigger_state = bmc150_magn_data_rdy_trigger_set_state,
-	.try_reenable = bmc150_magn_trig_try_reen,
+	.reenable = bmc150_magn_trig_reen,
 };
 
 static int bmc150_magn_buffer_preenable(struct iio_dev *indio_dev)

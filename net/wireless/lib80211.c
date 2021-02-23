@@ -26,8 +26,6 @@
 
 #include <net/lib80211.h>
 
-#define DRV_NAME        "lib80211"
-
 #define DRV_DESCRIPTION	"common routines for IEEE802.11 drivers"
 
 MODULE_DESCRIPTION(DRV_DESCRIPTION);

@@ -21,6 +21,14 @@
 
 struct device;
 
+#define PRINTK_INFO_SUBSYSTEM_LEN	16
+#define PRINTK_INFO_DEVICE_LEN		48
+
+struct dev_printk_info {
+	char subsystem[PRINTK_INFO_SUBSYSTEM_LEN];
+	char device[PRINTK_INFO_DEVICE_LEN];
+};
+
 #ifdef CONFIG_PRINTK
 
 __printf(3, 0) __cold

@@ -426,7 +426,6 @@ struct sdma_driver_data {
 
 struct sdma_engine {
 	struct device			*dev;
-	struct device_dma_parameters	dma_parms;
 	struct sdma_channel		channel[MAX_DMA_CHANNELS];
 	struct sdma_channel_control	*channel_control;
 	void __iomem			*regs;
@@ -566,37 +565,6 @@ static struct sdma_driver_data sdma_imx8mq = {
 	.script_addrs = &sdma_script_imx7d,
 	.check_ratio = 1,
 };
-
-static const struct platform_device_id sdma_devtypes[] = {
-	{
-		.name = "imx25-sdma",
-		.driver_data = (unsigned long)&sdma_imx25,
-	}, {
-		.name = "imx31-sdma",
-		.driver_data = (unsigned long)&sdma_imx31,
-	}, {
-		.name = "imx35-sdma",
-		.driver_data = (unsigned long)&sdma_imx35,
-	}, {
-		.name = "imx51-sdma",
-		.driver_data = (unsigned long)&sdma_imx51,
-	}, {
-		.name = "imx53-sdma",
-		.driver_data = (unsigned long)&sdma_imx53,
-	}, {
-		.name = "imx6q-sdma",
-		.driver_data = (unsigned long)&sdma_imx6q,
-	}, {
-		.name = "imx7d-sdma",
-		.driver_data = (unsigned long)&sdma_imx7d,
-	}, {
-		.name = "imx8mq-sdma",
-		.driver_data = (unsigned long)&sdma_imx8mq,
-	}, {
-		/* sentinel */
-	}
-};
-MODULE_DEVICE_TABLE(platform, sdma_devtypes);
 
 static const struct of_device_id sdma_dt_ids[] = {
 	{ .compatible = "fsl,imx6q-sdma", .data = &sdma_imx6q, },
@@ -1999,11 +1967,7 @@ static int sdma_probe(struct platform_device *pdev)
 	s32 *saddr_arr;
 	const struct sdma_driver_data *drvdata = NULL;
 
-	if (of_id)
-		drvdata = of_id->data;
-	else if (pdev->id_entry)
-		drvdata = (void *)pdev->id_entry->driver_data;
-
+	drvdata = of_id->data;
 	if (!drvdata) {
 		dev_err(&pdev->dev, "unable to find driver data\n");
 		return -EINVAL;
@@ -2118,7 +2082,6 @@ static int sdma_probe(struct platform_device *pdev)
 	sdma->dma_device.residue_granularity = DMA_RESIDUE_GRANULARITY_SEGMENT;
 	sdma->dma_device.device_prep_dma_memcpy = sdma_prep_memcpy;
 	sdma->dma_device.device_issue_pending = sdma_issue_pending;
-	sdma->dma_device.dev->dma_parms = &sdma->dma_parms;
 	sdma->dma_device.copy_align = 2;
 	dma_set_max_seg_size(sdma->dma_device.dev, SDMA_BD_MAX_CNT);
 
@@ -2213,7 +2176,6 @@ static struct platform_driver sdma_driver = {
 		.name	= "imx-sdma",
 		.of_match_table = sdma_dt_ids,
 	},
-	.id_table	= sdma_devtypes,
 	.remove		= sdma_remove,
 	.probe		= sdma_probe,
 };

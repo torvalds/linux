@@ -200,32 +200,32 @@ static struct regmap_irq_chip bxtwc_regmap_irq_chip_crit = {
 	.num_regs = 1,
 };
 
-static struct resource gpio_resources[] = {
+static const struct resource gpio_resources[] = {
 	DEFINE_RES_IRQ_NAMED(BXTWC_GPIO_LVL1_IRQ, "GPIO"),
 };
 
-static struct resource adc_resources[] = {
+static const struct resource adc_resources[] = {
 	DEFINE_RES_IRQ_NAMED(BXTWC_ADC_IRQ, "ADC"),
 };
 
-static struct resource usbc_resources[] = {
+static const struct resource usbc_resources[] = {
 	DEFINE_RES_IRQ(BXTWC_USBC_IRQ),
 };
 
-static struct resource charger_resources[] = {
+static const struct resource charger_resources[] = {
 	DEFINE_RES_IRQ_NAMED(BXTWC_CHGR0_IRQ, "CHARGER"),
 	DEFINE_RES_IRQ_NAMED(BXTWC_CHGR1_IRQ, "CHARGER1"),
 };
 
-static struct resource thermal_resources[] = {
+static const struct resource thermal_resources[] = {
 	DEFINE_RES_IRQ(BXTWC_THRM_LVL1_IRQ),
 };
 
-static struct resource bcu_resources[] = {
+static const struct resource bcu_resources[] = {
 	DEFINE_RES_IRQ_NAMED(BXTWC_BCU_IRQ, "BCU"),
 };
 
-static struct resource tmu_resources[] = {
+static const struct resource tmu_resources[] = {
 	DEFINE_RES_IRQ_NAMED(BXTWC_TMU_IRQ, "TMU"),
 };
 

@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QLogic iSCSI HBA Driver
  * Copyright (c)  2003-2013 QLogic Corporation
- *
- * See LICENSE.qla4xxx for copyright and licensing details.
  */
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -376,6 +375,35 @@ qla4_82xx_pci_set_crbwindow_2M(struct scsi_qla_host *ha, ulong *off)
 	*off = (*off & MASK(16)) + CRB_INDIRECT_2M + ha->nx_pcibase;
 }
 
+#define CRB_WIN_LOCK_TIMEOUT 100000000
+
+/*
+ * Context: atomic
+ */
+static int qla4_82xx_crb_win_lock(struct scsi_qla_host *ha)
+{
+	int done = 0, timeout = 0;
+
+	while (!done) {
+		/* acquire semaphore3 from PCI HW block */
+		done = qla4_82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM7_LOCK));
+		if (done == 1)
+			break;
+		if (timeout >= CRB_WIN_LOCK_TIMEOUT)
+			return -1;
+
+		timeout++;
+		udelay(10);
+	}
+	qla4_82xx_wr_32(ha, QLA82XX_CRB_WIN_LOCK_ID, ha->func_num);
+	return 0;
+}
+
+void qla4_82xx_crb_win_unlock(struct scsi_qla_host *ha)
+{
+	qla4_82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM7_UNLOCK));
+}
+
 void
 qla4_82xx_wr_32(struct scsi_qla_host *ha, ulong off, u32 data)
 {
@@ -476,40 +504,6 @@ int qla4_82xx_md_wr_32(struct scsi_qla_host *ha, uint32_t off, uint32_t data)
 	return rval;
 }
 
-#define CRB_WIN_LOCK_TIMEOUT 100000000
-
-int qla4_82xx_crb_win_lock(struct scsi_qla_host *ha)
-{
-	int i;
-	int done = 0, timeout = 0;
-
-	while (!done) {
-		/* acquire semaphore3 from PCI HW block */
-		done = qla4_82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM7_LOCK));
-		if (done == 1)
-			break;
-		if (timeout >= CRB_WIN_LOCK_TIMEOUT)
-			return -1;
-
-		timeout++;
-
-		/* Yield CPU */
-		if (!in_interrupt())
-			schedule();
-		else {
-			for (i = 0; i < 20; i++)
-				cpu_relax();    /*This a nop instr on i386*/
-		}
-	}
-	qla4_82xx_wr_32(ha, QLA82XX_CRB_WIN_LOCK_ID, ha->func_num);
-	return 0;
-}
-
-void qla4_82xx_crb_win_unlock(struct scsi_qla_host *ha)
-{
-	qla4_82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM7_UNLOCK));
-}
-
 #define IDC_LOCK_TIMEOUT 100000000
 
 /**
@@ -518,11 +512,14 @@ void qla4_82xx_crb_win_unlock(struct scsi_qla_host *ha)
  *
  * General purpose lock used to synchronize access to
  * CRB_DEV_STATE, CRB_DEV_REF_COUNT, etc.
+ *
+ * Context: task, can sleep
  **/
 int qla4_82xx_idc_lock(struct scsi_qla_host *ha)
 {
-	int i;
 	int done = 0, timeout = 0;
+
+	might_sleep();
 
 	while (!done) {
 		/* acquire semaphore5 from PCI HW block */
@@ -533,14 +530,7 @@ int qla4_82xx_idc_lock(struct scsi_qla_host *ha)
 			return -1;
 
 		timeout++;
-
-		/* Yield CPU */
-		if (!in_interrupt())
-			schedule();
-		else {
-			for (i = 0; i < 20; i++)
-				cpu_relax();    /*This a nop instr on i386*/
-		}
+		msleep(100);
 	}
 	return 0;
 }
@@ -881,15 +871,18 @@ qla4_82xx_decode_crb_addr(unsigned long addr)
 static long rom_max_timeout = 100;
 static long qla4_82xx_rom_lock_timeout = 100;
 
+/*
+ * Context: task, can_sleep
+ */
 static int
 qla4_82xx_rom_lock(struct scsi_qla_host *ha)
 {
-	int i;
 	int done = 0, timeout = 0;
+
+	might_sleep();
 
 	while (!done) {
 		/* acquire semaphore2 from PCI HW block */
-
 		done = qla4_82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM2_LOCK));
 		if (done == 1)
 			break;
@@ -897,14 +890,7 @@ qla4_82xx_rom_lock(struct scsi_qla_host *ha)
 			return -1;
 
 		timeout++;
-
-		/* Yield CPU */
-		if (!in_interrupt())
-			schedule();
-		else {
-			for (i = 0; i < 20; i++)
-				cpu_relax();    /*This a nop instr on i386*/
-		}
+		msleep(20);
 	}
 	qla4_82xx_wr_32(ha, QLA82XX_ROM_LOCK_ID, ROM_LOCK_DRIVER);
 	return 0;
@@ -1781,7 +1767,7 @@ qla4_82xx_start_firmware(struct scsi_qla_host *ha, uint32_t image_start)
 
 int qla4_82xx_try_start_fw(struct scsi_qla_host *ha)
 {
-	int rval = QLA_ERROR;
+	int rval;
 
 	/*
 	 * FW Load priority:
@@ -3226,7 +3212,7 @@ static void qla4_8xxx_uevent_emit(struct scsi_qla_host *ha, u32 code)
 
 	switch (code) {
 	case QL4_UEVENT_CODE_FW_DUMP:
-		snprintf(event_string, sizeof(event_string), "FW_DUMP=%ld",
+		snprintf(event_string, sizeof(event_string), "FW_DUMP=%lu",
 			 ha->host_no);
 		break;
 	default:

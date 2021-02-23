@@ -97,6 +97,7 @@ void kfd_chardev_exit(void)
 	device_destroy(kfd_class, MKDEV(kfd_char_dev_major, 0));
 	class_destroy(kfd_class);
 	unregister_chrdev(kfd_char_dev_major, kfd_dev_name);
+	kfd_device = NULL;
 }
 
 struct device *kfd_chardev(void)
@@ -1254,7 +1255,7 @@ bool kfd_dev_is_large_bar(struct kfd_dev *dev)
 		return true;
 	}
 
-	if (dev->device_info->needs_iommu_device)
+	if (dev->use_iommu_v2)
 		return false;
 
 	amdgpu_amdkfd_get_local_mem_info(dev->kgd, &mem_info);
@@ -1290,24 +1291,30 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 		return -EINVAL;
 	}
 
-	if (flags & KFD_IOC_ALLOC_MEM_FLAGS_DOORBELL) {
-		if (args->size != kfd_doorbell_process_slice(dev))
-			return -EINVAL;
-		offset = kfd_get_process_doorbells(dev, p);
-	} else if (flags & KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP) {
-		if (args->size != PAGE_SIZE)
-			return -EINVAL;
-		offset = amdgpu_amdkfd_get_mmio_remap_phys_addr(dev->kgd);
-		if (!offset)
-			return -ENOMEM;
-	}
-
 	mutex_lock(&p->mutex);
 
 	pdd = kfd_bind_process_to_device(dev, p);
 	if (IS_ERR(pdd)) {
 		err = PTR_ERR(pdd);
 		goto err_unlock;
+	}
+
+	if (flags & KFD_IOC_ALLOC_MEM_FLAGS_DOORBELL) {
+		if (args->size != kfd_doorbell_process_slice(dev)) {
+			err = -EINVAL;
+			goto err_unlock;
+		}
+		offset = kfd_get_process_doorbells(pdd);
+	} else if (flags & KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP) {
+		if (args->size != PAGE_SIZE) {
+			err = -EINVAL;
+			goto err_unlock;
+		}
+		offset = amdgpu_amdkfd_get_mmio_remap_phys_addr(dev->kgd);
+		if (!offset) {
+			err = -ENOMEM;
+			goto err_unlock;
+		}
 	}
 
 	err = amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
@@ -1729,6 +1736,7 @@ static int kfd_ioctl_import_dmabuf(struct file *filep,
 	}
 
 	mutex_unlock(&p->mutex);
+	dma_buf_put(dmabuf);
 
 	args->handle = MAKE_HANDLE(args->gpu_id, idr_handle);
 
@@ -1738,6 +1746,7 @@ err_free:
 	amdgpu_amdkfd_gpuvm_free_memory_of_gpu(dev->kgd, (struct kgd_mem *)mem, NULL);
 err_unlock:
 	mutex_unlock(&p->mutex);
+	dma_buf_put(dmabuf);
 	return r;
 }
 

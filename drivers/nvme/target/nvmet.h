@@ -164,7 +164,6 @@ static inline struct nvmet_port *ana_groups_to_port(
 
 struct nvmet_ctrl {
 	struct nvmet_subsys	*subsys;
-	struct nvmet_cq		**cqs;
 	struct nvmet_sq		**sqs;
 
 	bool			cmd_seen;
@@ -249,6 +248,8 @@ struct nvmet_subsys {
 	struct nvme_ctrl	*passthru_ctrl;
 	char			*passthru_ctrl_path;
 	struct config_group	passthru_group;
+	unsigned int		admin_timeout;
+	unsigned int		io_timeout;
 #endif /* CONFIG_NVME_TARGET_PASSTHRU */
 };
 
@@ -330,6 +331,7 @@ struct nvmet_req {
 			struct work_struct      work;
 		} f;
 		struct {
+			struct bio		inline_bio;
 			struct request		*rq;
 			struct work_struct      work;
 			bool			use_workqueue;
@@ -395,6 +397,8 @@ void nvmet_get_feat_async_event(struct nvmet_req *req);
 u16 nvmet_set_feat_kato(struct nvmet_req *req);
 u16 nvmet_set_feat_async_event(struct nvmet_req *req, u32 mask);
 void nvmet_execute_async_event(struct nvmet_req *req);
+void nvmet_start_keep_alive_timer(struct nvmet_ctrl *ctrl);
+void nvmet_stop_keep_alive_timer(struct nvmet_ctrl *ctrl);
 
 u16 nvmet_parse_connect_cmd(struct nvmet_req *req);
 void nvmet_bdev_set_limits(struct block_device *bdev, struct nvme_id_ns *id);

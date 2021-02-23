@@ -369,7 +369,7 @@ void sym_fw_bind_script(struct sym_hcb *np, u32 *start, int len)
 				sym_name(np), (int) (cur-start));
 			++cur;
 			continue;
-		};
+		}
 
 		/*
 		 *  We use the bogus value 0xf00ff00f ;-)
@@ -477,7 +477,7 @@ void sym_fw_bind_script(struct sym_hcb *np, u32 *start, int len)
 		default:
 			relocs = 0;
 			break;
-		};
+		}
 
 		/*
 		 *  Scriptify:) the opcode.
@@ -533,5 +533,5 @@ void sym_fw_bind_script(struct sym_hcb *np, u32 *start, int len)
 
 			*cur++ = cpu_to_scr(new);
 		}
-	};
+	}
 }

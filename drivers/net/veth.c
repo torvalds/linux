@@ -234,14 +234,14 @@ static bool veth_is_xdp_frame(void *ptr)
 	return (unsigned long)ptr & VETH_XDP_FLAG;
 }
 
-static void *veth_ptr_to_xdp(void *ptr)
+static struct xdp_frame *veth_ptr_to_xdp(void *ptr)
 {
 	return (void *)((unsigned long)ptr & ~VETH_XDP_FLAG);
 }
 
-static void *veth_xdp_to_ptr(void *ptr)
+static void *veth_xdp_to_ptr(struct xdp_frame *xdp)
 {
-	return (void *)((unsigned long)ptr | VETH_XDP_FLAG);
+	return (void *)((unsigned long)xdp | VETH_XDP_FLAG);
 }
 
 static void veth_ptr_free(void *ptr)
@@ -418,6 +418,14 @@ static struct sk_buff *veth_build_skb(void *head, int headroom, int len,
 static int veth_select_rxq(struct net_device *dev)
 {
 	return smp_processor_id() % dev->real_num_rx_queues;
+}
+
+static struct net_device *veth_peer_dev(struct net_device *dev)
+{
+	struct veth_priv *priv = netdev_priv(dev);
+
+	/* Callers must be under RCU read side. */
+	return rcu_dereference(priv->peer);
 }
 
 static int veth_xdp_xmit(struct net_device *dev, int n,
@@ -876,7 +884,6 @@ static int veth_napi_add(struct net_device *dev)
 	for (i = 0; i < dev->real_num_rx_queues; i++) {
 		struct veth_rq *rq = &priv->rq[i];
 
-		netif_napi_add(dev, &rq->xdp_napi, veth_poll, NAPI_POLL_WEIGHT);
 		napi_enable(&rq->xdp_napi);
 	}
 
@@ -897,14 +904,13 @@ static void veth_napi_del(struct net_device *dev)
 		struct veth_rq *rq = &priv->rq[i];
 
 		napi_disable(&rq->xdp_napi);
-		napi_hash_del(&rq->xdp_napi);
+		__netif_napi_del(&rq->xdp_napi);
 	}
 	synchronize_net();
 
 	for (i = 0; i < dev->real_num_rx_queues; i++) {
 		struct veth_rq *rq = &priv->rq[i];
 
-		netif_napi_del(&rq->xdp_napi);
 		rq->rx_notify_masked = false;
 		ptr_ring_cleanup(&rq->xdp_ring, veth_ptr_free);
 	}
@@ -919,7 +925,8 @@ static int veth_enable_xdp(struct net_device *dev)
 		for (i = 0; i < dev->real_num_rx_queues; i++) {
 			struct veth_rq *rq = &priv->rq[i];
 
-			err = xdp_rxq_info_reg(&rq->xdp_rxq, dev, i);
+			netif_napi_add(dev, &rq->xdp_napi, veth_poll, NAPI_POLL_WEIGHT);
+			err = xdp_rxq_info_reg(&rq->xdp_rxq, dev, i, rq->xdp_napi.napi_id);
 			if (err < 0)
 				goto err_rxq_reg;
 
@@ -945,8 +952,12 @@ static int veth_enable_xdp(struct net_device *dev)
 err_reg_mem:
 	xdp_rxq_info_unreg(&priv->rq[i].xdp_rxq);
 err_rxq_reg:
-	for (i--; i >= 0; i--)
-		xdp_rxq_info_unreg(&priv->rq[i].xdp_rxq);
+	for (i--; i >= 0; i--) {
+		struct veth_rq *rq = &priv->rq[i];
+
+		xdp_rxq_info_unreg(&rq->xdp_rxq);
+		netif_napi_del(&rq->xdp_napi);
+	}
 
 	return err;
 }
@@ -1225,6 +1236,7 @@ static const struct net_device_ops veth_netdev_ops = {
 	.ndo_set_rx_headroom	= veth_set_rx_headroom,
 	.ndo_bpf		= veth_xdp,
 	.ndo_xdp_xmit		= veth_ndo_xdp_xmit,
+	.ndo_get_peer_dev	= veth_peer_dev,
 };
 
 #define VETH_FEATURES (NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HW_CSUM | \
@@ -1321,7 +1333,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	}
 
 	if (ifmp && tbp[IFLA_IFNAME]) {
-		nla_strlcpy(ifname, tbp[IFLA_IFNAME], IFNAMSIZ);
+		nla_strscpy(ifname, tbp[IFLA_IFNAME], IFNAMSIZ);
 		name_assign_type = NET_NAME_USER;
 	} else {
 		snprintf(ifname, IFNAMSIZ, DRV_NAME "%%d");
@@ -1371,7 +1383,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 		eth_hw_addr_random(dev);
 
 	if (tb[IFLA_IFNAME])
-		nla_strlcpy(dev->name, tb[IFLA_IFNAME], IFNAMSIZ);
+		nla_strscpy(dev->name, tb[IFLA_IFNAME], IFNAMSIZ);
 	else
 		snprintf(dev->name, IFNAMSIZ, DRV_NAME "%%d");
 

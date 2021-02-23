@@ -386,6 +386,8 @@ struct hermes_ops {
 	int (*allocate)(struct hermes *hw, u16 size, u16 *fid);
 	int (*read_ltv)(struct hermes *hw, int bap, u16 rid, unsigned buflen,
 			u16 *length, void *buf);
+	int (*read_ltv_pr)(struct hermes *hw, int bap, u16 rid,
+			      unsigned buflen, u16 *length, void *buf);
 	int (*write_ltv)(struct hermes *hw, int bap, u16 rid,
 			 u16 length, const void *value);
 	int (*bap_pread)(struct hermes *hw, int bap, void *buf, int len,
@@ -494,6 +496,8 @@ static inline void hermes_clear_words(struct hermes *hw, int off,
 
 #define HERMES_READ_RECORD(hw, bap, rid, buf) \
 	(hw->ops->read_ltv((hw), (bap), (rid), sizeof(*buf), NULL, (buf)))
+#define HERMES_READ_RECORD_PR(hw, bap, rid, buf) \
+	(hw->ops->read_ltv_pr((hw), (bap), (rid), sizeof(*buf), NULL, (buf)))
 #define HERMES_WRITE_RECORD(hw, bap, rid, buf) \
 	(hw->ops->write_ltv((hw), (bap), (rid), \
 			    HERMES_BYTES_TO_RECLEN(sizeof(*buf)), (buf)))
@@ -505,6 +509,17 @@ static inline int hermes_read_wordrec(struct hermes *hw, int bap, u16 rid,
 	int err;
 
 	err = HERMES_READ_RECORD(hw, bap, rid, &rec);
+	*word = le16_to_cpu(rec);
+	return err;
+}
+
+static inline int hermes_read_wordrec_pr(struct hermes *hw, int bap, u16 rid,
+					 u16 *word)
+{
+	__le16 rec;
+	int err;
+
+	err = HERMES_READ_RECORD_PR(hw, bap, rid, &rec);
 	*word = le16_to_cpu(rec);
 	return err;
 }

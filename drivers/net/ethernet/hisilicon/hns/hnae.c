@@ -270,7 +270,7 @@ static void hnae_fini_queue(struct hnae_queue *q)
 	hnae_fini_ring(&q->rx_ring);
 }
 
-/**
+/*
  * ae_chain - define ae chain head
  */
 static RAW_NOTIFIER_HEAD(ae_chain);
@@ -438,7 +438,7 @@ EXPORT_SYMBOL(hnae_ae_register);
 
 /**
  * hnae_ae_unregister - unregisters a HNAE AE engine
- * @cdev: the device to unregister
+ * @hdev: the device to unregister
  */
 void hnae_ae_unregister(struct hnae_ae_dev *hdev)
 {

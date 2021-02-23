@@ -407,7 +407,7 @@ unsigned long x86_gsbase_read_cpu_inactive(void)
 {
 	unsigned long gsbase;
 
-	if (static_cpu_has(X86_FEATURE_FSGSBASE)) {
+	if (boot_cpu_has(X86_FEATURE_FSGSBASE)) {
 		unsigned long flags;
 
 		local_irq_save(flags);
@@ -422,7 +422,7 @@ unsigned long x86_gsbase_read_cpu_inactive(void)
 
 void x86_gsbase_write_cpu_inactive(unsigned long gsbase)
 {
-	if (static_cpu_has(X86_FEATURE_FSGSBASE)) {
+	if (boot_cpu_has(X86_FEATURE_FSGSBASE)) {
 		unsigned long flags;
 
 		local_irq_save(flags);
@@ -439,7 +439,7 @@ unsigned long x86_fsbase_read_task(struct task_struct *task)
 
 	if (task == current)
 		fsbase = x86_fsbase_read_cpu();
-	else if (static_cpu_has(X86_FEATURE_FSGSBASE) ||
+	else if (boot_cpu_has(X86_FEATURE_FSGSBASE) ||
 		 (task->thread.fsindex == 0))
 		fsbase = task->thread.fsbase;
 	else
@@ -454,7 +454,7 @@ unsigned long x86_gsbase_read_task(struct task_struct *task)
 
 	if (task == current)
 		gsbase = x86_gsbase_read_cpu_inactive();
-	else if (static_cpu_has(X86_FEATURE_FSGSBASE) ||
+	else if (boot_cpu_has(X86_FEATURE_FSGSBASE) ||
 		 (task->thread.gsindex == 0))
 		gsbase = task->thread.gsbase;
 	else
@@ -511,11 +511,10 @@ start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 EXPORT_SYMBOL_GPL(start_thread);
 
 #ifdef CONFIG_COMPAT
-void compat_start_thread(struct pt_regs *regs, u32 new_ip, u32 new_sp)
+void compat_start_thread(struct pt_regs *regs, u32 new_ip, u32 new_sp, bool x32)
 {
 	start_thread_common(regs, new_ip, new_sp,
-			    test_thread_flag(TIF_X32)
-			    ? __USER_CS : __USER32_CS,
+			    x32 ? __USER_CS : __USER32_CS,
 			    __USER_DS, __USER_DS);
 }
 #endif
@@ -641,16 +640,12 @@ void set_personality_64bit(void)
 	/* inherit personality from parent */
 
 	/* Make sure to be in 64bit mode */
-	clear_thread_flag(TIF_IA32);
 	clear_thread_flag(TIF_ADDR32);
-	clear_thread_flag(TIF_X32);
 	/* Pretend that this comes from a 64bit execve */
 	task_pt_regs(current)->orig_ax = __NR_execve;
 	current_thread_info()->status &= ~TS_COMPAT;
-
-	/* Ensure the corresponding mm is not marked. */
 	if (current->mm)
-		current->mm->context.ia32_compat = 0;
+		current->mm->context.flags = MM_CONTEXT_HAS_VSYSCALL;
 
 	/* TBD: overwrites user setup. Should have two bits.
 	   But 64bit processes have always behaved this way,
@@ -662,10 +657,9 @@ void set_personality_64bit(void)
 static void __set_personality_x32(void)
 {
 #ifdef CONFIG_X86_X32
-	clear_thread_flag(TIF_IA32);
-	set_thread_flag(TIF_X32);
 	if (current->mm)
-		current->mm->context.ia32_compat = TIF_X32;
+		current->mm->context.flags = 0;
+
 	current->personality &= ~READ_IMPLIES_EXEC;
 	/*
 	 * in_32bit_syscall() uses the presence of the x32 syscall bit
@@ -683,10 +677,14 @@ static void __set_personality_x32(void)
 static void __set_personality_ia32(void)
 {
 #ifdef CONFIG_IA32_EMULATION
-	set_thread_flag(TIF_IA32);
-	clear_thread_flag(TIF_X32);
-	if (current->mm)
-		current->mm->context.ia32_compat = TIF_IA32;
+	if (current->mm) {
+		/*
+		 * uprobes applied to this MM need to know this and
+		 * cannot use user_64bit_mode() at that time.
+		 */
+		current->mm->context.flags = MM_CONTEXT_UPROBE_IA32;
+	}
+
 	current->personality |= force_personality32;
 	/* Prepare the first "return" to user space */
 	task_pt_regs(current)->orig_ax = __NR_ia32_execve;

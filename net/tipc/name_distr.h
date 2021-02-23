@@ -46,7 +46,7 @@
  * @type: name sequence type
  * @lower: name sequence lower bound
  * @upper: name sequence upper bound
- * @ref: publishing port reference
+ * @port: publishing port reference
  * @key: publication key
  *
  * ===> All fields are stored in network byte order. <===

@@ -623,10 +623,11 @@ int __zerocopy_sg_from_iter(struct sock *sk, struct sk_buff *skb,
 
 	while (length && iov_iter_count(from)) {
 		struct page *pages[MAX_SKB_FRAGS];
+		struct page *last_head = NULL;
 		size_t start;
 		ssize_t copied;
 		unsigned long truesize;
-		int n = 0;
+		int refs, n = 0;
 
 		if (frag == MAX_SKB_FRAGS)
 			return -EMSGSIZE;
@@ -649,13 +650,37 @@ int __zerocopy_sg_from_iter(struct sock *sk, struct sk_buff *skb,
 		} else {
 			refcount_add(truesize, &skb->sk->sk_wmem_alloc);
 		}
-		while (copied) {
+		for (refs = 0; copied != 0; start = 0) {
 			int size = min_t(int, copied, PAGE_SIZE - start);
-			skb_fill_page_desc(skb, frag++, pages[n], start, size);
-			start = 0;
+			struct page *head = compound_head(pages[n]);
+
+			start += (pages[n] - head) << PAGE_SHIFT;
 			copied -= size;
 			n++;
+			if (frag) {
+				skb_frag_t *last = &skb_shinfo(skb)->frags[frag - 1];
+
+				if (head == skb_frag_page(last) &&
+				    start == skb_frag_off(last) + skb_frag_size(last)) {
+					skb_frag_size_add(last, size);
+					/* We combined this page, we need to release
+					 * a reference. Since compound pages refcount
+					 * is shared among many pages, batch the refcount
+					 * adjustments to limit false sharing.
+					 */
+					last_head = head;
+					refs++;
+					continue;
+				}
+			}
+			if (refs) {
+				page_ref_sub(last_head, refs);
+				refs = 0;
+			}
+			skb_fill_page_desc(skb, frag++, head, start, size);
 		}
+		if (refs)
+			page_ref_sub(last_head, refs);
 	}
 	return 0;
 }
@@ -684,7 +709,7 @@ int zerocopy_sg_from_iter(struct sk_buff *skb, struct iov_iter *from)
 EXPORT_SYMBOL(zerocopy_sg_from_iter);
 
 /**
- *	skb_copy_and_csum_datagram_iter - Copy datagram to an iovec iterator
+ *	skb_copy_and_csum_datagram - Copy datagram to an iovec iterator
  *          and update a checksum.
  *	@skb: buffer to copy
  *	@offset: offset in the buffer to start copying from
@@ -696,8 +721,16 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 				      struct iov_iter *to, int len,
 				      __wsum *csump)
 {
-	return __skb_datagram_iter(skb, offset, to, len, true,
-			csum_and_copy_to_iter, csump);
+	struct csum_state csdata = { .csum = *csump };
+	int ret;
+
+	ret = __skb_datagram_iter(skb, offset, to, len, true,
+				  csum_and_copy_to_iter, &csdata);
+	if (ret)
+		return ret;
+
+	*csump = csdata.csum;
+	return 0;
 }
 
 /**

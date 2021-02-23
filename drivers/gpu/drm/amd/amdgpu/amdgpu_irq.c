@@ -85,7 +85,7 @@ static void amdgpu_hotplug_work_func(struct work_struct *work)
 {
 	struct amdgpu_device *adev = container_of(work, struct amdgpu_device,
 						  hotplug_work);
-	struct drm_device *dev = adev->ddev;
+	struct drm_device *dev = adev_to_drm(adev);
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter iter;
@@ -151,7 +151,7 @@ void amdgpu_irq_disable_all(struct amdgpu_device *adev)
 irqreturn_t amdgpu_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	irqreturn_t ret;
 
 	ret = amdgpu_ih_process(adev, &adev->irq.ih);
@@ -204,6 +204,21 @@ static void amdgpu_irq_handle_ih2(struct work_struct *work)
 						  irq.ih2_work);
 
 	amdgpu_ih_process(adev, &adev->irq.ih2);
+}
+
+/**
+ * amdgpu_irq_handle_ih_soft - kick of processing for ih_soft
+ *
+ * @work: work structure in struct amdgpu_irq
+ *
+ * Kick of processing IH soft ring.
+ */
+static void amdgpu_irq_handle_ih_soft(struct work_struct *work)
+{
+	struct amdgpu_device *adev = container_of(work, struct amdgpu_device,
+						  irq.ih_soft_work);
+
+	amdgpu_ih_process(adev, &adev->irq.ih_soft);
 }
 
 /**
@@ -268,9 +283,9 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 		if (!adev->enable_virtual_display)
 			/* Disable vblank IRQs aggressively for power-saving */
 			/* XXX: can this be enabled for DC? */
-			adev->ddev->vblank_disable_immediate = true;
+			adev_to_drm(adev)->vblank_disable_immediate = true;
 
-		r = drm_vblank_init(adev->ddev, adev->mode_info.num_crtc);
+		r = drm_vblank_init(adev_to_drm(adev), adev->mode_info.num_crtc);
 		if (r)
 			return r;
 
@@ -281,17 +296,18 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 
 	INIT_WORK(&adev->irq.ih1_work, amdgpu_irq_handle_ih1);
 	INIT_WORK(&adev->irq.ih2_work, amdgpu_irq_handle_ih2);
+	INIT_WORK(&adev->irq.ih_soft_work, amdgpu_irq_handle_ih_soft);
 
 	adev->irq.installed = true;
 	/* Use vector 0 for MSI-X */
-	r = drm_irq_install(adev->ddev, pci_irq_vector(adev->pdev, 0));
+	r = drm_irq_install(adev_to_drm(adev), pci_irq_vector(adev->pdev, 0));
 	if (r) {
 		adev->irq.installed = false;
 		if (!amdgpu_device_has_dc_support(adev))
 			flush_work(&adev->hotplug_work);
 		return r;
 	}
-	adev->ddev->max_vblank_count = 0x00ffffff;
+	adev_to_drm(adev)->max_vblank_count = 0x00ffffff;
 
 	DRM_DEBUG("amdgpu: irq initialized.\n");
 	return 0;
@@ -311,7 +327,7 @@ void amdgpu_irq_fini(struct amdgpu_device *adev)
 	unsigned i, j;
 
 	if (adev->irq.installed) {
-		drm_irq_uninstall(adev->ddev);
+		drm_irq_uninstall(adev_to_drm(adev));
 		adev->irq.installed = false;
 		if (adev->irq.msi_enabled)
 			pci_free_irq_vectors(adev->pdev);
@@ -413,6 +429,7 @@ void amdgpu_irq_dispatch(struct amdgpu_device *adev,
 	bool handled = false;
 	int r;
 
+	entry.ih = ih;
 	entry.iv_entry = (const uint32_t *)&ih->ring[ring_index];
 	amdgpu_ih_decode_iv(adev, &entry);
 
@@ -448,6 +465,24 @@ void amdgpu_irq_dispatch(struct amdgpu_device *adev,
 	/* Send it to amdkfd as well if it isn't already handled */
 	if (!handled)
 		amdgpu_amdkfd_interrupt(adev, entry.iv_entry);
+}
+
+/**
+ * amdgpu_irq_delegate - delegate IV to soft IH ring
+ *
+ * @adev: amdgpu device pointer
+ * @entry: IV entry
+ * @num_dw: size of IV
+ *
+ * Delegate the IV to the soft IH ring and schedule processing of it. Used
+ * if the hardware delegation to IH1 or IH2 doesn't work for some reason.
+ */
+void amdgpu_irq_delegate(struct amdgpu_device *adev,
+			 struct amdgpu_iv_entry *entry,
+			 unsigned int num_dw)
+{
+	amdgpu_ih_ring_write(&adev->irq.ih_soft, entry->iv_entry, num_dw);
+	schedule_work(&adev->irq.ih_soft_work);
 }
 
 /**
@@ -522,7 +557,7 @@ void amdgpu_irq_gpu_reset_resume_helper(struct amdgpu_device *adev)
 int amdgpu_irq_get(struct amdgpu_device *adev, struct amdgpu_irq_src *src,
 		   unsigned type)
 {
-	if (!adev->ddev->irq_enabled)
+	if (!adev_to_drm(adev)->irq_enabled)
 		return -ENOENT;
 
 	if (type >= src->num_types)
@@ -552,7 +587,7 @@ int amdgpu_irq_get(struct amdgpu_device *adev, struct amdgpu_irq_src *src,
 int amdgpu_irq_put(struct amdgpu_device *adev, struct amdgpu_irq_src *src,
 		   unsigned type)
 {
-	if (!adev->ddev->irq_enabled)
+	if (!adev_to_drm(adev)->irq_enabled)
 		return -ENOENT;
 
 	if (type >= src->num_types)
@@ -583,7 +618,7 @@ int amdgpu_irq_put(struct amdgpu_device *adev, struct amdgpu_irq_src *src,
 bool amdgpu_irq_enabled(struct amdgpu_device *adev, struct amdgpu_irq_src *src,
 			unsigned type)
 {
-	if (!adev->ddev->irq_enabled)
+	if (!adev_to_drm(adev)->irq_enabled)
 		return false;
 
 	if (type >= src->num_types)

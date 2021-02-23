@@ -989,7 +989,7 @@ void rtw_hal_update_sta_rate_mask(struct adapter *padapter, struct sta_info *pst
 			limit = 8; /*   1R */
 
 		for (i = 0; i < limit; i++) {
-			if (psta->htpriv.ht_cap.supp_mcs_set[i/8] & BIT(i%8))
+			if (psta->htpriv.ht_cap.mcs.rx_mask[i/8] & BIT(i%8))
 				tx_ra_bitmap |= BIT(i+12);
 		}
 	}

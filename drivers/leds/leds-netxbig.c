@@ -419,7 +419,7 @@ static int netxbig_gpio_ext_get(struct device *dev,
 static int netxbig_leds_get_of_pdata(struct device *dev,
 				     struct netxbig_led_platform_data *pdata)
 {
-	struct device_node *np = dev->of_node;
+	struct device_node *np = dev_of_node(dev);
 	struct device_node *gpio_ext_np;
 	struct platform_device *gpio_ext_pdev;
 	struct device *gpio_ext_dev;
@@ -448,31 +448,39 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 	gpio_ext = devm_kzalloc(dev, sizeof(*gpio_ext), GFP_KERNEL);
 	if (!gpio_ext) {
 		of_node_put(gpio_ext_np);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto put_device;
 	}
 	ret = netxbig_gpio_ext_get(dev, gpio_ext_dev, gpio_ext);
 	of_node_put(gpio_ext_np);
 	if (ret)
-		return ret;
+		goto put_device;
 	pdata->gpio_ext = gpio_ext;
 
 	/* Timers (optional) */
 	ret = of_property_count_u32_elems(np, "timers");
 	if (ret > 0) {
-		if (ret % 3)
-			return -EINVAL;
+		if (ret % 3) {
+			ret = -EINVAL;
+			goto put_device;
+		}
+
 		num_timers = ret / 3;
 		timers = devm_kcalloc(dev, num_timers, sizeof(*timers),
 				      GFP_KERNEL);
-		if (!timers)
-			return -ENOMEM;
+		if (!timers) {
+			ret = -ENOMEM;
+			goto put_device;
+		}
 		for (i = 0; i < num_timers; i++) {
 			u32 tmp;
 
 			of_property_read_u32_index(np, "timers", 3 * i,
 						   &timers[i].mode);
-			if (timers[i].mode >= NETXBIG_LED_MODE_NUM)
-				return -EINVAL;
+			if (timers[i].mode >= NETXBIG_LED_MODE_NUM) {
+				ret = -EINVAL;
+				goto put_device;
+			}
 			of_property_read_u32_index(np, "timers",
 						   3 * i + 1, &tmp);
 			timers[i].delay_on = tmp;
@@ -485,18 +493,21 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 	}
 
 	/* LEDs */
-	num_leds = of_get_child_count(np);
+	num_leds = of_get_available_child_count(np);
 	if (!num_leds) {
 		dev_err(dev, "No LED subnodes found in DT\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto put_device;
 	}
 
 	leds = devm_kcalloc(dev, num_leds, sizeof(*leds), GFP_KERNEL);
-	if (!leds)
-		return -ENOMEM;
+	if (!leds) {
+		ret = -ENOMEM;
+		goto put_device;
+	}
 
 	led = leds;
-	for_each_child_of_node(np, child) {
+	for_each_available_child_of_node(np, child) {
 		const char *string;
 		int *mode_val;
 		int num_modes;
@@ -574,6 +585,8 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 
 err_node_put:
 	of_node_put(child);
+put_device:
+	put_device(gpio_ext_dev);
 	return ret;
 }
 

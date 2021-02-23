@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
- * Copyright (C) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project.
  *
@@ -139,7 +139,7 @@ do {                                            			\
 /* 0x00000F00 - 0x00000100 */
 #define IWL_DL_POWER		0x00000100
 #define IWL_DL_TEMP		0x00000200
-#define IWL_DL_RPM		0x00000400
+#define IWL_DL_WOWLAN		0x00000400
 #define IWL_DL_SCAN		0x00000800
 /* 0x0000F000 - 0x00001000 */
 #define IWL_DL_ASSOC		0x00001000
@@ -205,7 +205,7 @@ do {                                            			\
 #define IWL_DEBUG_POWER(p, f, a...)	IWL_DEBUG(p, IWL_DL_POWER, f, ## a)
 #define IWL_DEBUG_11H(p, f, a...)	IWL_DEBUG(p, IWL_DL_11H, f, ## a)
 #define IWL_DEBUG_TPT(p, f, a...)	IWL_DEBUG(p, IWL_DL_TPT, f, ## a)
-#define IWL_DEBUG_RPM(p, f, a...)	IWL_DEBUG(p, IWL_DL_RPM, f, ## a)
+#define IWL_DEBUG_WOWLAN(p, f, a...)	IWL_DEBUG(p, IWL_DL_WOWLAN, f, ## a)
 #define IWL_DEBUG_LAR(p, f, a...)	IWL_DEBUG(p, IWL_DL_LAR, f, ## a)
 #define IWL_DEBUG_FW_INFO(p, f, a...)		\
 		IWL_DEBUG(p, IWL_DL_INFO | IWL_DL_FW, f, ## a)

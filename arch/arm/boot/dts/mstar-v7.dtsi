@@ -12,7 +12,7 @@
 	#size-cells = <1>;
 	interrupt-parent = <&gic>;
 
-	cpus {
+	cpus: cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -85,15 +85,45 @@
 				mask = <0x79>;
 			};
 
+			intc_fiq: interrupt-controller@201310 {
+				compatible = "mstar,mst-intc";
+				reg = <0x201310 0x40>;
+				#interrupt-cells = <3>;
+				interrupt-controller;
+				interrupt-parent = <&gic>;
+				mstar,irqs-map-range = <96 127>;
+			};
+
+			intc_irq: interrupt-controller@201350 {
+				compatible = "mstar,mst-intc";
+				reg = <0x201350 0x40>;
+				#interrupt-cells = <3>;
+				interrupt-controller;
+				interrupt-parent = <&gic>;
+				mstar,irqs-map-range = <32 95>;
+				mstar,intc-no-eoi;
+			};
+
 			l3bridge: l3bridge@204400 {
 				compatible = "mstar,l3bridge";
 				reg = <0x204400 0x200>;
+			};
+
+			gpio: gpio@207800 {
+				#gpio-cells = <2>;
+				reg = <0x207800 0x200>;
+				gpio-controller;
+				#interrupt-cells = <2>;
+				interrupt-controller;
+				interrupt-parent = <&intc_fiq>;
+				status = "disabled";
 			};
 
 			pm_uart: uart@221000 {
 				compatible = "ns16550a";
 				reg = <0x221000 0x100>;
 				reg-shift = <3>;
+				interrupts-extended = <&intc_irq GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <172000000>;
 				status = "disabled";
 			};

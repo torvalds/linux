@@ -20,6 +20,7 @@ properties:
       - items:
           - enum:
               - renesas,ipmmu-r8a73a4  # R-Mobile APE6
+              - renesas,ipmmu-r8a7742  # RZ/G1H
               - renesas,ipmmu-r8a7743  # RZ/G1M
               - renesas,ipmmu-r8a7744  # RZ/G1N
               - renesas,ipmmu-r8a7745  # RZ/G1E
@@ -32,8 +33,8 @@ properties:
           - enum:
               - renesas,ipmmu-r8a774a1 # RZ/G2M
               - renesas,ipmmu-r8a774b1 # RZ/G2N
-              - renesas,ipmmu-r8a774e1 # RZ/G2H
               - renesas,ipmmu-r8a774c0 # RZ/G2E
+              - renesas,ipmmu-r8a774e1 # RZ/G2H
               - renesas,ipmmu-r8a7795  # R-Car H3
               - renesas,ipmmu-r8a7796  # R-Car M3-W
               - renesas,ipmmu-r8a77961 # R-Car M3-W+

@@ -158,7 +158,7 @@
 };
 
 &ecspi1 {
-	cs-gpios = <&gpio3 19 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio3 19 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
 	status = "okay";
@@ -171,7 +171,7 @@
 };
 
 &ecspi2 {
-	cs-gpios = <&gpio2 26 GPIO_ACTIVE_HIGH>, <&gpio4 25 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio2 26 GPIO_ACTIVE_LOW>, <&gpio4 25 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2 &pinctrl_ecspi2_cs>;
 	status = "okay";
@@ -195,7 +195,7 @@
 };
 
 &ecspi3 {
-	cs-gpios = <&gpio4 24 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio4 24 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi3>;
 	status = "okay";
@@ -213,8 +213,8 @@
 		#size-cells = <0>;
 
 		/* Microchip KSZ9031RNX PHY */
-		rgmii_phy: ethernet-phy@4 {
-			reg = <4>;
+		rgmii_phy: ethernet-phy@0 {
+			reg = <0>;
 			interrupts-extended = <&gpio1 28 IRQ_TYPE_LEVEL_LOW>;
 			reset-gpios = <&gpio1 25 GPIO_ACTIVE_LOW>;
 			reset-assert-us = <10000>;

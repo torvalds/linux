@@ -250,6 +250,10 @@ void machines__destroy_kernel_maps(struct machines *machines);
 
 size_t machine__fprintf_vmlinux_path(struct machine *machine, FILE *fp);
 
+typedef int (*machine__dso_t)(struct dso *dso, struct machine *machine, void *priv);
+
+int machine__for_each_dso(struct machine *machine, machine__dso_t fn,
+			  void *priv);
 int machine__for_each_thread(struct machine *machine,
 			     int (*fn)(struct thread *thread, void *p),
 			     void *priv);

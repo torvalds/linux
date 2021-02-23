@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.fe
 
 .. _FE_GET_PROPERTY:
 
@@ -18,26 +12,25 @@ Name
 
 FE_SET_PROPERTY - FE_GET_PROPERTY - FE_SET_PROPERTY sets one or more frontend properties. - FE_GET_PROPERTY returns one or more frontend properties.
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, FE_GET_PROPERTY, struct dtv_properties *argp )
-    :name: FE_GET_PROPERTY
+.. c:macro:: FE_GET_PROPERTY
 
-.. c:function:: int ioctl( int fd, FE_SET_PROPERTY, struct dtv_properties *argp )
-    :name: FE_SET_PROPERTY
+``int ioctl(int fd, FE_GET_PROPERTY, struct dtv_properties *argp)``
 
+.. c:macro:: FE_SET_PROPERTY
+
+``int ioctl(int fd, FE_SET_PROPERTY, struct dtv_properties *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <frontend_f_open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`dtv_properties`.
-
 
 Description
 ===========
@@ -69,7 +62,6 @@ depends on the delivery system and on the device:
    -  No properties are changed, and statistics aren't reset.
 
    -  This call only requires read-only access to the device.
-
 
 Return Value
 ============

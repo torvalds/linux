@@ -13,7 +13,7 @@
 #define ARMV8_PMU_CYCLE_IDX		(ARMV8_PMU_MAX_COUNTERS - 1)
 #define ARMV8_PMU_MAX_COUNTER_PAIRS	((ARMV8_PMU_MAX_COUNTERS + 1) >> 1)
 
-#ifdef CONFIG_KVM_ARM_PMU
+#ifdef CONFIG_HW_PERF_EVENTS
 
 struct kvm_pmc {
 	u8 idx;	/* index into the pmu->pmc array */
@@ -24,16 +24,16 @@ struct kvm_pmu {
 	int irq_num;
 	struct kvm_pmc pmc[ARMV8_PMU_MAX_COUNTERS];
 	DECLARE_BITMAP(chained, ARMV8_PMU_MAX_COUNTER_PAIRS);
-	bool ready;
 	bool created;
 	bool irq_level;
+	struct irq_work overflow_work;
 };
 
-#define kvm_arm_pmu_v3_ready(v)		((v)->arch.pmu.ready)
 #define kvm_arm_pmu_irq_initialized(v)	((v)->arch.pmu.irq_num >= VGIC_NR_SGIS)
 u64 kvm_pmu_get_counter_value(struct kvm_vcpu *vcpu, u64 select_idx);
 void kvm_pmu_set_counter_value(struct kvm_vcpu *vcpu, u64 select_idx, u64 val);
 u64 kvm_pmu_valid_counter_mask(struct kvm_vcpu *vcpu);
+u64 kvm_pmu_get_pmceid(struct kvm_vcpu *vcpu, bool pmceid1);
 void kvm_pmu_vcpu_init(struct kvm_vcpu *vcpu);
 void kvm_pmu_vcpu_reset(struct kvm_vcpu *vcpu);
 void kvm_pmu_vcpu_destroy(struct kvm_vcpu *vcpu);
@@ -59,7 +59,6 @@ int kvm_arm_pmu_v3_enable(struct kvm_vcpu *vcpu);
 struct kvm_pmu {
 };
 
-#define kvm_arm_pmu_v3_ready(v)		(false)
 #define kvm_arm_pmu_irq_initialized(v)	(false)
 static inline u64 kvm_pmu_get_counter_value(struct kvm_vcpu *vcpu,
 					    u64 select_idx)
@@ -105,6 +104,10 @@ static inline int kvm_arm_pmu_v3_has_attr(struct kvm_vcpu *vcpu,
 	return -ENXIO;
 }
 static inline int kvm_arm_pmu_v3_enable(struct kvm_vcpu *vcpu)
+{
+	return 0;
+}
+static inline u64 kvm_pmu_get_pmceid(struct kvm_vcpu *vcpu, bool pmceid1)
 {
 	return 0;
 }

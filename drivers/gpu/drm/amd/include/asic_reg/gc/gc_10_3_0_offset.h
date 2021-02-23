@@ -3661,6 +3661,8 @@
 #define mmGCMC_VM_XGMI_LFB_CNTL_BASE_IDX                                                               0
 #define mmGCMC_VM_XGMI_LFB_SIZE                                                                        0x16f8
 #define mmGCMC_VM_XGMI_LFB_SIZE_BASE_IDX                                                               0
+#define mmGCMC_VM_FB_NOALLOC_CNTL                                                                      0x16f9
+#define mmGCMC_VM_FB_NOALLOC_CNTL_BASE_IDX                                                             0
 #define mmGCUTCL2_HARVEST_BYPASS_GROUPS                                                                0x16fa
 #define mmGCUTCL2_HARVEST_BYPASS_GROUPS_BASE_IDX                                                       0
 
@@ -9184,6 +9186,8 @@
 #define mmRLC_GPM_THREAD_ENABLE_BASE_IDX                                                               1
 #define mmRLC_RLCG_DOORBELL_RANGE                                                                      0x4c47
 #define mmRLC_RLCG_DOORBELL_RANGE_BASE_IDX                                                             1
+#define mmRLC_CGTT_MGCG_OVERRIDE                                                                       0x4c48
+#define mmRLC_CGTT_MGCG_OVERRIDE_BASE_IDX                                                              1
 #define mmRLC_CGCG_CGLS_CTRL                                                                           0x4c49
 #define mmRLC_CGCG_CGLS_CTRL_BASE_IDX                                                                  1
 #define mmRLC_CGCG_RAMP_CTRL                                                                           0x4c4a

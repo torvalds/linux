@@ -405,9 +405,9 @@ int ks_wlan_hw_tx(struct ks_wlan_private *priv, void *p, unsigned long size,
 	return result;
 }
 
-static void rx_event_task(unsigned long dev)
+static void rx_event_task(struct tasklet_struct *t)
 {
-	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev;
+	struct ks_wlan_private *priv = from_tasklet(priv, t, rx_bh_task);
 	struct rx_device_buffer *rp;
 
 	if (rxq_has_space(priv) && priv->dev_state >= DEVICE_STATE_BOOT) {
@@ -618,7 +618,7 @@ static int trx_device_init(struct ks_wlan_private *priv)
 	spin_lock_init(&priv->tx_dev.tx_dev_lock);
 	spin_lock_init(&priv->rx_dev.rx_dev_lock);
 
-	tasklet_init(&priv->rx_bh_task, rx_event_task, (unsigned long)priv);
+	tasklet_setup(&priv->rx_bh_task, rx_event_task);
 
 	return 0;
 }
@@ -1029,10 +1029,12 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 
 	ret = register_netdev(priv->net_dev);
 	if (ret)
-		goto err_free_netdev;
+		goto err_destroy_wq;
 
 	return 0;
 
+ err_destroy_wq:
+	destroy_workqueue(priv->wq);
  err_free_netdev:
 	free_netdev(netdev);
  err_release_irq:

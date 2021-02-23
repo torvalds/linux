@@ -11,18 +11,18 @@
 
 long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr)
 {
-	struct armcp_packet pkt;
-	long result;
+	struct cpucp_packet pkt;
+	u64 result;
 	int rc;
 
 	memset(&pkt, 0, sizeof(pkt));
 
 	if (curr)
-		pkt.ctl = cpu_to_le32(ARMCP_PACKET_FREQUENCY_CURR_GET <<
-						ARMCP_PKT_CTL_OPCODE_SHIFT);
+		pkt.ctl = cpu_to_le32(CPUCP_PACKET_FREQUENCY_CURR_GET <<
+						CPUCP_PKT_CTL_OPCODE_SHIFT);
 	else
-		pkt.ctl = cpu_to_le32(ARMCP_PACKET_FREQUENCY_GET <<
-						ARMCP_PKT_CTL_OPCODE_SHIFT);
+		pkt.ctl = cpu_to_le32(CPUCP_PACKET_FREQUENCY_GET <<
+						CPUCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.pll_index = cpu_to_le32(pll_index);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
@@ -32,21 +32,21 @@ long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr)
 		dev_err(hdev->dev,
 			"Failed to get frequency of PLL %d, error %d\n",
 			pll_index, rc);
-		result = rc;
+		return rc;
 	}
 
-	return result;
+	return (long) result;
 }
 
 void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq)
 {
-	struct armcp_packet pkt;
+	struct cpucp_packet pkt;
 	int rc;
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = cpu_to_le32(ARMCP_PACKET_FREQUENCY_SET <<
-					ARMCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_FREQUENCY_SET <<
+					CPUCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.pll_index = cpu_to_le32(pll_index);
 	pkt.value = cpu_to_le64(freq);
 
@@ -61,21 +61,21 @@ void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq)
 
 u64 hl_get_max_power(struct hl_device *hdev)
 {
-	struct armcp_packet pkt;
-	long result;
+	struct cpucp_packet pkt;
+	u64 result;
 	int rc;
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = cpu_to_le32(ARMCP_PACKET_MAX_POWER_GET <<
-				ARMCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_MAX_POWER_GET <<
+				CPUCP_PKT_CTL_OPCODE_SHIFT);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 						0, &result);
 
 	if (rc) {
 		dev_err(hdev->dev, "Failed to get max power, error %d\n", rc);
-		result = rc;
+		return (u64) rc;
 	}
 
 	return result;
@@ -83,13 +83,13 @@ u64 hl_get_max_power(struct hl_device *hdev)
 
 void hl_set_max_power(struct hl_device *hdev)
 {
-	struct armcp_packet pkt;
+	struct cpucp_packet pkt;
 	int rc;
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = cpu_to_le32(ARMCP_PACKET_MAX_POWER_SET <<
-				ARMCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_MAX_POWER_SET <<
+				CPUCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.value = cpu_to_le64(hdev->max_power);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
@@ -112,7 +112,7 @@ static ssize_t armcp_kernel_ver_show(struct device *dev,
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%s", hdev->asic_prop.armcp_info.kernel_version);
+	return sprintf(buf, "%s", hdev->asic_prop.cpucp_info.kernel_version);
 }
 
 static ssize_t armcp_ver_show(struct device *dev, struct device_attribute *attr,
@@ -120,7 +120,7 @@ static ssize_t armcp_ver_show(struct device *dev, struct device_attribute *attr,
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%s\n", hdev->asic_prop.armcp_info.armcp_version);
+	return sprintf(buf, "%s\n", hdev->asic_prop.cpucp_info.cpucp_version);
 }
 
 static ssize_t cpld_ver_show(struct device *dev, struct device_attribute *attr,
@@ -129,7 +129,23 @@ static ssize_t cpld_ver_show(struct device *dev, struct device_attribute *attr,
 	struct hl_device *hdev = dev_get_drvdata(dev);
 
 	return sprintf(buf, "0x%08x\n",
-			hdev->asic_prop.armcp_info.cpld_version);
+			hdev->asic_prop.cpucp_info.cpld_version);
+}
+
+static ssize_t cpucp_kernel_ver_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct hl_device *hdev = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s", hdev->asic_prop.cpucp_info.kernel_version);
+}
+
+static ssize_t cpucp_ver_show(struct device *dev, struct device_attribute *attr,
+				char *buf)
+{
+	struct hl_device *hdev = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s\n", hdev->asic_prop.cpucp_info.cpucp_version);
 }
 
 static ssize_t infineon_ver_show(struct device *dev,
@@ -138,7 +154,7 @@ static ssize_t infineon_ver_show(struct device *dev,
 	struct hl_device *hdev = dev_get_drvdata(dev);
 
 	return sprintf(buf, "0x%04x\n",
-			hdev->asic_prop.armcp_info.infineon_version);
+			hdev->asic_prop.cpucp_info.infineon_version);
 }
 
 static ssize_t fuse_ver_show(struct device *dev, struct device_attribute *attr,
@@ -146,7 +162,7 @@ static ssize_t fuse_ver_show(struct device *dev, struct device_attribute *attr,
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%s\n", hdev->asic_prop.armcp_info.fuse_version);
+	return sprintf(buf, "%s\n", hdev->asic_prop.cpucp_info.fuse_version);
 }
 
 static ssize_t thermal_ver_show(struct device *dev,
@@ -154,7 +170,7 @@ static ssize_t thermal_ver_show(struct device *dev,
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%s", hdev->asic_prop.armcp_info.thermal_version);
+	return sprintf(buf, "%s", hdev->asic_prop.cpucp_info.thermal_version);
 }
 
 static ssize_t preboot_btl_ver_show(struct device *dev,
@@ -260,6 +276,8 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 		str = "In reset";
 	else if (hdev->disabled)
 		str = "Malfunction";
+	else if (hdev->needs_reset)
+		str = "Needs Reset";
 	else
 		str = "Operational";
 
@@ -288,7 +306,7 @@ static ssize_t max_power_show(struct device *dev, struct device_attribute *attr,
 	struct hl_device *hdev = dev_get_drvdata(dev);
 	long val;
 
-	if (hl_device_disabled_or_in_reset(hdev))
+	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
 	val = hl_get_max_power(hdev);
@@ -303,7 +321,7 @@ static ssize_t max_power_store(struct device *dev,
 	unsigned long value;
 	int rc;
 
-	if (hl_device_disabled_or_in_reset(hdev)) {
+	if (!hl_device_operational(hdev, NULL)) {
 		count = -ENODEV;
 		goto out;
 	}
@@ -331,7 +349,7 @@ static ssize_t eeprom_read_handler(struct file *filp, struct kobject *kobj,
 	char *data;
 	int rc;
 
-	if (hl_device_disabled_or_in_reset(hdev))
+	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
 	if (!max_size)
@@ -356,6 +374,8 @@ out:
 static DEVICE_ATTR_RO(armcp_kernel_ver);
 static DEVICE_ATTR_RO(armcp_ver);
 static DEVICE_ATTR_RO(cpld_ver);
+static DEVICE_ATTR_RO(cpucp_kernel_ver);
+static DEVICE_ATTR_RO(cpucp_ver);
 static DEVICE_ATTR_RO(device_type);
 static DEVICE_ATTR_RO(fuse_ver);
 static DEVICE_ATTR_WO(hard_reset);
@@ -380,6 +400,8 @@ static struct attribute *hl_dev_attrs[] = {
 	&dev_attr_armcp_kernel_ver.attr,
 	&dev_attr_armcp_ver.attr,
 	&dev_attr_cpld_ver.attr,
+	&dev_attr_cpucp_kernel_ver.attr,
+	&dev_attr_cpucp_ver.attr,
 	&dev_attr_device_type.attr,
 	&dev_attr_fuse_ver.attr,
 	&dev_attr_hard_reset.attr,

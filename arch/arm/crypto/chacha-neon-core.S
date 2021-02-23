@@ -47,6 +47,7 @@
   */
 
 #include <linux/linkage.h>
+#include <asm/cache.h>
 
 	.text
 	.fpu		neon
@@ -205,7 +206,7 @@ ENDPROC(hchacha_block_neon)
 
 	.align		5
 ENTRY(chacha_4block_xor_neon)
-	push		{r4-r5}
+	push		{r4, lr}
 	mov		r4, sp			// preserve the stack pointer
 	sub		ip, sp, #0x20		// allocate a 32 byte buffer
 	bic		ip, ip, #0x1f		// aligned to 32 bytes
@@ -229,10 +230,10 @@ ENTRY(chacha_4block_xor_neon)
 	vld1.32		{q0-q1}, [r0]
 	vld1.32		{q2-q3}, [ip]
 
-	adr		r5, .Lctrinc
+	adr		lr, .Lctrinc
 	vdup.32		q15, d7[1]
 	vdup.32		q14, d7[0]
-	vld1.32		{q4}, [r5, :128]
+	vld1.32		{q4}, [lr, :128]
 	vdup.32		q13, d6[1]
 	vdup.32		q12, d6[0]
 	vdup.32		q11, d5[1]
@@ -455,7 +456,7 @@ ENTRY(chacha_4block_xor_neon)
 
 	// Re-interleave the words in the first two rows of each block (x0..7).
 	// Also add the counter values 0-3 to x12[0-3].
-	  vld1.32	{q8}, [r5, :128]	// load counter values 0-3
+	  vld1.32	{q8}, [lr, :128]	// load counter values 0-3
 	vzip.32		q0, q1			// => (0 1 0 1) (0 1 0 1)
 	vzip.32		q2, q3			// => (2 3 2 3) (2 3 2 3)
 	vzip.32		q4, q5			// => (4 5 4 5) (4 5 4 5)
@@ -493,6 +494,8 @@ ENTRY(chacha_4block_xor_neon)
 
 	// Re-interleave the words in the last two rows of each block (x8..15).
 	vld1.32		{q8-q9}, [sp, :256]
+	  mov		sp, r4		// restore original stack pointer
+	  ldr		r4, [r4, #8]	// load number of bytes
 	vzip.32		q12, q13	// => (12 13 12 13) (12 13 12 13)
 	vzip.32		q14, q15	// => (14 15 14 15) (14 15 14 15)
 	vzip.32		q8, q9		// => (8 9 8 9) (8 9 8 9)
@@ -520,41 +523,121 @@ ENTRY(chacha_4block_xor_neon)
 	// XOR the rest of the data with the keystream
 
 	vld1.8		{q0-q1}, [r2]!
+	subs		r4, r4, #96
 	veor		q0, q0, q8
 	veor		q1, q1, q12
+	ble		.Lle96
 	vst1.8		{q0-q1}, [r1]!
 
 	vld1.8		{q0-q1}, [r2]!
+	subs		r4, r4, #32
 	veor		q0, q0, q2
 	veor		q1, q1, q6
+	ble		.Lle128
 	vst1.8		{q0-q1}, [r1]!
 
 	vld1.8		{q0-q1}, [r2]!
+	subs		r4, r4, #32
 	veor		q0, q0, q10
 	veor		q1, q1, q14
+	ble		.Lle160
 	vst1.8		{q0-q1}, [r1]!
 
 	vld1.8		{q0-q1}, [r2]!
+	subs		r4, r4, #32
 	veor		q0, q0, q4
 	veor		q1, q1, q5
+	ble		.Lle192
 	vst1.8		{q0-q1}, [r1]!
 
 	vld1.8		{q0-q1}, [r2]!
+	subs		r4, r4, #32
 	veor		q0, q0, q9
 	veor		q1, q1, q13
+	ble		.Lle224
 	vst1.8		{q0-q1}, [r1]!
 
 	vld1.8		{q0-q1}, [r2]!
+	subs		r4, r4, #32
 	veor		q0, q0, q3
 	veor		q1, q1, q7
+	blt		.Llt256
+.Lout:
 	vst1.8		{q0-q1}, [r1]!
 
 	vld1.8		{q0-q1}, [r2]
-	  mov		sp, r4		// restore original stack pointer
 	veor		q0, q0, q11
 	veor		q1, q1, q15
 	vst1.8		{q0-q1}, [r1]
 
-	pop		{r4-r5}
-	bx		lr
+	pop		{r4, pc}
+
+.Lle192:
+	vmov		q4, q9
+	vmov		q5, q13
+
+.Lle160:
+	// nothing to do
+
+.Lfinalblock:
+	// Process the final block if processing less than 4 full blocks.
+	// Entered with 32 bytes of ChaCha cipher stream in q4-q5, and the
+	// previous 32 byte output block that still needs to be written at
+	// [r1] in q0-q1.
+	beq		.Lfullblock
+
+.Lpartialblock:
+	adr		lr, .Lpermute + 32
+	add		r2, r2, r4
+	add		lr, lr, r4
+	add		r4, r4, r1
+
+	vld1.8		{q2-q3}, [lr]
+	vld1.8		{q6-q7}, [r2]
+
+	add		r4, r4, #32
+
+	vtbl.8		d4, {q4-q5}, d4
+	vtbl.8		d5, {q4-q5}, d5
+	vtbl.8		d6, {q4-q5}, d6
+	vtbl.8		d7, {q4-q5}, d7
+
+	veor		q6, q6, q2
+	veor		q7, q7, q3
+
+	vst1.8		{q6-q7}, [r4]	// overlapping stores
+	vst1.8		{q0-q1}, [r1]
+	pop		{r4, pc}
+
+.Lfullblock:
+	vmov		q11, q4
+	vmov		q15, q5
+	b		.Lout
+.Lle96:
+	vmov		q4, q2
+	vmov		q5, q6
+	b		.Lfinalblock
+.Lle128:
+	vmov		q4, q10
+	vmov		q5, q14
+	b		.Lfinalblock
+.Lle224:
+	vmov		q4, q3
+	vmov		q5, q7
+	b		.Lfinalblock
+.Llt256:
+	vmov		q4, q11
+	vmov		q5, q15
+	b		.Lpartialblock
 ENDPROC(chacha_4block_xor_neon)
+
+	.align		L1_CACHE_SHIFT
+.Lpermute:
+	.byte		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
+	.byte		0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+	.byte		0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17
+	.byte		0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+	.byte		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
+	.byte		0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+	.byte		0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17
+	.byte		0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f

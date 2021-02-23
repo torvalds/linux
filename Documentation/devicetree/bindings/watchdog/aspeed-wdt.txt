@@ -20,7 +20,7 @@ Optional properties:
    This is useful in situations where another watchdog engine on chip is
    to perform the reset.
 
-   If 'aspeed,reset-type=' is not specfied the default is to enable system
+   If 'aspeed,reset-type=' is not specified the default is to enable system
    reset.
 
    Reset types:

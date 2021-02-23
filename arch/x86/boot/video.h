@@ -78,7 +78,7 @@ struct card_info {
 	u16 xmode_n;		/* Size of unprobed mode range */
 };
 
-#define __videocard struct card_info __attribute__((used,section(".videocards")))
+#define __videocard struct card_info __section(".videocards") __attribute__((used))
 extern struct card_info video_cards[], video_cards_end[];
 
 int mode_defined(u16 mode);	/* video.c */

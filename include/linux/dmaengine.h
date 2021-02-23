@@ -357,11 +357,14 @@ struct dma_chan {
  * @chan: driver channel device
  * @device: sysfs device
  * @dev_id: parent dma_device dev_id
+ * @chan_dma_dev: The channel is using custom/different dma-mapping
+ * compared to the parent dma_device
  */
 struct dma_chan_dev {
 	struct dma_chan *chan;
 	struct device device;
 	int dev_id;
+	bool chan_dma_dev;
 };
 
 /**
@@ -418,6 +421,9 @@ enum dma_slave_buswidth {
  * @slave_id: Slave requester id. Only valid for slave channels. The dma
  * slave peripheral will have unique id as dma requester which need to be
  * pass as slave config.
+ * @peripheral_config: peripheral configuration for programming peripheral
+ * for dmaengine transfer
+ * @peripheral_size: peripheral configuration buffer size
  *
  * This struct is passed in as configuration data to a DMA engine
  * in order to set up a certain channel for DMA transport at runtime.
@@ -443,6 +449,8 @@ struct dma_slave_config {
 	u32 dst_port_window_size;
 	bool device_fc;
 	unsigned int slave_id;
+	void *peripheral_config;
+	size_t peripheral_size;
 };
 
 /**
@@ -800,6 +808,7 @@ struct dma_filter {
  *	by tx_status
  * @device_alloc_chan_resources: allocate resources and return the
  *	number of allocated descriptors
+ * @device_router_config: optional callback for DMA router configuration
  * @device_free_chan_resources: release DMA channel's resources
  * @device_prep_dma_memcpy: prepares a memcpy operation
  * @device_prep_dma_xor: prepares a xor operation
@@ -874,6 +883,7 @@ struct dma_device {
 	enum dma_residue_granularity residue_granularity;
 
 	int (*device_alloc_chan_resources)(struct dma_chan *chan);
+	int (*device_router_config)(struct dma_chan *chan);
 	void (*device_free_chan_resources)(struct dma_chan *chan);
 
 	struct dma_async_tx_descriptor *(*device_prep_dma_memcpy)(
@@ -1472,7 +1482,6 @@ void dma_issue_pending_all(void);
 struct dma_chan *__dma_request_channel(const dma_cap_mask_t *mask,
 				       dma_filter_fn fn, void *fn_param,
 				       struct device_node *np);
-struct dma_chan *dma_request_slave_channel(struct device *dev, const char *name);
 
 struct dma_chan *dma_request_chan(struct device *dev, const char *name);
 struct dma_chan *dma_request_chan_by_mask(const dma_cap_mask_t *mask);
@@ -1502,11 +1511,6 @@ static inline struct dma_chan *__dma_request_channel(const dma_cap_mask_t *mask,
 {
 	return NULL;
 }
-static inline struct dma_chan *dma_request_slave_channel(struct device *dev,
-							 const char *name)
-{
-	return NULL;
-}
 static inline struct dma_chan *dma_request_chan(struct device *dev,
 						const char *name)
 {
@@ -1526,8 +1530,6 @@ static inline int dma_get_slave_caps(struct dma_chan *chan,
 	return -ENXIO;
 }
 #endif
-
-#define dma_request_slave_channel_reason(dev, name) dma_request_chan(dev, name)
 
 static inline int dmaengine_desc_set_reuse(struct dma_async_tx_descriptor *tx)
 {
@@ -1577,6 +1579,15 @@ void dma_run_dependencies(struct dma_async_tx_descriptor *tx);
 #define dma_request_channel(mask, x, y) \
 	__dma_request_channel(&(mask), x, y, NULL)
 
+/* Deprecated, please use dma_request_chan() directly */
+static inline struct dma_chan * __deprecated
+dma_request_slave_channel(struct device *dev, const char *name)
+{
+	struct dma_chan *ch = dma_request_chan(dev, name);
+
+	return IS_ERR(ch) ? NULL : ch;
+}
+
 static inline struct dma_chan
 *dma_request_slave_channel_compat(const dma_cap_mask_t mask,
 				  dma_filter_fn fn, void *fn_param,
@@ -1610,4 +1621,13 @@ dmaengine_get_direction_text(enum dma_transfer_direction dir)
 		return "invalid";
 	}
 }
+
+static inline struct device *dmaengine_get_dma_device(struct dma_chan *chan)
+{
+	if (chan->dev->chan_dma_dev)
+		return &chan->dev->device;
+
+	return chan->device->dev;
+}
+
 #endif /* DMAENGINE_H */

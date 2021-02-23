@@ -46,7 +46,7 @@ Resources
 =========
 
 The ``netdevsim`` driver exposes resources to control the number of FIB
-entries and FIB rule entries that the driver will allow.
+entries, FIB rule entries and nexthops that the driver will allow.
 
 .. code:: shell
 
@@ -54,6 +54,7 @@ entries and FIB rule entries that the driver will allow.
     $ devlink resource set netdevsim/netdevsim0 path /IPv4/fib-rules size 16
     $ devlink resource set netdevsim/netdevsim0 path /IPv6/fib size 64
     $ devlink resource set netdevsim/netdevsim0 path /IPv6/fib-rules size 16
+    $ devlink resource set netdevsim/netdevsim0 path /nexthops size 16
     $ devlink dev reload netdevsim/netdevsim0
 
 Driver-specific Traps

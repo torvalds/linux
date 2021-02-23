@@ -91,14 +91,14 @@ static int omap_ohci_transceiver_power(struct ohci_omap_priv *priv, int on)
 				| ((1 << 5/*usb1*/) | (1 << 3/*usb2*/)),
 			       INNOVATOR_FPGA_CAM_USB_CONTROL);
 		else if (priv->power)
-			gpiod_set_value(priv->power, 0);
+			gpiod_set_value_cansleep(priv->power, 0);
 	} else {
 		if (machine_is_omap_innovator() && cpu_is_omap1510())
 			__raw_writeb(__raw_readb(INNOVATOR_FPGA_CAM_USB_CONTROL)
 				& ~((1 << 5/*usb1*/) | (1 << 3/*usb2*/)),
 			       INNOVATOR_FPGA_CAM_USB_CONTROL);
 		else if (priv->power)
-			gpiod_set_value(priv->power, 1);
+			gpiod_set_value_cansleep(priv->power, 1);
 	}
 
 	return 0;
@@ -285,7 +285,9 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 
 /**
  * ohci_hcd_omap_probe - initialize OMAP-based HCDs
- * Context: !in_interrupt()
+ * @pdev:	USB controller to probe
+ *
+ * Context: task context, might sleep
  *
  * Allocates basic resources for this USB host controller, and
  * then invokes the start() method for the HCD associated with it
@@ -399,8 +401,9 @@ err_put_hcd:
 
 /**
  * ohci_hcd_omap_remove - shutdown processing for OMAP-based HCDs
- * @dev: USB Host Controller being removed
- * Context: !in_interrupt()
+ * @pdev: USB Host Controller being removed
+ *
+ * Context: task context, might sleep
  *
  * Reverses the effect of ohci_hcd_omap_probe(), first invoking
  * the HCD's stop() method.  It is always called from a thread

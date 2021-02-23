@@ -376,11 +376,9 @@ static void do_signal(struct pt_regs *regs)
 asmlinkage void
 do_notify_resume(struct pt_regs *regs, unsigned int thread_flags)
 {
-	if (thread_flags & _TIF_SIGPENDING)
+	if (thread_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL))
 		do_signal(regs);
 
-	if (thread_flags & _TIF_NOTIFY_RESUME) {
-		clear_thread_flag(TIF_NOTIFY_RESUME);
+	if (thread_flags & _TIF_NOTIFY_RESUME)
 		tracehook_notify_resume(regs);
-	}
 }

@@ -86,7 +86,7 @@ MODULE_VERSION("0.0.1");
 #define check_command_failed(status)	(!(status & SI4713_CTS) || \
 					(status & SI4713_ERR))
 /* mute definition */
-#define set_mute(p)	((p & 1) | ((p & 1) << 1));
+#define set_mute(p)	(((p) & 1) | (((p) & 1) << 1))
 
 #ifdef DEBUG
 #define DBG_BUFFER(device, message, buffer, size)			\
@@ -1157,7 +1157,7 @@ static int si4713_s_ctrl(struct v4l2_ctrl *ctrl)
 			 * V4L2_CID_TUNE_POWER_LEVEL. */
 			if (force)
 				break;
-			/* fall through */
+			fallthrough;
 		case V4L2_CID_TUNE_POWER_LEVEL:
 			ret = si4713_tx_tune_power(sdev,
 				sdev->tune_pwr_level->val, sdev->tune_ant_cap->val);

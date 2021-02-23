@@ -17,8 +17,16 @@ properties:
   $nodename:
     pattern: "^rtc(@.*|-[0-9a-f])*$"
 
-  quartz-load-femtofarads:
+  aux-voltage-chargeable:
     $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
+    description: |
+      Tells whether the battery/supercap of the RTC (if any) is
+      chargeable or not:
+      0: not chargeable
+      1: chargeable
+
+  quartz-load-femtofarads:
     description:
       The capacitive load of the quartz(x-tal), expressed in femto
       Farad (fF). The default value shall be listed (if optional),
@@ -35,16 +43,29 @@ properties:
     description:
       Do not use internal trickle charger diode. Should be given if
       internal trickle charger diode should be disabled.
+    deprecated: true
 
   trickle-resistor-ohms:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Selected resistor for trickle charger. Should be given
       if trickle charger should be enabled.
+
+  trickle-voltage-millivolt:
+    description:
+      Selected voltage for trickle charger. Should be given
+      if trickle charger should be enabled and the trickle voltage is different
+      from the RTC main power supply.
 
   wakeup-source:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       Enables wake up of host system on alarm.
+
+  reset-source:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      The RTC is able to reset the machine.
+
+additionalProperties: true
 
 ...

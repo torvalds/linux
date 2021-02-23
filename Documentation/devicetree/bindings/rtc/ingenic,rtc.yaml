@@ -68,6 +68,8 @@ required:
   - clocks
   - clock-names
 
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/clock/jz4740-cgu.h>

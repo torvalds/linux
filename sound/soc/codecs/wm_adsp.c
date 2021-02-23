@@ -199,7 +199,7 @@
 #define ADSP2_PMEM_ERR_ADDR_XMEM_ERR_ADDR    0x7C
 
 #define ADSP2_REGION_LOCK_ERR_MASK           0x8000
-#define ADSP2_SLAVE_ERR_MASK                 0x4000
+#define ADSP2_ADDR_ERR_MASK                  0x4000
 #define ADSP2_WDT_TIMEOUT_STS_MASK           0x2000
 #define ADSP2_CTRL_ERR_PAUSE_ENA             0x0002
 #define ADSP2_CTRL_ERR_EINT                  0x0001
@@ -1519,7 +1519,7 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 	ctl_work = kzalloc(sizeof(*ctl_work), GFP_KERNEL);
 	if (!ctl_work) {
 		ret = -ENOMEM;
-		goto err_ctl_cache;
+		goto err_list_del;
 	}
 
 	ctl_work->dsp = dsp;
@@ -1529,7 +1529,8 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 
 	return 0;
 
-err_ctl_cache:
+err_list_del:
+	list_del(&ctl->list);
 	kfree(ctl->cache);
 err_ctl_subname:
 	kfree(ctl->subname);
@@ -1937,6 +1938,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 			mem = wm_adsp_find_region(dsp, type);
 			if (!mem) {
 				adsp_err(dsp, "No region of type: %x\n", type);
+				ret = -EINVAL;
 				goto out_fw;
 			}
 
@@ -2029,11 +2031,14 @@ static struct wm_coeff_ctl *wm_adsp_get_ctl(struct wm_adsp *dsp,
 					     unsigned int alg)
 {
 	struct wm_coeff_ctl *pos, *rslt = NULL;
+	const char *fw_txt = wm_adsp_fw_text[dsp->fw];
 
 	list_for_each_entry(pos, &dsp->ctl_list, list) {
 		if (!pos->subname)
 			continue;
 		if (strncmp(pos->subname, name, pos->subname_len) == 0 &&
+		    strncmp(pos->fw_name, fw_txt,
+			    SNDRV_CTL_ELEM_ID_NAME_MAXLEN) == 0 &&
 				pos->alg_region.alg == alg &&
 				pos->alg_region.type == type) {
 			rslt = pos;
@@ -2049,6 +2054,7 @@ int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name, int type,
 {
 	struct wm_coeff_ctl *ctl;
 	struct snd_kcontrol *kcontrol;
+	char ctl_name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	int ret;
 
 	ctl = wm_adsp_get_ctl(dsp, name, type, alg);
@@ -2059,8 +2065,25 @@ int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name, int type,
 		return -EINVAL;
 
 	ret = wm_coeff_write_ctrl(ctl, buf, len);
+	if (ret)
+		return ret;
 
-	kcontrol = snd_soc_card_get_kcontrol(dsp->component->card, ctl->name);
+	if (ctl->flags & WMFW_CTL_FLAG_SYS)
+		return 0;
+
+	if (dsp->component->name_prefix)
+		snprintf(ctl_name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "%s %s",
+			 dsp->component->name_prefix, ctl->name);
+	else
+		snprintf(ctl_name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "%s",
+			 ctl->name);
+
+	kcontrol = snd_soc_card_get_kcontrol(dsp->component->card, ctl_name);
+	if (!kcontrol) {
+		adsp_err(dsp, "Can't find kcontrol %s\n", ctl_name);
+		return -EINVAL;
+	}
+
 	snd_ctl_notify(dsp->component->card->snd_card,
 		       SNDRV_CTL_EVENT_MASK_VALUE, &kcontrol->id);
 
@@ -4364,9 +4387,9 @@ irqreturn_t wm_adsp2_bus_error(int irq, void *data)
 		wm_adsp_fatal_error(dsp);
 	}
 
-	if (val & (ADSP2_SLAVE_ERR_MASK | ADSP2_REGION_LOCK_ERR_MASK)) {
-		if (val & ADSP2_SLAVE_ERR_MASK)
-			adsp_err(dsp, "bus error: slave error\n");
+	if (val & (ADSP2_ADDR_ERR_MASK | ADSP2_REGION_LOCK_ERR_MASK)) {
+		if (val & ADSP2_ADDR_ERR_MASK)
+			adsp_err(dsp, "bus error: address error\n");
 		else
 			adsp_err(dsp, "bus error: region lock error\n");
 

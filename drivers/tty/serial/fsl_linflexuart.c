@@ -252,23 +252,22 @@ static irqreturn_t linflex_rxint(int irq, void *dev_id)
 		flg = TTY_NORMAL;
 		sport->icount.rx++;
 
-		if (status & (LINFLEXD_UARTSR_BOF | LINFLEXD_UARTSR_SZF |
-			      LINFLEXD_UARTSR_FEF | LINFLEXD_UARTSR_PE)) {
-			if (status & LINFLEXD_UARTSR_SZF)
-				status |= LINFLEXD_UARTSR_SZF;
+		if (status & (LINFLEXD_UARTSR_BOF | LINFLEXD_UARTSR_FEF |
+				LINFLEXD_UARTSR_PE)) {
 			if (status & LINFLEXD_UARTSR_BOF)
-				status |= LINFLEXD_UARTSR_BOF;
+				sport->icount.overrun++;
 			if (status & LINFLEXD_UARTSR_FEF) {
-				if (!rx)
+				if (!rx) {
 					brk = true;
-				status |= LINFLEXD_UARTSR_FEF;
+					sport->icount.brk++;
+				} else
+					sport->icount.frame++;
 			}
 			if (status & LINFLEXD_UARTSR_PE)
-				status |=  LINFLEXD_UARTSR_PE;
+				sport->icount.parity++;
 		}
 
-		writel(status | LINFLEXD_UARTSR_RMB | LINFLEXD_UARTSR_DRFRFE,
-		       sport->membase + UARTSR);
+		writel(status, sport->membase + UARTSR);
 		status = readl(sport->membase + UARTSR);
 
 		if (brk) {

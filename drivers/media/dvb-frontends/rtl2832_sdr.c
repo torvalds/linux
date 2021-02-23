@@ -1411,6 +1411,7 @@ static int rtl2832_sdr_probe(struct platform_device *pdev)
 	default:
 		v4l2_ctrl_handler_init(&dev->hdl, 0);
 		dev_err(&pdev->dev, "Unsupported tuner\n");
+		ret = -ENODEV;
 		goto err_v4l2_ctrl_handler_free;
 	}
 	if (dev->hdl.error) {

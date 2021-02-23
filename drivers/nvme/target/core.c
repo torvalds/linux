@@ -395,7 +395,7 @@ static void nvmet_keep_alive_timer(struct work_struct *work)
 	nvmet_ctrl_fatal_error(ctrl);
 }
 
-static void nvmet_start_keep_alive_timer(struct nvmet_ctrl *ctrl)
+void nvmet_start_keep_alive_timer(struct nvmet_ctrl *ctrl)
 {
 	if (unlikely(ctrl->kato == 0))
 		return;
@@ -407,7 +407,7 @@ static void nvmet_start_keep_alive_timer(struct nvmet_ctrl *ctrl)
 	schedule_delayed_work(&ctrl->ka_work, ctrl->kato * HZ);
 }
 
-static void nvmet_stop_keep_alive_timer(struct nvmet_ctrl *ctrl)
+void nvmet_stop_keep_alive_timer(struct nvmet_ctrl *ctrl)
 {
 	if (unlikely(ctrl->kato == 0))
 		return;
@@ -757,8 +757,6 @@ void nvmet_cq_setup(struct nvmet_ctrl *ctrl, struct nvmet_cq *cq,
 {
 	cq->qid = qid;
 	cq->size = size;
-
-	ctrl->cqs[qid] = cq;
 }
 
 void nvmet_sq_setup(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq,
@@ -907,8 +905,6 @@ bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 	req->error_loc = NVMET_NO_ERROR_LOC;
 	req->error_slba = 0;
 
-	trace_nvmet_req_init(req, req->cmd);
-
 	/* no support for fused commands yet */
 	if (unlikely(flags & (NVME_CMD_FUSE_FIRST | NVME_CMD_FUSE_SECOND))) {
 		req->error_loc = offsetof(struct nvme_common_command, flags);
@@ -937,6 +933,8 @@ bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 
 	if (status)
 		goto fail;
+
+	trace_nvmet_req_init(req, req->cmd);
 
 	if (unlikely(!percpu_ref_tryget_live(&sq->ref))) {
 		status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
@@ -1126,7 +1124,8 @@ static void nvmet_start_ctrl(struct nvmet_ctrl *ctrl)
 	 * in case a host died before it enabled the controller.  Hence, simply
 	 * reset the keep alive timer when the controller is enabled.
 	 */
-	mod_delayed_work(system_wq, &ctrl->ka_work, ctrl->kato * HZ);
+	if (ctrl->kato)
+		mod_delayed_work(system_wq, &ctrl->ka_work, ctrl->kato * HZ);
 }
 
 static void nvmet_clear_ctrl(struct nvmet_ctrl *ctrl)
@@ -1343,20 +1342,14 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	if (!ctrl->changed_ns_list)
 		goto out_free_ctrl;
 
-	ctrl->cqs = kcalloc(subsys->max_qid + 1,
-			sizeof(struct nvmet_cq *),
-			GFP_KERNEL);
-	if (!ctrl->cqs)
-		goto out_free_changed_ns_list;
-
 	ctrl->sqs = kcalloc(subsys->max_qid + 1,
 			sizeof(struct nvmet_sq *),
 			GFP_KERNEL);
 	if (!ctrl->sqs)
-		goto out_free_cqs;
+		goto out_free_changed_ns_list;
 
 	if (subsys->cntlid_min > subsys->cntlid_max)
-		goto out_free_cqs;
+		goto out_free_changed_ns_list;
 
 	ret = ida_simple_get(&cntlid_ida,
 			     subsys->cntlid_min, subsys->cntlid_max,
@@ -1394,8 +1387,6 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 
 out_free_sqs:
 	kfree(ctrl->sqs);
-out_free_cqs:
-	kfree(ctrl->cqs);
 out_free_changed_ns_list:
 	kfree(ctrl->changed_ns_list);
 out_free_ctrl:
@@ -1425,7 +1416,6 @@ static void nvmet_ctrl_free(struct kref *ref)
 
 	nvmet_async_events_free(ctrl);
 	kfree(ctrl->sqs);
-	kfree(ctrl->cqs);
 	kfree(ctrl->changed_ns_list);
 	kfree(ctrl);
 

@@ -1,11 +1,4 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
 
 *************
 Configuration
@@ -101,7 +94,7 @@ specified using :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl.
 
 The top left corner, width and height of the source rectangle, that is
 the area from which image date are processed by the hardware, is given
-by the ``V4L2_SEL_TGT_CROP``. Its coordinates are expressed in in the
+by the ``V4L2_SEL_TGT_CROP``. Its coordinates are expressed in the
 same coordinate system as the bounds rectangle. The active cropping area
 must lie completely inside the crop boundaries and the driver may
 further adjust the requested size and/or position according to hardware

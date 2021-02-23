@@ -10,30 +10,41 @@
  * Copyright (C) 2012 ARM Ltd.
  */
 
-#include <linux/kernel_stat.h>
 #include <linux/irq.h>
 #include <linux/memory.h>
 #include <linux/smp.h>
+#include <linux/hardirq.h>
 #include <linux/init.h>
 #include <linux/irqchip.h>
 #include <linux/kprobes.h>
+#include <linux/scs.h>
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>
 #include <asm/daifflags.h>
 #include <asm/vmap_stack.h>
-
-unsigned long irq_err_count;
 
 /* Only access this in an NMI enter/exit */
 DEFINE_PER_CPU(struct nmi_ctx, nmi_contexts);
 
 DEFINE_PER_CPU(unsigned long *, irq_stack_ptr);
 
-int arch_show_interrupts(struct seq_file *p, int prec)
+
+DECLARE_PER_CPU(unsigned long *, irq_shadow_call_stack_ptr);
+
+#ifdef CONFIG_SHADOW_CALL_STACK
+DEFINE_PER_CPU(unsigned long *, irq_shadow_call_stack_ptr);
+#endif
+
+static void init_irq_scs(void)
 {
-	show_ipi_list(p, prec);
-	seq_printf(p, "%*s: %10lu\n", prec, "Err", irq_err_count);
-	return 0;
+	int cpu;
+
+	if (!IS_ENABLED(CONFIG_SHADOW_CALL_STACK))
+		return;
+
+	for_each_possible_cpu(cpu)
+		per_cpu(irq_shadow_call_stack_ptr, cpu) =
+			scs_alloc(cpu_to_node(cpu));
 }
 
 #ifdef CONFIG_VMAP_STACK
@@ -63,6 +74,7 @@ static void init_irq_stacks(void)
 void __init init_IRQ(void)
 {
 	init_irq_stacks();
+	init_irq_scs();
 	irqchip_init();
 	if (!handle_arch_irq)
 		panic("No interrupt controller found.");
@@ -76,18 +88,3 @@ void __init init_IRQ(void)
 		local_daif_restore(DAIF_PROCCTX_NOIRQ);
 	}
 }
-
-/*
- * Stubs to make nmi_enter/exit() code callable from ASM
- */
-asmlinkage void notrace asm_nmi_enter(void)
-{
-	nmi_enter();
-}
-NOKPROBE_SYMBOL(asm_nmi_enter);
-
-asmlinkage void notrace asm_nmi_exit(void)
-{
-	nmi_exit();
-}
-NOKPROBE_SYMBOL(asm_nmi_exit);

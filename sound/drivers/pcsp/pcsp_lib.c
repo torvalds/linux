@@ -23,10 +23,10 @@ MODULE_PARM_DESC(nforce_wa, "Apply NForce chipset workaround "
 #define DMIX_WANTS_S16	1
 
 /*
- * Call snd_pcm_period_elapsed in a tasklet
+ * Call snd_pcm_period_elapsed in a work
  * This avoids spinlock messes and long-running irq contexts
  */
-static void pcsp_call_pcm_elapsed(unsigned long priv)
+static void pcsp_call_pcm_elapsed(struct work_struct *work)
 {
 	if (atomic_read(&pcsp_chip.timer_active)) {
 		struct snd_pcm_substream *substream;
@@ -36,7 +36,7 @@ static void pcsp_call_pcm_elapsed(unsigned long priv)
 	}
 }
 
-static DECLARE_TASKLET_OLD(pcsp_pcm_tasklet, pcsp_call_pcm_elapsed);
+static DECLARE_WORK(pcsp_pcm_work, pcsp_call_pcm_elapsed);
 
 /* write the port and returns the next expire time in ns;
  * called at the trigger-start and in hrtimer callback
@@ -119,11 +119,9 @@ static void pcsp_pointer_update(struct snd_pcsp *chip)
 	if (periods_elapsed) {
 		chip->period_ptr += periods_elapsed * period_bytes;
 		chip->period_ptr %= buffer_bytes;
+		queue_work(system_highpri_wq, &pcsp_pcm_work);
 	}
 	spin_unlock_irqrestore(&chip->substream_lock, flags);
-
-	if (periods_elapsed)
-		tasklet_schedule(&pcsp_pcm_tasklet);
 }
 
 enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
@@ -196,7 +194,7 @@ void pcsp_sync_stop(struct snd_pcsp *chip)
 	pcsp_stop_playing(chip);
 	local_irq_enable();
 	hrtimer_cancel(&chip->timer);
-	tasklet_kill(&pcsp_pcm_tasklet);
+	cancel_work_sync(&pcsp_pcm_work);
 }
 
 static int snd_pcsp_playback_close(struct snd_pcm_substream *substream)

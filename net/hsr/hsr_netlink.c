@@ -493,7 +493,7 @@ fail:
 	return res;
 }
 
-static const struct genl_ops hsr_ops[] = {
+static const struct genl_small_ops hsr_ops[] = {
 	{
 		.cmd = HSR_C_GET_NODE_STATUS,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -518,8 +518,8 @@ static struct genl_family hsr_genl_family __ro_after_init = {
 	.policy = hsr_genl_policy,
 	.netnsok = true,
 	.module = THIS_MODULE,
-	.ops = hsr_ops,
-	.n_ops = ARRAY_SIZE(hsr_ops),
+	.small_ops = hsr_ops,
+	.n_small_ops = ARRAY_SIZE(hsr_ops),
 	.mcgrps = hsr_mcgrps,
 	.n_mcgrps = ARRAY_SIZE(hsr_mcgrps),
 };

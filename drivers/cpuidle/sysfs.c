@@ -256,6 +256,7 @@ define_show_state_time_function(exit_latency)
 define_show_state_time_function(target_residency)
 define_show_state_function(power_usage)
 define_show_state_ull_function(usage)
+define_show_state_ull_function(rejected)
 define_show_state_str_function(name)
 define_show_state_str_function(desc)
 define_show_state_ull_function(above)
@@ -312,6 +313,7 @@ define_one_state_ro(latency, show_state_exit_latency);
 define_one_state_ro(residency, show_state_target_residency);
 define_one_state_ro(power, show_state_power_usage);
 define_one_state_ro(usage, show_state_usage);
+define_one_state_ro(rejected, show_state_rejected);
 define_one_state_ro(time, show_state_time);
 define_one_state_rw(disable, show_state_disable, store_state_disable);
 define_one_state_ro(above, show_state_above);
@@ -325,6 +327,7 @@ static struct attribute *cpuidle_state_default_attrs[] = {
 	&attr_residency.attr,
 	&attr_power.attr,
 	&attr_usage.attr,
+	&attr_rejected.attr,
 	&attr_time.attr,
 	&attr_disable.attr,
 	&attr_above.attr,

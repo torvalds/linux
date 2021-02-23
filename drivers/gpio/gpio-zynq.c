@@ -574,7 +574,7 @@ static int zynq_gpio_irq_reqres(struct irq_data *d)
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
 	int ret;
 
-	ret = pm_runtime_get_sync(chip->parent);
+	ret = pm_runtime_resume_and_get(chip->parent);
 	if (ret < 0)
 		return ret;
 
@@ -929,11 +929,9 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 
 	/* Retrieve GPIO clock */
 	gpio->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(gpio->clk)) {
-		if (PTR_ERR(gpio->clk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "input clock not found.\n");
-		return PTR_ERR(gpio->clk);
-	}
+	if (IS_ERR(gpio->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(gpio->clk), "input clock not found.\n");
+
 	ret = clk_prepare_enable(gpio->clk);
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to enable clock.\n");
@@ -944,7 +942,7 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
-	ret = pm_runtime_get_sync(&pdev->dev);
+	ret = pm_runtime_resume_and_get(&pdev->dev);
 	if (ret < 0)
 		goto err_pm_dis;
 

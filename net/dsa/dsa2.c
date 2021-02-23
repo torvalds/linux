@@ -21,9 +21,6 @@
 static DEFINE_MUTEX(dsa2_mutex);
 LIST_HEAD(dsa_tree_list);
 
-static const struct devlink_ops dsa_devlink_ops = {
-};
-
 struct dsa_switch *dsa_switch_find(int tree_index, int sw_index)
 {
 	struct dsa_switch_tree *dst;
@@ -254,21 +251,10 @@ static void dsa_tree_teardown_default_cpu(struct dsa_switch_tree *dst)
 
 static int dsa_port_setup(struct dsa_port *dp)
 {
-	struct dsa_switch *ds = dp->ds;
-	struct dsa_switch_tree *dst = ds->dst;
-	const unsigned char *id = (const unsigned char *)&dst->index;
-	const unsigned char len = sizeof(dst->index);
 	struct devlink_port *dlp = &dp->devlink_port;
 	bool dsa_port_link_registered = false;
-	bool devlink_port_registered = false;
-	struct devlink_port_attrs attrs = {};
-	struct devlink *dl = ds->devlink;
 	bool dsa_port_enabled = false;
 	int err = 0;
-
-	attrs.phys.port_number = dp->index;
-	memcpy(attrs.switch_id.id, id, len);
-	attrs.switch_id.id_len = len;
 
 	if (dp->setup)
 		return 0;
@@ -278,14 +264,6 @@ static int dsa_port_setup(struct dsa_port *dp)
 		dsa_port_disable(dp);
 		break;
 	case DSA_PORT_TYPE_CPU:
-		memset(dlp, 0, sizeof(*dlp));
-		attrs.flavour = DEVLINK_PORT_FLAVOUR_CPU;
-		devlink_port_attrs_set(dlp, &attrs);
-		err = devlink_port_register(dl, dlp, dp->index);
-		if (err)
-			break;
-		devlink_port_registered = true;
-
 		err = dsa_port_link_register_of(dp);
 		if (err)
 			break;
@@ -298,14 +276,6 @@ static int dsa_port_setup(struct dsa_port *dp)
 
 		break;
 	case DSA_PORT_TYPE_DSA:
-		memset(dlp, 0, sizeof(*dlp));
-		attrs.flavour = DEVLINK_PORT_FLAVOUR_DSA;
-		devlink_port_attrs_set(dlp, &attrs);
-		err = devlink_port_register(dl, dlp, dp->index);
-		if (err)
-			break;
-		devlink_port_registered = true;
-
 		err = dsa_port_link_register_of(dp);
 		if (err)
 			break;
@@ -318,14 +288,6 @@ static int dsa_port_setup(struct dsa_port *dp)
 
 		break;
 	case DSA_PORT_TYPE_USER:
-		memset(dlp, 0, sizeof(*dlp));
-		attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
-		devlink_port_attrs_set(dlp, &attrs);
-		err = devlink_port_register(dl, dlp, dp->index);
-		if (err)
-			break;
-		devlink_port_registered = true;
-
 		dp->mac = of_get_mac_address(dp->dn);
 		err = dsa_slave_create(dp);
 		if (err)
@@ -339,14 +301,54 @@ static int dsa_port_setup(struct dsa_port *dp)
 		dsa_port_disable(dp);
 	if (err && dsa_port_link_registered)
 		dsa_port_link_unregister_of(dp);
-	if (err && devlink_port_registered)
-		devlink_port_unregister(dlp);
 	if (err)
 		return err;
 
 	dp->setup = true;
 
 	return 0;
+}
+
+static int dsa_port_devlink_setup(struct dsa_port *dp)
+{
+	struct devlink_port *dlp = &dp->devlink_port;
+	struct dsa_switch_tree *dst = dp->ds->dst;
+	struct devlink_port_attrs attrs = {};
+	struct devlink *dl = dp->ds->devlink;
+	const unsigned char *id;
+	unsigned char len;
+	int err;
+
+	id = (const unsigned char *)&dst->index;
+	len = sizeof(dst->index);
+
+	attrs.phys.port_number = dp->index;
+	memcpy(attrs.switch_id.id, id, len);
+	attrs.switch_id.id_len = len;
+	memset(dlp, 0, sizeof(*dlp));
+
+	switch (dp->type) {
+	case DSA_PORT_TYPE_UNUSED:
+		attrs.flavour = DEVLINK_PORT_FLAVOUR_UNUSED;
+		break;
+	case DSA_PORT_TYPE_CPU:
+		attrs.flavour = DEVLINK_PORT_FLAVOUR_CPU;
+		break;
+	case DSA_PORT_TYPE_DSA:
+		attrs.flavour = DEVLINK_PORT_FLAVOUR_DSA;
+		break;
+	case DSA_PORT_TYPE_USER:
+		attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
+		break;
+	}
+
+	devlink_port_attrs_set(dlp, &attrs);
+	err = devlink_port_register(dl, dlp, dp->index);
+
+	if (!err)
+		dp->devlink_port_setup = true;
+
+	return err;
 }
 
 static void dsa_port_teardown(struct dsa_port *dp)
@@ -356,22 +358,21 @@ static void dsa_port_teardown(struct dsa_port *dp)
 	if (!dp->setup)
 		return;
 
+	devlink_port_type_clear(dlp);
+
 	switch (dp->type) {
 	case DSA_PORT_TYPE_UNUSED:
 		break;
 	case DSA_PORT_TYPE_CPU:
 		dsa_port_disable(dp);
 		dsa_tag_driver_put(dp->tag_ops);
-		devlink_port_unregister(dlp);
 		dsa_port_link_unregister_of(dp);
 		break;
 	case DSA_PORT_TYPE_DSA:
 		dsa_port_disable(dp);
-		devlink_port_unregister(dlp);
 		dsa_port_link_unregister_of(dp);
 		break;
 	case DSA_PORT_TYPE_USER:
-		devlink_port_unregister(dlp);
 		if (dp->slave) {
 			dsa_slave_destroy(dp->slave);
 			dp->slave = NULL;
@@ -382,9 +383,35 @@ static void dsa_port_teardown(struct dsa_port *dp)
 	dp->setup = false;
 }
 
+static void dsa_port_devlink_teardown(struct dsa_port *dp)
+{
+	struct devlink_port *dlp = &dp->devlink_port;
+
+	if (dp->devlink_port_setup)
+		devlink_port_unregister(dlp);
+	dp->devlink_port_setup = false;
+}
+
+static int dsa_devlink_info_get(struct devlink *dl,
+				struct devlink_info_req *req,
+				struct netlink_ext_ack *extack)
+{
+	struct dsa_switch *ds = dsa_devlink_to_ds(dl);
+
+	if (ds->ops->devlink_info_get)
+		return ds->ops->devlink_info_get(ds, req, extack);
+
+	return -EOPNOTSUPP;
+}
+
+static const struct devlink_ops dsa_devlink_ops = {
+	.info_get = dsa_devlink_info_get,
+};
+
 static int dsa_switch_setup(struct dsa_switch *ds)
 {
 	struct dsa_devlink_priv *dl_priv;
+	struct dsa_port *dp;
 	int err;
 
 	if (ds->setup)
@@ -410,9 +437,20 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 	if (err)
 		goto free_devlink;
 
+	/* Setup devlink port instances now, so that the switch
+	 * setup() can register regions etc, against the ports
+	 */
+	list_for_each_entry(dp, &ds->dst->ports, list) {
+		if (dp->ds == ds) {
+			err = dsa_port_devlink_setup(dp);
+			if (err)
+				goto unregister_devlink_ports;
+		}
+	}
+
 	err = dsa_switch_register_notifier(ds);
 	if (err)
-		goto unregister_devlink;
+		goto unregister_devlink_ports;
 
 	err = ds->ops->setup(ds);
 	if (err < 0)
@@ -424,23 +462,29 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 		ds->slave_mii_bus = devm_mdiobus_alloc(ds->dev);
 		if (!ds->slave_mii_bus) {
 			err = -ENOMEM;
-			goto unregister_notifier;
+			goto teardown;
 		}
 
 		dsa_slave_mii_bus_init(ds);
 
 		err = mdiobus_register(ds->slave_mii_bus);
 		if (err < 0)
-			goto unregister_notifier;
+			goto teardown;
 	}
 
 	ds->setup = true;
 
 	return 0;
 
+teardown:
+	if (ds->ops->teardown)
+		ds->ops->teardown(ds);
 unregister_notifier:
 	dsa_switch_unregister_notifier(ds);
-unregister_devlink:
+unregister_devlink_ports:
+	list_for_each_entry(dp, &ds->dst->ports, list)
+		if (dp->ds == ds)
+			dsa_port_devlink_teardown(dp);
 	devlink_unregister(ds->devlink);
 free_devlink:
 	devlink_free(ds->devlink);
@@ -451,6 +495,8 @@ free_devlink:
 
 static void dsa_switch_teardown(struct dsa_switch *ds)
 {
+	struct dsa_port *dp;
+
 	if (!ds->setup)
 		return;
 
@@ -463,6 +509,9 @@ static void dsa_switch_teardown(struct dsa_switch *ds)
 		ds->ops->teardown(ds);
 
 	if (ds->devlink) {
+		list_for_each_entry(dp, &ds->dst->ports, list)
+			if (dp->ds == ds)
+				dsa_port_devlink_teardown(dp);
 		devlink_unregister(ds->devlink);
 		devlink_free(ds->devlink);
 		ds->devlink = NULL;

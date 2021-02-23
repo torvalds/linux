@@ -210,12 +210,14 @@ static int hdac_component_master_bind(struct device *dev)
 			goto module_put;
 	}
 
+	complete_all(&acomp->master_bind_complete);
 	return 0;
 
  module_put:
 	module_put(acomp->ops->owner);
 out_unbind:
 	component_unbind_all(dev, acomp);
+	complete_all(&acomp->master_bind_complete);
 
 	return ret;
 }
@@ -296,6 +298,7 @@ int snd_hdac_acomp_init(struct hdac_bus *bus,
 	if (!acomp)
 		return -ENOMEM;
 	acomp->audio_ops = aops;
+	init_completion(&acomp->master_bind_complete);
 	bus->audio_component = acomp;
 	devres_add(dev, acomp);
 

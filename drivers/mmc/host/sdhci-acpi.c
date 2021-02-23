@@ -5,6 +5,7 @@
  * Copyright (c) 2012, Intel Corporation.
  */
 
+#include <linux/bitfield.h>
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/module.h>
@@ -545,10 +546,41 @@ struct amd_sdhci_host {
 
 static int amd_select_drive_strength(struct mmc_card *card,
 				     unsigned int max_dtr, int host_drv,
-				     int card_drv, int *drv_type)
+				     int card_drv, int *host_driver_strength)
 {
-	*drv_type = MMC_SET_DRIVER_TYPE_A;
-	return MMC_SET_DRIVER_TYPE_A;
+	struct sdhci_host *host = mmc_priv(card->host);
+	u16 preset, preset_driver_strength;
+
+	/*
+	 * This method is only called by mmc_select_hs200 so we only need to
+	 * read from the HS200 (SDR104) preset register.
+	 *
+	 * Firmware that has "invalid/default" presets return a driver strength
+	 * of A. This matches the previously hard coded value.
+	 */
+	preset = sdhci_readw(host, SDHCI_PRESET_FOR_SDR104);
+	preset_driver_strength = FIELD_GET(SDHCI_PRESET_DRV_MASK, preset);
+
+	/*
+	 * We want the controller driver strength to match the card's driver
+	 * strength so they have similar rise/fall times.
+	 *
+	 * The controller driver strength set by this method is sticky for all
+	 * timings after this method is called. This unfortunately means that
+	 * while HS400 tuning is in progress we end up with mismatched driver
+	 * strengths between the controller and the card. HS400 tuning requires
+	 * switching from HS400->DDR52->HS->HS200->HS400. So the driver mismatch
+	 * happens while in DDR52 and HS modes. This has not been observed to
+	 * cause problems. Enabling presets would fix this issue.
+	 */
+	*host_driver_strength = preset_driver_strength;
+
+	/*
+	 * The resulting card driver strength is only set when switching the
+	 * card's timing to HS200 or HS400. The card will use the default driver
+	 * strength (B) for any other mode.
+	 */
+	return preset_driver_strength;
 }
 
 static void sdhci_acpi_amd_hs400_dll(struct sdhci_host *host, bool enable)
@@ -661,6 +693,43 @@ static int sdhci_acpi_emmc_amd_probe_slot(struct platform_device *pdev,
 	if ((host->caps1 & SDHCI_SUPPORT_SDR104) &&
 	    (host->mmc->caps & MMC_CAP_1_8V_DDR))
 		host->mmc->caps2 = MMC_CAP2_HS400_1_8V;
+
+	/*
+	 * There are two types of presets out in the wild:
+	 * 1) Default/broken presets.
+	 *    These presets have two sets of problems:
+	 *    a) The clock divisor for SDR12, SDR25, and SDR50 is too small.
+	 *       This results in clock frequencies that are 2x higher than
+	 *       acceptable. i.e., SDR12 = 25 MHz, SDR25 = 50 MHz, SDR50 =
+	 *       100 MHz.x
+	 *    b) The HS200 and HS400 driver strengths don't match.
+	 *       By default, the SDR104 preset register has a driver strength of
+	 *       A, but the (internal) HS400 preset register has a driver
+	 *       strength of B. As part of initializing HS400, HS200 tuning
+	 *       needs to be performed. Having different driver strengths
+	 *       between tuning and operation is wrong. It results in different
+	 *       rise/fall times that lead to incorrect sampling.
+	 * 2) Firmware with properly initialized presets.
+	 *    These presets have proper clock divisors. i.e., SDR12 => 12MHz,
+	 *    SDR25 => 25 MHz, SDR50 => 50 MHz. Additionally the HS200 and
+	 *    HS400 preset driver strengths match.
+	 *
+	 *    Enabling presets for HS400 doesn't work for the following reasons:
+	 *    1) sdhci_set_ios has a hard coded list of timings that are used
+	 *       to determine if presets should be enabled.
+	 *    2) sdhci_get_preset_value is using a non-standard register to
+	 *       read out HS400 presets. The AMD controller doesn't support this
+	 *       non-standard register. In fact, it doesn't expose the HS400
+	 *       preset register anywhere in the SDHCI memory map. This results
+	 *       in reading a garbage value and using the wrong presets.
+	 *
+	 *       Since HS400 and HS200 presets must be identical, we could
+	 *       instead use the the SDR104 preset register.
+	 *
+	 *    If the above issues are resolved we could remove this quirk for
+	 *    firmware that that has valid presets (i.e., SDR12 <= 12 MHz).
+	 */
+	host->quirks2 |= SDHCI_QUIRK2_PRESET_VALUE_BROKEN;
 
 	host->mmc_host_ops.select_drive_strength = amd_select_drive_strength;
 	host->mmc_host_ops.set_ios = amd_set_ios;
@@ -1027,6 +1096,7 @@ static const struct dev_pm_ops sdhci_acpi_pm_ops = {
 static struct platform_driver sdhci_acpi_driver = {
 	.driver = {
 		.name			= "sdhci-acpi",
+		.probe_type		= PROBE_PREFER_ASYNCHRONOUS,
 		.acpi_match_table	= sdhci_acpi_ids,
 		.pm			= &sdhci_acpi_pm_ops,
 	},

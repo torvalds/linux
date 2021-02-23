@@ -1,70 +1,23 @@
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
  * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer.
- *
- *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer in the documentation and/or other materials
- *	  provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #ifndef RXE_QUEUE_H
 #define RXE_QUEUE_H
 
+/* for definition of shared struct rxe_queue_buf */
+#include <uapi/rdma/rdma_user_rxe.h>
+
 /* implements a simple circular buffer that can optionally be
  * shared between user space and the kernel and can be resized
-
  * the requested element size is rounded up to a power of 2
  * and the number of elements in the buffer is also rounded
  * up to a power of 2. Since the queue is empty when the
  * producer and consumer indices match the maximum capacity
  * of the queue is one less than the number of element slots
  */
-
-/* this data structure is shared between user space and kernel
- * space for those cases where the queue is shared. It contains
- * the producer and consumer indices. Is also contains a copy
- * of the queue size parameters for user space to use but the
- * kernel must use the parameters in the rxe_queue struct
- * this MUST MATCH the corresponding librxe struct
- * for performance reasons arrange to have producer and consumer
- * pointers in separate cache lines
- * the kernel should always mask the indices to avoid accessing
- * memory outside of the data area
- */
-struct rxe_queue_buf {
-	__u32			log2_elem_size;
-	__u32			index_mask;
-	__u32			pad_1[30];
-	__u32			producer_index;
-	__u32			pad_2[31];
-	__u32			consumer_index;
-	__u32			pad_3[31];
-	__u8			data[];
-};
 
 struct rxe_queue {
 	struct rxe_dev		*rxe;
@@ -73,7 +26,7 @@ struct rxe_queue {
 	size_t			buf_size;
 	size_t			elem_size;
 	unsigned int		log2_elem_size;
-	unsigned int		index_mask;
+	u32			index_mask;
 };
 
 int do_mmap_info(struct rxe_dev *rxe, struct mminfo __user *outbuf,
@@ -103,26 +56,56 @@ static inline int next_index(struct rxe_queue *q, int index)
 
 static inline int queue_empty(struct rxe_queue *q)
 {
-	return ((q->buf->producer_index - q->buf->consumer_index)
-			& q->index_mask) == 0;
+	u32 prod;
+	u32 cons;
+
+	/* make sure all changes to queue complete before
+	 * testing queue empty
+	 */
+	prod = smp_load_acquire(&q->buf->producer_index);
+	/* same */
+	cons = smp_load_acquire(&q->buf->consumer_index);
+
+	return ((prod - cons) & q->index_mask) == 0;
 }
 
 static inline int queue_full(struct rxe_queue *q)
 {
-	return ((q->buf->producer_index + 1 - q->buf->consumer_index)
-			& q->index_mask) == 0;
+	u32 prod;
+	u32 cons;
+
+	/* make sure all changes to queue complete before
+	 * testing queue full
+	 */
+	prod = smp_load_acquire(&q->buf->producer_index);
+	/* same */
+	cons = smp_load_acquire(&q->buf->consumer_index);
+
+	return ((prod + 1 - cons) & q->index_mask) == 0;
 }
 
 static inline void advance_producer(struct rxe_queue *q)
 {
-	q->buf->producer_index = (q->buf->producer_index + 1)
-			& q->index_mask;
+	u32 prod;
+
+	prod = (q->buf->producer_index + 1) & q->index_mask;
+
+	/* make sure all changes to queue complete before
+	 * changing producer index
+	 */
+	smp_store_release(&q->buf->producer_index, prod);
 }
 
 static inline void advance_consumer(struct rxe_queue *q)
 {
-	q->buf->consumer_index = (q->buf->consumer_index + 1)
-			& q->index_mask;
+	u32 cons;
+
+	cons = (q->buf->consumer_index + 1) & q->index_mask;
+
+	/* make sure all changes to queue complete before
+	 * changing consumer index
+	 */
+	smp_store_release(&q->buf->consumer_index, cons);
 }
 
 static inline void *producer_addr(struct rxe_queue *q)
@@ -139,12 +122,28 @@ static inline void *consumer_addr(struct rxe_queue *q)
 
 static inline unsigned int producer_index(struct rxe_queue *q)
 {
-	return q->buf->producer_index;
+	u32 index;
+
+	/* make sure all changes to queue
+	 * complete before getting producer index
+	 */
+	index = smp_load_acquire(&q->buf->producer_index);
+	index &= q->index_mask;
+
+	return index;
 }
 
 static inline unsigned int consumer_index(struct rxe_queue *q)
 {
-	return q->buf->consumer_index;
+	u32 index;
+
+	/* make sure all changes to queue
+	 * complete before getting consumer index
+	 */
+	index = smp_load_acquire(&q->buf->consumer_index);
+	index &= q->index_mask;
+
+	return index;
 }
 
 static inline void *addr_from_index(struct rxe_queue *q, unsigned int index)

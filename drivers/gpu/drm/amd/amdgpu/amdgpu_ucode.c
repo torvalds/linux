@@ -68,23 +68,32 @@ void amdgpu_ucode_print_smc_hdr(const struct common_firmware_header *hdr)
 {
 	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
 	uint16_t version_minor = le16_to_cpu(hdr->header_version_minor);
+	const struct smc_firmware_header_v1_0 *v1_0_hdr;
+	const struct smc_firmware_header_v2_0 *v2_0_hdr;
+	const struct smc_firmware_header_v2_1 *v2_1_hdr;
 
 	DRM_DEBUG("SMC\n");
 	amdgpu_ucode_print_common_hdr(hdr);
 
 	if (version_major == 1) {
-		const struct smc_firmware_header_v1_0 *smc_hdr =
-			container_of(hdr, struct smc_firmware_header_v1_0, header);
-
-		DRM_DEBUG("ucode_start_addr: %u\n", le32_to_cpu(smc_hdr->ucode_start_addr));
+		v1_0_hdr = container_of(hdr, struct smc_firmware_header_v1_0, header);
+		DRM_DEBUG("ucode_start_addr: %u\n", le32_to_cpu(v1_0_hdr->ucode_start_addr));
 	} else if (version_major == 2) {
-		const struct smc_firmware_header_v1_0 *v1_hdr =
-			container_of(hdr, struct smc_firmware_header_v1_0, header);
-		const struct smc_firmware_header_v2_0 *v2_hdr =
-			container_of(v1_hdr, struct smc_firmware_header_v2_0, v1_0);
+		switch (version_minor) {
+		case 0:
+			v2_0_hdr = container_of(hdr, struct smc_firmware_header_v2_0, v1_0.header);
+			DRM_DEBUG("ppt_offset_bytes: %u\n", le32_to_cpu(v2_0_hdr->ppt_offset_bytes));
+			DRM_DEBUG("ppt_size_bytes: %u\n", le32_to_cpu(v2_0_hdr->ppt_size_bytes));
+			break;
+		case 1:
+			v2_1_hdr = container_of(hdr, struct smc_firmware_header_v2_1, v1_0.header);
+			DRM_DEBUG("pptable_count: %u\n", le32_to_cpu(v2_1_hdr->pptable_count));
+			DRM_DEBUG("pptable_entry_offset: %u\n", le32_to_cpu(v2_1_hdr->pptable_entry_offset));
+			break;
+		default:
+			break;
+		}
 
-		DRM_DEBUG("ppt_offset_bytes: %u\n", le32_to_cpu(v2_hdr->ppt_offset_bytes));
-		DRM_DEBUG("ppt_size_bytes: %u\n", le32_to_cpu(v2_hdr->ppt_size_bytes));
 	} else {
 		DRM_ERROR("Unknown SMC ucode version: %u.%u\n", version_major, version_minor);
 	}
@@ -391,6 +400,8 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 	case CHIP_NAVI12:
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_VANGOGH:
+	case CHIP_DIMGREY_CAVEFISH:
 		if (!load_type)
 			return AMDGPU_FW_LOAD_DIRECT;
 		else
@@ -408,7 +419,7 @@ static ssize_t show_##name(struct device *dev,				\
 			  char *buf)					\
 {									\
 	struct drm_device *ddev = dev_get_drvdata(dev);			\
-	struct amdgpu_device *adev = ddev->dev_private;			\
+	struct amdgpu_device *adev = drm_to_adev(ddev);			\
 									\
 	return snprintf(buf, PAGE_SIZE, "0x%08x\n", adev->field);	\
 }									\
@@ -500,6 +511,8 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 	     ucode->ucode_id != AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL &&
 	     ucode->ucode_id != AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM &&
 	     ucode->ucode_id != AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM &&
+	     ucode->ucode_id != AMDGPU_UCODE_ID_RLC_IRAM &&
+	     ucode->ucode_id != AMDGPU_UCODE_ID_RLC_DRAM &&
 		 ucode->ucode_id != AMDGPU_UCODE_ID_DMCU_ERAM &&
 		 ucode->ucode_id != AMDGPU_UCODE_ID_DMCU_INTV &&
 		 ucode->ucode_id != AMDGPU_UCODE_ID_DMCUB)) {
@@ -556,6 +569,14 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 		ucode->ucode_size = adev->gfx.rlc.save_restore_list_srm_size_bytes;
 		memcpy(ucode->kaddr, adev->gfx.rlc.save_restore_list_srm,
 		       ucode->ucode_size);
+	} else if (ucode->ucode_id == AMDGPU_UCODE_ID_RLC_IRAM) {
+		ucode->ucode_size = adev->gfx.rlc.rlc_iram_ucode_size_bytes;
+		memcpy(ucode->kaddr, adev->gfx.rlc.rlc_iram_ucode,
+		       ucode->ucode_size);
+	} else if (ucode->ucode_id == AMDGPU_UCODE_ID_RLC_DRAM) {
+		ucode->ucode_size = adev->gfx.rlc.rlc_dram_ucode_size_bytes;
+		memcpy(ucode->kaddr, adev->gfx.rlc.rlc_dram_ucode,
+		       ucode->ucode_size);
 	} else if (ucode->ucode_id == AMDGPU_UCODE_ID_CP_MES) {
 		ucode->ucode_size = le32_to_cpu(mes_hdr->mes_ucode_size_bytes);
 		memcpy(ucode->kaddr, (void *)((uint8_t *)adev->mes.fw->data +
@@ -576,8 +597,8 @@ static int amdgpu_ucode_patch_jt(struct amdgpu_firmware_info *ucode,
 {
 	const struct gfx_firmware_header_v1_0 *header = NULL;
 	const struct common_firmware_header *comm_hdr = NULL;
-	uint8_t* src_addr = NULL;
-	uint8_t* dst_addr = NULL;
+	uint8_t *src_addr = NULL;
+	uint8_t *dst_addr = NULL;
 
 	if (NULL == ucode->fw)
 		return 0;
@@ -628,7 +649,7 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 	struct amdgpu_firmware_info *ucode = NULL;
 
  /* for baremetal, the ucode is allocated in gtt, so don't need to fill the bo when reset/suspend */
-	if (!amdgpu_sriov_vf(adev) && (adev->in_gpu_reset || adev->in_suspend))
+	if (!amdgpu_sriov_vf(adev) && (amdgpu_in_reset(adev) || adev->in_suspend))
 		return 0;
 	/*
 	 * if SMU loaded firmware, it needn't add SMC, UVD, and VCE

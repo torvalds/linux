@@ -1600,6 +1600,7 @@ static int target_message(struct file *filp, struct dm_ioctl *param, size_t para
 
 	if (!argc) {
 		DMWARN("Empty message received.");
+		r = -EINVAL;
 		goto out_argv;
 	}
 
@@ -2044,7 +2045,7 @@ out:
 
 	return r;
 }
-
+EXPORT_SYMBOL_GPL(dm_copy_name_and_uuid);
 
 /**
  * dm_early_create - create a mapped device in early boot.

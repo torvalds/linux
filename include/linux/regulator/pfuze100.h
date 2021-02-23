@@ -63,10 +63,4 @@
 #define PFUZE3001_VLDO3		8
 #define PFUZE3001_VLDO4		9
 
-struct regulator_init_data;
-
-struct pfuze_regulator_platform_data {
-	struct regulator_init_data *init_data[PFUZE100_MAX_REGULATOR];
-};
-
 #endif /* __LINUX_REG_PFUZE100_H */

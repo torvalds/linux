@@ -8,12 +8,15 @@
 
 #include "intel_gtt.h"
 
+struct i915_gem_ww_ctx;
+
 struct gen6_ppgtt {
 	struct i915_ppgtt base;
 
 	struct mutex flush;
 	struct i915_vma *vma;
 	gen6_pte_t __iomem *pd_addr;
+	u32 pp_dir;
 
 	atomic_t pin_count;
 	struct mutex pin_mutex;
@@ -66,7 +69,7 @@ static inline struct gen6_ppgtt *to_gen6_ppgtt(struct i915_ppgtt *base)
 		     (pt = i915_pt_entry(pd, iter), true);		\
 	     ++iter)
 
-int gen6_ppgtt_pin(struct i915_ppgtt *base);
+int gen6_ppgtt_pin(struct i915_ppgtt *base, struct i915_gem_ww_ctx *ww);
 void gen6_ppgtt_unpin(struct i915_ppgtt *base);
 void gen6_ppgtt_unpin_all(struct i915_ppgtt *base);
 void gen6_ppgtt_enable(struct intel_gt *gt);

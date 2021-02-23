@@ -125,7 +125,7 @@ static void owl_pin_dbg_show(struct pinctrl_dev *pctrldev,
 	seq_printf(s, "%s", dev_name(pctrl->dev));
 }
 
-static struct pinctrl_ops owl_pinctrl_ops = {
+static const struct pinctrl_ops owl_pinctrl_ops = {
 	.get_groups_count = owl_get_groups_count,
 	.get_group_name = owl_get_group_name,
 	.get_group_pins = owl_get_group_pins,
@@ -212,7 +212,7 @@ static int owl_set_mux(struct pinctrl_dev *pctrldev,
 	return 0;
 }
 
-static struct pinmux_ops owl_pinmux_ops = {
+static const struct pinmux_ops owl_pinmux_ops = {
 	.get_functions_count = owl_get_funcs_count,
 	.get_function_name = owl_get_func_name,
 	.get_function_groups = owl_get_func_groups,

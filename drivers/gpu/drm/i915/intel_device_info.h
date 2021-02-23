@@ -79,6 +79,7 @@ enum intel_platform {
 	/* gen11 */
 	INTEL_ICELAKE,
 	INTEL_ELKHARTLAKE,
+	INTEL_JASPERLAKE,
 	/* gen12 */
 	INTEL_TIGERLAKE,
 	INTEL_ROCKETLAKE,
@@ -146,6 +147,7 @@ enum intel_ppgtt_type {
 	func(has_gmch); \
 	func(has_hdcp); \
 	func(has_hotplug); \
+	func(has_hti); \
 	func(has_ipc); \
 	func(has_modular_fia); \
 	func(has_overlay); \

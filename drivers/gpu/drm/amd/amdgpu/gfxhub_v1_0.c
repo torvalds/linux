@@ -22,6 +22,7 @@
  */
 #include "amdgpu.h"
 #include "gfxhub_v1_0.h"
+#include "gfxhub_v1_1.h"
 
 #include "gc/gc_9_0_offset.h"
 #include "gc/gc_9_0_sh_mask.h"
@@ -30,13 +31,14 @@
 
 #include "soc15_common.h"
 
-u64 gfxhub_v1_0_get_mc_fb_offset(struct amdgpu_device *adev)
+static u64 gfxhub_v1_0_get_mc_fb_offset(struct amdgpu_device *adev)
 {
 	return (u64)RREG32_SOC15(GC, 0, mmMC_VM_FB_OFFSET) << 24;
 }
 
-void gfxhub_v1_0_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmid,
-				uint64_t page_table_base)
+static void gfxhub_v1_0_setup_vm_pt_regs(struct amdgpu_device *adev,
+					 uint32_t vmid,
+					 uint64_t page_table_base)
 {
 	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB_0];
 
@@ -245,7 +247,7 @@ static void gfxhub_v1_0_setup_vmid_config(struct amdgpu_device *adev)
 		/* Send no-retry XNACK on fault to suppress VM fault storm. */
 		tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
 				    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT,
-				    !amdgpu_noretry);
+				    !adev->gmc.noretry);
 		WREG32_SOC15_OFFSET(GC, 0, mmVM_CONTEXT1_CNTL,
 				    i * hub->ctx_distance, tmp);
 		WREG32_SOC15_OFFSET(GC, 0, mmVM_CONTEXT1_PAGE_TABLE_START_ADDR_LO32,
@@ -274,7 +276,7 @@ static void gfxhub_v1_0_program_invalidation(struct amdgpu_device *adev)
 	}
 }
 
-int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
+static int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 {
 	if (amdgpu_sriov_vf(adev) && adev->asic_type != CHIP_ARCTURUS) {
 		/*
@@ -304,7 +306,7 @@ int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 	return 0;
 }
 
-void gfxhub_v1_0_gart_disable(struct amdgpu_device *adev)
+static void gfxhub_v1_0_gart_disable(struct amdgpu_device *adev)
 {
 	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB_0];
 	u32 tmp;
@@ -335,8 +337,8 @@ void gfxhub_v1_0_gart_disable(struct amdgpu_device *adev)
  * @adev: amdgpu_device pointer
  * @value: true redirects VM faults to the default page
  */
-void gfxhub_v1_0_set_fault_enable_default(struct amdgpu_device *adev,
-					  bool value)
+static void gfxhub_v1_0_set_fault_enable_default(struct amdgpu_device *adev,
+						 bool value)
 {
 	u32 tmp;
 	tmp = RREG32_SOC15(GC, 0, mmVM_L2_PROTECTION_FAULT_CNTL);
@@ -373,7 +375,7 @@ void gfxhub_v1_0_set_fault_enable_default(struct amdgpu_device *adev,
 	WREG32_SOC15(GC, 0, mmVM_L2_PROTECTION_FAULT_CNTL, tmp);
 }
 
-void gfxhub_v1_0_init(struct amdgpu_device *adev)
+static void gfxhub_v1_0_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB_0];
 
@@ -403,3 +405,14 @@ void gfxhub_v1_0_init(struct amdgpu_device *adev)
 	hub->eng_addr_distance = mmVM_INVALIDATE_ENG1_ADDR_RANGE_LO32 -
 		mmVM_INVALIDATE_ENG0_ADDR_RANGE_LO32;
 }
+
+
+const struct amdgpu_gfxhub_funcs gfxhub_v1_0_funcs = {
+	.get_mc_fb_offset = gfxhub_v1_0_get_mc_fb_offset,
+	.setup_vm_pt_regs = gfxhub_v1_0_setup_vm_pt_regs,
+	.gart_enable = gfxhub_v1_0_gart_enable,
+	.gart_disable = gfxhub_v1_0_gart_disable,
+	.set_fault_enable_default = gfxhub_v1_0_set_fault_enable_default,
+	.init = gfxhub_v1_0_init,
+	.get_xgmi_info = gfxhub_v1_1_get_xgmi_info,
+};

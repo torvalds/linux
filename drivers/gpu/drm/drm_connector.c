@@ -850,7 +850,7 @@ static const struct drm_prop_enum_list drm_dvi_i_select_enum_list[] = {
 DRM_ENUM_NAME_FN(drm_get_dvi_i_select_name, drm_dvi_i_select_enum_list)
 
 static const struct drm_prop_enum_list drm_dvi_i_subconnector_enum_list[] = {
-	{ DRM_MODE_SUBCONNECTOR_Unknown,   "Unknown"   }, /* DVI-I and TV-out */
+	{ DRM_MODE_SUBCONNECTOR_Unknown,   "Unknown"   }, /* DVI-I, TV-out and DP */
 	{ DRM_MODE_SUBCONNECTOR_DVID,      "DVI-D"     }, /* DVI-I  */
 	{ DRM_MODE_SUBCONNECTOR_DVIA,      "DVI-A"     }, /* DVI-I  */
 };
@@ -867,7 +867,7 @@ static const struct drm_prop_enum_list drm_tv_select_enum_list[] = {
 DRM_ENUM_NAME_FN(drm_get_tv_select_name, drm_tv_select_enum_list)
 
 static const struct drm_prop_enum_list drm_tv_subconnector_enum_list[] = {
-	{ DRM_MODE_SUBCONNECTOR_Unknown,   "Unknown"   }, /* DVI-I and TV-out */
+	{ DRM_MODE_SUBCONNECTOR_Unknown,   "Unknown"   }, /* DVI-I, TV-out and DP */
 	{ DRM_MODE_SUBCONNECTOR_Composite, "Composite" }, /* TV-out */
 	{ DRM_MODE_SUBCONNECTOR_SVIDEO,    "SVIDEO"    }, /* TV-out */
 	{ DRM_MODE_SUBCONNECTOR_Component, "Component" }, /* TV-out */
@@ -875,6 +875,19 @@ static const struct drm_prop_enum_list drm_tv_subconnector_enum_list[] = {
 };
 DRM_ENUM_NAME_FN(drm_get_tv_subconnector_name,
 		 drm_tv_subconnector_enum_list)
+
+static const struct drm_prop_enum_list drm_dp_subconnector_enum_list[] = {
+	{ DRM_MODE_SUBCONNECTOR_Unknown,     "Unknown"   }, /* DVI-I, TV-out and DP */
+	{ DRM_MODE_SUBCONNECTOR_VGA,	     "VGA"       }, /* DP */
+	{ DRM_MODE_SUBCONNECTOR_DVID,	     "DVI-D"     }, /* DP */
+	{ DRM_MODE_SUBCONNECTOR_HDMIA,	     "HDMI"      }, /* DP */
+	{ DRM_MODE_SUBCONNECTOR_DisplayPort, "DP"        }, /* DP */
+	{ DRM_MODE_SUBCONNECTOR_Wireless,    "Wireless"  }, /* DP */
+	{ DRM_MODE_SUBCONNECTOR_Native,	     "Native"    }, /* DP */
+};
+
+DRM_ENUM_NAME_FN(drm_get_dp_subconnector_name,
+		 drm_dp_subconnector_enum_list)
 
 static const struct drm_prop_enum_list hdmi_colorspaces[] = {
 	/* For Default case, driver will set the colorspace */
@@ -947,6 +960,11 @@ static const struct drm_prop_enum_list dp_colorspaces[] = {
  * 	drm_connector_update_edid_property(), usually after having parsed
  * 	the EDID using drm_add_edid_modes(). Userspace cannot change this
  * 	property.
+ *
+ * 	User-space should not parse the EDID to obtain information exposed via
+ * 	other KMS properties (because the kernel might apply limits, quirks or
+ * 	fixups to the EDID). For instance, user-space should not try to parse
+ * 	mode lists from the EDID.
  * DPMS:
  * 	Legacy property for setting the power state of the connector. For atomic
  * 	drivers this is only provided for backwards compatibility with existing
@@ -1217,6 +1235,14 @@ static const struct drm_prop_enum_list dp_colorspaces[] = {
  *	can also expose this property to external outputs, in which case they
  *	must support "None", which should be the default (since external screens
  *	have a built-in scaler).
+ *
+ * subconnector:
+ *	This property is used by DVI-I, TVout and DisplayPort to indicate different
+ *	connector subtypes. Enum values more or less match with those from main
+ *	connector types.
+ *	For DVI-I and TVout there is also a matching property "select subconnector"
+ *	allowing to switch between signal types.
+ *	DP subconnector corresponds to a downstream port.
  */
 
 int drm_connector_create_standard_properties(struct drm_device *dev)
@@ -1306,6 +1332,30 @@ int drm_mode_create_dvi_i_properties(struct drm_device *dev)
 EXPORT_SYMBOL(drm_mode_create_dvi_i_properties);
 
 /**
+ * drm_connector_attach_dp_subconnector_property - create subconnector property for DP
+ * @connector: drm_connector to attach property
+ *
+ * Called by a driver when DP connector is created.
+ */
+void drm_connector_attach_dp_subconnector_property(struct drm_connector *connector)
+{
+	struct drm_mode_config *mode_config = &connector->dev->mode_config;
+
+	if (!mode_config->dp_subconnector_property)
+		mode_config->dp_subconnector_property =
+			drm_property_create_enum(connector->dev,
+				DRM_MODE_PROP_IMMUTABLE,
+				"subconnector",
+				drm_dp_subconnector_enum_list,
+				ARRAY_SIZE(drm_dp_subconnector_enum_list));
+
+	drm_object_attach_property(&connector->base,
+				   mode_config->dp_subconnector_property,
+				   DRM_MODE_SUBCONNECTOR_Unknown);
+}
+EXPORT_SYMBOL(drm_connector_attach_dp_subconnector_property);
+
+/**
  * DOC: HDMI connector properties
  *
  * content type (HDMI specific):
@@ -1382,7 +1432,8 @@ void drm_hdmi_avi_infoframe_content_type(struct hdmi_avi_infoframe *frame,
 EXPORT_SYMBOL(drm_hdmi_avi_infoframe_content_type);
 
 /**
- * drm_mode_attach_tv_margin_properties - attach TV connector margin properties
+ * drm_connector_attach_tv_margin_properties - attach TV connector margin
+ * 	properties
  * @connector: DRM connector
  *
  * Called by a driver when it needs to attach TV margin props to a connector.
@@ -2244,7 +2295,7 @@ static struct drm_encoder *drm_connector_get_encoder(struct drm_connector *conne
 
 static bool
 drm_mode_expose_to_userspace(const struct drm_display_mode *mode,
-			     const struct list_head *export_list,
+			     const struct list_head *modes,
 			     const struct drm_file *file_priv)
 {
 	/*
@@ -2260,15 +2311,17 @@ drm_mode_expose_to_userspace(const struct drm_display_mode *mode,
 	 * while preparing the list of user-modes.
 	 */
 	if (!file_priv->aspect_ratio_allowed) {
-		struct drm_display_mode *mode_itr;
+		const struct drm_display_mode *mode_itr;
 
-		list_for_each_entry(mode_itr, export_list, export_head)
-			if (drm_mode_match(mode_itr, mode,
+		list_for_each_entry(mode_itr, modes, head) {
+			if (mode_itr->expose_to_userspace &&
+			    drm_mode_match(mode_itr, mode,
 					   DRM_MODE_MATCH_TIMINGS |
 					   DRM_MODE_MATCH_CLOCK |
 					   DRM_MODE_MATCH_FLAGS |
 					   DRM_MODE_MATCH_3D_FLAGS))
 				return false;
+		}
 	}
 
 	return true;
@@ -2288,7 +2341,6 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	struct drm_mode_modeinfo u_mode;
 	struct drm_mode_modeinfo __user *mode_ptr;
 	uint32_t __user *encoder_ptr;
-	LIST_HEAD(export_list);
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EOPNOTSUPP;
@@ -2332,25 +2384,30 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	out_resp->connection = connector->status;
 
 	/* delayed so we get modes regardless of pre-fill_modes state */
-	list_for_each_entry(mode, &connector->modes, head)
-		if (drm_mode_expose_to_userspace(mode, &export_list,
+	list_for_each_entry(mode, &connector->modes, head) {
+		WARN_ON(mode->expose_to_userspace);
+
+		if (drm_mode_expose_to_userspace(mode, &connector->modes,
 						 file_priv)) {
-			list_add_tail(&mode->export_head, &export_list);
+			mode->expose_to_userspace = true;
 			mode_count++;
 		}
+	}
 
 	/*
 	 * This ioctl is called twice, once to determine how much space is
 	 * needed, and the 2nd time to fill it.
-	 * The modes that need to be exposed to the user are maintained in the
-	 * 'export_list'. When the ioctl is called first time to determine the,
-	 * space, the export_list gets filled, to find the no.of modes. In the
-	 * 2nd time, the user modes are filled, one by one from the export_list.
 	 */
 	if ((out_resp->count_modes >= mode_count) && mode_count) {
 		copied = 0;
 		mode_ptr = (struct drm_mode_modeinfo __user *)(unsigned long)out_resp->modes_ptr;
-		list_for_each_entry(mode, &export_list, export_head) {
+		list_for_each_entry(mode, &connector->modes, head) {
+			if (!mode->expose_to_userspace)
+				continue;
+
+			/* Clear the tag for the next time around */
+			mode->expose_to_userspace = false;
+
 			drm_mode_convert_to_umode(&u_mode, mode);
 			/*
 			 * Reset aspect ratio flags of user-mode, if modes with
@@ -2361,13 +2418,26 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 			if (copy_to_user(mode_ptr + copied,
 					 &u_mode, sizeof(u_mode))) {
 				ret = -EFAULT;
+
+				/*
+				 * Clear the tag for the rest of
+				 * the modes for the next time around.
+				 */
+				list_for_each_entry_continue(mode, &connector->modes, head)
+					mode->expose_to_userspace = false;
+
 				mutex_unlock(&dev->mode_config.mutex);
 
 				goto out;
 			}
 			copied++;
 		}
+	} else {
+		/* Clear the tag for the next time around */
+		list_for_each_entry(mode, &connector->modes, head)
+			mode->expose_to_userspace = false;
 	}
+
 	out_resp->count_modes = mode_count;
 	mutex_unlock(&dev->mode_config.mutex);
 

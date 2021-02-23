@@ -18,7 +18,11 @@
 
 #include "tcpci.h"
 
-#define PD_RETRY_COUNT 3
+#define	PD_RETRY_COUNT_DEFAULT			3
+#define	PD_RETRY_COUNT_3_0_OR_HIGHER		2
+#define	AUTO_DISCHARGE_DEFAULT_THRESHOLD_MV	3500
+#define	AUTO_DISCHARGE_PD_HEADROOM_MV		850
+#define	AUTO_DISCHARGE_PPS_HEADROOM_MV		1250
 
 struct tcpci {
 	struct device *dev;
@@ -37,6 +41,12 @@ struct tcpci_chip {
 	struct tcpci *tcpci;
 	struct tcpci_data data;
 };
+
+struct tcpm_port *tcpci_get_tcpm_port(struct tcpci *tcpci)
+{
+	return tcpci->port;
+}
+EXPORT_SYMBOL_GPL(tcpci_get_tcpm_port);
 
 static inline struct tcpci *tcpc_to_tcpci(struct tcpc_dev *tcpc)
 {
@@ -191,11 +201,46 @@ static int tcpci_set_polarity(struct tcpc_dev *tcpc,
 	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
 	unsigned int reg;
 	int ret;
+	enum typec_cc_status cc1, cc2;
 
-	/* Keep the disconnect cc line open */
+	/* Obtain Rp setting from role control */
 	ret = regmap_read(tcpci->regmap, TCPC_ROLE_CTRL, &reg);
 	if (ret < 0)
 		return ret;
+
+	ret = tcpci_get_cc(tcpc, &cc1, &cc2);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * When port has drp toggling enabled, ROLE_CONTROL would only have the initial
+	 * terminations for the toggling and does not indicate the final cc
+	 * terminations when ConnectionResult is 0 i.e. drp toggling stops and
+	 * the connection is resolbed. Infer port role from TCPC_CC_STATUS based on the
+	 * terminations seen. The port role is then used to set the cc terminations.
+	 */
+	if (reg & TCPC_ROLE_CTRL_DRP) {
+		/* Disable DRP for the OPEN setting to take effect */
+		reg = reg & ~TCPC_ROLE_CTRL_DRP;
+
+		if (polarity == TYPEC_POLARITY_CC2) {
+			reg &= ~(TCPC_ROLE_CTRL_CC2_MASK << TCPC_ROLE_CTRL_CC2_SHIFT);
+			/* Local port is source */
+			if (cc2 == TYPEC_CC_RD)
+				/* Role control would have the Rp setting when DRP was enabled */
+				reg |= TCPC_ROLE_CTRL_CC_RP << TCPC_ROLE_CTRL_CC2_SHIFT;
+			else
+				reg |= TCPC_ROLE_CTRL_CC_RD << TCPC_ROLE_CTRL_CC2_SHIFT;
+		} else {
+			reg &= ~(TCPC_ROLE_CTRL_CC1_MASK << TCPC_ROLE_CTRL_CC1_SHIFT);
+			/* Local port is source */
+			if (cc1 == TYPEC_CC_RD)
+				/* Role control would have the Rp setting when DRP was enabled */
+				reg |= TCPC_ROLE_CTRL_CC_RP << TCPC_ROLE_CTRL_CC1_SHIFT;
+			else
+				reg |= TCPC_ROLE_CTRL_CC_RD << TCPC_ROLE_CTRL_CC1_SHIFT;
+		}
+	}
 
 	if (polarity == TYPEC_POLARITY_CC2)
 		reg |= TCPC_ROLE_CTRL_CC_OPEN << TCPC_ROLE_CTRL_CC1_SHIFT;
@@ -225,6 +270,82 @@ static int tcpci_set_vconn(struct tcpc_dev *tcpc, bool enable)
 	return regmap_update_bits(tcpci->regmap, TCPC_POWER_CTRL,
 				TCPC_POWER_CTRL_VCONN_ENABLE,
 				enable ? TCPC_POWER_CTRL_VCONN_ENABLE : 0);
+}
+
+static int tcpci_enable_auto_vbus_discharge(struct tcpc_dev *dev, bool enable)
+{
+	struct tcpci *tcpci = tcpc_to_tcpci(dev);
+	int ret;
+
+	ret = regmap_update_bits(tcpci->regmap, TCPC_POWER_CTRL, TCPC_POWER_CTRL_AUTO_DISCHARGE,
+				 enable ? TCPC_POWER_CTRL_AUTO_DISCHARGE : 0);
+	return ret;
+}
+
+static int tcpci_set_auto_vbus_discharge_threshold(struct tcpc_dev *dev, enum typec_pwr_opmode mode,
+						   bool pps_active, u32 requested_vbus_voltage_mv)
+{
+	struct tcpci *tcpci = tcpc_to_tcpci(dev);
+	unsigned int pwr_ctrl, threshold = 0;
+	int ret;
+
+	/*
+	 * Indicates that vbus is going to go away due PR_SWAP, hard reset etc.
+	 * Do not discharge vbus here.
+	 */
+	if (requested_vbus_voltage_mv == 0)
+		goto write_thresh;
+
+	ret = regmap_read(tcpci->regmap, TCPC_POWER_CTRL, &pwr_ctrl);
+	if (ret < 0)
+		return ret;
+
+	if (pwr_ctrl & TCPC_FAST_ROLE_SWAP_EN) {
+		/* To prevent disconnect when the source is fast role swap is capable. */
+		threshold = AUTO_DISCHARGE_DEFAULT_THRESHOLD_MV;
+	} else if (mode == TYPEC_PWR_MODE_PD) {
+		if (pps_active)
+			threshold = (95 * requested_vbus_voltage_mv / 100) -
+				AUTO_DISCHARGE_PD_HEADROOM_MV;
+		else
+			threshold = (95 * requested_vbus_voltage_mv / 100) -
+				AUTO_DISCHARGE_PPS_HEADROOM_MV;
+	} else {
+		/* 3.5V for non-pd sink */
+		threshold = AUTO_DISCHARGE_DEFAULT_THRESHOLD_MV;
+	}
+
+	threshold = threshold / TCPC_VBUS_SINK_DISCONNECT_THRESH_LSB_MV;
+
+	if (threshold > TCPC_VBUS_SINK_DISCONNECT_THRESH_MAX)
+		return -EINVAL;
+
+write_thresh:
+	return tcpci_write16(tcpci, TCPC_VBUS_SINK_DISCONNECT_THRESH, threshold);
+}
+
+static int tcpci_enable_frs(struct tcpc_dev *dev, bool enable)
+{
+	struct tcpci *tcpci = tcpc_to_tcpci(dev);
+	int ret;
+
+	/* To prevent disconnect during FRS, set disconnect threshold to 3.5V */
+	ret = tcpci_write16(tcpci, TCPC_VBUS_SINK_DISCONNECT_THRESH, enable ? 0 : 0x8c);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_update_bits(tcpci->regmap, TCPC_POWER_CTRL, TCPC_FAST_ROLE_SWAP_EN, enable ?
+				 TCPC_FAST_ROLE_SWAP_EN : 0);
+
+	return ret;
+}
+
+static void tcpci_frs_sourcing_vbus(struct tcpc_dev *dev)
+{
+	struct tcpci *tcpci = tcpc_to_tcpci(dev);
+
+	if (tcpci->data->frs_sourcing_vbus)
+		tcpci->data->frs_sourcing_vbus(tcpci, tcpci->data);
 }
 
 static int tcpci_set_bist_data(struct tcpc_dev *tcpc, bool enable)
@@ -282,10 +403,30 @@ static int tcpci_get_vbus(struct tcpc_dev *tcpc)
 	return !!(reg & TCPC_POWER_STATUS_VBUS_PRES);
 }
 
+static bool tcpci_is_vbus_vsafe0v(struct tcpc_dev *tcpc)
+{
+	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
+	unsigned int reg;
+	int ret;
+
+	ret = regmap_read(tcpci->regmap, TCPC_EXTENDED_STATUS, &reg);
+	if (ret < 0)
+		return false;
+
+	return !!(reg & TCPC_EXTENDED_STATUS_VSAFE0V);
+}
+
 static int tcpci_set_vbus(struct tcpc_dev *tcpc, bool source, bool sink)
 {
 	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
 	int ret;
+
+	if (tcpci->data->set_vbus) {
+		ret = tcpci->data->set_vbus(tcpci, tcpci->data, source, sink);
+		/* Bypass when ret > 0 */
+		if (ret != 0)
+			return ret < 0 ? ret : 0;
+	}
 
 	/* Disable both source and sink first before enabling anything */
 
@@ -320,9 +461,8 @@ static int tcpci_set_vbus(struct tcpc_dev *tcpc, bool source, bool sink)
 	return 0;
 }
 
-static int tcpci_pd_transmit(struct tcpc_dev *tcpc,
-			     enum tcpm_transmit_type type,
-			     const struct pd_message *msg)
+static int tcpci_pd_transmit(struct tcpc_dev *tcpc, enum tcpm_transmit_type type,
+			     const struct pd_message *msg, unsigned int negotiated_rev)
 {
 	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
 	u16 header = msg ? le16_to_cpu(msg->header) : 0;
@@ -330,23 +470,49 @@ static int tcpci_pd_transmit(struct tcpc_dev *tcpc,
 	int ret;
 
 	cnt = msg ? pd_header_cnt(header) * 4 : 0;
-	ret = regmap_write(tcpci->regmap, TCPC_TX_BYTE_CNT, cnt + 2);
-	if (ret < 0)
-		return ret;
+	/**
+	 * TCPCI spec forbids direct access of TCPC_TX_DATA.
+	 * But, since some of the chipsets offer this capability,
+	 * it's fair to support both.
+	 */
+	if (tcpci->data->TX_BUF_BYTE_x_hidden) {
+		u8 buf[TCPC_TRANSMIT_BUFFER_MAX_LEN] = {0,};
+		u8 pos = 0;
 
-	ret = tcpci_write16(tcpci, TCPC_TX_HDR, header);
-	if (ret < 0)
-		return ret;
+		/* Payload + header + TCPC_TX_BYTE_CNT */
+		buf[pos++] = cnt + 2;
 
-	if (cnt > 0) {
-		ret = regmap_raw_write(tcpci->regmap, TCPC_TX_DATA,
-				       &msg->payload, cnt);
+		if (msg)
+			memcpy(&buf[pos], &msg->header, sizeof(msg->header));
+
+		pos += sizeof(header);
+
+		if (cnt > 0)
+			memcpy(&buf[pos], msg->payload, cnt);
+
+		pos += cnt;
+		ret = regmap_raw_write(tcpci->regmap, TCPC_TX_BYTE_CNT, buf, pos);
 		if (ret < 0)
 			return ret;
+	} else {
+		ret = regmap_write(tcpci->regmap, TCPC_TX_BYTE_CNT, cnt + 2);
+		if (ret < 0)
+			return ret;
+
+		ret = tcpci_write16(tcpci, TCPC_TX_HDR, header);
+		if (ret < 0)
+			return ret;
+
+		if (cnt > 0) {
+			ret = regmap_raw_write(tcpci->regmap, TCPC_TX_DATA, &msg->payload, cnt);
+			if (ret < 0)
+				return ret;
+		}
 	}
 
-	reg = (PD_RETRY_COUNT << TCPC_TRANSMIT_RETRY_SHIFT) |
-		(type << TCPC_TRANSMIT_TYPE_SHIFT);
+	/* nRetryCount is 3 in PD2.0 spec where 2 in PD3.0 spec */
+	reg = ((negotiated_rev > PD_REV20 ? PD_RETRY_COUNT_3_0_OR_HIGHER : PD_RETRY_COUNT_DEFAULT)
+	       << TCPC_TRANSMIT_RETRY_SHIFT) | (type << TCPC_TRANSMIT_TYPE_SHIFT);
 	ret = regmap_write(tcpci->regmap, TCPC_TRANSMIT, reg);
 	if (ret < 0)
 		return ret;
@@ -403,12 +569,22 @@ static int tcpci_init(struct tcpc_dev *tcpc)
 		TCPC_ALERT_RX_HARD_RST | TCPC_ALERT_CC_STATUS;
 	if (tcpci->controls_vbus)
 		reg |= TCPC_ALERT_POWER_STATUS;
+	/* Enable VSAFE0V status interrupt when detecting VSAFE0V is supported */
+	if (tcpci->data->vbus_vsafe0v) {
+		reg |= TCPC_ALERT_EXTENDED_STATUS;
+		ret = regmap_write(tcpci->regmap, TCPC_EXTENDED_STATUS_MASK,
+				   TCPC_EXTENDED_STATUS_VSAFE0V);
+		if (ret < 0)
+			return ret;
+	}
 	return tcpci_write16(tcpci, TCPC_ALERT_MASK, reg);
 }
 
 irqreturn_t tcpci_irq(struct tcpci *tcpci)
 {
 	u16 status;
+	int ret;
+	unsigned int raw;
 
 	tcpci_read16(tcpci, TCPC_ALERT, &status);
 
@@ -424,15 +600,12 @@ irqreturn_t tcpci_irq(struct tcpci *tcpci)
 		tcpm_cc_change(tcpci->port);
 
 	if (status & TCPC_ALERT_POWER_STATUS) {
-		unsigned int reg;
-
-		regmap_read(tcpci->regmap, TCPC_POWER_STATUS_MASK, &reg);
-
+		regmap_read(tcpci->regmap, TCPC_POWER_STATUS_MASK, &raw);
 		/*
 		 * If power status mask has been reset, then the TCPC
 		 * has reset.
 		 */
-		if (reg == 0xff)
+		if (raw == 0xff)
 			tcpm_tcpc_reset(tcpci->port);
 		else
 			tcpm_vbus_change(tcpci->port);
@@ -469,6 +642,12 @@ irqreturn_t tcpci_irq(struct tcpci *tcpci)
 		tcpci_write16(tcpci, TCPC_ALERT, TCPC_ALERT_RX_STATUS);
 
 		tcpm_pd_receive(tcpci->port, &msg);
+	}
+
+	if (status & TCPC_ALERT_EXTENDED_STATUS) {
+		ret = regmap_read(tcpci->regmap, TCPC_EXTENDED_STATUS, &raw);
+		if (!ret && (raw & TCPC_EXTENDED_STATUS_VSAFE0V))
+			tcpm_vbus_change(tcpci->port);
 	}
 
 	if (status & TCPC_ALERT_RX_HARD_RST)
@@ -539,6 +718,19 @@ struct tcpci *tcpci_register_port(struct device *dev, struct tcpci_data *data)
 	tcpci->tcpc.set_roles = tcpci_set_roles;
 	tcpci->tcpc.pd_transmit = tcpci_pd_transmit;
 	tcpci->tcpc.set_bist_data = tcpci_set_bist_data;
+	tcpci->tcpc.enable_frs = tcpci_enable_frs;
+	tcpci->tcpc.frs_sourcing_vbus = tcpci_frs_sourcing_vbus;
+
+	if (tcpci->data->auto_discharge_disconnect) {
+		tcpci->tcpc.enable_auto_vbus_discharge = tcpci_enable_auto_vbus_discharge;
+		tcpci->tcpc.set_auto_vbus_discharge_threshold =
+			tcpci_set_auto_vbus_discharge_threshold;
+		regmap_update_bits(tcpci->regmap, TCPC_POWER_CTRL, TCPC_POWER_CTRL_BLEED_DISCHARGE,
+				   TCPC_POWER_CTRL_BLEED_DISCHARGE);
+	}
+
+	if (tcpci->data->vbus_vsafe0v)
+		tcpci->tcpc.is_vbus_vsafe0v = tcpci_is_vbus_vsafe0v;
 
 	err = tcpci_parse_config(tcpci);
 	if (err < 0)

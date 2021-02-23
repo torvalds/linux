@@ -25,6 +25,7 @@ config FEC
 	depends on (M523x || M527x || M5272 || M528x || M520x || M532x || \
 		   ARCH_MXC || SOC_IMX28 || COMPILE_TEST)
 	default ARCH_MXC || SOC_IMX28 if ARM
+	select CRC32
 	select PHYLIB
 	imply PTP_1588_CLOCK
 	help

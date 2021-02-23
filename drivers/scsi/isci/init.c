@@ -142,7 +142,7 @@ static ssize_t isci_show_id(struct device *dev, struct device_attribute *attr, c
 
 static DEVICE_ATTR(isci_id, S_IRUGO, isci_show_id, NULL);
 
-struct device_attribute *isci_host_attrs[] = {
+static struct device_attribute *isci_host_attrs[] = {
 	&dev_attr_isci_id,
 	NULL
 };
@@ -715,10 +715,6 @@ static int isci_suspend(struct device *dev)
 		isci_host_deinit(ihost);
 	}
 
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, PCI_D3hot);
-
 	return 0;
 }
 
@@ -726,19 +722,7 @@ static int isci_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct isci_host *ihost;
-	int rc, i;
-
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-
-	rc = pcim_enable_device(pdev);
-	if (rc) {
-		dev_err(&pdev->dev,
-			"enabling device failure after resume(%d)\n", rc);
-		return rc;
-	}
-
-	pci_set_master(pdev);
+	int i;
 
 	for_each_isci_host(i, ihost, pdev) {
 		sas_prep_resume_ha(&ihost->sas_ha);

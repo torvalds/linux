@@ -393,8 +393,8 @@ int cxl_calc_capp_routing(struct pci_dev *dev, u64 *chipid,
 	*capp_unit_id = get_capp_unit_id(np, *phb_index);
 	of_node_put(np);
 	if (!*capp_unit_id) {
-		pr_err("cxl: invalid capp unit id (phb_index: %d)\n",
-		       *phb_index);
+		pr_err("cxl: No capp unit found for PHB[%lld,%d]. Make sure the adapter is on a capi-compatible slot\n",
+		       *chipid, *phb_index);
 		return -ENODEV;
 	}
 

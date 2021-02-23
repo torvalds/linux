@@ -4,8 +4,27 @@
  *    (c) 2020 Mauro Carvalho Chehab <mchehab+huawei@kernel.org>
  */
 
-#ifdef ISP2401
-#  include "isp2401_input_system_global.h"
-#else
-#  include "isp2400_input_system_global.h"
-#endif
+
+#ifndef __INPUT_SYSTEM_GLOBAL_H_INCLUDED__
+#define __INPUT_SYSTEM_GLOBAL_H_INCLUDED__
+typedef enum {
+	INPUT_SYSTEM_ERR_NO_ERROR = 0,
+	/* ISP2401 */
+	INPUT_SYSTEM_ERR_CREATE_CHANNEL_FAIL,
+	INPUT_SYSTEM_ERR_CONFIGURE_CHANNEL_FAIL,
+	INPUT_SYSTEM_ERR_OPEN_CHANNEL_FAIL,
+	INPUT_SYSTEM_ERR_TRANSFER_FAIL,
+	INPUT_SYSTEM_ERR_CREATE_INPUT_PORT_FAIL,
+	INPUT_SYSTEM_ERR_CONFIGURE_INPUT_PORT_FAIL,
+	INPUT_SYSTEM_ERR_OPEN_INPUT_PORT_FAIL,
+	/* ISP2400 */
+	INPUT_SYSTEM_ERR_GENERIC,
+	INPUT_SYSTEM_ERR_CHANNEL_ALREADY_SET,
+	INPUT_SYSTEM_ERR_CONFLICT_ON_RESOURCE,
+	INPUT_SYSTEM_ERR_PARAMETER_NOT_SUPPORTED,
+} input_system_err_t;
+
+#include "isp2401_input_system_global.h"
+#include "isp2400_input_system_global.h"
+
+#endif /* __INPUT_SYSTEM_GLOBAL_H_INCLUDED__ */

@@ -728,7 +728,7 @@ static struct dma_async_tx_descriptor *shdma_prep_dma_cyclic(
 	 * Allocate the sg list dynamically as it would consumer too much stack
 	 * space.
 	 */
-	sgl = kcalloc(sg_len, sizeof(*sgl), GFP_KERNEL);
+	sgl = kmalloc_array(sg_len, sizeof(*sgl), GFP_KERNEL);
 	if (!sgl)
 		return NULL;
 

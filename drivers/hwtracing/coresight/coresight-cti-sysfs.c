@@ -1065,6 +1065,13 @@ static int cti_create_con_sysfs_attr(struct device *dev,
 	}
 	eattr->var = con;
 	con->con_attrs[attr_idx] = &eattr->attr.attr;
+	/*
+	 * Initialize the dynamically allocated attribute
+	 * to avoid LOCKDEP splat. See include/linux/sysfs.h
+	 * for more details.
+	 */
+	sysfs_attr_init(con->con_attrs[attr_idx]);
+
 	return 0;
 }
 

@@ -8,6 +8,11 @@ struct perf_tsc_conversion {
 	u16 time_shift;
 	u32 time_mult;
 	u64 time_zero;
+	u64 time_cycles;
+	u64 time_mask;
+
+	bool cap_user_time_zero;
+	bool cap_user_time_short;
 };
 
 struct perf_event_mmap_page;

@@ -705,8 +705,6 @@ static inline void clocksource_update_max_deferment(struct clocksource *cs)
 						&cs->max_cycles);
 }
 
-#ifndef CONFIG_ARCH_USES_GETTIMEOFFSET
-
 static struct clocksource *clocksource_find_best(bool oneshot, bool skipcur)
 {
 	struct clocksource *cs;
@@ -797,12 +795,6 @@ static void clocksource_select_fallback(void)
 {
 	__clocksource_select(true);
 }
-
-#else /* !CONFIG_ARCH_USES_GETTIMEOFFSET */
-static inline void clocksource_select(void) { }
-static inline void clocksource_select_fallback(void) { }
-
-#endif
 
 /*
  * clocksource_done_booting - Called near the end of core bootup

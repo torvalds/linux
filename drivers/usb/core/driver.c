@@ -839,6 +839,22 @@ const struct usb_device_id *usb_device_match_id(struct usb_device *udev,
 	return NULL;
 }
 
+bool usb_driver_applicable(struct usb_device *udev,
+			   struct usb_device_driver *udrv)
+{
+	if (udrv->id_table && udrv->match)
+		return usb_device_match_id(udev, udrv->id_table) != NULL &&
+		       udrv->match(udev);
+
+	if (udrv->id_table)
+		return usb_device_match_id(udev, udrv->id_table) != NULL;
+
+	if (udrv->match)
+		return udrv->match(udev);
+
+	return false;
+}
+
 static int usb_device_match(struct device *dev, struct device_driver *drv)
 {
 	/* devices and interfaces are handled separately */
@@ -853,17 +869,14 @@ static int usb_device_match(struct device *dev, struct device_driver *drv)
 		udev = to_usb_device(dev);
 		udrv = to_usb_device_driver(drv);
 
-		if (udrv->id_table)
-			return usb_device_match_id(udev, udrv->id_table) != NULL;
-
-		if (udrv->match)
-			return udrv->match(udev);
-
 		/* If the device driver under consideration does not have a
 		 * id_table or a match function, then let the driver's probe
 		 * function decide.
 		 */
-		return 1;
+		if (!udrv->id_table && !udrv->match)
+			return 1;
+
+		return usb_driver_applicable(udev, udrv);
 
 	} else if (is_usb_interface(dev)) {
 		struct usb_interface *intf;
@@ -941,8 +954,7 @@ static int __usb_bus_reprobe_drivers(struct device *dev, void *data)
 		return 0;
 
 	udev = to_usb_device(dev);
-	if (usb_device_match_id(udev, new_udriver->id_table) == NULL &&
-	    (!new_udriver->match || new_udriver->match(udev) == 0))
+	if (!usb_driver_applicable(udev, new_udriver))
 		return 0;
 
 	ret = device_reprobe(dev);
@@ -991,8 +1003,7 @@ int usb_register_device_driver(struct usb_device_driver *new_udriver,
 		bus_for_each_dev(&usb_bus_type, NULL, new_udriver,
 				 __usb_bus_reprobe_drivers);
 	} else {
-		printk(KERN_ERR "%s: error %d registering device "
-			"	driver %s\n",
+		pr_err("%s: error %d registering device driver %s\n",
 			usbcore_name, retval, new_udriver->name);
 	}
 
@@ -1068,9 +1079,8 @@ out:
 out_newid:
 	driver_unregister(&new_driver->drvwrap.driver);
 
-	printk(KERN_ERR "%s: error %d registering interface "
-			"	driver %s\n",
-			usbcore_name, retval, new_driver->name);
+	pr_err("%s: error %d registering interface driver %s\n",
+		usbcore_name, retval, new_driver->name);
 	goto out;
 }
 EXPORT_SYMBOL_GPL(usb_register_driver);

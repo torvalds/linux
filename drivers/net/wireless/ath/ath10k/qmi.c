@@ -576,6 +576,8 @@ static int ath10k_qmi_cap_send_sync_msg(struct ath10k_qmi *qmi)
 	if (resp->chip_info_valid) {
 		qmi->chip_info.chip_id = resp->chip_info.chip_id;
 		qmi->chip_info.chip_family = resp->chip_info.chip_family;
+	} else {
+		qmi->chip_info.chip_id = 0xFF;
 	}
 
 	if (resp->board_info_valid)
@@ -817,11 +819,17 @@ err_setup_msa:
 static int ath10k_qmi_fetch_board_file(struct ath10k_qmi *qmi)
 {
 	struct ath10k *ar = qmi->ar;
+	int ret;
 
 	ar->hif.bus = ATH10K_BUS_SNOC;
 	ar->id.qmi_ids_valid = true;
 	ar->id.qmi_board_id = qmi->board_info.board_id;
+	ar->id.qmi_chip_id = qmi->chip_info.chip_id;
 	ar->hw_params.fw.dir = WCN3990_HW_1_0_FW_DIR;
+
+	ret = ath10k_core_check_dt(ar);
+	if (ret)
+		ath10k_dbg(ar, ATH10K_DBG_QMI, "DT bdf variant name not set.\n");
 
 	return ath10k_core_fetch_board_file(qmi->ar, ATH10K_BD_IE_BOARD);
 }
@@ -909,7 +917,7 @@ static void ath10k_qmi_msa_ready_ind(struct qmi_handle *qmi_hdl,
 	ath10k_qmi_driver_event_post(qmi, ATH10K_QMI_EVENT_MSA_READY_IND, NULL);
 }
 
-static struct qmi_msg_handler qmi_msg_handler[] = {
+static const struct qmi_msg_handler qmi_msg_handler[] = {
 	{
 		.type = QMI_INDICATION,
 		.msg_id = QMI_WLFW_FW_READY_IND_V01,
@@ -973,7 +981,7 @@ static void ath10k_qmi_del_server(struct qmi_handle *qmi_hdl,
 					     NULL);
 }
 
-static struct qmi_ops ath10k_qmi_ops = {
+static const struct qmi_ops ath10k_qmi_ops = {
 	.new_server = ath10k_qmi_new_server,
 	.del_server = ath10k_qmi_del_server,
 };

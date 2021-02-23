@@ -67,4 +67,14 @@ void dcn30_program_dmdata_engine(struct pipe_ctx *pipe_ctx);
 
 bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable);
 
+void dcn30_hardware_release(struct dc *dc);
+
+void dcn30_set_disp_pattern_generator(const struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		enum controller_dp_test_pattern test_pattern,
+		enum controller_dp_color_space color_space,
+		enum dc_color_depth color_depth,
+		const struct tg_color *solid_color,
+		int width, int height, int offset);
+
 #endif /* __DC_HWSS_DCN30_H__ */

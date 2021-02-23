@@ -67,6 +67,18 @@ static const struct rvin_video_format rvin_formats[] = {
 		.bpp			= 4,
 	},
 	{
+		.fourcc			= V4L2_PIX_FMT_SBGGR8,
+		.bpp			= 1,
+	},
+	{
+		.fourcc			= V4L2_PIX_FMT_SGBRG8,
+		.bpp			= 1,
+	},
+	{
+		.fourcc			= V4L2_PIX_FMT_SGRBG8,
+		.bpp			= 1,
+	},
+	{
 		.fourcc			= V4L2_PIX_FMT_SRGGB8,
 		.bpp			= 1,
 	},
@@ -193,7 +205,7 @@ static int rvin_reset_format(struct rvin_dev *vin)
 {
 	struct v4l2_subdev_format fmt = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
-		.pad = vin->parallel->source_pad,
+		.pad = vin->parallel.source_pad,
 	};
 	int ret;
 
@@ -234,7 +246,7 @@ static int rvin_try_format(struct rvin_dev *vin, u32 which,
 	struct v4l2_subdev_pad_config *pad_cfg;
 	struct v4l2_subdev_format format = {
 		.which = which,
-		.pad = vin->parallel->source_pad,
+		.pad = vin->parallel.source_pad,
 	};
 	enum v4l2_field field;
 	u32 width, height;
@@ -366,6 +378,21 @@ static int rvin_enum_fmt_vid_cap(struct file *file, void *priv,
 	case MEDIA_BUS_FMT_UYVY10_2X10:
 	case MEDIA_BUS_FMT_RGB888_1X24:
 		break;
+	case MEDIA_BUS_FMT_SBGGR8_1X8:
+		if (f->index)
+			return -EINVAL;
+		f->pixelformat = V4L2_PIX_FMT_SBGGR8;
+		return 0;
+	case MEDIA_BUS_FMT_SGBRG8_1X8:
+		if (f->index)
+			return -EINVAL;
+		f->pixelformat = V4L2_PIX_FMT_SGBRG8;
+		return 0;
+	case MEDIA_BUS_FMT_SGRBG8_1X8:
+		if (f->index)
+			return -EINVAL;
+		f->pixelformat = V4L2_PIX_FMT_SGRBG8;
+		return 0;
 	case MEDIA_BUS_FMT_SRGGB8_1X8:
 		if (f->index)
 			return -EINVAL;
@@ -605,7 +632,7 @@ static int rvin_enum_dv_timings(struct file *file, void *priv_fh,
 	if (timings->pad)
 		return -EINVAL;
 
-	timings->pad = vin->parallel->sink_pad;
+	timings->pad = vin->parallel.sink_pad;
 
 	ret = v4l2_subdev_call(sd, pad, enum_dv_timings, timings);
 
@@ -657,7 +684,7 @@ static int rvin_dv_timings_cap(struct file *file, void *priv_fh,
 	if (cap->pad)
 		return -EINVAL;
 
-	cap->pad = vin->parallel->sink_pad;
+	cap->pad = vin->parallel.sink_pad;
 
 	ret = v4l2_subdev_call(sd, pad, dv_timings_cap, cap);
 
@@ -675,7 +702,7 @@ static int rvin_g_edid(struct file *file, void *fh, struct v4l2_edid *edid)
 	if (edid->pad)
 		return -EINVAL;
 
-	edid->pad = vin->parallel->sink_pad;
+	edid->pad = vin->parallel.sink_pad;
 
 	ret = v4l2_subdev_call(sd, pad, get_edid, edid);
 
@@ -693,7 +720,7 @@ static int rvin_s_edid(struct file *file, void *fh, struct v4l2_edid *edid)
 	if (edid->pad)
 		return -EINVAL;
 
-	edid->pad = vin->parallel->sink_pad;
+	edid->pad = vin->parallel.sink_pad;
 
 	ret = v4l2_subdev_call(sd, pad, set_edid, edid);
 
@@ -844,8 +871,10 @@ static int rvin_open(struct file *file)
 	int ret;
 
 	ret = pm_runtime_get_sync(vin->dev);
-	if (ret < 0)
+	if (ret < 0) {
+		pm_runtime_put_noidle(vin->dev);
 		return ret;
+	}
 
 	ret = mutex_lock_interruptible(&vin->lock);
 	if (ret)

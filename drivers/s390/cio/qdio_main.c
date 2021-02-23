@@ -531,26 +531,6 @@ static inline int qdio_inbound_q_done(struct qdio_q *q, unsigned int start)
 	return 1;
 }
 
-static inline void qdio_handle_aobs(struct qdio_q *q, int start, int count)
-{
-	unsigned char state = 0;
-	int j, b = start;
-
-	for (j = 0; j < count; ++j) {
-		get_buf_state(q, b, &state, 0);
-		if (state == SLSB_P_OUTPUT_PENDING) {
-			struct qaob *aob = q->u.out.aobs[b];
-			if (aob == NULL)
-				continue;
-
-			q->u.out.sbal_state[b].flags |=
-				QDIO_OUTBUF_STATE_FLAG_PENDING;
-			q->u.out.aobs[b] = NULL;
-		}
-		b = next_buf(b);
-	}
-}
-
 static inline unsigned long qdio_aob_for_buffer(struct qdio_output_q *q,
 					int bufnr)
 {
@@ -640,6 +620,19 @@ void qdio_inbound_processing(unsigned long data)
 	__qdio_inbound_processing(q);
 }
 
+static void qdio_check_pending(struct qdio_q *q, unsigned int index)
+{
+	unsigned char state;
+
+	if (get_buf_state(q, index, &state, 0) > 0 &&
+	    state == SLSB_P_OUTPUT_PENDING &&
+	    q->u.out.aobs[index]) {
+		q->u.out.sbal_state[index].flags |=
+			QDIO_OUTBUF_STATE_FLAG_PENDING;
+		q->u.out.aobs[index] = NULL;
+	}
+}
+
 static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start)
 {
 	unsigned char state = 0;
@@ -712,8 +705,13 @@ static inline int qdio_outbound_q_moved(struct qdio_q *q, unsigned int start)
 
 	if (count) {
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "out moved:%1d", q->nr);
-		if (q->u.out.use_cq)
-			qdio_handle_aobs(q, start, count);
+
+		if (q->u.out.use_cq) {
+			unsigned int i;
+
+			for (i = 0; i < count; i++)
+				qdio_check_pending(q, QDIO_BUFNR(start + i));
+		}
 	}
 
 	return count;
@@ -1221,7 +1219,6 @@ static void qdio_trace_init_data(struct qdio_irq *irq,
 				 struct qdio_initialize *data)
 {
 	DBF_DEV_EVENT(DBF_ERR, irq, "qfmt:%1u", data->q_format);
-	DBF_DEV_HEX(irq, data->adapter_name, 8, DBF_ERR);
 	DBF_DEV_EVENT(DBF_ERR, irq, "qpff%4x", data->qib_param_field_format);
 	DBF_DEV_HEX(irq, &data->qib_param_field, sizeof(void *), DBF_ERR);
 	DBF_DEV_HEX(irq, &data->input_slib_elements, sizeof(void *), DBF_ERR);

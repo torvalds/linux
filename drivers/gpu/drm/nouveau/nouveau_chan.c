@@ -107,7 +107,7 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 		nvif_object_dtor(&chan->push.ctxdma);
 		nouveau_vma_del(&chan->push.vma);
 		nouveau_bo_unmap(chan->push.buffer);
-		if (chan->push.buffer && chan->push.buffer->pin_refcnt)
+		if (chan->push.buffer && chan->push.buffer->bo.pin_count)
 			nouveau_bo_unpin(chan->push.buffer);
 		nouveau_bo_ref(NULL, &chan->push.buffer);
 		kfree(chan);
@@ -163,9 +163,9 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 	atomic_set(&chan->killed, 0);
 
 	/* allocate memory for dma push buffer */
-	target = TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED;
+	target = NOUVEAU_GEM_DOMAIN_GART | NOUVEAU_GEM_DOMAIN_COHERENT;
 	if (nouveau_vram_pushbuf)
-		target = TTM_PL_FLAG_VRAM;
+		target = NOUVEAU_GEM_DOMAIN_VRAM;
 
 	ret = nouveau_bo_new(cli, size, 0, target, 0, 0, NULL, NULL,
 			    &chan->push.buffer);

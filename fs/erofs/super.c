@@ -211,9 +211,7 @@ static void erofs_default_options(struct erofs_fs_context *ctx)
 
 enum {
 	Opt_user_xattr,
-	Opt_nouser_xattr,
 	Opt_acl,
-	Opt_noacl,
 	Opt_cache_strategy,
 	Opt_err
 };
@@ -563,8 +561,7 @@ static int erofs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	buf->f_namelen = EROFS_NAME_LEN;
 
-	buf->f_fsid.val[0] = (u32)id;
-	buf->f_fsid.val[1] = (u32)(id >> 32);
+	buf->f_fsid    = u64_to_fsid(id);
 	return 0;
 }
 

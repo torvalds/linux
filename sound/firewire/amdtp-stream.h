@@ -163,7 +163,7 @@ struct amdtp_stream {
 
 	/* For a PCM substream processing. */
 	struct snd_pcm_substream *pcm;
-	struct tasklet_struct period_tasklet;
+	struct work_struct period_work;
 	snd_pcm_uframes_t pcm_buffer_pointer;
 	unsigned int pcm_period_pointer;
 
@@ -270,7 +270,7 @@ static inline bool amdtp_stream_wait_callback(struct amdtp_stream *s,
 					      unsigned int timeout)
 {
 	return wait_event_timeout(s->callback_wait,
-				  s->callbacked == true,
+				  s->callbacked,
 				  msecs_to_jiffies(timeout)) > 0;
 }
 

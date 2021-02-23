@@ -43,7 +43,8 @@ struct drm_crtc_state *intel_crtc_duplicate_state(struct drm_crtc *crtc);
 void intel_crtc_destroy_state(struct drm_crtc *crtc,
 			       struct drm_crtc_state *state);
 void intel_crtc_free_hw_state(struct intel_crtc_state *crtc_state);
-void intel_crtc_copy_color_blobs(struct intel_crtc_state *crtc_state);
+void intel_crtc_copy_color_blobs(struct intel_crtc_state *crtc_state,
+				 const struct intel_crtc_state *from_crtc_state);
 struct drm_atomic_state *intel_atomic_state_alloc(struct drm_device *dev);
 void intel_atomic_state_free(struct drm_atomic_state *state);
 void intel_atomic_state_clear(struct drm_atomic_state *state);
@@ -55,9 +56,5 @@ intel_atomic_get_crtc_state(struct drm_atomic_state *state,
 int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 			       struct intel_crtc *intel_crtc,
 			       struct intel_crtc_state *crtc_state);
-
-int _intel_atomic_lock_global_state(struct intel_atomic_state *state);
-
-int _intel_atomic_serialize_global_state(struct intel_atomic_state *state);
 
 #endif /* __INTEL_ATOMIC_H__ */

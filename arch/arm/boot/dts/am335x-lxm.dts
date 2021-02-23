@@ -160,11 +160,15 @@
 	serial_config1: serial_config1@20 {
 		compatible = "nxp,pca9539";
 		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
 	};
 
 	serial_config2: serial_config2@21 {
 		compatible = "nxp,pca9539";
 		reg = <0x21>;
+		gpio-controller;
+		#gpio-cells = <2>;
 	};
 
 	tps: tps@2d {

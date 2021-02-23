@@ -656,14 +656,14 @@ acpi_ev_detect_gpe(struct acpi_namespace_node *gpe_device,
 
 	/* GPE currently enabled (enable bit == 1)? */
 
-	status = acpi_hw_read(&enable_reg, &gpe_register_info->enable_address);
+	status = acpi_hw_gpe_read(&enable_reg, &gpe_register_info->enable_address);
 	if (ACPI_FAILURE(status)) {
 		goto error_exit;
 	}
 
 	/* GPE currently active (status bit == 1)? */
 
-	status = acpi_hw_read(&status_reg, &gpe_register_info->status_address);
+	status = acpi_hw_gpe_read(&status_reg, &gpe_register_info->status_address);
 	if (ACPI_FAILURE(status)) {
 		goto error_exit;
 	}

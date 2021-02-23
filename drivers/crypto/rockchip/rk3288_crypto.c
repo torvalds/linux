@@ -10,6 +10,7 @@
  */
 
 #include "rk3288_crypto.h"
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>

@@ -502,8 +502,6 @@ static void ishtp_bus_remove_device(struct ishtp_cl_device *device)
 int ishtp_cl_driver_register(struct ishtp_cl_driver *driver,
 			     struct module *owner)
 {
-	int err;
-
 	if (!ishtp_device_ready)
 		return -ENODEV;
 
@@ -511,11 +509,7 @@ int ishtp_cl_driver_register(struct ishtp_cl_driver *driver,
 	driver->driver.owner = owner;
 	driver->driver.bus = &ishtp_cl_bus_type;
 
-	err = driver_register(&driver->driver);
-	if (err)
-		return err;
-
-	return 0;
+	return driver_register(&driver->driver);
 }
 EXPORT_SYMBOL(ishtp_cl_driver_register);
 

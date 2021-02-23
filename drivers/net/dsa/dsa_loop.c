@@ -28,6 +28,53 @@ static struct dsa_loop_mib_entry dsa_loop_mibs[] = {
 
 static struct phy_device *phydevs[PHY_MAX_ADDR];
 
+enum dsa_loop_devlink_resource_id {
+	DSA_LOOP_DEVLINK_PARAM_ID_VTU,
+};
+
+static u64 dsa_loop_devlink_vtu_get(void *priv)
+{
+	struct dsa_loop_priv *ps = priv;
+	unsigned int i, count = 0;
+	struct dsa_loop_vlan *vl;
+
+	for (i = 0; i < ARRAY_SIZE(ps->vlans); i++) {
+		vl = &ps->vlans[i];
+		if (vl->members)
+			count++;
+	}
+
+	return count;
+}
+
+static int dsa_loop_setup_devlink_resources(struct dsa_switch *ds)
+{
+	struct devlink_resource_size_params size_params;
+	struct dsa_loop_priv *ps = ds->priv;
+	int err;
+
+	devlink_resource_size_params_init(&size_params, ARRAY_SIZE(ps->vlans),
+					  ARRAY_SIZE(ps->vlans),
+					  1, DEVLINK_RESOURCE_UNIT_ENTRY);
+
+	err = dsa_devlink_resource_register(ds, "VTU", ARRAY_SIZE(ps->vlans),
+					    DSA_LOOP_DEVLINK_PARAM_ID_VTU,
+					    DEVLINK_RESOURCE_ID_PARENT_TOP,
+					    &size_params);
+	if (err)
+		goto out;
+
+	dsa_devlink_resource_occ_get_register(ds,
+					      DSA_LOOP_DEVLINK_PARAM_ID_VTU,
+					      dsa_loop_devlink_vtu_get, ps);
+
+	return 0;
+
+out:
+	dsa_devlink_resources_unregister(ds);
+	return err;
+}
+
 static enum dsa_tag_protocol dsa_loop_get_protocol(struct dsa_switch *ds,
 						   int port,
 						   enum dsa_tag_protocol mp)
@@ -48,7 +95,12 @@ static int dsa_loop_setup(struct dsa_switch *ds)
 
 	dev_dbg(ds->dev, "%s\n", __func__);
 
-	return 0;
+	return dsa_loop_setup_devlink_resources(ds);
+}
+
+static void dsa_loop_teardown(struct dsa_switch *ds)
+{
+	dsa_devlink_resources_unregister(ds);
 }
 
 static int dsa_loop_get_sset_count(struct dsa_switch *ds, int port, int sset)
@@ -138,7 +190,8 @@ static void dsa_loop_port_stp_state_set(struct dsa_switch *ds, int port,
 }
 
 static int dsa_loop_port_vlan_filtering(struct dsa_switch *ds, int port,
-					bool vlan_filtering)
+					bool vlan_filtering,
+					struct switchdev_trans *trans)
 {
 	dev_dbg(ds->dev, "%s: port: %d, vlan_filtering: %d\n",
 		__func__, port, vlan_filtering);
@@ -243,6 +296,7 @@ static int dsa_loop_port_max_mtu(struct dsa_switch *ds, int port)
 static const struct dsa_switch_ops dsa_loop_driver = {
 	.get_tag_protocol	= dsa_loop_get_protocol,
 	.setup			= dsa_loop_setup,
+	.teardown		= dsa_loop_teardown,
 	.get_strings		= dsa_loop_get_strings,
 	.get_ethtool_stats	= dsa_loop_get_ethtool_stats,
 	.get_sset_count		= dsa_loop_get_sset_count,
@@ -290,6 +344,7 @@ static int dsa_loop_drv_probe(struct mdio_device *mdiodev)
 	ds->dev = &mdiodev->dev;
 	ds->ops = &dsa_loop_driver;
 	ds->priv = ps;
+	ds->configure_vlan_while_not_filtering = true;
 	ps->bus = mdiodev->bus;
 
 	dev_set_drvdata(&mdiodev->dev, ds);

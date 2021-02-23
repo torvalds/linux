@@ -10,6 +10,7 @@
 
 #include <linux/init.h>
 #include <linux/atomic.h>
+#include <linux/ethtool.h>
 #include <linux/module.h>
 #include <linux/highmem.h>
 #include <linux/device.h>
@@ -373,32 +374,29 @@ static u16 netvsc_select_queue(struct net_device *ndev, struct sk_buff *skb,
 	return txq;
 }
 
-static u32 fill_pg_buf(struct page *page, u32 offset, u32 len,
+static u32 fill_pg_buf(unsigned long hvpfn, u32 offset, u32 len,
 		       struct hv_page_buffer *pb)
 {
 	int j = 0;
 
-	/* Deal with compound pages by ignoring unused part
-	 * of the page.
-	 */
-	page += (offset >> PAGE_SHIFT);
-	offset &= ~PAGE_MASK;
+	hvpfn += offset >> HV_HYP_PAGE_SHIFT;
+	offset = offset & ~HV_HYP_PAGE_MASK;
 
 	while (len > 0) {
 		unsigned long bytes;
 
-		bytes = PAGE_SIZE - offset;
+		bytes = HV_HYP_PAGE_SIZE - offset;
 		if (bytes > len)
 			bytes = len;
-		pb[j].pfn = page_to_pfn(page);
+		pb[j].pfn = hvpfn;
 		pb[j].offset = offset;
 		pb[j].len = bytes;
 
 		offset += bytes;
 		len -= bytes;
 
-		if (offset == PAGE_SIZE && len) {
-			page++;
+		if (offset == HV_HYP_PAGE_SIZE && len) {
+			hvpfn++;
 			offset = 0;
 			j++;
 		}
@@ -421,23 +419,26 @@ static u32 init_page_array(void *hdr, u32 len, struct sk_buff *skb,
 	 * 2. skb linear data
 	 * 3. skb fragment data
 	 */
-	slots_used += fill_pg_buf(virt_to_page(hdr),
-				  offset_in_page(hdr),
-				  len, &pb[slots_used]);
+	slots_used += fill_pg_buf(virt_to_hvpfn(hdr),
+				  offset_in_hvpage(hdr),
+				  len,
+				  &pb[slots_used]);
 
 	packet->rmsg_size = len;
 	packet->rmsg_pgcnt = slots_used;
 
-	slots_used += fill_pg_buf(virt_to_page(data),
-				offset_in_page(data),
-				skb_headlen(skb), &pb[slots_used]);
+	slots_used += fill_pg_buf(virt_to_hvpfn(data),
+				  offset_in_hvpage(data),
+				  skb_headlen(skb),
+				  &pb[slots_used]);
 
 	for (i = 0; i < frags; i++) {
 		skb_frag_t *frag = skb_shinfo(skb)->frags + i;
 
-		slots_used += fill_pg_buf(skb_frag_page(frag),
-					skb_frag_off(frag),
-					skb_frag_size(frag), &pb[slots_used]);
+		slots_used += fill_pg_buf(page_to_hvpfn(skb_frag_page(frag)),
+					  skb_frag_off(frag),
+					  skb_frag_size(frag),
+					  &pb[slots_used]);
 	}
 	return slots_used;
 }
@@ -453,8 +454,8 @@ static int count_skb_frag_slots(struct sk_buff *skb)
 		unsigned long offset = skb_frag_off(frag);
 
 		/* Skip unused frames from start of page */
-		offset &= ~PAGE_MASK;
-		pages += PFN_UP(offset + size);
+		offset &= ~HV_HYP_PAGE_MASK;
+		pages += HVPFN_UP(offset + size);
 	}
 	return pages;
 }
@@ -462,12 +463,12 @@ static int count_skb_frag_slots(struct sk_buff *skb)
 static int netvsc_get_slots(struct sk_buff *skb)
 {
 	char *data = skb->data;
-	unsigned int offset = offset_in_page(data);
+	unsigned int offset = offset_in_hvpage(data);
 	unsigned int len = skb_headlen(skb);
 	int slots;
 	int frag_slots;
 
-	slots = DIV_ROUND_UP(offset + len, PAGE_SIZE);
+	slots = DIV_ROUND_UP(offset + len, HV_HYP_PAGE_SIZE);
 	frag_slots = count_skb_frag_slots(skb);
 	return slots + frag_slots;
 }
@@ -2049,11 +2050,11 @@ static void netvsc_link_change(struct work_struct *w)
 		container_of(w, struct net_device_context, dwork.work);
 	struct hv_device *device_obj = ndev_ctx->device_ctx;
 	struct net_device *net = hv_get_drvdata(device_obj);
+	unsigned long flags, next_reconfig, delay;
+	struct netvsc_reconfig *event = NULL;
 	struct netvsc_device *net_device;
 	struct rndis_device *rdev;
-	struct netvsc_reconfig *event = NULL;
-	bool notify = false, reschedule = false;
-	unsigned long flags, next_reconfig, delay;
+	bool reschedule = false;
 
 	/* if changes are happening, comeback later */
 	if (!rtnl_trylock()) {
@@ -2102,7 +2103,7 @@ static void netvsc_link_change(struct work_struct *w)
 			netif_carrier_on(net);
 			netvsc_tx_enable(net_device, net);
 		} else {
-			notify = true;
+			__netdev_notify_peers(net);
 		}
 		kfree(event);
 		break;
@@ -2130,9 +2131,6 @@ static void netvsc_link_change(struct work_struct *w)
 	}
 
 	rtnl_unlock();
-
-	if (notify)
-		netdev_notify_peers(net);
 
 	/* link_watch only sends one notification with current state per
 	 * second, handle next reconfig event in 2 seconds.

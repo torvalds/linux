@@ -1,7 +1,7 @@
 /*
  * DM81xx hwmod data.
  *
- * Copyright (C) 2010 Texas Instruments, Inc. - http://www.ti.com/
+ * Copyright (C) 2010 Texas Instruments, Inc. - https://www.ti.com/
  * Copyright (C) 2013 SKTB SKiT, http://www.skitlab.ru/
  *
  * This program is free software; you can redistribute it and/or

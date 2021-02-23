@@ -67,7 +67,7 @@
 &ecspi2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
-	cs-gpios = <&gpio5 12 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio5 12 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
 	flash@0 {
@@ -80,7 +80,7 @@
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
-	cs-gpios = <&gpio5 25 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio5 25 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
 	tpm@0 {

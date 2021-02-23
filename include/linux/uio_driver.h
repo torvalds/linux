@@ -117,6 +117,14 @@ extern int __must_check
 			      struct uio_info *info);
 
 /* use a define to avoid include chaining to get THIS_MODULE */
+
+/**
+ * uio_register_device - register a new userspace IO device
+ * @parent:	parent device
+ * @info:	UIO device capabilities
+ *
+ * returns zero on success or a negative error code.
+ */
 #define uio_register_device(parent, info) \
 	__uio_register_device(THIS_MODULE, parent, info)
 
@@ -129,6 +137,14 @@ extern int __must_check
 				   struct uio_info *info);
 
 /* use a define to avoid include chaining to get THIS_MODULE */
+
+/**
+ * devm_uio_register_device - Resource managed uio_register_device()
+ * @parent:	parent device
+ * @info:	UIO device capabilities
+ *
+ * returns zero on success or a negative error code.
+ */
 #define devm_uio_register_device(parent, info) \
 	__devm_uio_register_device(THIS_MODULE, parent, info)
 

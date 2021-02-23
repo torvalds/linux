@@ -401,7 +401,7 @@ static void sun8i_vi_layer_atomic_update(struct drm_plane *plane,
 			      true, zpos, old_zpos);
 }
 
-static struct drm_plane_helper_funcs sun8i_vi_layer_helper_funcs = {
+static const struct drm_plane_helper_funcs sun8i_vi_layer_helper_funcs = {
 	.prepare_fb	= drm_gem_fb_prepare_fb,
 	.atomic_check	= sun8i_vi_layer_atomic_check,
 	.atomic_disable	= sun8i_vi_layer_atomic_disable,

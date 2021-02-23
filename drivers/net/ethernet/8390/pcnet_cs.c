@@ -1178,8 +1178,10 @@ static void dma_block_input(struct net_device *dev, int count,
     outb_p(E8390_RREAD+E8390_START, nic_base + PCNET_CMD);
 
     insw(nic_base + PCNET_DATAPORT,buf,count>>1);
-    if (count & 0x01)
-	buf[count-1] = inb(nic_base + PCNET_DATAPORT), xfer_count++;
+    if (count & 0x01) {
+	buf[count-1] = inb(nic_base + PCNET_DATAPORT);
+	xfer_count++;
+    }
 
     /* This was for the ALPHA version only, but enough people have been
        encountering problems that it is still here. */

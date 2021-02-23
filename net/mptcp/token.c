@@ -291,7 +291,7 @@ struct mptcp_sock *mptcp_token_iter_next(const struct net *net, long *s_slot,
 {
 	struct mptcp_sock *ret = NULL;
 	struct hlist_nulls_node *pos;
-	int slot, num;
+	int slot, num = 0;
 
 	for (slot = *s_slot; slot <= token_mask; *s_num = 0, slot++) {
 		struct token_bucket *bucket = &token_hash[slot];

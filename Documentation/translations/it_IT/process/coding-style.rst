@@ -92,16 +92,22 @@ delle righe.
 Lo stile del codice riguarda la leggibilità e la manutenibilità utilizzando
 strumenti comuni.
 
-Il limite delle righe è di 80 colonne e questo e un limite fortemente
-desiderato.
+Come limite di riga si preferiscono le 80 colonne.
 
-Espressioni più lunghe di 80 colonne saranno spezzettate in pezzi più piccoli,
-a meno che eccedere le 80 colonne non aiuti ad aumentare la leggibilità senza
-nascondere informazioni.  I pezzi derivati sono sostanzialmente più corti degli
-originali e vengono posizionati più a destra.  Lo stesso si applica, nei file
-d'intestazione, alle funzioni con una lista di argomenti molto lunga. Tuttavia,
-non spezzettate mai le stringhe visibili agli utenti come i messaggi di
-printk, questo perché inibireste la possibilità d'utilizzare grep per cercarle.
+Espressioni più lunghe di 80 colonne dovrebbero essere spezzettate in
+pezzi più piccoli, a meno che eccedere le 80 colonne non aiuti ad
+aumentare la leggibilità senza nascondere informazioni.
+
+I nuovi pezzi derivati sono sostanzialmente più corti degli originali
+e vengono posizionati più a destra. Uno stile molto comune è quello di
+allineare i nuovi pezzi alla parentesi aperta di una funzione.
+
+Lo stesso si applica, nei file d'intestazione, alle funzioni con una
+lista di argomenti molto lunga.
+
+Tuttavia, non spezzettate mai le stringhe visibili agli utenti come i
+messaggi di printk, questo perché inibireste la possibilità
+d'utilizzare grep per cercarle.
 
 3) Posizionamento di parentesi graffe e spazi
 ---------------------------------------------

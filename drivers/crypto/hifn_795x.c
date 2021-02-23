@@ -780,8 +780,8 @@ static int hifn_register_rng(struct hifn_device *dev)
 						   dev->pk_clk_freq) * 256;
 
 	dev->rng.name		= dev->name;
-	dev->rng.data_present	= hifn_rng_data_present,
-	dev->rng.data_read	= hifn_rng_data_read,
+	dev->rng.data_present	= hifn_rng_data_present;
+	dev->rng.data_read	= hifn_rng_data_read;
 	dev->rng.priv		= (unsigned long)dev;
 
 	return hwrng_register(&dev->rng);
@@ -1235,7 +1235,8 @@ static int hifn_setup_src_desc(struct hifn_device *dev, struct page *page,
 	int idx;
 	dma_addr_t addr;
 
-	addr = pci_map_page(dev->pdev, page, offset, size, PCI_DMA_TODEVICE);
+	addr = dma_map_page(&dev->pdev->dev, page, offset, size,
+			    DMA_TO_DEVICE);
 
 	idx = dma->srci;
 
@@ -1293,7 +1294,8 @@ static void hifn_setup_dst_desc(struct hifn_device *dev, struct page *page,
 	int idx;
 	dma_addr_t addr;
 
-	addr = pci_map_page(dev->pdev, page, offset, size, PCI_DMA_FROMDEVICE);
+	addr = dma_map_page(&dev->pdev->dev, page, offset, size,
+			    DMA_FROM_DEVICE);
 
 	idx = dma->dsti;
 	dma->dstr[idx].p = __cpu_to_le32(addr);
@@ -2470,7 +2472,7 @@ static int hifn_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return err;
 	pci_set_master(pdev);
 
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (err)
 		goto err_out_disable_pci_device;
 
@@ -2514,8 +2516,9 @@ static int hifn_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		}
 	}
 
-	dev->desc_virt = pci_zalloc_consistent(pdev, sizeof(struct hifn_dma),
-					       &dev->desc_dma);
+	dev->desc_virt = dma_alloc_coherent(&pdev->dev,
+					    sizeof(struct hifn_dma),
+					    &dev->desc_dma, GFP_KERNEL);
 	if (!dev->desc_virt) {
 		dev_err(&pdev->dev, "Failed to allocate descriptor rings.\n");
 		err = -ENOMEM;
@@ -2572,8 +2575,8 @@ err_out_free_irq:
 	free_irq(dev->irq, dev);
 	tasklet_kill(&dev->tasklet);
 err_out_free_desc:
-	pci_free_consistent(pdev, sizeof(struct hifn_dma),
-			dev->desc_virt, dev->desc_dma);
+	dma_free_coherent(&pdev->dev, sizeof(struct hifn_dma), dev->desc_virt,
+			  dev->desc_dma);
 
 err_out_unmap_bars:
 	for (i = 0; i < 3; ++i)
@@ -2610,8 +2613,8 @@ static void hifn_remove(struct pci_dev *pdev)
 
 		hifn_flush(dev);
 
-		pci_free_consistent(pdev, sizeof(struct hifn_dma),
-				dev->desc_virt, dev->desc_dma);
+		dma_free_coherent(&pdev->dev, sizeof(struct hifn_dma),
+				  dev->desc_virt, dev->desc_dma);
 		for (i = 0; i < 3; ++i)
 			if (dev->bar[i])
 				iounmap(dev->bar[i]);
@@ -2641,9 +2644,6 @@ static int __init hifn_init(void)
 {
 	unsigned int freq;
 	int err;
-
-	/* HIFN supports only 32-bit addresses */
-	BUILD_BUG_ON(sizeof(dma_addr_t) != 4);
 
 	if (strncmp(hifn_pll_ref, "ext", 3) &&
 	    strncmp(hifn_pll_ref, "pci", 3)) {

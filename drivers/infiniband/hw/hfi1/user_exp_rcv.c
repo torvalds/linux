@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2020 Cornelis Networks, Inc.
  * Copyright(c) 2015-2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
@@ -173,15 +174,18 @@ static void unpin_rcv_pages(struct hfi1_filedata *fd,
 {
 	struct page **pages;
 	struct hfi1_devdata *dd = fd->uctxt->dd;
+	struct mm_struct *mm;
 
 	if (mapped) {
 		pci_unmap_single(dd->pcidev, node->dma_addr,
 				 node->npages * PAGE_SIZE, PCI_DMA_FROMDEVICE);
 		pages = &node->pages[idx];
+		mm = mm_from_tid_node(node);
 	} else {
 		pages = &tidbuf->pages[idx];
+		mm = current->mm;
 	}
-	hfi1_release_user_pages(fd->mm, pages, npages, mapped);
+	hfi1_release_user_pages(mm, pages, npages, mapped);
 	fd->tid_n_pinned -= npages;
 }
 
@@ -216,12 +220,12 @@ static int pin_rcv_pages(struct hfi1_filedata *fd, struct tid_user_buf *tidbuf)
 	 * pages, accept the amount pinned so far and program only that.
 	 * User space knows how to deal with partially programmed buffers.
 	 */
-	if (!hfi1_can_pin_pages(dd, fd->mm, fd->tid_n_pinned, npages)) {
+	if (!hfi1_can_pin_pages(dd, current->mm, fd->tid_n_pinned, npages)) {
 		kfree(pages);
 		return -ENOMEM;
 	}
 
-	pinned = hfi1_acquire_user_pages(fd->mm, vaddr, npages, true, pages);
+	pinned = hfi1_acquire_user_pages(current->mm, vaddr, npages, true, pages);
 	if (pinned <= 0) {
 		kfree(pages);
 		return pinned;
@@ -756,7 +760,7 @@ static int set_rcvarray_entry(struct hfi1_filedata *fd,
 
 	if (fd->use_mn) {
 		ret = mmu_interval_notifier_insert(
-			&node->notifier, fd->mm,
+			&node->notifier, current->mm,
 			tbuf->vaddr + (pageidx * PAGE_SIZE), npages * PAGE_SIZE,
 			&tid_mn_ops);
 		if (ret)

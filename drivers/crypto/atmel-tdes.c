@@ -912,7 +912,7 @@ static void atmel_tdes_skcipher_alg_init(struct skcipher_alg *alg)
 {
 	alg->base.cra_priority = ATMEL_TDES_PRIORITY;
 	alg->base.cra_flags = CRYPTO_ALG_ASYNC;
-	alg->base.cra_ctxsize = sizeof(struct atmel_tdes_ctx),
+	alg->base.cra_ctxsize = sizeof(struct atmel_tdes_ctx);
 	alg->base.cra_module = THIS_MODULE;
 
 	alg->init = atmel_tdes_init_tfm;

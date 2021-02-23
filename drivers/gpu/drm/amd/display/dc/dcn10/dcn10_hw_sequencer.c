@@ -52,6 +52,7 @@
 #include "dpcd_defs.h"
 #include "dsc.h"
 #include "dce/dmub_hw_lock_mgr.h"
+#include "dc_trace.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -646,8 +647,13 @@ static void power_on_plane(
 	if (REG(DC_IP_REQUEST_CNTL)) {
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 1);
-		hws->funcs.dpp_pg_control(hws, plane_id, true);
-		hws->funcs.hubp_pg_control(hws, plane_id, true);
+
+		if (hws->funcs.dpp_pg_control)
+			hws->funcs.dpp_pg_control(hws, plane_id, true);
+
+		if (hws->funcs.hubp_pg_control)
+			hws->funcs.hubp_pg_control(hws, plane_id, true);
+
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 0);
 		DC_LOG_DEBUG(
@@ -1020,15 +1026,17 @@ static bool dcn10_hw_wa_force_recovery(struct dc *dc)
 
 }
 
-
 void dcn10_verify_allow_pstate_change_high(struct dc *dc)
 {
 	static bool should_log_hw_state; /* prevent hw state log by default */
 
 	if (!hubbub1_verify_allow_pstate_change_high(dc->res_pool->hubbub)) {
-		if (should_log_hw_state) {
+		int i = 0;
+
+		if (should_log_hw_state)
 			dcn10_log_hw_state(dc, NULL);
-		}
+
+		TRACE_DC_PIPE_STATE(pipe_ctx, i, MAX_PIPES);
 		BREAK_TO_DEBUGGER();
 		if (dcn10_hw_wa_force_recovery(dc)) {
 		/*check again*/
@@ -1079,8 +1087,13 @@ void dcn10_plane_atomic_power_down(struct dc *dc,
 	if (REG(DC_IP_REQUEST_CNTL)) {
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 1);
-		hws->funcs.dpp_pg_control(hws, dpp->inst, false);
-		hws->funcs.hubp_pg_control(hws, hubp->inst, false);
+
+		if (hws->funcs.dpp_pg_control)
+			hws->funcs.dpp_pg_control(hws, dpp->inst, false);
+
+		if (hws->funcs.hubp_pg_control)
+			hws->funcs.hubp_pg_control(hws, hubp->inst, false);
+
 		dpp->funcs->dpp_reset(dpp);
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 0);
@@ -1434,26 +1447,17 @@ void dcn10_init_hw(struct dc *dc)
 
 	if (dc->clk_mgr->funcs->notify_wm_ranges)
 		dc->clk_mgr->funcs->notify_wm_ranges(dc->clk_mgr);
-
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
-	if (dc->clk_mgr->funcs->set_hard_max_memclk)
-		dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
-#endif
-
 }
 
 /* In headless boot cases, DIG may be turned
  * on which causes HW/SW discrepancies.
  * To avoid this, power down hardware on boot
- * if DIG is turned on and seamless boot not enabled
+ * if DIG is turned on
  */
 void dcn10_power_down_on_boot(struct dc *dc)
 {
 	int i = 0;
 	struct dc_link *edp_link;
-
-	if (!dc->config.power_down_display_on_boot)
-		return;
 
 	edp_link = get_edp_link(dc);
 	if (edp_link &&
@@ -1541,6 +1545,8 @@ static bool patch_address_for_sbs_tb_stereo(
 			plane_state->address.type = PLN_ADDR_TYPE_GRPH_STEREO;
 			plane_state->address.grph_stereo.right_addr =
 			plane_state->address.grph_stereo.left_addr;
+			plane_state->address.grph_stereo.right_meta_addr =
+			plane_state->address.grph_stereo.left_meta_addr;
 		}
 	}
 	return false;
@@ -1851,9 +1857,19 @@ void dcn10_enable_timing_synchronization(
 	struct pipe_ctx *grouped_pipes[])
 {
 	struct dc_context *dc_ctx = dc->ctx;
-	int i;
+	struct output_pixel_processor *opp;
+	struct timing_generator *tg;
+	int i, width, height;
 
 	DC_SYNC_INFO("Setting up OTG reset trigger\n");
+
+	for (i = 1; i < group_size; i++) {
+		opp = grouped_pipes[i]->stream_res.opp;
+		tg = grouped_pipes[i]->stream_res.tg;
+		tg->funcs->get_otg_active_size(tg, &width, &height);
+		if (opp->funcs->opp_program_dpg_dimensions)
+			opp->funcs->opp_program_dpg_dimensions(opp, width, 2*(height) + 1);
+	}
 
 	for (i = 1; i < group_size; i++)
 		grouped_pipes[i]->stream_res.tg->funcs->enable_reset_trigger(
@@ -1870,6 +1886,14 @@ void dcn10_enable_timing_synchronization(
 	for (i = 1; i < group_size; i++)
 		grouped_pipes[i]->stream_res.tg->funcs->disable_reset_trigger(
 				grouped_pipes[i]->stream_res.tg);
+
+	for (i = 1; i < group_size; i++) {
+		opp = grouped_pipes[i]->stream_res.opp;
+		tg = grouped_pipes[i]->stream_res.tg;
+		tg->funcs->get_otg_active_size(tg, &width, &height);
+		if (opp->funcs->opp_program_dpg_dimensions)
+			opp->funcs->opp_program_dpg_dimensions(opp, width, height);
+	}
 
 	DC_SYNC_INFO("Sync complete\n");
 }
@@ -2377,14 +2401,6 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 				&blnd_cfg.black_color);
 	}
 
-	/*
-	 * The way 420 is packed, 2 channels carry Y component, 1 channel
-	 * alternate between Cb and Cr, so both channels need the pixel
-	 * value for Y
-	 */
-	if (pipe_ctx->stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
-		blnd_cfg.black_color.color_r_cr = blnd_cfg.black_color.color_g_y;
-
 	if (per_pixel_alpha)
 		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA;
 	else
@@ -2730,7 +2746,7 @@ static void dcn10_program_all_pipe_in_tree(
 				pipe_ctx->pipe_dlg_param.vupdate_width);
 
 		pipe_ctx->stream_res.tg->funcs->set_vtg_params(
-				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
+				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing, true);
 
 		if (hws->funcs.setup_vupdate_interrupt)
 			hws->funcs.setup_vupdate_interrupt(dc, pipe_ctx);
@@ -2767,6 +2783,38 @@ static struct pipe_ctx *dcn10_find_top_pipe_for_stream(
 			return pipe_ctx;
 	}
 	return NULL;
+}
+
+void dcn10_wait_for_pending_cleared(struct dc *dc,
+		struct dc_state *context)
+{
+		struct pipe_ctx *pipe_ctx;
+		struct timing_generator *tg;
+		int i;
+
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			pipe_ctx = &context->res_ctx.pipe_ctx[i];
+			tg = pipe_ctx->stream_res.tg;
+
+			/*
+			 * Only wait for top pipe's tg penindg bit
+			 * Also skip if pipe is disabled.
+			 */
+			if (pipe_ctx->top_pipe ||
+			    !pipe_ctx->stream || !pipe_ctx->plane_state ||
+			    !tg->funcs->is_tg_enabled(tg))
+				continue;
+
+			/*
+			 * Wait for VBLANK then VACTIVE to ensure we get VUPDATE.
+			 * For some reason waiting for OTG_UPDATE_PENDING cleared
+			 * seems to not trigger the update right away, and if we
+			 * lock again before VUPDATE then we don't get a separated
+			 * operation.
+			 */
+			pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg, CRTC_STATE_VBLANK);
+			pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg, CRTC_STATE_VACTIVE);
+		}
 }
 
 void dcn10_apply_ctx_for_surface(
@@ -3238,6 +3286,8 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	};
 	bool pipe_split_on = (pipe_ctx->top_pipe != NULL) ||
 		(pipe_ctx->bottom_pipe != NULL);
+	bool odm_combine_on = (pipe_ctx->next_odm_pipe != NULL) ||
+		(pipe_ctx->prev_odm_pipe != NULL);
 
 	int x_plane = pipe_ctx->plane_state->dst_rect.x;
 	int y_plane = pipe_ctx->plane_state->dst_rect.y;
@@ -3321,16 +3371,56 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		uint32_t temp_y = pos_cpy.y;
 		int viewport_height =
 			pipe_ctx->plane_res.scl_data.viewport.height;
+		int viewport_y =
+			pipe_ctx->plane_res.scl_data.viewport.y;
 
-		if (pipe_split_on) {
+		/**
+		 * Display groups that are 1xnY, have pos_cpy.x > 2 * viewport.height
+		 * For pipe split cases:
+		 * - apply offset of viewport.y to normalize pos_cpy.x
+		 * - calculate the pos_cpy.y as before
+		 * - shift pos_cpy.y back by same offset to get final value
+		 * - since we iterate through both pipes, use the lower
+		 *   viewport.y for offset
+		 * For non pipe split cases, use the same calculation for
+		 *  pos_cpy.y as the 180 degree rotation case below,
+		 *  but use pos_cpy.x as our input because we are rotating
+		 *  270 degrees
+		 */
+		if (pipe_split_on || odm_combine_on) {
+			int pos_cpy_x_offset;
+			int other_pipe_viewport_y;
+
+			if (pipe_split_on) {
+				if (pipe_ctx->bottom_pipe) {
+					other_pipe_viewport_y =
+						pipe_ctx->bottom_pipe->plane_res.scl_data.viewport.y;
+				} else {
+					other_pipe_viewport_y =
+						pipe_ctx->top_pipe->plane_res.scl_data.viewport.y;
+				}
+			} else {
+				if (pipe_ctx->next_odm_pipe) {
+					other_pipe_viewport_y =
+						pipe_ctx->next_odm_pipe->plane_res.scl_data.viewport.y;
+				} else {
+					other_pipe_viewport_y =
+						pipe_ctx->prev_odm_pipe->plane_res.scl_data.viewport.y;
+				}
+			}
+			pos_cpy_x_offset = (viewport_y > other_pipe_viewport_y) ?
+				other_pipe_viewport_y : viewport_y;
+			pos_cpy.x -= pos_cpy_x_offset;
 			if (pos_cpy.x > viewport_height) {
 				pos_cpy.x = pos_cpy.x - viewport_height;
 				pos_cpy.y = viewport_height - pos_cpy.x;
 			} else {
 				pos_cpy.y = 2 * viewport_height - pos_cpy.x;
 			}
-		} else
-			pos_cpy.y = viewport_height - pos_cpy.x;
+			pos_cpy.y += pos_cpy_x_offset;
+		} else {
+			pos_cpy.y = (2 * viewport_y) + viewport_height - pos_cpy.x;
+		}
 		pos_cpy.x = temp_y;
 	}
 	// Mirror horizontally and vertically
@@ -3340,7 +3430,7 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		int viewport_x =
 			pipe_ctx->plane_res.scl_data.viewport.x;
 
-		if (pipe_split_on) {
+		if (pipe_split_on || odm_combine_on) {
 			if (pos_cpy.x >= viewport_width + viewport_x) {
 				pos_cpy.x = 2 * viewport_width
 						- pos_cpy.x + 2 * viewport_x;
@@ -3358,7 +3448,17 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		} else {
 			pos_cpy.x = viewport_width - pos_cpy.x + 2 * viewport_x;
 		}
-		pos_cpy.y = pipe_ctx->plane_res.scl_data.viewport.height - pos_cpy.y;
+
+		/**
+		 * Display groups that are 1xnY, have pos_cpy.y > viewport.height
+		 * Calculation:
+		 *   delta_from_bottom = viewport.y + viewport.height - pos_cpy.y
+		 *   pos_cpy.y_new = viewport.y + delta_from_bottom
+		 * Simplify it as:
+		 *   pos_cpy.y = viewport.y * 2 + viewport.height - pos_cpy.y
+		 */
+		pos_cpy.y = (2 * pipe_ctx->plane_res.scl_data.viewport.y) +
+			pipe_ctx->plane_res.scl_data.viewport.height - pos_cpy.y;
 	}
 
 	hubp->funcs->set_cursor_position(hubp, &pos_cpy, &param);

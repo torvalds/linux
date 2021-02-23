@@ -217,6 +217,14 @@ struct snd_soc_component {
 	/* machine specific init */
 	int (*init)(struct snd_soc_component *component);
 
+	/* function mark */
+	struct snd_pcm_substream *mark_module;
+	struct snd_pcm_substream *mark_open;
+	struct snd_pcm_substream *mark_hw_params;
+	struct snd_pcm_substream *mark_trigger;
+	struct snd_compr_stream  *mark_compr_open;
+	void *mark_pm;
+
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_root;
 	const char *debugfs_prefix;
@@ -370,17 +378,19 @@ void snd_soc_component_exit_regmap(struct snd_soc_component *component);
 #endif
 
 #define snd_soc_component_module_get_when_probe(component)\
-	snd_soc_component_module_get(component, 0)
-#define snd_soc_component_module_get_when_open(component)	\
-	snd_soc_component_module_get(component, 1)
+	snd_soc_component_module_get(component, NULL, 0)
+#define snd_soc_component_module_get_when_open(component, substream)	\
+	snd_soc_component_module_get(component, substream, 1)
 int snd_soc_component_module_get(struct snd_soc_component *component,
+				 struct snd_pcm_substream *substream,
 				 int upon_open);
 #define snd_soc_component_module_put_when_remove(component)	\
-	snd_soc_component_module_put(component, 0)
-#define snd_soc_component_module_put_when_close(component)	\
-	snd_soc_component_module_put(component, 1)
+	snd_soc_component_module_put(component, NULL, 0, 0)
+#define snd_soc_component_module_put_when_close(component, substream, rollback) \
+	snd_soc_component_module_put(component, substream, 1, rollback)
 void snd_soc_component_module_put(struct snd_soc_component *component,
-				  int upon_open);
+				  struct snd_pcm_substream *substream,
+				  int upon_open, int rollback);
 
 static inline void snd_soc_component_set_drvdata(struct snd_soc_component *c,
 						 void *data)
@@ -424,7 +434,8 @@ int snd_soc_component_force_enable_pin_unlocked(
 int snd_soc_component_open(struct snd_soc_component *component,
 			   struct snd_pcm_substream *substream);
 int snd_soc_component_close(struct snd_soc_component *component,
-			    struct snd_pcm_substream *substream);
+			    struct snd_pcm_substream *substream,
+			    int rollback);
 void snd_soc_component_suspend(struct snd_soc_component *component);
 void snd_soc_component_resume(struct snd_soc_component *component);
 int snd_soc_component_is_suspended(struct snd_soc_component *component);
@@ -435,6 +446,27 @@ int snd_soc_component_of_xlate_dai_id(struct snd_soc_component *component,
 int snd_soc_component_of_xlate_dai_name(struct snd_soc_component *component,
 					struct of_phandle_args *args,
 					const char **dai_name);
+int snd_soc_component_compr_open(struct snd_compr_stream *cstream);
+void snd_soc_component_compr_free(struct snd_compr_stream *cstream,
+				  int rollback);
+int snd_soc_component_compr_trigger(struct snd_compr_stream *cstream, int cmd);
+int snd_soc_component_compr_set_params(struct snd_compr_stream *cstream,
+				       struct snd_compr_params *params);
+int snd_soc_component_compr_get_params(struct snd_compr_stream *cstream,
+				       struct snd_codec *params);
+int snd_soc_component_compr_get_caps(struct snd_compr_stream *cstream,
+				     struct snd_compr_caps *caps);
+int snd_soc_component_compr_get_codec_caps(struct snd_compr_stream *cstream,
+					   struct snd_compr_codec_caps *codec);
+int snd_soc_component_compr_ack(struct snd_compr_stream *cstream, size_t bytes);
+int snd_soc_component_compr_pointer(struct snd_compr_stream *cstream,
+				    struct snd_compr_tstamp *tstamp);
+int snd_soc_component_compr_copy(struct snd_compr_stream *cstream,
+				 char __user *buf, size_t count);
+int snd_soc_component_compr_set_metadata(struct snd_compr_stream *cstream,
+					 struct snd_compr_metadata *metadata);
+int snd_soc_component_compr_get_metadata(struct snd_compr_stream *cstream,
+					 struct snd_compr_metadata *metadata);
 
 int snd_soc_pcm_component_pointer(struct snd_pcm_substream *substream);
 int snd_soc_pcm_component_ioctl(struct snd_pcm_substream *substream,
@@ -451,11 +483,14 @@ int snd_soc_pcm_component_new(struct snd_soc_pcm_runtime *rtd);
 void snd_soc_pcm_component_free(struct snd_soc_pcm_runtime *rtd);
 int snd_soc_pcm_component_prepare(struct snd_pcm_substream *substream);
 int snd_soc_pcm_component_hw_params(struct snd_pcm_substream *substream,
-				    struct snd_pcm_hw_params *params,
-				    struct snd_soc_component **last);
+				    struct snd_pcm_hw_params *params);
 void snd_soc_pcm_component_hw_free(struct snd_pcm_substream *substream,
-				   struct snd_soc_component *last);
+				   int rollback);
 int snd_soc_pcm_component_trigger(struct snd_pcm_substream *substream,
-				  int cmd);
+				  int cmd, int rollback);
+int snd_soc_pcm_component_pm_runtime_get(struct snd_soc_pcm_runtime *rtd,
+					 void *stream);
+void snd_soc_pcm_component_pm_runtime_put(struct snd_soc_pcm_runtime *rtd,
+					  void *stream, int rollback);
 
 #endif /* __SOC_COMPONENT_H */

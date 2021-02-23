@@ -77,7 +77,7 @@ int snd_hda_jack_detect_enable(struct hda_codec *codec, hda_nid_t nid,
 
 struct hda_jack_callback *
 snd_hda_jack_detect_enable_callback_mst(struct hda_codec *codec, hda_nid_t nid,
-					int dev_id, hda_jack_callback_fn cb);
+					int dev_id, hda_jack_callback_fn func);
 
 /**
  * snd_hda_jack_detect_enable - enable the jack-detection

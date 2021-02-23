@@ -24,6 +24,13 @@ tc_police_switch_destroy()
 	simple_if_fini $swp1
 }
 
+tc_police_addr()
+{
+       local num=$1; shift
+
+       printf "2001:db8:1::%x" $num
+}
+
 tc_police_rules_create()
 {
 	local count=$1; shift
@@ -34,8 +41,9 @@ tc_police_rules_create()
 	for ((i = 0; i < count; ++i)); do
 		cat >> $TC_POLICE_BATCH_FILE <<-EOF
 			filter add dev $swp1 ingress \
-				prot ip \
-				flower skip_sw \
+				prot ipv6 \
+				pref 1000 \
+				flower skip_sw dst_ip $(tc_police_addr $i) \
 				action police rate 10mbit burst 100k \
 				conform-exceed drop/ok
 		EOF

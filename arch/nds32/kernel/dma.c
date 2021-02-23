@@ -3,7 +3,7 @@
 
 #include <linux/types.h>
 #include <linux/mm.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-map-ops.h>
 #include <linux/cache.h>
 #include <linux/highmem.h>
 #include <asm/cacheflush.h>

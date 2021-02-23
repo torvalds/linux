@@ -454,13 +454,7 @@ static int rv8803_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 static int rv8803_nvram_write(void *priv, unsigned int offset, void *val,
 			      size_t bytes)
 {
-	int ret;
-
-	ret = rv8803_write_reg(priv, RV8803_RAM, *(u8 *)val);
-	if (ret)
-		return ret;
-
-	return 0;
+	return rv8803_write_reg(priv, RV8803_RAM, *(u8 *)val);
 }
 
 static int rv8803_nvram_read(void *priv, unsigned int offset,
@@ -591,14 +585,13 @@ static int rv8803_probe(struct i2c_client *client,
 	}
 
 	rv8803->rtc->ops = &rv8803_rtc_ops;
-	rv8803->rtc->nvram_old_abi = true;
 	rv8803->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	rv8803->rtc->range_max = RTC_TIMESTAMP_END_2099;
-	err = rtc_register_device(rv8803->rtc);
+	err = devm_rtc_register_device(rv8803->rtc);
 	if (err)
 		return err;
 
-	rtc_nvmem_register(rv8803->rtc, &nvmem_cfg);
+	devm_rtc_nvmem_register(rv8803->rtc, &nvmem_cfg);
 
 	rv8803->rtc->max_user_freq = 1;
 

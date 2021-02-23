@@ -283,22 +283,6 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 	return 0;
 }
 
-static void kgd_set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
-		uint64_t page_table_base)
-{
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-
-	if (!amdgpu_amdkfd_is_kfd_vmid(adev, vmid)) {
-		pr_err("trying to set page table base for wrong VMID %u\n",
-		       vmid);
-		return;
-	}
-
-	mmhub_v9_4_setup_vm_pt_regs(adev, vmid, page_table_base);
-
-	gfxhub_v1_0_setup_vm_pt_regs(adev, vmid, page_table_base);
-}
-
 const struct kfd2kgd_calls arcturus_kfd2kgd = {
 	.program_sh_mem_settings = kgd_gfx_v9_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_gfx_v9_set_pasid_vmid_mapping,
@@ -317,7 +301,8 @@ const struct kfd2kgd_calls arcturus_kfd2kgd = {
 	.wave_control_execute = kgd_gfx_v9_wave_control_execute,
 	.address_watch_get_offset = kgd_gfx_v9_address_watch_get_offset,
 	.get_atc_vmid_pasid_mapping_info =
-			kgd_gfx_v9_get_atc_vmid_pasid_mapping_info,
-	.set_vm_context_page_table_base = kgd_set_vm_context_page_table_base,
-	.get_hive_id = amdgpu_amdkfd_get_hive_id,
+				kgd_gfx_v9_get_atc_vmid_pasid_mapping_info,
+	.set_vm_context_page_table_base =
+				kgd_gfx_v9_set_vm_context_page_table_base,
+	.get_cu_occupancy = kgd_gfx_v9_get_cu_occupancy
 };

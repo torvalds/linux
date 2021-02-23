@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/module.h>
@@ -44,15 +45,12 @@ struct mv_hsic_phy {
 	struct clk		*clk;
 };
 
-static bool wait_for_reg(void __iomem *reg, u32 mask, unsigned long timeout)
+static int wait_for_reg(void __iomem *reg, u32 mask, u32 ms)
 {
-	timeout += jiffies;
-	while (time_is_after_eq_jiffies(timeout)) {
-		if ((readl(reg) & mask) == mask)
-			return true;
-		msleep(1);
-	}
-	return false;
+	u32 val;
+
+	return readl_poll_timeout(reg, val, ((val & mask) == mask),
+				  1000, 1000 * ms);
 }
 
 static int mv_hsic_phy_init(struct phy *phy)
@@ -60,6 +58,7 @@ static int mv_hsic_phy_init(struct phy *phy)
 	struct mv_hsic_phy *mv_phy = phy_get_drvdata(phy);
 	struct platform_device *pdev = mv_phy->pdev;
 	void __iomem *base = mv_phy->base;
+	int ret;
 
 	clk_prepare_enable(mv_phy->clk);
 
@@ -75,14 +74,14 @@ static int mv_hsic_phy_init(struct phy *phy)
 		base + PHY_28NM_HSIC_PLL_CTRL2);
 
 	/* Make sure PHY PLL is locked */
-	if (!wait_for_reg(base + PHY_28NM_HSIC_PLL_CTRL2,
-	    PHY_28NM_HSIC_H2S_PLL_LOCK, HZ / 10)) {
+	ret = wait_for_reg(base + PHY_28NM_HSIC_PLL_CTRL2,
+			   PHY_28NM_HSIC_H2S_PLL_LOCK, 100);
+	if (ret) {
 		dev_err(&pdev->dev, "HSIC PHY PLL not locked after 100mS.");
 		clk_disable_unprepare(mv_phy->clk);
-		return -ETIMEDOUT;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int mv_hsic_phy_power_on(struct phy *phy)
@@ -91,6 +90,7 @@ static int mv_hsic_phy_power_on(struct phy *phy)
 	struct platform_device *pdev = mv_phy->pdev;
 	void __iomem *base = mv_phy->base;
 	u32 reg;
+	int ret;
 
 	reg = readl(base + PHY_28NM_HSIC_CTRL);
 	/* Avoid SE0 state when resume for some device will take it as reset */
@@ -108,20 +108,20 @@ static int mv_hsic_phy_power_on(struct phy *phy)
 	 */
 
 	/* Make sure PHY Calibration is ready */
-	if (!wait_for_reg(base + PHY_28NM_HSIC_IMPCAL_CAL,
-	    PHY_28NM_HSIC_H2S_IMPCAL_DONE, HZ / 10)) {
+	ret = wait_for_reg(base + PHY_28NM_HSIC_IMPCAL_CAL,
+			   PHY_28NM_HSIC_H2S_IMPCAL_DONE, 100);
+	if (ret) {
 		dev_warn(&pdev->dev, "HSIC PHY READY not set after 100mS.");
-		return -ETIMEDOUT;
+		return ret;
 	}
 
 	/* Waiting for HSIC connect int*/
-	if (!wait_for_reg(base + PHY_28NM_HSIC_INT,
-	    PHY_28NM_HSIC_CONNECT_INT, HZ / 5)) {
+	ret = wait_for_reg(base + PHY_28NM_HSIC_INT,
+			   PHY_28NM_HSIC_CONNECT_INT, 200);
+	if (ret)
 		dev_warn(&pdev->dev, "HSIC wait for connect interrupt timeout.");
-		return -ETIMEDOUT;
-	}
 
-	return 0;
+	return ret;
 }
 
 static int mv_hsic_phy_power_off(struct phy *phy)
@@ -162,7 +162,6 @@ static int mv_hsic_phy_probe(struct platform_device *pdev)
 {
 	struct phy_provider *phy_provider;
 	struct mv_hsic_phy *mv_phy;
-	struct resource *r;
 
 	mv_phy = devm_kzalloc(&pdev->dev, sizeof(*mv_phy), GFP_KERNEL);
 	if (!mv_phy)
@@ -176,8 +175,7 @@ static int mv_hsic_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(mv_phy->clk);
 	}
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mv_phy->base = devm_ioremap_resource(&pdev->dev, r);
+	mv_phy->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mv_phy->base))
 		return PTR_ERR(mv_phy->base);
 

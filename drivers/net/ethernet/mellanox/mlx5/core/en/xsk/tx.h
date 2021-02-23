@@ -15,13 +15,13 @@ bool mlx5e_xsk_tx(struct mlx5e_xdpsq *sq, unsigned int budget);
 
 static inline void mlx5e_xsk_update_tx_wakeup(struct mlx5e_xdpsq *sq)
 {
-	if (!xsk_umem_uses_need_wakeup(sq->umem))
+	if (!xsk_uses_need_wakeup(sq->xsk_pool))
 		return;
 
 	if (sq->pc != sq->cc)
-		xsk_clear_tx_need_wakeup(sq->umem);
+		xsk_clear_tx_need_wakeup(sq->xsk_pool);
 	else
-		xsk_set_tx_need_wakeup(sq->umem);
+		xsk_set_tx_need_wakeup(sq->xsk_pool);
 }
 
 #endif /* __MLX5_EN_XSK_TX_H__ */

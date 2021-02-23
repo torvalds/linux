@@ -17,10 +17,10 @@ Description:
 		to overlay planes.
 
 		Selects the composition mode for the overlay. Possible values
-		are
+		are:
 
-		0 - Alpha Blending
-		1 - ROP3
+		- 0 - Alpha Blending
+		- 1 - ROP3
 
 What:		/sys/devices/platform/sh_mobile_lcdc_fb.[0-3]/graphics/fb[0-9]/ovl_position
 Date:		May 2012
@@ -30,7 +30,7 @@ Description:
 		to overlay planes.
 
 		Stores the x,y overlay position on the display in pixels. The
-		position format is `[0-9]+,[0-9]+'.
+		position format is `[0-9]+,[0-9]+`.
 
 What:		/sys/devices/platform/sh_mobile_lcdc_fb.[0-3]/graphics/fb[0-9]/ovl_rop3
 Date:		May 2012

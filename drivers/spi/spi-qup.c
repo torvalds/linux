@@ -848,7 +848,7 @@ static int spi_qup_transfer_one(struct spi_master *master,
 {
 	struct spi_qup *controller = spi_master_get_devdata(master);
 	unsigned long timeout, flags;
-	int ret = -EIO;
+	int ret;
 
 	ret = spi_qup_io_prep(spi, xfer);
 	if (ret)

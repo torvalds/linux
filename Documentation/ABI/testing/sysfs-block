@@ -4,23 +4,27 @@ Contact:	Jerome Marchand <jmarchan@redhat.com>
 Description:
 		The /sys/block/<disk>/stat files displays the I/O
 		statistics of disk <disk>. They contain 11 fields:
-		 1 - reads completed successfully
-		 2 - reads merged
-		 3 - sectors read
-		 4 - time spent reading (ms)
-		 5 - writes completed
-		 6 - writes merged
-		 7 - sectors written
-		 8 - time spent writing (ms)
-		 9 - I/Os currently in progress
-		10 - time spent doing I/Os (ms)
-		11 - weighted time spent doing I/Os (ms)
-		12 - discards completed
-		13 - discards merged
-		14 - sectors discarded
-		15 - time spent discarding (ms)
-		16 - flush requests completed
-		17 - time spent flushing (ms)
+
+		==  ==============================================
+		 1  reads completed successfully
+		 2  reads merged
+		 3  sectors read
+		 4  time spent reading (ms)
+		 5  writes completed
+		 6  writes merged
+		 7  sectors written
+		 8  time spent writing (ms)
+		 9  I/Os currently in progress
+		10  time spent doing I/Os (ms)
+		11  weighted time spent doing I/Os (ms)
+		12  discards completed
+		13  discards merged
+		14  sectors discarded
+		15  time spent discarding (ms)
+		16  flush requests completed
+		17  time spent flushing (ms)
+		==  ==============================================
+
 		For more details refer Documentation/admin-guide/iostats.rst
 
 

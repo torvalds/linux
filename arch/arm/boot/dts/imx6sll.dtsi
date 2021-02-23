@@ -36,6 +36,8 @@
 		spi1 = &ecspi2;
 		spi3 = &ecspi3;
 		spi4 = &ecspi4;
+		usb0 = &usbotg1;
+		usb1 = &usbotg2;
 		usbphy0 = &usbphy1;
 		usbphy1 = &usbphy2;
 	};
@@ -784,6 +786,13 @@
 				compatible = "fsl,imx6sll-mmdc", "fsl,imx6q-mmdc";
 				reg = <0x021b0000 0x4000>;
 				clocks = <&clks IMX6SLL_CLK_MMDC_P0_IPG>;
+			};
+
+			rngb: rng@21b4000 {
+				compatible = "fsl,imx6sll-rngb", "fsl,imx25-rngb";
+				reg = <0x021b4000 0x4000>;
+				interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6SLL_CLK_DUMMY>;
 			};
 
 			ocotp: efuse@21bc000 {

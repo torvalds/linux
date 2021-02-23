@@ -290,7 +290,8 @@ config MFD_CS47L92
 
 config MFD_ASIC3
 	bool "Compaq ASIC3"
-	depends on GPIOLIB && ARM
+	depends on GPIOLIB
+	depends on ARM || COMPILE_TEST
 	select MFD_CORE
 	help
 	  This driver supports the ASIC3 multifunction chip found on many
@@ -398,6 +399,17 @@ config MFD_DLN2
 	  etc. must be enabled in order to use the functionality of
 	  the device.
 
+config MFD_ENE_KB3930
+	tristate "ENE KB3930 Embedded Controller support"
+	depends on I2C
+	depends on MACH_MMP3_DT || COMPILE_TEST
+	select MFD_CORE
+	help
+	  This adds support for the power-off functionality and access to
+	  the registers that control LEDS and USB port power on ENE KB3930
+	  Embedded Controller. To use the LED functionality LEDS_ARIEL must
+	  be enabled.
+
 config MFD_EXYNOS_LPASS
 	tristate "Samsung Exynos SoC Low Power Audio Subsystem"
 	depends on ARCH_EXYNOS || COMPILE_TEST
@@ -493,7 +505,7 @@ config MFD_HI6421_PMIC
 	  Add support for HiSilicon Hi6421 PMIC. Hi6421 includes multi-
 	  functions, such as regulators, RTC, codec, Coulomb counter, etc.
 	  This driver includes core APIs _only_. You have to select
-	  individul components like voltage regulators under corresponding
+	  individual components like voltage regulators under corresponding
 	  menus in order to enable them.
 	  We communicate with the Hi6421 via memory-mapped I/O.
 
@@ -670,6 +682,16 @@ config MFD_INTEL_PMC_BXT
 	  Register and P-unit access. In addition this creates devices
 	  for iTCO watchdog and telemetry that are part of the PMC.
 
+config MFD_INTEL_PMT
+	tristate "Intel Platform Monitoring Technology (PMT) support"
+	depends on PCI
+	select MFD_CORE
+	help
+	  The Intel Platform Monitoring Technology (PMT) is an interface that
+	  provides access to hardware monitor registers. This driver supports
+	  Telemetry, Watcher, and Crashlog PMT capabilities/devices for
+	  platforms starting from Tiger Lake.
+
 config MFD_IPAQ_MICRO
 	bool "Atmel Micro ASIC (iPAQ h3100/h3600/h3700) Support"
 	depends on SA1100_H3100 || SA1100_H3600
@@ -708,33 +730,9 @@ config MFD_KEMPLD
 	select MFD_CORE
 	help
 	  This is the core driver for the PLD (Programmable Logic Device) found
-	  on some Kontron ETX and COMexpress (ETXexpress) modules. The PLD
-	  device may provide functions like watchdog, GPIO, UART and I2C bus.
-
-	  The following modules are supported:
-		* COMe-bBD#
-		* COMe-bBL6
-		* COMe-bHL6
-		* COMe-bSL6
-		* COMe-bIP#
-		* COMe-bKL6
-		* COMe-bPC2 (ETXexpress-PC)
-		* COMe-bSC# (ETXexpress-SC T#)
-		* COMe-cAL6
-		* COMe-cBL6
-		* COMe-cBT6
-		* COMe-cBW6
-		* COMe-cCT6
-		* COMe-cDC2 (microETXexpress-DC)
-		* COMe-cHL6
-		* COMe-cKL6
-		* COMe-cPC2 (microETXexpress-PC)
-		* COMe-cSL6
-		* COMe-mAL10
-		* COMe-mBT10
-		* COMe-mCT10
-		* COMe-mTT10 (nanoETXexpress-TT)
-		* ETX-OH
+	  on some Kontron ETX and nearly all COMexpress (ETXexpress) modules as
+	  well as on some other Kontron products. The PLD device may provide
+	  functions like watchdog, GPIO, UART and I2C bus.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called kempld-core.
@@ -1162,6 +1160,30 @@ config MFD_SI476X_CORE
 	  To compile this driver as a module, choose M here: the
 	  module will be called si476x-core.
 
+config MFD_SIMPLE_MFD_I2C
+	tristate
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver creates a single register map with the intention for it
+	  to be shared by all sub-devices.
+
+	  Once the register map has been successfully initialised, any
+	  sub-devices represented by child nodes in Device Tree will be
+	  subsequently registered.
+
+config MFD_SL28CPLD
+	tristate "Kontron sl28cpld Board Management Controller"
+	depends on I2C
+	depends on ARCH_LAYERSCAPE || COMPILE_TEST
+	select MFD_SIMPLE_MFD_I2C
+	help
+	  Say yes here to enable support for the Kontron sl28cpld board
+	  management controller.
+
+	  It can be found on the following boards:
+		* SMARC-sAL28
+
 config MFD_SM501
 	tristate "Silicon Motion SM501"
 	depends on HAS_DMA
@@ -1397,6 +1419,7 @@ config MFD_TI_LMU
 config MFD_OMAP_USB_HOST
 	bool "TI OMAP USBHS core and TLL driver"
 	depends on USB_EHCI_HCD_OMAP || USB_OHCI_HCD_OMAP3
+	depends on COMMON_CLK
 	default y
 	help
 	  This is the core driver for the OAMP EHCI and OHCI drivers.
@@ -2117,6 +2140,19 @@ config SGI_MFD_IOC3
 
 	  If you have an SGI Origin, Octane, or a PCI IOC3 card,
 	  then say Y. Otherwise say N.
+
+config MFD_INTEL_M10_BMC
+	tristate "Intel MAX 10 Board Management Controller"
+	depends on SPI_MASTER
+	select REGMAP_SPI_AVMM
+	select MFD_CORE
+	help
+	  Support for the Intel MAX 10 board management controller using the
+	  SPI interface.
+
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the functionality
+	  of the device.
 
 endmenu
 endif

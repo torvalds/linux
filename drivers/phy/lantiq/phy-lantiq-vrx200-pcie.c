@@ -349,7 +349,7 @@ static int ltq_vrx200_pcie_phy_power_off(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops ltq_vrx200_pcie_phy_ops = {
+static const struct phy_ops ltq_vrx200_pcie_phy_ops = {
 	.init		= ltq_vrx200_pcie_phy_init,
 	.exit		= ltq_vrx200_pcie_phy_exit,
 	.power_on	= ltq_vrx200_pcie_phy_power_on,
@@ -402,7 +402,6 @@ static int ltq_vrx200_pcie_phy_probe(struct platform_device *pdev)
 	struct ltq_vrx200_pcie_phy_priv *priv;
 	struct device *dev = &pdev->dev;
 	struct phy_provider *provider;
-	struct resource *res;
 	void __iomem *base;
 	int ret;
 
@@ -410,8 +409,7 @@ static int ltq_vrx200_pcie_phy_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

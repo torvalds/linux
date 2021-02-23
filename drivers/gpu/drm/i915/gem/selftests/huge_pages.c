@@ -393,7 +393,7 @@ static int igt_mock_exhaust_device_supported_pages(void *arg)
 	 */
 
 	for (i = 1; i < BIT(ARRAY_SIZE(page_sizes)); i++) {
-		unsigned int combination = 0;
+		unsigned int combination = SZ_4K; /* Required for ppGTT */
 
 		for (j = 0; j < ARRAY_SIZE(page_sizes); j++) {
 			if (i & BIT(j))
@@ -947,7 +947,7 @@ static int gpu_write(struct intel_context *ce,
 {
 	int err;
 
-	i915_gem_object_lock(vma->obj);
+	i915_gem_object_lock(vma->obj, NULL);
 	err = i915_gem_object_set_to_gtt_domain(vma->obj, true);
 	i915_gem_object_unlock(vma->obj);
 	if (err)
@@ -964,9 +964,10 @@ __cpu_check_shmem(struct drm_i915_gem_object *obj, u32 dword, u32 val)
 	unsigned long n;
 	int err;
 
+	i915_gem_object_lock(obj, NULL);
 	err = i915_gem_object_prepare_read(obj, &needs_flush);
 	if (err)
-		return err;
+		goto err_unlock;
 
 	for (n = 0; n < obj->base.size >> PAGE_SHIFT; ++n) {
 		u32 *ptr = kmap_atomic(i915_gem_object_get_page(obj, n));
@@ -986,6 +987,8 @@ __cpu_check_shmem(struct drm_i915_gem_object *obj, u32 dword, u32 val)
 	}
 
 	i915_gem_object_finish_access(obj);
+err_unlock:
+	i915_gem_object_unlock(obj);
 
 	return err;
 }
@@ -1614,7 +1617,7 @@ int i915_gem_huge_page_mock_selftests(void)
 out_put:
 	i915_vm_put(&ppgtt->vm);
 out_unlock:
-	drm_dev_put(&dev_priv->drm);
+	mock_destroy_device(dev_priv);
 	return err;
 }
 

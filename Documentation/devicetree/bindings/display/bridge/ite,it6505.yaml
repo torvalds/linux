@@ -31,12 +31,13 @@ properties:
   compatible:
     const: ite,it6505
 
-  ovdd-supply:
+  reg:
     maxItems: 1
+
+  ovdd-supply:
     description: I/O voltage
 
   pwr18-supply:
-    maxItems: 1
     description: core voltage
 
   interrupts:
@@ -62,6 +63,8 @@ required:
   - interrupts
   - reset-gpios
   - extcon
+
+additionalProperties: false
 
 examples:
   - |

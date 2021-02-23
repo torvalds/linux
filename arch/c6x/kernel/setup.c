@@ -287,7 +287,8 @@ notrace void __init machine_init(unsigned long dt_ptr)
 
 void __init setup_arch(char **cmdline_p)
 {
-	struct memblock_region *reg;
+	phys_addr_t start, end;
+	u64 i;
 
 	printk(KERN_INFO "Initializing kernel\n");
 
@@ -351,9 +352,9 @@ void __init setup_arch(char **cmdline_p)
 	disable_caching(ram_start, ram_end - 1);
 
 	/* Set caching of external RAM used by Linux */
-	for_each_memblock(memory, reg)
-		enable_caching(CACHE_REGION_START(reg->base),
-			       CACHE_REGION_START(reg->base + reg->size - 1));
+	for_each_mem_range(i, &start, &end)
+		enable_caching(CACHE_REGION_START(start),
+			       CACHE_REGION_START(end - 1));
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	/*

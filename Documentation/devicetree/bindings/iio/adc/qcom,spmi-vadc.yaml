@@ -232,6 +232,8 @@ allOf:
               enum: [ 1, 2, 4, 8, 16 ]
               default: 1
 
+additionalProperties: false
+
 examples:
   - |
     spmi_bus {
@@ -245,7 +247,6 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
         #io-channel-cells = <1>;
-        io-channel-ranges;
 
         /* Channel node */
         adc-chan@39 {

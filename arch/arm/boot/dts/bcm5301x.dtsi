@@ -252,6 +252,10 @@
 			reg = <0x00013000 0x1000>;
 		};
 
+		pcie2: pcie@14000 {
+			reg = <0x00014000 0x1000>;
+		};
+
 		usb2: usb2@21000 {
 			reg = <0x00021000 0x1000>;
 
@@ -261,7 +265,7 @@
 
 			interrupt-parent = <&gic>;
 
-			ehci: ehci@21000 {
+			ehci: usb@21000 {
 				#usb-cells = <0>;
 
 				compatible = "generic-ehci";
@@ -283,7 +287,7 @@
 				};
 			};
 
-			ohci: ohci@22000 {
+			ohci: usb@22000 {
 				#usb-cells = <0>;
 
 				compatible = "generic-ohci";
@@ -314,7 +318,7 @@
 
 			interrupt-parent = <&gic>;
 
-			xhci: xhci@23000 {
+			xhci: usb@23000 {
 				#usb-cells = <0>;
 
 				compatible = "generic-xhci";
@@ -348,6 +352,14 @@
 		gmac3: ethernet@27000 {
 			reg = <0x27000 0x800>;
 		};
+	};
+
+	pwm: pwm@18002000 {
+		compatible = "brcm,iproc-pwm";
+		reg = <0x18002000 0x28>;
+		clocks = <&osc>;
+		#pwm-cells = <3>;
+		status = "disabled";
 	};
 
 	mdio: mdio@18003000 {
@@ -384,6 +396,15 @@
 		reg = <0x18105000 0x1000>;
 	};
 
+	uart2: serial@18008000 {
+		compatible = "ns16550a";
+		reg = <0x18008000 0x20>;
+		clocks = <&iprocslow>;
+		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+		reg-shift = <2>;
+		status = "disabled";
+	};
+
 	i2c0: i2c@18009000 {
 		compatible = "brcm,iproc-i2c";
 		reg = <0x18009000 0x50>;
@@ -407,7 +428,27 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			pin-controller@1c0 {
+			lcpll0: lcpll0@100 {
+				#clock-cells = <1>;
+				compatible = "brcm,nsp-lcpll0";
+				reg = <0x100 0x14>;
+				clocks = <&osc>;
+				clock-output-names = "lcpll0", "pcie_phy",
+						     "sdio", "ddr_phy";
+			};
+
+			genpll: genpll@140 {
+				#clock-cells = <1>;
+				compatible = "brcm,nsp-genpll";
+				reg = <0x140 0x24>;
+				clocks = <&osc>;
+				clock-output-names = "genpll", "phy",
+						     "ethernetclk",
+						     "usbclk", "iprocfast",
+						     "sata1", "sata2";
+			};
+
+			pinctrl: pin-controller@1c0 {
 				compatible = "brcm,bcm4708-pinmux";
 				reg = <0x1c0 0x24>;
 				reg-names = "cru_gpio_control";
@@ -417,12 +458,12 @@
 					function = "spi";
 				};
 
-				i2c {
+				pinmux_i2c: i2c {
 					groups = "i2c_grp";
 					function = "i2c";
 				};
 
-				pwm {
+				pinmux_pwm: pwm {
 					groups = "pwm0_grp", "pwm1_grp",
 						 "pwm2_grp", "pwm3_grp";
 					function = "pwm";
@@ -433,41 +474,26 @@
 					function = "uart1";
 				};
 			};
+
+			thermal: thermal@2c0 {
+				compatible = "brcm,ns-thermal";
+				reg = <0x2c0 0x10>;
+				#thermal-sensor-cells = <0>;
+			};
 		};
 	};
 
-	lcpll0: lcpll0@1800c100 {
-		#clock-cells = <1>;
-		compatible = "brcm,nsp-lcpll0";
-		reg = <0x1800c100 0x14>;
-		clocks = <&osc>;
-		clock-output-names = "lcpll0", "pcie_phy", "sdio",
-				     "ddr_phy";
-	};
-
-	genpll: genpll@1800c140 {
-		#clock-cells = <1>;
-		compatible = "brcm,nsp-genpll";
-		reg = <0x1800c140 0x24>;
-		clocks = <&osc>;
-		clock-output-names = "genpll", "phy", "ethernetclk",
-				     "usbclk", "iprocfast", "sata1",
-				     "sata2";
-	};
-
-	thermal: thermal@1800c2c0 {
-		compatible = "brcm,ns-thermal";
-		reg = <0x1800c2c0 0x10>;
-		#thermal-sensor-cells = <0>;
-	};
-
-	srab: srab@18007000 {
-		compatible = "brcm,bcm5301x-srab";
+	srab: ethernet-switch@18007000 {
+		compatible = "brcm,bcm53011-srab", "brcm,bcm5301x-srab";
 		reg = <0x18007000 0x1000>;
 
 		status = "disabled";
 
 		/* ports are defined in board DTS */
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
 	};
 
 	rng: rng@18004000 {

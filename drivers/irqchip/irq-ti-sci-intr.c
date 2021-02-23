@@ -129,7 +129,7 @@ static void ti_sci_intr_irq_domain_free(struct irq_domain *domain,
  * @virq:	Corresponding Linux virtual IRQ number
  * @hwirq:	Corresponding hwirq for the IRQ within this IRQ domain
  *
- * Returns parent irq if all went well else appropriate error pointer.
+ * Returns intr output irq if all went well else appropriate error pointer.
  */
 static int ti_sci_intr_alloc_parent_irq(struct irq_domain *domain,
 					unsigned int virq, u32 hwirq)
@@ -137,8 +137,8 @@ static int ti_sci_intr_alloc_parent_irq(struct irq_domain *domain,
 	struct ti_sci_intr_irq_domain *intr = domain->host_data;
 	struct device_node *parent_node;
 	struct irq_fwspec fwspec;
-	u16 out_irq, p_hwirq;
-	int err = 0;
+	int p_hwirq, err = 0;
+	u16 out_irq;
 
 	out_irq = ti_sci_get_free_resource(intr->out_irqs);
 	if (out_irq == TI_SCI_RESOURCE_NULL)
@@ -173,7 +173,7 @@ static int ti_sci_intr_alloc_parent_irq(struct irq_domain *domain,
 	if (err)
 		goto err_msg;
 
-	return p_hwirq;
+	return out_irq;
 
 err_msg:
 	irq_domain_free_irqs_parent(domain, virq, 1);
@@ -198,19 +198,19 @@ static int ti_sci_intr_irq_domain_alloc(struct irq_domain *domain,
 	struct irq_fwspec *fwspec = data;
 	unsigned long hwirq;
 	unsigned int flags;
-	int err, p_hwirq;
+	int err, out_irq;
 
 	err = ti_sci_intr_irq_domain_translate(domain, fwspec, &hwirq, &flags);
 	if (err)
 		return err;
 
-	p_hwirq = ti_sci_intr_alloc_parent_irq(domain, virq, hwirq);
-	if (p_hwirq < 0)
-		return p_hwirq;
+	out_irq = ti_sci_intr_alloc_parent_irq(domain, virq, hwirq);
+	if (out_irq < 0)
+		return out_irq;
 
 	irq_domain_set_hwirq_and_chip(domain, virq, hwirq,
 				      &ti_sci_intr_irq_chip,
-				      (void *)(uintptr_t)p_hwirq);
+				      (void *)(uintptr_t)out_irq);
 
 	return 0;
 }
@@ -254,13 +254,9 @@ static int ti_sci_intr_irq_domain_probe(struct platform_device *pdev)
 	}
 
 	intr->sci = devm_ti_sci_get_by_phandle(dev, "ti,sci");
-	if (IS_ERR(intr->sci)) {
-		ret = PTR_ERR(intr->sci);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "ti,sci read fail %d\n", ret);
-		intr->sci = NULL;
-		return ret;
-	}
+	if (IS_ERR(intr->sci))
+		return dev_err_probe(dev, PTR_ERR(intr->sci),
+				     "ti,sci read fail\n");
 
 	ret = of_property_read_u32(dev_of_node(dev), "ti,sci-dev-id",
 				   &intr->ti_sci_id);

@@ -8,7 +8,7 @@
 #include "hclge_tm.h"
 #include "hnae3.h"
 
-static struct hclge_dbg_reg_type_info hclge_dbg_reg_info[] = {
+static const struct hclge_dbg_reg_type_info hclge_dbg_reg_info[] = {
 	{ .reg_type = "bios common",
 	  .dfx_msg = &hclge_dbg_bios_common_reg[0],
 	  .reg_msg = { .msg_num = ARRAY_SIZE(hclge_dbg_bios_common_reg),
@@ -115,14 +115,14 @@ static int hclge_dbg_cmd_send(struct hclge_dev *hdev,
 }
 
 static void hclge_dbg_dump_reg_common(struct hclge_dev *hdev,
-				      struct hclge_dbg_reg_type_info *reg_info,
+				      const struct hclge_dbg_reg_type_info *reg_info,
 				      const char *cmd_buf)
 {
 #define IDX_OFFSET	1
 
 	const char *s = &cmd_buf[strlen(reg_info->reg_type) + IDX_OFFSET];
-	struct hclge_dbg_dfx_message *dfx_message = reg_info->dfx_msg;
-	struct hclge_dbg_reg_common_msg *reg_msg = &reg_info->reg_msg;
+	const struct hclge_dbg_dfx_message *dfx_message = reg_info->dfx_msg;
+	const struct hclge_dbg_reg_common_msg *reg_msg = &reg_info->reg_msg;
 	struct hclge_desc *desc_src;
 	struct hclge_desc *desc;
 	int entries_per_desc;
@@ -399,7 +399,7 @@ err_dcb_cmd_send:
 
 static void hclge_dbg_dump_reg_cmd(struct hclge_dev *hdev, const char *cmd_buf)
 {
-	struct hclge_dbg_reg_type_info *reg_info;
+	const struct hclge_dbg_reg_type_info *reg_info;
 	bool has_dump = false;
 	int i;
 
@@ -428,17 +428,13 @@ static void hclge_dbg_dump_reg_cmd(struct hclge_dev *hdev, const char *cmd_buf)
 	}
 }
 
-static void hclge_title_idx_print(struct hclge_dev *hdev, bool flag, int index,
-				  char *title_buf, char *true_buf,
-				  char *false_buf)
+static void hclge_print_tc_info(struct hclge_dev *hdev, bool flag, int index)
 {
 	if (flag)
-		dev_info(&hdev->pdev->dev, "%s(%d): %s weight: %u\n",
-			 title_buf, index, true_buf,
-			 hdev->tm_info.pg_info[0].tc_dwrr[index]);
+		dev_info(&hdev->pdev->dev, "tc(%d): no sp mode weight: %u\n",
+			 index, hdev->tm_info.pg_info[0].tc_dwrr[index]);
 	else
-		dev_info(&hdev->pdev->dev, "%s(%d): %s\n", title_buf, index,
-			 false_buf);
+		dev_info(&hdev->pdev->dev, "tc(%d): sp mode\n", index);
 }
 
 static void hclge_dbg_dump_tc(struct hclge_dev *hdev)
@@ -469,8 +465,7 @@ static void hclge_dbg_dump_tc(struct hclge_dev *hdev)
 		 ets_weight->weight_offset);
 
 	for (i = 0; i < HNAE3_MAX_TC; i++)
-		hclge_title_idx_print(hdev, ets_weight->tc_weight[i], i,
-				      "tc", "no sp mode", "sp mode");
+		hclge_print_tc_info(hdev, ets_weight->tc_weight[i], i);
 }
 
 static void hclge_dbg_dump_tm_pg(struct hclge_dev *hdev)
@@ -503,6 +498,9 @@ static void hclge_dbg_dump_tm_pg(struct hclge_dev *hdev)
 	dev_info(&hdev->pdev->dev, "PG_P pg_id: %u\n", pg_shap_cfg_cmd->pg_id);
 	dev_info(&hdev->pdev->dev, "PG_P pg_shapping: 0x%x\n",
 		 le32_to_cpu(pg_shap_cfg_cmd->pg_shapping_para));
+	dev_info(&hdev->pdev->dev, "PG_P flag: %#x\n", pg_shap_cfg_cmd->flag);
+	dev_info(&hdev->pdev->dev, "PG_P pg_rate: %u(Mbps)\n",
+		 le32_to_cpu(pg_shap_cfg_cmd->pg_rate));
 
 	cmd = HCLGE_OPC_TM_PORT_SHAPPING;
 	hclge_cmd_setup_basic_desc(&desc, cmd, true);
@@ -513,6 +511,9 @@ static void hclge_dbg_dump_tm_pg(struct hclge_dev *hdev)
 	port_shap_cfg_cmd = (struct hclge_port_shapping_cmd *)desc.data;
 	dev_info(&hdev->pdev->dev, "PORT port_shapping: 0x%x\n",
 		 le32_to_cpu(port_shap_cfg_cmd->port_shapping_para));
+	dev_info(&hdev->pdev->dev, "PORT flag: %#x\n", port_shap_cfg_cmd->flag);
+	dev_info(&hdev->pdev->dev, "PORT port_rate: %u(Mbps)\n",
+		 le32_to_cpu(port_shap_cfg_cmd->port_rate));
 
 	cmd = HCLGE_OPC_TM_PG_SCH_MODE_CFG;
 	hclge_cmd_setup_basic_desc(&desc, cmd, true);
@@ -660,6 +661,9 @@ static void hclge_dbg_dump_tm(struct hclge_dev *hdev)
 	dev_info(&hdev->pdev->dev, "PRI_C pri_id: %u\n", shap_cfg_cmd->pri_id);
 	dev_info(&hdev->pdev->dev, "PRI_C pri_shapping: 0x%x\n",
 		 le32_to_cpu(shap_cfg_cmd->pri_shapping_para));
+	dev_info(&hdev->pdev->dev, "PRI_C flag: %#x\n", shap_cfg_cmd->flag);
+	dev_info(&hdev->pdev->dev, "PRI_C pri_rate: %u(Mbps)\n",
+		 le32_to_cpu(shap_cfg_cmd->pri_rate));
 
 	cmd = HCLGE_OPC_TM_PRI_P_SHAPPING;
 	hclge_cmd_setup_basic_desc(&desc, cmd, true);
@@ -671,6 +675,9 @@ static void hclge_dbg_dump_tm(struct hclge_dev *hdev)
 	dev_info(&hdev->pdev->dev, "PRI_P pri_id: %u\n", shap_cfg_cmd->pri_id);
 	dev_info(&hdev->pdev->dev, "PRI_P pri_shapping: 0x%x\n",
 		 le32_to_cpu(shap_cfg_cmd->pri_shapping_para));
+	dev_info(&hdev->pdev->dev, "PRI_P flag: %#x\n", shap_cfg_cmd->flag);
+	dev_info(&hdev->pdev->dev, "PRI_P pri_rate: %u(Mbps)\n",
+		 le32_to_cpu(shap_cfg_cmd->pri_rate));
 
 	hclge_dbg_dump_tm_pg(hdev);
 
@@ -686,14 +693,17 @@ static void hclge_dbg_dump_tm_map(struct hclge_dev *hdev,
 {
 	struct hclge_bp_to_qs_map_cmd *bp_to_qs_map_cmd;
 	struct hclge_nq_to_qs_link_cmd *nq_to_qs_map;
+	u32 qset_mapping[HCLGE_BP_EXT_GRP_NUM];
 	struct hclge_qs_to_pri_link_cmd *map;
 	struct hclge_tqp_tx_queue_tc_cmd *tc;
 	enum hclge_opcode_type cmd;
 	struct hclge_desc desc;
 	int queue_id, group_id;
-	u32 qset_mapping[32];
 	int tc_id, qset_id;
 	int pri_id, ret;
+	u16 qs_id_l;
+	u16 qs_id_h;
+	u8 grp_num;
 	u32 i;
 
 	ret = kstrtouint(cmd_buf, 0, &queue_id);
@@ -706,7 +716,24 @@ static void hclge_dbg_dump_tm_map(struct hclge_dev *hdev,
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret)
 		goto err_tm_map_cmd_send;
-	qset_id = le16_to_cpu(nq_to_qs_map->qset_id) & 0x3FF;
+	qset_id = le16_to_cpu(nq_to_qs_map->qset_id);
+
+	/* convert qset_id to the following format, drop the vld bit
+	 *            | qs_id_h | vld | qs_id_l |
+	 * qset_id:   | 15 ~ 11 |  10 |  9 ~ 0  |
+	 *             \         \   /         /
+	 *              \         \ /         /
+	 * qset_id: | 15 | 14 ~ 10 |  9 ~ 0  |
+	 */
+	qs_id_l = hnae3_get_field(qset_id, HCLGE_TM_QS_ID_L_MSK,
+				  HCLGE_TM_QS_ID_L_S);
+	qs_id_h = hnae3_get_field(qset_id, HCLGE_TM_QS_ID_H_EXT_MSK,
+				  HCLGE_TM_QS_ID_H_EXT_S);
+	qset_id = 0;
+	hnae3_set_field(qset_id, HCLGE_TM_QS_ID_L_MSK, HCLGE_TM_QS_ID_L_S,
+			qs_id_l);
+	hnae3_set_field(qset_id, HCLGE_TM_QS_ID_H_MSK, HCLGE_TM_QS_ID_H_S,
+			qs_id_h);
 
 	cmd = HCLGE_OPC_TM_QS_TO_PRI_LINK;
 	map = (struct hclge_qs_to_pri_link_cmd *)desc.data;
@@ -736,9 +763,11 @@ static void hclge_dbg_dump_tm_map(struct hclge_dev *hdev,
 		return;
 	}
 
+	grp_num = hdev->num_tqps <= HCLGE_TQP_MAX_SIZE_DEV_V2 ?
+		  HCLGE_BP_GRP_NUM : HCLGE_BP_EXT_GRP_NUM;
 	cmd = HCLGE_OPC_TM_BP_TO_QSET_MAPPING;
 	bp_to_qs_map_cmd = (struct hclge_bp_to_qs_map_cmd *)desc.data;
-	for (group_id = 0; group_id < 32; group_id++) {
+	for (group_id = 0; group_id < grp_num; group_id++) {
 		hclge_cmd_setup_basic_desc(&desc, cmd, true);
 		bp_to_qs_map_cmd->tc_id = tc_id;
 		bp_to_qs_map_cmd->qs_group_id = group_id;
@@ -753,7 +782,7 @@ static void hclge_dbg_dump_tm_map(struct hclge_dev *hdev,
 	dev_info(&hdev->pdev->dev, "index | tm bp qset maping:\n");
 
 	i = 0;
-	for (group_id = 0; group_id < 4; group_id++) {
+	for (group_id = 0; group_id < grp_num / 8; group_id++) {
 		dev_info(&hdev->pdev->dev,
 			 "%04d  | %08x:%08x:%08x:%08x:%08x:%08x:%08x:%08x\n",
 			 group_id * 256, qset_mapping[(u32)(i + 7)],
@@ -1170,6 +1199,14 @@ static void hclge_dbg_dump_serv_info(struct hclge_dev *hdev)
 		 hdev->serv_processed_cnt);
 }
 
+static void hclge_dbg_dump_interrupt(struct hclge_dev *hdev)
+{
+	dev_info(&hdev->pdev->dev, "num_nic_msi: %u\n", hdev->num_nic_msi);
+	dev_info(&hdev->pdev->dev, "num_roce_msi: %u\n", hdev->num_roce_msi);
+	dev_info(&hdev->pdev->dev, "num_msi_used: %u\n", hdev->num_msi_used);
+	dev_info(&hdev->pdev->dev, "num_msi_left: %u\n", hdev->num_msi_left);
+}
+
 static void hclge_dbg_get_m7_stats_info(struct hclge_dev *hdev)
 {
 	struct hclge_desc *desc_src, *desc_tmp;
@@ -1376,6 +1413,7 @@ static void hclge_dbg_dump_qs_shaper_single(struct hclge_dev *hdev, u16 qsid)
 	u8 ir_u, ir_b, ir_s, bs_b, bs_s;
 	struct hclge_desc desc;
 	u32 shapping_para;
+	u32 rate;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QCN_SHAPPING_CFG, true);
@@ -1397,10 +1435,11 @@ static void hclge_dbg_dump_qs_shaper_single(struct hclge_dev *hdev, u16 qsid)
 	ir_s = hclge_tm_get_field(shapping_para, IR_S);
 	bs_b = hclge_tm_get_field(shapping_para, BS_B);
 	bs_s = hclge_tm_get_field(shapping_para, BS_S);
+	rate = le32_to_cpu(shap_cfg_cmd->qs_rate);
 
 	dev_info(&hdev->pdev->dev,
-		 "qs%u ir_b:%u, ir_u:%u, ir_s:%u, bs_b:%u, bs_s:%u\n",
-		 qsid, ir_b, ir_u, ir_s, bs_b, bs_s);
+		 "qs%u ir_b:%u, ir_u:%u, ir_s:%u, bs_b:%u, bs_s:%u, flag:%#x, rate:%u(Mbps)\n",
+		 qsid, ir_b, ir_u, ir_s, bs_b, bs_s, shap_cfg_cmd->flag, rate);
 }
 
 static void hclge_dbg_dump_qs_shaper_all(struct hclge_dev *hdev)
@@ -1415,7 +1454,7 @@ static void hclge_dbg_dump_qs_shaper_all(struct hclge_dev *hdev)
 
 		dev_info(&hdev->pdev->dev, "qs cfg of vport%d:\n", vport_id);
 
-		for (i = 0; i < kinfo->num_tc; i++) {
+		for (i = 0; i < kinfo->tc_info.num_tc; i++) {
 			u16 qsid = vport->qs_offset + i;
 
 			hclge_dbg_dump_qs_shaper_single(hdev, qsid);
@@ -1494,6 +1533,7 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 #define DUMP_REG	"dump reg"
 #define DUMP_TM_MAP	"dump tm map"
 #define DUMP_LOOPBACK	"dump loopback"
+#define DUMP_INTERRUPT	"dump intr"
 
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
@@ -1541,6 +1581,9 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 		hclge_dbg_dump_mac_list(hdev,
 					&cmd_buf[sizeof("dump mc mac list")],
 					false);
+	} else if (strncmp(cmd_buf, DUMP_INTERRUPT,
+		   strlen(DUMP_INTERRUPT)) == 0) {
+		hclge_dbg_dump_interrupt(hdev);
 	} else {
 		dev_info(&hdev->pdev->dev, "unknown command\n");
 		return -EINVAL;

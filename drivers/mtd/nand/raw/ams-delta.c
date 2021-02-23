@@ -215,8 +215,19 @@ static int gpio_nand_setup_interface(struct nand_chip *this, int csline,
 	return 0;
 }
 
+static int gpio_nand_attach_chip(struct nand_chip *chip)
+{
+	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
+
+	if (chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
+
+	return 0;
+}
+
 static const struct nand_controller_ops gpio_nand_ops = {
 	.exec_op = gpio_nand_exec_op,
+	.attach_chip = gpio_nand_attach_chip,
 	.setup_interface = gpio_nand_setup_interface,
 };
 
@@ -259,9 +270,6 @@ static int gpio_nand_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "RDY GPIO request failed (%d)\n", err);
 		return err;
 	}
-
-	this->ecc.mode = NAND_ECC_SOFT;
-	this->ecc.algo = NAND_ECC_HAMMING;
 
 	platform_set_drvdata(pdev, priv);
 
@@ -400,12 +408,14 @@ static int gpio_nand_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id gpio_nand_of_id_table[] = {
 	{
 		/* sentinel */
 	},
 };
 MODULE_DEVICE_TABLE(of, gpio_nand_of_id_table);
+#endif
 
 static const struct platform_device_id gpio_nand_plat_id_table[] = {
 	{

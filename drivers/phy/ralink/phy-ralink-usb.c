@@ -142,7 +142,7 @@ static int ralink_usb_phy_power_off(struct phy *_phy)
 	return 0;
 }
 
-static struct phy_ops ralink_usb_phy_ops = {
+static const struct phy_ops ralink_usb_phy_ops = {
 	.power_on	= ralink_usb_phy_power_on,
 	.power_off	= ralink_usb_phy_power_off,
 	.owner		= THIS_MODULE,
@@ -170,7 +170,6 @@ MODULE_DEVICE_TABLE(of, ralink_usb_phy_of_match);
 static int ralink_usb_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	struct phy_provider *phy_provider;
 	const struct of_device_id *match;
 	struct ralink_usb_phy *phy;
@@ -194,8 +193,7 @@ static int ralink_usb_phy_probe(struct platform_device *pdev)
 
 	/* The MT7628 and MT7688 require extra setup of PHY registers. */
 	if (of_device_is_compatible(dev->of_node, "mediatek,mt7628-usbphy")) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		phy->base = devm_ioremap_resource(&pdev->dev, res);
+		phy->base = devm_platform_ioremap_resource(pdev, 0);
 		if (IS_ERR(phy->base)) {
 			dev_err(dev, "failed to remap register memory\n");
 			return PTR_ERR(phy->base);

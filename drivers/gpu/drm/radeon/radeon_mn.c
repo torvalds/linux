@@ -41,6 +41,7 @@
  *
  * @mn: our notifier
  * @range: the VMA under invalidation
+ * @cur_seq: Value to pass to mmu_interval_set_seq()
  *
  * We block for all BOs between start and end to be idle and
  * unmap them by move them into system domain again.
@@ -53,7 +54,7 @@ static bool radeon_mn_invalidate(struct mmu_interval_notifier *mn,
 	struct ttm_operation_ctx ctx = { false, false };
 	long r;
 
-	if (!bo->tbo.ttm || bo->tbo.ttm->state != tt_bound)
+	if (!bo->tbo.ttm || !radeon_ttm_tt_is_bound(bo->tbo.bdev, bo->tbo.ttm))
 		return true;
 
 	if (!mmu_notifier_range_blockable(range))

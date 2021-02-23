@@ -544,7 +544,22 @@ CPU_LE(	rev		w8, w8		)
 	ext		XL.16b, XL.16b, XL.16b, #8
 	rev64		XL.16b, XL.16b
 	eor		XL.16b, XL.16b, KS0.16b
+
+	.if		\enc == 1
 	st1		{XL.16b}, [x10]			// store tag
+	.else
+	ldp		x11, x12, [sp, #40]		// load tag pointer and authsize
+	adr_l		x17, .Lpermute_table
+	ld1		{KS0.16b}, [x11]		// load supplied tag
+	add		x17, x17, x12
+	ld1		{KS1.16b}, [x17]		// load permute vector
+
+	cmeq		XL.16b, XL.16b, KS0.16b		// compare tags
+	mvn		XL.16b, XL.16b			// -1 for fail, 0 for pass
+	tbl		XL.16b, {XL.16b}, KS1.16b	// keep authsize bytes only
+	sminv		b0, XL.16b			// signed minimum across XL
+	smov		w0, v0.b[0]			// return b0
+	.endif
 
 4:	ldp		x29, x30, [sp], #32
 	ret

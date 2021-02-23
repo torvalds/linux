@@ -377,6 +377,8 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 	if (!pskb_may_pull(skb, sizeof(*hdr)))
 		goto err;
 
+	skb_dst_drop(skb);
+
 	/* Read and decode the label */
 	hdr = mpls_hdr(skb);
 	dec = mpls_entry_decode(hdr);

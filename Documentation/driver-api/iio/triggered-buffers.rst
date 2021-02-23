@@ -10,7 +10,7 @@ IIO triggered buffer setup
 * :c:func:`iio_triggered_buffer_setup` — Setup triggered buffer and pollfunc
 * :c:func:`iio_triggered_buffer_cleanup` — Free resources allocated by
   :c:func:`iio_triggered_buffer_setup`
-* struct :c:type:`iio_buffer_setup_ops` — buffer setup related callbacks
+* struct iio_buffer_setup_ops — buffer setup related callbacks
 
 A typical triggered buffer setup looks like this::
 

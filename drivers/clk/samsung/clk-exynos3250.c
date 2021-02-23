@@ -808,14 +808,16 @@ static const struct exynos_cpuclk_cfg_data e3250_armclk_d[] __initconst = {
 static void __init exynos3250_cmu_init(struct device_node *np)
 {
 	struct samsung_clk_provider *ctx;
+	struct clk_hw **hws;
 
 	ctx = samsung_cmu_register_one(np, &cmu_info);
 	if (!ctx)
 		return;
 
+	hws = ctx->clk_data.hws;
 	exynos_register_cpu_clock(ctx, CLK_ARM_CLK, "armclk",
-			mout_core_p[0], mout_core_p[1], 0x14200,
-			e3250_armclk_d, ARRAY_SIZE(e3250_armclk_d),
+			hws[CLK_MOUT_APLL], hws[CLK_MOUT_MPLL_USER_C],
+			0x14200, e3250_armclk_d, ARRAY_SIZE(e3250_armclk_d),
 			CLK_CPU_HAS_DIV1);
 
 	exynos3_core_down_clock(ctx->reg_base);

@@ -42,6 +42,7 @@ fallback mechanism:
   supported for request_firmware_into_buf().
 
 * Firmware is not accessible through typical means:
+
         * It cannot be installed into the root filesystem
         * The firmware provides very unique device specific data tailored for
           the unit gathered with local information. An example is calibration

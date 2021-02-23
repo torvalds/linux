@@ -1849,7 +1849,6 @@ static int mt2063_init(struct dvb_frontend *fe)
 
 	default:
 		return -ENODEV;
-		break;
 	}
 
 	while (status >= 0 && *def) {

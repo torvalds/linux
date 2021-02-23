@@ -7,8 +7,6 @@
 #ifndef _VDEC_DRV_BASE_
 #define _VDEC_DRV_BASE_
 
-#include "mtk_vcodec_drv.h"
-
 #include "vdec_drv_if.h"
 
 struct vdec_common_if {

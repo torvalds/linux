@@ -70,6 +70,24 @@ properties:
           - const: elgin,rv1108-r1
           - const: rockchip,rv1108
 
+      - description: Engicam PX30.Core C.TOUCH 2.0
+        items:
+          - const: engicam,px30-core-ctouch2
+          - const: engicam,px30-core
+          - const: rockchip,px30
+
+      - description: Engicam PX30.Core C.TOUCH 2.0 10.1" Open Frame
+        items:
+          - const: engicam,px30-core-ctouch2-of10
+          - const: engicam,px30-core
+          - const: rockchip,px30
+
+      - description: Engicam PX30.Core EDIMM2.2 Starter Kit
+        items:
+          - const: engicam,px30-core-edimm2.2
+          - const: engicam,px30-core
+          - const: rockchip,px30
+
       - description: Firefly Firefly-RK3288
         items:
           - enum:
@@ -103,6 +121,11 @@ properties:
               - firefly,roc-rk3399-pc
               - firefly,roc-rk3399-pc-mezzanine
           - const: rockchip,rk3399
+
+      - description: FriendlyElec NanoPi R2S
+        items:
+          - const: friendlyarm,nanopi-r2s
+          - const: rockchip,rk3328
 
       - description: FriendlyElec NanoPi4 series boards
         items:
@@ -376,6 +399,11 @@ properties:
               - khadas,edge-v
           - const: rockchip,rk3399
 
+      - description: Kobol Helios64
+        items:
+          - const: kobol,helios64
+          - const: rockchip,rk3399
+
       - description: Mecer Xtreme Mini S6
         items:
           - const: mecer,xms6
@@ -430,8 +458,12 @@ properties:
           - const: radxa,rock
           - const: rockchip,rk3188
 
-      - description: Radxa ROCK Pi 4
+      - description: Radxa ROCK Pi 4A/B/C
         items:
+          - enum:
+              - radxa,rockpi4a
+              - radxa,rockpi4b
+              - radxa,rockpi4c
           - const: radxa,rockpi4
           - const: rockchip,rk3399
 
@@ -555,4 +587,12 @@ properties:
         items:
           - const: tronsmart,orion-r68-meta
           - const: rockchip,rk3368
+
+      - description: Zkmagic A95X Z2
+        items:
+          - const: zkmagic,a95x-z2
+          - const: rockchip,rk3318
+
+additionalProperties: true
+
 ...

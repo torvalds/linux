@@ -262,7 +262,7 @@ void efx_init_rx_queue(struct efx_rx_queue *rx_queue)
 
 	/* Initialise XDP queue information */
 	rc = xdp_rxq_info_reg(&rx_queue->xdp_rxq_info, efx->net_dev,
-			      rx_queue->core_index);
+			      rx_queue->core_index, 0);
 
 	if (rc) {
 		netif_err(efx, rx_err, efx->net_dev,
@@ -797,7 +797,6 @@ int efx_probe_filters(struct efx_nic *efx)
 {
 	int rc;
 
-	init_rwsem(&efx->filter_sem);
 	mutex_lock(&efx->mac_lock);
 	down_write(&efx->filter_sem);
 	rc = efx->type->filter_table_probe(efx);

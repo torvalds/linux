@@ -93,25 +93,3 @@ kmem_alloc_large(size_t size, xfs_km_flags_t flags)
 		return ptr;
 	return __kmem_vmalloc(size, flags);
 }
-
-void *
-kmem_realloc(const void *old, size_t newsize, xfs_km_flags_t flags)
-{
-	int	retries = 0;
-	gfp_t	lflags = kmem_flags_convert(flags);
-	void	*ptr;
-
-	trace_kmem_realloc(newsize, flags, _RET_IP_);
-
-	do {
-		ptr = krealloc(old, newsize, lflags);
-		if (ptr || (flags & KM_MAYFAIL))
-			return ptr;
-		if (!(++retries % 100))
-			xfs_err(NULL,
-	"%s(%u) possible memory allocation deadlock size %zu in %s (mode:0x%x)",
-				current->comm, current->pid,
-				newsize, __func__, lflags);
-		congestion_wait(BLK_RW_ASYNC, HZ/50);
-	} while (1);
-}

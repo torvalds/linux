@@ -21,6 +21,7 @@ config ET131X
 	tristate "Agere ET-1310 Gigabit Ethernet support"
 	depends on PCI
 	select PHYLIB
+	select CRC32
 	help
 	  This driver supports Agere ET-1310 ethernet adapters.
 

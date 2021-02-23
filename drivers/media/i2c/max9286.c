@@ -135,13 +135,19 @@
 #define MAX9286_SRC_PAD			4
 
 struct max9286_source {
-	struct v4l2_async_subdev asd;
 	struct v4l2_subdev *sd;
 	struct fwnode_handle *fwnode;
 };
 
-#define asd_to_max9286_source(_asd) \
-	container_of(_asd, struct max9286_source, asd)
+struct max9286_asd {
+	struct v4l2_async_subdev base;
+	struct max9286_source *source;
+};
+
+static inline struct max9286_asd *to_max9286_asd(struct v4l2_async_subdev *asd)
+{
+	return container_of(asd, struct max9286_asd, base);
+}
 
 struct max9286_priv {
 	struct i2c_client *client;
@@ -405,10 +411,11 @@ static int max9286_check_config_link(struct max9286_priv *priv,
 	 * to 5 milliseconds.
 	 */
 	for (i = 0; i < 10; i++) {
-		ret = max9286_read(priv, 0x49) & 0xf0;
+		ret = max9286_read(priv, 0x49);
 		if (ret < 0)
 			return -EIO;
 
+		ret &= 0xf0;
 		if (ret == conflink_mask)
 			break;
 
@@ -480,7 +487,7 @@ static int max9286_notify_bound(struct v4l2_async_notifier *notifier,
 				struct v4l2_async_subdev *asd)
 {
 	struct max9286_priv *priv = sd_to_max9286(notifier->sd);
-	struct max9286_source *source = asd_to_max9286_source(asd);
+	struct max9286_source *source = to_max9286_asd(asd)->source;
 	unsigned int index = to_index(priv, source);
 	unsigned int src_pad;
 	int ret;
@@ -544,7 +551,7 @@ static void max9286_notify_unbind(struct v4l2_async_notifier *notifier,
 				  struct v4l2_async_subdev *asd)
 {
 	struct max9286_priv *priv = sd_to_max9286(notifier->sd);
-	struct max9286_source *source = asd_to_max9286_source(asd);
+	struct max9286_source *source = to_max9286_asd(asd)->source;
 	unsigned int index = to_index(priv, source);
 
 	source->sd = NULL;
@@ -569,23 +576,19 @@ static int max9286_v4l2_notifier_register(struct max9286_priv *priv)
 
 	for_each_source(priv, source) {
 		unsigned int i = to_index(priv, source);
+		struct v4l2_async_subdev *asd;
 
-		source->asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-		source->asd.match.fwnode = source->fwnode;
-
-		ret = v4l2_async_notifier_add_subdev(&priv->notifier,
-						     &source->asd);
-		if (ret) {
-			dev_err(dev, "Failed to add subdev for source %d", i);
+		asd = v4l2_async_notifier_add_fwnode_subdev(&priv->notifier,
+							    source->fwnode,
+							    sizeof(*asd));
+		if (IS_ERR(asd)) {
+			dev_err(dev, "Failed to add subdev for source %u: %ld",
+				i, PTR_ERR(asd));
 			v4l2_async_notifier_cleanup(&priv->notifier);
-			return ret;
+			return PTR_ERR(asd);
 		}
 
-		/*
-		 * Balance the reference counting handled through
-		 * v4l2_async_notifier_cleanup()
-		 */
-		fwnode_handle_get(source->fwnode);
+		to_max9286_asd(asd)->source = source;
 	}
 
 	priv->notifier.ops = &max9286_notify_ops;

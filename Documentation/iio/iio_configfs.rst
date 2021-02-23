@@ -53,7 +53,7 @@ kernel module following the interface in include/linux/iio/sw_trigger.h::
 	 */
   }
 
-  static int iio_trig_hrtimer_remove(struct iio_sw_trigger *swt)
+  static int iio_trig_sample_remove(struct iio_sw_trigger *swt)
   {
 	/*
 	 * This undoes the actions in iio_trig_sample_probe

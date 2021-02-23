@@ -179,6 +179,7 @@ int mt76x2_mcu_init(struct mt76x02_dev *dev)
 	static const struct mt76_mcu_ops mt76x2_mcu_ops = {
 		.mcu_restart = mt76pci_mcu_restart,
 		.mcu_send_msg = mt76x02_mcu_msg_send,
+		.mcu_parse_response = mt76x02_mcu_parse_response,
 	};
 	int ret;
 

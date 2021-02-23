@@ -20,13 +20,12 @@ static int get_ext_windows(struct snd_sof_dev *sdev,
 {
 	const struct sof_ipc_window *w =
 		container_of(ext_hdr, struct sof_ipc_window, ext_hdr);
-	size_t w_size = struct_size(w, window, w->num_windows);
 
 	if (w->num_windows == 0 || w->num_windows > SOF_IPC_MAX_ELEMS)
 		return -EINVAL;
 
 	if (sdev->info_window) {
-		if (memcmp(sdev->info_window, w, w_size)) {
+		if (memcmp(sdev->info_window, w, ext_hdr->hdr.size)) {
 			dev_err(sdev->dev, "error: mismatch between window descriptor from extended manifest and mailbox");
 			return -EINVAL;
 		}
@@ -34,7 +33,8 @@ static int get_ext_windows(struct snd_sof_dev *sdev,
 	}
 
 	/* keep a local copy of the data */
-	sdev->info_window = kmemdup(w, w_size, GFP_KERNEL);
+	sdev->info_window = devm_kmemdup(sdev->dev, w, ext_hdr->hdr.size,
+					 GFP_KERNEL);
 	if (!sdev->info_window)
 		return -ENOMEM;
 
@@ -118,8 +118,13 @@ int snd_sof_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 bar, u32 offset)
 		case SOF_IPC_EXT_CC_INFO:
 			ret = get_cc_info(sdev, ext_hdr);
 			break;
+		case SOF_IPC_EXT_UNUSED:
+		case SOF_IPC_EXT_PROBE_INFO:
+		case SOF_IPC_EXT_USER_ABI_INFO:
+			/* They are supported but we don't do anything here */
+			break;
 		default:
-			dev_warn(sdev->dev, "warning: unknown ext header type %d size 0x%x\n",
+			dev_info(sdev->dev, "unknown ext header type %d size 0x%x\n",
 				 ext_hdr->type, ext_hdr->hdr.size);
 			ret = 0;
 			break;
@@ -174,6 +179,70 @@ static int ext_man_get_cc_info(struct snd_sof_dev *sdev,
 	cc = container_of(hdr, struct sof_ext_man_cc_version, hdr);
 
 	return get_cc_info(sdev, &cc->cc_version.ext_hdr);
+}
+
+static int ext_man_get_dbg_abi_info(struct snd_sof_dev *sdev,
+				    const struct sof_ext_man_elem_header *hdr)
+{
+	const struct ext_man_dbg_abi *dbg_abi =
+		container_of(hdr, struct ext_man_dbg_abi, hdr);
+
+	if (sdev->first_boot)
+		dev_dbg(sdev->dev,
+			"Firmware: DBG_ABI %d:%d:%d\n",
+			SOF_ABI_VERSION_MAJOR(dbg_abi->dbg_abi.abi_dbg_version),
+			SOF_ABI_VERSION_MINOR(dbg_abi->dbg_abi.abi_dbg_version),
+			SOF_ABI_VERSION_PATCH(dbg_abi->dbg_abi.abi_dbg_version));
+
+	return 0;
+}
+
+static int ext_man_get_config_data(struct snd_sof_dev *sdev,
+				   const struct sof_ext_man_elem_header *hdr)
+{
+	const struct sof_ext_man_config_data *config =
+		container_of(hdr, struct sof_ext_man_config_data, hdr);
+	const struct sof_config_elem *elem;
+	int elems_counter;
+	int elems_size;
+	int ret = 0;
+	int i;
+
+	/* calculate elements counter */
+	elems_size = config->hdr.size - sizeof(struct sof_ext_man_elem_header);
+	elems_counter = elems_size / sizeof(struct sof_config_elem);
+
+	dev_dbg(sdev->dev, "%s can hold up to %d config elements\n",
+		__func__, elems_counter);
+
+	for (i = 0; i < elems_counter; ++i) {
+		elem = &config->elems[i];
+		dev_dbg(sdev->dev, "%s get index %d token %d val %d\n",
+			__func__, i, elem->token, elem->value);
+		switch (elem->token) {
+		case SOF_EXT_MAN_CONFIG_EMPTY:
+			/* unused memory space is zero filled - mapped to EMPTY elements */
+			break;
+		case SOF_EXT_MAN_CONFIG_IPC_MSG_SIZE:
+			/* TODO: use ipc msg size from config data */
+			break;
+		case SOF_EXT_MAN_CONFIG_MEMORY_USAGE_SCAN:
+			if (sdev->first_boot && elem->value)
+				ret = snd_sof_dbg_memory_info_init(sdev);
+			break;
+		default:
+			dev_info(sdev->dev, "Unknown firmware configuration token %d value %d",
+				 elem->token, elem->value);
+			break;
+		}
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: processing sof_ext_man_config_data failed for token %d value 0x%x, %d\n",
+				elem->token, elem->value, ret);
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 static ssize_t snd_sof_ext_man_size(const struct firmware *fw)
@@ -255,8 +324,17 @@ static int snd_sof_fw_ext_man_parse(struct snd_sof_dev *sdev,
 		case SOF_EXT_MAN_ELEM_CC_VERSION:
 			ret = ext_man_get_cc_info(sdev, elem_hdr);
 			break;
+		case SOF_EXT_MAN_ELEM_DBG_ABI:
+			ret = ext_man_get_dbg_abi_info(sdev, elem_hdr);
+			break;
+		case SOF_EXT_MAN_ELEM_CONFIG_DATA:
+			ret = ext_man_get_config_data(sdev, elem_hdr);
+			break;
+		case SOF_EXT_MAN_ELEM_PLATFORM_CONFIG_DATA:
+			ret = snd_sof_dsp_parse_platform_ext_manifest(sdev, elem_hdr);
+			break;
 		default:
-			dev_warn(sdev->dev, "warning: unknown sof_ext_man header type %d size 0x%X\n",
+			dev_info(sdev->dev, "unknown sof_ext_man header type %d size 0x%X\n",
 				 elem_hdr->type, elem_hdr->size);
 			break;
 		}
@@ -291,6 +369,8 @@ static void sof_get_windows(struct snd_sof_dev *sdev)
 	u32 outbox_size = 0;
 	u32 stream_size = 0;
 	u32 inbox_size = 0;
+	u32 debug_size = 0;
+	u32 debug_offset = 0;
 	int window_offset;
 	int bar;
 	int i;
@@ -344,6 +424,8 @@ static void sof_get_windows(struct snd_sof_dev *sdev)
 						SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		case SOF_IPC_REGION_DEBUG:
+			debug_offset = window_offset + elem->offset;
+			debug_size = elem->size;
 			snd_sof_debugfs_io_item(sdev,
 						sdev->bar[bar] +
 						window_offset +
@@ -393,12 +475,17 @@ static void sof_get_windows(struct snd_sof_dev *sdev)
 	sdev->stream_box.offset = stream_offset;
 	sdev->stream_box.size = stream_size;
 
+	sdev->debug_box.offset = debug_offset;
+	sdev->debug_box.size = debug_size;
+
 	dev_dbg(sdev->dev, " mailbox upstream 0x%x - size 0x%x\n",
 		inbox_offset, inbox_size);
 	dev_dbg(sdev->dev, " mailbox downstream 0x%x - size 0x%x\n",
 		outbox_offset, outbox_size);
 	dev_dbg(sdev->dev, " stream region 0x%x - size 0x%x\n",
 		stream_offset, stream_size);
+	dev_dbg(sdev->dev, " debug region 0x%x - size 0x%x\n",
+		debug_offset, debug_size);
 }
 
 /* check for ABI compatibility and create memory windows on first boot */
@@ -769,8 +856,8 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 				 msecs_to_jiffies(sdev->boot_timeout));
 	if (ret == 0) {
 		dev_err(sdev->dev, "error: firmware boot failure\n");
-		snd_sof_dsp_dbg_dump(sdev, SOF_DBG_REGS | SOF_DBG_MBOX |
-			SOF_DBG_TEXT | SOF_DBG_PCI);
+		snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX |
+			SOF_DBG_DUMP_TEXT | SOF_DBG_DUMP_PCI | SOF_DBG_DUMP_FORCE_ERR_LEVEL);
 		sdev->fw_state = SOF_FW_BOOT_FAILED;
 		return -EIO;
 	}

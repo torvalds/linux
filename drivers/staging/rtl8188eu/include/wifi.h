@@ -74,37 +74,6 @@ enum WIFI_FRAME_SUBTYPE {
 	WIFI_QOS_DATA_NULL	= (BIT(6) | WIFI_QOS_DATA_TYPE),
 };
 
-enum WIFI_REASON_CODE	{
-	_RSON_RESERVED_			= 0,
-	_RSON_UNSPECIFIED_		= 1,
-	_RSON_AUTH_NO_LONGER_VALID_	= 2,
-	_RSON_DEAUTH_STA_LEAVING_	= 3,
-	_RSON_INACTIVITY_		= 4,
-	_RSON_UNABLE_HANDLE_		= 5,
-	_RSON_CLS2_			= 6,
-	_RSON_CLS3_			= 7,
-	_RSON_DISAOC_STA_LEAVING_	= 8,
-	_RSON_ASOC_NOT_AUTH_		= 9,
-
-	/*  WPA reason */
-	_RSON_INVALID_IE_		= 13,
-	_RSON_MIC_FAILURE_		= 14,
-	_RSON_4WAY_HNDSHK_TIMEOUT_	= 15,
-	_RSON_GROUP_KEY_UPDATE_TIMEOUT_	= 16,
-	_RSON_DIFF_IE_			= 17,
-	_RSON_MLTCST_CIPHER_NOT_VALID_	= 18,
-	_RSON_UNICST_CIPHER_NOT_VALID_	= 19,
-	_RSON_AKMP_NOT_VALID_		= 20,
-	_RSON_UNSUPPORT_RSNE_VER_	= 21,
-	_RSON_INVALID_RSNE_CAP_		= 22,
-	_RSON_IEEE_802DOT1X_AUTH_FAIL_	= 23,
-
-	/* belowing are Realtek definition */
-	_RSON_PMK_NOT_AVAILABLE_	= 24,
-	_RSON_TDLS_TEAR_TOOFAR_		= 25,
-	_RSON_TDLS_TEAR_UN_RSN_		= 26,
-};
-
 enum WIFI_STATUS_CODE {
 	_STATS_SUCCESSFUL_		= 0,
 	_STATS_FAILURE_			= 1,
@@ -326,11 +295,12 @@ static inline unsigned char *get_hdr_bssid(unsigned char *pframe)
 
 static inline int IsFrameTypeCtrl(unsigned char *pframe)
 {
-	if (WIFI_CTRL_TYPE == GetFrameType(pframe))
+	if (GetFrameType(pframe) == WIFI_CTRL_TYPE)
 		return true;
 	else
 		return false;
 }
+
 /*-----------------------------------------------------------------------------
 			Below is for the security related definition
 ------------------------------------------------------------------------------*/
@@ -359,40 +329,6 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 #define _PUBLIC_ACTION_IE_OFFSET_	8
 
 #define _FIXED_IE_LENGTH_	_BEACON_IE_OFFSET_
-
-#define _SSID_IE_		0
-#define _SUPPORTEDRATES_IE_	1
-#define _DSSET_IE_		3
-#define _TIM_IE_		5
-#define _IBSS_PARA_IE_		6
-#define _COUNTRY_IE_		7
-#define _CHLGETXT_IE_		16
-#define _SUPPORTED_CH_IE_	36
-#define _CH_SWTICH_ANNOUNCE_	37	/* Secondary Channel Offset */
-#define _RSN_IE_2_		48
-#define _SSN_IE_1_		221
-#define _ERPINFO_IE_		42
-#define _EXT_SUPPORTEDRATES_IE_	50
-
-#define _HT_CAPABILITY_IE_	45
-#define _FTIE_			55
-#define _TIMEOUT_ITVL_IE_	56
-#define _SRC_IE_		59
-#define _HT_EXTRA_INFO_IE_	61
-#define _HT_ADD_INFO_IE_	61 /* _HT_EXTRA_INFO_IE_ */
-#define _WAPI_IE_		68
-
-#define	EID_BSSCoexistence	72 /*  20/40 BSS Coexistence */
-#define	EID_BSSIntolerantChlReport	73
-#define _RIC_Descriptor_IE_	75
-
-#define _LINK_ID_IE_		101
-#define _CH_SWITCH_TIMING_	104
-#define _PTI_BUFFER_STATUS_	106
-#define _EXT_CAP_IE_		127
-#define _VENDOR_SPECIFIC_IE_	221
-
-#define	_RESERVED47_		47
 
 /* ---------------------------------------------------------------------------
 					Below is the fixed elements...

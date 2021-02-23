@@ -272,7 +272,7 @@ void optc1_program_timing(
 			vupdate_offset,
 			vupdate_width);
 
-	optc->funcs->set_vtg_params(optc, dc_crtc_timing);
+	optc->funcs->set_vtg_params(optc, dc_crtc_timing, true);
 
 	/* TODO
 	 * patched_crtc_timing.flags.HORZ_COUNT_BY_TWO == 1
@@ -288,23 +288,31 @@ void optc1_program_timing(
 	if (optc1_is_two_pixels_per_containter(&patched_crtc_timing) || optc1->opp_count == 2)
 		h_div = H_TIMING_DIV_BY2;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	if (REG(OPTC_DATA_FORMAT_CONTROL)) {
+		uint32_t data_fmt = 0;
+
+		if (patched_crtc_timing.pixel_encoding == PIXEL_ENCODING_YCBCR422)
+			data_fmt = 1;
+		else if (patched_crtc_timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
+			data_fmt = 2;
+
+		REG_UPDATE(OPTC_DATA_FORMAT_CONTROL, OPTC_DATA_FORMAT, data_fmt);
+	}
+
 	if (optc1->tg_mask->OTG_H_TIMING_DIV_MODE != 0) {
 		if (optc1->opp_count == 4)
 			h_div = H_TIMING_DIV_BY4;
 
 		REG_UPDATE(OTG_H_TIMING_CNTL,
 		OTG_H_TIMING_DIV_MODE, h_div);
-	} else
-#endif
-	{
+	} else {
 		REG_UPDATE(OTG_H_TIMING_CNTL,
 		OTG_H_TIMING_DIV_BY2, h_div);
 	}
 }
 
 void optc1_set_vtg_params(struct timing_generator *optc,
-		const struct dc_crtc_timing *dc_crtc_timing)
+		const struct dc_crtc_timing *dc_crtc_timing, bool program_fp2)
 {
 	struct dc_crtc_timing patched_crtc_timing;
 	uint32_t asic_blank_end;
@@ -340,9 +348,12 @@ void optc1_set_vtg_params(struct timing_generator *optc,
 		}
 	}
 
-	REG_UPDATE_2(CONTROL,
-			VTG0_FP2, v_fp2,
-			VTG0_VCOUNT_INIT, v_init);
+	if (program_fp2)
+		REG_UPDATE_2(CONTROL,
+				VTG0_FP2, v_fp2,
+				VTG0_VCOUNT_INIT, v_init);
+	else
+		REG_UPDATE(CONTROL, VTG0_VCOUNT_INIT, v_init);
 }
 
 void optc1_set_blank_data_double_buffer(struct timing_generator *optc, bool enable)
@@ -1532,7 +1543,7 @@ void dcn10_timing_generator_init(struct optc *optc1)
 	optc1->min_h_blank = 32;
 	optc1->min_v_blank = 3;
 	optc1->min_v_blank_interlace = 5;
-	optc1->min_h_sync_width = 8;
+	optc1->min_h_sync_width = 4;
 	optc1->min_v_sync_width = 1;
 }
 

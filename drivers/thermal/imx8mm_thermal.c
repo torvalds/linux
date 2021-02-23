@@ -146,13 +146,9 @@ static int imx8mm_tmu_probe(struct platform_device *pdev)
 		return PTR_ERR(tmu->base);
 
 	tmu->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(tmu->clk)) {
-		ret = PTR_ERR(tmu->clk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"failed to get tmu clock: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(tmu->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(tmu->clk),
+				     "failed to get tmu clock\n");
 
 	ret = clk_prepare_enable(tmu->clk);
 	if (ret) {
@@ -170,10 +166,11 @@ static int imx8mm_tmu_probe(struct platform_device *pdev)
 							     &tmu->sensors[i],
 							     &tmu_tz_ops);
 		if (IS_ERR(tmu->sensors[i].tzd)) {
+			ret = PTR_ERR(tmu->sensors[i].tzd);
 			dev_err(&pdev->dev,
 				"failed to register thermal zone sensor[%d]: %d\n",
 				i, ret);
-			return PTR_ERR(tmu->sensors[i].tzd);
+			goto disable_clk;
 		}
 		tmu->sensors[i].hw_id = i;
 	}
@@ -188,6 +185,10 @@ static int imx8mm_tmu_probe(struct platform_device *pdev)
 	imx8mm_tmu_enable(tmu, true);
 
 	return 0;
+
+disable_clk:
+	clk_disable_unprepare(tmu->clk);
+	return ret;
 }
 
 static int imx8mm_tmu_remove(struct platform_device *pdev)

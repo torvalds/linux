@@ -38,6 +38,7 @@ DEFINE_MUTEX(event_mutex);
 LIST_HEAD(ftrace_events);
 static LIST_HEAD(ftrace_generic_fields);
 static LIST_HEAD(ftrace_common_fields);
+static bool eventdir_initialized;
 
 #define GFP_TRACE (GFP_KERNEL | __GFP_ZERO)
 
@@ -1211,7 +1212,8 @@ system_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 	mutex_lock(&event_mutex);
 	list_for_each_entry(file, &tr->events, list) {
 		call = file->event_call;
-		if (!trace_event_name(call) || !call->class || !call->class->reg)
+		if ((call->flags & TRACE_EVENT_FL_IGNORE_ENABLE) ||
+		    !trace_event_name(call) || !call->class || !call->class->reg)
 			continue;
 
 		if (system && strcmp(call->class->system, system->name) != 0)
@@ -2124,11 +2126,47 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
 }
 
 static int
+event_define_fields(struct trace_event_call *call)
+{
+	struct list_head *head;
+	int ret = 0;
+
+	/*
+	 * Other events may have the same class. Only update
+	 * the fields if they are not already defined.
+	 */
+	head = trace_get_fields(call);
+	if (list_empty(head)) {
+		struct trace_event_fields *field = call->class->fields_array;
+		unsigned int offset = sizeof(struct trace_entry);
+
+		for (; field->type; field++) {
+			if (field->type == TRACE_FUNCTION_TYPE) {
+				field->define_fields(call);
+				break;
+			}
+
+			offset = ALIGN(offset, field->align);
+			ret = trace_define_field(call, field->type, field->name,
+						 offset, field->size,
+						 field->is_signed, field->filter_type);
+			if (WARN_ON_ONCE(ret)) {
+				pr_err("error code is %d\n", ret);
+				break;
+			}
+
+			offset += field->size;
+		}
+	}
+
+	return ret;
+}
+
+static int
 event_create_dir(struct dentry *parent, struct trace_event_file *file)
 {
 	struct trace_event_call *call = file->event_call;
 	struct trace_array *tr = file->tr;
-	struct list_head *head;
 	struct dentry *d_events;
 	const char *name;
 	int ret;
@@ -2162,35 +2200,10 @@ event_create_dir(struct dentry *parent, struct trace_event_file *file)
 				  &ftrace_event_id_fops);
 #endif
 
-	/*
-	 * Other events may have the same class. Only update
-	 * the fields if they are not already defined.
-	 */
-	head = trace_get_fields(call);
-	if (list_empty(head)) {
-		struct trace_event_fields *field = call->class->fields_array;
-		unsigned int offset = sizeof(struct trace_entry);
-
-		for (; field->type; field++) {
-			if (field->type == TRACE_FUNCTION_TYPE) {
-				ret = field->define_fields(call);
-				break;
-			}
-
-			offset = ALIGN(offset, field->align);
-			ret = trace_define_field(call, field->type, field->name,
-						 offset, field->size,
-						 field->is_signed, field->filter_type);
-			if (ret)
-				break;
-
-			offset += field->size;
-		}
-		if (ret < 0) {
-			pr_warn("Could not initialize trace point events/%s\n",
-				name);
-			return -1;
-		}
+	ret = event_define_fields(call);
+	if (ret < 0) {
+		pr_warn("Could not initialize trace point events/%s\n", name);
+		return ret;
 	}
 
 	/*
@@ -2424,7 +2437,7 @@ void trace_event_eval_update(struct trace_eval_map **map, int len)
 		/*
 		 * Since calls are grouped by systems, the likelyhood that the
 		 * next call in the iteration belongs to the same system as the
-		 * previous call is high. As an optimization, we skip seaching
+		 * previous call is high. As an optimization, we skip searching
 		 * for a map[] that matches the call's system if the last call
 		 * was from the same system. That's what last_i is for. If the
 		 * call has the same system as the previous call, then last_i
@@ -2475,7 +2488,10 @@ __trace_add_new_event(struct trace_event_call *call, struct trace_array *tr)
 	if (!file)
 		return -ENOMEM;
 
-	return event_create_dir(tr->event_dir, file);
+	if (eventdir_initialized)
+		return event_create_dir(tr->event_dir, file);
+	else
+		return event_define_fields(call);
 }
 
 /*
@@ -2483,7 +2499,7 @@ __trace_add_new_event(struct trace_event_call *call, struct trace_array *tr)
  * for enabling events at boot. We want to enable events before
  * the filesystem is initialized.
  */
-static __init int
+static int
 __trace_early_add_new_event(struct trace_event_call *call,
 			    struct trace_array *tr)
 {
@@ -2493,7 +2509,7 @@ __trace_early_add_new_event(struct trace_event_call *call,
 	if (!file)
 		return -ENOMEM;
 
-	return 0;
+	return event_define_fields(call);
 }
 
 struct ftrace_module_file_ops;
@@ -2646,7 +2662,7 @@ static int trace_module_notify(struct notifier_block *self,
 	mutex_unlock(&trace_types_lock);
 	mutex_unlock(&event_mutex);
 
-	return 0;
+	return NOTIFY_OK;
 }
 
 static struct notifier_block trace_module_nb = {
@@ -3116,14 +3132,13 @@ static inline int register_event_cmds(void) { return 0; }
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 /*
- * The top level array has already had its trace_event_file
- * descriptors created in order to allow for early events to
- * be recorded. This function is called after the tracefs has been
- * initialized, and we now have to create the files associated
- * to the events.
+ * The top level array and trace arrays created by boot-time tracing
+ * have already had its trace_event_file descriptors created in order
+ * to allow for early events to be recorded.
+ * This function is called after the tracefs has been initialized,
+ * and we now have to create the files associated to the events.
  */
-static __init void
-__trace_early_add_event_dirs(struct trace_array *tr)
+static void __trace_early_add_event_dirs(struct trace_array *tr)
 {
 	struct trace_event_file *file;
 	int ret;
@@ -3138,13 +3153,12 @@ __trace_early_add_event_dirs(struct trace_array *tr)
 }
 
 /*
- * For early boot up, the top trace array requires to have
- * a list of events that can be enabled. This must be done before
- * the filesystem is set up in order to allow events to be traced
- * early.
+ * For early boot up, the top trace array and the trace arrays created
+ * by boot-time tracing require to have a list of events that can be
+ * enabled. This must be done before the filesystem is set up in order
+ * to allow events to be traced early.
  */
-static __init void
-__trace_early_add_events(struct trace_array *tr)
+void __trace_early_add_events(struct trace_array *tr)
 {
 	struct trace_event_call *call;
 	int ret;
@@ -3188,7 +3202,7 @@ static __init int setup_trace_event(char *str)
 {
 	strlcpy(bootup_event_buf, str, COMMAND_LINE_SIZE);
 	ring_buffer_expanded = true;
-	tracing_selftest_disabled = true;
+	disable_tracing_selftest("running event tracing");
 
 	return 1;
 }
@@ -3258,7 +3272,7 @@ create_event_toplevel_files(struct dentry *parent, struct trace_array *tr)
  *
  * When a new instance is created, it needs to set up its events
  * directory, as well as other files associated with events. It also
- * creates the event hierachry in the @parent/events directory.
+ * creates the event hierarchy in the @parent/events directory.
  *
  * Returns 0 on success.
  *
@@ -3275,7 +3289,11 @@ int event_trace_add_tracer(struct dentry *parent, struct trace_array *tr)
 		goto out;
 
 	down_write(&trace_event_sem);
-	__trace_add_event_dirs(tr);
+	/* If tr already has the event list, it is initialized in early boot. */
+	if (unlikely(!list_empty(&tr->events)))
+		__trace_early_add_event_dirs(tr);
+	else
+		__trace_add_event_dirs(tr);
 	up_write(&trace_event_sem);
 
  out:
@@ -3411,10 +3429,10 @@ static __init int event_trace_enable(void)
  * initialize events and perhaps start any events that are on the
  * command line. Unfortunately, there are some events that will not
  * start this early, like the system call tracepoints that need
- * to set the TIF_SYSCALL_TRACEPOINT flag of pid 1. But event_trace_enable()
- * is called before pid 1 starts, and this flag is never set, making
- * the syscall tracepoint never get reached, but the event is enabled
- * regardless (and not doing anything).
+ * to set the %SYSCALL_WORK_SYSCALL_TRACEPOINT flag of pid 1. But
+ * event_trace_enable() is called before pid 1 starts, and this flag
+ * is never set, making the syscall tracepoint never get reached, but
+ * the event is enabled regardless (and not doing anything).
  */
 static __init int event_trace_enable_again(void)
 {
@@ -3431,10 +3449,21 @@ static __init int event_trace_enable_again(void)
 
 early_initcall(event_trace_enable_again);
 
+/* Init fields which doesn't related to the tracefs */
+static __init int event_trace_init_fields(void)
+{
+	if (trace_define_generic_fields())
+		pr_warn("tracing: Failed to allocated generic fields");
+
+	if (trace_define_common_fields())
+		pr_warn("tracing: Failed to allocate common fields");
+
+	return 0;
+}
+
 __init int event_trace_init(void)
 {
 	struct trace_array *tr;
-	struct dentry *d_tracer;
 	struct dentry *entry;
 	int ret;
 
@@ -3442,22 +3471,12 @@ __init int event_trace_init(void)
 	if (!tr)
 		return -ENODEV;
 
-	d_tracer = tracing_init_dentry();
-	if (IS_ERR(d_tracer))
-		return 0;
-
-	entry = tracefs_create_file("available_events", 0444, d_tracer,
+	entry = tracefs_create_file("available_events", 0444, NULL,
 				    tr, &ftrace_avail_fops);
 	if (!entry)
 		pr_warn("Could not create tracefs 'available_events' entry\n");
 
-	if (trace_define_generic_fields())
-		pr_warn("tracing: Failed to allocated generic fields");
-
-	if (trace_define_common_fields())
-		pr_warn("tracing: Failed to allocate common fields");
-
-	ret = early_event_add_tracer(d_tracer, tr);
+	ret = early_event_add_tracer(NULL, tr);
 	if (ret)
 		return ret;
 
@@ -3466,6 +3485,9 @@ __init int event_trace_init(void)
 	if (ret)
 		pr_warn("Failed to register trace events module notifier\n");
 #endif
+
+	eventdir_initialized = true;
+
 	return 0;
 }
 
@@ -3474,6 +3496,7 @@ void __init trace_event_init(void)
 	event_trace_memsetup();
 	init_ftrace_syscalls();
 	event_trace_enable();
+	event_trace_init_fields();
 }
 
 #ifdef CONFIG_EVENT_TRACE_STARTUP_TEST
@@ -3651,7 +3674,7 @@ static struct trace_event_file event_trace_file __initdata;
 
 static void __init
 function_test_events_call(unsigned long ip, unsigned long parent_ip,
-			  struct ftrace_ops *op, struct pt_regs *pt_regs)
+			  struct ftrace_ops *op, struct ftrace_regs *regs)
 {
 	struct trace_buffer *buffer;
 	struct ring_buffer_event *event;
@@ -3690,7 +3713,6 @@ function_test_events_call(unsigned long ip, unsigned long parent_ip,
 static struct ftrace_ops trace_ops __initdata  =
 {
 	.func = function_test_events_call,
-	.flags = FTRACE_OPS_FL_RECURSION_SAFE,
 };
 
 static __init void event_trace_self_test_with_function(void)

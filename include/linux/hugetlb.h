@@ -129,7 +129,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
 				unsigned long start, unsigned long end,
 				struct page *ref_page);
 void hugetlb_report_meminfo(struct seq_file *);
-int hugetlb_report_node_meminfo(int, char *);
+int hugetlb_report_node_meminfo(char *buf, int len, int nid);
 void hugetlb_show_meminfo(void);
 unsigned long hugetlb_total_pages(void);
 vm_fault_t hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
@@ -245,7 +245,7 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
 {
 }
 
-static inline int hugetlb_report_node_meminfo(int nid, char *buf)
+static inline int hugetlb_report_node_meminfo(char *buf, int len, int nid)
 {
 	return 0;
 }
@@ -769,6 +769,8 @@ static inline void huge_ptep_modify_prot_commit(struct vm_area_struct *vma,
 	set_huge_pte_at(vma->vm_mm, addr, ptep, pte);
 }
 #endif
+
+void set_page_huge_active(struct page *page);
 
 #else	/* CONFIG_HUGETLB_PAGE */
 struct hstate {};

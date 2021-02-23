@@ -297,8 +297,7 @@ static struct attribute *powr1220_attrs[] = {
 
 ATTRIBUTE_GROUPS(powr1220);
 
-static int powr1220_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int powr1220_probe(struct i2c_client *client)
 {
 	struct powr1220_data *data;
 	struct device *hwmon_dev;
@@ -331,7 +330,7 @@ static struct i2c_driver powr1220_driver = {
 	.driver = {
 		.name	= "powr1220",
 	},
-	.probe		= powr1220_probe,
+	.probe_new	= powr1220_probe,
 	.id_table	= powr1220_ids,
 };
 

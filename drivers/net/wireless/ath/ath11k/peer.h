@@ -41,5 +41,9 @@ void ath11k_peer_cleanup(struct ath11k *ar, u32 vdev_id);
 int ath11k_peer_delete(struct ath11k *ar, u32 vdev_id, u8 *addr);
 int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
 		       struct ieee80211_sta *sta, struct peer_create_params *param);
+int ath11k_wait_for_peer_delete_done(struct ath11k *ar, u32 vdev_id,
+				     const u8 *addr);
+struct ath11k_peer *ath11k_peer_find_by_vdev_id(struct ath11k_base *ab,
+						int vdev_id);
 
 #endif /* _PEER_H_ */

@@ -49,6 +49,7 @@ struct panel_cntl_funcs {
 	void (*store_backlight_level)(struct panel_cntl *panel_cntl);
 	void (*driver_set_backlight)(struct panel_cntl *panel_cntl,
 			uint32_t backlight_pwm_u16_16);
+	uint32_t (*get_current_backlight)(struct panel_cntl *panel_cntl);
 };
 
 struct panel_cntl_init_data {

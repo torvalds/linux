@@ -148,7 +148,7 @@ void amdgpu_atombios_i2c_init(struct amdgpu_device *adev)
 
 			if (i2c.valid) {
 				sprintf(stmp, "0x%x", i2c.i2c_id);
-				adev->i2c_bus[i] = amdgpu_i2c_create(adev->ddev, &i2c, stmp);
+				adev->i2c_bus[i] = amdgpu_i2c_create(adev_to_drm(adev), &i2c, stmp);
 			}
 			gpio = (ATOM_GPIO_I2C_ASSIGMENT *)
 				((u8 *)gpio + sizeof(ATOM_GPIO_I2C_ASSIGMENT));
@@ -541,7 +541,7 @@ bool amdgpu_atombios_get_connector_info_from_object_table(struct amdgpu_device *
 		}
 	}
 
-	amdgpu_link_encoder_connector(adev->ddev);
+	amdgpu_link_encoder_connector(adev_to_drm(adev));
 
 	return true;
 }
@@ -1401,7 +1401,7 @@ static ATOM_VOLTAGE_OBJECT_V3 *amdgpu_atombios_lookup_voltage_object_v3(ATOM_VOL
 {
 	u32 size = le16_to_cpu(v3->sHeader.usStructureSize);
 	u32 offset = offsetof(ATOM_VOLTAGE_OBJECT_INFO_V3_1, asVoltageObj[0]);
-	u8 *start = (u8*)v3;
+	u8 *start = (u8 *)v3;
 
 	while (offset < size) {
 		ATOM_VOLTAGE_OBJECT_V3 *vo = (ATOM_VOLTAGE_OBJECT_V3 *)(start + offset);
@@ -1786,9 +1786,9 @@ static int amdgpu_atombios_allocate_fb_scratch(struct amdgpu_device *adev)
 			(uint32_t)(ATOM_VRAM_BLOCK_SRIOV_MSG_SHARE_RESERVATION <<
 			ATOM_VRAM_OPERATION_FLAGS_SHIFT)) {
 			/* Firmware request VRAM reservation for SR-IOV */
-			adev->fw_vram_usage.start_offset = (start_addr &
+			adev->mman.fw_vram_usage_start_offset = (start_addr &
 				(~ATOM_VRAM_OPERATION_FLAGS_MASK)) << 10;
-			adev->fw_vram_usage.size = size << 10;
+			adev->mman.fw_vram_usage_size = size << 10;
 			/* Use the default scratch size */
 			usage_bytes = 0;
 		} else {
@@ -1882,7 +1882,7 @@ static void cail_mc_write(struct card_info *info, uint32_t reg, uint32_t val)
  */
 static void cail_reg_write(struct card_info *info, uint32_t reg, uint32_t val)
 {
-	struct amdgpu_device *adev = info->dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(info->dev);
 
 	WREG32(reg, val);
 }
@@ -1898,7 +1898,7 @@ static void cail_reg_write(struct card_info *info, uint32_t reg, uint32_t val)
  */
 static uint32_t cail_reg_read(struct card_info *info, uint32_t reg)
 {
-	struct amdgpu_device *adev = info->dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(info->dev);
 	uint32_t r;
 
 	r = RREG32(reg);
@@ -1916,7 +1916,7 @@ static uint32_t cail_reg_read(struct card_info *info, uint32_t reg)
  */
 static void cail_ioreg_write(struct card_info *info, uint32_t reg, uint32_t val)
 {
-	struct amdgpu_device *adev = info->dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(info->dev);
 
 	WREG32_IO(reg, val);
 }
@@ -1932,7 +1932,7 @@ static void cail_ioreg_write(struct card_info *info, uint32_t reg, uint32_t val)
  */
 static uint32_t cail_ioreg_read(struct card_info *info, uint32_t reg)
 {
-	struct amdgpu_device *adev = info->dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(info->dev);
 	uint32_t r;
 
 	r = RREG32_IO(reg);
@@ -1944,7 +1944,7 @@ static ssize_t amdgpu_atombios_get_vbios_version(struct device *dev,
 						 char *buf)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct amdgpu_device *adev = ddev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(ddev);
 	struct atom_context *ctx = adev->mode_info.atom_context;
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", ctx->vbios_version);
@@ -1995,7 +1995,7 @@ int amdgpu_atombios_init(struct amdgpu_device *adev)
 		return -ENOMEM;
 
 	adev->mode_info.atom_card_info = atom_card_info;
-	atom_card_info->dev = adev->ddev;
+	atom_card_info->dev = adev_to_drm(adev);
 	atom_card_info->reg_read = cail_reg_read;
 	atom_card_info->reg_write = cail_reg_write;
 	/* needed for iio ops */

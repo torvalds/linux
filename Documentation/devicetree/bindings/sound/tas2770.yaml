@@ -24,10 +24,13 @@ properties:
   reg:
     maxItems: 1
     description: |
-       I2C address of the device can be one of these 0x4c, 0x4d, 0x4e or 0x4f
+       I2C address of the device can be between 0x41 to 0x48.
 
   reset-gpio:
     description: GPIO used to reset the device.
+
+  shutdown-gpios:
+    description: GPIO used to control the state of the device.
 
   interrupts:
     maxItems: 1
@@ -41,6 +44,7 @@ properties:
     description: TDM TX voltage sense time slot.
 
   ti,asi-format:
+    deprecated: true
     $ref: /schemas/types.yaml#/definitions/uint32
     description: Sets TDM RX capture edge.
     enum:
@@ -62,13 +66,14 @@ examples:
    i2c0 {
      #address-cells = <1>;
      #size-cells = <0>;
-     codec: codec@4c {
+     codec: codec@41 {
        compatible = "ti,tas2770";
-       reg = <0x4c>;
+       reg = <0x41>;
        #sound-dai-cells = <1>;
        interrupt-parent = <&gpio1>;
        interrupts = <14>;
        reset-gpio = <&gpio1 15 0>;
+       shutdown-gpios = <&gpio1 14 0>;
        ti,imon-slot-no = <0>;
        ti,vmon-slot-no = <2>;
      };

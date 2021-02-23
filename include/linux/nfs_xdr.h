@@ -525,7 +525,7 @@ struct nfs_closeargs {
 	struct nfs_seqid *	seqid;
 	fmode_t			fmode;
 	u32			share_access;
-	const u32 *		bitmask;
+	u32 *			bitmask;
 	struct nfs4_layoutreturn_args *lr_args;
 };
 
@@ -608,7 +608,7 @@ struct nfs4_delegreturnargs {
 	struct nfs4_sequence_args	seq_args;
 	const struct nfs_fh *fhandle;
 	const nfs4_stateid *stateid;
-	const u32 * bitmask;
+	u32 * bitmask;
 	struct nfs4_layoutreturn_args *lr_args;
 };
 
@@ -648,7 +648,7 @@ struct nfs_pgio_args {
 	union {
 		unsigned int		replen;			/* used by read */
 		struct {
-			const u32 *		bitmask;	/* used by write */
+			u32 *			bitmask;	/* used by write */
 			enum nfs3_stable_how	stable;		/* used by write */
 		};
 	};
@@ -657,7 +657,7 @@ struct nfs_pgio_args {
 struct nfs_pgio_res {
 	struct nfs4_sequence_res	seq_res;
 	struct nfs_fattr *	fattr;
-	__u32			count;
+	__u64			count;
 	__u32			op_status;
 	union {
 		struct {
@@ -748,6 +748,20 @@ struct nfs_entry {
 	struct nfs4_label  *label;
 	unsigned char		d_type;
 	struct nfs_server *	server;
+};
+
+struct nfs_readdir_arg {
+	struct dentry		*dentry;
+	const struct cred	*cred;
+	__be32			*verf;
+	u64			cookie;
+	struct page		**pages;
+	unsigned int		page_len;
+	bool			plus;
+};
+
+struct nfs_readdir_res {
+	__be32			*verf;
 };
 
 /*
@@ -1744,8 +1758,7 @@ struct nfs_rpc_ops {
 			    unsigned int, struct iattr *);
 	int	(*mkdir)   (struct inode *, struct dentry *, struct iattr *);
 	int	(*rmdir)   (struct inode *, const struct qstr *);
-	int	(*readdir) (struct dentry *, const struct cred *,
-			    u64, struct page **, unsigned int, bool);
+	int	(*readdir) (struct nfs_readdir_arg *, struct nfs_readdir_res *);
 	int	(*mknod)   (struct inode *, struct dentry *, struct iattr *,
 			    dev_t);
 	int	(*statfs)  (struct nfs_server *, struct nfs_fh *,

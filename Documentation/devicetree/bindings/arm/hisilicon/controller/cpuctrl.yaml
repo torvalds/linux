@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/hisilicon/controller/cpuctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Hisilicon CPU controller
+
+maintainers:
+  - Wei Xu <xuwei5@hisilicon.com>
+
+description: |
+  The clock registers and power registers of secondary cores are defined
+  in CPU controller, especially in HIX5HD2 SoC.
+
+properties:
+  compatible:
+    items:
+      - const: hisilicon,cpuctrl
+
+  reg:
+    maxItems: 1
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 1
+
+  ranges: true
+
+required:
+  - compatible
+  - reg
+
+additionalProperties:
+  type: object
+
+examples:
+  - |
+    cpuctrl@a22000 {
+        compatible = "hisilicon,cpuctrl";
+        #address-cells = <1>;
+        #size-cells = <1>;
+        reg = <0x00a22000 0x2000>;
+        ranges = <0 0x00a22000 0x2000>;
+
+        clock: clock@0 {
+            compatible = "hisilicon,hix5hd2-clock";
+            reg = <0 0x2000>;
+            #clock-cells = <1>;
+        };
+    };
+...

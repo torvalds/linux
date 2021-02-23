@@ -67,7 +67,7 @@
 #define AUDIT_DISABLED		-1
 #define AUDIT_UNINITIALIZED	0
 #define AUDIT_INITIALIZED	1
-static int	audit_initialized;
+static int	audit_initialized = AUDIT_UNINITIALIZED;
 
 u32		audit_enabled = AUDIT_OFF;
 bool		audit_ever_enabled = !!AUDIT_OFF;
@@ -123,9 +123,9 @@ static u32	audit_backlog_limit = 64;
 static u32	audit_backlog_wait_time = AUDIT_BACKLOG_WAIT_TIME;
 
 /* The identity of the user shutting down the audit system. */
-kuid_t		audit_sig_uid = INVALID_UID;
-pid_t		audit_sig_pid = -1;
-u32		audit_sig_sid = 0;
+static kuid_t		audit_sig_uid = INVALID_UID;
+static pid_t		audit_sig_pid = -1;
+static u32		audit_sig_sid;
 
 /* Records can be lost in several ways:
    0) [suppressed in audit_alloc]
@@ -523,7 +523,7 @@ static int auditd_set(struct pid *pid, u32 portid, struct net *net)
 }
 
 /**
- * kauditd_print_skb - Print the audit record to the ring buffer
+ * kauditd_printk_skb - Print the audit record to the ring buffer
  * @skb: audit record
  *
  * Whatever the reason, this packet may not make it to the auditd connection
@@ -934,8 +934,7 @@ static void audit_free_reply(struct audit_reply *reply)
 	if (!reply)
 		return;
 
-	if (reply->skb)
-		kfree_skb(reply->skb);
+	kfree_skb(reply->skb);
 	if (reply->net)
 		put_net(reply->net);
 	kfree(reply);
@@ -1780,7 +1779,7 @@ unsigned int audit_serial(void)
 {
 	static atomic_t serial = ATOMIC_INIT(0);
 
-	return atomic_add_return(1, &serial);
+	return atomic_inc_return(&serial);
 }
 
 static inline void audit_get_stamp(struct audit_context *ctx,
@@ -1866,6 +1865,9 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 	}
 
 	audit_get_stamp(ab->ctx, &t, &serial);
+	/* cancel dummy context to enable supporting records */
+	if (ctx)
+		ctx->dummy = 0;
 	audit_log_format(ab, "audit(%llu.%03lu:%u): ",
 			 (unsigned long long)t.tv_sec, t.tv_nsec/1000000, serial);
 

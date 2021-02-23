@@ -296,15 +296,16 @@ follows:
 
     struct sockaddr_alg sa = {
         .salg_family = AF_ALG,
-        .salg_type = "rng", /* this selects the symmetric cipher */
-        .salg_name = "drbg_nopr_sha256" /* this is the cipher name */
+        .salg_type = "rng", /* this selects the random number generator */
+        .salg_name = "drbg_nopr_sha256" /* this is the RNG name */
     };
 
 
 Depending on the RNG type, the RNG must be seeded. The seed is provided
 using the setsockopt interface to set the key. For example, the
 ansi_cprng requires a seed. The DRBGs do not require a seed, but may be
-seeded.
+seeded. The seed is also known as a *Personalization String* in NIST SP 800-90A
+standard.
 
 Using the read()/recvmsg() system calls, random numbers can be obtained.
 The kernel generates at most 128 bytes in one call. If user space
@@ -313,6 +314,16 @@ requires more data, multiple calls to read()/recvmsg() must be made.
 WARNING: The user space caller may invoke the initially mentioned accept
 system call multiple times. In this case, the returned file descriptors
 have the same state.
+
+Following CAVP testing interfaces are enabled when kernel is built with
+CRYPTO_USER_API_RNG_CAVP option:
+
+-  the concatenation of *Entropy* and *Nonce* can be provided to the RNG via
+   ALG_SET_DRBG_ENTROPY setsockopt interface. Setting the entropy requires
+   CAP_SYS_ADMIN permission.
+
+-  *Additional Data* can be provided using the send()/sendmsg() system calls,
+   but only after the entropy has been set.
 
 Zero-Copy Interface
 -------------------
@@ -376,6 +387,9 @@ mentioned optname:
    the given size will be generated. For a decryption operation, the
    provided ciphertext is assumed to contain an authentication tag of
    the given size (see section about AEAD memory layout below).
+
+-  ALG_SET_DRBG_ENTROPY -- Setting the entropy of the random number generator.
+   This option is applicable to RNG cipher type only.
 
 User space API example
 ----------------------

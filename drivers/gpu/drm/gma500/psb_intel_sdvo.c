@@ -125,7 +125,7 @@ struct psb_intel_sdvo {
 	bool is_lvds;
 
 	/**
-	 * This is sdvo fixed pannel mode pointer
+	 * This is sdvo fixed panel mode pointer
 	 */
 	struct drm_display_mode *sdvo_lvds_fixed_mode;
 

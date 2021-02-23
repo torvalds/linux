@@ -12,7 +12,6 @@
 #include <linux/crypto.h>
 #include <linux/verification.h>
 #include <crypto/hash.h>
-#include <crypto/sha.h>
 #include <crypto/algapi.h>
 #include <keys/user-type.h>
 #include <keys/asymmetric-type.h>
@@ -54,7 +53,7 @@ static int ubifs_hash_calc_hmac(const struct ubifs_info *c, const u8 *hash,
  * ubifs_prepare_auth_node - Prepare an authentication node
  * @c: UBIFS file-system description object
  * @node: the node to calculate a hash for
- * @hash: input hash of previous nodes
+ * @inhash: input hash of previous nodes
  *
  * This function prepares an authentication node for writing onto flash.
  * It creates a HMAC from the given input hash and writes it to the node.
@@ -338,8 +337,10 @@ int ubifs_init_authentication(struct ubifs_info *c)
 	c->authenticated = true;
 
 	c->log_hash = ubifs_hash_get_desc(c);
-	if (IS_ERR(c->log_hash))
+	if (IS_ERR(c->log_hash)) {
+		err = PTR_ERR(c->log_hash);
 		goto out_free_hmac;
+	}
 
 	err = 0;
 

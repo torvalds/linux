@@ -15,7 +15,7 @@
 #include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-map-ops.h>
 #include <linux/memblock.h>
 
 #include <asm/cacheflush.h>

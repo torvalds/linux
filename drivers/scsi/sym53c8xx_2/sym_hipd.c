@@ -4596,7 +4596,6 @@ static void sym_int_sir(struct sym_hcb *np)
 					scr_to_cpu(np->lastmsg), np->msgout[0]);
 			}
 			goto out_clrack;
-			break;
 		default:
 			goto out_reject;
 		}
@@ -5656,7 +5655,7 @@ int sym_hcb_attach(struct Scsi_Host *shost, struct sym_fw *fw, struct sym_nvram 
 	/*
 	 *  Allocate the array of lists of CCBs hashed by DSA.
 	 */
-	np->ccbh = kcalloc(CCB_HASH_SIZE, sizeof(struct sym_ccb **), GFP_KERNEL);
+	np->ccbh = kcalloc(CCB_HASH_SIZE, sizeof(*np->ccbh), GFP_KERNEL);
 	if (!np->ccbh)
 		goto attach_failed;
 

@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.fe
 
 .. _FE_SET_FRONTEND:
 
@@ -20,23 +14,21 @@ Name
 
 FE_SET_FRONTEND
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl(int fd, FE_SET_FRONTEND, struct dvb_frontend_parameters *p)
-    :name: FE_SET_FRONTEND
+.. c:macro:: FE_SET_FRONTEND
 
+``int ioctl(int fd, FE_SET_FRONTEND, struct dvb_frontend_parameters *p)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :c:func:`open() <dvb-fe-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``p``
     Points to parameters for tuning operation.
-
 
 Description
 ===========
@@ -50,7 +42,6 @@ FrontendEvent.) If a new :ref:`FE_SET_FRONTEND`
 operation is initiated before the previous one was completed, the
 previous operation will be aborted in favor of the new one. This command
 requires read/write access to the device.
-
 
 Return Value
 ============
@@ -72,7 +63,6 @@ appropriately.
        -  ``EINVAL``
 
        -  Maximum supported symbol rate reached.
-
 
 Generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

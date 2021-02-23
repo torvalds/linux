@@ -69,6 +69,7 @@ MODULE_FIRMWARE("amdgpu/picasso_sdma.bin");
 MODULE_FIRMWARE("amdgpu/raven2_sdma.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_sdma.bin");
 MODULE_FIRMWARE("amdgpu/renoir_sdma.bin");
+MODULE_FIRMWARE("amdgpu/green_sardine_sdma.bin");
 
 #define SDMA0_POWER_CNTL__ON_OFF_CONDITION_HOLD_TIME_MASK  0x000000F8L
 #define SDMA0_POWER_CNTL__ON_OFF_STATUS_DURATION_TIME_MASK 0xFC000000L
@@ -568,7 +569,7 @@ static void sdma_v4_0_destroy_inst_ctx(struct amdgpu_device *adev)
 			break;
 	}
 
-	memset((void*)adev->sdma.instance, 0,
+	memset((void *)adev->sdma.instance, 0,
 		sizeof(struct amdgpu_sdma_instance) * AMDGPU_MAX_SDMA_INSTANCES);
 }
 
@@ -616,7 +617,10 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 		chip_name = "arcturus";
 		break;
 	case CHIP_RENOIR:
-		chip_name = "renoir";
+		if (adev->apu_flags & AMD_APU_IS_RENOIR)
+			chip_name = "renoir";
+		else
+			chip_name = "green_sardine";
 		break;
 	default:
 		BUG();
@@ -636,8 +640,8 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 		if (adev->asic_type == CHIP_ARCTURUS) {
 			/* Acturus will leverage the same FW memory
 			   for every SDMA instance */
-			memcpy((void*)&adev->sdma.instance[i],
-			       (void*)&adev->sdma.instance[0],
+			memcpy((void *)&adev->sdma.instance[i],
+			       (void *)&adev->sdma.instance[0],
 			       sizeof(struct amdgpu_sdma_instance));
 		}
 		else {
@@ -830,7 +834,9 @@ static void sdma_v4_0_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
  * sdma_v4_0_ring_emit_ib - Schedule an IB on the DMA engine
  *
  * @ring: amdgpu ring pointer
+ * @job: job to retrieve vmid from
  * @ib: IB object to schedule
+ * @flags: unused
  *
  * Schedule an IB in the DMA ring (VEGA10).
  */
@@ -905,7 +911,9 @@ static void sdma_v4_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
  * sdma_v4_0_ring_emit_fence - emit a fence on the DMA ring
  *
  * @ring: amdgpu ring pointer
- * @fence: amdgpu fence object
+ * @addr: address
+ * @seq: sequence number
+ * @flags: fence related flags
  *
  * Add a DMA fence packet to the ring to write
  * the fence seq number and DMA trap packet to generate
@@ -1000,7 +1008,7 @@ static void sdma_v4_0_page_stop(struct amdgpu_device *adev)
 		sdma[i] = &adev->sdma.instance[i].page;
 
 		if ((adev->mman.buffer_funcs_ring == sdma[i]) &&
-			(unset == false)) {
+			(!unset)) {
 			amdgpu_ttm_set_buffer_funcs_status(adev, false);
 			unset = true;
 		}
@@ -1063,6 +1071,15 @@ static void sdma_v4_0_ctx_switch_enable(struct amdgpu_device *adev, bool enable)
 			WREG32_SDMA(i, mmSDMA0_PHASE2_QUANTUM, phase_quantum);
 		}
 		WREG32_SDMA(i, mmSDMA0_CNTL, f32_cntl);
+
+		/*
+		 * Enable SDMA utilization. Its only supported on
+		 * Arcturus for the moment and firmware version 14
+		 * and above.
+		 */
+		if (adev->asic_type == CHIP_ARCTURUS &&
+		    adev->sdma.instance[i].fw_version >= 14)
+			WREG32_SDMA(i, mmSDMA0_PUB_DUMMY_REG2, enable);
 	}
 
 }
@@ -1080,7 +1097,7 @@ static void sdma_v4_0_enable(struct amdgpu_device *adev, bool enable)
 	u32 f32_cntl;
 	int i;
 
-	if (enable == false) {
+	if (!enable) {
 		sdma_v4_0_gfx_stop(adev);
 		sdma_v4_0_rlc_stop(adev);
 		if (adev->sdma.has_page_queue)
@@ -1094,7 +1111,7 @@ static void sdma_v4_0_enable(struct amdgpu_device *adev, bool enable)
 	}
 }
 
-/**
+/*
  * sdma_v4_0_rb_cntl - get parameters for rb_cntl
  */
 static uint32_t sdma_v4_0_rb_cntl(struct amdgpu_ring *ring, uint32_t rb_cntl)
@@ -1557,6 +1574,7 @@ error_free_wb:
  * sdma_v4_0_ring_test_ib - test an IB on the DMA engine
  *
  * @ring: amdgpu_ring structure holding ring information
+ * @timeout: timeout value in jiffies, or MAX_SCHEDULE_TIMEOUT
  *
  * Test a simple IB in the DMA ring (VEGA10).
  * Returns 0 on success, error on failure.
@@ -1653,10 +1671,9 @@ static void sdma_v4_0_vm_copy_pte(struct amdgpu_ib *ib,
  *
  * @ib: indirect buffer to fill with commands
  * @pe: addr of the page entry
- * @addr: dst addr to write into pe
+ * @value: dst addr to write into pe
  * @count: number of page entries to update
  * @incr: increase next addr by incr bytes
- * @flags: access flags
  *
  * Update PTEs by writing them manually using sDMA (VEGA10).
  */
@@ -1711,8 +1728,8 @@ static void sdma_v4_0_vm_set_pte_pde(struct amdgpu_ib *ib,
 /**
  * sdma_v4_0_ring_pad_ib - pad the IB to the required number of dw
  *
+ * @ring: amdgpu_ring structure holding ring information
  * @ib: indirect buffer to fill with padding
- *
  */
 static void sdma_v4_0_ring_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib)
 {
@@ -1756,7 +1773,8 @@ static void sdma_v4_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
  * sdma_v4_0_ring_emit_vm_flush - vm flush using sDMA
  *
  * @ring: amdgpu_ring pointer
- * @vm: amdgpu_vm pointer
+ * @vmid: vmid number to use
+ * @pd_addr: address
  *
  * Update the page table base and flush the VM TLB
  * using sDMA (VEGA10).
@@ -2475,10 +2493,11 @@ static void sdma_v4_0_set_irq_funcs(struct amdgpu_device *adev)
 /**
  * sdma_v4_0_emit_copy_buffer - copy buffer using the sDMA engine
  *
- * @ring: amdgpu_ring structure holding ring information
+ * @ib: indirect buffer to copy to
  * @src_offset: src GPU address
  * @dst_offset: dst GPU address
  * @byte_count: number of bytes to xfer
+ * @tmz: if a secure copy should be used
  *
  * Copy GPU buffers using the DMA engine (VEGA10/12).
  * Used by the amdgpu ttm implementation to move pages if
@@ -2504,7 +2523,7 @@ static void sdma_v4_0_emit_copy_buffer(struct amdgpu_ib *ib,
 /**
  * sdma_v4_0_emit_fill_buffer - fill buffer using the sDMA engine
  *
- * @ring: amdgpu_ring structure holding ring information
+ * @ib: indirect buffer to copy to
  * @src_data: value to write to buffer
  * @dst_offset: dst GPU address
  * @byte_count: number of bytes to xfer

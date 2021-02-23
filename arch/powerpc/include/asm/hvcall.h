@@ -155,6 +155,14 @@
 #define H_VASI_RESUMED          5
 #define H_VASI_COMPLETED        6
 
+/* VASI signal codes. Only the Cancel code is valid for H_VASI_SIGNAL. */
+#define H_VASI_SIGNAL_CANCEL    1
+#define H_VASI_SIGNAL_ABORT     2
+#define H_VASI_SIGNAL_SUSPEND   3
+#define H_VASI_SIGNAL_COMPLETE  4
+#define H_VASI_SIGNAL_ENABLE    5
+#define H_VASI_SIGNAL_FAILOVER  6
+
 /* Each control block has to be on a 4K boundary */
 #define H_CB_ALIGNMENT          4096
 
@@ -261,6 +269,7 @@
 #define H_ADD_CONN		0x284
 #define H_DEL_CONN		0x288
 #define H_JOIN			0x298
+#define H_VASI_SIGNAL           0x2A0
 #define H_VASI_STATE            0x2A4
 #define H_VIOCTL		0x2A8
 #define H_ENABLE_CRQ		0x2B0
@@ -375,11 +384,13 @@
 #define H_CPU_CHAR_THREAD_RECONFIG_CTRL	(1ull << 57) // IBM bit 6
 #define H_CPU_CHAR_COUNT_CACHE_DISABLED	(1ull << 56) // IBM bit 7
 #define H_CPU_CHAR_BCCTR_FLUSH_ASSIST	(1ull << 54) // IBM bit 9
+#define H_CPU_CHAR_BCCTR_LINK_FLUSH_ASSIST (1ull << 52) // IBM bit 11
 
 #define H_CPU_BEHAV_FAVOUR_SECURITY	(1ull << 63) // IBM bit 0
 #define H_CPU_BEHAV_L1D_FLUSH_PR	(1ull << 62) // IBM bit 1
 #define H_CPU_BEHAV_BNDS_CHK_SPEC_BAR	(1ull << 61) // IBM bit 2
 #define H_CPU_BEHAV_FLUSH_COUNT_CACHE	(1ull << 58) // IBM bit 5
+#define H_CPU_BEHAV_FLUSH_LINK_STACK	(1ull << 57) // IBM bit 6
 
 /* Flag values used in H_REGISTER_PROC_TBL hcall */
 #define PROC_TABLE_OP_MASK	0x18
@@ -559,6 +570,42 @@ struct hv_guest_state {
 
 /* Latest version of hv_guest_state structure */
 #define HV_GUEST_STATE_VERSION	1
+
+/*
+ * From the document "H_GetPerformanceCounterInfo Interface" v1.07
+ *
+ * H_GET_PERF_COUNTER_INFO argument
+ */
+struct hv_get_perf_counter_info_params {
+	__be32 counter_request; /* I */
+	__be32 starting_index;  /* IO */
+	__be16 secondary_index; /* IO */
+	__be16 returned_values; /* O */
+	__be32 detail_rc; /* O, only needed when called via *_norets() */
+
+	/*
+	 * O, size each of counter_value element in bytes, only set for version
+	 * >= 0x3
+	 */
+	__be16 cv_element_size;
+
+	/* I, 0 (zero) for versions < 0x3 */
+	__u8 counter_info_version_in;
+
+	/* O, 0 (zero) if version < 0x3. Must be set to 0 when making hcall */
+	__u8 counter_info_version_out;
+	__u8 reserved[0xC];
+	__u8 counter_value[];
+} __packed;
+
+#define HGPCI_REQ_BUFFER_SIZE	4096
+#define HGPCI_MAX_DATA_BYTES \
+	(HGPCI_REQ_BUFFER_SIZE - sizeof(struct hv_get_perf_counter_info_params))
+
+struct hv_gpci_request_buffer {
+	struct hv_get_perf_counter_info_params params;
+	uint8_t bytes[HGPCI_MAX_DATA_BYTES];
+} __packed;
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */

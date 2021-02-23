@@ -221,6 +221,11 @@ static int rt5682_i2c_probe(struct i2c_client *i2c,
 		case RT5682_DMIC1_CLK_GPIO3: /* share with BCLK2 */
 			regmap_update_bits(rt5682->regmap, RT5682_GPIO_CTRL_1,
 				RT5682_GP3_PIN_MASK, RT5682_GP3_PIN_DMIC_CLK);
+			if (rt5682->pdata.dmic_clk_driving_high)
+				regmap_update_bits(rt5682->regmap,
+					RT5682_PAD_DRIVING_CTRL,
+					RT5682_PAD_DRV_GP3_MASK,
+					2 << RT5682_PAD_DRV_GP3_SFT);
 			break;
 
 		default:
@@ -294,6 +299,7 @@ static struct i2c_driver rt5682_i2c_driver = {
 		.name = "rt5682",
 		.of_match_table = rt5682_of_match,
 		.acpi_match_table = rt5682_acpi_match,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = rt5682_i2c_probe,
 	.shutdown = rt5682_i2c_shutdown,

@@ -357,9 +357,9 @@ static inline void start_debi_dma(struct av7110 *av7110, int dir,
 		irdebi(av7110, DEBISWAB, addr, 0, len);
 }
 
-static void debiirq(unsigned long cookie)
+static void debiirq(struct tasklet_struct *t)
 {
-	struct av7110 *av7110 = (struct av7110 *)cookie;
+	struct av7110 *av7110 = from_tasklet(av7110, t, debi_tasklet);
 	int type = av7110->debitype;
 	int handle = (type >> 8) & 0x1f;
 	unsigned int xfer = 0;
@@ -458,9 +458,9 @@ debi_done:
 }
 
 /* irq from av7110 firmware writing the mailbox register in the DPRAM */
-static void gpioirq(unsigned long cookie)
+static void gpioirq(struct tasklet_struct *t)
 {
-	struct av7110 *av7110 = (struct av7110 *)cookie;
+	struct av7110 *av7110 = from_tasklet(av7110, t, gpio_tasklet);
 	u32 rxbuf, txbuf;
 	int len;
 
@@ -1230,9 +1230,9 @@ static int budget_stop_feed(struct dvb_demux_feed *feed)
 	return status;
 }
 
-static void vpeirq(unsigned long cookie)
+static void vpeirq(struct tasklet_struct *t)
 {
-	struct av7110 *budget = (struct av7110 *)cookie;
+	struct av7110 *budget = from_tasklet(budget, t, vpe_tasklet);
 	u8 *mem = (u8 *) (budget->grabbing);
 	u32 olddma = budget->ttbp;
 	u32 newdma = saa7146_read(budget->dev, PCI_VDP3);
@@ -1250,7 +1250,8 @@ static void vpeirq(unsigned long cookie)
 		return;
 
 	/* Ensure streamed PCI data is synced to CPU */
-	pci_dma_sync_sg_for_cpu(budget->dev->pci, budget->pt.slist, budget->pt.nents, PCI_DMA_FROMDEVICE);
+	dma_sync_sg_for_cpu(&budget->dev->pci->dev, budget->pt.slist,
+			    budget->pt.nents, DMA_FROM_DEVICE);
 
 #if 0
 	/* track rps1 activity */
@@ -2518,7 +2519,7 @@ static int av7110_attach(struct saa7146_dev* dev,
 		saa7146_write(dev, NUM_LINE_BYTE3, (TS_HEIGHT << 16) | TS_WIDTH);
 		saa7146_write(dev, MC2, MASK_04 | MASK_20);
 
-		tasklet_init(&av7110->vpe_tasklet, vpeirq, (unsigned long) av7110);
+		tasklet_setup(&av7110->vpe_tasklet, vpeirq);
 
 	} else if (budgetpatch) {
 		spin_lock_init(&av7110->feedlock1);
@@ -2599,7 +2600,7 @@ static int av7110_attach(struct saa7146_dev* dev,
 		saa7146_write(dev, MC1, (MASK_13 | MASK_29));
 
 		/* end of budgetpatch register initialization */
-		tasklet_init (&av7110->vpe_tasklet,  vpeirq,  (unsigned long) av7110);
+		tasklet_setup(&av7110->vpe_tasklet,  vpeirq);
 	} else {
 		saa7146_write(dev, PCI_BT_V1, 0x1c00101f);
 		saa7146_write(dev, BCS_CTRL, 0x80400040);
@@ -2614,8 +2615,8 @@ static int av7110_attach(struct saa7146_dev* dev,
 		saa7146_write(dev, GPIO_CTRL, 0x000000);
 	}
 
-	tasklet_init (&av7110->debi_tasklet, debiirq, (unsigned long) av7110);
-	tasklet_init (&av7110->gpio_tasklet, gpioirq, (unsigned long) av7110);
+	tasklet_setup(&av7110->debi_tasklet, debiirq);
+	tasklet_setup(&av7110->gpio_tasklet, gpioirq);
 
 	mutex_init(&av7110->pid_mutex);
 
@@ -2637,7 +2638,8 @@ static int av7110_attach(struct saa7146_dev* dev,
 	av7110->arm_thread = NULL;
 
 	/* allocate and init buffers */
-	av7110->debi_virt = pci_alloc_consistent(pdev, 8192, &av7110->debi_bus);
+	av7110->debi_virt = dma_alloc_coherent(&pdev->dev, 8192,
+					       &av7110->debi_bus, GFP_KERNEL);
 	if (!av7110->debi_virt)
 		goto err_saa71466_vfree_4;
 
@@ -2726,7 +2728,8 @@ err_av7110_av_exit_7:
 err_iobuf_vfree_6:
 	vfree(av7110->iobuf);
 err_pci_free_5:
-	pci_free_consistent(pdev, 8192, av7110->debi_virt, av7110->debi_bus);
+	dma_free_coherent(&pdev->dev, 8192, av7110->debi_virt,
+			  av7110->debi_bus);
 err_saa71466_vfree_4:
 	if (av7110->grabbing)
 		saa7146_vfree_destroy_pgtable(pdev, av7110->grabbing, &av7110->pt);
@@ -2779,8 +2782,8 @@ static int av7110_detach(struct saa7146_dev* saa)
 	av7110_av_exit(av7110);
 
 	vfree(av7110->iobuf);
-	pci_free_consistent(saa->pci, 8192, av7110->debi_virt,
-			    av7110->debi_bus);
+	dma_free_coherent(&saa->pci->dev, 8192, av7110->debi_virt,
+			  av7110->debi_bus);
 
 	i2c_del_adapter(&av7110->i2c_adap);
 

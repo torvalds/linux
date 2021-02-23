@@ -20,6 +20,8 @@ properties:
 
   reset-gpios:
     minItems: 1
+    # Put some limit to avoid false warnings
+    maxItems: 32
     description:
       contains a list of GPIO specifiers. The reset GPIOs are asserted
       at initialization and prior we start the power up procedure of the card.
@@ -39,16 +41,16 @@ properties:
     description:
       Delay in ms after powering the card and de-asserting the
       reset-gpios (if any).
-    $ref: /schemas/types.yaml#/definitions/uint32
 
   power-off-delay-us:
     description:
       Delay in us after asserting the reset-gpios (if any)
       during power off of the card.
-    $ref: /schemas/types.yaml#/definitions/uint32
 
 required:
   - compatible
+
+additionalProperties: false
 
 examples:
   - |

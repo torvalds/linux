@@ -120,6 +120,8 @@ required:
   - video-core0
   - video-core1
 
+additionalProperties: false
+
 examples:
   - |
         #include <dt-bindings/interrupt-controller/arm-gic.h>

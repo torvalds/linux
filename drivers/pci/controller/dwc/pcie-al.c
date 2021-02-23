@@ -76,7 +76,6 @@ static int al_pcie_init(struct pci_config_window *cfg)
 }
 
 const struct pci_ecam_ops al_pcie_ops = {
-	.bus_shift    = 20,
 	.init         =  al_pcie_init,
 	.pci_ops      = {
 		.map_bus    = al_pcie_map_bus,
@@ -137,8 +136,6 @@ struct al_pcie {
 	struct al_pcie_reg_offsets reg_offsets;
 	struct al_pcie_target_bus_cfg target_bus_cfg;
 };
-
-#define PCIE_ECAM_DEVFN(x)		(((x) & 0xff) << 12)
 
 #define to_al_pcie(x)		dev_get_drvdata((x)->dev)
 
@@ -217,19 +214,15 @@ static inline void al_pcie_target_bus_set(struct al_pcie *pcie,
 				  reg);
 }
 
-static void __iomem *al_pcie_conf_addr_map(struct al_pcie *pcie,
-					   unsigned int busnr,
-					   unsigned int devfn)
+static void __iomem *al_pcie_conf_addr_map_bus(struct pci_bus *bus,
+					       unsigned int devfn, int where)
 {
+	struct pcie_port *pp = bus->sysdata;
+	struct al_pcie *pcie = to_al_pcie(to_dw_pcie_from_pp(pp));
+	unsigned int busnr = bus->number;
 	struct al_pcie_target_bus_cfg *target_bus_cfg = &pcie->target_bus_cfg;
 	unsigned int busnr_ecam = busnr & target_bus_cfg->ecam_mask;
 	unsigned int busnr_reg = busnr & target_bus_cfg->reg_mask;
-	struct pcie_port *pp = &pcie->pci->pp;
-	void __iomem *pci_base_addr;
-
-	pci_base_addr = (void __iomem *)((uintptr_t)pp->va_cfg0_base +
-					 (busnr_ecam << 20) +
-					 PCIE_ECAM_DEVFN(devfn));
 
 	if (busnr_reg != target_bus_cfg->reg_val) {
 		dev_dbg(pcie->pci->dev, "Changing target bus busnum val from 0x%x to 0x%x\n",
@@ -240,52 +233,14 @@ static void __iomem *al_pcie_conf_addr_map(struct al_pcie *pcie,
 				       target_bus_cfg->reg_mask);
 	}
 
-	return pci_base_addr;
+	return pp->va_cfg0_base + PCIE_ECAM_OFFSET(busnr_ecam, devfn, where);
 }
 
-static int al_pcie_rd_other_conf(struct pcie_port *pp, struct pci_bus *bus,
-				 unsigned int devfn, int where, int size,
-				 u32 *val)
-{
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct al_pcie *pcie = to_al_pcie(pci);
-	unsigned int busnr = bus->number;
-	void __iomem *pci_addr;
-	int rc;
-
-	pci_addr = al_pcie_conf_addr_map(pcie, busnr, devfn);
-
-	rc = dw_pcie_read(pci_addr + where, size, val);
-
-	dev_dbg(pci->dev, "%d-byte config read from %04x:%02x:%02x.%d offset 0x%x (pci_addr: 0x%px) - val:0x%x\n",
-		size, pci_domain_nr(bus), bus->number,
-		PCI_SLOT(devfn), PCI_FUNC(devfn), where,
-		(pci_addr + where), *val);
-
-	return rc;
-}
-
-static int al_pcie_wr_other_conf(struct pcie_port *pp, struct pci_bus *bus,
-				 unsigned int devfn, int where, int size,
-				 u32 val)
-{
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct al_pcie *pcie = to_al_pcie(pci);
-	unsigned int busnr = bus->number;
-	void __iomem *pci_addr;
-	int rc;
-
-	pci_addr = al_pcie_conf_addr_map(pcie, busnr, devfn);
-
-	rc = dw_pcie_write(pci_addr + where, size, val);
-
-	dev_dbg(pci->dev, "%d-byte config write to %04x:%02x:%02x.%d offset 0x%x (pci_addr: 0x%px) - val:0x%x\n",
-		size, pci_domain_nr(bus), bus->number,
-		PCI_SLOT(devfn), PCI_FUNC(devfn), where,
-		(pci_addr + where), val);
-
-	return rc;
-}
+static struct pci_ops al_child_pci_ops = {
+	.map_bus = al_pcie_conf_addr_map_bus,
+	.read = pci_generic_config_read,
+	.write = pci_generic_config_write,
+};
 
 static void al_pcie_config_prepare(struct al_pcie *pcie)
 {
@@ -297,10 +252,11 @@ static void al_pcie_config_prepare(struct al_pcie *pcie)
 	u8 secondary_bus;
 	u32 cfg_control;
 	u32 reg;
+	struct resource *bus = resource_list_first_type(&pp->bridge->windows, IORESOURCE_BUS)->res;
 
 	target_bus_cfg = &pcie->target_bus_cfg;
 
-	ecam_bus_mask = (pcie->ecam_size >> 20) - 1;
+	ecam_bus_mask = (pcie->ecam_size >> PCIE_ECAM_BUS_SHIFT) - 1;
 	if (ecam_bus_mask > 255) {
 		dev_warn(pcie->dev, "ECAM window size is larger than 256MB. Cutting off at 256\n");
 		ecam_bus_mask = 255;
@@ -310,13 +266,13 @@ static void al_pcie_config_prepare(struct al_pcie *pcie)
 	target_bus_cfg->ecam_mask = ecam_bus_mask;
 	/* This portion is taken from the cfg_target_bus reg */
 	target_bus_cfg->reg_mask = ~target_bus_cfg->ecam_mask;
-	target_bus_cfg->reg_val = pp->busn->start & target_bus_cfg->reg_mask;
+	target_bus_cfg->reg_val = bus->start & target_bus_cfg->reg_mask;
 
 	al_pcie_target_bus_set(pcie, target_bus_cfg->reg_val,
 			       target_bus_cfg->reg_mask);
 
-	secondary_bus = pp->busn->start + 1;
-	subordinate_bus = pp->busn->end;
+	secondary_bus = bus->start + 1;
+	subordinate_bus = bus->end;
 
 	/* Set the valid values of secondary and subordinate buses */
 	cfg_control_offset = AXI_BASE_OFFSET + pcie->reg_offsets.ob_ctrl +
@@ -339,6 +295,8 @@ static int al_pcie_host_init(struct pcie_port *pp)
 	struct al_pcie *pcie = to_al_pcie(pci);
 	int rc;
 
+	pp->bridge->child_ops = &al_child_pci_ops;
+
 	rc = al_pcie_rev_id_get(pcie, &pcie->controller_rev_id);
 	if (rc)
 		return rc;
@@ -353,27 +311,8 @@ static int al_pcie_host_init(struct pcie_port *pp)
 }
 
 static const struct dw_pcie_host_ops al_pcie_host_ops = {
-	.rd_other_conf = al_pcie_rd_other_conf,
-	.wr_other_conf = al_pcie_wr_other_conf,
 	.host_init = al_pcie_host_init,
 };
-
-static int al_add_pcie_port(struct pcie_port *pp,
-			    struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	int ret;
-
-	pp->ops = &al_pcie_host_ops;
-
-	ret = dw_pcie_host_init(pp);
-	if (ret) {
-		dev_err(dev, "failed to initialize host\n");
-		return ret;
-	}
-
-	return 0;
-}
 
 static const struct dw_pcie_ops dw_pcie_ops = {
 };
@@ -383,7 +322,6 @@ static int al_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *controller_res;
 	struct resource *ecam_res;
-	struct resource *dbi_res;
 	struct al_pcie *al_pcie;
 	struct dw_pcie *pci;
 
@@ -397,14 +335,10 @@ static int al_pcie_probe(struct platform_device *pdev)
 
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;
+	pci->pp.ops = &al_pcie_host_ops;
 
 	al_pcie->pci = pci;
 	al_pcie->dev = dev;
-
-	dbi_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
-	pci->dbi_base = devm_pci_remap_cfg_resource(dev, dbi_res);
-	if (IS_ERR(pci->dbi_base))
-		return PTR_ERR(pci->dbi_base);
 
 	ecam_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "config");
 	if (!ecam_res) {
@@ -422,12 +356,11 @@ static int al_pcie_probe(struct platform_device *pdev)
 		return PTR_ERR(al_pcie->controller_base);
 	}
 
-	dev_dbg(dev, "From DT: dbi_base: %pR, controller_base: %pR\n",
-		dbi_res, controller_res);
+	dev_dbg(dev, "From DT: controller_base: %pR\n", controller_res);
 
 	platform_set_drvdata(pdev, al_pcie);
 
-	return al_add_pcie_port(&pci->pp, pdev);
+	return dw_pcie_host_init(&pci->pp);
 }
 
 static const struct of_device_id al_pcie_of_match[] = {

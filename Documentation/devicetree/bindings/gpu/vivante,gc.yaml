@@ -21,12 +21,19 @@ properties:
   interrupts:
     maxItems: 1
 
+  '#cooling-cells':
+    const: 2
+
+  assigned-clock-parents: true
+  assigned-clock-rates: true
+  assigned-clocks: true
+
   clocks:
     items:
       - description: AXI/master interface clock
       - description: GPU core clock
       - description: Shader clock (only required if GPU has feature PIPE_3D)
-      - description: AHB/slave interface clock (only required if GPU can gate 
+      - description: AHB/slave interface clock (only required if GPU can gate
           slave interface independently)
     minItems: 1
     maxItems: 4

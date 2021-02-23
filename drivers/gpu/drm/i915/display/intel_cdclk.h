@@ -17,8 +17,8 @@ struct intel_atomic_state;
 struct intel_crtc_state;
 
 struct intel_cdclk_vals {
-	u16 refclk;
 	u32 cdclk;
+	u16 refclk;
 	u8 divider;	/* CD2X divider * 2 */
 	u8 ratio;
 };
@@ -49,7 +49,6 @@ struct intel_cdclk_state {
 
 	/* forced minimum cdclk for glk+ audio w/a */
 	int force_min_cdclk;
-	bool force_min_cdclk_changed;
 
 	/* bitmask of active pipes */
 	u8 active_pipes;

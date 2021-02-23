@@ -7,7 +7,6 @@
 #include <linux/linkage.h>
 
 #include <asm/alternative.h>
-#include <asm/asm-offsets.h>
 #include <asm/assembler.h>
 #include <asm/fpsimdmacros.h>
 #include <asm/kvm.h>
@@ -16,66 +15,28 @@
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_ptrauth.h>
 
-#define CPU_XREG_OFFSET(x)	(CPU_USER_PT_REGS + 8*x)
-#define CPU_SP_EL0_OFFSET	(CPU_XREG_OFFSET(30) + 8)
-
 	.text
 
 /*
- * We treat x18 as callee-saved as the host may use it as a platform
- * register (e.g. for shadow call stack).
- */
-.macro save_callee_saved_regs ctxt
-	str	x18,      [\ctxt, #CPU_XREG_OFFSET(18)]
-	stp	x19, x20, [\ctxt, #CPU_XREG_OFFSET(19)]
-	stp	x21, x22, [\ctxt, #CPU_XREG_OFFSET(21)]
-	stp	x23, x24, [\ctxt, #CPU_XREG_OFFSET(23)]
-	stp	x25, x26, [\ctxt, #CPU_XREG_OFFSET(25)]
-	stp	x27, x28, [\ctxt, #CPU_XREG_OFFSET(27)]
-	stp	x29, lr,  [\ctxt, #CPU_XREG_OFFSET(29)]
-.endm
-
-.macro restore_callee_saved_regs ctxt
-	// We require \ctxt is not x18-x28
-	ldr	x18,      [\ctxt, #CPU_XREG_OFFSET(18)]
-	ldp	x19, x20, [\ctxt, #CPU_XREG_OFFSET(19)]
-	ldp	x21, x22, [\ctxt, #CPU_XREG_OFFSET(21)]
-	ldp	x23, x24, [\ctxt, #CPU_XREG_OFFSET(23)]
-	ldp	x25, x26, [\ctxt, #CPU_XREG_OFFSET(25)]
-	ldp	x27, x28, [\ctxt, #CPU_XREG_OFFSET(27)]
-	ldp	x29, lr,  [\ctxt, #CPU_XREG_OFFSET(29)]
-.endm
-
-.macro save_sp_el0 ctxt, tmp
-	mrs	\tmp,	sp_el0
-	str	\tmp,	[\ctxt, #CPU_SP_EL0_OFFSET]
-.endm
-
-.macro restore_sp_el0 ctxt, tmp
-	ldr	\tmp,	  [\ctxt, #CPU_SP_EL0_OFFSET]
-	msr	sp_el0, \tmp
-.endm
-
-/*
- * u64 __guest_enter(struct kvm_vcpu *vcpu,
- *		     struct kvm_cpu_context *host_ctxt);
+ * u64 __guest_enter(struct kvm_vcpu *vcpu);
  */
 SYM_FUNC_START(__guest_enter)
 	// x0: vcpu
-	// x1: host context
-	// x2-x17: clobbered by macros
+	// x1-x17: clobbered by macros
 	// x29: guest context
 
-	// Store the host regs
+	adr_this_cpu x1, kvm_hyp_ctxt, x2
+
+	// Store the hyp regs
 	save_callee_saved_regs x1
 
-	// Save the host's sp_el0
+	// Save hyp's sp_el0
 	save_sp_el0	x1, x2
 
-	// Now the host state is stored if we have a pending RAS SError it must
-	// affect the host. If any asynchronous exception is pending we defer
-	// the guest entry. The DSB isn't necessary before v8.2 as any SError
-	// would be fatal.
+	// Now the hyp state is stored if we have a pending RAS SError it must
+	// affect the host or hyp. If any asynchronous exception is pending we
+	// defer the guest entry. The DSB isn't necessary before v8.2 as any
+	// SError would be fatal.
 alternative_if ARM64_HAS_RAS_EXTN
 	dsb	nshst
 	isb
@@ -86,6 +47,8 @@ alternative_else_nop_endif
 	ret
 
 1:
+	set_loaded_vcpu x0, x1, x2
+
 	add	x29, x0, #VCPU_CONTEXT
 
 	// Macro ptrauth_switch_to_guest format:
@@ -115,6 +78,26 @@ alternative_else_nop_endif
 	// Do not touch any register after this!
 	eret
 	sb
+
+SYM_INNER_LABEL(__guest_exit_panic, SYM_L_GLOBAL)
+	// x2-x29,lr: vcpu regs
+	// vcpu x0-x1 on the stack
+
+	// If the hyp context is loaded, go straight to hyp_panic
+	get_loaded_vcpu x0, x1
+	cbz	x0, hyp_panic
+
+	// The hyp context is saved so make sure it is restored to allow
+	// hyp_panic to run at hyp and, subsequently, panic to run in the host.
+	// This makes use of __guest_exit to avoid duplication but sets the
+	// return address to tail call into hyp_panic. As a side effect, the
+	// current state is saved to the guest context but it will only be
+	// accurate if the guest had been completely restored.
+	adr_this_cpu x0, kvm_hyp_ctxt, x1
+	adr	x1, hyp_panic
+	str	x1, [x0, #CPU_XREG_OFFSET(30)]
+
+	get_vcpu_ptr	x1, x0
 
 SYM_INNER_LABEL(__guest_exit, SYM_L_GLOBAL)
 	// x0: return code
@@ -148,20 +131,22 @@ SYM_INNER_LABEL(__guest_exit, SYM_L_GLOBAL)
 	// Store the guest's sp_el0
 	save_sp_el0	x1, x2
 
-	get_host_ctxt	x2, x3
+	adr_this_cpu x2, kvm_hyp_ctxt, x3
 
-	// Macro ptrauth_switch_to_guest format:
-	// 	ptrauth_switch_to_host(guest cxt, host cxt, tmp1, tmp2, tmp3)
+	// Macro ptrauth_switch_to_hyp format:
+	// 	ptrauth_switch_to_hyp(guest cxt, host cxt, tmp1, tmp2, tmp3)
 	// The below macro to save/restore keys is not implemented in C code
 	// as it may cause Pointer Authentication key signing mismatch errors
 	// when this feature is enabled for kernel code.
-	ptrauth_switch_to_host x1, x2, x3, x4, x5
+	ptrauth_switch_to_hyp x1, x2, x3, x4, x5
 
-	// Restore the hosts's sp_el0
+	// Restore hyp's sp_el0
 	restore_sp_el0 x2, x3
 
-	// Now restore the host regs
+	// Now restore the hyp regs
 	restore_callee_saved_regs x2
+
+	set_loaded_vcpu xzr, x1, x2
 
 alternative_if ARM64_HAS_RAS_EXTN
 	// If we have the RAS extensions we can consume a pending error

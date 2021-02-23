@@ -11,11 +11,17 @@ maintainers:
 
 properties:
   compatible:
-    items:
+    oneOf:
       - const: ti,j721e-usb
+      - const: ti,am64-usb
+      - items:
+          - const: ti,j721e-usb
+          - const: ti,am64-usb
 
   reg:
     description: module registers
+
+  ranges: true
 
   power-domains:
     description:
@@ -46,12 +52,32 @@ properties:
       VBUS pin of the SoC via a 1/3 voltage divider.
     type: boolean
 
+  assigned-clocks:
+    maxItems: 1
+
+  assigned-clock-parents:
+    maxItems: 1
+
+  '#address-cells':
+    const: 2
+
+  '#size-cells':
+    const: 2
+
+  dma-coherent: true
+
+patternProperties:
+  "^usb@":
+    type: object
+
 required:
   - compatible
   - reg
   - power-domains
   - clocks
   - clock-names
+
+additionalProperties: false
 
 examples:
   - |

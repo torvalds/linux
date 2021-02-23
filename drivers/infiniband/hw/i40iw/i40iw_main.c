@@ -54,10 +54,6 @@
 #define DRV_VERSION	__stringify(DRV_VERSION_MAJOR) "."		\
 	__stringify(DRV_VERSION_MINOR) "." __stringify(DRV_VERSION_BUILD)
 
-static int push_mode;
-module_param(push_mode, int, 0644);
-MODULE_PARM_DESC(push_mode, "Low latency mode: 0=disabled (default), 1=enabled)");
-
 static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "debug flags: 0=disabled (default), 0x7fffffff=all");
@@ -192,9 +188,9 @@ static void i40iw_enable_intr(struct i40iw_sc_dev *dev, u32 msix_id)
  * i40iw_dpc - tasklet for aeq and ceq 0
  * @data: iwarp device
  */
-static void i40iw_dpc(unsigned long data)
+static void i40iw_dpc(struct tasklet_struct *t)
 {
-	struct i40iw_device *iwdev = (struct i40iw_device *)data;
+	struct i40iw_device *iwdev = from_tasklet(iwdev, t, dpc_tasklet);
 
 	if (iwdev->msix_shared)
 		i40iw_process_ceq(iwdev, iwdev->ceqlist);
@@ -206,9 +202,9 @@ static void i40iw_dpc(unsigned long data)
  * i40iw_ceq_dpc - dpc handler for CEQ
  * @data: data points to CEQ
  */
-static void i40iw_ceq_dpc(unsigned long data)
+static void i40iw_ceq_dpc(struct tasklet_struct *t)
 {
-	struct i40iw_ceq *iwceq = (struct i40iw_ceq *)data;
+	struct i40iw_ceq *iwceq = from_tasklet(iwceq, t, dpc_tasklet);
 	struct i40iw_device *iwdev = iwceq->iwdev;
 
 	i40iw_process_ceq(iwdev, iwceq);
@@ -689,10 +685,10 @@ static enum i40iw_status_code i40iw_configure_ceq_vector(struct i40iw_device *iw
 	enum i40iw_status_code status;
 
 	if (iwdev->msix_shared && !ceq_id) {
-		tasklet_init(&iwdev->dpc_tasklet, i40iw_dpc, (unsigned long)iwdev);
+		tasklet_setup(&iwdev->dpc_tasklet, i40iw_dpc);
 		status = request_irq(msix_vec->irq, i40iw_irq_handler, 0, "AEQCEQ", iwdev);
 	} else {
-		tasklet_init(&iwceq->dpc_tasklet, i40iw_ceq_dpc, (unsigned long)iwceq);
+		tasklet_setup(&iwceq->dpc_tasklet, i40iw_ceq_dpc);
 		status = request_irq(msix_vec->irq, i40iw_ceq_handler, 0, "CEQ", iwceq);
 	}
 
@@ -841,7 +837,7 @@ static enum i40iw_status_code i40iw_configure_aeq_vector(struct i40iw_device *iw
 	u32 ret = 0;
 
 	if (!iwdev->msix_shared) {
-		tasklet_init(&iwdev->dpc_tasklet, i40iw_dpc, (unsigned long)iwdev);
+		tasklet_setup(&iwdev->dpc_tasklet, i40iw_dpc);
 		ret = request_irq(msix_vec->irq, i40iw_irq_handler, 0, "i40iw", iwdev);
 	}
 	if (ret) {
@@ -1573,14 +1569,13 @@ static enum i40iw_status_code i40iw_setup_init_state(struct i40iw_handler *hdl,
 	status = i40iw_save_msix_info(iwdev, ldev);
 	if (status)
 		return status;
-	iwdev->hw.dev_context = (void *)ldev->pcidev;
+	iwdev->hw.pcidev = ldev->pcidev;
 	iwdev->hw.hw_addr = ldev->hw_addr;
 	status = i40iw_allocate_dma_mem(&iwdev->hw,
 					&iwdev->obj_mem, 8192, 4096);
 	if (status)
 		goto exit;
 	iwdev->obj_next = iwdev->obj_mem;
-	iwdev->push_mode = push_mode;
 
 	init_waitqueue_head(&iwdev->vchnl_waitq);
 	init_waitqueue_head(&dev->vf_reqs);

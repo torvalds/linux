@@ -432,15 +432,23 @@ NOKPROBE_SYMBOL(perf_trace_buf_update);
 #ifdef CONFIG_FUNCTION_TRACER
 static void
 perf_ftrace_function_call(unsigned long ip, unsigned long parent_ip,
-			  struct ftrace_ops *ops, struct pt_regs *pt_regs)
+			  struct ftrace_ops *ops,  struct ftrace_regs *fregs)
 {
 	struct ftrace_entry *entry;
 	struct perf_event *event;
 	struct hlist_head head;
 	struct pt_regs regs;
 	int rctx;
+	int bit;
+
+	if (!rcu_is_watching())
+		return;
 
 	if ((unsigned long)ops->private != smp_processor_id())
+		return;
+
+	bit = ftrace_test_recursion_trylock(ip, parent_ip);
+	if (bit < 0)
 		return;
 
 	event = container_of(ops, struct perf_event, ftrace_ops);
@@ -463,13 +471,15 @@ perf_ftrace_function_call(unsigned long ip, unsigned long parent_ip,
 
 	entry = perf_trace_buf_alloc(ENTRY_SIZE, NULL, &rctx);
 	if (!entry)
-		return;
+		goto out;
 
 	entry->ip = ip;
 	entry->parent_ip = parent_ip;
 	perf_trace_buf_submit(entry, ENTRY_SIZE, rctx, TRACE_FN,
 			      1, &regs, &head, NULL);
 
+out:
+	ftrace_test_recursion_unlock(bit);
 #undef ENTRY_SIZE
 }
 
@@ -477,7 +487,6 @@ static int perf_ftrace_function_register(struct perf_event *event)
 {
 	struct ftrace_ops *ops = &event->ftrace_ops;
 
-	ops->flags   = FTRACE_OPS_FL_RCU;
 	ops->func    = perf_ftrace_function_call;
 	ops->private = (void *)(unsigned long)nr_cpu_ids;
 

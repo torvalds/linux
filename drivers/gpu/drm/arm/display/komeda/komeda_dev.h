@@ -163,8 +163,6 @@ struct komeda_dev {
 	struct device *dev;
 	/** @reg_base: the base address of komeda io space */
 	u32 __iomem   *reg_base;
-	/** @dma_parms: the dma parameters of komeda */
-	struct device_dma_parameters dma_parms;
 
 	/** @chip: the basic chip information */
 	struct komeda_chip_info chip;

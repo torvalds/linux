@@ -18,19 +18,18 @@
  * Like csum_partial, this must be called with even lengths,
  * except for the last fragment.
  */
-extern __wsum csum_partial_copy_generic(const void *src, void *dst,
-					      int len, __wsum sum,
-					      int *src_err, int *dst_err);
+extern __wsum csum_partial_copy_generic(const void *src, void *dst, int len);
 
 #define _HAVE_ARCH_COPY_AND_CSUM_FROM_USER
 extern __wsum csum_and_copy_from_user(const void __user *src, void *dst,
-				      int len, __wsum sum, int *err_ptr);
+				      int len);
 #define HAVE_CSUM_COPY_USER
 extern __wsum csum_and_copy_to_user(const void *src, void __user *dst,
-				    int len, __wsum sum, int *err_ptr);
+				    int len);
 
-#define csum_partial_copy_nocheck(src, dst, len, sum)   \
-        csum_partial_copy_generic((src), (dst), (len), (sum), NULL, NULL)
+#define _HAVE_ARCH_CSUM_AND_COPY
+#define csum_partial_copy_nocheck(src, dst, len)   \
+        csum_partial_copy_generic((src), (dst), (len))
 
 
 /*
@@ -164,7 +163,7 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
  */
 __wsum __csum_partial(const void *buff, int len, __wsum sum);
 
-static inline __wsum csum_partial(const void *buff, int len, __wsum sum)
+static __always_inline __wsum csum_partial(const void *buff, int len, __wsum sum)
 {
 	if (__builtin_constant_p(len) && len <= 16 && (len & 1) == 0) {
 		if (len == 2)

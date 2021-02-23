@@ -259,7 +259,7 @@ static const struct can_bittiming_const xcan_bittiming_const_canfd2 = {
 	.tseg2_min = 1,
 	.tseg2_max = 128,
 	.sjw_max = 128,
-	.brp_min = 1,
+	.brp_min = 2,
 	.brp_max = 256,
 	.brp_inc = 1,
 };
@@ -272,7 +272,7 @@ static struct can_bittiming_const xcan_data_bittiming_const_canfd2 = {
 	.tseg2_min = 1,
 	.tseg2_max = 16,
 	.sjw_max = 16,
-	.brp_min = 1,
+	.brp_min = 2,
 	.brp_max = 256,
 	.brp_inc = 1,
 };
@@ -583,7 +583,7 @@ static void xcan_write_frame(struct net_device *ndev, struct sk_buff *skb,
 			id |= XCAN_IDR_SRR_MASK;
 	}
 
-	dlc = can_len2dlc(cf->len) << XCAN_DLCR_DLC_SHIFT;
+	dlc = can_fd_len2dlc(cf->len) << XCAN_DLCR_DLC_SHIFT;
 	if (can_is_canfd_skb(skb)) {
 		if (cf->flags & CANFD_BRS)
 			dlc |= XCAN_DLCR_BRS_MASK;
@@ -759,7 +759,7 @@ static int xcan_rx(struct net_device *ndev, int frame_base)
 				   XCAN_DLCR_DLC_SHIFT;
 
 	/* Change Xilinx CAN data length format to socketCAN data format */
-	cf->can_dlc = get_can_dlc(dlc);
+	cf->len = can_cc_dlc2len(dlc);
 
 	/* Change Xilinx CAN ID format to socketCAN ID format */
 	if (id_xcan & XCAN_IDR_IDE_MASK) {
@@ -784,13 +784,13 @@ static int xcan_rx(struct net_device *ndev, int frame_base)
 
 	if (!(cf->can_id & CAN_RTR_FLAG)) {
 		/* Change Xilinx CAN data format to socketCAN data format */
-		if (cf->can_dlc > 0)
+		if (cf->len > 0)
 			*(__be32 *)(cf->data) = cpu_to_be32(data[0]);
-		if (cf->can_dlc > 4)
+		if (cf->len > 4)
 			*(__be32 *)(cf->data + 4) = cpu_to_be32(data[1]);
 	}
 
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 	stats->rx_packets++;
 	netif_receive_skb(skb);
 
@@ -832,10 +832,10 @@ static int xcanfd_rx(struct net_device *ndev, int frame_base)
 	 * format
 	 */
 	if (dlc & XCAN_DLCR_EDL_MASK)
-		cf->len = can_dlc2len((dlc & XCAN_DLCR_DLC_MASK) >>
+		cf->len = can_fd_dlc2len((dlc & XCAN_DLCR_DLC_MASK) >>
 				  XCAN_DLCR_DLC_SHIFT);
 	else
-		cf->len = get_can_dlc((dlc & XCAN_DLCR_DLC_MASK) >>
+		cf->len = can_cc_dlc2len((dlc & XCAN_DLCR_DLC_MASK) >>
 					  XCAN_DLCR_DLC_SHIFT);
 
 	/* Change Xilinx CAN ID format to socketCAN ID format */
@@ -970,7 +970,7 @@ static void xcan_update_error_state_after_rxtx(struct net_device *ndev)
 			struct net_device_stats *stats = &ndev->stats;
 
 			stats->rx_packets++;
-			stats->rx_bytes += cf->can_dlc;
+			stats->rx_bytes += cf->len;
 			netif_rx(skb);
 		}
 	}
@@ -1308,7 +1308,7 @@ static void xcan_tx_interrupt(struct net_device *ndev, u32 isr)
 /**
  * xcan_interrupt - CAN Isr
  * @irq:	irq number
- * @dev_id:	device id poniter
+ * @dev_id:	device id pointer
  *
  * This is the xilinx CAN Isr. It checks for the type of interrupt
  * and invokes the corresponding ISR.
@@ -1369,9 +1369,13 @@ static irqreturn_t xcan_interrupt(int irq, void *dev_id)
 static void xcan_chip_stop(struct net_device *ndev)
 {
 	struct xcan_priv *priv = netdev_priv(ndev);
+	int ret;
 
 	/* Disable interrupts and leave the can in configuration mode */
-	set_reset_mode(ndev);
+	ret = set_reset_mode(ndev);
+	if (ret < 0)
+		netdev_dbg(ndev, "set_reset_mode() Failed\n");
+
 	priv->can.state = CAN_STATE_STOPPED;
 }
 
@@ -1391,7 +1395,7 @@ static int xcan_open(struct net_device *ndev)
 	if (ret < 0) {
 		netdev_err(ndev, "%s: pm_runtime_get failed(%d)\n",
 			   __func__, ret);
-		return ret;
+		goto err;
 	}
 
 	ret = request_irq(ndev->irq, xcan_interrupt, priv->irq_flags,
@@ -1475,6 +1479,7 @@ static int xcan_get_berr_counter(const struct net_device *ndev,
 	if (ret < 0) {
 		netdev_err(ndev, "%s: pm_runtime_get failed(%d)\n",
 			   __func__, ret);
+		pm_runtime_put(priv->dev);
 		return ret;
 	}
 
@@ -1667,7 +1672,7 @@ static int xcan_probe(struct platform_device *pdev)
 	void __iomem *addr;
 	int ret;
 	int rx_max, tx_max;
-	int hw_tx_max, hw_rx_max;
+	u32 hw_tx_max = 0, hw_rx_max = 0;
 	const char *hw_tx_max_property;
 
 	/* Get the virtual base address for the device */
@@ -1720,7 +1725,7 @@ static int xcan_probe(struct platform_device *pdev)
 	 */
 	if (!(devtype->flags & XCAN_FLAG_TX_MAILBOXES) &&
 	    (devtype->flags & XCAN_FLAG_TXFEMP))
-		tx_max = min(hw_tx_max, 2);
+		tx_max = min(hw_tx_max, 2U);
 	else
 		tx_max = 1;
 
@@ -1789,7 +1794,7 @@ static int xcan_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		netdev_err(ndev, "%s: pm_runtime_get failed(%d)\n",
 			   __func__, ret);
-		goto err_pmdisable;
+		goto err_disableclks;
 	}
 
 	if (priv->read_reg(priv, XCAN_SR_OFFSET) != XCAN_SR_CONFIG_MASK) {
@@ -1824,7 +1829,6 @@ static int xcan_probe(struct platform_device *pdev)
 
 err_disableclks:
 	pm_runtime_put(priv->dev);
-err_pmdisable:
 	pm_runtime_disable(&pdev->dev);
 err_free:
 	free_candev(ndev);

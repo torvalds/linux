@@ -668,7 +668,6 @@ static int wm831x_power_probe(struct platform_device *pdev)
 		fallthrough;
 	case -EPROBE_DEFER:
 		goto err_bat_irq;
-		break;
 	}
 
 	return ret;

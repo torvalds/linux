@@ -136,8 +136,6 @@ static inline unsigned long iova_pfn(struct iova_domain *iovad, dma_addr_t iova)
 int iova_cache_get(void);
 void iova_cache_put(void);
 
-struct iova *alloc_iova_mem(void);
-void free_iova_mem(struct iova *iova);
 void free_iova(struct iova_domain *iovad, unsigned long pfn);
 void __free_iova(struct iova_domain *iovad, struct iova *iova);
 struct iova *alloc_iova(struct iova_domain *iovad, unsigned long size,
@@ -160,8 +158,6 @@ int init_iova_flush_queue(struct iova_domain *iovad,
 			  iova_flush_cb flush_cb, iova_entry_dtor entry_dtor);
 struct iova *find_iova(struct iova_domain *iovad, unsigned long pfn);
 void put_iova_domain(struct iova_domain *iovad);
-struct iova *split_and_remove_iova(struct iova_domain *iovad,
-	struct iova *iova, unsigned long pfn_lo, unsigned long pfn_hi);
 void free_cpu_cached_iovas(unsigned int cpu, struct iova_domain *iovad);
 #else
 static inline int iova_cache_get(void)
@@ -170,15 +166,6 @@ static inline int iova_cache_get(void)
 }
 
 static inline void iova_cache_put(void)
-{
-}
-
-static inline struct iova *alloc_iova_mem(void)
-{
-	return NULL;
-}
-
-static inline void free_iova_mem(struct iova *iova)
 {
 }
 
@@ -256,14 +243,6 @@ static inline struct iova *find_iova(struct iova_domain *iovad,
 
 static inline void put_iova_domain(struct iova_domain *iovad)
 {
-}
-
-static inline struct iova *split_and_remove_iova(struct iova_domain *iovad,
-						 struct iova *iova,
-						 unsigned long pfn_lo,
-						 unsigned long pfn_hi)
-{
-	return NULL;
 }
 
 static inline void free_cpu_cached_iovas(unsigned int cpu,

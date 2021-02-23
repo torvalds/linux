@@ -109,7 +109,7 @@ bool page_counter_try_charge(struct page_counter *counter,
 		 *
 		 * The atomic_long_add_return() implies a full memory
 		 * barrier between incrementing the count and reading
-		 * the limit.  When racing with page_counter_limit(),
+		 * the limit.  When racing with page_counter_set_max(),
 		 * we either see the new limit or the setter sees the
 		 * counter has changed and retries.
 		 */
@@ -183,14 +183,14 @@ int page_counter_set_max(struct page_counter *counter, unsigned long nr_pages)
 		 * the limit, so if it sees the old limit, we see the
 		 * modified counter and retry.
 		 */
-		usage = atomic_long_read(&counter->usage);
+		usage = page_counter_read(counter);
 
 		if (usage > nr_pages)
 			return -EBUSY;
 
 		old = xchg(&counter->max, nr_pages);
 
-		if (atomic_long_read(&counter->usage) <= usage)
+		if (page_counter_read(counter) <= usage)
 			return 0;
 
 		counter->max = old;

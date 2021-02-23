@@ -34,7 +34,7 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
-static struct resource tps80031_rtc_resources[] = {
+static const struct resource tps80031_rtc_resources[] = {
 	{
 		.start = TPS80031_INT_RTC_ALARM,
 		.end = TPS80031_INT_RTC_ALARM,

@@ -173,7 +173,7 @@ static int st_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	return 0;
 }
 
-static struct rtc_class_ops st_rtc_ops = {
+static const struct rtc_class_ops st_rtc_ops = {
 	.read_time		= st_rtc_read_time,
 	.set_time		= st_rtc_set_time,
 	.read_alarm		= st_rtc_read_alarm,
@@ -250,7 +250,7 @@ static int st_rtc_probe(struct platform_device *pdev)
 	rtc->rtc_dev->range_max = U64_MAX;
 	do_div(rtc->rtc_dev->range_max, rtc->clkrate);
 
-	ret = rtc_register_device(rtc->rtc_dev);
+	ret = devm_rtc_register_device(rtc->rtc_dev);
 	if (ret) {
 		clk_disable_unprepare(rtc->clk);
 		return ret;

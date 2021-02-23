@@ -499,7 +499,7 @@
 			clock-output-names = "sdhi00", "sdhi01", "sdhi10", "sdhi11";
 		};
 
-		pinctrl: pin-controller@fcfe3000 {
+		pinctrl: pinctrl@fcfe3000 {
 			compatible = "renesas,r7s72100-ports";
 
 			reg = <0xfcfe3000 0x4230>;

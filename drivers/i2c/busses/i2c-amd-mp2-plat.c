@@ -155,7 +155,7 @@ static int i2c_amd_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	struct amd_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
 	int i;
 	struct i2c_msg *pmsg;
-	int err;
+	int err = 0;
 
 	/* the adapter might have been deleted while waiting for the bus lock */
 	if (unlikely(!i2c_dev->common.mp2_dev))

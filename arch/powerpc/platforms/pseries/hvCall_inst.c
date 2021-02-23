@@ -70,31 +70,14 @@ static int hc_show(struct seq_file *m, void *p)
 	return 0;
 }
 
-static const struct seq_operations hcall_inst_seq_ops = {
+static const struct seq_operations hcall_inst_sops = {
         .start = hc_start,
         .next  = hc_next,
         .stop  = hc_stop,
         .show  = hc_show
 };
 
-static int hcall_inst_seq_open(struct inode *inode, struct file *file)
-{
-	int rc;
-	struct seq_file *seq;
-
-	rc = seq_open(file, &hcall_inst_seq_ops);
-	seq = file->private_data;
-	seq->private = file_inode(file)->i_private;
-
-	return rc;
-}
-
-static const struct file_operations hcall_inst_seq_fops = {
-	.open = hcall_inst_seq_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release,
-};
+DEFINE_SEQ_ATTRIBUTE(hcall_inst);
 
 #define	HCALL_ROOT_DIR		"hcall_inst"
 #define CPU_NAME_BUF_SIZE	32
@@ -149,7 +132,7 @@ static int __init hcall_inst_init(void)
 		snprintf(cpu_name_buf, CPU_NAME_BUF_SIZE, "cpu%d", cpu);
 		debugfs_create_file(cpu_name_buf, 0444, hcall_root,
 				    per_cpu(hcall_stats, cpu),
-				    &hcall_inst_seq_fops);
+				    &hcall_inst_fops);
 	}
 
 	return 0;

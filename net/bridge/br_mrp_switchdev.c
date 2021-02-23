@@ -169,13 +169,12 @@ int br_mrp_switchdev_send_in_test(struct net_bridge *br, struct br_mrp *mrp,
 	return err;
 }
 
-int br_mrp_port_switchdev_set_state(struct net_bridge_port *p,
-				    enum br_mrp_port_state_type state)
+int br_mrp_port_switchdev_set_state(struct net_bridge_port *p, u32 state)
 {
 	struct switchdev_attr attr = {
 		.orig_dev = p->dev,
-		.id = SWITCHDEV_ATTR_ID_MRP_PORT_STATE,
-		.u.mrp_port_state = state,
+		.id = SWITCHDEV_ATTR_ID_PORT_STP_STATE,
+		.u.stp_state = state,
 	};
 	int err;
 

@@ -10,7 +10,7 @@
 #include <asm/unaligned.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/simd.h>
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
 #include <crypto/sha256_base.h>
 #include <linux/cpufeature.h>
 #include <linux/crypto.h>
@@ -24,6 +24,9 @@ struct sha256_ce_state {
 	struct sha256_state	sst;
 	u32			finalize;
 };
+
+extern const u32 sha256_ce_offsetof_count;
+extern const u32 sha256_ce_offsetof_finalize;
 
 asmlinkage void sha2_ce_transform(struct sha256_ce_state *sst, u8 const *src,
 				  int blocks);

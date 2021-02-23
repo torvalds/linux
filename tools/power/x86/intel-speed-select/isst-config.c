@@ -15,7 +15,7 @@ struct process_cmd_struct {
 	int arg;
 };
 
-static const char *version_str = "v1.5";
+static const char *version_str = "v1.7";
 static const int supported_api_ver = 1;
 static struct isst_if_platform_info isst_platform_info;
 static char *progname;
@@ -328,8 +328,12 @@ int get_physical_die_id(int cpu)
 		int core_id, pkg_id, die_id;
 
 		ret = get_stored_topology_info(cpu, &core_id, &pkg_id, &die_id);
-		if (!ret)
+		if (!ret) {
+			if (die_id < 0)
+				die_id = 0;
+
 			return die_id;
+		}
 	}
 
 	if (ret < 0)
@@ -545,20 +549,23 @@ static void set_cpu_present_cpu_mask(void)
 	}
 }
 
-int get_core_count(int pkg_id, int die_id)
+int get_max_punit_core_id(int pkg_id, int die_id)
 {
-	int cnt = 0;
+	int max_id = 0;
+	int i;
 
-	if (pkg_id < MAX_PACKAGE_COUNT && die_id < MAX_DIE_PER_PACKAGE) {
-		int i;
+	for (i = 0; i < topo_max_cpus; ++i)
+	{
+		if (!CPU_ISSET_S(i, present_cpumask_size, present_cpumask))
+			continue;
 
-		for (i = 0; i < sizeof(long long) * 8; ++i) {
-			if (core_mask[pkg_id][die_id] & (1ULL << i))
-				cnt++;
-		}
+		if (cpu_map[i].pkg_id == pkg_id &&
+			cpu_map[i].die_id == die_id &&
+			cpu_map[i].punit_cpu_core > max_id)
+			max_id = cpu_map[i].punit_cpu_core;
 	}
 
-	return cnt;
+	return max_id;
 }
 
 int get_cpu_count(int pkg_id, int die_id)
@@ -1242,6 +1249,8 @@ static void dump_isst_config(int arg)
 	isst_ctdp_display_information_end(outf);
 }
 
+static void adjust_scaling_max_from_base_freq(int cpu);
+
 static void set_tdp_level_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 				  void *arg4)
 {
@@ -1260,6 +1269,9 @@ static void set_tdp_level_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 			int pkg_id = get_physical_package_id(cpu);
 			int die_id = get_physical_die_id(cpu);
 
+			/* Wait for updated base frequencies */
+			usleep(2000);
+
 			fprintf(stderr, "Option is set to online/offline\n");
 			ctdp_level.core_cpumask_size =
 				alloc_cpu_set(&ctdp_level.core_cpumask);
@@ -1276,6 +1288,7 @@ static void set_tdp_level_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 					if (CPU_ISSET_S(i, ctdp_level.core_cpumask_size, ctdp_level.core_cpumask)) {
 						fprintf(stderr, "online cpu %d\n", i);
 						set_cpu_online_offline(i, 1);
+						adjust_scaling_max_from_base_freq(i);
 					} else {
 						fprintf(stderr, "offline cpu %d\n", i);
 						set_cpu_online_offline(i, 0);
@@ -1433,6 +1446,31 @@ static int set_cpufreq_scaling_min_max(int cpu, int max, int freq)
 	return 0;
 }
 
+static int no_turbo(void)
+{
+	return parse_int_file(0, "/sys/devices/system/cpu/intel_pstate/no_turbo");
+}
+
+static void adjust_scaling_max_from_base_freq(int cpu)
+{
+	int base_freq, scaling_max_freq;
+
+	scaling_max_freq = parse_int_file(0, "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_max_freq", cpu);
+	base_freq = get_cpufreq_base_freq(cpu);
+	if (scaling_max_freq < base_freq || no_turbo())
+		set_cpufreq_scaling_min_max(cpu, 1, base_freq);
+}
+
+static void adjust_scaling_min_from_base_freq(int cpu)
+{
+	int base_freq, scaling_min_freq;
+
+	scaling_min_freq = parse_int_file(0, "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_min_freq", cpu);
+	base_freq = get_cpufreq_base_freq(cpu);
+	if (scaling_min_freq < base_freq)
+		set_cpufreq_scaling_min_max(cpu, 0, base_freq);
+}
+
 static int set_clx_pbf_cpufreq_scaling_min_max(int cpu)
 {
 	struct isst_pkg_ctdp_level_info *ctdp_level;
@@ -1530,6 +1568,7 @@ static void set_scaling_min_to_cpuinfo_max(int cpu)
 			continue;
 
 		set_cpufreq_scaling_min_max_from_cpuinfo(i, 1, 0);
+		adjust_scaling_min_from_base_freq(i);
 	}
 }
 

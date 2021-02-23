@@ -12,8 +12,6 @@
 #include <string.h>
 #include <sys/prctl.h>
 
-#include <asm/cputable.h>
-
 #include "event.h"
 #include "lib.h"
 #include "utils.h"

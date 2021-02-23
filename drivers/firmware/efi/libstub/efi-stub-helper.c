@@ -239,6 +239,102 @@ efi_status_t efi_parse_options(char const *cmdline)
 }
 
 /*
+ * The EFI_LOAD_OPTION descriptor has the following layout:
+ *	u32 Attributes;
+ *	u16 FilePathListLength;
+ *	u16 Description[];
+ *	efi_device_path_protocol_t FilePathList[];
+ *	u8 OptionalData[];
+ *
+ * This function validates and unpacks the variable-size data fields.
+ */
+static
+bool efi_load_option_unpack(efi_load_option_unpacked_t *dest,
+			    const efi_load_option_t *src, size_t size)
+{
+	const void *pos;
+	u16 c;
+	efi_device_path_protocol_t header;
+	const efi_char16_t *description;
+	const efi_device_path_protocol_t *file_path_list;
+
+	if (size < offsetof(efi_load_option_t, variable_data))
+		return false;
+	pos = src->variable_data;
+	size -= offsetof(efi_load_option_t, variable_data);
+
+	if ((src->attributes & ~EFI_LOAD_OPTION_MASK) != 0)
+		return false;
+
+	/* Scan description. */
+	description = pos;
+	do {
+		if (size < sizeof(c))
+			return false;
+		c = *(const u16 *)pos;
+		pos += sizeof(c);
+		size -= sizeof(c);
+	} while (c != L'\0');
+
+	/* Scan file_path_list. */
+	file_path_list = pos;
+	do {
+		if (size < sizeof(header))
+			return false;
+		header = *(const efi_device_path_protocol_t *)pos;
+		if (header.length < sizeof(header))
+			return false;
+		if (size < header.length)
+			return false;
+		pos += header.length;
+		size -= header.length;
+	} while ((header.type != EFI_DEV_END_PATH && header.type != EFI_DEV_END_PATH2) ||
+		 (header.sub_type != EFI_DEV_END_ENTIRE));
+	if (pos != (const void *)file_path_list + src->file_path_list_length)
+		return false;
+
+	dest->attributes = src->attributes;
+	dest->file_path_list_length = src->file_path_list_length;
+	dest->description = description;
+	dest->file_path_list = file_path_list;
+	dest->optional_data_size = size;
+	dest->optional_data = size ? pos : NULL;
+
+	return true;
+}
+
+/*
+ * At least some versions of Dell firmware pass the entire contents of the
+ * Boot#### variable, i.e. the EFI_LOAD_OPTION descriptor, rather than just the
+ * OptionalData field.
+ *
+ * Detect this case and extract OptionalData.
+ */
+void efi_apply_loadoptions_quirk(const void **load_options, int *load_options_size)
+{
+	const efi_load_option_t *load_option = *load_options;
+	efi_load_option_unpacked_t load_option_unpacked;
+
+	if (!IS_ENABLED(CONFIG_X86))
+		return;
+	if (!load_option)
+		return;
+	if (*load_options_size < sizeof(*load_option))
+		return;
+	if ((load_option->attributes & ~EFI_LOAD_OPTION_BOOT_MASK) != 0)
+		return;
+
+	if (!efi_load_option_unpack(&load_option_unpacked, load_option, *load_options_size))
+		return;
+
+	efi_warn_once(FW_BUG "LoadOptions is an EFI_LOAD_OPTION descriptor\n");
+	efi_warn_once(FW_BUG "Using OptionalData as a workaround\n");
+
+	*load_options = load_option_unpacked.optional_data;
+	*load_options_size = load_option_unpacked.optional_data_size;
+}
+
+/*
  * Convert the unicode UEFI command line to ASCII to pass to kernel.
  * Size of memory allocated return in *cmd_line_len.
  * Returns NULL on error.
@@ -247,11 +343,14 @@ char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len)
 {
 	const u16 *s2;
 	unsigned long cmdline_addr = 0;
-	int options_chars = efi_table_attr(image, load_options_size) / 2;
+	int options_chars = efi_table_attr(image, load_options_size);
 	const u16 *options = efi_table_attr(image, load_options);
 	int options_bytes = 0, safe_options_bytes = 0;  /* UTF-8 bytes */
 	bool in_quote = false;
 	efi_status_t status;
+
+	efi_apply_loadoptions_quirk((const void **)&options, &options_chars);
+	options_chars /= sizeof(*options);
 
 	if (options) {
 		s2 = options;

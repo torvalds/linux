@@ -33,6 +33,12 @@ properties:
           - const: allwinner,sun4i-a10-system-control
       - const: allwinner,sun8i-a23-system-control
       - const: allwinner,sun8i-h3-system-control
+      - items:
+          - const: allwinner,sun8i-v3s-system-control
+          - const: allwinner,sun8i-h3-system-control
+      - items:
+          - const: allwinner,sun8i-r40-system-control
+          - const: allwinner,sun4i-a10-system-control
       - const: allwinner,sun50i-a64-sram-controller
         deprecated: true
       - const: allwinner,sun50i-a64-system-control
@@ -85,6 +91,9 @@ patternProperties:
                   - const: allwinner,sun4i-a10-sram-c1
               - items:
                   - const: allwinner,sun8i-h3-sram-c1
+                  - const: allwinner,sun4i-a10-sram-c1
+              - items:
+                  - const: allwinner,sun8i-r40-sram-c1
                   - const: allwinner,sun4i-a10-sram-c1
               - items:
                   - const: allwinner,sun50i-a64-sram-c1

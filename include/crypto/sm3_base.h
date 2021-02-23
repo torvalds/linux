@@ -13,6 +13,7 @@
 #include <crypto/sm3.h>
 #include <linux/crypto.h>
 #include <linux/module.h>
+#include <linux/string.h>
 #include <asm/unaligned.h>
 
 typedef void (sm3_block_fn)(struct sm3_state *sst, u8 const *src, int blocks);
@@ -104,7 +105,7 @@ static inline int sm3_base_finish(struct shash_desc *desc, u8 *out)
 	for (i = 0; i < SM3_DIGEST_SIZE / sizeof(__be32); i++)
 		put_unaligned_be32(sctx->state[i], digest++);
 
-	*sctx = (struct sm3_state){};
+	memzero_explicit(sctx, sizeof(*sctx));
 	return 0;
 }
 

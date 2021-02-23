@@ -1,13 +1,14 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config PINCTRL_IMX
-	bool
+	tristate
+	depends on OF
 	select GENERIC_PINCTRL_GROUPS
 	select GENERIC_PINMUX_FUNCTIONS
 	select GENERIC_PINCONF
 	select REGMAP
 
 config PINCTRL_IMX_SCU
-	bool
+	tristate
 	depends on IMX_SCU
 	select PINCTRL_IMX
 
@@ -22,13 +23,6 @@ config PINCTRL_IMX1
 	select PINCTRL_IMX1_CORE
 	help
 	  Say Y here to enable the imx1 pinctrl driver
-
-config PINCTRL_IMX21
-	bool "i.MX21 pinctrl driver"
-	depends on SOC_IMX21
-	select PINCTRL_IMX1_CORE
-	help
-	  Say Y here to enable the i.MX21 pinctrl driver
 
 config PINCTRL_IMX27
 	bool "IMX27 pinctrl driver"

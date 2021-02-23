@@ -21,16 +21,36 @@
  * new data the application may have written before commit.
  */
 enum {
-	BTRFS_INODE_ORDERED_DATA_CLOSE,
+	BTRFS_INODE_FLUSH_ON_CLOSE,
 	BTRFS_INODE_DUMMY,
 	BTRFS_INODE_IN_DEFRAG,
 	BTRFS_INODE_HAS_ASYNC_EXTENT,
+	 /*
+	  * Always set under the VFS' inode lock, otherwise it can cause races
+	  * during fsync (we start as a fast fsync and then end up in a full
+	  * fsync racing with ordered extent completion).
+	  */
 	BTRFS_INODE_NEEDS_FULL_SYNC,
 	BTRFS_INODE_COPY_EVERYTHING,
 	BTRFS_INODE_IN_DELALLOC_LIST,
-	BTRFS_INODE_READDIO_NEED_LOCK,
 	BTRFS_INODE_HAS_PROPS,
 	BTRFS_INODE_SNAPSHOT_FLUSH,
+	/*
+	 * Set and used when logging an inode and it serves to signal that an
+	 * inode does not have xattrs, so subsequent fsyncs can avoid searching
+	 * for xattrs to log. This bit must be cleared whenever a xattr is added
+	 * to an inode.
+	 */
+	BTRFS_INODE_NO_XATTRS,
+	/*
+	 * Set when we are in a context where we need to start a transaction and
+	 * have dirty pages with the respective file range locked. This is to
+	 * ensure that when reserving space for the transaction, if we are low
+	 * on available space and need to flush delalloc, we will not flush
+	 * delalloc for this inode, because that could result in a deadlock (on
+	 * the file range, inode's io_tree).
+	 */
+	BTRFS_INODE_NO_DELALLOC_FLUSH,
 };
 
 /* in memory btrfs inode */
@@ -46,7 +66,8 @@ struct btrfs_inode {
 	/*
 	 * Lock for counters and all fields used to determine if the inode is in
 	 * the log or not (last_trans, last_sub_trans, last_log_commit,
-	 * logged_trans).
+	 * logged_trans), to access/update new_delalloc_bytes and to update the
+	 * VFS' inode number of bytes used.
 	 */
 	spinlock_t lock;
 
@@ -199,18 +220,13 @@ struct btrfs_inode {
 	/* Hook into fs_info->delayed_iputs */
 	struct list_head delayed_iput;
 
-	/*
-	 * To avoid races between lockless (i_mutex not held) direct IO writes
-	 * and concurrent fsync requests. Direct IO writes must acquire read
-	 * access on this semaphore for creating an extent map and its
-	 * corresponding ordered extent. The fast fsync path must acquire write
-	 * access on this semaphore before it collects ordered extents and
-	 * extent maps.
-	 */
-	struct rw_semaphore dio_sem;
-
 	struct inode vfs_inode;
 };
+
+static inline u32 btrfs_inode_sectorsize(const struct btrfs_inode *inode)
+{
+	return inode->root->fs_info->sectorsize;
+}
 
 static inline struct btrfs_inode *BTRFS_I(const struct inode *inode)
 {
@@ -324,23 +340,6 @@ struct btrfs_dio_private {
 	u8 csums[];
 };
 
-/*
- * Disable DIO read nolock optimization, so new dio readers will be forced
- * to grab i_mutex. It is used to avoid the endless truncate due to
- * nonlocked dio read.
- */
-static inline void btrfs_inode_block_unlocked_dio(struct btrfs_inode *inode)
-{
-	set_bit(BTRFS_INODE_READDIO_NEED_LOCK, &inode->runtime_flags);
-	smp_mb();
-}
-
-static inline void btrfs_inode_resume_unlocked_dio(struct btrfs_inode *inode)
-{
-	smp_mb__before_atomic();
-	clear_bit(BTRFS_INODE_READDIO_NEED_LOCK, &inode->runtime_flags);
-}
-
 /* Array of bytes with variable length, hexadecimal format 0x1234 */
 #define CSUM_FMT				"0x%*phN"
 #define CSUM_FMT_VALUE(size, bytes)		size, bytes
@@ -349,8 +348,7 @@ static inline void btrfs_print_data_csum_error(struct btrfs_inode *inode,
 		u64 logical_start, u8 *csum, u8 *csum_expected, int mirror_num)
 {
 	struct btrfs_root *root = inode->root;
-	struct btrfs_super_block *sb = root->fs_info->super_copy;
-	const u16 csum_size = btrfs_super_csum_size(sb);
+	const u32 csum_size = root->fs_info->csum_size;
 
 	/* Output minus objectid, which is more meaningful */
 	if (root->root_key.objectid >= BTRFS_LAST_FREE_OBJECTID)

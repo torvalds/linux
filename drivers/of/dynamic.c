@@ -356,6 +356,7 @@ void of_node_release(struct kobject *kobj)
 
 	property_list_free(node->properties);
 	property_list_free(node->deadprops);
+	fwnode_links_purge(of_fwnode_handle(node));
 
 	kfree(node->full_name);
 	kfree(node->data);

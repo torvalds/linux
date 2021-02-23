@@ -44,6 +44,8 @@ required:
   - interrupts
   - pulses-per-revolution
 
+additionalProperties: false
+
 examples:
   - |
     fpga_axi: fpga-axi {

@@ -207,7 +207,7 @@ struct mctrl_gpios *mctrl_gpio_init(struct uart_port *port, unsigned int idx)
 			continue;
 
 		ret = gpiod_to_irq(gpios->gpio[i]);
-		if (ret <= 0) {
+		if (ret < 0) {
 			dev_err(port->dev,
 				"failed to find corresponding irq for %s (idx=%d, err=%d)\n",
 				mctrl_gpios_desc[i].name, idx, ret);

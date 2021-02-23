@@ -625,7 +625,8 @@ static int append_oa_sample(struct i915_perf_stream *stream,
 }
 
 /**
- * Copies all buffered OA reports into userspace read() buffer.
+ * gen8_append_oa_reports - Copies all buffered OA reports into
+ *			    userspace read() buffer.
  * @stream: An i915-perf stream opened for OA metrics
  * @buf: destination buffer given by userspace
  * @count: the number of bytes userspace wants to read
@@ -909,15 +910,21 @@ static int gen8_oa_read(struct i915_perf_stream *stream,
 				       DRM_I915_PERF_RECORD_OA_REPORT_LOST);
 		if (ret)
 			return ret;
-		intel_uncore_write(uncore, oastatus_reg,
-				   oastatus & ~GEN8_OASTATUS_REPORT_LOST);
+
+		intel_uncore_rmw(uncore, oastatus_reg,
+				 GEN8_OASTATUS_COUNTER_OVERFLOW |
+				 GEN8_OASTATUS_REPORT_LOST,
+				 IS_GEN_RANGE(uncore->i915, 8, 11) ?
+				 (GEN8_OASTATUS_HEAD_POINTER_WRAP |
+				  GEN8_OASTATUS_TAIL_POINTER_WRAP) : 0);
 	}
 
 	return gen8_append_oa_reports(stream, buf, count, offset);
 }
 
 /**
- * Copies all buffered OA reports into userspace read() buffer.
+ * gen7_append_oa_reports - Copies all buffered OA reports into
+ *			    userspace read() buffer.
  * @stream: An i915-perf stream opened for OA metrics
  * @buf: destination buffer given by userspace
  * @count: the number of bytes userspace wants to read
@@ -1195,24 +1202,39 @@ static struct intel_context *oa_pin_context(struct i915_perf_stream *stream)
 	struct i915_gem_engines_iter it;
 	struct i915_gem_context *ctx = stream->ctx;
 	struct intel_context *ce;
-	int err;
+	struct i915_gem_ww_ctx ww;
+	int err = -ENODEV;
 
 	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
 		if (ce->engine != stream->engine) /* first match! */
 			continue;
 
-		/*
-		 * As the ID is the gtt offset of the context's vma we
-		 * pin the vma to ensure the ID remains fixed.
-		 */
-		err = intel_context_pin(ce);
-		if (err == 0) {
-			stream->pinned_ctx = ce;
-			break;
-		}
+		err = 0;
+		break;
 	}
 	i915_gem_context_unlock_engines(ctx);
 
+	if (err)
+		return ERR_PTR(err);
+
+	i915_gem_ww_ctx_init(&ww, true);
+retry:
+	/*
+	 * As the ID is the gtt offset of the context's vma we
+	 * pin the vma to ensure the ID remains fixed.
+	 */
+	err = intel_context_pin_ww(ce, &ww);
+	if (err == -EDEADLK) {
+		err = i915_gem_ww_ctx_backoff(&ww);
+		if (!err)
+			goto retry;
+	}
+	i915_gem_ww_ctx_fini(&ww);
+
+	if (err)
+		return ERR_PTR(err);
+
+	stream->pinned_ctx = ce;
 	return stream->pinned_ctx;
 }
 
@@ -1923,15 +1945,22 @@ emit_oa_config(struct i915_perf_stream *stream,
 {
 	struct i915_request *rq;
 	struct i915_vma *vma;
+	struct i915_gem_ww_ctx ww;
 	int err;
 
 	vma = get_oa_vma(stream, oa_config);
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
-	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
+	i915_gem_ww_ctx_init(&ww, true);
+retry:
+	err = i915_gem_object_lock(vma->obj, &ww);
 	if (err)
-		goto err_vma_put;
+		goto err;
+
+	err = i915_vma_pin_ww(vma, &ww, 0, 0, PIN_GLOBAL | PIN_HIGH);
+	if (err)
+		goto err;
 
 	intel_engine_pm_get(ce->engine);
 	rq = i915_request_create(ce);
@@ -1953,11 +1982,9 @@ emit_oa_config(struct i915_perf_stream *stream,
 			goto err_add_request;
 	}
 
-	i915_vma_lock(vma);
 	err = i915_request_await_object(rq, vma->obj, 0);
 	if (!err)
 		err = i915_vma_move_to_active(vma, rq, 0);
-	i915_vma_unlock(vma);
 	if (err)
 		goto err_add_request;
 
@@ -1971,7 +1998,14 @@ err_add_request:
 	i915_request_add(rq);
 err_vma_unpin:
 	i915_vma_unpin(vma);
-err_vma_put:
+err:
+	if (err == -EDEADLK) {
+		err = i915_gem_ww_ctx_backoff(&ww);
+		if (!err)
+			goto retry;
+	}
+
+	i915_gem_ww_ctx_fini(&ww);
 	i915_vma_put(vma);
 	return err;
 }
@@ -3200,7 +3234,7 @@ static long i915_perf_config_locked(struct i915_perf_stream *stream,
 }
 
 /**
- * i915_perf_ioctl - support ioctl() usage with i915 perf stream FDs
+ * i915_perf_ioctl_locked - support ioctl() usage with i915 perf stream FDs
  * @stream: An i915 perf stream
  * @cmd: the ioctl request
  * @arg: the ioctl data

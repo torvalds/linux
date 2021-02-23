@@ -275,8 +275,7 @@ struct ceph_mds_request {
 
 	union ceph_mds_request_args r_args;
 	int r_fmode;        /* file mode, if expecting cap */
-	kuid_t r_uid;
-	kgid_t r_gid;
+	const struct cred *r_cred;
 	int r_request_release_offset;
 	struct timespec64 r_stamp;
 
@@ -393,7 +392,7 @@ struct ceph_mds_client {
 
 	struct ceph_mds_session **sessions;    /* NULL for mds if no session */
 	atomic_t		num_sessions;
-	int                     max_sessions;  /* len of s_mds_sessions */
+	int                     max_sessions;  /* len of sessions array */
 	int                     stopping;      /* true if shutting down */
 
 	atomic64_t		quotarealms_count; /* # realms with quota */
@@ -480,6 +479,7 @@ struct ceph_mds_client {
 extern const char *ceph_mds_op_name(int op);
 
 extern bool check_session_state(struct ceph_mds_session *s);
+void inc_session_sequence(struct ceph_mds_session *s);
 
 extern struct ceph_mds_session *
 __ceph_lookup_mds_session(struct ceph_mds_client *, int mds);

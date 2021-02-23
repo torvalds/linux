@@ -2,6 +2,8 @@
 /* Copyright (c) 2014 Mahesh Bandewar <maheshb@google.com>
  */
 
+#include <linux/ethtool.h>
+
 #include "ipvlan.h"
 
 static int ipvlan_set_port_mode(struct ipvl_port *port, u16 nval,
@@ -684,6 +686,13 @@ static const struct nla_policy ipvlan_nl_policy[IFLA_IPVLAN_MAX + 1] =
 	[IFLA_IPVLAN_FLAGS] = { .type = NLA_U16 },
 };
 
+static struct net *ipvlan_get_link_net(const struct net_device *dev)
+{
+	struct ipvl_dev *ipvlan = netdev_priv(dev);
+
+	return dev_net(ipvlan->phy_dev);
+}
+
 static struct rtnl_link_ops ipvlan_link_ops = {
 	.kind		= "ipvlan",
 	.priv_size	= sizeof(struct ipvl_dev),
@@ -691,6 +700,7 @@ static struct rtnl_link_ops ipvlan_link_ops = {
 	.setup		= ipvlan_link_setup,
 	.newlink	= ipvlan_link_new,
 	.dellink	= ipvlan_link_delete,
+	.get_link_net   = ipvlan_get_link_net,
 };
 
 int ipvlan_link_register(struct rtnl_link_ops *ops)

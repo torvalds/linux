@@ -224,7 +224,7 @@ static int ice_cfg_promisc(struct ice_vsi *vsi, u8 promisc_m, bool set_promisc)
 	if (vsi->type != ICE_VSI_PF)
 		return 0;
 
-	if (vsi->vlan_ena) {
+	if (vsi->num_vlan > 1) {
 		status = ice_set_vlan_vsi_promisc(hw, vsi->idx, promisc_m,
 						  set_promisc);
 	} else {
@@ -326,7 +326,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 	/* check for changes in promiscuous modes */
 	if (changed_flags & IFF_ALLMULTI) {
 		if (vsi->current_netdev_flags & IFF_ALLMULTI) {
-			if (vsi->vlan_ena)
+			if (vsi->num_vlan > 1)
 				promisc_m = ICE_MCAST_VLAN_PROMISC_BITS;
 			else
 				promisc_m = ICE_MCAST_PROMISC_BITS;
@@ -340,7 +340,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 			}
 		} else {
 			/* !(vsi->current_netdev_flags & IFF_ALLMULTI) */
-			if (vsi->vlan_ena)
+			if (vsi->num_vlan > 1)
 				promisc_m = ICE_MCAST_VLAN_PROMISC_BITS;
 			else
 				promisc_m = ICE_MCAST_PROMISC_BITS;
@@ -486,7 +486,6 @@ static void ice_do_reset(struct ice_pf *pf, enum ice_reset_req reset_type)
 	struct ice_hw *hw = &pf->hw;
 
 	dev_dbg(dev, "reset_type 0x%x requested\n", reset_type);
-	WARN_ON(in_interrupt());
 
 	ice_prepare_for_reset(pf);
 
@@ -668,7 +667,7 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 		speed = "100 M";
 		break;
 	default:
-		speed = "Unknown";
+		speed = "Unknown ";
 		break;
 	}
 
@@ -1057,7 +1056,9 @@ struct ice_aq_task {
 int ice_aq_wait_for_event(struct ice_pf *pf, u16 opcode, unsigned long timeout,
 			  struct ice_rq_event_info *event)
 {
+	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_aq_task *task;
+	unsigned long start;
 	long ret;
 	int err;
 
@@ -1073,6 +1074,8 @@ int ice_aq_wait_for_event(struct ice_pf *pf, u16 opcode, unsigned long timeout,
 	spin_lock_bh(&pf->aq_wait_lock);
 	hlist_add_head(&task->entry, &pf->aq_wait_list);
 	spin_unlock_bh(&pf->aq_wait_lock);
+
+	start = jiffies;
 
 	ret = wait_event_interruptible_timeout(pf->aq_wait_queue, task->state,
 					       timeout);
@@ -1091,6 +1094,11 @@ int ice_aq_wait_for_event(struct ice_pf *pf, u16 opcode, unsigned long timeout,
 		err = -EINVAL;
 		break;
 	}
+
+	dev_dbg(dev, "Waited %u msecs (max %u msecs) for firmware response to op 0x%04x\n",
+		jiffies_to_msecs(jiffies - start),
+		jiffies_to_msecs(timeout),
+		opcode);
 
 	spin_lock_bh(&pf->aq_wait_lock);
 	hlist_del(&task->entry);
@@ -2273,7 +2281,7 @@ static int ice_xdp_alloc_setup_rings(struct ice_vsi *vsi)
 		if (ice_setup_tx_ring(xdp_ring))
 			goto free_xdp_rings;
 		ice_set_ring_xdp(xdp_ring);
-		xdp_ring->xsk_umem = ice_xsk_umem(xdp_ring);
+		xdp_ring->xsk_pool = ice_xsk_pool(xdp_ring);
 	}
 
 	return 0;
@@ -2417,7 +2425,7 @@ int ice_destroy_xdp_rings(struct ice_vsi *vsi)
 	int i, v_idx;
 
 	/* q_vectors are freed in reset path so there's no point in detaching
-	 * rings; in case of rebuild being triggered not from reset reset bits
+	 * rings; in case of rebuild being triggered not from reset bits
 	 * in pf->state won't be set, so additionally check first q_vector
 	 * against NULL
 	 */
@@ -2517,13 +2525,13 @@ ice_xdp_setup_prog(struct ice_vsi *vsi, struct bpf_prog *prog,
 	if (if_running)
 		ret = ice_up(vsi);
 
-	if (!ret && prog && vsi->xsk_umems) {
+	if (!ret && prog && vsi->xsk_pools) {
 		int i;
 
 		ice_for_each_rxq(vsi, i) {
 			struct ice_ring *rx_ring = vsi->rx_rings[i];
 
-			if (rx_ring->xsk_umem)
+			if (rx_ring->xsk_pool)
 				napi_schedule(&rx_ring->q_vector->napi);
 		}
 	}
@@ -2549,8 +2557,8 @@ static int ice_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		return ice_xdp_setup_prog(vsi, xdp->prog, xdp->extack);
-	case XDP_SETUP_XSK_UMEM:
-		return ice_xsk_umem_setup(vsi, xdp->xsk.umem,
+	case XDP_SETUP_XSK_POOL:
+		return ice_xsk_pool_setup(vsi, xdp->xsk.pool,
 					  xdp->xsk.queue_id);
 	default:
 		return -EINVAL;
@@ -2873,6 +2881,7 @@ static void ice_set_ops(struct net_device *netdev)
 	}
 
 	netdev->netdev_ops = &ice_netdev_ops;
+	netdev->udp_tunnel_nic_info = &pf->hw.udp_tunnel_nic;
 	ice_set_ethtool_ops(netdev);
 }
 
@@ -2953,7 +2962,7 @@ static int ice_cfg_netdev(struct ice_vsi *vsi)
 	u8 mac_addr[ETH_ALEN];
 	int err;
 
-	err = ice_devlink_create_port(pf);
+	err = ice_devlink_create_port(vsi);
 	if (err)
 		return err;
 
@@ -2994,7 +3003,7 @@ static int ice_cfg_netdev(struct ice_vsi *vsi)
 	if (err)
 		goto err_free_netdev;
 
-	devlink_port_type_eth_set(&pf->devlink_port, vsi->netdev);
+	devlink_port_type_eth_set(&vsi->devlink_port, vsi->netdev);
 
 	netif_carrier_off(vsi->netdev);
 
@@ -3007,7 +3016,7 @@ err_free_netdev:
 	free_netdev(vsi->netdev);
 	vsi->netdev = NULL;
 err_destroy_devlink_port:
-	ice_devlink_destroy_port(pf);
+	ice_devlink_destroy_port(vsi);
 	return err;
 }
 
@@ -3107,10 +3116,8 @@ ice_vlan_rx_add_vid(struct net_device *netdev, __always_unused __be16 proto,
 	 * packets aren't pruned by the device's internal switch on Rx
 	 */
 	ret = ice_vsi_add_vlan(vsi, vid, ICE_FWD_TO_VSI);
-	if (!ret) {
-		vsi->vlan_ena = true;
+	if (!ret)
 		set_bit(ICE_VSI_FLAG_VLAN_FLTR_CHANGED, vsi->flags);
-	}
 
 	return ret;
 }
@@ -3149,7 +3156,6 @@ ice_vlan_rx_kill_vid(struct net_device *netdev, __always_unused __be16 proto,
 	if (vsi->num_vlan == 1 && ice_vsi_is_vlan_pruning_ena(vsi))
 		ret = ice_cfg_vlan_pruning(vsi, false, false);
 
-	vsi->vlan_ena = false;
 	set_bit(ICE_VSI_FLAG_VLAN_FLTR_CHANGED, vsi->flags);
 	return ret;
 }
@@ -3424,18 +3430,14 @@ static int ice_ena_msix_range(struct ice_pf *pf)
 	if (v_actual < v_budget) {
 		dev_warn(dev, "not enough OS MSI-X vectors. requested = %d, obtained = %d\n",
 			 v_budget, v_actual);
-/* 2 vectors each for LAN and RDMA (traffic + OICR), one for flow director */
-#define ICE_MIN_LAN_VECS 2
-#define ICE_MIN_RDMA_VECS 2
-#define ICE_MIN_VECS (ICE_MIN_LAN_VECS + ICE_MIN_RDMA_VECS + 1)
 
-		if (v_actual < ICE_MIN_LAN_VECS) {
+		if (v_actual < ICE_MIN_MSIX) {
 			/* error if we can't get minimum vectors */
 			pci_disable_msix(pf->pdev);
 			err = -ERANGE;
 			goto msix_err;
 		} else {
-			pf->num_lan_msix = ICE_MIN_LAN_VECS;
+			pf->num_lan_msix = ICE_MIN_LAN_TXRX_MSIX;
 		}
 	}
 
@@ -3971,7 +3973,7 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	struct device *dev = &pdev->dev;
 	struct ice_pf *pf;
 	struct ice_hw *hw;
-	int err;
+	int i, err;
 
 	/* this driver uses devres, see
 	 * Documentation/driver-api/driver-model/devres.rst
@@ -4066,10 +4068,36 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 
 	ice_devlink_init_regions(pf);
 
+	pf->hw.udp_tunnel_nic.set_port = ice_udp_tunnel_set_port;
+	pf->hw.udp_tunnel_nic.unset_port = ice_udp_tunnel_unset_port;
+	pf->hw.udp_tunnel_nic.flags = UDP_TUNNEL_NIC_INFO_MAY_SLEEP;
+	pf->hw.udp_tunnel_nic.shared = &pf->hw.udp_tunnel_shared;
+	i = 0;
+	if (pf->hw.tnl.valid_count[TNL_VXLAN]) {
+		pf->hw.udp_tunnel_nic.tables[i].n_entries =
+			pf->hw.tnl.valid_count[TNL_VXLAN];
+		pf->hw.udp_tunnel_nic.tables[i].tunnel_types =
+			UDP_TUNNEL_TYPE_VXLAN;
+		i++;
+	}
+	if (pf->hw.tnl.valid_count[TNL_GENEVE]) {
+		pf->hw.udp_tunnel_nic.tables[i].n_entries =
+			pf->hw.tnl.valid_count[TNL_GENEVE];
+		pf->hw.udp_tunnel_nic.tables[i].tunnel_types =
+			UDP_TUNNEL_TYPE_GENEVE;
+		i++;
+	}
+
 	pf->num_alloc_vsi = hw->func_caps.guar_num_vsi;
 	if (!pf->num_alloc_vsi) {
 		err = -EIO;
 		goto err_init_pf_unroll;
+	}
+	if (pf->num_alloc_vsi > UDP_TUNNEL_NIC_MAX_SHARING_DEVICES) {
+		dev_warn(&pf->pdev->dev,
+			 "limiting the VSI count due to UDP tunnel limitation %d > %d\n",
+			 pf->num_alloc_vsi, UDP_TUNNEL_NIC_MAX_SHARING_DEVICES);
+		pf->num_alloc_vsi = UDP_TUNNEL_NIC_MAX_SHARING_DEVICES;
 	}
 
 	pf->vsi = devm_kcalloc(dev, pf->num_alloc_vsi, sizeof(*pf->vsi),
@@ -4216,7 +4244,6 @@ probe_done:
 err_send_version_unroll:
 	ice_vsi_release_all(pf);
 err_alloc_sw_unroll:
-	ice_devlink_destroy_port(pf);
 	set_bit(__ICE_SERVICE_DIS, pf->state);
 	set_bit(__ICE_DOWN, pf->state);
 	devm_kfree(dev, pf->first_sw);
@@ -4331,7 +4358,6 @@ static void ice_remove(struct pci_dev *pdev)
 	if (!ice_is_safe_mode(pf))
 		ice_remove_arfs(pf);
 	ice_setup_mc_magic_wake(pf);
-	ice_devlink_destroy_port(pf);
 	ice_vsi_release_all(pf);
 	ice_set_wake(pf);
 	ice_free_irq_msix_misc(pf);
@@ -4854,9 +4880,15 @@ static int ice_set_mac_address(struct net_device *netdev, void *pi)
 		goto err_update_filters;
 	}
 
-	/* Add filter for new MAC. If filter exists, just return success */
+	/* Add filter for new MAC. If filter exists, return success */
 	status = ice_fltr_add_mac(vsi, mac, ICE_FWD_TO_VSI);
 	if (status == ICE_ERR_ALREADY_EXISTS) {
+		/* Although this MAC filter is already present in hardware it's
+		 * possible in some cases (e.g. bonding) that dev_addr was
+		 * modified outside of the driver and needs to be restored back
+		 * to this value.
+		 */
+		memcpy(netdev->dev_addr, mac, netdev->addr_len);
 		netdev_dbg(netdev, "filter for MAC %pM already exists\n", mac);
 		return 0;
 	}
@@ -6569,70 +6601,6 @@ static void ice_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 }
 
 /**
- * ice_udp_tunnel_add - Get notifications about UDP tunnel ports that come up
- * @netdev: This physical port's netdev
- * @ti: Tunnel endpoint information
- */
-static void
-ice_udp_tunnel_add(struct net_device *netdev, struct udp_tunnel_info *ti)
-{
-	struct ice_netdev_priv *np = netdev_priv(netdev);
-	struct ice_vsi *vsi = np->vsi;
-	struct ice_pf *pf = vsi->back;
-	enum ice_tunnel_type tnl_type;
-	u16 port = ntohs(ti->port);
-	enum ice_status status;
-
-	switch (ti->type) {
-	case UDP_TUNNEL_TYPE_VXLAN:
-		tnl_type = TNL_VXLAN;
-		break;
-	case UDP_TUNNEL_TYPE_GENEVE:
-		tnl_type = TNL_GENEVE;
-		break;
-	default:
-		netdev_err(netdev, "Unknown tunnel type\n");
-		return;
-	}
-
-	status = ice_create_tunnel(&pf->hw, tnl_type, port);
-	if (status == ICE_ERR_OUT_OF_RANGE)
-		netdev_info(netdev, "Max tunneled UDP ports reached, port %d not added\n",
-			    port);
-	else if (status)
-		netdev_err(netdev, "Error adding UDP tunnel - %s\n",
-			   ice_stat_str(status));
-}
-
-/**
- * ice_udp_tunnel_del - Get notifications about UDP tunnel ports that go away
- * @netdev: This physical port's netdev
- * @ti: Tunnel endpoint information
- */
-static void
-ice_udp_tunnel_del(struct net_device *netdev, struct udp_tunnel_info *ti)
-{
-	struct ice_netdev_priv *np = netdev_priv(netdev);
-	struct ice_vsi *vsi = np->vsi;
-	struct ice_pf *pf = vsi->back;
-	u16 port = ntohs(ti->port);
-	enum ice_status status;
-	bool retval;
-
-	retval = ice_tunnel_port_in_use(&pf->hw, port, NULL);
-	if (!retval) {
-		netdev_info(netdev, "port %d not found in UDP tunnels list\n",
-			    port);
-		return;
-	}
-
-	status = ice_destroy_tunnel(&pf->hw, port, false);
-	if (status)
-		netdev_err(netdev, "error deleting port %d from UDP tunnels list\n",
-			   port);
-}
-
-/**
  * ice_open - Called when a network interface becomes active
  * @netdev: network interface device structure
  *
@@ -6824,6 +6792,6 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_bpf = ice_xdp,
 	.ndo_xdp_xmit = ice_xdp_xmit,
 	.ndo_xsk_wakeup = ice_xsk_wakeup,
-	.ndo_udp_tunnel_add = ice_udp_tunnel_add,
-	.ndo_udp_tunnel_del = ice_udp_tunnel_del,
+	.ndo_udp_tunnel_add = udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del = udp_tunnel_nic_del_port,
 };

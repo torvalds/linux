@@ -13,8 +13,6 @@
 #include "hns_dsaf_ppe.h"
 #include "hns_dsaf_rcb.h"
 
-#define AE_NAME_PORT_ID_IDX 6
-
 static struct hns_mac_cb *hns_get_mac_cb(struct hnae_handle *handle)
 {
 	struct  hnae_vf_cb *vf_cb = hns_ae_get_vf_cb(handle);

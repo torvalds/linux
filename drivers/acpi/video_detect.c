@@ -35,9 +35,6 @@
 #include <linux/workqueue.h>
 #include <acpi/video.h>
 
-ACPI_MODULE_NAME("video");
-#define _COMPONENT		ACPI_VIDEO_COMPONENT
-
 void acpi_video_unregister_backlight(void);
 
 static bool backlight_notifier_registered;
@@ -143,6 +140,13 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	},
 	{
 	.callback = video_detect_force_vendor,
+	.ident = "GIGABYTE GB-BXBT-2807",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "GIGABYTE"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "GB-BXBT-2807"),
+		},
+	},
+	{
 	.ident = "Sony VPCEH3U1E",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
@@ -181,14 +185,14 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X201s"),
 		},
 	},
-        {
-         .callback = video_detect_force_video,
-         .ident = "ThinkPad X201T",
-         .matches = {
-                DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-                DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X201T"),
-                },
-        },
+	{
+	 .callback = video_detect_force_video,
+	 .ident = "ThinkPad X201T",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X201T"),
+		},
+	},
 
 	/* The native backlight controls do not work on some older machines */
 	{
@@ -280,6 +284,15 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
 		DMI_MATCH(DMI_PRODUCT_NAME, "530U4E/540U4E"),
+		},
+	},
+	/* https://bugs.launchpad.net/bugs/1894667 */
+	{
+	 .callback = video_detect_force_video,
+	 .ident = "HP 635 Notebook",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "HP 635 Notebook PC"),
 		},
 	},
 

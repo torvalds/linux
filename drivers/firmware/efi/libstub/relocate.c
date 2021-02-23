@@ -20,8 +20,8 @@
  *
  * Return:	status code
  */
-static efi_status_t efi_low_alloc_above(unsigned long size, unsigned long align,
-					unsigned long *addr, unsigned long min)
+efi_status_t efi_low_alloc_above(unsigned long size, unsigned long align,
+				 unsigned long *addr, unsigned long min)
 {
 	unsigned long map_size, desc_size, buff_size;
 	efi_memory_desc_t *map;

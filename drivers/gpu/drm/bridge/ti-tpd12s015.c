@@ -160,7 +160,7 @@ static int tpd12s015_probe(struct platform_device *pdev)
 
 	/* Register the IRQ if the HPD GPIO is IRQ-capable. */
 	tpd->hpd_irq = gpiod_to_irq(tpd->hpd_gpio);
-	if (tpd->hpd_irq) {
+	if (tpd->hpd_irq >= 0) {
 		ret = devm_request_threaded_irq(&pdev->dev, tpd->hpd_irq, NULL,
 						tpd12s015_hpd_isr,
 						IRQF_TRIGGER_RISING |

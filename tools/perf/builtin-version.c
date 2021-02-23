@@ -60,7 +60,6 @@ static void library_status(void)
 	STATUS(HAVE_DWARF_SUPPORT, dwarf);
 	STATUS(HAVE_DWARF_GETLOCATIONS_SUPPORT, dwarf_getlocations);
 	STATUS(HAVE_GLIBC_SUPPORT, glibc);
-	STATUS(HAVE_GTK2_SUPPORT, gtk2);
 #ifndef HAVE_SYSCALL_TABLE_SUPPORT
 	STATUS(HAVE_LIBAUDIT_SUPPORT, libaudit);
 #endif
@@ -81,6 +80,7 @@ static void library_status(void)
 	STATUS(HAVE_LIBBPF_SUPPORT, bpf);
 	STATUS(HAVE_AIO_SUPPORT, aio);
 	STATUS(HAVE_ZSTD_SUPPORT, zstd);
+	STATUS(HAVE_LIBPFM, libpfm4);
 }
 
 int cmd_version(int argc, const char **argv)

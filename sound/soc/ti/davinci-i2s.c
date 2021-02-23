@@ -747,7 +747,7 @@ static int davinci_i2s_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id davinci_i2s_match[] = {
+static const struct of_device_id davinci_i2s_match[] __maybe_unused = {
 	{ .compatible = "ti,da850-mcbsp" },
 	{},
 };

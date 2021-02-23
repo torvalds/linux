@@ -91,6 +91,22 @@
  * +------------------------------+  Kernel linear (0xc.....)
  */
 
+
+/*
+ * If we store section details in page->flags we can't increase the MAX_PHYSMEM_BITS
+ * if we increase SECTIONS_WIDTH we will not store node details in page->flags and
+ * page_to_nid does a page->section->node lookup
+ * Hence only increase for VMEMMAP. Further depending on SPARSEMEM_EXTREME reduce
+ * memory requirements with large number of sections.
+ * 51 bits is the max physical real address on POWER9
+ */
+
+#if defined(CONFIG_SPARSEMEM_VMEMMAP) && defined(CONFIG_SPARSEMEM_EXTREME)
+#define R_MAX_PHYSMEM_BITS	51
+#else
+#define R_MAX_PHYSMEM_BITS	46
+#endif
+
 #define RADIX_KERN_VIRT_START	ASM_CONST(0xc008000000000000)
 /*
  * 49 =  MAX_EA_BITS_PER_CONTEXT (hash specific). To make sure we pick

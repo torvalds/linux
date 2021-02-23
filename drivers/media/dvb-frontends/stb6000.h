@@ -15,7 +15,7 @@
 
 #if IS_REACHABLE(CONFIG_DVB_STB6000)
 /**
- * Attach a stb6000 tuner to the supplied frontend structure.
+ * stb6000_attach - Attach a stb6000 tuner to the supplied frontend structure.
  *
  * @fe: Frontend to attach to.
  * @addr: i2c address of the tuner.

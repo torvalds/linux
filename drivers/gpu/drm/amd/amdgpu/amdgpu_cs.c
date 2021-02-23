@@ -299,7 +299,7 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 {
 	s64 time_us, increment_us;
 	u64 free_vram, total_vram, used_vram;
-
+	struct ttm_resource_manager *vram_man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
 	/* Allow a maximum of 200 accumulated ms. This is basically per-IB
 	 * throttling.
 	 *
@@ -316,7 +316,7 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 	}
 
 	total_vram = adev->gmc.real_vram_size - atomic64_read(&adev->vram_pin_size);
-	used_vram = amdgpu_vram_mgr_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
+	used_vram = amdgpu_vram_mgr_usage(vram_man);
 	free_vram = used_vram >= total_vram ? 0 : total_vram - used_vram;
 
 	spin_lock(&adev->mm_stats.lock);
@@ -326,7 +326,7 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 	increment_us = time_us - adev->mm_stats.last_update_us;
 	adev->mm_stats.last_update_us = time_us;
 	adev->mm_stats.accum_us = min(adev->mm_stats.accum_us + increment_us,
-                                      us_upper_bound);
+				      us_upper_bound);
 
 	/* This prevents the short period of low performance when the VRAM
 	 * usage is low and the driver is in debt or doesn't have enough
@@ -363,7 +363,7 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 	if (!amdgpu_gmc_vram_full_visible(&adev->gmc)) {
 		u64 total_vis_vram = adev->gmc.visible_vram_size;
 		u64 used_vis_vram =
-			amdgpu_vram_mgr_vis_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
+		  amdgpu_vram_mgr_vis_usage(vram_man);
 
 		if (used_vis_vram < total_vis_vram) {
 			u64 free_vis_vram = total_vis_vram - used_vis_vram;
@@ -404,13 +404,12 @@ static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
 		.no_wait_gpu = false,
-		.resv = bo->tbo.base.resv,
-		.flags = 0
+		.resv = bo->tbo.base.resv
 	};
 	uint32_t domain;
 	int r;
 
-	if (bo->pin_count)
+	if (bo->tbo.pin_count)
 		return 0;
 
 	/* Don't move this buffer if we have depleted our allowance
@@ -677,6 +676,7 @@ static int amdgpu_cs_sync_rings(struct amdgpu_cs_parser *p)
  * cs_parser_fini() - clean parser states
  * @parser:	parser structure holding parsing context.
  * @error:	error number
+ * @backoff:	indicator to backoff the reservation
  *
  * If error is set than unvalidate buffer, otherwise just free memory
  * used by parsing context.
@@ -1275,13 +1275,24 @@ error_unlock:
 	return r;
 }
 
+static void trace_amdgpu_cs_ibs(struct amdgpu_cs_parser *parser)
+{
+	int i;
+
+	if (!trace_amdgpu_cs_enabled())
+		return;
+
+	for (i = 0; i < parser->job->num_ibs; i++)
+		trace_amdgpu_cs(parser, i);
+}
+
 int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	union drm_amdgpu_cs *cs = data;
 	struct amdgpu_cs_parser parser = {};
 	bool reserved_buffers = false;
-	int i, r;
+	int r;
 
 	if (amdgpu_ras_intr_triggered())
 		return -EHWPOISON;
@@ -1294,7 +1305,8 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	r = amdgpu_cs_parser_init(&parser, data);
 	if (r) {
-		DRM_ERROR("Failed to initialize parser %d!\n", r);
+		if (printk_ratelimit())
+			DRM_ERROR("Failed to initialize parser %d!\n", r);
 		goto out;
 	}
 
@@ -1319,8 +1331,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	reserved_buffers = true;
 
-	for (i = 0; i < parser.job->num_ibs; i++)
-		trace_amdgpu_cs(&parser, i);
+	trace_amdgpu_cs_ibs(&parser);
 
 	r = amdgpu_cs_vm_handling(&parser);
 	if (r)
@@ -1421,7 +1432,7 @@ static struct dma_fence *amdgpu_cs_get_fence(struct amdgpu_device *adev,
 int amdgpu_cs_fence_to_handle_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *filp)
 {
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	union drm_amdgpu_fence_to_handle *info = data;
 	struct dma_fence *fence;
 	struct drm_syncobj *syncobj;
@@ -1450,7 +1461,7 @@ int amdgpu_cs_fence_to_handle_ioctl(struct drm_device *dev, void *data,
 		dma_fence_put(fence);
 		if (r)
 			return r;
-		r = drm_syncobj_get_fd(syncobj, (int*)&info->out.handle);
+		r = drm_syncobj_get_fd(syncobj, (int *)&info->out.handle);
 		drm_syncobj_put(syncobj);
 		return r;
 
@@ -1597,7 +1608,7 @@ err_free_fence_array:
 int amdgpu_cs_wait_fences_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp)
 {
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	union drm_amdgpu_wait_fences *wait = data;
 	uint32_t fence_count = wait->in.fence_count;
 	struct drm_amdgpu_fence *fences_user;
@@ -1634,6 +1645,7 @@ err_free_fences:
  * @parser: command submission parser context
  * @addr: VM address
  * @bo: resulting BO of the mapping found
+ * @map: Placeholder to return found BO mapping
  *
  * Search the buffer objects in the command submission context for a certain
  * virtual memory address. Returns allocation structure when found, NULL

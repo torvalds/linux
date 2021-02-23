@@ -99,7 +99,11 @@ struct sec_dfx_item {
 
 static const char sec_name[] = "hisi_sec2";
 static struct dentry *sec_debugfs_root;
-static struct hisi_qm_list sec_devices;
+
+static struct hisi_qm_list sec_devices = {
+	.register_to_crypto	= sec_register_to_crypto,
+	.unregister_from_crypto	= sec_unregister_from_crypto,
+};
 
 static const struct sec_hw_error sec_hw_errors[] = {
 	{.int_msk = BIT(0), .msg = "sec_axi_rresp_err_rint"},
@@ -165,7 +169,7 @@ static const struct kernel_param_ops sec_pf_q_num_ops = {
 
 static u32 pf_q_num = SEC_PF_DEF_Q_NUM;
 module_param_cb(pf_q_num, &sec_pf_q_num_ops, &pf_q_num, 0444);
-MODULE_PARM_DESC(pf_q_num, "Number of queues in PF(v1 0-4096, v2 0-1024)");
+MODULE_PARM_DESC(pf_q_num, "Number of queues in PF(v1 2-4096, v2 2-1024)");
 
 static int sec_ctx_q_num_set(const char *val, const struct kernel_param *kp)
 {
@@ -648,20 +652,16 @@ static int sec_debugfs_init(struct hisi_qm *qm)
 						  sec_debugfs_root);
 	qm->debug.sqe_mask_offset = SEC_SQE_MASK_OFFSET;
 	qm->debug.sqe_mask_len = SEC_SQE_MASK_LEN;
-	ret = hisi_qm_debug_init(qm);
-	if (ret)
-		goto failed_to_create;
+	hisi_qm_debug_init(qm);
 
 	ret = sec_debug_init(qm);
 	if (ret)
 		goto failed_to_create;
 
-
 	return 0;
 
 failed_to_create:
 	debugfs_remove_recursive(sec_debugfs_root);
-
 	return ret;
 }
 
@@ -679,13 +679,13 @@ static void sec_log_hw_error(struct hisi_qm *qm, u32 err_sts)
 	while (errs->msg) {
 		if (errs->int_msk & err_sts) {
 			dev_err(dev, "%s [error status=0x%x] found\n",
-				errs->msg, errs->int_msk);
+					errs->msg, errs->int_msk);
 
 			if (SEC_CORE_INT_STATUS_M_ECC & errs->int_msk) {
 				err_val = readl(qm->io_base +
 						SEC_CORE_SRAM_ECC_ERR_INFO);
 				dev_err(dev, "multi ecc sram num=0x%x\n",
-					SEC_ECC_NUM(err_val));
+						SEC_ECC_NUM(err_val));
 			}
 		}
 		errs++;
@@ -720,13 +720,13 @@ static const struct hisi_qm_err_ini sec_err_ini = {
 	.log_dev_hw_err		= sec_log_hw_error,
 	.open_axi_master_ooo	= sec_open_axi_master_ooo,
 	.err_info		= {
-		.ce			= QM_BASE_CE,
-		.nfe			= QM_BASE_NFE | QM_ACC_DO_TASK_TIMEOUT |
-					  QM_ACC_WB_NOT_READY_TIMEOUT,
-		.fe			= 0,
-		.ecc_2bits_mask		= SEC_CORE_INT_STATUS_M_ECC,
-		.msi_wr_port		= BIT(0),
-		.acpi_rst		= "SRST",
+		.ce		= QM_BASE_CE,
+		.nfe		= QM_BASE_NFE | QM_ACC_DO_TASK_TIMEOUT |
+				  QM_ACC_WB_NOT_READY_TIMEOUT,
+		.fe		= 0,
+		.ecc_2bits_mask	= SEC_CORE_INT_STATUS_M_ECC,
+		.msi_wr_port	= BIT(0),
+		.acpi_rst	= "SRST",
 	}
 };
 
@@ -879,54 +879,44 @@ static int sec_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		pci_warn(pdev, "Failed to init debugfs!\n");
 
-	hisi_qm_add_to_list(qm, &sec_devices);
-
-	ret = sec_register_to_crypto();
+	ret = hisi_qm_alg_register(qm, &sec_devices);
 	if (ret < 0) {
 		pr_err("Failed to register driver to crypto.\n");
-		goto err_remove_from_list;
+		goto err_qm_stop;
 	}
 
 	if (qm->fun_type == QM_HW_PF && vfs_num) {
 		ret = hisi_qm_sriov_enable(pdev, vfs_num);
 		if (ret < 0)
-			goto err_crypto_unregister;
+			goto err_alg_unregister;
 	}
 
 	return 0;
 
-err_crypto_unregister:
-	sec_unregister_from_crypto();
-
-err_remove_from_list:
-	hisi_qm_del_from_list(qm, &sec_devices);
+err_alg_unregister:
+	hisi_qm_alg_unregister(qm, &sec_devices);
+err_qm_stop:
 	sec_debugfs_exit(qm);
-	hisi_qm_stop(qm);
-
+	hisi_qm_stop(qm, QM_NORMAL);
 err_probe_uninit:
 	sec_probe_uninit(qm);
-
 err_qm_uninit:
 	sec_qm_uninit(qm);
-
 	return ret;
 }
 
 static void sec_remove(struct pci_dev *pdev)
 {
-	struct sec_dev *sec = pci_get_drvdata(pdev);
-	struct hisi_qm *qm = &sec->qm;
+	struct hisi_qm *qm = pci_get_drvdata(pdev);
 
-	sec_unregister_from_crypto();
-
-	hisi_qm_del_from_list(qm, &sec_devices);
-
+	hisi_qm_wait_task_finish(qm, &sec_devices);
+	hisi_qm_alg_unregister(qm, &sec_devices);
 	if (qm->fun_type == QM_HW_PF && qm->vfs_num)
-		hisi_qm_sriov_disable(pdev);
+		hisi_qm_sriov_disable(pdev, qm->is_frozen);
 
 	sec_debugfs_exit(qm);
 
-	(void)hisi_qm_stop(qm);
+	(void)hisi_qm_stop(qm, QM_NORMAL);
 
 	if (qm->fun_type == QM_HW_PF)
 		sec_debug_regs_clear(qm);
@@ -938,9 +928,9 @@ static void sec_remove(struct pci_dev *pdev)
 
 static const struct pci_error_handlers sec_err_handler = {
 	.error_detected = hisi_qm_dev_err_detected,
-	.slot_reset =  hisi_qm_dev_slot_reset,
-	.reset_prepare		= hisi_qm_reset_prepare,
-	.reset_done		= hisi_qm_reset_done,
+	.slot_reset	= hisi_qm_dev_slot_reset,
+	.reset_prepare	= hisi_qm_reset_prepare,
+	.reset_done	= hisi_qm_reset_done,
 };
 
 static struct pci_driver sec_pci_driver = {
@@ -950,6 +940,7 @@ static struct pci_driver sec_pci_driver = {
 	.remove = sec_remove,
 	.err_handler = &sec_err_handler,
 	.sriov_configure = hisi_qm_sriov_configure,
+	.shutdown = hisi_qm_dev_shutdown,
 };
 
 static void sec_register_debugfs(void)

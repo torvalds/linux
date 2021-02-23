@@ -412,15 +412,11 @@ static int bpmp_populate_debugfs_inband(struct tegra_bpmp *bpmp,
 				goto out;
 			}
 
-			len = strlen(ppath) + strlen(name) + 1;
+			len = snprintf(pathbuf, pathlen, "%s%s/", ppath, name);
 			if (len >= pathlen) {
 				err = -EINVAL;
 				goto out;
 			}
-
-			strncpy(pathbuf, ppath, pathlen);
-			strncat(pathbuf, name, strlen(name));
-			strcat(pathbuf, "/");
 
 			err = bpmp_populate_debugfs_inband(bpmp, dentry,
 							   pathbuf);

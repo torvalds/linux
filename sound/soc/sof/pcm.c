@@ -446,9 +446,9 @@ static snd_pcm_uframes_t sof_pcm_pointer(struct snd_soc_component *component,
 	dai = bytes_to_frames(substream->runtime,
 			      spcm->stream[substream->stream].posn.dai_posn);
 
-	dev_dbg(component->dev,
-		"PCM: stream %d dir %d DMA position %lu DAI position %lu\n",
-		spcm->pcm.pcm_id, substream->stream, host, dai);
+	dev_vdbg(component->dev,
+		 "PCM: stream %d dir %d DMA position %lu DAI position %lu\n",
+		 spcm->pcm.pcm_id, substream->stream, host, dai);
 
 	return host;
 }
@@ -478,17 +478,10 @@ static int sof_pcm_open(struct snd_soc_component *component,
 
 	caps = &spcm->pcm.caps[substream->stream];
 
-	/* set any runtime constraints based on topology */
-	snd_pcm_hw_constraint_step(substream->runtime, 0,
-				   SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
-				   le32_to_cpu(caps->period_size_min));
-	snd_pcm_hw_constraint_step(substream->runtime, 0,
-				   SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
-				   le32_to_cpu(caps->period_size_min));
-
 	/* set runtime config */
 	runtime->hw.info = ops->hw_info; /* platform-specific */
 
+	/* set any runtime constraints based on topology */
 	runtime->hw.formats = le64_to_cpu(caps->formats);
 	runtime->hw.period_bytes_min = le32_to_cpu(caps->period_size_min);
 	runtime->hw.period_bytes_max = le32_to_cpu(caps->period_size_max);
@@ -627,8 +620,7 @@ capture:
 }
 
 /* fixup the BE DAI link to match any values from topology */
-static int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
-				  struct snd_pcm_hw_params *params)
+int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_params *params)
 {
 	struct snd_interval *rate = hw_param_interval(params,
 			SNDRV_PCM_HW_PARAM_RATE);
@@ -704,7 +696,7 @@ static int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 		break;
 	case SOF_DAI_INTEL_HDA:
 		/*
-		 * HDaudio does not follow the default trigger
+		 * HDAudio does not follow the default trigger
 		 * sequence due to firmware implementation
 		 */
 		for_each_dpcm_fe(rtd, SNDRV_PCM_STREAM_PLAYBACK, dpcm) {
@@ -780,7 +772,7 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 static void sof_pcm_remove(struct snd_soc_component *component)
 {
 	/* remove topology */
-	snd_soc_tplg_component_remove(component, SND_SOC_TPLG_INDEX_ALL);
+	snd_soc_tplg_component_remove(component);
 }
 
 void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)

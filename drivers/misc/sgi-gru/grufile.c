@@ -7,6 +7,7 @@
  * This file supports the user system call for file open, close, mmap, etc.
  * This also incudes the driver initialization code.
  *
+ *  (C) Copyright 2020 Hewlett Packard Enterprise Development LP
  *  Copyright (c) 2008-2014 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
@@ -516,7 +517,7 @@ static int __init gru_init(void)
 #if defined CONFIG_IA64
 	gru_start_paddr = 0xd000000000UL; /* ZZZZZZZZZZZZZZZZZZZ fixme */
 #else
-	gru_start_paddr = uv_read_local_mmr(UVH_RH_GAM_GRU_OVERLAY_CONFIG_MMR) &
+	gru_start_paddr = uv_read_local_mmr(UVH_RH_GAM_GRU_OVERLAY_CONFIG) &
 				0x7fffffffffffUL;
 #endif
 	gru_start_vaddr = __va(gru_start_paddr);

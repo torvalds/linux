@@ -16,6 +16,7 @@
 #include <asm/oprofile_impl.h>
 #include <asm/cputable.h>
 #include <asm/prom.h>		/* for PTRRELOC on ARCH=ppc */
+#include <asm/mce.h>
 #include <asm/mmu.h>
 #include <asm/setup.h>
 
@@ -35,7 +36,6 @@ const char *powerpc_base_platform;
  * and ppc64
  */
 #ifdef CONFIG_PPC32
-extern void __setup_cpu_e200(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_e500v1(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_e500v2(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_e500mc(unsigned long offset, struct cpu_spec* spec);
@@ -59,19 +59,15 @@ extern void __setup_cpu_7410(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_745x(unsigned long offset, struct cpu_spec* spec);
 #endif /* CONFIG_PPC32 */
 #ifdef CONFIG_PPC64
+#include <asm/cpu_setup_power.h>
 extern void __setup_cpu_ppc970(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_ppc970MP(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_pa6t(unsigned long offset, struct cpu_spec* spec);
 extern void __restore_cpu_pa6t(void);
 extern void __restore_cpu_ppc970(void);
-extern void __setup_cpu_power7(unsigned long offset, struct cpu_spec* spec);
-extern void __restore_cpu_power7(void);
-extern void __setup_cpu_power8(unsigned long offset, struct cpu_spec* spec);
-extern void __restore_cpu_power8(void);
-extern void __setup_cpu_power9(unsigned long offset, struct cpu_spec* spec);
-extern void __restore_cpu_power9(void);
-extern void __setup_cpu_power10(unsigned long offset, struct cpu_spec* spec);
-extern void __restore_cpu_power10(void);
+extern long __machine_check_early_realmode_p7(struct pt_regs *regs);
+extern long __machine_check_early_realmode_p8(struct pt_regs *regs);
+extern long __machine_check_early_realmode_p9(struct pt_regs *regs);
 #endif /* CONFIG_PPC64 */
 #if defined(CONFIG_E500)
 extern void __setup_cpu_e5500(unsigned long offset, struct cpu_spec* spec);
@@ -120,9 +116,16 @@ extern void __restore_cpu_e6500(void);
 				 PPC_FEATURE2_DARN | \
 				 PPC_FEATURE2_SCV)
 #define COMMON_USER_POWER10	COMMON_USER_POWER9
-#define COMMON_USER2_POWER10	(COMMON_USER2_POWER9 | \
-				 PPC_FEATURE2_ARCH_3_1 | \
-				 PPC_FEATURE2_MMA)
+#define COMMON_USER2_POWER10	(PPC_FEATURE2_ARCH_3_1 | \
+				 PPC_FEATURE2_MMA | \
+				 PPC_FEATURE2_ARCH_3_00 | \
+				 PPC_FEATURE2_HAS_IEEE128 | \
+				 PPC_FEATURE2_DARN | \
+				 PPC_FEATURE2_SCV | \
+				 PPC_FEATURE2_ARCH_2_07 | \
+				 PPC_FEATURE2_DSCR | \
+				 PPC_FEATURE2_ISEL | PPC_FEATURE2_TAR | \
+				 PPC_FEATURE2_VEC_CRYPTO)
 
 #ifdef CONFIG_PPC_BOOK3E_64
 #define COMMON_USER_BOOKE	(COMMON_USER_PPC64 | PPC_FEATURE_BOOKE)
@@ -608,61 +611,8 @@ static struct cpu_spec __initdata cpu_specs[] = {
 #endif	/* CONFIG_PPC_BOOK3S_64 */
 
 #ifdef CONFIG_PPC32
-#ifdef CONFIG_PPC_BOOK3S_601
-	{	/* 601 */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00010000,
-		.cpu_name		= "601",
-		.cpu_features		= CPU_FTRS_PPC601,
-		.cpu_user_features	= COMMON_USER | PPC_FEATURE_601_INSTR |
-			PPC_FEATURE_UNIFIED_CACHE | PPC_FEATURE_NO_TB,
-		.mmu_features		= MMU_FTR_HPTE_TABLE,
-		.icache_bsize		= 32,
-		.dcache_bsize		= 32,
-		.machine_check		= machine_check_generic,
-		.platform		= "ppc601",
-	},
-#endif /* CONFIG_PPC_BOOK3S_601 */
-#ifdef CONFIG_PPC_BOOK3S_6xx
-	{	/* 603 */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00030000,
-		.cpu_name		= "603",
-		.cpu_features		= CPU_FTRS_603,
-		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
-		.mmu_features		= 0,
-		.icache_bsize		= 32,
-		.dcache_bsize		= 32,
-		.cpu_setup		= __setup_cpu_603,
-		.machine_check		= machine_check_generic,
-		.platform		= "ppc603",
-	},
-	{	/* 603e */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00060000,
-		.cpu_name		= "603e",
-		.cpu_features		= CPU_FTRS_603,
-		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
-		.mmu_features		= 0,
-		.icache_bsize		= 32,
-		.dcache_bsize		= 32,
-		.cpu_setup		= __setup_cpu_603,
-		.machine_check		= machine_check_generic,
-		.platform		= "ppc603",
-	},
-	{	/* 603ev */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00070000,
-		.cpu_name		= "603ev",
-		.cpu_features		= CPU_FTRS_603,
-		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
-		.mmu_features		= 0,
-		.icache_bsize		= 32,
-		.dcache_bsize		= 32,
-		.cpu_setup		= __setup_cpu_603,
-		.machine_check		= machine_check_generic,
-		.platform		= "ppc603",
-	},
+#ifdef CONFIG_PPC_BOOK3S_32
+#ifdef CONFIG_PPC_BOOK3S_604
 	{	/* 604 */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00040000,
@@ -1152,6 +1102,47 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc7450",
 	},
+#endif /* CONFIG_PPC_BOOK3S_604 */
+#ifdef CONFIG_PPC_BOOK3S_603
+	{	/* 603 */
+		.pvr_mask		= 0xffff0000,
+		.pvr_value		= 0x00030000,
+		.cpu_name		= "603",
+		.cpu_features		= CPU_FTRS_603,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
+		.mmu_features		= 0,
+		.icache_bsize		= 32,
+		.dcache_bsize		= 32,
+		.cpu_setup		= __setup_cpu_603,
+		.machine_check		= machine_check_generic,
+		.platform		= "ppc603",
+	},
+	{	/* 603e */
+		.pvr_mask		= 0xffff0000,
+		.pvr_value		= 0x00060000,
+		.cpu_name		= "603e",
+		.cpu_features		= CPU_FTRS_603,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
+		.mmu_features		= 0,
+		.icache_bsize		= 32,
+		.dcache_bsize		= 32,
+		.cpu_setup		= __setup_cpu_603,
+		.machine_check		= machine_check_generic,
+		.platform		= "ppc603",
+	},
+	{	/* 603ev */
+		.pvr_mask		= 0xffff0000,
+		.pvr_value		= 0x00070000,
+		.cpu_name		= "603ev",
+		.cpu_features		= CPU_FTRS_603,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
+		.mmu_features		= 0,
+		.icache_bsize		= 32,
+		.dcache_bsize		= 32,
+		.cpu_setup		= __setup_cpu_603,
+		.machine_check		= machine_check_generic,
+		.platform		= "ppc603",
+	},
 	{	/* 82xx (8240, 8245, 8260 are all 603e cores) */
 		.pvr_mask		= 0x7fff0000,
 		.pvr_value		= 0x00810000,
@@ -1241,6 +1232,8 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.platform		= "ppc603",
 	},
 #endif
+#endif /* CONFIG_PPC_BOOK3S_603 */
+#ifdef CONFIG_PPC_BOOK3S_604
 	{	/* default match, we assume split I/D cache & TB (non-601)... */
 		.pvr_mask		= 0x00000000,
 		.pvr_value		= 0x00000000,
@@ -1253,7 +1246,8 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc603",
 	},
-#endif /* CONFIG_PPC_BOOK3S_6xx */
+#endif /* CONFIG_PPC_BOOK3S_604 */
+#endif /* CONFIG_PPC_BOOK3S_32 */
 #ifdef CONFIG_PPC_8xx
 	{	/* 8xx */
 		.pvr_mask		= 0xffff0000,
@@ -1547,6 +1541,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 
 #endif /* CONFIG_40x */
 #ifdef CONFIG_44x
+#ifndef CONFIG_PPC_47x
 	{
 		.pvr_mask		= 0xf0000fff,
 		.pvr_value		= 0x40000850,
@@ -1829,7 +1824,19 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_440A,
 		.platform		= "ppc440",
 	},
-#ifdef CONFIG_PPC_47x
+	{	/* default match */
+		.pvr_mask		= 0x00000000,
+		.pvr_value		= 0x00000000,
+		.cpu_name		= "(generic 44x PPC)",
+		.cpu_features		= CPU_FTRS_44X,
+		.cpu_user_features	= COMMON_USER_BOOKE,
+		.mmu_features		= MMU_FTR_TYPE_44x,
+		.icache_bsize		= 32,
+		.dcache_bsize		= 32,
+		.machine_check		= machine_check_4xx,
+		.platform		= "ppc440",
+	}
+#else /* CONFIG_PPC_47x */
 	{ /* 476 DD2 core */
 		.pvr_mask		= 0xffffffff,
 		.pvr_value		= 0x11a52080,
@@ -1886,65 +1893,20 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_47x,
 		.platform		= "ppc470",
 	},
-#endif /* CONFIG_PPC_47x */
 	{	/* default match */
 		.pvr_mask		= 0x00000000,
 		.pvr_value		= 0x00000000,
-		.cpu_name		= "(generic 44x PPC)",
-		.cpu_features		= CPU_FTRS_44X,
+		.cpu_name		= "(generic 47x PPC)",
+		.cpu_features		= CPU_FTRS_47X,
 		.cpu_user_features	= COMMON_USER_BOOKE,
-		.mmu_features		= MMU_FTR_TYPE_44x,
+		.mmu_features		= MMU_FTR_TYPE_47x,
 		.icache_bsize		= 32,
-		.dcache_bsize		= 32,
-		.machine_check		= machine_check_4xx,
-		.platform		= "ppc440",
+		.dcache_bsize		= 128,
+		.machine_check		= machine_check_47x,
+		.platform		= "ppc470",
 	}
+#endif /* CONFIG_PPC_47x */
 #endif /* CONFIG_44x */
-#ifdef CONFIG_E200
-	{	/* e200z5 */
-		.pvr_mask		= 0xfff00000,
-		.pvr_value		= 0x81000000,
-		.cpu_name		= "e200z5",
-		/* xxx - galak: add CPU_FTR_MAYBE_CAN_DOZE */
-		.cpu_features		= CPU_FTRS_E200,
-		.cpu_user_features	= COMMON_USER_BOOKE |
-			PPC_FEATURE_HAS_EFP_SINGLE |
-			PPC_FEATURE_UNIFIED_CACHE,
-		.mmu_features		= MMU_FTR_TYPE_FSL_E,
-		.dcache_bsize		= 32,
-		.machine_check		= machine_check_e200,
-		.platform		= "ppc5554",
-	},
-	{	/* e200z6 */
-		.pvr_mask		= 0xfff00000,
-		.pvr_value		= 0x81100000,
-		.cpu_name		= "e200z6",
-		/* xxx - galak: add CPU_FTR_MAYBE_CAN_DOZE */
-		.cpu_features		= CPU_FTRS_E200,
-		.cpu_user_features	= COMMON_USER_BOOKE |
-			PPC_FEATURE_HAS_SPE_COMP |
-			PPC_FEATURE_HAS_EFP_SINGLE_COMP |
-			PPC_FEATURE_UNIFIED_CACHE,
-		.mmu_features		= MMU_FTR_TYPE_FSL_E,
-		.dcache_bsize		= 32,
-		.machine_check		= machine_check_e200,
-		.platform		= "ppc5554",
-	},
-	{	/* default match */
-		.pvr_mask		= 0x00000000,
-		.pvr_value		= 0x00000000,
-		.cpu_name		= "(generic E200 PPC)",
-		.cpu_features		= CPU_FTRS_E200,
-		.cpu_user_features	= COMMON_USER_BOOKE |
-			PPC_FEATURE_HAS_EFP_SINGLE |
-			PPC_FEATURE_UNIFIED_CACHE,
-		.mmu_features		= MMU_FTR_TYPE_FSL_E,
-		.dcache_bsize		= 32,
-		.cpu_setup		= __setup_cpu_e200,
-		.machine_check		= machine_check_e200,
-		.platform		= "ppc5554",
-	}
-#endif /* CONFIG_E200 */
 #endif /* CONFIG_PPC32 */
 #ifdef CONFIG_E500
 #ifdef CONFIG_PPC32

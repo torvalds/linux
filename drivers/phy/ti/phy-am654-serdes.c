@@ -19,14 +19,37 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 
+#define CMU_R004		0x4
+#define CMU_R060		0x60
 #define CMU_R07C		0x7c
+#define CMU_R088		0x88
+#define CMU_R0D0		0xd0
+#define CMU_R0E8		0xe8
 
+#define LANE_R048		0x248
+#define LANE_R058		0x258
+#define LANE_R06c		0x26c
+#define LANE_R070		0x270
+#define LANE_R070		0x270
+#define LANE_R19C		0x39c
+
+#define COMLANE_R004		0xa04
 #define COMLANE_R138		0xb38
-#define VERSION			0x70
+#define VERSION_VAL		0x70
 
 #define COMLANE_R190		0xb90
-
 #define COMLANE_R194		0xb94
+
+#define COMRXEQ_R004		0x1404
+#define COMRXEQ_R008		0x1408
+#define COMRXEQ_R00C		0x140c
+#define COMRXEQ_R014		0x1414
+#define COMRXEQ_R018		0x1418
+#define COMRXEQ_R01C		0x141c
+#define COMRXEQ_R04C		0x144c
+#define COMRXEQ_R088		0x1488
+#define COMRXEQ_R094		0x1494
+#define COMRXEQ_R098		0x1498
 
 #define SERDES_CTRL		0x1fd0
 
@@ -80,27 +103,136 @@ static const struct regmap_config serdes_am654_regmap_config = {
 	.max_register = 0x1ffc,
 };
 
-static const struct reg_field cmu_master_cdn_o = REG_FIELD(CMU_R07C, 24, 24);
-static const struct reg_field config_version = REG_FIELD(COMLANE_R138, 16, 23);
-static const struct reg_field l1_master_cdn_o = REG_FIELD(COMLANE_R190, 9, 9);
-static const struct reg_field cmu_ok_i_0 = REG_FIELD(COMLANE_R194, 19, 19);
-static const struct reg_field por_en = REG_FIELD(SERDES_CTRL, 29, 29);
-static const struct reg_field tx0_enable = REG_FIELD(WIZ_LANEXCTL_STS, 29, 31);
-static const struct reg_field rx0_enable = REG_FIELD(WIZ_LANEXCTL_STS, 13, 15);
-static const struct reg_field pll_enable = REG_FIELD(WIZ_PLL_CTRL, 29, 31);
-static const struct reg_field pll_ok = REG_FIELD(WIZ_PLL_CTRL, 28, 28);
+enum serdes_am654_fields {
+	/* CMU PLL Control */
+	CMU_PLL_CTRL,
+
+	LANE_PLL_CTRL_RXEQ_RXIDLE,
+
+	/* CMU VCO bias current and VREG setting */
+	AHB_PMA_CM_VCO_VBIAS_VREG,
+	AHB_PMA_CM_VCO_BIAS_VREG,
+
+	AHB_PMA_CM_SR,
+	AHB_SSC_GEN_Z_O_20_13,
+
+	/* AHB PMA Lane Configuration */
+	AHB_PMA_LN_AGC_THSEL_VREGH,
+
+	/* AGC and Signal detect threshold for Gen3 */
+	AHB_PMA_LN_GEN3_AGC_SD_THSEL,
+
+	AHB_PMA_LN_RX_SELR_GEN3,
+	AHB_PMA_LN_TX_DRV,
+
+	/* CMU Master Reset */
+	CMU_MASTER_CDN,
+
+	/* P2S ring buffer initial startup pointer difference */
+	P2S_RBUF_PTR_DIFF,
+
+	CONFIG_VERSION,
+
+	/* Lane 1 Master Reset */
+	L1_MASTER_CDN,
+
+	/* CMU OK Status */
+	CMU_OK_I_0,
+
+	/* Mid-speed initial calibration control */
+	COMRXEQ_MS_INIT_CTRL_7_0,
+
+	/* High-speed initial calibration control */
+	COMRXEQ_HS_INIT_CAL_7_0,
+
+	/* Mid-speed recalibration control */
+	COMRXEQ_MS_RECAL_CTRL_7_0,
+
+	/* High-speed recalibration control */
+	COMRXEQ_HS_RECAL_CTRL_7_0,
+
+	/* ATT configuration */
+	COMRXEQ_CSR_ATT_CONFIG,
+
+	/* Edge based boost adaptation window length */
+	COMRXEQ_CSR_EBSTADAPT_WIN_LEN,
+
+	/* COMRXEQ control 3 & 4 */
+	COMRXEQ_CTRL_3_4,
+
+	/* COMRXEQ control 14, 15 and 16*/
+	COMRXEQ_CTRL_14_15_16,
+
+	/* Threshold for errors in pattern data  */
+	COMRXEQ_CSR_DLEV_ERR_THRESH,
+
+	/* COMRXEQ control 25 */
+	COMRXEQ_CTRL_25,
+
+	/* Mid-speed rate change calibration control */
+	CSR_RXEQ_RATE_CHANGE_CAL_RUN_RATE2_O,
+
+	/* High-speed rate change calibration control */
+	COMRXEQ_HS_RCHANGE_CTRL_7_0,
+
+	/* Serdes reset */
+	POR_EN,
+
+	/* Tx Enable Value */
+	TX0_ENABLE,
+
+	/* Rx Enable Value */
+	RX0_ENABLE,
+
+	/* PLL Enable Value */
+	PLL_ENABLE,
+
+	/* PLL ready for use */
+	PLL_OK,
+
+	/* sentinel */
+	MAX_FIELDS
+
+};
+
+static const struct reg_field serdes_am654_reg_fields[] = {
+	[CMU_PLL_CTRL]			= REG_FIELD(CMU_R004, 8, 15),
+	[AHB_PMA_CM_VCO_VBIAS_VREG]	= REG_FIELD(CMU_R060, 8, 15),
+	[CMU_MASTER_CDN]		= REG_FIELD(CMU_R07C, 24, 31),
+	[AHB_PMA_CM_VCO_BIAS_VREG]	= REG_FIELD(CMU_R088, 24, 31),
+	[AHB_PMA_CM_SR]			= REG_FIELD(CMU_R0D0, 24, 31),
+	[AHB_SSC_GEN_Z_O_20_13]		= REG_FIELD(CMU_R0E8, 8, 15),
+	[LANE_PLL_CTRL_RXEQ_RXIDLE]	= REG_FIELD(LANE_R048, 8, 15),
+	[AHB_PMA_LN_AGC_THSEL_VREGH]	= REG_FIELD(LANE_R058, 16, 23),
+	[AHB_PMA_LN_GEN3_AGC_SD_THSEL]	= REG_FIELD(LANE_R06c, 0, 7),
+	[AHB_PMA_LN_RX_SELR_GEN3]	= REG_FIELD(LANE_R070, 16, 23),
+	[AHB_PMA_LN_TX_DRV]		= REG_FIELD(LANE_R19C, 16, 23),
+	[P2S_RBUF_PTR_DIFF]		= REG_FIELD(COMLANE_R004, 0, 7),
+	[CONFIG_VERSION]		= REG_FIELD(COMLANE_R138, 16, 23),
+	[L1_MASTER_CDN]			= REG_FIELD(COMLANE_R190, 8, 15),
+	[CMU_OK_I_0]			= REG_FIELD(COMLANE_R194, 19, 19),
+	[COMRXEQ_MS_INIT_CTRL_7_0]	= REG_FIELD(COMRXEQ_R004, 24, 31),
+	[COMRXEQ_HS_INIT_CAL_7_0]	= REG_FIELD(COMRXEQ_R008, 0, 7),
+	[COMRXEQ_MS_RECAL_CTRL_7_0]	= REG_FIELD(COMRXEQ_R00C, 8, 15),
+	[COMRXEQ_HS_RECAL_CTRL_7_0]	= REG_FIELD(COMRXEQ_R00C, 16, 23),
+	[COMRXEQ_CSR_ATT_CONFIG]	= REG_FIELD(COMRXEQ_R014, 16, 23),
+	[COMRXEQ_CSR_EBSTADAPT_WIN_LEN]	= REG_FIELD(COMRXEQ_R018, 16, 23),
+	[COMRXEQ_CTRL_3_4]		= REG_FIELD(COMRXEQ_R01C, 8, 15),
+	[COMRXEQ_CTRL_14_15_16]		= REG_FIELD(COMRXEQ_R04C, 0, 7),
+	[COMRXEQ_CSR_DLEV_ERR_THRESH]	= REG_FIELD(COMRXEQ_R088, 16, 23),
+	[COMRXEQ_CTRL_25]		= REG_FIELD(COMRXEQ_R094, 24, 31),
+	[CSR_RXEQ_RATE_CHANGE_CAL_RUN_RATE2_O] = REG_FIELD(COMRXEQ_R098, 8, 15),
+	[COMRXEQ_HS_RCHANGE_CTRL_7_0]	= REG_FIELD(COMRXEQ_R098, 16, 23),
+	[POR_EN]			= REG_FIELD(SERDES_CTRL, 29, 29),
+	[TX0_ENABLE]			= REG_FIELD(WIZ_LANEXCTL_STS, 29, 31),
+	[RX0_ENABLE]			= REG_FIELD(WIZ_LANEXCTL_STS, 13, 15),
+	[PLL_ENABLE]			= REG_FIELD(WIZ_PLL_CTRL, 29, 31),
+	[PLL_OK]			= REG_FIELD(WIZ_PLL_CTRL, 28, 28),
+};
 
 struct serdes_am654 {
 	struct regmap		*regmap;
-	struct regmap_field	*cmu_master_cdn_o;
-	struct regmap_field	*config_version;
-	struct regmap_field	*l1_master_cdn_o;
-	struct regmap_field	*cmu_ok_i_0;
-	struct regmap_field	*por_en;
-	struct regmap_field	*tx0_enable;
-	struct regmap_field	*rx0_enable;
-	struct regmap_field	*pll_enable;
-	struct regmap_field	*pll_ok;
+	struct regmap_field	*fields[MAX_FIELDS];
 
 	struct device		*dev;
 	struct mux_control	*control;
@@ -116,12 +248,12 @@ static int serdes_am654_enable_pll(struct serdes_am654 *phy)
 	int ret;
 	u32 val;
 
-	ret = regmap_field_write(phy->pll_enable, PLL_ENABLE_STATE);
+	ret = regmap_field_write(phy->fields[PLL_ENABLE], PLL_ENABLE_STATE);
 	if (ret)
 		return ret;
 
-	return regmap_field_read_poll_timeout(phy->pll_ok, val, val, 1000,
-					      PLL_LOCK_TIME);
+	return regmap_field_read_poll_timeout(phy->fields[PLL_OK], val, val,
+					      1000, PLL_LOCK_TIME);
 }
 
 static void serdes_am654_disable_pll(struct serdes_am654 *phy)
@@ -129,41 +261,39 @@ static void serdes_am654_disable_pll(struct serdes_am654 *phy)
 	struct device *dev = phy->dev;
 	int ret;
 
-	ret = regmap_field_write(phy->pll_enable, PLL_DISABLE_STATE);
+	ret = regmap_field_write(phy->fields[PLL_ENABLE], PLL_DISABLE_STATE);
 	if (ret)
 		dev_err(dev, "Failed to disable PLL\n");
 }
 
 static int serdes_am654_enable_txrx(struct serdes_am654 *phy)
 {
-	int ret;
+	int ret = 0;
 
 	/* Enable TX */
-	ret = regmap_field_write(phy->tx0_enable, TX0_ENABLE_STATE);
-	if (ret)
-		return ret;
+	ret |= regmap_field_write(phy->fields[TX0_ENABLE], TX0_ENABLE_STATE);
 
 	/* Enable RX */
-	ret = regmap_field_write(phy->rx0_enable, RX0_ENABLE_STATE);
+	ret |= regmap_field_write(phy->fields[RX0_ENABLE], RX0_ENABLE_STATE);
+
 	if (ret)
-		return ret;
+		return -EIO;
 
 	return 0;
 }
 
 static int serdes_am654_disable_txrx(struct serdes_am654 *phy)
 {
-	int ret;
+	int ret = 0;
 
 	/* Disable TX */
-	ret = regmap_field_write(phy->tx0_enable, TX0_DISABLE_STATE);
-	if (ret)
-		return ret;
+	ret |= regmap_field_write(phy->fields[TX0_ENABLE], TX0_DISABLE_STATE);
 
 	/* Disable RX */
-	ret = regmap_field_write(phy->rx0_enable, RX0_DISABLE_STATE);
+	ret |= regmap_field_write(phy->fields[RX0_ENABLE], RX0_DISABLE_STATE);
+
 	if (ret)
-		return ret;
+		return -EIO;
 
 	return 0;
 }
@@ -187,8 +317,8 @@ static int serdes_am654_power_on(struct phy *x)
 		return ret;
 	}
 
-	return regmap_field_read_poll_timeout(phy->cmu_ok_i_0, val, val,
-					      SLEEP_TIME, PLL_LOCK_TIME);
+	return regmap_field_read_poll_timeout(phy->fields[CMU_OK_I_0], val,
+					      val, SLEEP_TIME, PLL_LOCK_TIME);
 }
 
 static int serdes_am654_power_off(struct phy *x)
@@ -286,19 +416,37 @@ static int serdes_am654_usb3_init(struct serdes_am654 *phy)
 
 static int serdes_am654_pcie_init(struct serdes_am654 *phy)
 {
-	int ret;
+	int ret = 0;
 
-	ret = regmap_field_write(phy->config_version, VERSION);
-	if (ret)
-		return ret;
+	ret |= regmap_field_write(phy->fields[CMU_PLL_CTRL], 0x2);
+	ret |= regmap_field_write(phy->fields[AHB_PMA_CM_VCO_VBIAS_VREG], 0x98);
+	ret |= regmap_field_write(phy->fields[AHB_PMA_CM_VCO_BIAS_VREG], 0x98);
+	ret |= regmap_field_write(phy->fields[AHB_PMA_CM_SR], 0x45);
+	ret |= regmap_field_write(phy->fields[AHB_SSC_GEN_Z_O_20_13], 0xe);
+	ret |= regmap_field_write(phy->fields[LANE_PLL_CTRL_RXEQ_RXIDLE], 0x5);
+	ret |= regmap_field_write(phy->fields[AHB_PMA_LN_AGC_THSEL_VREGH], 0x83);
+	ret |= regmap_field_write(phy->fields[AHB_PMA_LN_GEN3_AGC_SD_THSEL], 0x83);
+	ret |= regmap_field_write(phy->fields[AHB_PMA_LN_RX_SELR_GEN3],	0x81);
+	ret |= regmap_field_write(phy->fields[AHB_PMA_LN_TX_DRV], 0x3b);
+	ret |= regmap_field_write(phy->fields[P2S_RBUF_PTR_DIFF], 0x3);
+	ret |= regmap_field_write(phy->fields[CONFIG_VERSION], VERSION_VAL);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_MS_INIT_CTRL_7_0], 0xf);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_HS_INIT_CAL_7_0], 0x4f);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_MS_RECAL_CTRL_7_0], 0xf);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_HS_RECAL_CTRL_7_0], 0x4f);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_CSR_ATT_CONFIG], 0x7);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_CSR_EBSTADAPT_WIN_LEN], 0x7f);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_CTRL_3_4], 0xf);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_CTRL_14_15_16], 0x9a);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_CSR_DLEV_ERR_THRESH], 0x32);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_CTRL_25], 0x80);
+	ret |= regmap_field_write(phy->fields[CSR_RXEQ_RATE_CHANGE_CAL_RUN_RATE2_O], 0xf);
+	ret |= regmap_field_write(phy->fields[COMRXEQ_HS_RCHANGE_CTRL_7_0], 0x4f);
+	ret |= regmap_field_write(phy->fields[CMU_MASTER_CDN], 0x1);
+	ret |= regmap_field_write(phy->fields[L1_MASTER_CDN], 0x2);
 
-	ret = regmap_field_write(phy->cmu_master_cdn_o, 0x1);
 	if (ret)
-		return ret;
-
-	ret = regmap_field_write(phy->l1_master_cdn_o, 0x1);
-	if (ret)
-		return ret;
+		return -EIO;
 
 	return 0;
 }
@@ -320,20 +468,19 @@ static int serdes_am654_init(struct phy *x)
 static int serdes_am654_reset(struct phy *x)
 {
 	struct serdes_am654 *phy = phy_get_drvdata(x);
-	int ret;
+	int ret = 0;
 
 	serdes_am654_disable_pll(phy);
 	serdes_am654_disable_txrx(phy);
 
-	ret = regmap_field_write(phy->por_en, 0x1);
-	if (ret)
-		return ret;
+	ret |= regmap_field_write(phy->fields[POR_EN], 0x1);
 
 	mdelay(1);
 
-	ret = regmap_field_write(phy->por_en, 0x0);
+	ret |= regmap_field_write(phy->fields[POR_EN], 0x0);
+
 	if (ret)
-		return ret;
+		return -EIO;
 
 	return 0;
 }
@@ -587,66 +734,16 @@ static int serdes_am654_regfield_init(struct serdes_am654 *am654_phy)
 {
 	struct regmap *regmap = am654_phy->regmap;
 	struct device *dev = am654_phy->dev;
+	int i;
 
-	am654_phy->cmu_master_cdn_o = devm_regmap_field_alloc(dev, regmap,
-							      cmu_master_cdn_o);
-	if (IS_ERR(am654_phy->cmu_master_cdn_o)) {
-		dev_err(dev, "CMU_MASTER_CDN_O reg field init failed\n");
-		return PTR_ERR(am654_phy->cmu_master_cdn_o);
-	}
-
-	am654_phy->config_version = devm_regmap_field_alloc(dev, regmap,
-							    config_version);
-	if (IS_ERR(am654_phy->config_version)) {
-		dev_err(dev, "CONFIG_VERSION reg field init failed\n");
-		return PTR_ERR(am654_phy->config_version);
-	}
-
-	am654_phy->l1_master_cdn_o = devm_regmap_field_alloc(dev, regmap,
-							     l1_master_cdn_o);
-	if (IS_ERR(am654_phy->l1_master_cdn_o)) {
-		dev_err(dev, "L1_MASTER_CDN_O reg field init failed\n");
-		return PTR_ERR(am654_phy->l1_master_cdn_o);
-	}
-
-	am654_phy->cmu_ok_i_0 = devm_regmap_field_alloc(dev, regmap,
-							cmu_ok_i_0);
-	if (IS_ERR(am654_phy->cmu_ok_i_0)) {
-		dev_err(dev, "CMU_OK_I_0 reg field init failed\n");
-		return PTR_ERR(am654_phy->cmu_ok_i_0);
-	}
-
-	am654_phy->por_en = devm_regmap_field_alloc(dev, regmap, por_en);
-	if (IS_ERR(am654_phy->por_en)) {
-		dev_err(dev, "POR_EN reg field init failed\n");
-		return PTR_ERR(am654_phy->por_en);
-	}
-
-	am654_phy->tx0_enable = devm_regmap_field_alloc(dev, regmap,
-							tx0_enable);
-	if (IS_ERR(am654_phy->tx0_enable)) {
-		dev_err(dev, "TX0_ENABLE reg field init failed\n");
-		return PTR_ERR(am654_phy->tx0_enable);
-	}
-
-	am654_phy->rx0_enable = devm_regmap_field_alloc(dev, regmap,
-							rx0_enable);
-	if (IS_ERR(am654_phy->rx0_enable)) {
-		dev_err(dev, "RX0_ENABLE reg field init failed\n");
-		return PTR_ERR(am654_phy->rx0_enable);
-	}
-
-	am654_phy->pll_enable = devm_regmap_field_alloc(dev, regmap,
-							pll_enable);
-	if (IS_ERR(am654_phy->pll_enable)) {
-		dev_err(dev, "PLL_ENABLE reg field init failed\n");
-		return PTR_ERR(am654_phy->pll_enable);
-	}
-
-	am654_phy->pll_ok = devm_regmap_field_alloc(dev, regmap, pll_ok);
-	if (IS_ERR(am654_phy->pll_ok)) {
-		dev_err(dev, "PLL_OK reg field init failed\n");
-		return PTR_ERR(am654_phy->pll_ok);
+	for (i = 0; i < MAX_FIELDS; i++) {
+		am654_phy->fields[i] = devm_regmap_field_alloc(dev,
+							       regmap,
+							       serdes_am654_reg_fields[i]);
+		if (IS_ERR(am654_phy->fields[i])) {
+			dev_err(dev, "Unable to allocate regmap field %d\n", i);
+			return PTR_ERR(am654_phy->fields[i]);
+		}
 	}
 
 	return 0;

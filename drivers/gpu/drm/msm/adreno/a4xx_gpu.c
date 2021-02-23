@@ -22,6 +22,54 @@ extern bool hang_debug;
 static void a4xx_dump(struct msm_gpu *gpu);
 static bool a4xx_idle(struct msm_gpu *gpu);
 
+static void a4xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
+{
+	struct msm_drm_private *priv = gpu->dev->dev_private;
+	struct msm_ringbuffer *ring = submit->ring;
+	unsigned int i;
+
+	for (i = 0; i < submit->nr_cmds; i++) {
+		switch (submit->cmd[i].type) {
+		case MSM_SUBMIT_CMD_IB_TARGET_BUF:
+			/* ignore IB-targets */
+			break;
+		case MSM_SUBMIT_CMD_CTX_RESTORE_BUF:
+			/* ignore if there has not been a ctx switch: */
+			if (priv->lastctx == submit->queue->ctx)
+				break;
+			fallthrough;
+		case MSM_SUBMIT_CMD_BUF:
+			OUT_PKT3(ring, CP_INDIRECT_BUFFER_PFE, 2);
+			OUT_RING(ring, lower_32_bits(submit->cmd[i].iova));
+			OUT_RING(ring, submit->cmd[i].size);
+			OUT_PKT2(ring);
+			break;
+		}
+	}
+
+	OUT_PKT0(ring, REG_AXXX_CP_SCRATCH_REG2, 1);
+	OUT_RING(ring, submit->seqno);
+
+	/* Flush HLSQ lazy updates to make sure there is nothing
+	 * pending for indirect loads after the timestamp has
+	 * passed:
+	 */
+	OUT_PKT3(ring, CP_EVENT_WRITE, 1);
+	OUT_RING(ring, HLSQ_FLUSH);
+
+	/* wait for idle before cache flush/interrupt */
+	OUT_PKT3(ring, CP_WAIT_FOR_IDLE, 1);
+	OUT_RING(ring, 0x00000000);
+
+	/* BIT(31) of CACHE_FLUSH_TS triggers CACHE_FLUSH_TS IRQ from GPU */
+	OUT_PKT3(ring, CP_EVENT_WRITE, 3);
+	OUT_RING(ring, CACHE_FLUSH_TS | BIT(31));
+	OUT_RING(ring, rbmemptr(ring, fence));
+	OUT_RING(ring, submit->seqno);
+
+	adreno_flush(gpu, ring, REG_A4XX_CP_RB_WPTR);
+}
+
 /*
  * a4xx_enable_hwcg() - Program the clock control registers
  * @device: The adreno device pointer
@@ -129,7 +177,7 @@ static bool a4xx_me_init(struct msm_gpu *gpu)
 	OUT_RING(ring, 0x00000000);
 	OUT_RING(ring, 0x00000000);
 
-	gpu->funcs->flush(gpu, ring);
+	adreno_flush(gpu, ring, REG_A4XX_CP_RB_WPTR);
 	return a4xx_idle(gpu);
 }
 
@@ -515,17 +563,6 @@ static struct msm_gpu_state *a4xx_gpu_state_get(struct msm_gpu *gpu)
 	return state;
 }
 
-/* Register offset defines for A4XX, in order of enum adreno_regs */
-static const unsigned int a4xx_register_offsets[REG_ADRENO_REGISTER_MAX] = {
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_BASE, REG_A4XX_CP_RB_BASE),
-	REG_ADRENO_SKIP(REG_ADRENO_CP_RB_BASE_HI),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_RPTR_ADDR, REG_A4XX_CP_RB_RPTR_ADDR),
-	REG_ADRENO_SKIP(REG_ADRENO_CP_RB_RPTR_ADDR_HI),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_RPTR, REG_A4XX_CP_RB_RPTR),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_WPTR, REG_A4XX_CP_RB_WPTR),
-	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_CNTL, REG_A4XX_CP_RB_CNTL),
-};
-
 static void a4xx_dump(struct msm_gpu *gpu)
 {
 	printk("status:   %08x\n",
@@ -576,6 +613,12 @@ static int a4xx_get_timestamp(struct msm_gpu *gpu, uint64_t *value)
 	return 0;
 }
 
+static u32 a4xx_get_rptr(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
+{
+	ring->memptrs->rptr = gpu_read(gpu, REG_A4XX_CP_RB_RPTR);
+	return ring->memptrs->rptr;
+}
+
 static const struct adreno_gpu_funcs funcs = {
 	.base = {
 		.get_param = adreno_get_param,
@@ -583,8 +626,7 @@ static const struct adreno_gpu_funcs funcs = {
 		.pm_suspend = a4xx_pm_suspend,
 		.pm_resume = a4xx_pm_resume,
 		.recover = a4xx_recover,
-		.submit = adreno_submit,
-		.flush = adreno_flush,
+		.submit = a4xx_submit,
 		.active_ring = adreno_active_ring,
 		.irq = a4xx_irq,
 		.destroy = a4xx_destroy,
@@ -594,6 +636,7 @@ static const struct adreno_gpu_funcs funcs = {
 		.gpu_state_get = a4xx_gpu_state_get,
 		.gpu_state_put = adreno_gpu_state_put,
 		.create_address_space = adreno_iommu_create_address_space,
+		.get_rptr = a4xx_get_rptr,
 	},
 	.get_timestamp = a4xx_get_timestamp,
 };
@@ -605,6 +648,8 @@ struct msm_gpu *a4xx_gpu_init(struct drm_device *dev)
 	struct msm_gpu *gpu;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct platform_device *pdev = priv->gpu_pdev;
+	struct icc_path *ocmem_icc_path;
+	struct icc_path *icc_path;
 	int ret;
 
 	if (!pdev) {
@@ -631,15 +676,12 @@ struct msm_gpu *a4xx_gpu_init(struct drm_device *dev)
 
 	adreno_gpu->registers = adreno_is_a405(adreno_gpu) ? a405_registers :
 							     a4xx_registers;
-	adreno_gpu->reg_offsets = a4xx_register_offsets;
 
 	/* if needed, allocate gmem: */
-	if (adreno_is_a4xx(adreno_gpu)) {
-		ret = adreno_gpu_ocmem_init(dev->dev, adreno_gpu,
-					    &a4xx_gpu->ocmem);
-		if (ret)
-			goto fail;
-	}
+	ret = adreno_gpu_ocmem_init(dev->dev, adreno_gpu,
+				    &a4xx_gpu->ocmem);
+	if (ret)
+		goto fail;
 
 	if (!gpu->aspace) {
 		/* TODO we think it is possible to configure the GPU to
@@ -650,8 +692,24 @@ struct msm_gpu *a4xx_gpu_init(struct drm_device *dev)
 		 * implement a cmdstream validator.
 		 */
 		DRM_DEV_ERROR(dev->dev, "No memory protection without IOMMU\n");
-		ret = -ENXIO;
+		if (!allow_vram_carveout) {
+			ret = -ENXIO;
+			goto fail;
+		}
+	}
+
+	icc_path = devm_of_icc_get(&pdev->dev, "gfx-mem");
+	ret = IS_ERR(icc_path);
+	if (ret)
 		goto fail;
+
+	ocmem_icc_path = devm_of_icc_get(&pdev->dev, "ocmem");
+	ret = IS_ERR(ocmem_icc_path);
+	if (ret) {
+		/* allow -ENODATA, ocmem icc is optional */
+		if (ret != -ENODATA)
+			goto fail;
+		ocmem_icc_path = NULL;
 	}
 
 	/*
@@ -659,8 +717,8 @@ struct msm_gpu *a4xx_gpu_init(struct drm_device *dev)
 	 * frequency by the bus width (8). We'll want to scale this later on to
 	 * improve battery life.
 	 */
-	icc_set_bw(gpu->icc_path, 0, Bps_to_icc(gpu->fast_rate) * 8);
-	icc_set_bw(gpu->ocmem_icc_path, 0, Bps_to_icc(gpu->fast_rate) * 8);
+	icc_set_bw(icc_path, 0, Bps_to_icc(gpu->fast_rate) * 8);
+	icc_set_bw(ocmem_icc_path, 0, Bps_to_icc(gpu->fast_rate) * 8);
 
 	return gpu;
 

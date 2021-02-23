@@ -25,10 +25,18 @@ static inline bool sched_debug(void)
 	return sched_debug_enabled;
 }
 
+#define SD_FLAG(_name, mflags) [__##_name] = { .meta_flags = mflags, .name = #_name },
+const struct sd_flag_debug sd_flag_debug[] = {
+#include <linux/sched/sd_flags.h>
+};
+#undef SD_FLAG
+
 static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 				  struct cpumask *groupmask)
 {
 	struct sched_group *group = sd->groups;
+	unsigned long flags = sd->flags;
+	unsigned int idx;
 
 	cpumask_clear(groupmask);
 
@@ -41,6 +49,21 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 	}
 	if (group && !cpumask_test_cpu(cpu, sched_group_span(group))) {
 		printk(KERN_ERR "ERROR: domain->groups does not contain CPU%d\n", cpu);
+	}
+
+	for_each_set_bit(idx, &flags, __SD_FLAG_CNT) {
+		unsigned int flag = BIT(idx);
+		unsigned int meta_flags = sd_flag_debug[idx].meta_flags;
+
+		if ((meta_flags & SDF_SHARED_CHILD) && sd->child &&
+		    !(sd->child->flags & flag))
+			printk(KERN_ERR "ERROR: flag %s set here but not in child\n",
+			       sd_flag_debug[idx].name);
+
+		if ((meta_flags & SDF_SHARED_PARENT) && sd->parent &&
+		    !(sd->parent->flags & flag))
+			printk(KERN_ERR "ERROR: flag %s set here but not in parent\n",
+			       sd_flag_debug[idx].name);
 	}
 
 	printk(KERN_DEBUG "%*s groups:", level + 1, "");
@@ -137,22 +160,22 @@ static inline bool sched_debug(void)
 }
 #endif /* CONFIG_SCHED_DEBUG */
 
+/* Generate a mask of SD flags with the SDF_NEEDS_GROUPS metaflag */
+#define SD_FLAG(name, mflags) (name * !!((mflags) & SDF_NEEDS_GROUPS)) |
+static const unsigned int SD_DEGENERATE_GROUPS_MASK =
+#include <linux/sched/sd_flags.h>
+0;
+#undef SD_FLAG
+
 static int sd_degenerate(struct sched_domain *sd)
 {
 	if (cpumask_weight(sched_domain_span(sd)) == 1)
 		return 1;
 
 	/* Following flags need at least 2 groups */
-	if (sd->flags & (SD_BALANCE_NEWIDLE |
-			 SD_BALANCE_FORK |
-			 SD_BALANCE_EXEC |
-			 SD_SHARE_CPUCAPACITY |
-			 SD_ASYM_CPUCAPACITY |
-			 SD_SHARE_PKG_RESOURCES |
-			 SD_SHARE_POWERDOMAIN)) {
-		if (sd->groups != sd->groups->next)
-			return 0;
-	}
+	if ((sd->flags & SD_DEGENERATE_GROUPS_MASK) &&
+	    (sd->groups != sd->groups->next))
+		return 0;
 
 	/* Following flags don't use groups */
 	if (sd->flags & (SD_WAKE_AFFINE))
@@ -173,18 +196,9 @@ sd_parent_degenerate(struct sched_domain *sd, struct sched_domain *parent)
 		return 0;
 
 	/* Flags needing groups don't count if only 1 group in parent */
-	if (parent->groups == parent->groups->next) {
-		pflags &= ~(SD_BALANCE_NEWIDLE |
-			    SD_BALANCE_FORK |
-			    SD_BALANCE_EXEC |
-			    SD_ASYM_CPUCAPACITY |
-			    SD_SHARE_CPUCAPACITY |
-			    SD_SHARE_PKG_RESOURCES |
-			    SD_PREFER_SIBLING |
-			    SD_SHARE_POWERDOMAIN);
-		if (nr_node_ids == 1)
-			pflags &= ~SD_SERIALIZE;
-	}
+	if (parent->groups == parent->groups->next)
+		pflags &= ~SD_DEGENERATE_GROUPS_MASK;
+
 	if (~cflags & pflags)
 		return 0;
 
@@ -196,6 +210,15 @@ DEFINE_STATIC_KEY_FALSE(sched_energy_present);
 unsigned int sysctl_sched_energy_aware = 1;
 DEFINE_MUTEX(sched_energy_mutex);
 bool sched_energy_update;
+
+void rebuild_sched_domains_energy(void)
+{
+	mutex_lock(&sched_energy_mutex);
+	sched_energy_update = true;
+	rebuild_sched_domains();
+	sched_energy_update = false;
+	mutex_unlock(&sched_energy_mutex);
+}
 
 #ifdef CONFIG_PROC_SYSCTL
 int sched_energy_aware_handler(struct ctl_table *table, int write,
@@ -209,13 +232,8 @@ int sched_energy_aware_handler(struct ctl_table *table, int write,
 	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	if (!ret && write) {
 		state = static_branch_unlikely(&sched_energy_present);
-		if (state != sysctl_sched_energy_aware) {
-			mutex_lock(&sched_energy_mutex);
-			sched_energy_update = 1;
-			rebuild_sched_domains();
-			sched_energy_update = 0;
-			mutex_unlock(&sched_energy_mutex);
-		}
+		if (state != sysctl_sched_energy_aware)
+			rebuild_sched_domains_energy();
 	}
 
 	return ret;
@@ -310,6 +328,7 @@ static void sched_energy_set(bool has_eas)
  *    3. no SMT is detected.
  *    4. the EM complexity is low enough to keep scheduling overheads low;
  *    5. schedutil is driving the frequency of all CPUs of the rd;
+ *    6. frequency invariance support is present;
  *
  * The complexity of the Energy Model is defined as:
  *
@@ -355,6 +374,14 @@ static bool build_perf_domains(const struct cpumask *cpu_map)
 	if (sched_smt_active()) {
 		pr_warn("rd %*pbl: Disabling EAS, SMT is not supported\n",
 			cpumask_pr_args(cpu_map));
+		goto free;
+	}
+
+	if (!arch_scale_freq_invariant()) {
+		if (sched_debug()) {
+			pr_warn("rd %*pbl: Disabling EAS: frequency-invariant load tracking not yet supported",
+				cpumask_pr_args(cpu_map));
+		}
 		goto free;
 	}
 
@@ -502,6 +529,7 @@ static int init_rootdomain(struct root_domain *rd)
 	init_irq_work(&rd->rto_push_work, rto_push_irq_work_func);
 #endif
 
+	rd->visit_gen = 0;
 	init_dl_bw(&rd->dl_bw);
 	if (cpudl_init(&rd->cpudl) != 0)
 		goto free_rto_mask;
@@ -660,6 +688,7 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
 	struct sched_domain *tmp;
+	int numa_distance = 0;
 
 	/* Remove the sched domains which do not contribute to scheduling. */
 	for (tmp = sd; tmp; ) {
@@ -690,6 +719,38 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 		if (sd)
 			sd->child = NULL;
 	}
+
+	for (tmp = sd; tmp; tmp = tmp->parent)
+		numa_distance += !!(tmp->flags & SD_NUMA);
+
+	/*
+	 * FIXME: Diameter >=3 is misrepresented.
+	 *
+	 * Smallest diameter=3 topology is:
+	 *
+	 *   node   0   1   2   3
+	 *     0:  10  20  30  40
+	 *     1:  20  10  20  30
+	 *     2:  30  20  10  20
+	 *     3:  40  30  20  10
+	 *
+	 *   0 --- 1 --- 2 --- 3
+	 *
+	 * NUMA-3	0-3		N/A		N/A		0-3
+	 *  groups:	{0-2},{1-3}					{1-3},{0-2}
+	 *
+	 * NUMA-2	0-2		0-3		0-3		1-3
+	 *  groups:	{0-1},{1-3}	{0-2},{2-3}	{1-3},{0-1}	{2-3},{0-2}
+	 *
+	 * NUMA-1	0-1		0-2		1-3		2-3
+	 *  groups:	{0},{1}		{1},{2},{0}	{2},{3},{1}	{3},{2}
+	 *
+	 * NUMA-0	0		1		2		3
+	 *
+	 * The NUMA-2 groups for nodes 0 and 3 are obviously buggered, as the
+	 * group span isn't a subset of the domain span.
+	 */
+	WARN_ONCE(numa_distance > 2, "Shortest NUMA path spans too many nodes\n");
 
 	sched_domain_debug(sd, cpu);
 
@@ -1292,7 +1353,6 @@ int __read_mostly		node_reclaim_distance = RECLAIM_DISTANCE;
  *   SD_SHARE_CPUCAPACITY   - describes SMT topologies
  *   SD_SHARE_PKG_RESOURCES - describes shared caches
  *   SD_NUMA                - describes NUMA topologies
- *   SD_SHARE_POWERDOMAIN   - describes shared power domain
  *
  * Odd one out, which beside describing the topology has a quirk also
  * prescribes the desired behaviour that goes along with it:
@@ -1303,8 +1363,7 @@ int __read_mostly		node_reclaim_distance = RECLAIM_DISTANCE;
 	(SD_SHARE_CPUCAPACITY	|	\
 	 SD_SHARE_PKG_RESOURCES |	\
 	 SD_NUMA		|	\
-	 SD_ASYM_PACKING	|	\
-	 SD_SHARE_POWERDOMAIN)
+	 SD_ASYM_PACKING)
 
 static struct sched_domain *
 sd_init(struct sched_domain_topology_level *tl,
@@ -1336,8 +1395,8 @@ sd_init(struct sched_domain_topology_level *tl,
 	*sd = (struct sched_domain){
 		.min_interval		= sd_weight,
 		.max_interval		= 2*sd_weight,
-		.busy_factor		= 32,
-		.imbalance_pct		= 125,
+		.busy_factor		= 16,
+		.imbalance_pct		= 117,
 
 		.cache_nice_tries	= 0,
 
@@ -1989,11 +2048,10 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
 	/* Set up domains for CPUs specified by the cpu_map: */
 	for_each_cpu(i, cpu_map) {
 		struct sched_domain_topology_level *tl;
+		int dflags = 0;
 
 		sd = NULL;
 		for_each_sd_topology(tl) {
-			int dflags = 0;
-
 			if (tl == tl_asym) {
 				dflags |= SD_ASYM_CPUCAPACITY;
 				has_asym = true;

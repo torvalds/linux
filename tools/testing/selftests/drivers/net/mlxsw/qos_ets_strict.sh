@@ -147,17 +147,26 @@ switch_create()
 
 	# Make sure that ingress quotas are smaller than egress so that there is
 	# room for both streams of traffic to be admitted to shared buffer.
+	devlink_pool_size_thtype_save 0
 	devlink_pool_size_thtype_set 0 dynamic 10000000
+	devlink_pool_size_thtype_save 4
 	devlink_pool_size_thtype_set 4 dynamic 10000000
 
+	devlink_port_pool_th_save $swp1 0
 	devlink_port_pool_th_set $swp1 0 6
+	devlink_tc_bind_pool_th_save $swp1 1 ingress
 	devlink_tc_bind_pool_th_set $swp1 1 ingress 0 6
 
+	devlink_port_pool_th_save $swp2 0
 	devlink_port_pool_th_set $swp2 0 6
+	devlink_tc_bind_pool_th_save $swp2 2 ingress
 	devlink_tc_bind_pool_th_set $swp2 2 ingress 0 6
 
+	devlink_tc_bind_pool_th_save $swp3 1 egress
 	devlink_tc_bind_pool_th_set $swp3 1 egress 4 7
+	devlink_tc_bind_pool_th_save $swp3 2 egress
 	devlink_tc_bind_pool_th_set $swp3 2 egress 4 7
+	devlink_port_pool_th_save $swp3 4
 	devlink_port_pool_th_set $swp3 4 7
 }
 

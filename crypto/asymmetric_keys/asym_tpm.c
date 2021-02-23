@@ -10,7 +10,7 @@
 #include <linux/tpm_command.h>
 #include <crypto/akcipher.h>
 #include <crypto/hash.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
 #include <asm/unaligned.h>
 #include <keys/asymmetric-subtype.h>
 #include <keys/trusted_tpm.h>
@@ -354,7 +354,7 @@ static uint32_t derive_pub_key(const void *pub_key, uint32_t len, uint8_t *buf)
 	memcpy(cur, e, sizeof(e));
 	cur += sizeof(e);
 	/* Zero parameters to satisfy set_pub_key ABI. */
-	memset(cur, 0, SETKEY_PARAMS_SIZE);
+	memzero_explicit(cur, SETKEY_PARAMS_SIZE);
 
 	return cur - buf;
 }

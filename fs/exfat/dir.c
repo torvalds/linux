@@ -59,9 +59,9 @@ static void exfat_get_uniname_from_ext_entry(struct super_block *sb,
 }
 
 /* read a directory entry from the opened directory */
-static int exfat_readdir(struct inode *inode, struct exfat_dir_entry *dir_entry)
+static int exfat_readdir(struct inode *inode, loff_t *cpos, struct exfat_dir_entry *dir_entry)
 {
-	int i, dentries_per_clu, dentries_per_clu_bits = 0;
+	int i, dentries_per_clu, dentries_per_clu_bits = 0, num_ext;
 	unsigned int type, clu_offset;
 	sector_t sector;
 	struct exfat_chain dir, clu;
@@ -70,7 +70,7 @@ static int exfat_readdir(struct inode *inode, struct exfat_dir_entry *dir_entry)
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct exfat_inode_info *ei = EXFAT_I(inode);
-	unsigned int dentry = ei->rwoffset & 0xFFFFFFFF;
+	unsigned int dentry = EXFAT_B_TO_DEN(*cpos) & 0xFFFFFFFF;
 	struct buffer_head *bh;
 
 	/* check if the given file ID is opened */
@@ -127,6 +127,7 @@ static int exfat_readdir(struct inode *inode, struct exfat_dir_entry *dir_entry)
 				continue;
 			}
 
+			num_ext = ep->dentry.file.num_ext;
 			dir_entry->attr = le16_to_cpu(ep->dentry.file.attr);
 			exfat_get_entry_time(sbi, &dir_entry->crtime,
 					ep->dentry.file.create_tz,
@@ -157,12 +158,13 @@ static int exfat_readdir(struct inode *inode, struct exfat_dir_entry *dir_entry)
 				return -EIO;
 			dir_entry->size =
 				le64_to_cpu(ep->dentry.stream.valid_size);
+			dir_entry->entry = dentry;
 			brelse(bh);
 
 			ei->hint_bmap.off = dentry >> dentries_per_clu_bits;
 			ei->hint_bmap.clu = clu.dir;
 
-			ei->rwoffset = ++dentry;
+			*cpos = EXFAT_DEN_TO_B(dentry + 1 + num_ext);
 			return 0;
 		}
 
@@ -178,7 +180,7 @@ static int exfat_readdir(struct inode *inode, struct exfat_dir_entry *dir_entry)
 	}
 
 	dir_entry->namebuf.lfn[0] = '\0';
-	ei->rwoffset = dentry;
+	*cpos = EXFAT_DEN_TO_B(dentry);
 	return 0;
 }
 
@@ -242,12 +244,10 @@ static int exfat_iterate(struct file *filp, struct dir_context *ctx)
 	if (err)
 		goto unlock;
 get_new:
-	ei->rwoffset = EXFAT_B_TO_DEN(cpos);
-
 	if (cpos >= i_size_read(inode))
 		goto end_of_dir;
 
-	err = exfat_readdir(inode, &de);
+	err = exfat_readdir(inode, &cpos, &de);
 	if (err) {
 		/*
 		 * At least we tried to read a sector.  Move cpos to next sector
@@ -262,13 +262,10 @@ get_new:
 		goto end_of_dir;
 	}
 
-	cpos = EXFAT_DEN_TO_B(ei->rwoffset);
-
 	if (!nb->lfn[0])
 		goto end_of_dir;
 
-	i_pos = ((loff_t)ei->start_clu << 32) |
-		((ei->rwoffset - 1) & 0xffffffff);
+	i_pos = ((loff_t)ei->start_clu << 32) |	(de.entry & 0xffffffff);
 	tmp = exfat_iget(sb, i_pos);
 	if (tmp) {
 		inum = tmp->i_ino;
@@ -911,7 +908,6 @@ enum {
 /*
  * return values:
  *   >= 0	: return dir entiry position with the name in dir
- *   -EEXIST	: (root dir, ".") it is the root dir itself
  *   -ENOENT	: entry with the name does not exist
  *   -EIO	: I/O error
  */
@@ -979,11 +975,8 @@ rewind:
 					if (ei->hint_femp.eidx ==
 							EXFAT_HINT_NONE ||
 						candi_empty.eidx <=
-							 ei->hint_femp.eidx) {
-						memcpy(&ei->hint_femp,
-							&candi_empty,
-							sizeof(candi_empty));
-					}
+							 ei->hint_femp.eidx)
+						ei->hint_femp = candi_empty;
 				}
 
 				brelse(bh);

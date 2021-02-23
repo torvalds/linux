@@ -10,7 +10,8 @@
  * Put .bss..swapper_pg_dir as the first thing in .bss. This will
  * make sure it has 16k alignment.
  */
-#define BSS_FIRST_SECTIONS *(.bss..swapper_pg_dir)
+#define BSS_FIRST_SECTIONS *(.bss..swapper_pg_dir) \
+			   *(.bss..invalid_pg_dir)
 
 /* Handle ro_after_init data on our own. */
 #define RO_AFTER_INIT_DATA
@@ -181,6 +182,7 @@ SECTIONS
 	/* Debugging sections.	*/
 	STABS_DEBUG
 	DWARF_DEBUG
+	ELF_DETAILS
 
 	/* Sections to be discarded */
 	DISCARDS

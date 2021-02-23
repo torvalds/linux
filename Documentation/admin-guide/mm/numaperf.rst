@@ -56,6 +56,11 @@ nodes' access characteristics share the same performance relative to other
 linked initiator nodes. Each target within an initiator's access class,
 though, do not necessarily perform the same as each other.
 
+The access class "1" is used to allow differentiation between initiators
+that are CPUs and hence suitable for generic task scheduling, and
+IO initiators such as GPUs and NICs.  Unlike access class 0, only
+nodes containing CPUs are considered.
+
 ================
 NUMA Performance
 ================
@@ -69,7 +74,7 @@ memory node's access class 0 initiators as follows::
 	/sys/devices/system/node/nodeY/access0/initiators/
 
 These attributes apply only when accessed from nodes that have the
-are linked under the this access's inititiators.
+are linked under the this access's initiators.
 
 The performance characteristics the kernel provides for the local initiators
 are exported are as follows::
@@ -87,6 +92,9 @@ The latency attributes are provided in nanoseconds.
 
 The values reported here correspond to the rated latency and bandwidth
 for the platform.
+
+Access class 1 takes the same form but only includes values for CPU to
+memory activity.
 
 ==========
 NUMA Cache

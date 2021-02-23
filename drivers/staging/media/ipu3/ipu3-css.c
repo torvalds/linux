@@ -662,17 +662,16 @@ static void imgu_css_hw_cleanup(struct imgu_css *css)
 static void imgu_css_pipeline_cleanup(struct imgu_css *css, unsigned int pipe)
 {
 	struct imgu_device *imgu = dev_get_drvdata(css->dev);
+	struct imgu_css_pipe *css_pipe = &css->pipes[pipe];
 	unsigned int i;
 
-	imgu_css_pool_cleanup(imgu,
-			      &css->pipes[pipe].pool.parameter_set_info);
-	imgu_css_pool_cleanup(imgu, &css->pipes[pipe].pool.acc);
-	imgu_css_pool_cleanup(imgu, &css->pipes[pipe].pool.gdc);
-	imgu_css_pool_cleanup(imgu, &css->pipes[pipe].pool.obgrid);
+	imgu_css_pool_cleanup(imgu, &css_pipe->pool.parameter_set_info);
+	imgu_css_pool_cleanup(imgu, &css_pipe->pool.acc);
+	imgu_css_pool_cleanup(imgu, &css_pipe->pool.gdc);
+	imgu_css_pool_cleanup(imgu, &css_pipe->pool.obgrid);
 
 	for (i = 0; i < IMGU_ABI_NUM_MEMORIES; i++)
-		imgu_css_pool_cleanup(imgu,
-				      &css->pipes[pipe].pool.binary_params_p[i]);
+		imgu_css_pool_cleanup(imgu, &css_pipe->pool.binary_params_p[i]);
 }
 
 /*
@@ -698,6 +697,12 @@ static int imgu_css_pipeline_init(struct imgu_css *css, unsigned int pipe)
 	unsigned int i, j;
 
 	struct imgu_css_pipe *css_pipe = &css->pipes[pipe];
+	struct imgu_css_queue *css_queue_in =
+			&css_pipe->queue[IPU3_CSS_QUEUE_IN];
+	struct imgu_css_queue *css_queue_out =
+			&css_pipe->queue[IPU3_CSS_QUEUE_OUT];
+	struct imgu_css_queue *css_queue_vf =
+			&css_pipe->queue[IPU3_CSS_QUEUE_VF];
 	const struct imgu_fw_info *bi =
 			&css->fwp->binary_header[css_pipe->bindex];
 	const unsigned int stripes = bi->info.isp.sp.iterator.num_stripes;
@@ -710,6 +715,9 @@ static int imgu_css_pipeline_init(struct imgu_css *css, unsigned int pipe)
 	struct imgu_abi_isp_stage *isp_stage;
 	struct imgu_abi_sp_stage *sp_stage;
 	struct imgu_abi_sp_group *sp_group;
+	struct imgu_abi_frames_sp *frames_sp;
+	struct imgu_abi_frame_sp *frame_sp;
+	struct imgu_abi_frame_sp_info *frame_sp_info;
 
 	const unsigned int bds_width_pad =
 				ALIGN(css_pipe->rect[IPU3_CSS_RECT_BDS].width,
@@ -731,61 +739,44 @@ static int imgu_css_pipeline_init(struct imgu_css *css, unsigned int pipe)
 	if (!cfg_iter)
 		goto bad_firmware;
 
-	cfg_iter->input_info.res.width =
-				css_pipe->queue[IPU3_CSS_QUEUE_IN].fmt.mpix.width;
-	cfg_iter->input_info.res.height =
-				css_pipe->queue[IPU3_CSS_QUEUE_IN].fmt.mpix.height;
-	cfg_iter->input_info.padded_width =
-				css_pipe->queue[IPU3_CSS_QUEUE_IN].width_pad;
-	cfg_iter->input_info.format =
-			css_pipe->queue[IPU3_CSS_QUEUE_IN].css_fmt->frame_format;
-	cfg_iter->input_info.raw_bit_depth =
-			css_pipe->queue[IPU3_CSS_QUEUE_IN].css_fmt->bit_depth;
-	cfg_iter->input_info.raw_bayer_order =
-			css_pipe->queue[IPU3_CSS_QUEUE_IN].css_fmt->bayer_order;
-	cfg_iter->input_info.raw_type = IMGU_ABI_RAW_TYPE_BAYER;
+	frame_sp_info = &cfg_iter->input_info;
+	frame_sp_info->res.width	= css_queue_in->fmt.mpix.width;
+	frame_sp_info->res.height	= css_queue_in->fmt.mpix.height;
+	frame_sp_info->padded_width	= css_queue_in->width_pad;
+	frame_sp_info->format		= css_queue_in->css_fmt->frame_format;
+	frame_sp_info->raw_bit_depth	= css_queue_in->css_fmt->bit_depth;
+	frame_sp_info->raw_bayer_order	= css_queue_in->css_fmt->bayer_order;
+	frame_sp_info->raw_type		= IMGU_ABI_RAW_TYPE_BAYER;
 
-	cfg_iter->internal_info.res.width = css_pipe->rect[IPU3_CSS_RECT_BDS].width;
-	cfg_iter->internal_info.res.height =
-					css_pipe->rect[IPU3_CSS_RECT_BDS].height;
-	cfg_iter->internal_info.padded_width = bds_width_pad;
-	cfg_iter->internal_info.format =
-			css_pipe->queue[IPU3_CSS_QUEUE_OUT].css_fmt->frame_format;
-	cfg_iter->internal_info.raw_bit_depth =
-			css_pipe->queue[IPU3_CSS_QUEUE_OUT].css_fmt->bit_depth;
-	cfg_iter->internal_info.raw_bayer_order =
-			css_pipe->queue[IPU3_CSS_QUEUE_OUT].css_fmt->bayer_order;
-	cfg_iter->internal_info.raw_type = IMGU_ABI_RAW_TYPE_BAYER;
+	frame_sp_info = &cfg_iter->internal_info;
+	frame_sp_info->res.width = css_pipe->rect[IPU3_CSS_RECT_BDS].width;
+	frame_sp_info->res.height = css_pipe->rect[IPU3_CSS_RECT_BDS].height;
+	frame_sp_info->padded_width	= bds_width_pad;
+	frame_sp_info->format		= css_queue_out->css_fmt->frame_format;
+	frame_sp_info->raw_bit_depth	= css_queue_out->css_fmt->bit_depth;
+	frame_sp_info->raw_bayer_order	= css_queue_out->css_fmt->bayer_order;
+	frame_sp_info->raw_type		= IMGU_ABI_RAW_TYPE_BAYER;
 
-	cfg_iter->output_info.res.width =
-				css_pipe->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.width;
-	cfg_iter->output_info.res.height =
-				css_pipe->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.height;
-	cfg_iter->output_info.padded_width =
-				css_pipe->queue[IPU3_CSS_QUEUE_OUT].width_pad;
-	cfg_iter->output_info.format =
-			css_pipe->queue[IPU3_CSS_QUEUE_OUT].css_fmt->frame_format;
-	cfg_iter->output_info.raw_bit_depth =
-			css_pipe->queue[IPU3_CSS_QUEUE_OUT].css_fmt->bit_depth;
-	cfg_iter->output_info.raw_bayer_order =
-			css_pipe->queue[IPU3_CSS_QUEUE_OUT].css_fmt->bayer_order;
-	cfg_iter->output_info.raw_type = IMGU_ABI_RAW_TYPE_BAYER;
+	frame_sp_info = &cfg_iter->output_info;
+	frame_sp_info->res.width	= css_queue_out->fmt.mpix.width;
+	frame_sp_info->res.height	= css_queue_out->fmt.mpix.height;
+	frame_sp_info->padded_width	= css_queue_out->width_pad;
+	frame_sp_info->format		= css_queue_out->css_fmt->frame_format;
+	frame_sp_info->raw_bit_depth	= css_queue_out->css_fmt->bit_depth;
+	frame_sp_info->raw_bayer_order	= css_queue_out->css_fmt->bayer_order;
+	frame_sp_info->raw_type		= IMGU_ABI_RAW_TYPE_BAYER;
 
-	cfg_iter->vf_info.res.width =
-			css_pipe->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.width;
-	cfg_iter->vf_info.res.height =
-			css_pipe->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.height;
-	cfg_iter->vf_info.padded_width =
-			css_pipe->queue[IPU3_CSS_QUEUE_VF].width_pad;
-	cfg_iter->vf_info.format =
-			css_pipe->queue[IPU3_CSS_QUEUE_VF].css_fmt->frame_format;
-	cfg_iter->vf_info.raw_bit_depth =
-			css_pipe->queue[IPU3_CSS_QUEUE_VF].css_fmt->bit_depth;
-	cfg_iter->vf_info.raw_bayer_order =
-			css_pipe->queue[IPU3_CSS_QUEUE_VF].css_fmt->bayer_order;
-	cfg_iter->vf_info.raw_type = IMGU_ABI_RAW_TYPE_BAYER;
+	frame_sp_info = &cfg_iter->vf_info;
+	frame_sp_info->res.width	= css_queue_vf->fmt.mpix.width;
+	frame_sp_info->res.height	= css_queue_vf->fmt.mpix.height;
+	frame_sp_info->padded_width	= css_queue_vf->width_pad;
+	frame_sp_info->format		= css_queue_vf->css_fmt->frame_format;
+	frame_sp_info->raw_bit_depth	= css_queue_vf->css_fmt->bit_depth;
+	frame_sp_info->raw_bayer_order	= css_queue_vf->css_fmt->bayer_order;
+	frame_sp_info->raw_type		= IMGU_ABI_RAW_TYPE_BAYER;
 
-	cfg_iter->dvs_envelope.width = css_pipe->rect[IPU3_CSS_RECT_ENVELOPE].width;
+	cfg_iter->dvs_envelope.width =
+				css_pipe->rect[IPU3_CSS_RECT_ENVELOPE].width;
 	cfg_iter->dvs_envelope.height =
 				css_pipe->rect[IPU3_CSS_RECT_ENVELOPE].height;
 
@@ -916,12 +907,13 @@ static int imgu_css_pipeline_init(struct imgu_css *css, unsigned int pipe)
 	sp_stage = css_pipe->xmem_sp_stage_ptrs[pipe][stage].vaddr;
 	memset(sp_stage, 0, sizeof(*sp_stage));
 
-	sp_stage->frames.in.buf_attr = buffer_sp_init;
+	frames_sp = &sp_stage->frames;
+	frames_sp->in.buf_attr = buffer_sp_init;
 	for (i = 0; i < IMGU_ABI_BINARY_MAX_OUTPUT_PORTS; i++)
-		sp_stage->frames.out[i].buf_attr = buffer_sp_init;
-	sp_stage->frames.out_vf.buf_attr = buffer_sp_init;
-	sp_stage->frames.s3a_buf = buffer_sp_init;
-	sp_stage->frames.dvs_buf = buffer_sp_init;
+		frames_sp->out[i].buf_attr = buffer_sp_init;
+	frames_sp->out_vf.buf_attr = buffer_sp_init;
+	frames_sp->s3a_buf = buffer_sp_init;
+	frames_sp->dvs_buf = buffer_sp_init;
 
 	sp_stage->stage_type = IMGU_ABI_STAGE_TYPE_ISP;
 	sp_stage->num = stage;
@@ -931,94 +923,70 @@ static int imgu_css_pipeline_init(struct imgu_css *css, unsigned int pipe)
 
 	sp_stage->enable.vf_output = css_pipe->vf_output_en;
 
-	sp_stage->frames.effective_in_res.width =
+	frames_sp->effective_in_res.width =
 				css_pipe->rect[IPU3_CSS_RECT_EFFECTIVE].width;
-	sp_stage->frames.effective_in_res.height =
+	frames_sp->effective_in_res.height =
 				css_pipe->rect[IPU3_CSS_RECT_EFFECTIVE].height;
-	sp_stage->frames.in.info.res.width =
-				css_pipe->queue[IPU3_CSS_QUEUE_IN].fmt.mpix.width;
-	sp_stage->frames.in.info.res.height =
-				css_pipe->queue[IPU3_CSS_QUEUE_IN].fmt.mpix.height;
-	sp_stage->frames.in.info.padded_width =
-					css_pipe->queue[IPU3_CSS_QUEUE_IN].width_pad;
-	sp_stage->frames.in.info.format =
-			css_pipe->queue[IPU3_CSS_QUEUE_IN].css_fmt->frame_format;
-	sp_stage->frames.in.info.raw_bit_depth =
-			css_pipe->queue[IPU3_CSS_QUEUE_IN].css_fmt->bit_depth;
-	sp_stage->frames.in.info.raw_bayer_order =
-			css_pipe->queue[IPU3_CSS_QUEUE_IN].css_fmt->bayer_order;
-	sp_stage->frames.in.info.raw_type = IMGU_ABI_RAW_TYPE_BAYER;
-	sp_stage->frames.in.buf_attr.buf_src.queue_id = IMGU_ABI_QUEUE_C_ID;
-	sp_stage->frames.in.buf_attr.buf_type =
-					IMGU_ABI_BUFFER_TYPE_INPUT_FRAME;
 
-	sp_stage->frames.out[0].info.res.width =
-				css_pipe->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.width;
-	sp_stage->frames.out[0].info.res.height =
-				css_pipe->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.height;
-	sp_stage->frames.out[0].info.padded_width =
-				css_pipe->queue[IPU3_CSS_QUEUE_OUT].width_pad;
-	sp_stage->frames.out[0].info.format =
-			css_pipe->queue[IPU3_CSS_QUEUE_OUT].css_fmt->frame_format;
-	sp_stage->frames.out[0].info.raw_bit_depth =
-			css_pipe->queue[IPU3_CSS_QUEUE_OUT].css_fmt->bit_depth;
-	sp_stage->frames.out[0].info.raw_bayer_order =
-			css_pipe->queue[IPU3_CSS_QUEUE_OUT].css_fmt->bayer_order;
-	sp_stage->frames.out[0].info.raw_type = IMGU_ABI_RAW_TYPE_BAYER;
-	sp_stage->frames.out[0].planes.nv.uv.offset =
-				css_pipe->queue[IPU3_CSS_QUEUE_OUT].width_pad *
-				css_pipe->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.height;
-	sp_stage->frames.out[0].buf_attr.buf_src.queue_id = IMGU_ABI_QUEUE_D_ID;
-	sp_stage->frames.out[0].buf_attr.buf_type =
-					IMGU_ABI_BUFFER_TYPE_OUTPUT_FRAME;
+	frame_sp = &frames_sp->in;
+	frame_sp->info.res.width	= css_queue_in->fmt.mpix.width;
+	frame_sp->info.res.height	= css_queue_in->fmt.mpix.height;
+	frame_sp->info.padded_width	= css_queue_in->width_pad;
+	frame_sp->info.format		= css_queue_in->css_fmt->frame_format;
+	frame_sp->info.raw_bit_depth	= css_queue_in->css_fmt->bit_depth;
+	frame_sp->info.raw_bayer_order	= css_queue_in->css_fmt->bayer_order;
+	frame_sp->info.raw_type		= IMGU_ABI_RAW_TYPE_BAYER;
+	frame_sp->buf_attr.buf_src.queue_id = IMGU_ABI_QUEUE_C_ID;
+	frame_sp->buf_attr.buf_type	= IMGU_ABI_BUFFER_TYPE_INPUT_FRAME;
 
-	sp_stage->frames.out[1].buf_attr.buf_src.queue_id =
-							IMGU_ABI_QUEUE_EVENT_ID;
+	frame_sp = &frames_sp->out[0];
+	frame_sp->info.res.width	= css_queue_out->fmt.mpix.width;
+	frame_sp->info.res.height	= css_queue_out->fmt.mpix.height;
+	frame_sp->info.padded_width	= css_queue_out->width_pad;
+	frame_sp->info.format		= css_queue_out->css_fmt->frame_format;
+	frame_sp->info.raw_bit_depth	= css_queue_out->css_fmt->bit_depth;
+	frame_sp->info.raw_bayer_order	= css_queue_out->css_fmt->bayer_order;
+	frame_sp->info.raw_type		= IMGU_ABI_RAW_TYPE_BAYER;
+	frame_sp->planes.nv.uv.offset	= css_queue_out->width_pad *
+					  css_queue_out->fmt.mpix.height;
+	frame_sp->buf_attr.buf_src.queue_id = IMGU_ABI_QUEUE_D_ID;
+	frame_sp->buf_attr.buf_type	= IMGU_ABI_BUFFER_TYPE_OUTPUT_FRAME;
 
-	sp_stage->frames.internal_frame_info.res.width =
-					css_pipe->rect[IPU3_CSS_RECT_BDS].width;
-	sp_stage->frames.internal_frame_info.res.height =
-					css_pipe->rect[IPU3_CSS_RECT_BDS].height;
-	sp_stage->frames.internal_frame_info.padded_width = bds_width_pad;
+	frame_sp = &frames_sp->out[1];
+	frame_sp->buf_attr.buf_src.queue_id = IMGU_ABI_QUEUE_EVENT_ID;
 
-	sp_stage->frames.internal_frame_info.format =
-			css_pipe->queue[IPU3_CSS_QUEUE_OUT].css_fmt->frame_format;
-	sp_stage->frames.internal_frame_info.raw_bit_depth =
-			css_pipe->queue[IPU3_CSS_QUEUE_OUT].css_fmt->bit_depth;
-	sp_stage->frames.internal_frame_info.raw_bayer_order =
-			css_pipe->queue[IPU3_CSS_QUEUE_OUT].css_fmt->bayer_order;
-	sp_stage->frames.internal_frame_info.raw_type = IMGU_ABI_RAW_TYPE_BAYER;
+	frame_sp_info = &frames_sp->internal_frame_info;
+	frame_sp_info->res.width = css_pipe->rect[IPU3_CSS_RECT_BDS].width;
+	frame_sp_info->res.height = css_pipe->rect[IPU3_CSS_RECT_BDS].height;
+	frame_sp_info->padded_width	= bds_width_pad;
+	frame_sp_info->format		= css_queue_out->css_fmt->frame_format;
+	frame_sp_info->raw_bit_depth	= css_queue_out->css_fmt->bit_depth;
+	frame_sp_info->raw_bayer_order	= css_queue_out->css_fmt->bayer_order;
+	frame_sp_info->raw_type		= IMGU_ABI_RAW_TYPE_BAYER;
 
-	sp_stage->frames.out_vf.info.res.width =
-				css_pipe->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.width;
-	sp_stage->frames.out_vf.info.res.height =
-				css_pipe->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.height;
-	sp_stage->frames.out_vf.info.padded_width =
-					css_pipe->queue[IPU3_CSS_QUEUE_VF].width_pad;
-	sp_stage->frames.out_vf.info.format =
-			css_pipe->queue[IPU3_CSS_QUEUE_VF].css_fmt->frame_format;
-	sp_stage->frames.out_vf.info.raw_bit_depth =
-			css_pipe->queue[IPU3_CSS_QUEUE_VF].css_fmt->bit_depth;
-	sp_stage->frames.out_vf.info.raw_bayer_order =
-			css_pipe->queue[IPU3_CSS_QUEUE_VF].css_fmt->bayer_order;
-	sp_stage->frames.out_vf.info.raw_type = IMGU_ABI_RAW_TYPE_BAYER;
-	sp_stage->frames.out_vf.planes.yuv.u.offset =
-				css_pipe->queue[IPU3_CSS_QUEUE_VF].width_pad *
-				css_pipe->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.height;
-	sp_stage->frames.out_vf.planes.yuv.v.offset =
-			css_pipe->queue[IPU3_CSS_QUEUE_VF].width_pad *
-			css_pipe->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.height * 5 / 4;
-	sp_stage->frames.out_vf.buf_attr.buf_src.queue_id = IMGU_ABI_QUEUE_E_ID;
-	sp_stage->frames.out_vf.buf_attr.buf_type =
-					IMGU_ABI_BUFFER_TYPE_VF_OUTPUT_FRAME;
+	frame_sp = &frames_sp->out_vf;
+	frame_sp->info.res.width	= css_queue_vf->fmt.mpix.width;
+	frame_sp->info.res.height	= css_queue_vf->fmt.mpix.height;
+	frame_sp->info.padded_width	= css_queue_vf->width_pad;
+	frame_sp->info.format		= css_queue_vf->css_fmt->frame_format;
+	frame_sp->info.raw_bit_depth	= css_queue_vf->css_fmt->bit_depth;
+	frame_sp->info.raw_bayer_order	= css_queue_vf->css_fmt->bayer_order;
+	frame_sp->info.raw_type		= IMGU_ABI_RAW_TYPE_BAYER;
+	frame_sp->planes.yuv.u.offset	= css_queue_vf->width_pad *
+					  css_queue_vf->fmt.mpix.height;
+	frame_sp->planes.yuv.v.offset	= css_queue_vf->width_pad *
+					  css_queue_vf->fmt.mpix.height * 5 / 4;
+	frame_sp->buf_attr.buf_src.queue_id = IMGU_ABI_QUEUE_E_ID;
+	frame_sp->buf_attr.buf_type	= IMGU_ABI_BUFFER_TYPE_VF_OUTPUT_FRAME;
 
-	sp_stage->frames.s3a_buf.buf_src.queue_id = IMGU_ABI_QUEUE_F_ID;
-	sp_stage->frames.s3a_buf.buf_type = IMGU_ABI_BUFFER_TYPE_3A_STATISTICS;
+	frames_sp->s3a_buf.buf_src.queue_id = IMGU_ABI_QUEUE_F_ID;
+	frames_sp->s3a_buf.buf_type	= IMGU_ABI_BUFFER_TYPE_3A_STATISTICS;
 
-	sp_stage->frames.dvs_buf.buf_src.queue_id = IMGU_ABI_QUEUE_G_ID;
-	sp_stage->frames.dvs_buf.buf_type = IMGU_ABI_BUFFER_TYPE_DIS_STATISTICS;
+	frames_sp->dvs_buf.buf_src.queue_id = IMGU_ABI_QUEUE_G_ID;
+	frames_sp->dvs_buf.buf_type	= IMGU_ABI_BUFFER_TYPE_DIS_STATISTICS;
 
-	sp_stage->dvs_envelope.width = css_pipe->rect[IPU3_CSS_RECT_ENVELOPE].width;
+	sp_stage->dvs_envelope.width =
+				css_pipe->rect[IPU3_CSS_RECT_ENVELOPE].width;
 	sp_stage->dvs_envelope.height =
 				css_pipe->rect[IPU3_CSS_RECT_ENVELOPE].height;
 

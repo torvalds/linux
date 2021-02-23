@@ -111,7 +111,7 @@ int kvm_coalesced_mmio_init(struct kvm *kvm)
 {
 	struct page *page;
 
-	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (!page)
 		return -ENOMEM;
 

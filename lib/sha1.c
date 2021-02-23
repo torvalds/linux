@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/bitops.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
 #include <asm/unaligned.h>
 
 /*

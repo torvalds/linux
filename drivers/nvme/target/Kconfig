@@ -24,7 +24,7 @@ config NVME_TARGET_PASSTHRU
 	  This enables target side NVMe passthru controller support for the
 	  NVMe Over Fabrics protocol. It allows for hosts to manage and
 	  directly access an actual NVMe controller residing on the target
-	  side, incuding executing Vendor Unique Commands.
+	  side, including executing Vendor Unique Commands.
 
 	  If unsure, say N.
 

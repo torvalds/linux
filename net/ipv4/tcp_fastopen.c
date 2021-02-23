@@ -295,7 +295,7 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 	refcount_set(&req->rsk_refcnt, 2);
 
 	/* Now finish processing the fastopen child socket. */
-	tcp_init_transfer(child, BPF_SOCK_OPS_PASSIVE_ESTABLISHED_CB);
+	tcp_init_transfer(child, BPF_SOCK_OPS_PASSIVE_ESTABLISHED_CB, skb);
 
 	tp->rcv_nxt = TCP_SKB_CB(skb)->seq + 1;
 

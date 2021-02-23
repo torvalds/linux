@@ -11,7 +11,8 @@
 #include <linux/mailbox/mtk-cmdq-mailbox.h>
 #include <linux/timer.h>
 
-#define CMDQ_NO_TIMEOUT		0xffffffffu
+#define CMDQ_ADDR_HIGH(addr)	((u32)(((addr) >> 16) & GENMASK(31, 0)))
+#define CMDQ_ADDR_LOW(addr)	((u16)(addr) | BIT(1))
 
 struct cmdq_pkt;
 
@@ -22,12 +23,8 @@ struct cmdq_client_reg {
 };
 
 struct cmdq_client {
-	spinlock_t lock;
-	u32 pkt_cnt;
 	struct mbox_client client;
 	struct mbox_chan *chan;
-	struct timer_list timer;
-	u32 timeout_ms; /* in unit of microsecond */
 };
 
 /**
@@ -49,13 +46,10 @@ int cmdq_dev_get_client_reg(struct device *dev,
  * cmdq_mbox_create() - create CMDQ mailbox client and channel
  * @dev:	device of CMDQ mailbox client
  * @index:	index of CMDQ mailbox channel
- * @timeout:	timeout of a pkt execution by GCE, in unit of microsecond, set
- *		CMDQ_NO_TIMEOUT if a timer is not used.
  *
  * Return: CMDQ mailbox client pointer
  */
-struct cmdq_client *cmdq_mbox_create(struct device *dev, int index,
-				     u32 timeout);
+struct cmdq_client *cmdq_mbox_create(struct device *dev, int index);
 
 /**
  * cmdq_mbox_destroy() - destroy CMDQ mailbox client and channel
@@ -102,14 +96,90 @@ int cmdq_pkt_write(struct cmdq_pkt *pkt, u8 subsys, u16 offset, u32 value);
 int cmdq_pkt_write_mask(struct cmdq_pkt *pkt, u8 subsys,
 			u16 offset, u32 value, u32 mask);
 
-/**
- * cmdq_pkt_wfe() - append wait for event command to the CMDQ packet
+/*
+ * cmdq_pkt_read_s() - append read_s command to the CMDQ packet
  * @pkt:	the CMDQ packet
- * @event:	the desired event type to "wait and CLEAR"
+ * @high_addr_reg_idx:	internal register ID which contains high address of pa
+ * @addr_low:	low address of pa
+ * @reg_idx:	the CMDQ internal register ID to cache read data
  *
  * Return: 0 for success; else the error code is returned
  */
-int cmdq_pkt_wfe(struct cmdq_pkt *pkt, u16 event);
+int cmdq_pkt_read_s(struct cmdq_pkt *pkt, u16 high_addr_reg_idx, u16 addr_low,
+		    u16 reg_idx);
+
+/**
+ * cmdq_pkt_write_s() - append write_s command to the CMDQ packet
+ * @pkt:	the CMDQ packet
+ * @high_addr_reg_idx:	internal register ID which contains high address of pa
+ * @addr_low:	low address of pa
+ * @src_reg_idx:	the CMDQ internal register ID which cache source value
+ *
+ * Return: 0 for success; else the error code is returned
+ *
+ * Support write value to physical address without subsys. Use CMDQ_ADDR_HIGH()
+ * to get high address and call cmdq_pkt_assign() to assign value into internal
+ * reg. Also use CMDQ_ADDR_LOW() to get low address for addr_low parameter when
+ * call to this function.
+ */
+int cmdq_pkt_write_s(struct cmdq_pkt *pkt, u16 high_addr_reg_idx,
+		     u16 addr_low, u16 src_reg_idx);
+
+/**
+ * cmdq_pkt_write_s_mask() - append write_s with mask command to the CMDQ packet
+ * @pkt:	the CMDQ packet
+ * @high_addr_reg_idx:	internal register ID which contains high address of pa
+ * @addr_low:	low address of pa
+ * @src_reg_idx:	the CMDQ internal register ID which cache source value
+ * @mask:	the specified target address mask, use U32_MAX if no need
+ *
+ * Return: 0 for success; else the error code is returned
+ *
+ * Support write value to physical address without subsys. Use CMDQ_ADDR_HIGH()
+ * to get high address and call cmdq_pkt_assign() to assign value into internal
+ * reg. Also use CMDQ_ADDR_LOW() to get low address for addr_low parameter when
+ * call to this function.
+ */
+int cmdq_pkt_write_s_mask(struct cmdq_pkt *pkt, u16 high_addr_reg_idx,
+			  u16 addr_low, u16 src_reg_idx, u32 mask);
+
+/**
+ * cmdq_pkt_write_s_value() - append write_s command to the CMDQ packet which
+ *			      write value to a physical address
+ * @pkt:	the CMDQ packet
+ * @high_addr_reg_idx:	internal register ID which contains high address of pa
+ * @addr_low:	low address of pa
+ * @value:	the specified target value
+ *
+ * Return: 0 for success; else the error code is returned
+ */
+int cmdq_pkt_write_s_value(struct cmdq_pkt *pkt, u8 high_addr_reg_idx,
+			   u16 addr_low, u32 value);
+
+/**
+ * cmdq_pkt_write_s_mask_value() - append write_s command with mask to the CMDQ
+ *				   packet which write value to a physical
+ *				   address
+ * @pkt:	the CMDQ packet
+ * @high_addr_reg_idx:	internal register ID which contains high address of pa
+ * @addr_low:	low address of pa
+ * @value:	the specified target value
+ * @mask:	the specified target mask
+ *
+ * Return: 0 for success; else the error code is returned
+ */
+int cmdq_pkt_write_s_mask_value(struct cmdq_pkt *pkt, u8 high_addr_reg_idx,
+				u16 addr_low, u32 value, u32 mask);
+
+/**
+ * cmdq_pkt_wfe() - append wait for event command to the CMDQ packet
+ * @pkt:	the CMDQ packet
+ * @event:	the desired event type to wait
+ * @clear:	clear event or not after event arrive
+ *
+ * Return: 0 for success; else the error code is returned
+ */
+int cmdq_pkt_wfe(struct cmdq_pkt *pkt, u16 event, bool clear);
 
 /**
  * cmdq_pkt_clear_event() - append clear event command to the CMDQ packet
@@ -174,6 +244,17 @@ int cmdq_pkt_poll_mask(struct cmdq_pkt *pkt, u8 subsys,
  * Return: 0 for success; else the error code is returned
  */
 int cmdq_pkt_assign(struct cmdq_pkt *pkt, u16 reg_idx, u32 value);
+
+/**
+ * cmdq_pkt_jump() - Append jump command to the CMDQ packet, ask GCE
+ *		     to execute an instruction that change current thread PC to
+ *		     a physical address which should contains more instruction.
+ * @pkt:        the CMDQ packet
+ * @addr:       physical address of target instruction buffer
+ *
+ * Return: 0 for success; else the error code is returned
+ */
+int cmdq_pkt_jump(struct cmdq_pkt *pkt, dma_addr_t addr);
 
 /**
  * cmdq_pkt_finalize() - Append EOC and jump command to pkt.

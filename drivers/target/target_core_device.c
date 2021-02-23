@@ -65,6 +65,16 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd)
 			atomic_long_add(se_cmd->data_length,
 					&deve->read_bytes);
 
+		if ((se_cmd->data_direction == DMA_TO_DEVICE) &&
+		    deve->lun_access_ro) {
+			pr_err("TARGET_CORE[%s]: Detected WRITE_PROTECTED LUN"
+				" Access for 0x%08llx\n",
+				se_cmd->se_tfo->fabric_name,
+				se_cmd->orig_fe_lun);
+			rcu_read_unlock();
+			return TCM_WRITE_PROTECTED;
+		}
+
 		se_lun = rcu_dereference(deve->se_lun);
 
 		if (!percpu_ref_tryget_live(&se_lun->lun_ref)) {
@@ -76,17 +86,6 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd)
 		se_cmd->pr_res_key = deve->pr_res_key;
 		se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
 		se_cmd->lun_ref_active = true;
-
-		if ((se_cmd->data_direction == DMA_TO_DEVICE) &&
-		    deve->lun_access_ro) {
-			pr_err("TARGET_CORE[%s]: Detected WRITE_PROTECTED LUN"
-				" Access for 0x%08llx\n",
-				se_cmd->se_tfo->fabric_name,
-				se_cmd->orig_fe_lun);
-			rcu_read_unlock();
-			ret = TCM_WRITE_PROTECTED;
-			goto ref_dev;
-		}
 	}
 out_unlock:
 	rcu_read_unlock();
@@ -106,21 +105,20 @@ out_unlock:
 			return TCM_NON_EXISTENT_LUN;
 		}
 
-		se_lun = se_sess->se_tpg->tpg_virt_lun0;
-		se_cmd->se_lun = se_sess->se_tpg->tpg_virt_lun0;
-		se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
-
-		percpu_ref_get(&se_lun->lun_ref);
-		se_cmd->lun_ref_active = true;
-
 		/*
 		 * Force WRITE PROTECT for virtual LUN 0
 		 */
 		if ((se_cmd->data_direction != DMA_FROM_DEVICE) &&
-		    (se_cmd->data_direction != DMA_NONE)) {
-			ret = TCM_WRITE_PROTECTED;
-			goto ref_dev;
-		}
+		    (se_cmd->data_direction != DMA_NONE))
+			return TCM_WRITE_PROTECTED;
+
+		se_lun = se_sess->se_tpg->tpg_virt_lun0;
+		if (!percpu_ref_tryget_live(&se_lun->lun_ref))
+			return TCM_NON_EXISTENT_LUN;
+
+		se_cmd->se_lun = se_sess->se_tpg->tpg_virt_lun0;
+		se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
+		se_cmd->lun_ref_active = true;
 	}
 	/*
 	 * RCU reference protected by percpu se_lun->lun_ref taken above that
@@ -128,7 +126,6 @@ out_unlock:
 	 * pointer can be kfree_rcu() by the final se_lun->lun_group put via
 	 * target_core_fabric_configfs.c:target_fabric_port_release
 	 */
-ref_dev:
 	se_cmd->se_dev = rcu_dereference_raw(se_lun->lun_se_dev);
 	atomic_long_inc(&se_cmd->se_dev->num_cmds);
 
@@ -724,10 +721,23 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 {
 	struct se_device *dev;
 	struct se_lun *xcopy_lun;
+	int i;
 
 	dev = hba->backend->ops->alloc_device(hba, name);
 	if (!dev)
 		return NULL;
+
+	dev->queues = kcalloc(nr_cpu_ids, sizeof(*dev->queues), GFP_KERNEL);
+	if (!dev->queues) {
+		dev->transport->free_device(dev);
+		return NULL;
+	}
+
+	dev->queue_cnt = nr_cpu_ids;
+	for (i = 0; i < dev->queue_cnt; i++) {
+		INIT_LIST_HEAD(&dev->queues[i].state_list);
+		spin_lock_init(&dev->queues[i].lock);
+	}
 
 	dev->se_hba = hba;
 	dev->transport = hba->backend->ops;
@@ -738,9 +748,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	INIT_LIST_HEAD(&dev->dev_sep_list);
 	INIT_LIST_HEAD(&dev->dev_tmr_list);
 	INIT_LIST_HEAD(&dev->delayed_cmd_list);
-	INIT_LIST_HEAD(&dev->state_list);
 	INIT_LIST_HEAD(&dev->qf_cmd_list);
-	spin_lock_init(&dev->execute_task_lock);
 	spin_lock_init(&dev->delayed_cmd_lock);
 	spin_lock_init(&dev->dev_reservation_lock);
 	spin_lock_init(&dev->se_port_lock);
@@ -1013,6 +1021,7 @@ void target_free_device(struct se_device *dev)
 	if (dev->transport->free_prot)
 		dev->transport->free_prot(dev);
 
+	kfree(dev->queues);
 	dev->transport->free_device(dev);
 }
 

@@ -68,7 +68,7 @@ config CHELSIO_T3
 
 config CHELSIO_T4
 	tristate "Chelsio Communications T4/T5/T6 Ethernet support"
-	depends on PCI && (IPV6 || IPV6=n)
+	depends on PCI && (IPV6 || IPV6=n) && (TLS || TLS=n)
 	select FW_LOADER
 	select MDIO
 	select ZLIB_DEFLATE
@@ -133,5 +133,7 @@ config CHELSIO_LIB
 	tristate
 	help
 	Common library for Chelsio drivers.
+
+source "drivers/net/ethernet/chelsio/inline_crypto/Kconfig"
 
 endif # NET_VENDOR_CHELSIO

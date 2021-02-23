@@ -6,6 +6,7 @@
 config MLX5_CORE
 	tristate "Mellanox 5th generation network adapters (ConnectX series) core driver"
 	depends on PCI
+	select AUXILIARY_BUS
 	select NET_DEVLINK
 	depends on VXLAN || !VXLAN
 	depends on MLXFW || !MLXFW
@@ -198,6 +199,7 @@ config MLX5_EN_TLS
 config MLX5_SW_STEERING
 	bool "Mellanox Technologies software-managed steering"
 	depends on MLX5_CORE_EN && MLX5_ESWITCH
+	select CRC32
 	default y
 	help
 	Build support for software-managed steering in the NIC.

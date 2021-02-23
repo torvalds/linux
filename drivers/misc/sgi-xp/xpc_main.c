@@ -3,6 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
+ * (C) Copyright 2020 Hewlett Packard Enterprise Development LP
  * Copyright (c) 2004-2009 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
@@ -178,7 +179,7 @@ xpc_timeout_partition_disengage(struct timer_list *t)
 
 	DBUG_ON(time_is_after_jiffies(part->disengage_timeout));
 
-	(void)xpc_partition_disengaged(part);
+	xpc_partition_disengaged_from_timer(part);
 
 	DBUG_ON(part->disengage_timeout != 0);
 	DBUG_ON(xpc_arch_ops.partition_engaged(XPC_PARTID(part)));
@@ -1043,7 +1044,7 @@ xpc_do_exit(enum xp_retval reason)
 
 	xpc_teardown_partitions();
 
-	if (is_uv())
+	if (is_uv_system())
 		xpc_exit_uv();
 }
 
@@ -1226,7 +1227,7 @@ xpc_init(void)
 	dev_set_name(xpc_part, "part");
 	dev_set_name(xpc_chan, "chan");
 
-	if (is_uv()) {
+	if (is_uv_system()) {
 		ret = xpc_init_uv();
 
 	} else {
@@ -1312,7 +1313,7 @@ out_2:
 
 	xpc_teardown_partitions();
 out_1:
-	if (is_uv())
+	if (is_uv_system())
 		xpc_exit_uv();
 	return ret;
 }

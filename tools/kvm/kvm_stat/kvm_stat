@@ -742,7 +742,11 @@ class DebugfsProvider(Provider):
         The fields are all available KVM debugfs files
 
         """
-        return self.walkdir(PATH_DEBUGFS_KVM)[2]
+        exempt_list = ['halt_poll_fail_ns', 'halt_poll_success_ns']
+        fields = [field for field in self.walkdir(PATH_DEBUGFS_KVM)[2]
+                  if field not in exempt_list]
+
+        return fields
 
     def update_fields(self, fields_filter):
         """Refresh fields, applying fields_filter"""

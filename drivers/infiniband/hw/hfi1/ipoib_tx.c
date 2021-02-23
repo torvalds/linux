@@ -121,7 +121,7 @@ static void hfi1_ipoib_free_tx(struct ipoib_txreq *tx, int budget)
 	struct hfi1_ipoib_dev_priv *priv = tx->priv;
 
 	if (likely(!tx->sdma_status)) {
-		hfi1_ipoib_update_tx_netstats(priv, 1, tx->skb->len);
+		dev_sw_netstats_tx_add(priv->netdev, 1, tx->skb->len);
 	} else {
 		++priv->netdev->stats.tx_errors;
 		dd_dev_warn(priv->dd,

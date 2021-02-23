@@ -22,7 +22,7 @@
  * special section.
  */
 static const struct of_device_id
-irqchip_of_match_end __used __section(__irqchip_of_table_end);
+irqchip_of_match_end __used __section("__irqchip_of_table_end");
 
 extern struct of_device_id __irqchip_of_table[];
 

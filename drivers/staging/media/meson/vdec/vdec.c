@@ -841,13 +841,7 @@ static int m2m_queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->min_buffers_needed = 1;
 	dst_vq->dev = sess->core->dev;
 	dst_vq->lock = &sess->lock;
-	ret = vb2_queue_init(dst_vq);
-	if (ret) {
-		vb2_queue_release(src_vq);
-		return ret;
-	}
-
-	return 0;
+	return vb2_queue_init(dst_vq);
 }
 
 static int vdec_init_ctrls(struct amvdec_session *sess)
@@ -1137,6 +1131,6 @@ static struct platform_driver meson_vdec_driver = {
 };
 module_platform_driver(meson_vdec_driver);
 
-MODULE_DESCRIPTION("Meson video decoder driver for GXBB/GXL/GXM");
+MODULE_DESCRIPTION("Meson video decoder driver for GXBB/GXL/GXM/G12/SM1");
 MODULE_AUTHOR("Maxime Jourdan <mjourdan@baylibre.com>");
 MODULE_LICENSE("GPL");

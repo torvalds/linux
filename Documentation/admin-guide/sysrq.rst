@@ -79,6 +79,8 @@ On all
 
 		echo t > /proc/sysrq-trigger
 
+The :kbd:`<command key>` is case sensitive.
+
 What are the 'command' keys?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

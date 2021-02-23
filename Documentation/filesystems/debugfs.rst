@@ -199,7 +199,7 @@ of its elements. Note: Once array is created its size can not be changed.
 
 There is a helper function to create device related seq_file::
 
-   struct dentry *debugfs_create_devm_seqfile(struct device *dev,
+   void debugfs_create_devm_seqfile(struct device *dev,
 				const char *name,
 				struct dentry *parent,
 				int (*read_fn)(struct seq_file *s,

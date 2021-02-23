@@ -32,12 +32,13 @@ static void vma_clear_pages(struct i915_vma *vma)
 	vma->pages = NULL;
 }
 
-static int vma_bind(struct i915_address_space *vm,
-		    struct i915_vma *vma,
-		    enum i915_cache_level cache_level,
-		    u32 flags)
+static void vma_bind(struct i915_address_space *vm,
+		     struct i915_vm_pt_stash *stash,
+		     struct i915_vma *vma,
+		     enum i915_cache_level cache_level,
+		     u32 flags)
 {
-	return vm->vma_ops.bind_vma(vm, vma, cache_level, flags);
+	vm->vma_ops.bind_vma(vm, stash, vma, cache_level, flags);
 }
 
 static void vma_unbind(struct i915_address_space *vm, struct i915_vma *vma)
@@ -157,6 +158,7 @@ static void clear_pages_worker(struct work_struct *work)
 	struct clear_pages_work *w = container_of(work, typeof(*w), work);
 	struct drm_i915_gem_object *obj = w->sleeve->vma->obj;
 	struct i915_vma *vma = w->sleeve->vma;
+	struct i915_gem_ww_ctx ww;
 	struct i915_request *rq;
 	struct i915_vma *batch;
 	int err = w->dma.error;
@@ -172,17 +174,20 @@ static void clear_pages_worker(struct work_struct *work)
 	obj->read_domains = I915_GEM_GPU_DOMAINS;
 	obj->write_domain = 0;
 
-	err = i915_vma_pin(vma, 0, 0, PIN_USER);
-	if (unlikely(err))
+	i915_gem_ww_ctx_init(&ww, false);
+	intel_engine_pm_get(w->ce->engine);
+retry:
+	err = intel_context_pin_ww(w->ce, &ww);
+	if (err)
 		goto out_signal;
 
-	batch = intel_emit_vma_fill_blt(w->ce, vma, w->value);
+	batch = intel_emit_vma_fill_blt(w->ce, vma, &ww, w->value);
 	if (IS_ERR(batch)) {
 		err = PTR_ERR(batch);
-		goto out_unpin;
+		goto out_ctx;
 	}
 
-	rq = intel_context_create_request(w->ce);
+	rq = i915_request_create(w->ce);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto out_batch;
@@ -197,12 +202,6 @@ static void clear_pages_worker(struct work_struct *work)
 	if (unlikely(err))
 		goto out_request;
 
-	if (w->ce->engine->emit_init_breadcrumb) {
-		err = w->ce->engine->emit_init_breadcrumb(rq);
-		if (unlikely(err))
-			goto out_request;
-	}
-
 	/*
 	 * w->dma is already exported via (vma|obj)->resv we need only
 	 * keep track of the GPU activity within this vma/request, and
@@ -212,9 +211,15 @@ static void clear_pages_worker(struct work_struct *work)
 	if (err)
 		goto out_request;
 
-	err = w->ce->engine->emit_bb_start(rq,
-					   batch->node.start, batch->node.size,
-					   0);
+	if (rq->engine->emit_init_breadcrumb) {
+		err = rq->engine->emit_init_breadcrumb(rq);
+		if (unlikely(err))
+			goto out_request;
+	}
+
+	err = rq->engine->emit_bb_start(rq,
+					batch->node.start, batch->node.size,
+					0);
 out_request:
 	if (unlikely(err)) {
 		i915_request_set_error_once(rq, err);
@@ -224,14 +229,62 @@ out_request:
 	i915_request_add(rq);
 out_batch:
 	intel_emit_vma_release(w->ce, batch);
-out_unpin:
-	i915_vma_unpin(vma);
+out_ctx:
+	intel_context_unpin(w->ce);
 out_signal:
+	if (err == -EDEADLK) {
+		err = i915_gem_ww_ctx_backoff(&ww);
+		if (!err)
+			goto retry;
+	}
+	i915_gem_ww_ctx_fini(&ww);
+
+	i915_vma_unpin(w->sleeve->vma);
+	intel_engine_pm_put(w->ce->engine);
+
 	if (unlikely(err)) {
 		dma_fence_set_error(&w->dma, err);
 		dma_fence_signal(&w->dma);
 		dma_fence_put(&w->dma);
 	}
+}
+
+static int pin_wait_clear_pages_work(struct clear_pages_work *w,
+				     struct intel_context *ce)
+{
+	struct i915_vma *vma = w->sleeve->vma;
+	struct i915_gem_ww_ctx ww;
+	int err;
+
+	i915_gem_ww_ctx_init(&ww, false);
+retry:
+	err = i915_gem_object_lock(vma->obj, &ww);
+	if (err)
+		goto out;
+
+	err = i915_vma_pin_ww(vma, &ww, 0, 0, PIN_USER);
+	if (unlikely(err))
+		goto out;
+
+	err = i915_sw_fence_await_reservation(&w->wait,
+					      vma->obj->base.resv, NULL,
+					      true, 0, I915_FENCE_GFP);
+	if (err)
+		goto err_unpin_vma;
+
+	dma_resv_add_excl_fence(vma->obj->base.resv, &w->dma);
+
+err_unpin_vma:
+	if (err)
+		i915_vma_unpin(vma);
+out:
+	if (err == -EDEADLK) {
+		err = i915_gem_ww_ctx_backoff(&ww);
+		if (!err)
+			goto retry;
+	}
+	i915_gem_ww_ctx_fini(&ww);
+	return err;
 }
 
 static int __i915_sw_fence_call
@@ -287,17 +340,9 @@ int i915_gem_schedule_fill_pages_blt(struct drm_i915_gem_object *obj,
 	dma_fence_init(&work->dma, &clear_pages_work_ops, &fence_lock, 0, 0);
 	i915_sw_fence_init(&work->wait, clear_pages_work_notify);
 
-	i915_gem_object_lock(obj);
-	err = i915_sw_fence_await_reservation(&work->wait,
-					      obj->base.resv, NULL, true, 0,
-					      I915_FENCE_GFP);
-	if (err < 0) {
+	err = pin_wait_clear_pages_work(work, ce);
+	if (err < 0)
 		dma_fence_set_error(&work->dma, err);
-	} else {
-		dma_resv_add_excl_fence(obj->base.resv, &work->dma);
-		err = 0;
-	}
-	i915_gem_object_unlock(obj);
 
 	dma_fence_get(&work->dma);
 	i915_sw_fence_commit(&work->wait);

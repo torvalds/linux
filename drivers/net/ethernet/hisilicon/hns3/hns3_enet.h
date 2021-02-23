@@ -18,6 +18,7 @@ enum hns3_nic_state {
 	HNS3_NIC_STATE_SERVICE_INITED,
 	HNS3_NIC_STATE_SERVICE_SCHED,
 	HNS3_NIC_STATE2_RESET_REQUESTED,
+	HNS3_NIC_STATE_HW_TX_CSUM_ENABLE,
 	HNS3_NIC_STATE_MAX
 };
 
@@ -42,12 +43,9 @@ enum hns3_nic_state {
 #define HNS3_RING_TX_RING_PKTNUM_RECORD_REG	0x0006C
 #define HNS3_RING_TX_RING_EBD_OFFSET_REG	0x00070
 #define HNS3_RING_TX_RING_BD_ERR_REG		0x00074
-#define HNS3_RING_PREFETCH_EN_REG		0x0007C
-#define HNS3_RING_CFG_VF_NUM_REG		0x00080
-#define HNS3_RING_ASID_REG			0x0008C
 #define HNS3_RING_EN_REG			0x00090
-
-#define HNS3_TX_REG_OFFSET			0x40
+#define HNS3_RING_RX_EN_REG			0x00098
+#define HNS3_RING_TX_EN_REG			0x000D4
 
 #define HNS3_RX_HEAD_SIZE			256
 
@@ -84,6 +82,12 @@ enum hns3_nic_state {
 #define HNS3_RXD_FRAG_B				12
 #define HNS3_RXD_STRP_TAGP_S			13
 #define HNS3_RXD_STRP_TAGP_M			(0x3 << HNS3_RXD_STRP_TAGP_S)
+
+#define HNS3_RXD_L2_CSUM_B			15
+#define HNS3_RXD_L2_CSUM_L_S			4
+#define HNS3_RXD_L2_CSUM_L_M			(0xff << HNS3_RXD_L2_CSUM_L_S)
+#define HNS3_RXD_L2_CSUM_H_S			24
+#define HNS3_RXD_L2_CSUM_H_M			(0xff << HNS3_RXD_L2_CSUM_H_S)
 
 #define HNS3_RXD_L2E_B				16
 #define HNS3_RXD_L3E_B				17
@@ -142,12 +146,18 @@ enum hns3_nic_state {
 #define HNS3_TXD_L4LEN_S			24
 #define HNS3_TXD_L4LEN_M			(0xff << HNS3_TXD_L4LEN_S)
 
+#define HNS3_TXD_CSUM_START_S		8
+#define HNS3_TXD_CSUM_START_M		(0xffff << HNS3_TXD_CSUM_START_S)
+
 #define HNS3_TXD_OL3T_S				0
 #define HNS3_TXD_OL3T_M				(0x3 << HNS3_TXD_OL3T_S)
 #define HNS3_TXD_OVLAN_B			2
 #define HNS3_TXD_MACSEC_B			3
 #define HNS3_TXD_TUNTYPE_S			4
 #define HNS3_TXD_TUNTYPE_M			(0xf << HNS3_TXD_TUNTYPE_S)
+
+#define HNS3_TXD_CSUM_OFFSET_S		8
+#define HNS3_TXD_CSUM_OFFSET_M		(0xffff << HNS3_TXD_CSUM_OFFSET_S)
 
 #define HNS3_TXD_BDTYPE_S			0
 #define HNS3_TXD_BDTYPE_M			(0xf << HNS3_TXD_BDTYPE_S)
@@ -162,8 +172,11 @@ enum hns3_nic_state {
 #define HNS3_TXD_DECTTL_S			12
 #define HNS3_TXD_DECTTL_M			(0xf << HNS3_TXD_DECTTL_S)
 
+#define HNS3_TXD_OL4CS_B			22
+
 #define HNS3_TXD_MSS_S				0
 #define HNS3_TXD_MSS_M				(0x3fff << HNS3_TXD_MSS_S)
+#define HNS3_TXD_HW_CS_B			14
 
 #define HNS3_VECTOR_TX_IRQ			BIT_ULL(0)
 #define HNS3_VECTOR_RX_IRQ			BIT_ULL(1)
@@ -172,19 +185,20 @@ enum hns3_nic_state {
 #define HNS3_VECTOR_INITED			1
 
 #define HNS3_MAX_BD_SIZE			65535
-#define HNS3_MAX_NON_TSO_BD_NUM			8U
 #define HNS3_MAX_TSO_BD_NUM			63U
 #define HNS3_MAX_TSO_SIZE \
 	(HNS3_MAX_BD_SIZE * HNS3_MAX_TSO_BD_NUM)
 
-#define HNS3_MAX_NON_TSO_SIZE \
-	(HNS3_MAX_BD_SIZE * HNS3_MAX_NON_TSO_BD_NUM)
+#define HNS3_MAX_NON_TSO_SIZE(max_non_tso_bd_num) \
+	(HNS3_MAX_BD_SIZE * (max_non_tso_bd_num))
 
 #define HNS3_VECTOR_GL0_OFFSET			0x100
 #define HNS3_VECTOR_GL1_OFFSET			0x200
 #define HNS3_VECTOR_GL2_OFFSET			0x300
 #define HNS3_VECTOR_RL_OFFSET			0x900
 #define HNS3_VECTOR_RL_EN_B			6
+#define HNS3_VECTOR_TX_QL_OFFSET		0xe00
+#define HNS3_VECTOR_RX_QL_OFFSET		0xf00
 
 #define HNS3_RING_EN_B				0
 
@@ -252,9 +266,9 @@ struct __packed hns3_desc {
 			};
 		};
 
-			__le32 paylen;
+			__le32 paylen_ol4cs;
 			__le16 bdtp_fe_sc_vld_ra_ri;
-			__le16 mss;
+			__le16 mss_hw_csum;
 		} tx;
 
 		struct {
@@ -292,6 +306,7 @@ struct hns3_desc_cb {
 
 	/* desc type, used by the ring user to mark the type of the priv data */
 	u16 type;
+	u16 pagecnt_bias;
 };
 
 enum hns3_pkt_l3type {
@@ -348,14 +363,13 @@ enum hns3_pkt_ol4type {
 };
 
 struct ring_stats {
-	u64 io_err_cnt;
 	u64 sw_err_cnt;
 	u64 seg_pkt_cnt;
 	union {
 		struct {
 			u64 tx_pkts;
 			u64 tx_bytes;
-			u64 tx_err_cnt;
+			u64 tx_more;
 			u64 restart_queue;
 			u64 tx_busy;
 			u64 tx_copy;
@@ -373,6 +387,7 @@ struct ring_stats {
 			u64 err_bd_num;
 			u64 l2_err;
 			u64 l3l4_csum_err;
+			u64 csum_complete;
 			u64 rx_multicast;
 			u64 non_reuse_pg;
 		};
@@ -380,7 +395,6 @@ struct ring_stats {
 };
 
 struct hns3_enet_ring {
-	u8 __iomem *io_base; /* base io address for the ring */
 	struct hns3_desc *desc; /* dma map address space */
 	struct hns3_desc_cb *desc_cb;
 	struct hns3_enet_ring *next;
@@ -402,8 +416,10 @@ struct hns3_enet_ring {
 	 * next_to_use
 	 */
 	int next_to_clean;
-
-	u32 pull_len; /* head length for current packet */
+	union {
+		int last_to_use;	/* last idx used by xmit */
+		u32 pull_len;		/* memcpy len for current rx packet */
+	};
 	u32 frag_num;
 	void *va; /* first buffer address for current packet */
 
@@ -421,18 +437,25 @@ enum hns3_flow_level_range {
 	HNS3_FLOW_ULTRA = 3,
 };
 
-#define HNS3_INT_GL_MAX			0x1FE0
 #define HNS3_INT_GL_50K			0x0014
 #define HNS3_INT_GL_20K			0x0032
 #define HNS3_INT_GL_18K			0x0036
 #define HNS3_INT_GL_8K			0x007C
 
+#define HNS3_INT_GL_1US			BIT(31)
+
 #define HNS3_INT_RL_MAX			0x00EC
 #define HNS3_INT_RL_ENABLE_MASK		0x40
 
+#define HNS3_INT_QL_DEFAULT_CFG		0x20
+
 struct hns3_enet_coalesce {
 	u16 int_gl;
-	u8 gl_adapt_enable;
+	u16 int_ql;
+	u16 int_ql_max;
+	u8 adapt_enable:1;
+	u8 ql_enable:1;
+	u8 unit_1us:1;
 	enum hns3_flow_level_range flow_level;
 };
 
@@ -479,6 +502,7 @@ struct hns3_nic_priv {
 	struct hns3_enet_ring *ring;
 	struct hns3_enet_tqp_vector *tqp_vector;
 	u16 vector_num;
+	u8 max_non_tso_bd_num;
 
 	u64 tx_timeout_count;
 
@@ -518,11 +542,6 @@ static inline int ring_space(struct hns3_enet_ring *ring)
 			(begin - end)) - 1;
 }
 
-static inline int is_ring_empty(struct hns3_enet_ring *ring)
-{
-	return ring->next_to_use == ring->next_to_clean;
-}
-
 static inline u32 hns3_read_reg(void __iomem *base, u32 reg)
 {
 	return readl(base + reg);
@@ -547,9 +566,6 @@ static inline bool hns3_nic_resetting(struct net_device *netdev)
 
 #define hns3_write_dev(a, reg, value) \
 	hns3_write_reg((a)->io_base, (reg), (value))
-
-#define hnae3_queue_xmit(tqp, buf_num) writel_relaxed(buf_num, \
-		(tqp)->io_base + HNS3_RING_TX_RING_TAIL_REG)
 
 #define ring_to_dev(ring) ((ring)->dev)
 
@@ -588,7 +604,7 @@ void hns3_ethtool_set_ops(struct net_device *netdev);
 int hns3_set_channels(struct net_device *netdev,
 		      struct ethtool_channels *ch);
 
-void hns3_clean_tx_ring(struct hns3_enet_ring *ring);
+void hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget);
 int hns3_init_all_ring(struct hns3_nic_priv *priv);
 int hns3_uninit_all_ring(struct hns3_nic_priv *priv);
 int hns3_nic_reset_all_ring(struct hnae3_handle *h);
@@ -605,9 +621,12 @@ void hns3_set_vector_coalesce_tx_gl(struct hns3_enet_tqp_vector *tqp_vector,
 				    u32 gl_value);
 void hns3_set_vector_coalesce_rl(struct hns3_enet_tqp_vector *tqp_vector,
 				 u32 rl_value);
+void hns3_set_vector_coalesce_rx_ql(struct hns3_enet_tqp_vector *tqp_vector,
+				    u32 ql_value);
+void hns3_set_vector_coalesce_tx_ql(struct hns3_enet_tqp_vector *tqp_vector,
+				    u32 ql_value);
 
 void hns3_enable_vlan_filter(struct net_device *netdev, bool enable);
-int hns3_update_promisc_mode(struct net_device *netdev, u8 promisc_flags);
 void hns3_request_update_promisc_mode(struct hnae3_handle *handle);
 
 #ifdef CONFIG_HNS3_DCB

@@ -206,7 +206,7 @@ static ssize_t reset_store(struct device *dev,
 	 * each trace run.
 	 */
 	config->vinst_ctrl = BIT(0);
-	if (drvdata->nr_addr_cmp == true) {
+	if (drvdata->nr_addr_cmp > 0) {
 		config->mode |= ETM_MODE_VIEWINST_STARTSTOP;
 		/* SSSTATUS, bit[9] */
 		config->vinst_ctrl |= BIT(9);
@@ -236,7 +236,7 @@ static ssize_t reset_store(struct device *dev,
 	}
 
 	config->res_idx = 0x0;
-	for (i = 0; i < drvdata->nr_resource; i++)
+	for (i = 2; i < 2 * drvdata->nr_resource; i++)
 		config->res_ctrl[i] = 0x0;
 
 	config->ss_idx = 0x0;
@@ -1663,8 +1663,11 @@ static ssize_t res_idx_store(struct device *dev,
 
 	if (kstrtoul(buf, 16, &val))
 		return -EINVAL;
-	/* Resource selector pair 0 is always implemented and reserved */
-	if ((val == 0) || (val >= drvdata->nr_resource))
+	/*
+	 * Resource selector pair 0 is always implemented and reserved,
+	 * namely an idx with 0 and 1 is illegal.
+	 */
+	if ((val < 2) || (val >= 2 * drvdata->nr_resource))
 		return -EINVAL;
 
 	/*

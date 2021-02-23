@@ -11,13 +11,6 @@
 	#size-cells = <1>;
 	interrupt-parent = <&gic>;
 
-	L2: cache-controller@c4200000 {
-		compatible = "arm,pl310-cache";
-		reg = <0xc4200000 0x1000>;
-		cache-unified;
-		cache-level = <2>;
-	};
-
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -170,6 +163,13 @@
 					     <GIC_SPI 6 IRQ_TYPE_EDGE_RISING>,
 					     <GIC_SPI 29 IRQ_TYPE_EDGE_RISING>;
 			};
+		};
+
+		L2: cache-controller@c4200000 {
+			compatible = "arm,pl310-cache";
+			reg = <0xc4200000 0x1000>;
+			cache-unified;
+			cache-level = <2>;
 		};
 
 		periph: bus@c4300000 {

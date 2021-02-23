@@ -68,6 +68,8 @@ static int context_sync(struct intel_context *ce)
 	} while (!err);
 	mutex_unlock(&tl->mutex);
 
+	/* Wait for all barriers to complete (remote CPU) before we check */
+	i915_active_unlock_wait(&ce->active);
 	return err;
 }
 

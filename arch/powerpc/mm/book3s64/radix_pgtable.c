@@ -34,7 +34,7 @@
 
 unsigned int mmu_pid_bits;
 unsigned int mmu_base_pid;
-unsigned int radix_mem_block_size __ro_after_init;
+unsigned long radix_mem_block_size __ro_after_init;
 
 static __ref void *early_alloc_pgtable(unsigned long size, int nid,
 			unsigned long region_start, unsigned long region_end)
@@ -276,6 +276,7 @@ static int __meminit create_physical_mapping(unsigned long start,
 	int psize;
 
 	start = ALIGN(start, PAGE_SIZE);
+	end   = ALIGN_DOWN(end, PAGE_SIZE);
 	for (addr = start; addr < end; addr += mapping_size) {
 		unsigned long gap, previous_size;
 		int rc;
@@ -329,7 +330,8 @@ static int __meminit create_physical_mapping(unsigned long start,
 static void __init radix_init_pgtable(void)
 {
 	unsigned long rts_field;
-	struct memblock_region *reg;
+	phys_addr_t start, end;
+	u64 i;
 
 	/* We don't support slb for radix */
 	mmu_slb_size = 0;
@@ -337,20 +339,19 @@ static void __init radix_init_pgtable(void)
 	/*
 	 * Create the linear mapping
 	 */
-	for_each_memblock(memory, reg) {
+	for_each_mem_range(i, &start, &end) {
 		/*
 		 * The memblock allocator  is up at this point, so the
 		 * page tables will be allocated within the range. No
 		 * need or a node (which we don't have yet).
 		 */
 
-		if ((reg->base + reg->size) >= RADIX_VMALLOC_START) {
+		if (end >= RADIX_VMALLOC_START) {
 			pr_warn("Outside the supported range\n");
 			continue;
 		}
 
-		WARN_ON(create_physical_mapping(reg->base,
-						reg->base + reg->size,
+		WARN_ON(create_physical_mapping(start, end,
 						radix_mem_block_size,
 						-1, PAGE_KERNEL));
 	}
@@ -497,7 +498,7 @@ static int __init probe_memory_block_size(unsigned long node, const char *uname,
 					  depth, void *data)
 {
 	unsigned long *mem_block_size = (unsigned long *)data;
-	const __be64 *prop;
+	const __be32 *prop;
 	int len;
 
 	if (depth != 1)
@@ -507,13 +508,14 @@ static int __init probe_memory_block_size(unsigned long node, const char *uname,
 		return 0;
 
 	prop = of_get_flat_dt_prop(node, "ibm,lmb-size", &len);
-	if (!prop || len < sizeof(__be64))
+
+	if (!prop || len < dt_root_size_cells * sizeof(__be32))
 		/*
 		 * Nothing in the device tree
 		 */
 		*mem_block_size = MIN_MEMORY_BLOCK_SIZE;
 	else
-		*mem_block_size = be64_to_cpup(prop);
+		*mem_block_size = of_read_number(prop, dt_root_size_cells);
 	return 1;
 }
 
@@ -586,48 +588,6 @@ static void radix_init_amor(void)
 	*/
 	mtspr(SPRN_AMOR, (3ul << 62));
 }
-
-#ifdef CONFIG_PPC_KUEP
-void setup_kuep(bool disabled)
-{
-	if (disabled || !early_radix_enabled())
-		return;
-
-	if (smp_processor_id() == boot_cpuid) {
-		pr_info("Activating Kernel Userspace Execution Prevention\n");
-		cur_cpu_spec->mmu_features |= MMU_FTR_KUEP;
-	}
-
-	/*
-	 * Radix always uses key0 of the IAMR to determine if an access is
-	 * allowed. We set bit 0 (IBM bit 1) of key0, to prevent instruction
-	 * fetch.
-	 */
-	mtspr(SPRN_IAMR, (1ul << 62));
-}
-#endif
-
-#ifdef CONFIG_PPC_KUAP
-void setup_kuap(bool disabled)
-{
-	if (disabled || !early_radix_enabled())
-		return;
-
-	if (smp_processor_id() == boot_cpuid) {
-		pr_info("Activating Kernel Userspace Access Prevention\n");
-		cur_cpu_spec->mmu_features |= MMU_FTR_RADIX_KUAP;
-	}
-
-	/* Make sure userspace can't change the AMR */
-	mtspr(SPRN_UAMOR, 0);
-
-	/*
-	 * Set the default kernel AMR values on all cpus.
-	 */
-	mtspr(SPRN_AMR, AMR_KUAP_BLOCKED);
-	isync();
-}
-#endif
 
 void __init radix__early_init_mmu(void)
 {
@@ -719,6 +679,9 @@ void radix__early_init_mmu_secondary(void)
 
 	radix__switch_mmu_context(NULL, &init_mm);
 	tlbiel_all();
+
+	/* Make sure userspace can't change the AMR */
+	mtspr(SPRN_UAMOR, 0);
 }
 
 void radix__mmu_cleanup_all(void)

@@ -356,7 +356,7 @@ static int sirfsoc_rtc_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	return rtc_register_device(rtcdrv->rtc);
+	return devm_rtc_register_device(rtcdrv->rtc);
 }
 
 #ifdef CONFIG_PM_SLEEP

@@ -240,7 +240,7 @@ static int a5xx_gpmu_init(struct msm_gpu *gpu)
 	OUT_PKT7(ring, CP_SET_PROTECTED_MODE, 1);
 	OUT_RING(ring, 1);
 
-	gpu->funcs->flush(gpu, ring);
+	a5xx_flush(gpu, ring, true);
 
 	if (!a5xx_idle(gpu, ring)) {
 		DRM_ERROR("%s: Unable to load GPMU firmware. GPMU will not be active\n",

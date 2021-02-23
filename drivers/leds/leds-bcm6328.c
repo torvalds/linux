@@ -328,6 +328,7 @@ static int bcm6328_led(struct device *dev, struct device_node *nc, u32 reg,
 		       void __iomem *mem, spinlock_t *lock,
 		       unsigned long *blink_leds, unsigned long *blink_delay)
 {
+	struct led_init_data init_data = {};
 	struct bcm6328_led *led;
 	const char *state;
 	int rc;
@@ -344,11 +345,6 @@ static int bcm6328_led(struct device *dev, struct device_node *nc, u32 reg,
 
 	if (of_property_read_bool(nc, "active-low"))
 		led->active_low = true;
-
-	led->cdev.name = of_get_property(nc, "label", NULL) ? : nc->name;
-	led->cdev.default_trigger = of_get_property(nc,
-						    "linux,default-trigger",
-						    NULL);
 
 	if (!of_property_read_string(nc, "default-state", &state)) {
 		if (!strcmp(state, "on")) {
@@ -382,8 +378,9 @@ static int bcm6328_led(struct device *dev, struct device_node *nc, u32 reg,
 
 	led->cdev.brightness_set = bcm6328_led_set;
 	led->cdev.blink_set = bcm6328_blink_set;
+	init_data.fwnode = of_fwnode_handle(nc);
 
-	rc = led_classdev_register(dev, &led->cdev);
+	rc = devm_led_classdev_register_ext(dev, &led->cdev, &init_data);
 	if (rc < 0)
 		return rc;
 
@@ -395,7 +392,7 @@ static int bcm6328_led(struct device *dev, struct device_node *nc, u32 reg,
 static int bcm6328_leds_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = dev_of_node(&pdev->dev);
 	struct device_node *child;
 	void __iomem *mem;
 	spinlock_t *lock; /* memory lock */

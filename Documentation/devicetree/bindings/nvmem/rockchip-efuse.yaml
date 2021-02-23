@@ -51,6 +51,8 @@ required:
   - clocks
   - clock-names
 
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/clock/rk3288-cru.h>

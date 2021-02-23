@@ -490,8 +490,6 @@ enum {
 	IDE_DFLAG_NOPROBE		= BIT(9),
 	/* need to do check_media_change() */
 	IDE_DFLAG_REMOVABLE		= BIT(10),
-	/* needed for removable devices */
-	IDE_DFLAG_ATTACH		= BIT(11),
 	IDE_DFLAG_FORCED_GEOM		= BIT(12),
 	/* disallow setting unmask bit */
 	IDE_DFLAG_NO_UNMASK		= BIT(13),
@@ -1494,9 +1492,6 @@ static inline void ide_acpi_init_port(ide_hwif_t *hwif) { ; }
 static inline void ide_acpi_port_init_devices(ide_hwif_t *hwif) { ; }
 static inline void ide_acpi_set_state(ide_hwif_t *hwif, int on) {}
 #endif
-
-void ide_register_region(struct gendisk *);
-void ide_unregister_region(struct gendisk *);
 
 void ide_check_nien_quirk_list(ide_drive_t *);
 void ide_undecoded_slave(ide_drive_t *);

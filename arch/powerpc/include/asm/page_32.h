@@ -16,12 +16,6 @@
 #define ARCH_DMA_MINALIGN	L1_CACHE_BYTES
 #endif
 
-#ifdef CONFIG_PTE_64BIT
-#define PTE_FLAGS_OFFSET	4	/* offset of PTE flags, in bytes */
-#else
-#define PTE_FLAGS_OFFSET	0
-#endif
-
 #if defined(CONFIG_PPC_256K_PAGES) || \
     (defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES))
 #define PTE_SHIFT	(PAGE_SHIFT - PTE_T_LOG2 - 2)	/* 1/4 of a page */

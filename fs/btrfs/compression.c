@@ -29,41 +29,6 @@
 #include "extent_io.h"
 #include "extent_map.h"
 
-int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
-		u64 start, struct page **pages, unsigned long *out_pages,
-		unsigned long *total_in, unsigned long *total_out);
-int zlib_decompress_bio(struct list_head *ws, struct compressed_bio *cb);
-int zlib_decompress(struct list_head *ws, unsigned char *data_in,
-		struct page *dest_page, unsigned long start_byte, size_t srclen,
-		size_t destlen);
-struct list_head *zlib_alloc_workspace(unsigned int level);
-void zlib_free_workspace(struct list_head *ws);
-struct list_head *zlib_get_workspace(unsigned int level);
-
-int lzo_compress_pages(struct list_head *ws, struct address_space *mapping,
-		u64 start, struct page **pages, unsigned long *out_pages,
-		unsigned long *total_in, unsigned long *total_out);
-int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb);
-int lzo_decompress(struct list_head *ws, unsigned char *data_in,
-		struct page *dest_page, unsigned long start_byte, size_t srclen,
-		size_t destlen);
-struct list_head *lzo_alloc_workspace(unsigned int level);
-void lzo_free_workspace(struct list_head *ws);
-
-int zstd_compress_pages(struct list_head *ws, struct address_space *mapping,
-		u64 start, struct page **pages, unsigned long *out_pages,
-		unsigned long *total_in, unsigned long *total_out);
-int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb);
-int zstd_decompress(struct list_head *ws, unsigned char *data_in,
-		struct page *dest_page, unsigned long start_byte, size_t srclen,
-		size_t destlen);
-void zstd_init_workspace_manager(void);
-void zstd_cleanup_workspace_manager(void);
-struct list_head *zstd_alloc_workspace(unsigned int level);
-void zstd_free_workspace(struct list_head *ws);
-struct list_head *zstd_get_workspace(unsigned int level);
-void zstd_put_workspace(struct list_head *ws);
-
 static const char* const btrfs_compress_types[] = { "", "zlib", "lzo", "zstd" };
 
 const char* btrfs_compress_type2str(enum btrfs_compression_type type)
@@ -166,10 +131,8 @@ static int btrfs_decompress_bio(struct compressed_bio *cb);
 static inline int compressed_bio_size(struct btrfs_fs_info *fs_info,
 				      unsigned long disk_size)
 {
-	u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
-
 	return sizeof(struct compressed_bio) +
-		(DIV_ROUND_UP(disk_size, fs_info->sectorsize)) * csum_size;
+		(DIV_ROUND_UP(disk_size, fs_info->sectorsize)) * fs_info->csum_size;
 }
 
 static int check_compressed_csum(struct btrfs_inode *inode, struct bio *bio,
@@ -177,7 +140,7 @@ static int check_compressed_csum(struct btrfs_inode *inode, struct bio *bio,
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
-	const u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
+	const u32 csum_size = fs_info->csum_size;
 	struct page *page;
 	unsigned long i;
 	char *kaddr;
@@ -185,7 +148,7 @@ static int check_compressed_csum(struct btrfs_inode *inode, struct bio *bio,
 	struct compressed_bio *cb = bio->bi_private;
 	u8 *cb_sum = cb->sums;
 
-	if (inode->flags & BTRFS_INODE_NODATASUM)
+	if (!fs_info->csum_root || (inode->flags & BTRFS_INODE_NODATASUM))
 		return 0;
 
 	shash->tfm = fs_info->csum_shash;
@@ -255,7 +218,7 @@ static void end_compressed_bio_read(struct bio *bio)
 
 	inode = cb->inode;
 	ret = check_compressed_csum(BTRFS_I(inode), bio,
-				    (u64)bio->bi_iter.bi_sector << 9);
+				    bio->bi_iter.bi_sector << 9);
 	if (ret)
 		goto csum_failed;
 
@@ -657,13 +620,12 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	unsigned long pg_index;
 	struct page *page;
 	struct bio *comp_bio;
-	u64 cur_disk_byte = (u64)bio->bi_iter.bi_sector << 9;
+	u64 cur_disk_byte = bio->bi_iter.bi_sector << 9;
 	u64 em_len;
 	u64 em_start;
 	struct extent_map *em;
 	blk_status_t ret = BLK_STS_RESOURCE;
 	int faili = 0;
-	const u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
 	u8 *sums;
 
 	em_tree = &BTRFS_I(inode)->extent_tree;
@@ -757,15 +719,12 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 			 */
 			refcount_inc(&cb->pending_bios);
 
-			if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
-				ret = btrfs_lookup_bio_sums(inode, comp_bio,
-							    (u64)-1, sums);
-				BUG_ON(ret); /* -ENOMEM */
-			}
+			ret = btrfs_lookup_bio_sums(inode, comp_bio, sums);
+			BUG_ON(ret); /* -ENOMEM */
 
 			nr_sectors = DIV_ROUND_UP(comp_bio->bi_iter.bi_size,
 						  fs_info->sectorsize);
-			sums += csum_size * nr_sectors;
+			sums += fs_info->csum_size * nr_sectors;
 
 			ret = btrfs_map_bio(fs_info, comp_bio, mirror_num);
 			if (ret) {
@@ -786,10 +745,8 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	ret = btrfs_bio_wq_end_io(fs_info, comp_bio, BTRFS_WQ_ENDIO_DATA);
 	BUG_ON(ret); /* -ENOMEM */
 
-	if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
-		ret = btrfs_lookup_bio_sums(inode, comp_bio, (u64)-1, sums);
-		BUG_ON(ret); /* -ENOMEM */
-	}
+	ret = btrfs_lookup_bio_sums(inode, comp_bio, sums);
+	BUG_ON(ret); /* -ENOMEM */
 
 	ret = btrfs_map_bio(fs_info, comp_bio, mirror_num);
 	if (ret) {

@@ -67,6 +67,8 @@ required:
   - 'loongson,parent_int_map'
 
 
+unevaluatedProperties: false
+
 examples:
   - |
     iointc: interrupt-controller@3ff01400 {

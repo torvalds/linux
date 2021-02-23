@@ -130,9 +130,10 @@ struct bcache_ops *bcops = &no_sc_ops;
 
 #define R4600_HIT_CACHEOP_WAR_IMPL					\
 do {									\
-	if (R4600_V2_HIT_CACHEOP_WAR && cpu_is_r4600_v2_x())		\
+	if (IS_ENABLED(CONFIG_WAR_R4600_V2_HIT_CACHEOP) &&		\
+	    cpu_is_r4600_v2_x())					\
 		*(volatile unsigned long *)CKSEG1;			\
-	if (R4600_V1_HIT_CACHEOP_WAR)					\
+	if (IS_ENABLED(CONFIG_WAR_R4600_V1_HIT_CACHEOP))					\
 		__asm__ __volatile__("nop;nop;nop;nop");		\
 } while (0)
 
@@ -238,7 +239,7 @@ static void r4k_blast_dcache_setup(void)
 		r4k_blast_dcache = blast_dcache128;
 }
 
-/* force code alignment (used for TX49XX_ICACHE_INDEX_INV_WAR) */
+/* force code alignment (used for CONFIG_WAR_TX49XX_ICACHE_INDEX_INV) */
 #define JUMP_TO_ALIGN(order) \
 	__asm__ __volatile__( \
 		"b\t1f\n\t" \
@@ -366,10 +367,11 @@ static void r4k_blast_icache_page_indexed_setup(void)
 	else if (ic_lsize == 16)
 		r4k_blast_icache_page_indexed = blast_icache16_page_indexed;
 	else if (ic_lsize == 32) {
-		if (R4600_V1_INDEX_ICACHEOP_WAR && cpu_is_r4600_v1_x())
+		if (IS_ENABLED(CONFIG_WAR_R4600_V1_INDEX_ICACHEOP) &&
+		    cpu_is_r4600_v1_x())
 			r4k_blast_icache_page_indexed =
 				blast_icache32_r4600_v1_page_indexed;
-		else if (TX49XX_ICACHE_INDEX_INV_WAR)
+		else if (IS_ENABLED(CONFIG_WAR_TX49XX_ICACHE_INDEX_INV))
 			r4k_blast_icache_page_indexed =
 				tx49_blast_icache32_page_indexed;
 		else if (current_cpu_type() == CPU_LOONGSON2EF)
@@ -394,9 +396,10 @@ static void r4k_blast_icache_setup(void)
 	else if (ic_lsize == 16)
 		r4k_blast_icache = blast_icache16;
 	else if (ic_lsize == 32) {
-		if (R4600_V1_INDEX_ICACHEOP_WAR && cpu_is_r4600_v1_x())
+		if (IS_ENABLED(CONFIG_WAR_R4600_V1_INDEX_ICACHEOP) &&
+		    cpu_is_r4600_v1_x())
 			r4k_blast_icache = blast_r4600_v1_icache32;
-		else if (TX49XX_ICACHE_INDEX_INV_WAR)
+		else if (IS_ENABLED(CONFIG_WAR_TX49XX_ICACHE_INDEX_INV))
 			r4k_blast_icache = tx49_blast_icache32;
 		else if (current_cpu_type() == CPU_LOONGSON2EF)
 			r4k_blast_icache = loongson2_blast_icache32;
@@ -1606,7 +1609,7 @@ static void __init loongson2_sc_init(void)
 	c->options |= MIPS_CPU_INCLUSIVE_CACHES;
 }
 
-static void __init loongson3_sc_init(void)
+static void loongson3_sc_init(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int config2, lsize;
@@ -1620,15 +1623,13 @@ static void __init loongson3_sc_init(void)
 	c->scache.sets = 64 << ((config2 >> 8) & 15);
 	c->scache.ways = 1 + (config2 & 15);
 
-	scache_size = c->scache.sets *
-				  c->scache.ways *
-				  c->scache.linesz;
-
 	/* Loongson-3 has 4-Scache banks, while Loongson-2K have only 2 banks */
 	if ((c->processor_id & PRID_IMP_MASK) == PRID_IMP_LOONGSON_64R)
-		scache_size *= 2;
+		c->scache.sets *= 2;
 	else
-		scache_size *= 4;
+		c->scache.sets *= 4;
+
+	scache_size = c->scache.sets * c->scache.ways * c->scache.linesz;
 
 	c->scache.waybit = 0;
 	c->scache.waysize = scache_size / c->scache.ways;

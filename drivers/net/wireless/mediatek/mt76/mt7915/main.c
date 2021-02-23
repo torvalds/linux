@@ -34,21 +34,24 @@ static int mt7915_start(struct ieee80211_hw *hw)
 		mt7915_mcu_set_pm(dev, 0, 0);
 		mt7915_mcu_set_mac(dev, 0, true, false);
 		mt7915_mcu_set_scs(dev, 0, true);
+		mt7915_mac_enable_nf(dev, 0);
 	}
 
 	if (phy != &dev->phy) {
 		mt7915_mcu_set_pm(dev, 1, 0);
 		mt7915_mcu_set_mac(dev, 1, true, false);
 		mt7915_mcu_set_scs(dev, 1, true);
+		mt7915_mac_enable_nf(dev, 1);
 	}
 
-	mt7915_mcu_set_sku_en(phy, true);
+	mt7915_mcu_set_sku_en(phy, !mt76_testmode_enabled(&dev->mt76));
 	mt7915_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
 
 	set_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 
-	ieee80211_queue_delayed_work(hw, &phy->mac_work,
-				     MT7915_WATCHDOG_TIME);
+	if (!mt76_testmode_enabled(&dev->mt76))
+		ieee80211_queue_delayed_work(hw, &phy->mac_work,
+					     MT7915_WATCHDOG_TIME);
 
 	if (!running)
 		mt7915_mac_reset_counters(phy);
@@ -67,6 +70,8 @@ static void mt7915_stop(struct ieee80211_hw *hw)
 
 	mutex_lock(&dev->mt76.mutex);
 
+	mt76_testmode_reset(&dev->mt76, true);
+
 	clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 
 	if (phy != &dev->phy) {
@@ -82,28 +87,51 @@ static void mt7915_stop(struct ieee80211_hw *hw)
 	mutex_unlock(&dev->mt76.mutex);
 }
 
-static int get_omac_idx(enum nl80211_iftype type, u32 mask)
+static inline int get_free_idx(u32 mask, u8 start, u8 end)
+{
+	return ffs(~mask & GENMASK(end, start));
+}
+
+static int get_omac_idx(enum nl80211_iftype type, u64 mask)
 {
 	int i;
 
 	switch (type) {
+	case NL80211_IFTYPE_MESH_POINT:
+	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_STATION:
+		/* prefer hw bssid slot 1-3 */
+		i = get_free_idx(mask, HW_BSSID_1, HW_BSSID_3);
+		if (i)
+			return i - 1;
+
+		if (type != NL80211_IFTYPE_STATION)
+			break;
+
+		/* next, try to find a free repeater entry for the sta */
+		i = get_free_idx(mask >> REPEATER_BSSID_START, 0,
+				 REPEATER_BSSID_MAX - REPEATER_BSSID_START);
+		if (i)
+			return i + 32 - 1;
+
+		i = get_free_idx(mask, EXT_BSSID_1, EXT_BSSID_MAX);
+		if (i)
+			return i - 1;
+
+		if (~mask & BIT(HW_BSSID_0))
+			return HW_BSSID_0;
+
+		break;
 	case NL80211_IFTYPE_MONITOR:
 	case NL80211_IFTYPE_AP:
 		/* ap uses hw bssid 0 and ext bssid */
 		if (~mask & BIT(HW_BSSID_0))
 			return HW_BSSID_0;
 
-		for (i = EXT_BSSID_1; i < EXT_BSSID_END; i++)
-			if (~mask & BIT(i))
-				return i;
-		break;
-	case NL80211_IFTYPE_MESH_POINT:
-	case NL80211_IFTYPE_ADHOC:
-	case NL80211_IFTYPE_STATION:
-		/* station uses hw bssid other than 0 */
-		for (i = HW_BSSID_1; i < HW_BSSID_MAX; i++)
-			if (~mask & BIT(i))
-				return i;
+		i = get_free_idx(mask, EXT_BSSID_1, EXT_BSSID_MAX);
+		if (i)
+			return i - 1;
+
 		break;
 	default:
 		WARN_ON(1);
@@ -125,6 +153,12 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&dev->mt76.mutex);
 
+	mt76_testmode_reset(&dev->mt76, true);
+
+	if (vif->type == NL80211_IFTYPE_MONITOR &&
+	    is_zero_ether_addr(vif->addr))
+		phy->monitor_vif = vif;
+
 	mvif->idx = ffs(~phy->mt76->vif_mask) - 1;
 	if (mvif->idx >= MT7915_MAX_INTERFACES) {
 		ret = -ENOSPC;
@@ -137,7 +171,7 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 		goto out;
 	}
 	mvif->omac_idx = idx;
-	mvif->dev = dev;
+	mvif->phy = phy;
 	mvif->band_idx = ext_phy;
 
 	if (ext_phy)
@@ -146,15 +180,17 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 	else
 		mvif->wmm_idx = mvif->idx % MT7915_MAX_WMM_SETS;
 
-	ret = mt7915_mcu_add_dev_info(dev, vif, true);
+	ret = mt7915_mcu_add_dev_info(phy, vif, true);
 	if (ret)
 		goto out;
 
 	phy->mt76->vif_mask |= BIT(mvif->idx);
-	phy->omac_mask |= BIT(mvif->omac_idx);
+	phy->omac_mask |= BIT_ULL(mvif->omac_idx);
 
 	idx = MT7915_WTBL_RESERVED - mvif->idx;
 
+	INIT_LIST_HEAD(&mvif->sta.rc_list);
+	INIT_LIST_HEAD(&mvif->sta.stats_list);
 	INIT_LIST_HEAD(&mvif->sta.poll_list);
 	mvif->sta.wcid.idx = idx;
 	mvif->sta.wcid.ext_phy = mvif->band_idx;
@@ -167,8 +203,12 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 	if (vif->txq) {
 		mtxq = (struct mt76_txq *)vif->txq->drv_priv;
 		mtxq->wcid = &mvif->sta.wcid;
-		mt76_txq_init(&dev->mt76, vif->txq);
 	}
+
+	if (vif->type != NL80211_IFTYPE_AP &&
+	    (!mvif->omac_idx || mvif->omac_idx > 3))
+		vif->offload_flags = 0;
+	vif->offload_flags |= IEEE80211_OFFLOAD_ENCAP_4ADDR;
 
 out:
 	mutex_unlock(&dev->mt76.mutex);
@@ -187,15 +227,20 @@ static void mt7915_remove_interface(struct ieee80211_hw *hw,
 
 	/* TODO: disable beacon for the bss */
 
-	mt7915_mcu_add_dev_info(dev, vif, false);
+	mutex_lock(&dev->mt76.mutex);
+	mt76_testmode_reset(&dev->mt76, true);
+	mutex_unlock(&dev->mt76.mutex);
+
+	if (vif == phy->monitor_vif)
+		phy->monitor_vif = NULL;
+
+	mt7915_mcu_add_dev_info(phy, vif, false);
 
 	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
-	if (vif->txq)
-		mt76_txq_remove(&dev->mt76, vif->txq);
 
 	mutex_lock(&dev->mt76.mutex);
 	phy->mt76->vif_mask &= ~BIT(mvif->idx);
-	phy->omac_mask &= ~BIT(mvif->omac_idx);
+	phy->omac_mask &= ~BIT_ULL(mvif->omac_idx);
 	mutex_unlock(&dev->mt76.mutex);
 
 	spin_lock_bh(&dev->sta_poll_lock);
@@ -223,7 +268,7 @@ static void mt7915_init_dfs_state(struct mt7915_phy *phy)
 	phy->dfs_state = -1;
 }
 
-static int mt7915_set_channel(struct mt7915_phy *phy)
+int mt7915_set_channel(struct mt7915_phy *phy)
 {
 	struct mt7915_dev *dev = phy->dev;
 	int ret;
@@ -252,8 +297,10 @@ out:
 	mutex_unlock(&dev->mt76.mutex);
 
 	mt76_txq_schedule_all(phy->mt76);
-	ieee80211_queue_delayed_work(phy->mt76->hw, &phy->mac_work,
-				     MT7915_WATCHDOG_TIME);
+
+	if (!mt76_testmode_enabled(&dev->mt76))
+		ieee80211_queue_delayed_work(phy->mt76->hw, &phy->mac_work,
+					     MT7915_WATCHDOG_TIME);
 
 	return ret;
 }
@@ -284,8 +331,6 @@ static int mt7915_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIE;
 		break;
-	case WLAN_CIPHER_SUITE_WEP40:
-	case WLAN_CIPHER_SUITE_WEP104:
 	case WLAN_CIPHER_SUITE_TKIP:
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_CCMP_256:
@@ -293,6 +338,8 @@ static int mt7915_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case WLAN_CIPHER_SUITE_GCMP_256:
 	case WLAN_CIPHER_SUITE_SMS4:
 		break;
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -317,6 +364,13 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
 	int ret;
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+#ifdef CONFIG_NL80211_TESTMODE
+		if (dev->mt76.test.state != MT76_TM_STATE_OFF) {
+			mutex_lock(&dev->mt76.mutex);
+			mt76_testmode_reset(&dev->mt76, false);
+			mutex_unlock(&dev->mt76.mutex);
+		}
+#endif
 		ieee80211_stop_queues(hw);
 		ret = mt7915_set_channel(phy);
 		if (ret)
@@ -333,11 +387,16 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
 	mutex_lock(&dev->mt76.mutex);
 
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
-		if (!(hw->conf.flags & IEEE80211_CONF_MONITOR))
+		bool enabled = !!(hw->conf.flags & IEEE80211_CONF_MONITOR);
+
+		if (!enabled)
 			phy->rxfilter |= MT_WF_RFCR_DROP_OTHER_UC;
 		else
 			phy->rxfilter &= ~MT_WF_RFCR_DROP_OTHER_UC;
 
+		mt76_rmw_field(dev, MT_DMA_DCR0(band), MT_DMA_DCR0_RXD_G5_EN,
+			       enabled);
+		mt76_testmode_reset(&dev->mt76, true);
 		mt76_wr(dev, MT_WF_RFCR(band), phy->rxfilter);
 	}
 
@@ -493,9 +552,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	if (idx < 0)
 		return -ENOSPC;
 
+	INIT_LIST_HEAD(&msta->rc_list);
+	INIT_LIST_HEAD(&msta->stats_list);
 	INIT_LIST_HEAD(&msta->poll_list);
-	INIT_WORK(&msta->stats_work, mt7915_mac_sta_stats_work);
-	spin_lock_init(&msta->ampdu_lock);
 	msta->vif = mvif;
 	msta->wcid.sta = 1;
 	msta->wcid.idx = idx;
@@ -528,6 +587,10 @@ void mt7915_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	spin_lock_bh(&dev->sta_poll_lock);
 	if (!list_empty(&msta->poll_list))
 		list_del_init(&msta->poll_list);
+	if (!list_empty(&msta->stats_list))
+		list_del_init(&msta->stats_list);
+	if (!list_empty(&msta->rc_list))
+		list_del_init(&msta->rc_list);
 	spin_unlock_bh(&dev->sta_poll_lock);
 }
 
@@ -603,23 +666,21 @@ mt7915_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		mtxq->aggr = true;
 		mtxq->send_bar = false;
-		mt7915_set_aggr_state(msta, tid, MT7915_AGGR_OPERATIONAL);
 		mt7915_mcu_add_tx_ba(dev, params, true);
 		break;
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		mtxq->aggr = false;
-		mt7915_set_aggr_state(msta, tid, MT7915_AGGR_STOP);
+		clear_bit(tid, &msta->ampdu_state);
 		mt7915_mcu_add_tx_ba(dev, params, false);
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		mtxq->agg_ssn = IEEE80211_SN_TO_SEQ(ssn);
-		mt7915_set_aggr_state(msta, tid, MT7915_AGGR_START);
+		set_bit(tid, &msta->ampdu_state);
 		ret = IEEE80211_AMPDU_TX_START_IMMEDIATE;
 		break;
 	case IEEE80211_AMPDU_TX_STOP_CONT:
 		mtxq->aggr = false;
-		mt7915_set_aggr_state(msta, tid, MT7915_AGGR_STOP);
+		clear_bit(tid, &msta->ampdu_state);
 		mt7915_mcu_add_tx_ba(dev, params, false);
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
@@ -763,8 +824,12 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
 				  struct ieee80211_sta *sta,
 				  struct station_info *sinfo)
 {
+	struct mt7915_phy *phy = mt7915_hw_phy(hw);
 	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
 	struct mt7915_sta_stats *stats = &msta->stats;
+
+	if (mt7915_mcu_get_rx_rate(phy, vif, sta, &sinfo->rxrate) == 0)
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_BITRATE);
 
 	if (!stats->tx_rate.legacy && !stats->tx_rate.flags)
 		return;
@@ -789,18 +854,32 @@ mt7915_sta_rc_update(struct ieee80211_hw *hw,
 		     struct ieee80211_sta *sta,
 		     u32 changed)
 {
+	struct mt7915_dev *dev = mt7915_hw_dev(hw);
 	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
 
-	rcu_read_lock();
-	sta = ieee80211_find_sta(vif, sta->addr);
-	if (!sta) {
-		rcu_read_unlock();
-		return;
-	}
-	rcu_read_unlock();
+	spin_lock_bh(&dev->sta_poll_lock);
+	msta->stats.changed |= changed;
+	if (list_empty(&msta->rc_list))
+		list_add_tail(&msta->rc_list, &dev->sta_rc_list);
+	spin_unlock_bh(&dev->sta_poll_lock);
 
-	set_bit(changed, &msta->stats.changed);
-	ieee80211_queue_work(hw, &msta->stats_work);
+	ieee80211_queue_work(hw, &dev->rc_work);
+}
+
+static void mt7915_sta_set_4addr(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_sta *sta,
+				 bool enabled)
+{
+	struct mt7915_dev *dev = mt7915_hw_dev(hw);
+	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
+
+	if (enabled)
+		set_bit(MT_WCID_FLAG_4ADDR, &msta->wcid.flags);
+	else
+		clear_bit(MT_WCID_FLAG_4ADDR, &msta->wcid.flags);
+
+	mt7915_mcu_sta_update_hdr_trans(dev, vif, sta);
 }
 
 const struct ieee80211_ops mt7915_ops = {
@@ -834,6 +913,9 @@ const struct ieee80211_ops mt7915_ops = {
 	.set_antenna = mt7915_set_antenna,
 	.set_coverage_class = mt7915_set_coverage_class,
 	.sta_statistics = mt7915_sta_statistics,
+	.sta_set_4addr = mt7915_sta_set_4addr,
+	CFG80211_TESTMODE_CMD(mt76_testmode_cmd)
+	CFG80211_TESTMODE_DUMP(mt76_testmode_dump)
 #ifdef CONFIG_MAC80211_DEBUGFS
 	.sta_add_debugfs = mt7915_sta_add_debugfs,
 #endif

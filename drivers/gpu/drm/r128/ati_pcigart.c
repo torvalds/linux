@@ -1,4 +1,4 @@
-/**
+/*
  * \file ati_pcigart.c
  * ATI PCI GART support
  *

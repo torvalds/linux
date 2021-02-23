@@ -8,8 +8,8 @@
  * The second cell contains standard flag values specified in gpio.h.
  */
 
-#ifndef _DT_BINDINGS_GPIO_TEGRA_GPIO_H
-#define _DT_BINDINGS_GPIO_TEGRA_GPIO_H
+#ifndef _DT_BINDINGS_GPIO_TEGRA186_GPIO_H
+#define _DT_BINDINGS_GPIO_TEGRA186_GPIO_H
 
 #include <dt-bindings/gpio/gpio.h>
 

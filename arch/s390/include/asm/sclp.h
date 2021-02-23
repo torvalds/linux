@@ -12,7 +12,12 @@
 #include <asm/cpu.h>
 
 #define SCLP_CHP_INFO_MASK_SIZE		32
-#define SCLP_MAX_CORES			256
+#define EARLY_SCCB_SIZE		PAGE_SIZE
+#define SCLP_MAX_CORES		512
+/* 144 + 16 * SCLP_MAX_CORES + 2 * (SCLP_MAX_CORES - 1) */
+#define EXT_SCCB_READ_SCP	(3 * PAGE_SIZE)
+/* 24 + 16 * SCLP_MAX_CORES */
+#define EXT_SCCB_READ_CPU	(3 * PAGE_SIZE)
 
 struct sclp_chp_info {
 	u8 recognized[SCLP_CHP_INFO_MASK_SIZE];
@@ -114,8 +119,7 @@ int sclp_early_get_core_info(struct sclp_core_info *info);
 void sclp_early_get_ipl_info(struct sclp_ipl_info *info);
 void sclp_early_detect(void);
 void sclp_early_printk(const char *s);
-void sclp_early_printk_force(const char *s);
-void __sclp_early_printk(const char *s, unsigned int len, unsigned int force);
+void __sclp_early_printk(const char *s, unsigned int len);
 
 int sclp_early_get_memsize(unsigned long *mem);
 int sclp_early_get_hsa_size(unsigned long *hsa_size);
@@ -129,6 +133,8 @@ int sclp_chp_deconfigure(struct chp_id chpid);
 int sclp_chp_read_info(struct sclp_chp_info *info);
 int sclp_pci_configure(u32 fid);
 int sclp_pci_deconfigure(u32 fid);
+int sclp_ap_configure(u32 apid);
+int sclp_ap_deconfigure(u32 apid);
 int sclp_pci_report(struct zpci_report_error_header *report, u32 fh, u32 fid);
 int memcpy_hsa_kernel(void *dest, unsigned long src, size_t count);
 int memcpy_hsa_user(void __user *dest, unsigned long src, size_t count);

@@ -126,9 +126,7 @@ struct _vcs_dpi_soc_bounding_box_st {
 
 struct _vcs_dpi_ip_params_st {
 	bool use_min_dcfclk;
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 	bool clamp_min_dcfclk;
-#endif
 	bool gpuvm_enable;
 	bool hostvm_enable;
 	bool dsc422_native_support;
@@ -336,7 +334,6 @@ struct _vcs_dpi_display_pipe_dest_params_st {
 	unsigned int vblank_end;
 	unsigned int htotal;
 	unsigned int vtotal;
-	unsigned int refresh_rate;
 	unsigned int vfront_porch;
 	unsigned int vactive;
 	unsigned int hactive;
@@ -347,7 +344,6 @@ struct _vcs_dpi_display_pipe_dest_params_st {
 	unsigned char interlaced;
 	double pixel_rate_mhz;
 	unsigned char synchronized_vblank_all_planes;
-	unsigned char synchronize_timing_if_single_refresh_rate;
 	unsigned char otg_inst;
 	unsigned int odm_combine;
 	unsigned char use_maximum_vstartup;

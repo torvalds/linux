@@ -261,13 +261,13 @@
 		mcde@a0350000 {
 			vana-supply = <&ab8500_ldo_ana_reg>;
 
-			dsi-controller@a0351000 {
+			dsi@a0351000 {
 				vana-supply = <&ab8500_ldo_ana_reg>;
 			};
-			dsi-controller@a0352000 {
+			dsi@a0352000 {
 				vana-supply = <&ab8500_ldo_ana_reg>;
 			};
-			dsi-controller@a0353000 {
+			dsi@a0353000 {
 				vana-supply = <&ab8500_ldo_ana_reg>;
 			};
 		};

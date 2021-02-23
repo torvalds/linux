@@ -297,7 +297,7 @@ void drm_syncobj_add_point(struct drm_syncobj *syncobj,
 	prev = drm_syncobj_fence_get(syncobj);
 	/* You are adding an unorder point to timeline, which could cause payload returned from query_ioctl is 0! */
 	if (prev && prev->seqno >= point)
-		DRM_ERROR("You are adding an unorder point to timeline!\n");
+		DRM_DEBUG("You are adding an unorder point to timeline!\n");
 	dma_fence_chain_init(chain, prev, fence, point);
 	rcu_assign_pointer(syncobj->fence, &chain->base);
 
@@ -388,19 +388,18 @@ int drm_syncobj_find_fence(struct drm_file *file_private,
 		return -ENOENT;
 
 	*fence = drm_syncobj_fence_get(syncobj);
-	drm_syncobj_put(syncobj);
 
 	if (*fence) {
 		ret = dma_fence_chain_find_seqno(fence, point);
 		if (!ret)
-			return 0;
+			goto out;
 		dma_fence_put(*fence);
 	} else {
 		ret = -EINVAL;
 	}
 
 	if (!(flags & DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT))
-		return ret;
+		goto out;
 
 	memset(&wait, 0, sizeof(wait));
 	wait.task = current;
@@ -431,6 +430,9 @@ int drm_syncobj_find_fence(struct drm_file *file_private,
 
 	if (wait.node.next)
 		drm_syncobj_remove_wait(syncobj, &wait);
+
+out:
+	drm_syncobj_put(syncobj);
 
 	return ret;
 }

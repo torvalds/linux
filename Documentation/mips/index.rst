@@ -8,7 +8,10 @@ MIPS-specific Documentation
    :maxdepth: 2
    :numbered:
 
+   booting
    ingenic-tcu
+
+   features
 
 .. only::  subproject and html
 

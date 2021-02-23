@@ -19,6 +19,8 @@ s390 Architecture
 
     text_files
 
+    features
+
 .. only::  subproject and html
 
    Indices

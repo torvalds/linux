@@ -129,8 +129,7 @@ int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans, u8 *uuid, u8 type,
 	} else {
 		btrfs_warn(fs_info,
 			   "insert uuid item failed %d (0x%016llx, 0x%016llx) type %u!",
-			   ret, (unsigned long long)key.objectid,
-			   (unsigned long long)key.offset, type);
+			   ret, key.objectid, key.offset, type);
 		goto out;
 	}
 

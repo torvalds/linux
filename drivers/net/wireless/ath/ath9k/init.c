@@ -728,9 +728,8 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	spin_lock_init(&sc->sc_pm_lock);
 	spin_lock_init(&sc->chan_lock);
 	mutex_init(&sc->mutex);
-	tasklet_init(&sc->intr_tq, ath9k_tasklet, (unsigned long)sc);
-	tasklet_init(&sc->bcon_tasklet, ath9k_beacon_tasklet,
-		     (unsigned long)sc);
+	tasklet_setup(&sc->intr_tq, ath9k_tasklet);
+	tasklet_setup(&sc->bcon_tasklet, ath9k_beacon_tasklet);
 
 	timer_setup(&sc->sleep_timer, ath_ps_full_sleep, 0);
 	INIT_WORK(&sc->hw_reset_work, ath_reset_work);
@@ -833,12 +832,6 @@ static const struct ieee80211_iface_limit if_limits[] = {
 				 BIT(NL80211_IFTYPE_P2P_GO) },
 };
 
-#ifdef CONFIG_WIRELESS_WDS
-static const struct ieee80211_iface_limit wds_limits[] = {
-	{ .max = 2048,	.types = BIT(NL80211_IFTYPE_WDS) },
-};
-#endif
-
 #ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
 
 static const struct ieee80211_iface_limit if_limits_multi[] = {
@@ -875,15 +868,6 @@ static const struct ieee80211_iface_combination if_comb[] = {
 					BIT(NL80211_CHAN_WIDTH_40),
 #endif
 	},
-#ifdef CONFIG_WIRELESS_WDS
-	{
-		.limits = wds_limits,
-		.n_limits = ARRAY_SIZE(wds_limits),
-		.max_interfaces = 2048,
-		.num_different_channels = 1,
-		.beacon_int_infra_match = true,
-	},
-#endif
 };
 
 #ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
@@ -898,7 +882,6 @@ static void ath9k_set_mcc_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, QUEUE_CONTROL);
 	hw->queues = ATH9K_NUM_TX_QUEUES;
 	hw->offchannel_tx_hw_queue = hw->queues - 1;
-	hw->wiphy->interface_modes &= ~ BIT(NL80211_IFTYPE_WDS);
 	hw->wiphy->iface_combinations = if_comb_multi;
 	hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb_multi);
 	hw->wiphy->max_scan_ssids = 255;
@@ -954,9 +937,6 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 			BIT(NL80211_IFTYPE_STATION) |
 			BIT(NL80211_IFTYPE_ADHOC) |
 			BIT(NL80211_IFTYPE_MESH_POINT) |
-#ifdef CONFIG_WIRELESS_WDS
-			BIT(NL80211_IFTYPE_WDS) |
-#endif
 			BIT(NL80211_IFTYPE_OCB);
 
 		if (ath9k_is_chanctx_enabled())
@@ -1014,6 +994,7 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_AIRTIME_FAIRNESS);
 	wiphy_ext_feature_set(hw->wiphy,
 			      NL80211_EXT_FEATURE_MULTICAST_REGISTRATIONS);
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CAN_REPLACE_PTK0);
 }
 
 int ath9k_init_device(u16 devid, struct ath_softc *sc,

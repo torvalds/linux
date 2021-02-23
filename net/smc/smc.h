@@ -18,8 +18,19 @@
 
 #include "smc_ib.h"
 
+#define SMC_V1		1		/* SMC version V1 */
+#define SMC_V2		2		/* SMC version V2 */
+#define SMC_RELEASE	0
+
 #define SMCPROTO_SMC		0	/* SMC protocol, IPv4 */
 #define SMCPROTO_SMC6		1	/* SMC protocol, IPv6 */
+
+#define SMC_MAX_ISM_DEVS	8	/* max # of proposed non-native ISM
+					 * devices
+					 */
+
+#define SMC_MAX_HOSTNAME_LEN	32
+#define SMC_MAX_EID_LEN		32
 
 extern struct proto smc_proto;
 extern struct proto smc_proto6;
@@ -201,6 +212,8 @@ struct smc_connection {
 struct smc_sock {				/* smc sock container */
 	struct sock		sk;
 	struct socket		*clcsock;	/* internal tcp socket */
+	void			(*clcsk_data_ready)(struct sock *sk);
+						/* original data_ready fct. **/
 	struct smc_connection	conn;		/* smc connection */
 	struct smc_sock		*listen_smc;	/* listen parent */
 	struct work_struct	connect_work;	/* handle non-blocking connect*/
@@ -235,9 +248,15 @@ static inline struct smc_sock *smc_sk(const struct sock *sk)
 	return (struct smc_sock *)sk;
 }
 
+extern struct workqueue_struct	*smc_hs_wq;	/* wq for handshake work */
+extern struct workqueue_struct	*smc_close_wq;	/* wq for close work */
+
 #define SMC_SYSTEMID_LEN		8
 
 extern u8	local_systemid[SMC_SYSTEMID_LEN]; /* unique system identifier */
+
+#define ntohll(x) be64_to_cpu(x)
+#define htonll(x) cpu_to_be64(x)
 
 /* convert an u32 value into network byte order, store it into a 3 byte field */
 static inline void hton24(u8 *net, u32 host)

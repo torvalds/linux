@@ -653,7 +653,7 @@ swnode_register(const struct software_node *node, struct swnode *parent,
 	swnode->parent = parent;
 	swnode->allocated = allocated;
 	swnode->kobj.kset = swnode_kset;
-	swnode->fwnode.ops = &software_node_ops;
+	fwnode_init(&swnode->fwnode, &software_node_ops);
 
 	ida_init(&swnode->child_ids);
 	INIT_LIST_HEAD(&swnode->entry);

@@ -295,7 +295,7 @@ config ASPEED_ADC
 config AT91_ADC
 	tristate "Atmel AT91 ADC"
 	depends on ARCH_AT91 || COMPILE_TEST
-	depends on INPUT && SYSFS
+	depends on INPUT && SYSFS && OF
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
@@ -340,7 +340,7 @@ config AXP288_ADC
 
 config BCM_IPROC_ADC
 	tristate "Broadcom IPROC ADC driver"
-	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on (ARCH_BCM_IPROC && OF) || COMPILE_TEST
 	depends on MFD_SYSCON
 	default ARCH_BCM_CYGNUS
 	help
@@ -703,6 +703,17 @@ config MCP3911
 	  This driver can also be built as a module. If so, the module will be
 	  called mcp3911.
 
+config MEDIATEK_MT6360_ADC
+	tristate "Mediatek MT6360 ADC driver"
+	depends on MFD_MT6360
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here to enable MT6360 ADC support.
+	  Integrated for System Monitoring includes
+	  is used in smartphones and tablets and supports a 11 channel
+	  general purpose ADC.
+
 config MEDIATEK_MT6577_AUXADC
 	tristate "MediaTek AUXADC driver"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
@@ -863,7 +874,7 @@ config RN5T618_ADC
 
 config ROCKCHIP_SARADC
 	tristate "Rockchip SARADC driver"
-	depends on ARCH_ROCKCHIP || (ARM && COMPILE_TEST)
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	depends on RESET_CONTROLLER
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER

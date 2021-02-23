@@ -336,8 +336,7 @@ struct drm_crtc_helper_funcs {
 	 *
 	 * This function is called in the check phase of an atomic update. The
 	 * driver is not allowed to change anything outside of the free-standing
-	 * state objects passed-in or assembled in the overall &drm_atomic_state
-	 * update tracking structure.
+	 * state object passed-in.
 	 *
 	 * Also beware that userspace can request its own custom modes, neither
 	 * core nor helpers filter modes to the list of probe modes reported by
@@ -353,7 +352,7 @@ struct drm_crtc_helper_funcs {
 	 * deadlock.
 	 */
 	int (*atomic_check)(struct drm_crtc *crtc,
-			    struct drm_crtc_state *state);
+			    struct drm_atomic_state *state);
 
 	/**
 	 * @atomic_begin:
@@ -374,7 +373,7 @@ struct drm_crtc_helper_funcs {
 	 * transitional plane helpers, but it is optional.
 	 */
 	void (*atomic_begin)(struct drm_crtc *crtc,
-			     struct drm_crtc_state *old_crtc_state);
+			     struct drm_atomic_state *state);
 	/**
 	 * @atomic_flush:
 	 *
@@ -398,7 +397,7 @@ struct drm_crtc_helper_funcs {
 	 * transitional plane helpers, but it is optional.
 	 */
 	void (*atomic_flush)(struct drm_crtc *crtc,
-			     struct drm_crtc_state *old_crtc_state);
+			     struct drm_atomic_state *state);
 
 	/**
 	 * @atomic_enable:
@@ -417,14 +416,10 @@ struct drm_crtc_helper_funcs {
 	 * @atomic_enable must be the inverse of @atomic_disable for atomic
 	 * drivers.
 	 *
-	 * Drivers can use the @old_crtc_state input parameter if the operations
-	 * needed to enable the CRTC don't depend solely on the new state but
-	 * also on the transition between the old state and the new state.
-	 *
 	 * This function is optional.
 	 */
 	void (*atomic_enable)(struct drm_crtc *crtc,
-			      struct drm_crtc_state *old_crtc_state);
+			      struct drm_atomic_state *state);
 
 	/**
 	 * @atomic_disable:
@@ -441,15 +436,10 @@ struct drm_crtc_helper_funcs {
 	 * need to implement it if there's no need to disable anything at the
 	 * CRTC level.
 	 *
-	 * Comparing to @disable, this one provides the additional input
-	 * parameter @old_crtc_state which could be used to access the old
-	 * state. Atomic drivers should consider to use this one instead
-	 * of @disable.
-	 *
 	 * This function is optional.
 	 */
 	void (*atomic_disable)(struct drm_crtc *crtc,
-			       struct drm_crtc_state *old_crtc_state);
+			       struct drm_atomic_state *state);
 
 	/**
 	 * @get_scanout_position:
@@ -1054,9 +1044,8 @@ struct drm_connector_helper_funcs {
 	 * NOTE:
 	 *
 	 * This function is called in the check phase of an atomic update. The
-	 * driver is not allowed to change anything outside of the free-standing
-	 * state objects passed-in or assembled in the overall &drm_atomic_state
-	 * update tracking structure.
+	 * driver is not allowed to change anything outside of the
+	 * &drm_atomic_state update tracking structure passed in.
 	 *
 	 * RETURNS:
 	 *
@@ -1066,7 +1055,7 @@ struct drm_connector_helper_funcs {
 	 * for this.
 	 */
 	struct drm_encoder *(*atomic_best_encoder)(struct drm_connector *connector,
-						   struct drm_connector_state *connector_state);
+						   struct drm_atomic_state *state);
 
 	/**
 	 * @atomic_check:
@@ -1107,15 +1096,15 @@ struct drm_connector_helper_funcs {
 	 *
 	 * This hook is to be used by drivers implementing writeback connectors
 	 * that need a point when to commit the writeback job to the hardware.
-	 * The writeback_job to commit is available in
-	 * &drm_connector_state.writeback_job.
+	 * The writeback_job to commit is available in the new connector state,
+	 * in &drm_connector_state.writeback_job.
 	 *
 	 * This hook is optional.
 	 *
 	 * This callback is used by the atomic modeset helpers.
 	 */
 	void (*atomic_commit)(struct drm_connector *connector,
-			      struct drm_connector_state *state);
+			      struct drm_atomic_state *state);
 
 	/**
 	 * @prepare_writeback_job:

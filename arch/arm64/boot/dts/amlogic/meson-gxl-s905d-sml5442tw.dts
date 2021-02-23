@@ -63,6 +63,10 @@
 	pinctrl-names = "default";
 };
 
+&ir {
+        linux,rc-map-name = "rc-khamsin";
+};
+
 /* This is connected to the Bluetooth module: */
 &uart_A {
 	status = "okay";

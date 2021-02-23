@@ -57,6 +57,12 @@
 			#clock-cells = <1>;
 		};
 
+		periph_rst: reset-controller@10000010 {
+			compatible = "brcm,bcm6345-reset";
+			reg = <0x10000010 0x4>;
+			#reset-cells = <1>;
+		};
+
 		periph_intc: interrupt-controller@10000020 {
 			compatible = "brcm,bcm6345-l1-intc";
 			reg = <0x10000020 0x10>,
@@ -108,6 +114,12 @@
 			compatible = "brcm,bcm6328-leds";
 			reg = <0x10000800 0x24>;
 			status = "disabled";
+		};
+
+		periph_pwr: power-controller@10001848 {
+			compatible = "brcm,bcm6328-power-controller";
+			reg = <0x10001848 0x4>;
+			#power-domain-cells = <1>;
 		};
 
 		ehci: usb@10002500 {

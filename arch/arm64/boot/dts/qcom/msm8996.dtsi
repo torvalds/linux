@@ -1009,7 +1009,8 @@
 				"ispif",
 				"vfe0",
 				"vfe1";
-			power-domains = <&mmcc VFE0_GDSC>;
+			power-domains = <&mmcc VFE0_GDSC>,
+					<&mmcc VFE1_GDSC>;
 			clocks = <&mmcc CAMSS_TOP_AHB_CLK>,
 				<&mmcc CAMSS_ISPIF_AHB_CLK>,
 				<&mmcc CAMSS_CSI0PHYTIMER_CLK>,
@@ -1989,7 +1990,7 @@
 			};
 		};
 
-		slimbam: dma@9184000 {
+		slimbam: dma-controller@9184000 {
 			compatible = "qcom,bam-v1.7.0";
 			qcom,controlled-remotely;
 			reg = <0x09184000 0x32000>;

@@ -746,7 +746,7 @@ static int raw6_getfrag(void *from, char *to, int offset, int len, int odd,
 			skb->csum = csum_block_add(
 				skb->csum,
 				csum_partial_copy_nocheck(rfv->c + offset,
-							  to, copy, 0),
+							  to, copy),
 				odd);
 
 		odd = 0;
@@ -915,7 +915,7 @@ static int rawv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		fl6.flowi6_oif = np->mcast_oif;
 	else if (!fl6.flowi6_oif)
 		fl6.flowi6_oif = np->ucast_oif;
-	security_sk_classify_flow(sk, flowi6_to_flowi(&fl6));
+	security_sk_classify_flow(sk, flowi6_to_flowi_common(&fl6));
 
 	if (hdrincl)
 		fl6.flowi6_flags |= FLOWI_FLAG_KNOWN_NH;

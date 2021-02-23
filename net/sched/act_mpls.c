@@ -87,7 +87,27 @@ static int tcf_mpls_act(struct sk_buff *skb, const struct tc_action *a,
 				  skb->dev && skb->dev->type == ARPHRD_ETHER))
 			goto drop;
 		break;
+	case TCA_MPLS_ACT_MAC_PUSH:
+		if (skb_vlan_tag_present(skb)) {
+			if (__vlan_insert_inner_tag(skb, skb->vlan_proto,
+						    skb_vlan_tag_get(skb),
+						    ETH_HLEN) < 0)
+				goto drop;
+
+			skb->protocol = skb->vlan_proto;
+			__vlan_hwaccel_clear_tag(skb);
+		}
+
+		new_lse = tcf_mpls_get_lse(NULL, p, mac_len ||
+					   !eth_p_mpls(skb->protocol));
+
+		if (skb_mpls_push(skb, new_lse, p->tcfm_proto, 0, false))
+			goto drop;
+		break;
 	case TCA_MPLS_ACT_MODIFY:
+		if (!pskb_may_pull(skb,
+				   skb_network_offset(skb) + MPLS_HLEN))
+			goto drop;
 		new_lse = tcf_mpls_get_lse(mpls_hdr(skb), p, false);
 		if (skb_mpls_update_lse(skb, new_lse))
 			goto drop;
@@ -188,6 +208,7 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 		}
 		break;
 	case TCA_MPLS_ACT_PUSH:
+	case TCA_MPLS_ACT_MAC_PUSH:
 		if (!tb[TCA_MPLS_LABEL]) {
 			NL_SET_ERR_MSG_MOD(extack, "Label is required for MPLS push");
 			return -EINVAL;
@@ -408,6 +429,7 @@ static void __exit mpls_cleanup_module(void)
 module_init(mpls_init_module);
 module_exit(mpls_cleanup_module);
 
+MODULE_SOFTDEP("post: mpls_gso");
 MODULE_AUTHOR("Netronome Systems <oss-drivers@netronome.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MPLS manipulation actions");

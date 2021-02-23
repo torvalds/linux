@@ -461,7 +461,10 @@ static bool device_init_rings(struct vnt_private *priv)
 		priv->opts.rx_descs0 * sizeof(struct vnt_rx_desc);
 
 	priv->tx0_bufs = dma_alloc_coherent(&priv->pcid->dev,
-					    priv->opts.tx_descs[0] * PKT_BUF_SZ + priv->opts.tx_descs[1] * PKT_BUF_SZ + CB_BEACON_BUF_SIZE + CB_MAX_BUF_SIZE,
+					    priv->opts.tx_descs[0] * PKT_BUF_SZ +
+					    priv->opts.tx_descs[1] * PKT_BUF_SZ +
+					    CB_BEACON_BUF_SIZE +
+					    CB_MAX_BUF_SIZE,
 					    &priv->tx_bufs_dma0, GFP_ATOMIC);
 	if (!priv->tx0_bufs) {
 		dev_err(&priv->pcid->dev, "allocate buf dma memory failed\n");
@@ -555,7 +558,7 @@ static int device_init_rd0_ring(struct vnt_private *priv)
 	}
 
 	if (i > 0)
-		priv->aRD0Ring[i-1].next_desc = cpu_to_le32(priv->rd0_pool_dma);
+		priv->aRD0Ring[i - 1].next_desc = cpu_to_le32(priv->rd0_pool_dma);
 	priv->pCurrRD[0] = &priv->aRD0Ring[0];
 
 	return 0;
@@ -596,12 +599,12 @@ static int device_init_rd1_ring(struct vnt_private *priv)
 			goto err_free_rd;
 		}
 
-		desc->next = &priv->aRD1Ring[(i+1) % priv->opts.rx_descs1];
+		desc->next = &priv->aRD1Ring[(i + 1) % priv->opts.rx_descs1];
 		desc->next_desc = cpu_to_le32(curr + sizeof(struct vnt_rx_desc));
 	}
 
 	if (i > 0)
-		priv->aRD1Ring[i-1].next_desc = cpu_to_le32(priv->rd1_pool_dma);
+		priv->aRD1Ring[i - 1].next_desc = cpu_to_le32(priv->rd1_pool_dma);
 	priv->pCurrRD[1] = &priv->aRD1Ring[0];
 
 	return 0;
@@ -1075,10 +1078,10 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 
 			if ((priv->op_mode == NL80211_IFTYPE_AP ||
 			    priv->op_mode == NL80211_IFTYPE_ADHOC) &&
-			    priv->vif->bss_conf.enable_beacon) {
+			    priv->vif->bss_conf.enable_beacon)
 				MACvOneShotTimer1MicroSec(priv,
-							  (priv->vif->bss_conf.beacon_int - MAKE_BEACON_RESERVED) << 10);
-			}
+							  (priv->vif->bss_conf.beacon_int -
+							   MAKE_BEACON_RESERVED) << 10);
 
 			/* TODO: adhoc PS mode */
 		}
@@ -1579,6 +1582,7 @@ static int vnt_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case DISABLE_KEY:
 		if (test_bit(key->hw_key_idx, &priv->key_entry_inuse))
 			clear_bit(key->hw_key_idx, &priv->key_entry_inuse);
+		break;
 	default:
 		break;
 	}

@@ -66,6 +66,8 @@ struct sof_dev_desc {
 	/* alternate list of machines using this configuration */
 	struct snd_soc_acpi_mach *alt_machines;
 
+	bool use_acpi_target_states;
+
 	/* Platform resource indexes in BAR / ACPI resources. */
 	/* Must set to -1 if not used - add new items to end */
 	int resindex_lpe_base;
@@ -98,6 +100,8 @@ struct sof_dev_desc {
 	const struct snd_sof_dsp_ops *ops;
 };
 
-int sof_nocodec_setup(struct device *dev,
-		      const struct snd_sof_dsp_ops *ops);
+int sof_nocodec_setup(struct device *dev, const struct snd_sof_dsp_ops *ops,
+		      int (*pcm_dai_link_fixup)(struct snd_soc_pcm_runtime *rtd,
+						struct snd_pcm_hw_params *params));
+
 #endif

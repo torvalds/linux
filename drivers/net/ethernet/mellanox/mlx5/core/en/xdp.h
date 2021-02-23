@@ -38,27 +38,12 @@
 #include "en/txrx.h"
 
 #define MLX5E_XDP_MIN_INLINE (ETH_HLEN + VLAN_HLEN)
-#define MLX5E_XDP_TX_EMPTY_DS_COUNT \
-	(sizeof(struct mlx5e_tx_wqe) / MLX5_SEND_WQE_DS)
-#define MLX5E_XDP_TX_DS_COUNT (MLX5E_XDP_TX_EMPTY_DS_COUNT + 1 /* SG DS */)
+#define MLX5E_XDP_TX_DS_COUNT (MLX5E_TX_WQE_EMPTY_DS_COUNT + 1 /* SG DS */)
 
-#define MLX5E_XDP_INLINE_WQE_SZ_THRSD (256 - sizeof(struct mlx5_wqe_inline_seg))
-#define MLX5E_XDP_INLINE_WQE_MAX_DS_CNT \
-	DIV_ROUND_UP(MLX5E_XDP_INLINE_WQE_SZ_THRSD, MLX5_SEND_WQE_DS)
-
-/* The mult of MLX5_SEND_WQE_MAX_WQEBBS * MLX5_SEND_WQEBB_NUM_DS
- * (16 * 4 == 64) does not fit in the 6-bit DS field of Ctrl Segment.
- * We use a bound lower that MLX5_SEND_WQE_MAX_WQEBBS to let a
- * full-session WQE be cache-aligned.
- */
-#if L1_CACHE_BYTES < 128
-#define MLX5E_XDP_MPW_MAX_WQEBBS (MLX5_SEND_WQE_MAX_WQEBBS - 1)
-#else
-#define MLX5E_XDP_MPW_MAX_WQEBBS (MLX5_SEND_WQE_MAX_WQEBBS - 2)
-#endif
-
-#define MLX5E_XDP_MPW_MAX_NUM_DS \
-	(MLX5E_XDP_MPW_MAX_WQEBBS * MLX5_SEND_WQEBB_NUM_DS)
+#define MLX5E_XDP_INLINE_WQE_MAX_DS_CNT 16
+#define MLX5E_XDP_INLINE_WQE_SZ_THRSD \
+	(MLX5E_XDP_INLINE_WQE_MAX_DS_CNT * MLX5_SEND_WQE_DS - \
+	 sizeof(struct mlx5_wqe_inline_seg))
 
 struct mlx5e_xsk_param;
 int mlx5e_xdp_max_mtu(struct mlx5e_params *params, struct mlx5e_xsk_param *xsk);
@@ -73,11 +58,11 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		   u32 flags);
 
 INDIRECT_CALLABLE_DECLARE(bool mlx5e_xmit_xdp_frame_mpwqe(struct mlx5e_xdpsq *sq,
-							  struct mlx5e_xdp_xmit_data *xdptxd,
+							  struct mlx5e_xmit_data *xdptxd,
 							  struct mlx5e_xdp_info *xdpi,
 							  int check_result));
 INDIRECT_CALLABLE_DECLARE(bool mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq,
-						    struct mlx5e_xdp_xmit_data *xdptxd,
+						    struct mlx5e_xmit_data *xdptxd,
 						    struct mlx5e_xdp_info *xdpi,
 						    int check_result));
 INDIRECT_CALLABLE_DECLARE(int mlx5e_xmit_xdp_frame_check_mpwqe(struct mlx5e_xdpsq *sq));
@@ -122,30 +107,28 @@ static inline void mlx5e_xmit_xdp_doorbell(struct mlx5e_xdpsq *sq)
 /* Enable inline WQEs to shift some load from a congested HCA (HW) to
  * a less congested cpu (SW).
  */
-static inline void mlx5e_xdp_update_inline_state(struct mlx5e_xdpsq *sq)
+static inline bool mlx5e_xdp_get_inline_state(struct mlx5e_xdpsq *sq, bool cur)
 {
 	u16 outstanding = sq->xdpi_fifo_pc - sq->xdpi_fifo_cc;
-	struct mlx5e_xdp_mpwqe *session = &sq->mpwqe;
 
 #define MLX5E_XDP_INLINE_WATERMARK_LOW	10
 #define MLX5E_XDP_INLINE_WATERMARK_HIGH 128
 
-	if (session->inline_on) {
-		if (outstanding <= MLX5E_XDP_INLINE_WATERMARK_LOW)
-			session->inline_on = 0;
-		return;
-	}
+	if (cur && outstanding <= MLX5E_XDP_INLINE_WATERMARK_LOW)
+		return false;
 
-	/* inline is false */
-	if (outstanding >= MLX5E_XDP_INLINE_WATERMARK_HIGH)
-		session->inline_on = 1;
+	if (!cur && outstanding >= MLX5E_XDP_INLINE_WATERMARK_HIGH)
+		return true;
+
+	return cur;
 }
 
-static inline bool
-mlx5e_xdp_no_room_for_inline_pkt(struct mlx5e_xdp_mpwqe *session)
+static inline bool mlx5e_xdp_mpqwe_is_full(struct mlx5e_tx_mpwqe *session)
 {
-	return session->inline_on &&
-	       session->ds_count + MLX5E_XDP_INLINE_WQE_MAX_DS_CNT > MLX5E_XDP_MPW_MAX_NUM_DS;
+	if (session->inline_on)
+		return session->ds_count + MLX5E_XDP_INLINE_WQE_MAX_DS_CNT >
+		       MLX5E_TX_MPW_MAX_NUM_DS;
+	return mlx5e_tx_mpwqe_is_full(session);
 }
 
 struct mlx5e_xdp_wqe_info {
@@ -155,15 +138,16 @@ struct mlx5e_xdp_wqe_info {
 
 static inline void
 mlx5e_xdp_mpwqe_add_dseg(struct mlx5e_xdpsq *sq,
-			 struct mlx5e_xdp_xmit_data *xdptxd,
+			 struct mlx5e_xmit_data *xdptxd,
 			 struct mlx5e_xdpsq_stats *stats)
 {
-	struct mlx5e_xdp_mpwqe *session = &sq->mpwqe;
+	struct mlx5e_tx_mpwqe *session = &sq->mpwqe;
 	struct mlx5_wqe_data_seg *dseg =
 		(struct mlx5_wqe_data_seg *)session->wqe + session->ds_count;
 	u32 dma_len = xdptxd->len;
 
 	session->pkt_count++;
+	session->bytes_count += dma_len;
 
 	if (session->inline_on && dma_len <= MLX5E_XDP_INLINE_WQE_SZ_THRSD) {
 		struct mlx5_wqe_inline_seg *inline_dseg =

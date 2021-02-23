@@ -95,23 +95,15 @@ EXPORT_SYMBOL_GPL(kvm_free_hpt_cma);
 void __init kvm_cma_reserve(void)
 {
 	unsigned long align_size;
-	struct memblock_region *reg;
-	phys_addr_t selected_size = 0;
+	phys_addr_t selected_size;
 
 	/*
 	 * We need CMA reservation only when we are in HV mode
 	 */
 	if (!cpu_has_feature(CPU_FTR_HVMODE))
 		return;
-	/*
-	 * We cannot use memblock_phys_mem_size() here, because
-	 * memblock_analyze() has not been called yet.
-	 */
-	for_each_memblock(memory, reg)
-		selected_size += memblock_region_memory_end_pfn(reg) -
-				 memblock_region_memory_base_pfn(reg);
 
-	selected_size = (selected_size * kvm_cma_resv_ratio / 100) << PAGE_SHIFT;
+	selected_size = PAGE_ALIGN(memblock_phys_mem_size() * kvm_cma_resv_ratio / 100);
 	if (selected_size) {
 		pr_info("%s: reserving %ld MiB for global area\n", __func__,
 			 (unsigned long)selected_size / SZ_1M);
@@ -702,6 +694,7 @@ static void wait_for_sync(struct kvm_split_mode *sip, int phase)
 
 void kvmhv_p9_set_lpcr(struct kvm_split_mode *sip)
 {
+	int num_sets;
 	unsigned long rb, set;
 
 	/* wait for every other thread to get to real mode */
@@ -712,11 +705,19 @@ void kvmhv_p9_set_lpcr(struct kvm_split_mode *sip)
 	mtspr(SPRN_LPID, sip->lpidr_req);
 	isync();
 
+	/*
+	 * P10 will flush all the congruence class with a single tlbiel
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		num_sets =  1;
+	else
+		num_sets = POWER9_TLB_SETS_RADIX;
+
 	/* Invalidate the TLB on thread 0 */
 	if (local_paca->kvm_hstate.tid == 0) {
 		sip->do_set = 0;
 		asm volatile("ptesync" : : : "memory");
-		for (set = 0; set < POWER9_TLB_SETS_RADIX; ++set) {
+		for (set = 0; set < num_sets; ++set) {
 			rb = TLBIEL_INVAL_SET_LPID +
 				(set << TLBIEL_INVAL_SET_SHIFT);
 			asm volatile(PPC_TLBIEL(%0, %1, 0, 0, 0) : :

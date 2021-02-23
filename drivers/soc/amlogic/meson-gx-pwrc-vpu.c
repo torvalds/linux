@@ -14,6 +14,7 @@
 #include <linux/of_device.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
+#include <linux/module.h>
 
 /* AO Offsets */
 
@@ -303,7 +304,7 @@ static int meson_gx_pwrc_vpu_probe(struct platform_device *pdev)
 		return PTR_ERR(regmap_hhi);
 	}
 
-	rstc = devm_reset_control_array_get(&pdev->dev, false, false);
+	rstc = devm_reset_control_array_get_exclusive(&pdev->dev);
 	if (IS_ERR(rstc)) {
 		if (PTR_ERR(rstc) != -EPROBE_DEFER)
 			dev_err(&pdev->dev, "failed to get reset lines\n");
@@ -339,8 +340,8 @@ static int meson_gx_pwrc_vpu_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	pm_genpd_init(&vpu_pd->genpd, &pm_domain_always_on_gov,
-		      powered_off);
+	vpu_pd->genpd.flags = GENPD_FLAG_ALWAYS_ON;
+	pm_genpd_init(&vpu_pd->genpd, NULL, powered_off);
 
 	return of_genpd_add_provider_simple(pdev->dev.of_node,
 					    &vpu_pd->genpd);
@@ -364,6 +365,7 @@ static const struct of_device_id meson_gx_pwrc_vpu_match_table[] = {
 	},
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, meson_gx_pwrc_vpu_match_table);
 
 static struct platform_driver meson_gx_pwrc_vpu_driver = {
 	.probe	= meson_gx_pwrc_vpu_probe,
@@ -373,4 +375,5 @@ static struct platform_driver meson_gx_pwrc_vpu_driver = {
 		.of_match_table	= meson_gx_pwrc_vpu_match_table,
 	},
 };
-builtin_platform_driver(meson_gx_pwrc_vpu_driver);
+module_platform_driver(meson_gx_pwrc_vpu_driver);
+MODULE_LICENSE("GPL v2");

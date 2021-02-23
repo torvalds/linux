@@ -3038,60 +3038,6 @@
 			 */
 			ti,no-idle;
 
-			mac: ethernet@0 {
-				compatible = "ti,dra7-cpsw","ti,cpsw";
-				clocks = <&gmac_main_clk>, <&gmac_clkctrl DRA7_GMAC_GMAC_CLKCTRL 25>;
-				clock-names = "fck", "cpts";
-				cpdma_channels = <8>;
-				ale_entries = <1024>;
-				bd_ram_size = <0x2000>;
-				mac_control = <0x20>;
-				slaves = <2>;
-				active_slave = <0>;
-				cpts_clock_mult = <0x784CFE14>;
-				cpts_clock_shift = <29>;
-				reg = <0x0 0x1000
-				       0x1200 0x2e00>;
-				#address-cells = <1>;
-				#size-cells = <1>;
-
-				/*
-				 * rx_thresh_pend
-				 * rx_pend
-				 * tx_pend
-				 * misc_pend
-				 */
-				interrupts = <GIC_SPI 334 IRQ_TYPE_LEVEL_HIGH>,
-					     <GIC_SPI 335 IRQ_TYPE_LEVEL_HIGH>,
-					     <GIC_SPI 336 IRQ_TYPE_LEVEL_HIGH>,
-					     <GIC_SPI 337 IRQ_TYPE_LEVEL_HIGH>;
-				ranges = <0 0 0x4000>;
-				syscon = <&scm_conf>;
-				status = "disabled";
-
-				davinci_mdio: mdio@1000 {
-					compatible = "ti,cpsw-mdio","ti,davinci_mdio";
-					clocks = <&gmac_main_clk>;
-					clock-names = "fck";
-					#address-cells = <1>;
-					#size-cells = <0>;
-					bus_freq = <1000000>;
-					reg = <0x1000 0x100>;
-				};
-
-				cpsw_emac0: slave@200 {
-					/* Filled in by U-Boot */
-					mac-address = [ 00 00 00 00 00 00 ];
-					phys = <&phy_gmii_sel 1>;
-				};
-
-				cpsw_emac1: slave@300 {
-					/* Filled in by U-Boot */
-					mac-address = [ 00 00 00 00 00 00 ];
-					phys = <&phy_gmii_sel 2>;
-				};
-			};
-
 			mac_sw: switch@0 {
 				compatible = "ti,dra7-cpsw-switch","ti,cpsw-switch";
 				reg = <0x0 0x4000>;
@@ -3561,7 +3507,6 @@
 
 		rtctarget: target-module@38000 {			/* 0x48838000, ap 29 12.0 */
 			compatible = "ti,sysc-omap4-simple", "ti,sysc";
-			ti,hwmods = "rtcss";
 			reg = <0x38074 0x4>,
 			      <0x38078 0x4>;
 			reg-names = "rev", "sysc";

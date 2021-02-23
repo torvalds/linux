@@ -90,8 +90,6 @@ static __always_inline bool hw_breakpoint_active(void)
 	return __this_cpu_read(cpu_dr7) & DR_GLOBAL_ENABLE_MASK;
 }
 
-extern void aout_dump_debugregs(struct user *dump);
-
 extern void hw_breakpoint_restore(void);
 
 static __always_inline unsigned long local_db_save(void)

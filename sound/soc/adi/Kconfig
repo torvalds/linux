@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config SND_SOC_ADI
 	tristate "Audio support for Analog Devices reference designs"
-	depends on MICROBLAZE || ARCH_ZYNQ || COMPILE_TEST
 	help
 	  Audio support for various reference designs by Analog Devices.
 

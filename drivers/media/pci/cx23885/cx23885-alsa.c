@@ -68,7 +68,8 @@ MODULE_PARM_DESC(audio_debug, "enable debug messages [analog audio]");
 #define AUD_INT_MCHG_IRQ        (1 << 21)
 #define GP_COUNT_CONTROL_RESET	0x3
 
-static int cx23885_alsa_dma_init(struct cx23885_audio_dev *chip, int nr_pages)
+static int cx23885_alsa_dma_init(struct cx23885_audio_dev *chip,
+				 unsigned long nr_pages)
 {
 	struct cx23885_audio_buffer *buf = chip->buf;
 	struct page *pg;
@@ -76,11 +77,11 @@ static int cx23885_alsa_dma_init(struct cx23885_audio_dev *chip, int nr_pages)
 
 	buf->vaddr = vmalloc_32(nr_pages << PAGE_SHIFT);
 	if (NULL == buf->vaddr) {
-		dprintk(1, "vmalloc_32(%d pages) failed\n", nr_pages);
+		dprintk(1, "vmalloc_32(%lu pages) failed\n", nr_pages);
 		return -ENOMEM;
 	}
 
-	dprintk(1, "vmalloc is at addr %p, size=%d\n",
+	dprintk(1, "vmalloc is at addr %p, size=%lu\n",
 		buf->vaddr, nr_pages << PAGE_SHIFT);
 
 	memset(buf->vaddr, 0, nr_pages << PAGE_SHIFT);
@@ -113,7 +114,7 @@ static int cx23885_alsa_dma_map(struct cx23885_audio_dev *dev)
 	struct cx23885_audio_buffer *buf = dev->buf;
 
 	buf->sglen = dma_map_sg(&dev->pci->dev, buf->sglist,
-			buf->nr_pages, PCI_DMA_FROMDEVICE);
+			buf->nr_pages, DMA_FROM_DEVICE);
 
 	if (0 == buf->sglen) {
 		pr_warn("%s: cx23885_alsa_map_sg failed\n", __func__);
@@ -129,7 +130,7 @@ static int cx23885_alsa_dma_unmap(struct cx23885_audio_dev *dev)
 	if (!buf->sglen)
 		return 0;
 
-	dma_unmap_sg(&dev->pci->dev, buf->sglist, buf->sglen, PCI_DMA_FROMDEVICE);
+	dma_unmap_sg(&dev->pci->dev, buf->sglist, buf->nr_pages, DMA_FROM_DEVICE);
 	buf->sglen = 0;
 	return 0;
 }

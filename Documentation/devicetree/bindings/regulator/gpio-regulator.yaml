@@ -91,6 +91,8 @@ required:
   - gpios
   - states
 
+unevaluatedProperties: false
+
 examples:
   - |
     gpio-regulator {

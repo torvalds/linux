@@ -277,7 +277,7 @@ static const struct drm_display_mode st7586_mode = {
 
 DEFINE_DRM_GEM_CMA_FOPS(st7586_fops);
 
-static struct drm_driver st7586_driver = {
+static const struct drm_driver st7586_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &st7586_fops,
 	DRM_GEM_CMA_DRIVER_OPS_VMAP,

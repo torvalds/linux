@@ -72,14 +72,21 @@ static inline bool sja1105_is_meta_frame(const struct sk_buff *skb)
 static bool sja1105_can_use_vlan_as_tags(const struct sk_buff *skb)
 {
 	struct vlan_ethhdr *hdr = vlan_eth_hdr(skb);
+	u16 vlan_tci;
 
 	if (hdr->h_vlan_proto == htons(ETH_P_SJA1105))
 		return true;
 
-	if (hdr->h_vlan_proto != htons(ETH_P_8021Q))
+	if (hdr->h_vlan_proto != htons(ETH_P_8021Q) &&
+	    !skb_vlan_tag_present(skb))
 		return false;
 
-	return vid_is_dsa_8021q(ntohs(hdr->h_vlan_TCI) & VLAN_VID_MASK);
+	if (skb_vlan_tag_present(skb))
+		vlan_tci = skb_vlan_tag_get(skb);
+	else
+		vlan_tci = ntohs(hdr->h_vlan_TCI);
+
+	return vid_is_dsa_8021q(vlan_tci & VLAN_VID_MASK);
 }
 
 /* This is the first time the tagger sees the frame on RX.
@@ -283,7 +290,8 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 
 	hdr = eth_hdr(skb);
 	tpid = ntohs(hdr->h_proto);
-	is_tagged = (tpid == ETH_P_SJA1105 || tpid == ETH_P_8021Q);
+	is_tagged = (tpid == ETH_P_SJA1105 || tpid == ETH_P_8021Q ||
+		     skb_vlan_tag_present(skb));
 	is_link_local = sja1105_is_link_local(skb);
 	is_meta = sja1105_is_meta_frame(skb);
 
@@ -292,7 +300,12 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 	if (is_tagged) {
 		/* Normal traffic path. */
 		skb_push_rcsum(skb, ETH_HLEN);
-		__skb_vlan_pop(skb, &tci);
+		if (skb_vlan_tag_present(skb)) {
+			tci = skb_vlan_tag_get(skb);
+			__vlan_hwaccel_clear_tag(skb);
+		} else {
+			__skb_vlan_pop(skb, &tci);
+		}
 		skb_pull_rcsum(skb, ETH_HLEN);
 		skb_reset_network_header(skb);
 		skb_reset_transport_header(skb);
@@ -333,6 +346,16 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 					      is_meta);
 }
 
+static void sja1105_flow_dissect(const struct sk_buff *skb, __be16 *proto,
+				 int *offset)
+{
+	/* No tag added for management frames, all ok */
+	if (unlikely(sja1105_is_link_local(skb)))
+		return;
+
+	dsa_tag_generic_flow_dissect(skb, proto, offset);
+}
+
 static const struct dsa_device_ops sja1105_netdev_ops = {
 	.name = "sja1105",
 	.proto = DSA_TAG_PROTO_SJA1105,
@@ -340,6 +363,8 @@ static const struct dsa_device_ops sja1105_netdev_ops = {
 	.rcv = sja1105_rcv,
 	.filter = sja1105_filter,
 	.overhead = VLAN_HLEN,
+	.flow_dissect = sja1105_flow_dissect,
+	.promisc_on_master = true,
 };
 
 MODULE_LICENSE("GPL v2");

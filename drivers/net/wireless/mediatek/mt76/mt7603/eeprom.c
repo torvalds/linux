@@ -141,14 +141,21 @@ static int mt7603_check_eeprom(struct mt76_dev *dev)
 	switch (val) {
 	case 0x7628:
 	case 0x7603:
+	case 0x7600:
 		return 0;
 	default:
 		return -EINVAL;
 	}
 }
 
+static inline bool is_mt7688(struct mt7603_dev *dev)
+{
+	return mt76_rr(dev, MT_EFUSE_BASE + 0x64) & BIT(4);
+}
+
 int mt7603_eeprom_init(struct mt7603_dev *dev)
 {
+	u8 *eeprom;
 	int ret;
 
 	ret = mt7603_eeprom_load(dev);
@@ -163,11 +170,18 @@ int mt7603_eeprom_init(struct mt7603_dev *dev)
 			       MT7603_EEPROM_SIZE);
 	}
 
-	dev->mt76.cap.has_2ghz = true;
-	memcpy(dev->mt76.macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
-	       ETH_ALEN);
+	eeprom = (u8 *)dev->mt76.eeprom.data;
+	dev->mphy.cap.has_2ghz = true;
+	memcpy(dev->mphy.macaddr, eeprom + MT_EE_MAC_ADDR, ETH_ALEN);
 
-	mt76_eeprom_override(&dev->mt76);
+	/* Check for 1SS devices */
+	dev->mphy.antenna_mask = 3;
+	if (FIELD_GET(MT_EE_NIC_CONF_0_RX_PATH, eeprom[MT_EE_NIC_CONF_0]) == 1 ||
+	    FIELD_GET(MT_EE_NIC_CONF_0_TX_PATH, eeprom[MT_EE_NIC_CONF_0]) == 1 ||
+	    is_mt7688(dev))
+		dev->mphy.antenna_mask = 1;
+
+	mt76_eeprom_override(&dev->mphy);
 
 	return 0;
 }

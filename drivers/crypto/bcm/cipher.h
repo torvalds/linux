@@ -16,7 +16,8 @@
 #include <crypto/aead.h>
 #include <crypto/arc4.h>
 #include <crypto/gcm.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <crypto/sha3.h>
 
 #include "spu.h"
@@ -388,7 +389,6 @@ struct spu_hw {
 				      u16 spu_req_hdr_len,
 				      unsigned int is_inbound,
 				      struct spu_cipher_parms *cipher_parms,
-				      bool update_key,
 				      unsigned int data_size);
 	void (*spu_request_pad)(u8 *pad_start, u32 gcm_padding,
 				u32 hash_pad_len, enum hash_alg auth_alg,

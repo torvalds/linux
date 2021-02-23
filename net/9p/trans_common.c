@@ -17,7 +17,9 @@
 #include "trans_common.h"
 
 /**
- *  p9_release_pages - Release pages after the transaction.
+ * p9_release_pages - Release pages after the transaction.
+ * @pages: array of pages to be put
+ * @nr_pages: size of array
  */
 void p9_release_pages(struct page **pages, int nr_pages)
 {

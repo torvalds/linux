@@ -275,6 +275,7 @@ enum {
 	MCU_EXT_CMD_PROTECT_CTRL = 0x3e,
 	MCU_EXT_CMD_DBDC_CTRL = 0x45,
 	MCU_EXT_CMD_MAC_INIT_CTRL = 0x46,
+	MCU_EXT_CMD_MUAR_UPDATE = 0x48,
 	MCU_EXT_CMD_BCN_OFFLOAD = 0x49,
 	MCU_EXT_CMD_SET_RX_PATH = 0x4e,
 	MCU_EXT_CMD_TX_POWER_FEATURE_CTRL = 0x58,
@@ -477,6 +478,12 @@ struct mt7615_bss_qos_tlv {
 	u8 pad[3];
 } __packed;
 
+enum {
+	WOW_USB = 1,
+	WOW_PCIE = 2,
+	WOW_GPIO = 3,
+};
+
 struct mt7615_wow_ctrl_tlv {
 	__le16 tag;
 	__le16 len;
@@ -498,6 +505,16 @@ struct mt7615_wow_ctrl_tlv {
 			* 0x3: HIF_GPIO
 			*/
 	u8 pad;
+	u8 rsv[4];
+} __packed;
+
+struct mt7615_wow_gpio_param_tlv {
+	__le16 tag;
+	__le16 len;
+	u8 gpio_pin;
+	u8 trigger_lvl;
+	u8 pad[2];
+	__le32 gpio_interval;
 	u8 rsv[4];
 } __packed;
 

@@ -90,6 +90,7 @@
 	port {
 		dcmi_0: endpoint {
 			remote-endpoint = <&ov5640_0>;
+			bus-type = <5>;
 			bus-width = <8>;
 			hsync-active = <0>;
 			vsync-active = <0>;
@@ -158,14 +159,16 @@
 	pinctrl-0 = <&fmc_pins_a>;
 	pinctrl-1 = <&fmc_sleep_pins_a>;
 	status = "okay";
-	#address-cells = <1>;
-	#size-cells = <0>;
 
-	nand@0 {
-		reg = <0>;
-		nand-on-flash-bbt;
-		#address-cells = <1>;
-		#size-cells = <1>;
+	nand-controller@4,0 {
+		status = "okay";
+
+		nand@0 {
+			reg = <0>;
+			nand-on-flash-bbt;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
 	};
 };
 

@@ -34,8 +34,9 @@ Description:	Kernel Samepage Merging daemon sysfs interface
 		in a tree.
 
 		run: write 0 to disable ksm, read 0 while ksm is disabled.
-			write 1 to run ksm, read 1 while ksm is running.
-			write 2 to disable ksm and unmerge all its pages.
+
+			- write 1 to run ksm, read 1 while ksm is running.
+			- write 2 to disable ksm and unmerge all its pages.
 
 		sleep_millisecs: how many milliseconds ksm should sleep between
 		scans.

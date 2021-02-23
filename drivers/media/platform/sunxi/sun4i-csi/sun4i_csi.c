@@ -7,6 +7,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -166,27 +167,6 @@ static int sun4i_csi_probe(struct platform_device *pdev)
 	if (!csi->traits)
 		return -EINVAL;
 
-	/*
-	 * On Allwinner SoCs, some high memory bandwidth devices do DMA
-	 * directly over the memory bus (called MBUS), instead of the
-	 * system bus. The memory bus has a different addressing scheme
-	 * without the DRAM starting offset.
-	 *
-	 * In some cases this can be described by an interconnect in
-	 * the device tree. In other cases where the hardware is not
-	 * fully understood and the interconnect is left out of the
-	 * device tree, fall back to a default offset.
-	 */
-	if (of_find_property(csi->dev->of_node, "interconnects", NULL)) {
-		ret = of_dma_configure(csi->dev, csi->dev->of_node, true);
-		if (ret)
-			return ret;
-	} else {
-#ifdef PHYS_PFN_OFFSET
-		csi->dev->dma_pfn_offset = PHYS_PFN_OFFSET;
-#endif
-	}
-
 	csi->mdev.dev = csi->dev;
 	strscpy(csi->mdev.model, "Allwinner Video Capture Device",
 		sizeof(csi->mdev.model));
@@ -287,6 +267,7 @@ static int sun4i_csi_remove(struct platform_device *pdev)
 
 	v4l2_async_notifier_unregister(&csi->notifier);
 	v4l2_async_notifier_cleanup(&csi->notifier);
+	vb2_video_unregister_device(&csi->vdev);
 	media_device_unregister(&csi->mdev);
 	sun4i_csi_dma_unregister(csi);
 	media_device_cleanup(&csi->mdev);

@@ -742,26 +742,24 @@ static int at91_adc_configure_trigger(struct iio_trigger *trig, bool state)
 	return 0;
 }
 
-static int at91_adc_reenable_trigger(struct iio_trigger *trig)
+static void at91_adc_reenable_trigger(struct iio_trigger *trig)
 {
 	struct iio_dev *indio = iio_trigger_get_drvdata(trig);
 	struct at91_adc_state *st = iio_priv(indio);
 
 	/* if we are using DMA, we must not reenable irq after each trigger */
 	if (st->dma_st.dma_chan)
-		return 0;
+		return;
 
 	enable_irq(st->irq);
 
 	/* Needed to ACK the DRDY interruption */
 	at91_adc_readl(st, AT91_SAMA5D2_LCDR);
-
-	return 0;
 }
 
 static const struct iio_trigger_ops at91_adc_trigger_ops = {
 	.set_trigger_state = &at91_adc_configure_trigger,
-	.try_reenable = &at91_adc_reenable_trigger,
+	.reenable = &at91_adc_reenable_trigger,
 	.validate_device = iio_trigger_validate_own_device,
 };
 
@@ -884,7 +882,7 @@ static bool at91_adc_current_chan_is_touch(struct iio_dev *indio_dev)
 			       AT91_SAMA5D2_MAX_CHAN_IDX + 1);
 }
 
-static int at91_adc_buffer_preenable(struct iio_dev *indio_dev)
+static int at91_adc_buffer_prepare(struct iio_dev *indio_dev)
 {
 	int ret;
 	u8 bit;
@@ -901,7 +899,7 @@ static int at91_adc_buffer_preenable(struct iio_dev *indio_dev)
 	/* we continue with the triggered buffer */
 	ret = at91_adc_dma_start(indio_dev);
 	if (ret) {
-		dev_err(&indio_dev->dev, "buffer postenable failed\n");
+		dev_err(&indio_dev->dev, "buffer prepare failed\n");
 		return ret;
 	}
 
@@ -989,7 +987,6 @@ static int at91_adc_buffer_postdisable(struct iio_dev *indio_dev)
 }
 
 static const struct iio_buffer_setup_ops at91_buffer_setup_ops = {
-	.preenable = &at91_adc_buffer_preenable,
 	.postdisable = &at91_adc_buffer_postdisable,
 };
 
@@ -1014,21 +1011,6 @@ static struct iio_trigger *at91_adc_allocate_trigger(struct iio_dev *indio,
 
 	return trig;
 }
-
-static int at91_adc_trigger_init(struct iio_dev *indio)
-{
-	struct at91_adc_state *st = iio_priv(indio);
-
-	st->trig = at91_adc_allocate_trigger(indio, st->selected_trig->name);
-	if (IS_ERR(st->trig)) {
-		dev_err(&indio->dev,
-			"could not allocate trigger\n");
-		return PTR_ERR(st->trig);
-	}
-
-	return 0;
-}
-
 static void at91_adc_trigger_handler_nodma(struct iio_dev *indio_dev,
 					   struct iio_poll_func *pf)
 {
@@ -1154,13 +1136,6 @@ static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
-}
-
-static int at91_adc_buffer_init(struct iio_dev *indio)
-{
-	return devm_iio_triggered_buffer_setup(&indio->dev, indio,
-		&iio_pollfunc_store_time,
-		&at91_adc_trigger_handler, &at91_buffer_setup_ops);
 }
 
 static unsigned at91_adc_startup_time(unsigned startup_time_min,
@@ -1473,7 +1448,7 @@ static int at91_adc_write_raw(struct iio_dev *indio_dev,
 		return 0;
 	default:
 		return -EINVAL;
-	};
+	}
 }
 
 static void at91_adc_dma_init(struct platform_device *pdev)
@@ -1563,6 +1538,7 @@ static void at91_adc_dma_disable(struct platform_device *pdev)
 static int at91_adc_set_watermark(struct iio_dev *indio_dev, unsigned int val)
 {
 	struct at91_adc_state *st = iio_priv(indio_dev);
+	int ret;
 
 	if (val > AT91_HWFIFO_MAX_SIZE)
 		return -EINVAL;
@@ -1586,7 +1562,15 @@ static int at91_adc_set_watermark(struct iio_dev *indio_dev, unsigned int val)
 	else if (val > 1)
 		at91_adc_dma_init(to_platform_device(&indio_dev->dev));
 
-	return 0;
+	/*
+	 * We can start the DMA only after setting the watermark and
+	 * having the DMA initialization completed
+	 */
+	ret = at91_adc_buffer_prepare(indio_dev);
+	if (ret)
+		at91_adc_dma_disable(to_platform_device(&indio_dev->dev));
+
+	return ret;
 }
 
 static int at91_adc_update_scan_mode(struct iio_dev *indio_dev,
@@ -1683,6 +1667,44 @@ static const struct iio_info at91_adc_info = {
 	.hwfifo_set_watermark = &at91_adc_set_watermark,
 };
 
+static int at91_adc_buffer_and_trigger_init(struct device *dev,
+					    struct iio_dev *indio)
+{
+	struct at91_adc_state *st = iio_priv(indio);
+	const struct attribute **fifo_attrs;
+	int ret;
+
+	if (st->selected_trig->hw_trig)
+		fifo_attrs = at91_adc_fifo_attributes;
+	else
+		fifo_attrs = NULL;
+
+	ret = devm_iio_triggered_buffer_setup_ext(&indio->dev, indio,
+		&iio_pollfunc_store_time,
+		&at91_adc_trigger_handler, &at91_buffer_setup_ops, fifo_attrs);
+	if (ret < 0) {
+		dev_err(dev, "couldn't initialize the buffer.\n");
+		return ret;
+	}
+
+	if (!st->selected_trig->hw_trig)
+		return 0;
+
+	st->trig = at91_adc_allocate_trigger(indio, st->selected_trig->name);
+	if (IS_ERR(st->trig)) {
+		dev_err(dev, "could not allocate trigger\n");
+		return PTR_ERR(st->trig);
+	}
+
+	/*
+	 * Initially the iio buffer has a length of 2 and
+	 * a watermark of 1
+	 */
+	st->dma_st.watermark = 1;
+
+	return 0;
+}
+
 static int at91_adc_probe(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev;
@@ -1764,16 +1786,12 @@ static int at91_adc_probe(struct platform_device *pdev)
 	mutex_init(&st->lock);
 	INIT_WORK(&st->touch_st.workq, at91_adc_workq_handler);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
+	st->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(st->base))
+		return PTR_ERR(st->base);
 
 	/* if we plan to use DMA, we need the physical address of the regs */
 	st->dma_st.phys_addr = res->start;
-
-	st->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(st->base))
-		return PTR_ERR(st->base);
 
 	st->irq = platform_get_irq(pdev, 0);
 	if (st->irq <= 0) {
@@ -1822,27 +1840,9 @@ static int at91_adc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, indio_dev);
 
-	ret = at91_adc_buffer_init(indio_dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "couldn't initialize the buffer.\n");
+	ret = at91_adc_buffer_and_trigger_init(&pdev->dev, indio_dev);
+	if (ret < 0)
 		goto per_clk_disable_unprepare;
-	}
-
-	if (st->selected_trig->hw_trig) {
-		ret = at91_adc_trigger_init(indio_dev);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "couldn't setup the triggers.\n");
-			goto per_clk_disable_unprepare;
-		}
-		/*
-		 * Initially the iio buffer has a length of 2 and
-		 * a watermark of 1
-		 */
-		st->dma_st.watermark = 1;
-
-		iio_buffer_set_attrs(indio_dev->buffer,
-				     at91_adc_fifo_attributes);
-	}
 
 	if (dma_coerce_mask_and_coherent(&indio_dev->dev, DMA_BIT_MASK(32)))
 		dev_info(&pdev->dev, "cannot set DMA mask to 32-bit\n");

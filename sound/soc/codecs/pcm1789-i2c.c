@@ -33,11 +33,13 @@ static int pcm1789_i2c_remove(struct i2c_client *client)
 	return pcm1789_common_exit(&client->dev);
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id pcm1789_of_match[] = {
 	{ .compatible = "ti,pcm1789", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, pcm1789_of_match);
+#endif
 
 static const struct i2c_device_id pcm1789_i2c_ids[] = {
 	{ "pcm1789", 0 },

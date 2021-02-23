@@ -434,7 +434,7 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 	tps_rtc->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	tps_rtc->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
-	return rtc_register_device(tps_rtc->rtc);
+	return devm_rtc_register_device(tps_rtc->rtc);
 }
 
 #ifdef CONFIG_PM_SLEEP

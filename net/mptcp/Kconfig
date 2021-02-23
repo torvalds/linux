@@ -19,14 +19,11 @@ config INET_MPTCP_DIAG
 
 config MPTCP_IPV6
 	bool "MPTCP: IPv6 support for Multipath TCP"
-	select IPV6
+	depends on IPV6=y
 	default y
-
-endif
 
 config MPTCP_KUNIT_TESTS
 	tristate "This builds the MPTCP KUnit tests" if !KUNIT_ALL_TESTS
-	select MPTCP
 	depends on KUNIT
 	default KUNIT_ALL_TESTS
 	help
@@ -39,3 +36,4 @@ config MPTCP_KUNIT_TESTS
 
 	  If unsure, say N.
 
+endif

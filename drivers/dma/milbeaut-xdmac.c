@@ -160,10 +160,9 @@ static irqreturn_t milbeaut_xdmac_interrupt(int irq, void *dev_id)
 {
 	struct milbeaut_xdmac_chan *mc = dev_id;
 	struct milbeaut_xdmac_desc *md;
-	unsigned long flags;
 	u32 val;
 
-	spin_lock_irqsave(&mc->vc.lock, flags);
+	spin_lock(&mc->vc.lock);
 
 	/* Ack and Stop */
 	val = FIELD_PREP(M10V_XDDSD_IS_MASK, 0x0);
@@ -177,7 +176,7 @@ static irqreturn_t milbeaut_xdmac_interrupt(int irq, void *dev_id)
 
 	milbeaut_xdmac_start(mc);
 out:
-	spin_unlock_irqrestore(&mc->vc.lock, flags);
+	spin_unlock(&mc->vc.lock);
 	return IRQ_HANDLED;
 }
 
@@ -351,7 +350,7 @@ static int milbeaut_xdmac_probe(struct platform_device *pdev)
 
 	ret = dma_async_device_register(ddev);
 	if (ret)
-		return ret;
+		goto disable_xdmac;
 
 	ret = of_dma_controller_register(dev->of_node,
 					 of_dma_simple_xlate, mdev);
@@ -364,6 +363,8 @@ static int milbeaut_xdmac_probe(struct platform_device *pdev)
 
 unregister_dmac:
 	dma_async_device_unregister(ddev);
+disable_xdmac:
+	disable_xdmac(mdev);
 	return ret;
 }
 

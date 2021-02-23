@@ -110,6 +110,17 @@ int clk_notifier_register(struct clk *clk, struct notifier_block *nb);
 int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb);
 
 /**
+ * devm_clk_notifier_register - register a managed rate-change notifier callback
+ * @dev: device for clock "consumer"
+ * @clk: clock whose rate we are interested in
+ * @nb: notifier block with callback function pointer
+ *
+ * Returns 0 on success, -EERROR otherwise
+ */
+int devm_clk_notifier_register(struct device *dev, struct clk *clk,
+			       struct notifier_block *nb);
+
+/**
  * clk_get_accuracy - obtain the clock accuracy in ppb (parts per billion)
  *		      for a clock source.
  * @clk: clock source
@@ -150,7 +161,7 @@ int clk_get_phase(struct clk *clk);
 int clk_set_duty_cycle(struct clk *clk, unsigned int num, unsigned int den);
 
 /**
- * clk_get_duty_cycle - return the duty cycle ratio of a clock signal
+ * clk_get_scaled_duty_cycle - return the duty cycle ratio of a clock signal
  * @clk: clock signal source
  * @scale: scaling factor to be applied to represent the ratio as an integer
  *
@@ -182,6 +193,13 @@ static inline int clk_notifier_register(struct clk *clk,
 
 static inline int clk_notifier_unregister(struct clk *clk,
 					  struct notifier_block *nb)
+{
+	return -ENOTSUPP;
+}
+
+static inline int devm_clk_notifier_register(struct device *dev,
+					     struct clk *clk,
+					     struct notifier_block *nb)
 {
 	return -ENOTSUPP;
 }

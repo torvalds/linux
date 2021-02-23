@@ -83,14 +83,18 @@ static inline int r4k_250MHZhwbug(void)
 	return 0;
 }
 
+extern int sb1250_m3_workaround_needed(void);
+
 static inline int __maybe_unused bcm1250_m3_war(void)
 {
-	return BCM1250_M3_WAR;
+	if (IS_ENABLED(CONFIG_SB1_PASS_2_WORKAROUNDS))
+		return sb1250_m3_workaround_needed();
+	return 0;
 }
 
 static inline int __maybe_unused r10000_llsc_war(void)
 {
-	return R10000_LLSC_WAR;
+	return IS_ENABLED(CONFIG_WAR_R10000_LLSC);
 }
 
 static int use_bbit_insns(void)

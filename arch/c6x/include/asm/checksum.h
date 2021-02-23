@@ -26,6 +26,9 @@ csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
 }
 #define csum_tcpudp_nofold csum_tcpudp_nofold
 
+#define _HAVE_ARCH_CSUM_AND_COPY
+extern __wsum csum_partial_copy_nocheck(const void *src, void *dst, int len);
+
 #include <asm-generic/checksum.h>
 
 #endif /* _ASM_C6X_CHECKSUM_H */

@@ -16,6 +16,7 @@
 #define ISM_DMB_WORD_OFFSET	1
 #define ISM_DMB_BIT_OFFSET	(ISM_DMB_WORD_OFFSET * 32)
 #define ISM_NR_DMBS		1920
+#define ISM_IDENT_MASK		0x00FFFF
 
 #define ISM_REG_SBA	0x1
 #define ISM_REG_IEQ	0x2
@@ -205,6 +206,12 @@ struct ism_dev {
 
 #define ISM_CREATE_REQ(dmb, idx, sf, offset)		\
 	((dmb) | (idx) << 24 | (sf) << 23 | (offset))
+
+struct ism_systemeid {
+	u8	seid_string[24];
+	u8	serial_number[4];
+	u8	type[4];
+};
 
 static inline void __ism_read_cmd(struct ism_dev *ism, void *data,
 				  unsigned long offset, unsigned long len)

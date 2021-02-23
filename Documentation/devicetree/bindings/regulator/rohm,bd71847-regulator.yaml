@@ -88,6 +88,66 @@ patternProperties:
         # ----------------------------------------------------------------
         # rest | not supported   | not supported    | not supported
 
+      # BD718(47/50) power outputs can either be controlled by the PMIC internal
+      # hardware state machine or by software. If you need regulators to be
+      # turned ON/OFF for example based on PMIC_STBY_REQ line (which toggles
+      # PMIC HW state machine) - then you should set this property.
+      # Tradeoff is that then SW can't control the ON/OFF state for this
+      # regulator (other than invoking a PMIC state change).
+      rohm,no-regulator-enable-control:
+        description: |
+          Enable/Disable control of this regulator must be left to the
+          PMIC hardware state machine.
+        type: boolean
+
+      # Setups where regulator (especially the buck8) output voltage is scaled
+      # by adding external connection where some other regulator output is
+      # connected to feedback-pin (over suitable resistors) is getting popular
+      # amongst users of BD71837. (This allows for example scaling down the
+      # buck8 voltages to suit lover GPU voltages for projects where buck8 is
+      # (ab)used to supply power for GPU.
+      #
+      # So we allow describing this external connection from DT and scale the
+      # voltages accordingly. This is what the connection should look like:
+      #
+      # |---------------|
+      # |       buck 8  |-------+----->Vout
+      # |               |       |
+      # |---------------|       |
+      #        |                |
+      #        |                |
+      #        +-------+--R2----+
+      #                |
+      #                R1
+      #                |
+      #        V FB-pull-up
+      #
+      # Here the buck output is sifted according to formula:
+      #
+      # Vout_o = Vo - (Vpu - Vo)*R2/R1
+      # Linear_step = step_orig*(R1+R2)/R1
+      #
+      # where:
+      # Vout_o is adjusted voltage output at vsel reg value 0
+      # Vo is original voltage output at vsel reg value 0
+      # Vpu is the pull-up voltage V FB-pull-up in the picture
+      # R1 and R2 are resistor values.
+
+      rohm,fb-pull-up-microvolt:
+        description:
+          Feedback-pin has pull-up connection to adjust voltage range. This is
+          the used pull-up voltage before R1.
+
+      rohm,feedback-pull-up-r1-ohms:
+        description:
+          Feedback-pin has pull-up connection to adjust voltage range. This is
+          the used R1 resistor.
+
+      rohm,feedback-pull-up-r2-ohms:
+        description:
+          Feedback-pin has pull-up connection to adjust voltage range. This is
+          the used R2 resistor.
+
     required:
       - regulator-name
 

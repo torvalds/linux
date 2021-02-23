@@ -25,9 +25,8 @@
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_trace.h"
+#include "si.h"
 #include "sid.h"
-
-u32 si_gpu_check_soft_reset(struct radeon_device *rdev);
 
 /**
  * si_dma_is_lockup - Check if the DMA engine is locked up

@@ -461,3 +461,157 @@ Otherwise, the _DSD itself is regarded as invalid and therefore the "compatible"
 property returned by it is meaningless.
 
 Refer to :doc:`DSD-properties-rules` for more information.
+
+PCI hierarchy representation
+============================
+
+Sometimes could be useful to enumerate a PCI device, knowing its position on the
+PCI bus.
+
+For example, some systems use PCI devices soldered directly on the mother board,
+in a fixed position (ethernet, Wi-Fi, serial ports, etc.). In this conditions it
+is possible to refer to these PCI devices knowing their position on the PCI bus
+topology.
+
+To identify a PCI device, a complete hierarchical description is required, from
+the chipset root port to the final device, through all the intermediate
+bridges/switches of the board.
+
+For example, let us assume to have a system with a PCIe serial port, an
+Exar XR17V3521, soldered on the main board. This UART chip also includes
+16 GPIOs and we want to add the property ``gpio-line-names`` [1] to these pins.
+In this case, the ``lspci`` output for this component is::
+
+	07:00.0 Serial controller: Exar Corp. XR17V3521 Dual PCIe UART (rev 03)
+
+The complete ``lspci`` output (manually reduced in length) is::
+
+	00:00.0 Host bridge: Intel Corp... Host Bridge (rev 0d)
+	...
+	00:13.0 PCI bridge: Intel Corp... PCI Express Port A #1 (rev fd)
+	00:13.1 PCI bridge: Intel Corp... PCI Express Port A #2 (rev fd)
+	00:13.2 PCI bridge: Intel Corp... PCI Express Port A #3 (rev fd)
+	00:14.0 PCI bridge: Intel Corp... PCI Express Port B #1 (rev fd)
+	00:14.1 PCI bridge: Intel Corp... PCI Express Port B #2 (rev fd)
+	...
+	05:00.0 PCI bridge: Pericom Semiconductor Device 2404 (rev 05)
+	06:01.0 PCI bridge: Pericom Semiconductor Device 2404 (rev 05)
+	06:02.0 PCI bridge: Pericom Semiconductor Device 2404 (rev 05)
+	06:03.0 PCI bridge: Pericom Semiconductor Device 2404 (rev 05)
+	07:00.0 Serial controller: Exar Corp. XR17V3521 Dual PCIe UART (rev 03) <-- Exar
+	...
+
+The bus topology is::
+
+	-[0000:00]-+-00.0
+	           ...
+	           +-13.0-[01]----00.0
+	           +-13.1-[02]----00.0
+	           +-13.2-[03]--
+	           +-14.0-[04]----00.0
+	           +-14.1-[05-09]----00.0-[06-09]--+-01.0-[07]----00.0 <-- Exar
+	           |                               +-02.0-[08]----00.0
+	           |                               \-03.0-[09]--
+	           ...
+	           \-1f.1
+
+To describe this Exar device on the PCI bus, we must start from the ACPI name
+of the chipset bridge (also called "root port") with address::
+
+	Bus: 0 - Device: 14 - Function: 1
+
+To find this information is necessary disassemble the BIOS ACPI tables, in
+particular the DSDT (see also [2])::
+
+	mkdir ~/tables/
+	cd ~/tables/
+	acpidump > acpidump
+	acpixtract -a acpidump
+	iasl -e ssdt?.* -d dsdt.dat
+
+Now, in the dsdt.dsl, we have to search the device whose address is related to
+0x14 (device) and 0x01 (function). In this case we can find the following
+device::
+
+	Scope (_SB.PCI0)
+	{
+	... other definitions follow ...
+		Device (RP02)
+		{
+			Method (_ADR, 0, NotSerialized)  // _ADR: Address
+			{
+				If ((RPA2 != Zero))
+				{
+					Return (RPA2) /* \RPA2 */
+				}
+				Else
+				{
+					Return (0x00140001)
+				}
+			}
+	... other definitions follow ...
+
+and the _ADR method [3] returns exactly the device/function couple that
+we are looking for. With this information and analyzing the above ``lspci``
+output (both the devices list and the devices tree), we can write the following
+ACPI description for the Exar PCIe UART, also adding the list of its GPIO line
+names::
+
+	Scope (_SB.PCI0.RP02)
+	{
+		Device (BRG1) //Bridge
+		{
+			Name (_ADR, 0x0000)
+
+			Device (BRG2) //Bridge
+			{
+				Name (_ADR, 0x00010000)
+
+				Device (EXAR)
+				{
+					Name (_ADR, 0x0000)
+
+					Name (_DSD, Package ()
+					{
+						ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+						Package ()
+						{
+							Package ()
+							{
+								"gpio-line-names",
+								Package ()
+								{
+									"mode_232",
+									"mode_422",
+									"mode_485",
+									"misc_1",
+									"misc_2",
+									"misc_3",
+									"",
+									"",
+									"aux_1",
+									"aux_2",
+									"aux_3",
+								}
+							}
+						}
+					})
+				}
+			}
+		}
+	}
+
+The location "_SB.PCI0.RP02" is obtained by the above investigation in the
+dsdt.dsl table, whereas the device names "BRG1", "BRG2" and "EXAR" are
+created analyzing the position of the Exar UART in the PCI bus topology.
+
+References
+==========
+
+[1] Documentation/firmware-guide/acpi/gpio-properties.rst
+
+[2] Documentation/admin-guide/acpi/initrd_table_override.rst
+
+[3] ACPI Specifications, Version 6.3 - Paragraph 6.1.1 _ADR Address)
+    https://uefi.org/sites/default/files/resources/ACPI_6_3_May16.pdf,
+    referenced 2020-11-18

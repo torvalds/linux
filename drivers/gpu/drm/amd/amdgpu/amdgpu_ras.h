@@ -31,6 +31,9 @@
 #include "ta_ras_if.h"
 #include "amdgpu_ras_eeprom.h"
 
+#define AMDGPU_RAS_FLAG_INIT_BY_VBIOS		(0x1 << 0)
+#define AMDGPU_RAS_FLAG_INIT_NEED_RESET		(0x1 << 1)
+
 enum amdgpu_ras_block {
 	AMDGPU_RAS_BLOCK__UMC = 0,
 	AMDGPU_RAS_BLOCK__SDMA,
@@ -336,6 +339,12 @@ struct amdgpu_ras {
 	struct amdgpu_ras_eeprom_control eeprom_control;
 
 	bool error_query_ready;
+
+	/* bad page count threshold */
+	uint32_t bad_page_cnt_threshold;
+
+	/* disable ras error count harvest in recovery */
+	bool disable_ras_err_cnt_harvest;
 };
 
 struct ras_fs_data {
@@ -353,14 +362,10 @@ struct ras_err_data {
 struct ras_err_handler_data {
 	/* point to bad page records array */
 	struct eeprom_table_record *bps;
-	/* point to reserved bo array */
-	struct amdgpu_bo **bps_bo;
 	/* the count of entries */
 	int count;
 	/* the space can place new entries */
 	int space_left;
-	/* last reserved entry's index + 1 */
-	int last_reserved;
 };
 
 typedef int (*ras_ih_cb)(struct amdgpu_device *adev,
@@ -490,21 +495,17 @@ void amdgpu_ras_suspend(struct amdgpu_device *adev);
 unsigned long amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 		bool is_ce);
 
+bool amdgpu_ras_check_err_threshold(struct amdgpu_device *adev);
+
 /* error handling functions */
 int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 		struct eeprom_table_record *bps, int pages);
 
-int amdgpu_ras_reserve_bad_pages(struct amdgpu_device *adev);
+int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev);
 
 static inline int amdgpu_ras_reset_gpu(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
-
-	/* save bad page to eeprom before gpu reset,
-	 * i2c may be unstable in gpu reset
-	 */
-	if (in_task())
-		amdgpu_ras_reserve_bad_pages(adev);
 
 	if (atomic_cmpxchg(&ras->in_recovery, 0, 1) == 0)
 		schedule_work(&ras->recovery_work);
@@ -591,13 +592,7 @@ int amdgpu_ras_sysfs_create(struct amdgpu_device *adev,
 int amdgpu_ras_sysfs_remove(struct amdgpu_device *adev,
 		struct ras_common_if *head);
 
-void amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
-		struct ras_fs_if *head);
-
 void amdgpu_ras_debugfs_create_all(struct amdgpu_device *adev);
-
-void amdgpu_ras_debugfs_remove(struct amdgpu_device *adev,
-		struct ras_common_if *head);
 
 int amdgpu_ras_error_query(struct amdgpu_device *adev,
 		struct ras_query_if *info);

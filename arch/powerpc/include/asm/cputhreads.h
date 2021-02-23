@@ -23,7 +23,6 @@
 extern int threads_per_core;
 extern int threads_per_subcore;
 extern int threads_shift;
-extern bool has_big_cores;
 extern cpumask_t threads_core_mask;
 #else
 #define threads_per_core	1

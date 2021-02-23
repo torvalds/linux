@@ -1068,13 +1068,6 @@ static int ov7740_probe(struct i2c_client *client)
 	struct v4l2_subdev *sd;
 	int ret;
 
-	if (!i2c_check_functionality(client->adapter,
-				     I2C_FUNC_SMBUS_BYTE_DATA)) {
-		dev_err(&client->dev,
-			"OV7740: I2C-Adapter doesn't support SMBUS\n");
-		return -EIO;
-	}
-
 	ov7740 = devm_kzalloc(&client->dev, sizeof(*ov7740), GFP_KERNEL);
 	if (!ov7740)
 		return -ENOMEM;
@@ -1091,7 +1084,7 @@ static int ov7740_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	ov7740->regmap = devm_regmap_init_i2c(client, &ov7740_regmap_config);
+	ov7740->regmap = devm_regmap_init_sccb(client, &ov7740_regmap_config);
 	if (IS_ERR(ov7740->regmap)) {
 		ret = PTR_ERR(ov7740->regmap);
 		dev_err(&client->dev, "Failed to allocate register map: %d\n",
@@ -1100,7 +1093,6 @@ static int ov7740_probe(struct i2c_client *client)
 	}
 
 	sd = &ov7740->subdev;
-	client->flags |= I2C_CLIENT_SCCB;
 	v4l2_i2c_subdev_init(sd, client, &ov7740_subdev_ops);
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
@@ -1184,8 +1176,7 @@ static int ov7740_remove(struct i2c_client *client)
 
 static int __maybe_unused ov7740_runtime_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov7740 *ov7740 = container_of(sd, struct ov7740, subdev);
 
 	ov7740_set_power(ov7740, 0);
@@ -1195,8 +1186,7 @@ static int __maybe_unused ov7740_runtime_suspend(struct device *dev)
 
 static int __maybe_unused ov7740_runtime_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov7740 *ov7740 = container_of(sd, struct ov7740, subdev);
 
 	return ov7740_set_power(ov7740, 1);

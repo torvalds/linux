@@ -595,7 +595,7 @@ int hinic_init_rxq(struct hinic_rxq *rxq, struct hinic_rq *rq,
 	rxq_stats_init(rxq);
 
 	rxq->irq_name = devm_kasprintf(&netdev->dev, GFP_KERNEL,
-				       "hinic_rxq%d", qp->q_id);
+				       "%s_rxq%d", netdev->name, qp->q_id);
 	if (!rxq->irq_name)
 		return -ENOMEM;
 

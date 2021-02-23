@@ -479,7 +479,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	dev->scancode_mask = hardware_mask;
 
 	if (ir->sampling) {
-		dev->timeout = 10 * 1000 * 1000; /* 10 ms */
+		dev->timeout = MS_TO_US(10); /* 10 ms */
 	} else {
 		dev->driver_type = RC_DRIVER_SCANCODE;
 		dev->allowed_protocols = rc_proto;
@@ -544,7 +544,7 @@ void cx88_ir_irq(struct cx88_core *core)
 	for (todo = 32; todo > 0; todo -= bits) {
 		ev.pulse = samples & 0x80000000 ? false : true;
 		bits = min(todo, 32U - fls(ev.pulse ? samples : ~samples));
-		ev.duration = (bits * (NSEC_PER_SEC / 1000)) / ir_samplerate;
+		ev.duration = (bits * (USEC_PER_SEC / 1000)) / ir_samplerate;
 		ir_raw_event_store_with_filter(ir->dev, &ev);
 		samples <<= bits;
 	}

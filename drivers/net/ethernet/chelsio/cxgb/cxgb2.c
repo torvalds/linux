@@ -997,17 +997,17 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_disable_pdev;
 	}
 
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
+	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
 		pci_using_dac = 1;
 
-		if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64))) {
-			pr_err("%s: unable to obtain 64-bit DMA for "
-			       "consistent allocations\n", pci_name(pdev));
+		if (dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64))) {
+			pr_err("%s: unable to obtain 64-bit DMA for coherent allocations\n",
+			       pci_name(pdev));
 			err = -ENODEV;
 			goto out_disable_pdev;
 		}
 
-	} else if ((err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) != 0) {
+	} else if ((err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) != 0) {
 		pr_err("%s: no usable DMA configuration\n", pci_name(pdev));
 		goto out_disable_pdev;
 	}

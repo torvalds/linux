@@ -153,8 +153,10 @@ int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
  */
 #if defined(CONFIG_PPC32) && defined(CONFIG_PTE_64BIT)
 #define PTE_RPN_MASK	(~((1ULL << PTE_RPN_SHIFT) - 1))
+#define MAX_POSSIBLE_PHYSMEM_BITS 36
 #else
 #define PTE_RPN_MASK	(~((1UL << PTE_RPN_SHIFT) - 1))
+#define MAX_POSSIBLE_PHYSMEM_BITS 32
 #endif
 
 /*
@@ -227,6 +229,19 @@ static inline void pmd_clear(pmd_t *pmdp)
  */
 #ifdef CONFIG_PPC_8xx
 static pmd_t *pmd_off(struct mm_struct *mm, unsigned long addr);
+static int hugepd_ok(hugepd_t hpd);
+
+static int number_of_cells_per_pte(pmd_t *pmd, pte_basic_t val, int huge)
+{
+	if (!huge)
+		return PAGE_SIZE / SZ_4K;
+	else if (hugepd_ok(*((hugepd_t *)pmd)))
+		return 1;
+	else if (IS_ENABLED(CONFIG_PPC_4K_PAGES) && !(val & _PAGE_HUGE))
+		return SZ_16K / SZ_4K;
+	else
+		return SZ_512K / SZ_4K;
+}
 
 static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, pte_t *p,
 				     unsigned long clr, unsigned long set, int huge)
@@ -237,12 +252,7 @@ static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, p
 	int num, i;
 	pmd_t *pmd = pmd_off(mm, addr);
 
-	if (!huge)
-		num = PAGE_SIZE / SZ_4K;
-	else if ((pmd_val(*pmd) & _PMD_PAGE_MASK) != _PMD_PAGE_8M)
-		num = SZ_512K / SZ_4K;
-	else
-		num = 1;
+	num = number_of_cells_per_pte(pmd, new, huge);
 
 	for (i = 0; i < num; i++, entry++, new += SZ_4K)
 		*entry = new;

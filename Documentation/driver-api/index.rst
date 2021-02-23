@@ -22,15 +22,14 @@ available subsections can be seen below.
    pm/index
    clk
    device-io
-   device_connection
    dma-buf
    device_link
    component
    message-based
    infiniband
-   sound
    frame-buffer
    regulator
+   reset
    iio/index
    input
    usb/index
@@ -74,12 +73,12 @@ available subsections can be seen below.
    thermal/index
    fpga/index
    acpi/index
+   auxiliary_bus
    backlight/lp855x-driver.rst
    connector
    console
    dcdbas
    eisa
-   ipmb
    isa
    isapnp
    io-mapping

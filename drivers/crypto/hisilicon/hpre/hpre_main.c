@@ -90,7 +90,6 @@
 #define HPRE_SQE_MASK_OFFSET		8
 #define HPRE_SQE_MASK_LEN		24
 
-static struct hisi_qm_list hpre_devices;
 static const char hpre_name[] = "hisi_hpre";
 static struct dentry *hpre_debugfs_root;
 static const struct pci_device_id hpre_dev_ids[] = {
@@ -104,6 +103,11 @@ MODULE_DEVICE_TABLE(pci, hpre_dev_ids);
 struct hpre_hw_error {
 	u32 int_msk;
 	const char *msg;
+};
+
+static struct hisi_qm_list hpre_devices = {
+	.register_to_crypto	= hpre_algs_register,
+	.unregister_from_crypto	= hpre_algs_unregister,
 };
 
 static const char * const hpre_debug_file_name[] = {
@@ -186,7 +190,7 @@ static const struct kernel_param_ops hpre_pf_q_num_ops = {
 
 static u32 pf_q_num = HPRE_PF_DEF_Q_NUM;
 module_param_cb(pf_q_num, &hpre_pf_q_num_ops, &pf_q_num, 0444);
-MODULE_PARM_DESC(pf_q_num, "Number of queues in PF of CS(1-1024)");
+MODULE_PARM_DESC(pf_q_num, "Number of queues in PF of CS(2-1024)");
 
 static const struct kernel_param_ops vfs_num_ops = {
 	.set = vfs_num_set,
@@ -701,9 +705,7 @@ static int hpre_debugfs_init(struct hisi_qm *qm)
 
 	qm->debug.sqe_mask_offset = HPRE_SQE_MASK_OFFSET;
 	qm->debug.sqe_mask_len = HPRE_SQE_MASK_LEN;
-	ret = hisi_qm_debug_init(qm);
-	if (ret)
-		goto failed_to_create;
+	hisi_qm_debug_init(qm);
 
 	if (qm->pdev->device == HPRE_PCI_DEVICE_ID) {
 		ret = hpre_ctrl_debug_init(qm);
@@ -864,9 +866,7 @@ static int hpre_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		dev_warn(&pdev->dev, "init debugfs fail!\n");
 
-	hisi_qm_add_to_list(qm, &hpre_devices);
-
-	ret = hpre_algs_register();
+	ret = hisi_qm_alg_register(qm, &hpre_devices);
 	if (ret < 0) {
 		pci_err(pdev, "fail to register algs to crypto!\n");
 		goto err_with_qm_start;
@@ -875,18 +875,17 @@ static int hpre_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (qm->fun_type == QM_HW_PF && vfs_num) {
 		ret = hisi_qm_sriov_enable(pdev, vfs_num);
 		if (ret < 0)
-			goto err_with_crypto_register;
+			goto err_with_alg_register;
 	}
 
 	return 0;
 
-err_with_crypto_register:
-	hpre_algs_unregister();
+err_with_alg_register:
+	hisi_qm_alg_unregister(qm, &hpre_devices);
 
 err_with_qm_start:
-	hisi_qm_del_from_list(qm, &hpre_devices);
 	hpre_debugfs_exit(qm);
-	hisi_qm_stop(qm);
+	hisi_qm_stop(qm, QM_NORMAL);
 
 err_with_err_init:
 	hisi_qm_dev_err_uninit(qm);
@@ -899,14 +898,13 @@ err_with_qm_init:
 
 static void hpre_remove(struct pci_dev *pdev)
 {
-	struct hpre *hpre = pci_get_drvdata(pdev);
-	struct hisi_qm *qm = &hpre->qm;
+	struct hisi_qm *qm = pci_get_drvdata(pdev);
 	int ret;
 
-	hpre_algs_unregister();
-	hisi_qm_del_from_list(qm, &hpre_devices);
+	hisi_qm_wait_task_finish(qm, &hpre_devices);
+	hisi_qm_alg_unregister(qm, &hpre_devices);
 	if (qm->fun_type == QM_HW_PF && qm->vfs_num) {
-		ret = hisi_qm_sriov_disable(pdev);
+		ret = hisi_qm_sriov_disable(pdev, qm->is_frozen);
 		if (ret) {
 			pci_err(pdev, "Disable SRIOV fail!\n");
 			return;
@@ -918,7 +916,7 @@ static void hpre_remove(struct pci_dev *pdev)
 	}
 
 	hpre_debugfs_exit(qm);
-	hisi_qm_stop(qm);
+	hisi_qm_stop(qm, QM_NORMAL);
 	hisi_qm_dev_err_uninit(qm);
 	hisi_qm_uninit(qm);
 }
@@ -939,6 +937,7 @@ static struct pci_driver hpre_pci_driver = {
 	.sriov_configure	= IS_ENABLED(CONFIG_PCI_IOV) ?
 				  hisi_qm_sriov_configure : NULL,
 	.err_handler		= &hpre_err_handler,
+	.shutdown		= hisi_qm_dev_shutdown,
 };
 
 static void hpre_register_debugfs(void)

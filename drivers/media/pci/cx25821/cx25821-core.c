@@ -1198,7 +1198,6 @@ EXPORT_SYMBOL(cx25821_risc_databuffer_audio);
 
 void cx25821_free_buffer(struct cx25821_dev *dev, struct cx25821_buffer *buf)
 {
-	BUG_ON(in_interrupt());
 	if (WARN_ON(buf->risc.size == 0))
 		return;
 	pci_free_consistent(dev->pci,

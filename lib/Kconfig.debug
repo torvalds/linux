@@ -212,9 +212,10 @@ config DEBUG_INFO
 
 	  If unsure, say N.
 
+if DEBUG_INFO
+
 config DEBUG_INFO_REDUCED
 	bool "Reduce debugging information"
-	depends on DEBUG_INFO
 	help
 	  If you say Y here gcc is instructed to generate less debugging
 	  information for structure types. This means that tools that
@@ -227,7 +228,6 @@ config DEBUG_INFO_REDUCED
 
 config DEBUG_INFO_COMPRESSED
 	bool "Compressed debugging information"
-	depends on DEBUG_INFO
 	depends on $(cc-option,-gz=zlib)
 	depends on $(ld-option,--compress-debug-sections=zlib)
 	help
@@ -243,7 +243,6 @@ config DEBUG_INFO_COMPRESSED
 
 config DEBUG_INFO_SPLIT
 	bool "Produce split debuginfo in .dwo files"
-	depends on DEBUG_INFO
 	depends on $(cc-option,-gsplit-dwarf)
 	help
 	  Generate debug info into separate .dwo files. This significantly
@@ -259,7 +258,6 @@ config DEBUG_INFO_SPLIT
 
 config DEBUG_INFO_DWARF4
 	bool "Generate dwarf4 debuginfo"
-	depends on DEBUG_INFO
 	depends on $(cc-option,-gdwarf-4)
 	help
 	  Generate dwarf4 debug info. This requires recent versions
@@ -269,7 +267,6 @@ config DEBUG_INFO_DWARF4
 
 config DEBUG_INFO_BTF
 	bool "Generate BTF typeinfo"
-	depends on DEBUG_INFO
 	depends on !DEBUG_INFO_SPLIT && !DEBUG_INFO_REDUCED
 	depends on !GCC_PLUGIN_RANDSTRUCT || COMPILE_TEST
 	help
@@ -277,9 +274,17 @@ config DEBUG_INFO_BTF
 	  Turning this on expects presence of pahole tool, which will convert
 	  DWARF type info into equivalent deduplicated BTF type info.
 
+config PAHOLE_HAS_SPLIT_BTF
+	def_bool $(success, test `$(PAHOLE) --version | sed -E 's/v([0-9]+)\.([0-9]+)/\1\2/'` -ge "119")
+
+config DEBUG_INFO_BTF_MODULES
+	def_bool y
+	depends on DEBUG_INFO_BTF && MODULES && PAHOLE_HAS_SPLIT_BTF
+	help
+	  Generate compact split BTF type information for kernel modules.
+
 config GDB_SCRIPTS
 	bool "Provide GDB scripts for kernel debugging"
-	depends on DEBUG_INFO
 	help
 	  This creates the required links to GDB helper scripts in the
 	  build directory. If you load vmlinux into gdb, the helper
@@ -288,13 +293,7 @@ config GDB_SCRIPTS
 	  instance. See Documentation/dev-tools/gdb-kernel-debugging.rst
 	  for further details.
 
-config ENABLE_MUST_CHECK
-	bool "Enable __must_check logic"
-	default y
-	help
-	  Enable the __must_check logic in the kernel build.  Disable this to
-	  suppress the "warning: ignoring return value of 'foo', declared with
-	  attribute warn_unused_result" messages.
+endif # DEBUG_INFO
 
 config FRAME_WARN
 	int "Warn for stack frames larger than"
@@ -851,9 +850,31 @@ config DEBUG_PER_CPU_MAPS
 
 	  Say N if unsure.
 
+config DEBUG_KMAP_LOCAL
+	bool "Debug kmap_local temporary mappings"
+	depends on DEBUG_KERNEL && KMAP_LOCAL
+	help
+	  This option enables additional error checking for the kmap_local
+	  infrastructure.  Disable for production use.
+
+config ARCH_SUPPORTS_KMAP_LOCAL_FORCE_MAP
+	bool
+
+config DEBUG_KMAP_LOCAL_FORCE_MAP
+	bool "Enforce kmap_local temporary mappings"
+	depends on DEBUG_KERNEL && ARCH_SUPPORTS_KMAP_LOCAL_FORCE_MAP
+	select KMAP_LOCAL
+	select DEBUG_KMAP_LOCAL
+	help
+	  This option enforces temporary mappings through the kmap_local
+	  mechanism for non-highmem pages and on non-highmem systems.
+	  Disable this for production systems!
+
 config DEBUG_HIGHMEM
 	bool "Highmem debugging"
 	depends on DEBUG_KERNEL && HIGHMEM
+	select DEBUG_KMAP_LOCAL_FORCE_MAP if ARCH_SUPPORTS_KMAP_LOCAL_FORCE_MAP
+	select DEBUG_KMAP_LOCAL
 	help
 	  This option enables additional error checking for high memory
 	  systems.  Disable for production systems.
@@ -1367,6 +1388,27 @@ config WW_MUTEX_SELFTEST
 	  Say M if you want these self tests to build as a module.
 	  Say N if you are unsure.
 
+config SCF_TORTURE_TEST
+	tristate "torture tests for smp_call_function*()"
+	depends on DEBUG_KERNEL
+	select TORTURE_TEST
+	help
+	  This option provides a kernel module that runs torture tests
+	  on the smp_call_function() family of primitives.  The kernel
+	  module may be built after the fact on the running kernel to
+	  be tested, if desired.
+
+config CSD_LOCK_WAIT_DEBUG
+	bool "Debugging for csd_lock_wait(), called from smp_call_function*()"
+	depends on DEBUG_KERNEL
+	depends on 64BIT
+	default n
+	help
+	  This option enables debug prints when CPUs are slow to respond
+	  to the smp_call_function*() IPI wrappers.  These debug prints
+	  include the IPI handler function currently executing (if any)
+	  and relevant stack traces.
+
 endmenu # lock debugging
 
 config TRACE_IRQFLAGS
@@ -1626,7 +1668,7 @@ config ARCH_HAS_DEVMEM_IS_ALLOWED
 config STRICT_DEVMEM
 	bool "Filter access to /dev/mem"
 	depends on MMU && DEVMEM
-	depends on ARCH_HAS_DEVMEM_IS_ALLOWED
+	depends on ARCH_HAS_DEVMEM_IS_ALLOWED || GENERIC_LIB_DEVMEM_IS_ALLOWED
 	default y if PPC || X86 || ARM64
 	help
 	  If this option is disabled, you allow userspace (root) access to all
@@ -1767,6 +1809,13 @@ config FAIL_PAGE_ALLOC
 	depends on FAULT_INJECTION
 	help
 	  Provide fault-injection capability for alloc_pages().
+
+config FAULT_INJECTION_USERCOPY
+	bool "Fault injection capability for usercopy functions"
+	depends on FAULT_INJECTION
+	help
+	  Provides fault-injection capability to inject failures
+	  in usercopy functions (copy_from_user(), get_user(), ...).
 
 config FAIL_MAKE_REQUEST
 	bool "Fault-injection capability for disk IO"
@@ -2035,13 +2084,6 @@ config TEST_BITMAP
 
 	  If unsure, say N.
 
-config TEST_BITFIELD
-	tristate "Test bitfield functions at runtime"
-	help
-	  Enable this option to test the bitfield functions at boot.
-
-	  If unsure, say N.
-
 config TEST_UUID
 	tristate "Test functions located in the uuid module at runtime"
 
@@ -2191,6 +2233,33 @@ config TEST_SYSCTL
 
 	  If unsure, say N.
 
+config BITFIELD_KUNIT
+	tristate "KUnit test bitfield functions at runtime"
+	depends on KUNIT
+	help
+	  Enable this option to test the bitfield functions at boot.
+
+	  KUnit tests run during boot and output the results to the debug log
+	  in TAP format (http://testanything.org/). Only useful for kernel devs
+	  running the KUnit test harness, and not intended for inclusion into a
+	  production build.
+
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
+
+config RESOURCE_KUNIT_TEST
+	tristate "KUnit test for resource API"
+	depends on KUNIT
+	help
+	  This builds the resource API unit test.
+	  Tests the logic of API provided by resource.c and ioport.h.
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
+
 config SYSCTL_KUNIT_TEST
 	tristate "KUnit test for sysctl" if !KUNIT_ALL_TESTS
 	depends on KUNIT
@@ -2229,6 +2298,17 @@ config LINEAR_RANGES_TEST
 	help
 	  This builds the linear_ranges unit test, which runs on boot.
 	  Tests the linear_ranges logic correctness.
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
+
+config CMDLINE_KUNIT_TEST
+	tristate "KUnit test for cmdline API"
+	depends on KUNIT
+	help
+	  This builds the cmdline API unit test.
+	  Tests the logic of API provided by cmdline.c.
 	  For more information on KUnit and unit tests in general please refer
 	  to the KUnit documentation in Documentation/dev-tools/kunit/.
 
@@ -2367,6 +2447,15 @@ config TEST_HMM
 
 	  If unsure, say N.
 
+config TEST_FREE_PAGES
+	tristate "Test freeing pages"
+	help
+	  Test that a memory leak does not occur due to a race between
+	  freeing a block of pages and a speculative page reference.
+	  Loading this module is safe if your kernel has the bug fixed.
+	  If the bug is not fixed, it will leak gigabytes of memory and
+	  probably OOM your system.
+
 config TEST_FPU
 	tristate "Test floating point operations in kernel space"
 	depends on X86 && !KCOV_INSTRUMENT_ALL
@@ -2401,5 +2490,7 @@ config HYPERV_TESTING
 	  Select this option to enable Hyper-V vmbus testing.
 
 endmenu # "Kernel Testing and Coverage"
+
+source "Documentation/Kconfig"
 
 endmenu # Kernel hacking

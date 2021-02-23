@@ -9,7 +9,6 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/openvswitch.h>
-#include <linux/netfilter_ipv6.h>
 #include <linux/sctp.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
@@ -200,6 +199,9 @@ static int set_mpls(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	__be32 lse;
 	int err;
 
+	if (!pskb_may_pull(skb, skb_network_offset(skb) + MPLS_HLEN))
+		return -ENOMEM;
+
 	stack = mpls_hdr(skb);
 	lse = OVS_MASKED(stack->label_stack_entry, *mpls_lse, *mask);
 	err = skb_mpls_update_lse(skb, lse);
@@ -278,9 +280,11 @@ static int set_eth_addr(struct sk_buff *skb, struct sw_flow_key *flow_key,
  */
 static int pop_eth(struct sk_buff *skb, struct sw_flow_key *key)
 {
-	skb_pull_rcsum(skb, ETH_HLEN);
-	skb_reset_mac_header(skb);
-	skb_reset_mac_len(skb);
+	int err;
+
+	err = skb_eth_pop(skb);
+	if (err)
+		return err;
 
 	/* safe right before invalidate_flow_key */
 	key->mac_proto = MAC_PROTO_NONE;
@@ -291,22 +295,12 @@ static int pop_eth(struct sk_buff *skb, struct sw_flow_key *key)
 static int push_eth(struct sk_buff *skb, struct sw_flow_key *key,
 		    const struct ovs_action_push_eth *ethh)
 {
-	struct ethhdr *hdr;
+	int err;
 
-	/* Add the new Ethernet header */
-	if (skb_cow_head(skb, ETH_HLEN) < 0)
-		return -ENOMEM;
-
-	skb_push(skb, ETH_HLEN);
-	skb_reset_mac_header(skb);
-	skb_reset_mac_len(skb);
-
-	hdr = eth_hdr(skb);
-	ether_addr_copy(hdr->h_source, ethh->addresses.eth_src);
-	ether_addr_copy(hdr->h_dest, ethh->addresses.eth_dst);
-	hdr->h_proto = skb->protocol;
-
-	skb_postpush_rcsum(skb, hdr, ETH_HLEN);
+	err = skb_eth_push(skb, ethh->addresses.eth_dst,
+			   ethh->addresses.eth_src);
+	if (err)
+		return err;
 
 	/* safe right before invalidate_flow_key */
 	key->mac_proto = MAC_PROTO_ETHERNET;
@@ -742,7 +736,8 @@ static int set_sctp(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	return 0;
 }
 
-static int ovs_vport_output(struct net *net, struct sock *sk, struct sk_buff *skb)
+static int ovs_vport_output(struct net *net, struct sock *sk,
+			    struct sk_buff *skb)
 {
 	struct ovs_frag_data *data = this_cpu_ptr(&ovs_frag_data_storage);
 	struct vport *vport = data->vport;
@@ -848,12 +843,8 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 		ip_do_fragment(net, skb->sk, skb, ovs_vport_output);
 		refdst_drop(orig_dst);
 	} else if (key->eth.type == htons(ETH_P_IPV6)) {
-		const struct nf_ipv6_ops *v6ops = nf_get_ipv6_ops();
 		unsigned long orig_dst;
 		struct rt6_info ovs_rt;
-
-		if (!v6ops)
-			goto err;
 
 		prepare_frag(vport, skb, orig_network_offset,
 			     ovs_key_mac_proto(key));
@@ -866,7 +857,7 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 		skb_dst_set_noref(skb, &ovs_rt.dst);
 		IP6CB(skb)->frag_max_size = mru;
 
-		v6ops->fragment(net, skb->sk, skb, ovs_vport_output);
+		ipv6_stub->ipv6_fragment(net, skb->sk, skb, ovs_vport_output);
 		refdst_drop(orig_dst);
 	} else {
 		WARN_ONCE(1, "Failed fragment ->%s: eth=%04x, MRU=%d, MTU=%d.",
@@ -925,7 +916,7 @@ static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 	upcall.mru = OVS_CB(skb)->mru;
 
 	for (a = nla_data(attr), rem = nla_len(attr); rem > 0;
-		 a = nla_next(a, &rem)) {
+	     a = nla_next(a, &rem)) {
 		switch (nla_type(a)) {
 		case OVS_USERSPACE_ATTR_USERDATA:
 			upcall.userdata = a;
@@ -968,17 +959,13 @@ static int dec_ttl_exception_handler(struct datapath *dp, struct sk_buff *skb,
 				     struct sw_flow_key *key,
 				     const struct nlattr *attr, bool last)
 {
-	/* The first action is always 'OVS_DEC_TTL_ATTR_ARG'. */
-	struct nlattr *dec_ttl_arg = nla_data(attr);
-	int rem = nla_len(attr);
+	/* The first attribute is always 'OVS_DEC_TTL_ATTR_ACTION'. */
+	struct nlattr *actions = nla_data(attr);
 
-	if (nla_len(dec_ttl_arg)) {
-		struct nlattr *actions = nla_next(dec_ttl_arg, &rem);
+	if (nla_len(actions))
+		return clone_execute(dp, skb, key, 0, nla_data(actions),
+				     nla_len(actions), last, false);
 
-		if (actions)
-			return clone_execute(dp, skb, key, 0, actions, rem,
-					     last, false);
-	}
 	consume_skb(skb);
 	return 0;
 }
@@ -1222,7 +1209,7 @@ static int execute_dec_ttl(struct sk_buff *skb, struct sw_flow_key *key)
 			return -EHOSTUNREACH;
 
 		key->ip.ttl = --nh->hop_limit;
-	} else {
+	} else if (skb->protocol == htons(ETH_P_IP)) {
 		struct iphdr *nh;
 		u8 old_ttl;
 

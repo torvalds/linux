@@ -538,7 +538,7 @@ static int ov9640_set_fmt(struct v4l2_subdev *sd,
 		break;
 	default:
 		mf->code = MEDIA_BUS_FMT_UYVY8_2X8;
-		/* fall through */
+		fallthrough;
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 		mf->colorspace = V4L2_COLORSPACE_JPEG;
 		break;
@@ -648,8 +648,9 @@ static const struct v4l2_subdev_core_ops ov9640_core_ops = {
 };
 
 /* Request bus settings on camera side */
-static int ov9640_g_mbus_config(struct v4l2_subdev *sd,
-				struct v4l2_mbus_config *cfg)
+static int ov9640_get_mbus_config(struct v4l2_subdev *sd,
+				  unsigned int pad,
+				  struct v4l2_mbus_config *cfg)
 {
 	cfg->flags = V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_MASTER |
 		V4L2_MBUS_VSYNC_ACTIVE_HIGH | V4L2_MBUS_HSYNC_ACTIVE_HIGH |
@@ -661,13 +662,13 @@ static int ov9640_g_mbus_config(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_video_ops ov9640_video_ops = {
 	.s_stream	= ov9640_s_stream,
-	.g_mbus_config	= ov9640_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops ov9640_pad_ops = {
 	.enum_mbus_code = ov9640_enum_mbus_code,
 	.get_selection	= ov9640_get_selection,
 	.set_fmt	= ov9640_set_fmt,
+	.get_mbus_config = ov9640_get_mbus_config,
 };
 
 static const struct v4l2_subdev_ops ov9640_subdev_ops = {

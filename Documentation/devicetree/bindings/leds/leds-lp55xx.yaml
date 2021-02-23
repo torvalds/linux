@@ -35,7 +35,7 @@ properties:
     description: I2C slave address
 
   clock-mode:
-    $ref: /schemas/types.yaml#definitions/uint8
+    $ref: /schemas/types.yaml#/definitions/uint8
     description: |
       Input clock mode
     enum:
@@ -49,7 +49,7 @@ properties:
       GPIO attached to the chip's enable pin
 
   pwr-sel:
-    $ref: /schemas/types.yaml#definitions/uint8
+    $ref: /schemas/types.yaml#/definitions/uint8
     description: |
       LP8501 specific property. Power selection for output channels.
     enum:
@@ -58,20 +58,26 @@ properties:
       - 2 # D1~6 with VOUT, D7~9 with VDD
       - 3 # D1~9 are connected to VOUT
 
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
 patternProperties:
   "(^led@[0-9a-f]$|led)":
     type: object
     $ref: common.yaml#
     properties:
       led-cur:
-        $ref: /schemas/types.yaml#definitions/uint8
+        $ref: /schemas/types.yaml#/definitions/uint8
         description: |
           Current setting at each LED channel (mA x10, 0 if LED is not connected)
         minimum: 0
         maximum: 255
 
       max-cur:
-        $ref: /schemas/types.yaml#definitions/uint8
+        $ref: /schemas/types.yaml#/definitions/uint8
         description: Maximun current at each LED channel.
 
       reg:
@@ -91,12 +97,14 @@ patternProperties:
           - 8 # LED output D9
 
       chan-name:
-        $ref: /schemas/types.yaml#definitions/string
+        $ref: /schemas/types.yaml#/definitions/string
         description: name of channel
 
 required:
   - compatible
   - reg
+
+additionalProperties: false
 
 examples:
   - |
@@ -189,7 +197,7 @@ examples:
                #address-cells = <1>;
                #size-cells = <0>;
                reg = <0x2>;
-               color = <LED_COLOR_ID_MULTI>;
+               color = <LED_COLOR_ID_RGB>;
                function = LED_FUNCTION_STANDBY;
                linux,default-trigger = "heartbeat";
 

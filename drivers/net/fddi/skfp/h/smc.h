@@ -122,7 +122,7 @@ struct s_rmt {
 	u_char timer1_exp ;		/* flag : timer 1 expired */
 	u_char timer2_exp ;		/* flag : timer 2 expired */
 
-	u_char rm_pad1[1] ;
+	u_char rm_pad1;
 } ;
 
 /*

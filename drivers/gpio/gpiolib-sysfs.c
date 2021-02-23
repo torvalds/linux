@@ -476,7 +476,7 @@ static ssize_t export_store(struct class *class,
 	 */
 
 	status = gpiod_request(desc, "sysfs");
-	if (status < 0) {
+	if (status) {
 		if (status == -EPROBE_DEFER)
 			status = -ENODEV;
 		goto done;

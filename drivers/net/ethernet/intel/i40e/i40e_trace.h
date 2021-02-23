@@ -22,7 +22,7 @@
 
 #include <linux/tracepoint.h>
 
-/**
+/*
  * i40e_trace() macro enables shared code to refer to trace points
  * like:
  *
@@ -112,7 +112,7 @@ DECLARE_EVENT_CLASS(
 	i40e_rx_template,
 
 	TP_PROTO(struct i40e_ring *ring,
-		 union i40e_32byte_rx_desc *desc,
+		 union i40e_16byte_rx_desc *desc,
 		 struct sk_buff *skb),
 
 	TP_ARGS(ring, desc, skb),
@@ -140,7 +140,7 @@ DECLARE_EVENT_CLASS(
 DEFINE_EVENT(
 	i40e_rx_template, i40e_clean_rx_irq,
 	TP_PROTO(struct i40e_ring *ring,
-		 union i40e_32byte_rx_desc *desc,
+		 union i40e_16byte_rx_desc *desc,
 		 struct sk_buff *skb),
 
 	TP_ARGS(ring, desc, skb));
@@ -148,7 +148,7 @@ DEFINE_EVENT(
 DEFINE_EVENT(
 	i40e_rx_template, i40e_clean_rx_irq_rx,
 	TP_PROTO(struct i40e_ring *ring,
-		 union i40e_32byte_rx_desc *desc,
+		 union i40e_16byte_rx_desc *desc,
 		 struct sk_buff *skb),
 
 	TP_ARGS(ring, desc, skb));

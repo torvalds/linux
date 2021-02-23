@@ -16,7 +16,6 @@
 #include <linux/interrupt.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
-#include <linux/platform_data/dma-atmel.h>
 #include <linux/of.h>
 
 #include <linux/io.h>
@@ -514,8 +513,7 @@ static int atmel_spi_configure_dma(struct spi_master *master,
 	master->dma_tx = dma_request_chan(dev, "tx");
 	if (IS_ERR(master->dma_tx)) {
 		err = PTR_ERR(master->dma_tx);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "No TX DMA channel, DMA is disabled\n");
+		dev_dbg(dev, "No TX DMA channel, DMA is disabled\n");
 		goto error_clear;
 	}
 
@@ -526,7 +524,7 @@ static int atmel_spi_configure_dma(struct spi_master *master,
 		 * No reason to check EPROBE_DEFER here since we have already
 		 * requested tx channel.
 		 */
-		dev_err(dev, "No RX DMA channel, DMA is disabled\n");
+		dev_dbg(dev, "No RX DMA channel, DMA is disabled\n");
 		goto error;
 	}
 
@@ -859,6 +857,7 @@ static int atmel_spi_set_xfer_speed(struct atmel_spi *as,
 	csr = spi_readl(as, CSR0 + 4 * chip_select);
 	csr = SPI_BFINS(SCBR, scbr, csr);
 	spi_writel(as, CSR0 + 4 * chip_select, csr);
+	xfer->effective_speed_hz = bus_hz / scbr;
 
 	return 0;
 }

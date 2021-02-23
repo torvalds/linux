@@ -10,6 +10,7 @@
 #include <asm/daifflags.h>
 #include <asm/debug-monitors.h>
 #include <asm/exec.h>
+#include <asm/mte.h>
 #include <asm/memory.h>
 #include <asm/mmu_context.h>
 #include <asm/smp_plat.h>
@@ -57,7 +58,6 @@ void notrace __cpu_suspend_exit(void)
 	 * features that might not have been set correctly.
 	 */
 	__uaccess_enable_hw_pan();
-	uao_thread_switch(current);
 
 	/*
 	 * Restore HW breakpoint registers to sane values
@@ -72,8 +72,10 @@ void notrace __cpu_suspend_exit(void)
 	 * have turned the mitigation on. If the user has forcefully
 	 * disabled it, make sure their wishes are obeyed.
 	 */
-	if (arm64_get_ssbd_state() == ARM64_SSBD_FORCE_DISABLE)
-		arm64_set_ssbd_mitigation(false);
+	spectre_v4_enable_mitigation(NULL);
+
+	/* Restore additional MTE-specific configuration */
+	mte_suspend_exit();
 }
 
 /*

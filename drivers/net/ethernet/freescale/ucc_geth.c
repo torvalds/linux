@@ -1358,7 +1358,7 @@ static int adjust_enet_interface(struct ucc_geth_private *ugeth)
 	    (ugeth->phy_interface == PHY_INTERFACE_MODE_RTBI)) {
 		upsmr |= UCC_GETH_UPSMR_TBIM;
 	}
-	if ((ugeth->phy_interface == PHY_INTERFACE_MODE_SGMII))
+	if (ugeth->phy_interface == PHY_INTERFACE_MODE_SGMII)
 		upsmr |= UCC_GETH_UPSMR_SGMM;
 
 	out_be32(&uf_regs->upsmr, upsmr);
@@ -3889,6 +3889,7 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	INIT_WORK(&ugeth->timeout_work, ucc_geth_timeout_work);
 	netif_napi_add(dev, &ugeth->napi, ucc_geth_poll, 64);
 	dev->mtu = 1500;
+	dev->max_mtu = 1518;
 
 	ugeth->msg_enable = netif_msg_init(debug.msg_enable, UGETH_MSG_DEFAULT);
 	ugeth->phy_interface = phy_interface;
@@ -3934,12 +3935,12 @@ static int ucc_geth_remove(struct platform_device* ofdev)
 	struct device_node *np = ofdev->dev.of_node;
 
 	unregister_netdev(dev);
-	free_netdev(dev);
 	ucc_geth_memclean(ugeth);
 	if (of_phy_is_fixed_link(np))
 		of_phy_deregister_fixed_link(np);
 	of_node_put(ugeth->ug_info->tbi_node);
 	of_node_put(ugeth->ug_info->phy_node);
+	free_netdev(dev);
 
 	return 0;
 }

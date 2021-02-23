@@ -92,7 +92,7 @@ required:
 
 patternProperties:
   "^usb-phy@[a-f0-9]+$":
-    allOf: [ $ref: "../usb/ingenic,jz4770-phy.yaml#" ]
+    allOf: [ $ref: "../phy/ingenic,phy-usb.yaml#" ]
 
 additionalProperties: false
 

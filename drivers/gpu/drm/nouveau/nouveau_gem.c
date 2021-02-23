@@ -24,6 +24,8 @@
  *
  */
 
+#include <drm/drm_gem_ttm_helper.h>
+
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
@@ -169,6 +171,17 @@ nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 	ttm_bo_unreserve(&nvbo->bo);
 }
 
+const struct drm_gem_object_funcs nouveau_gem_object_funcs = {
+	.free = nouveau_gem_object_del,
+	.open = nouveau_gem_object_open,
+	.close = nouveau_gem_object_close,
+	.pin = nouveau_gem_prime_pin,
+	.unpin = nouveau_gem_prime_unpin,
+	.get_sg_table = nouveau_gem_prime_get_sg_table,
+	.vmap = drm_gem_ttm_vmap,
+	.vunmap = drm_gem_ttm_vunmap,
+};
+
 int
 nouveau_gem_new(struct nouveau_cli *cli, u64 size, int align, uint32_t domain,
 		uint32_t tile_mode, uint32_t tile_flags,
@@ -176,33 +189,28 @@ nouveau_gem_new(struct nouveau_cli *cli, u64 size, int align, uint32_t domain,
 {
 	struct nouveau_drm *drm = cli->drm;
 	struct nouveau_bo *nvbo;
-	u32 flags = 0;
 	int ret;
 
-	if (domain & NOUVEAU_GEM_DOMAIN_VRAM)
-		flags |= TTM_PL_FLAG_VRAM;
-	if (domain & NOUVEAU_GEM_DOMAIN_GART)
-		flags |= TTM_PL_FLAG_TT;
-	if (!flags || domain & NOUVEAU_GEM_DOMAIN_CPU)
-		flags |= TTM_PL_FLAG_SYSTEM;
+	if (!(domain & (NOUVEAU_GEM_DOMAIN_VRAM | NOUVEAU_GEM_DOMAIN_GART)))
+		domain |= NOUVEAU_GEM_DOMAIN_CPU;
 
-	if (domain & NOUVEAU_GEM_DOMAIN_COHERENT)
-		flags |= TTM_PL_FLAG_UNCACHED;
-
-	nvbo = nouveau_bo_alloc(cli, &size, &align, flags, tile_mode,
+	nvbo = nouveau_bo_alloc(cli, &size, &align, domain, tile_mode,
 				tile_flags);
 	if (IS_ERR(nvbo))
 		return PTR_ERR(nvbo);
+
+	nvbo->bo.base.funcs = &nouveau_gem_object_funcs;
 
 	/* Initialize the embedded gem-object. We return a single gem-reference
 	 * to the caller, instead of a normal nouveau_bo ttm reference. */
 	ret = drm_gem_object_init(drm->dev, &nvbo->bo.base, size);
 	if (ret) {
-		nouveau_bo_ref(NULL, &nvbo);
+		drm_gem_object_release(&nvbo->bo.base);
+		kfree(nvbo);
 		return ret;
 	}
 
-	ret = nouveau_bo_init(nvbo, size, align, flags, NULL, NULL);
+	ret = nouveau_bo_init(nvbo, size, align, domain, NULL, NULL);
 	if (ret) {
 		nouveau_bo_ref(NULL, &nvbo);
 		return ret;
@@ -217,7 +225,6 @@ nouveau_gem_new(struct nouveau_cli *cli, u64 size, int align, uint32_t domain,
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA)
 		nvbo->valid_domains &= domain;
 
-	nvbo->bo.persistent_swap_storage = nvbo->bo.base.filp;
 	*pnvbo = nvbo;
 	return 0;
 }
@@ -296,32 +303,28 @@ nouveau_gem_set_domain(struct drm_gem_object *gem, uint32_t read_domains,
 	struct ttm_buffer_object *bo = &nvbo->bo;
 	uint32_t domains = valid_domains & nvbo->valid_domains &
 		(write_domains ? write_domains : read_domains);
-	uint32_t pref_flags = 0, valid_flags = 0;
+	uint32_t pref_domains = 0;;
 
 	if (!domains)
 		return -EINVAL;
 
-	if (valid_domains & NOUVEAU_GEM_DOMAIN_VRAM)
-		valid_flags |= TTM_PL_FLAG_VRAM;
-
-	if (valid_domains & NOUVEAU_GEM_DOMAIN_GART)
-		valid_flags |= TTM_PL_FLAG_TT;
+	valid_domains &= ~(NOUVEAU_GEM_DOMAIN_VRAM | NOUVEAU_GEM_DOMAIN_GART);
 
 	if ((domains & NOUVEAU_GEM_DOMAIN_VRAM) &&
 	    bo->mem.mem_type == TTM_PL_VRAM)
-		pref_flags |= TTM_PL_FLAG_VRAM;
+		pref_domains |= NOUVEAU_GEM_DOMAIN_VRAM;
 
 	else if ((domains & NOUVEAU_GEM_DOMAIN_GART) &&
 		 bo->mem.mem_type == TTM_PL_TT)
-		pref_flags |= TTM_PL_FLAG_TT;
+		pref_domains |= NOUVEAU_GEM_DOMAIN_GART;
 
 	else if (domains & NOUVEAU_GEM_DOMAIN_VRAM)
-		pref_flags |= TTM_PL_FLAG_VRAM;
+		pref_domains |= NOUVEAU_GEM_DOMAIN_VRAM;
 
 	else
-		pref_flags |= TTM_PL_FLAG_TT;
+		pref_domains |= NOUVEAU_GEM_DOMAIN_GART;
 
-	nouveau_bo_placement_set(nvbo, pref_flags, valid_flags);
+	nouveau_bo_placement_set(nvbo, pref_domains, valid_domains);
 
 	return 0;
 }
@@ -569,8 +572,10 @@ nouveau_gem_pushbuf_validate(struct nouveau_channel *chan,
 			NV_PRINTK(err, cli, "validating bo list\n");
 		validate_fini(op, chan, NULL, NULL);
 		return ret;
+	} else if (ret > 0) {
+		*apply_relocs = true;
 	}
-	*apply_relocs = ret;
+
 	return 0;
 }
 
@@ -673,7 +678,6 @@ nouveau_gem_pushbuf_reloc_apply(struct nouveau_cli *cli,
 		nouveau_bo_wr32(nvbo, r->reloc_bo_offset >> 2, data);
 	}
 
-	u_free(reloc);
 	return ret;
 }
 
@@ -883,9 +887,10 @@ out:
 				break;
 			}
 		}
-		u_free(reloc);
 	}
 out_prevalid:
+	if (!IS_ERR(reloc))
+		u_free(reloc);
 	u_free(bo);
 	u_free(push);
 

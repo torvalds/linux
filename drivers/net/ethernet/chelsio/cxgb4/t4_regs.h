@@ -3017,6 +3017,14 @@
 #define REV_V(x) ((x) << REV_S)
 #define REV_G(x) (((x) >> REV_S) & REV_M)
 
+#define HASHTBLMEMCRCERR_S    27
+#define HASHTBLMEMCRCERR_V(x) ((x) << HASHTBLMEMCRCERR_S)
+#define HASHTBLMEMCRCERR_F    HASHTBLMEMCRCERR_V(1U)
+
+#define CMDTIDERR_S    22
+#define CMDTIDERR_V(x) ((x) << CMDTIDERR_S)
+#define CMDTIDERR_F    CMDTIDERR_V(1U)
+
 #define T6_UNKNOWNCMD_S    3
 #define T6_UNKNOWNCMD_V(x) ((x) << T6_UNKNOWNCMD_S)
 #define T6_UNKNOWNCMD_F    T6_UNKNOWNCMD_V(1U)

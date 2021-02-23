@@ -147,9 +147,9 @@ static int wacom_wac_pen_serial_enforce(struct hid_device *hdev,
 	}
 
 	if (flush)
-		wacom_wac_queue_flush(hdev, &wacom_wac->pen_fifo);
+		wacom_wac_queue_flush(hdev, wacom_wac->pen_fifo);
 	else if (insert)
-		wacom_wac_queue_insert(hdev, &wacom_wac->pen_fifo,
+		wacom_wac_queue_insert(hdev, wacom_wac->pen_fifo,
 				       raw_data, report_size);
 
 	return insert && !flush;
@@ -1173,7 +1173,7 @@ static struct attribute *cintiq_led_attrs[] = {
 	NULL
 };
 
-static struct attribute_group cintiq_led_attr_group = {
+static const struct attribute_group cintiq_led_attr_group = {
 	.name = "wacom_led",
 	.attrs = cintiq_led_attrs,
 };
@@ -1194,7 +1194,7 @@ static struct attribute *intuos4_led_attrs[] = {
 	NULL
 };
 
-static struct attribute_group intuos4_led_attr_group = {
+static const struct attribute_group intuos4_led_attr_group = {
 	.name = "wacom_led",
 	.attrs = intuos4_led_attrs,
 };
@@ -1205,7 +1205,7 @@ static struct attribute *intuos5_led_attrs[] = {
 	NULL
 };
 
-static struct attribute_group intuos5_led_attr_group = {
+static const struct attribute_group intuos5_led_attr_group = {
 	.name = "wacom_led",
 	.attrs = intuos5_led_attrs,
 };
@@ -1216,13 +1216,13 @@ static struct attribute *generic_led_attrs[] = {
 	NULL
 };
 
-static struct attribute_group generic_led_attr_group = {
+static const struct attribute_group generic_led_attr_group = {
 	.name = "wacom_led",
 	.attrs = generic_led_attrs,
 };
 
 struct wacom_sysfs_group_devres {
-	struct attribute_group *group;
+	const struct attribute_group *group;
 	struct kobject *root;
 };
 
@@ -1238,7 +1238,7 @@ static void wacom_devm_sysfs_group_release(struct device *dev, void *res)
 
 static int __wacom_devm_sysfs_create_group(struct wacom *wacom,
 					   struct kobject *root,
-					   struct attribute_group *group)
+					   const struct attribute_group *group)
 {
 	struct wacom_sysfs_group_devres *devres;
 	int error;
@@ -1264,10 +1264,42 @@ static int __wacom_devm_sysfs_create_group(struct wacom *wacom,
 }
 
 static int wacom_devm_sysfs_create_group(struct wacom *wacom,
-					 struct attribute_group *group)
+					 const struct attribute_group *group)
 {
 	return __wacom_devm_sysfs_create_group(wacom, &wacom->hdev->dev.kobj,
 					       group);
+}
+
+static void wacom_devm_kfifo_release(struct device *dev, void *res)
+{
+	struct kfifo_rec_ptr_2 *devres = res;
+
+	kfifo_free(devres);
+}
+
+static int wacom_devm_kfifo_alloc(struct wacom *wacom)
+{
+	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
+	struct kfifo_rec_ptr_2 *pen_fifo;
+	int error;
+
+	pen_fifo = devres_alloc(wacom_devm_kfifo_release,
+			      sizeof(struct kfifo_rec_ptr_2),
+			      GFP_KERNEL);
+
+	if (!pen_fifo)
+		return -ENOMEM;
+
+	error = kfifo_alloc(pen_fifo, WACOM_PKGLEN_MAX, GFP_KERNEL);
+	if (error) {
+		devres_free(pen_fifo);
+		return error;
+	}
+
+	devres_add(&wacom->hdev->dev, pen_fifo);
+	wacom_wac->pen_fifo = pen_fifo;
+
+	return 0;
 }
 
 enum led_brightness wacom_leds_brightness_get(struct wacom_led *led)
@@ -1847,7 +1879,7 @@ static struct attribute *remote##SET_ID##_serial_attrs[] = {		\
 	&remote##SET_ID##_mode_attr.attr,				\
 	NULL								\
 };									\
-static struct attribute_group remote##SET_ID##_serial_group = {		\
+static const struct attribute_group remote##SET_ID##_serial_group = {	\
 	.name = NULL,							\
 	.attrs = remote##SET_ID##_serial_attrs,				\
 }
@@ -2724,7 +2756,7 @@ static int wacom_probe(struct hid_device *hdev,
 	if (features->check_for_hid_type && features->hid_type != hdev->type)
 		return -ENODEV;
 
-	error = kfifo_alloc(&wacom_wac->pen_fifo, WACOM_PKGLEN_MAX, GFP_KERNEL);
+	error = wacom_devm_kfifo_alloc(wacom);
 	if (error)
 		return error;
 
@@ -2786,8 +2818,6 @@ static void wacom_remove(struct hid_device *hdev)
 
 	if (wacom->wacom_wac.features.type != REMOTE)
 		wacom_release_resources(wacom);
-
-	kfifo_free(&wacom_wac->pen_fifo);
 }
 
 #ifdef CONFIG_PM

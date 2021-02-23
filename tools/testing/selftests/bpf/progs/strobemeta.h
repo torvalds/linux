@@ -266,8 +266,12 @@ struct tls_index {
 	uint64_t offset;
 };
 
-static __always_inline void *calc_location(struct strobe_value_loc *loc,
-					   void *tls_base)
+#ifdef SUBPROGS
+__noinline
+#else
+__always_inline
+#endif
+static void *calc_location(struct strobe_value_loc *loc, void *tls_base)
 {
 	/*
 	 * tls_mode value is:
@@ -327,10 +331,15 @@ static __always_inline void *calc_location(struct strobe_value_loc *loc,
 		: NULL;
 }
 
-static __always_inline void read_int_var(struct strobemeta_cfg *cfg,
-					 size_t idx, void *tls_base,
-					 struct strobe_value_generic *value,
-					 struct strobemeta_payload *data)
+#ifdef SUBPROGS
+__noinline
+#else
+__always_inline
+#endif
+static void read_int_var(struct strobemeta_cfg *cfg,
+			 size_t idx, void *tls_base,
+			 struct strobe_value_generic *value,
+			 struct strobemeta_payload *data)
 {
 	void *location = calc_location(&cfg->int_locs[idx], tls_base);
 	if (!location)
@@ -440,8 +449,13 @@ static __always_inline void *read_map_var(struct strobemeta_cfg *cfg,
  * read_strobe_meta returns NULL, if no metadata was read; otherwise returns
  * pointer to *right after* payload ends
  */
-static __always_inline void *read_strobe_meta(struct task_struct *task,
-					      struct strobemeta_payload *data)
+#ifdef SUBPROGS
+__noinline
+#else
+__always_inline
+#endif
+static void *read_strobe_meta(struct task_struct *task,
+			      struct strobemeta_payload *data)
 {
 	pid_t pid = bpf_get_current_pid_tgid() >> 32;
 	struct strobe_value_generic value = {0};

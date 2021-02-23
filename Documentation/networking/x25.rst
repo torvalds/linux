@@ -19,13 +19,11 @@ implementation of LAPB. Therefore the LAPB modules would be called by
 unintelligent X.25 card drivers and not by intelligent ones, this would
 provide a uniform device driver interface, and simplify configuration.
 
-To confuse matters a little, an 802.2 LLC implementation for Linux is being
-written which will allow X.25 to be run over an Ethernet (or Token Ring) and
-conform with the JNT "Pink Book", this will have a different interface to
-the Packet Layer but there will be no confusion since the class of device
-being served by the LLC will be completely separate from LAPB. The LLC
-implementation is being done as part of another protocol project (SNA) and
-by a different author.
+To confuse matters a little, an 802.2 LLC implementation is also possible
+which could allow X.25 to be run over an Ethernet (or Token Ring) and
+conform with the JNT "Pink Book", this would have a different interface to
+the Packet Layer but there would be no confusion since the class of device
+being served by the LLC would be completely separate from LAPB.
 
 Just when you thought that it could not become more confusing, another
 option appeared, XOT. This allows X.25 Packet Layer frames to operate over

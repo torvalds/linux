@@ -4,11 +4,14 @@
  * Author: Marc Zyngier <marc.zyngier@arm.com>
  */
 
+#include <linux/arm-smccc.h>
 #include <linux/linkage.h>
 
 #include <asm/alternative.h>
 #include <asm/assembler.h>
+#include <asm/el2_setup.h>
 #include <asm/kvm_arm.h>
+#include <asm/kvm_asm.h>
 #include <asm/kvm_mmu.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/sysreg.h>
@@ -44,54 +47,77 @@ __invalid:
 	b	.
 
 	/*
-	 * x0: HYP pgd
-	 * x1: HYP stack
-	 * x2: HYP vectors
-	 * x3: per-CPU offset
+	 * Only uses x0..x3 so as to not clobber callee-saved SMCCC registers.
+	 *
+	 * x0: SMCCC function ID
+	 * x1: struct kvm_nvhe_init_params PA
 	 */
 __do_hyp_init:
 	/* Check for a stub HVC call */
 	cmp	x0, #HVC_STUB_HCALL_NR
 	b.lo	__kvm_handle_stub_hvc
 
-	phys_to_ttbr x4, x0
-alternative_if ARM64_HAS_CNP
-	orr	x4, x4, #TTBR_CNP_BIT
+	// We only actively check bits [24:31], and everything
+	// else has to be zero, which we check at build time.
+#if (KVM_HOST_SMCCC_FUNC(__kvm_hyp_init) & 0xFFFFFFFF00FFFFFF)
+#error Unexpected __KVM_HOST_SMCCC_FUNC___kvm_hyp_init value
+#endif
+
+	ror	x0, x0, #24
+	eor	x0, x0, #((KVM_HOST_SMCCC_FUNC(__kvm_hyp_init) >> 24) & 0xF)
+	ror	x0, x0, #4
+	eor	x0, x0, #((KVM_HOST_SMCCC_FUNC(__kvm_hyp_init) >> 28) & 0xF)
+	cbz	x0, 1f
+	mov	x0, #SMCCC_RET_NOT_SUPPORTED
+	eret
+
+1:	mov	x0, x1
+	mov	x3, lr
+	bl	___kvm_hyp_init			// Clobbers x0..x2
+	mov	lr, x3
+
+	/* Hello, World! */
+	mov	x0, #SMCCC_RET_SUCCESS
+	eret
+SYM_CODE_END(__kvm_hyp_init)
+
+/*
+ * Initialize the hypervisor in EL2.
+ *
+ * Only uses x0..x2 so as to not clobber callee-saved SMCCC registers
+ * and leave x3 for the caller.
+ *
+ * x0: struct kvm_nvhe_init_params PA
+ */
+SYM_CODE_START_LOCAL(___kvm_hyp_init)
+alternative_if ARM64_KVM_PROTECTED_MODE
+	mov_q	x1, HCR_HOST_NVHE_PROTECTED_FLAGS
+	msr	hcr_el2, x1
 alternative_else_nop_endif
-	msr	ttbr0_el2, x4
 
-	mrs	x4, tcr_el1
-	mov_q	x5, TCR_EL2_MASK
-	and	x4, x4, x5
-	mov	x5, #TCR_EL2_RES1
-	orr	x4, x4, x5
+	ldr	x1, [x0, #NVHE_INIT_TPIDR_EL2]
+	msr	tpidr_el2, x1
 
-	/*
-	 * The ID map may be configured to use an extended virtual address
-	 * range. This is only the case if system RAM is out of range for the
-	 * currently configured page size and VA_BITS, in which case we will
-	 * also need the extended virtual range for the HYP ID map, or we won't
-	 * be able to enable the EL2 MMU.
-	 *
-	 * However, at EL2, there is only one TTBR register, and we can't switch
-	 * between translation tables *and* update TCR_EL2.T0SZ at the same
-	 * time. Bottom line: we need to use the extended range with *both* our
-	 * translation tables.
-	 *
-	 * So use the same T0SZ value we use for the ID map.
-	 */
-	ldr_l	x5, idmap_t0sz
-	bfi	x4, x5, TCR_T0SZ_OFFSET, TCR_TxSZ_WIDTH
+	ldr	x1, [x0, #NVHE_INIT_STACK_HYP_VA]
+	mov	sp, x1
+
+	ldr	x1, [x0, #NVHE_INIT_MAIR_EL2]
+	msr	mair_el2, x1
+
+	ldr	x1, [x0, #NVHE_INIT_PGD_PA]
+	phys_to_ttbr x2, x1
+alternative_if ARM64_HAS_CNP
+	orr	x2, x2, #TTBR_CNP_BIT
+alternative_else_nop_endif
+	msr	ttbr0_el2, x2
 
 	/*
 	 * Set the PS bits in TCR_EL2.
 	 */
-	tcr_compute_pa_size x4, #TCR_EL2_PS_SHIFT, x5, x6
+	ldr	x0, [x0, #NVHE_INIT_TCR_EL2]
+	tcr_compute_pa_size x0, #TCR_EL2_PS_SHIFT, x1, x2
+	msr	tcr_el2, x0
 
-	msr	tcr_el2, x4
-
-	mrs	x4, mair_el1
-	msr	mair_el2, x4
 	isb
 
 	/* Invalidate the stale TLBs from Bootloader */
@@ -103,27 +129,80 @@ alternative_else_nop_endif
 	 * as well as the EE bit on BE. Drop the A flag since the compiler
 	 * is allowed to generate unaligned accesses.
 	 */
-	mov_q	x4, (SCTLR_EL2_RES1 | (SCTLR_ELx_FLAGS & ~SCTLR_ELx_A))
-CPU_BE(	orr	x4, x4, #SCTLR_ELx_EE)
+	mov_q	x0, (SCTLR_EL2_RES1 | (SCTLR_ELx_FLAGS & ~SCTLR_ELx_A))
+CPU_BE(	orr	x0, x0, #SCTLR_ELx_EE)
 alternative_if ARM64_HAS_ADDRESS_AUTH
-	mov_q	x5, (SCTLR_ELx_ENIA | SCTLR_ELx_ENIB | \
+	mov_q	x1, (SCTLR_ELx_ENIA | SCTLR_ELx_ENIB | \
 		     SCTLR_ELx_ENDA | SCTLR_ELx_ENDB)
-	orr	x4, x4, x5
+	orr	x0, x0, x1
 alternative_else_nop_endif
-	msr	sctlr_el2, x4
+	msr	sctlr_el2, x0
 	isb
 
-	/* Set the stack and new vectors */
-	kern_hyp_va	x1
-	mov	sp, x1
-	msr	vbar_el2, x2
+	/* Set the host vector */
+	ldr	x0, =__kvm_hyp_host_vector
+	kimg_hyp_va x0, x1
+	msr	vbar_el2, x0
 
-	/* Set tpidr_el2 for use by HYP */
-	msr	tpidr_el2, x3
+	ret
+SYM_CODE_END(___kvm_hyp_init)
 
-	/* Hello, World! */
-	eret
-SYM_CODE_END(__kvm_hyp_init)
+/*
+ * PSCI CPU_ON entry point
+ *
+ * x0: struct kvm_nvhe_init_params PA
+ */
+SYM_CODE_START(kvm_hyp_cpu_entry)
+	mov	x1, #1				// is_cpu_on = true
+	b	__kvm_hyp_init_cpu
+SYM_CODE_END(kvm_hyp_cpu_entry)
+
+/*
+ * PSCI CPU_SUSPEND / SYSTEM_SUSPEND entry point
+ *
+ * x0: struct kvm_nvhe_init_params PA
+ */
+SYM_CODE_START(kvm_hyp_cpu_resume)
+	mov	x1, #0				// is_cpu_on = false
+	b	__kvm_hyp_init_cpu
+SYM_CODE_END(kvm_hyp_cpu_resume)
+
+/*
+ * Common code for CPU entry points. Initializes EL2 state and
+ * installs the hypervisor before handing over to a C handler.
+ *
+ * x0: struct kvm_nvhe_init_params PA
+ * x1: bool is_cpu_on
+ */
+SYM_CODE_START_LOCAL(__kvm_hyp_init_cpu)
+	mov	x28, x0				// Stash arguments
+	mov	x29, x1
+
+	/* Check that the core was booted in EL2. */
+	mrs	x0, CurrentEL
+	cmp	x0, #CurrentEL_EL2
+	b.eq	2f
+
+	/* The core booted in EL1. KVM cannot be initialized on it. */
+1:	wfe
+	wfi
+	b	1b
+
+2:	msr	SPsel, #1			// We want to use SP_EL{1,2}
+
+	/* Initialize EL2 CPU state to sane values. */
+	init_el2_state nvhe			// Clobbers x0..x2
+
+	/* Enable MMU, set vectors and stack. */
+	mov	x0, x28
+	bl	___kvm_hyp_init			// Clobbers x0..x2
+
+	/* Leave idmap. */
+	mov	x0, x29
+	ldr	x1, =kvm_host_psci_cpu_entry
+	kimg_hyp_va x1, x2
+	br	x1
+SYM_CODE_END(__kvm_hyp_init_cpu)
 
 SYM_CODE_START(__kvm_handle_stub_hvc)
 	cmp	x0, #HVC_SOFT_RESTART
@@ -157,6 +236,11 @@ reset:
 	pre_disable_mmu_workaround
 	msr	sctlr_el2, x5
 	isb
+
+alternative_if ARM64_KVM_PROTECTED_MODE
+	mov_q	x5, HCR_HOST_NVHE_FLAGS
+	msr	hcr_el2, x5
+alternative_else_nop_endif
 
 	/* Install stub vectors */
 	adr_l	x5, __hyp_stub_vectors

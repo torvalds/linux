@@ -53,6 +53,7 @@ int ocelot_ptp_verify(struct ptp_clock_info *ptp, unsigned int pin,
 		      enum ptp_pin_function func, unsigned int chan);
 int ocelot_ptp_enable(struct ptp_clock_info *ptp,
 		      struct ptp_clock_request *rq, int on);
-int ocelot_init_timestamp(struct ocelot *ocelot, struct ptp_clock_info *info);
+int ocelot_init_timestamp(struct ocelot *ocelot,
+			  const struct ptp_clock_info *info);
 int ocelot_deinit_timestamp(struct ocelot *ocelot);
 #endif

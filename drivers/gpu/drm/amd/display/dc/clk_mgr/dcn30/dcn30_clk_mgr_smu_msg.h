@@ -70,6 +70,7 @@ typedef enum {
 typedef enum {
 	WATERMARKS_CLOCK_RANGE = 0,
 	WATERMARKS_DUMMY_PSTATE,
+	WATERMARKS_MALL,
 	WATERMARKS_COUNT,
 } WATERMARKS_FLAGS_e;
 
@@ -102,6 +103,7 @@ unsigned int dcn30_smu_get_dpm_freq_by_index(struct clk_mgr_internal *clk_mgr, P
 unsigned int dcn30_smu_get_dc_mode_max_dpm_freq(struct clk_mgr_internal *clk_mgr, PPCLK_e clk);
 void         dcn30_smu_set_min_deep_sleep_dcef_clk(struct clk_mgr_internal *clk_mgr, uint32_t freq_mhz);
 void         dcn30_smu_set_num_of_displays(struct clk_mgr_internal *clk_mgr, uint32_t num_displays);
+void         dcn30_smu_set_display_refresh_from_mall(struct clk_mgr_internal *clk_mgr, bool enable, uint8_t cache_timer_delay, uint8_t cache_timer_scale);
 void         dcn30_smu_set_external_client_df_cstate_allow(struct clk_mgr_internal *clk_mgr, bool enable);
 void         dcn30_smu_set_pme_workaround(struct clk_mgr_internal *clk_mgr);
 

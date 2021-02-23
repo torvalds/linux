@@ -129,8 +129,6 @@ _base_wait_on_iocstate(struct MPT3SAS_ADAPTER *ioc,
 static int
 _base_get_ioc_facts(struct MPT3SAS_ADAPTER *ioc);
 static void
-_base_mask_interrupts(struct MPT3SAS_ADAPTER *ioc);
-static void
 _base_clear_outstanding_commands(struct MPT3SAS_ADAPTER *ioc);
 
 /**
@@ -599,6 +597,71 @@ static int mpt3sas_remove_dead_ioc_func(void *arg)
 }
 
 /**
+ * _base_sync_drv_fw_timestamp - Sync Drive-Fw TimeStamp.
+ * @ioc: Per Adapter Object
+ *
+ * Return nothing.
+ */
+static void _base_sync_drv_fw_timestamp(struct MPT3SAS_ADAPTER *ioc)
+{
+	Mpi26IoUnitControlRequest_t *mpi_request;
+	Mpi26IoUnitControlReply_t *mpi_reply;
+	u16 smid;
+	ktime_t current_time;
+	u64 TimeStamp = 0;
+	u8 issue_reset = 0;
+
+	mutex_lock(&ioc->scsih_cmds.mutex);
+	if (ioc->scsih_cmds.status != MPT3_CMD_NOT_USED) {
+		ioc_err(ioc, "scsih_cmd in use %s\n", __func__);
+		goto out;
+	}
+	ioc->scsih_cmds.status = MPT3_CMD_PENDING;
+	smid = mpt3sas_base_get_smid(ioc, ioc->scsih_cb_idx);
+	if (!smid) {
+		ioc_err(ioc, "Failed obtaining a smid %s\n", __func__);
+		ioc->scsih_cmds.status = MPT3_CMD_NOT_USED;
+		goto out;
+	}
+	mpi_request = mpt3sas_base_get_msg_frame(ioc, smid);
+	ioc->scsih_cmds.smid = smid;
+	memset(mpi_request, 0, sizeof(Mpi26IoUnitControlRequest_t));
+	mpi_request->Function = MPI2_FUNCTION_IO_UNIT_CONTROL;
+	mpi_request->Operation = MPI26_CTRL_OP_SET_IOC_PARAMETER;
+	mpi_request->IOCParameter = MPI26_SET_IOC_PARAMETER_SYNC_TIMESTAMP;
+	current_time = ktime_get_real();
+	TimeStamp = ktime_to_ms(current_time);
+	mpi_request->Reserved7 = cpu_to_le32(TimeStamp & 0xFFFFFFFF);
+	mpi_request->IOCParameterValue = cpu_to_le32(TimeStamp >> 32);
+	init_completion(&ioc->scsih_cmds.done);
+	ioc->put_smid_default(ioc, smid);
+	dinitprintk(ioc, ioc_info(ioc,
+	    "Io Unit Control Sync TimeStamp (sending), @time %lld ms\n",
+	    TimeStamp));
+	wait_for_completion_timeout(&ioc->scsih_cmds.done,
+		MPT3SAS_TIMESYNC_TIMEOUT_SECONDS*HZ);
+	if (!(ioc->scsih_cmds.status & MPT3_CMD_COMPLETE)) {
+		mpt3sas_check_cmd_timeout(ioc,
+		    ioc->scsih_cmds.status, mpi_request,
+		    sizeof(Mpi2SasIoUnitControlRequest_t)/4, issue_reset);
+		goto issue_host_reset;
+	}
+	if (ioc->scsih_cmds.status & MPT3_CMD_REPLY_VALID) {
+		mpi_reply = ioc->scsih_cmds.reply;
+		dinitprintk(ioc, ioc_info(ioc,
+		    "Io Unit Control sync timestamp (complete): ioc_status(0x%04x), loginfo(0x%08x)\n",
+		    le16_to_cpu(mpi_reply->IOCStatus),
+		    le32_to_cpu(mpi_reply->IOCLogInfo)));
+	}
+issue_host_reset:
+	if (issue_reset)
+		mpt3sas_base_hard_reset_handler(ioc, FORCE_BIG_HAMMER);
+	ioc->scsih_cmds.status = MPT3_CMD_NOT_USED;
+out:
+	mutex_unlock(&ioc->scsih_cmds.mutex);
+}
+
+/**
  * _base_fault_reset_work - workq handling ioc fault conditions
  * @work: input argument, used to derive ioc
  *
@@ -680,7 +743,7 @@ _base_fault_reset_work(struct work_struct *work)
 			ioc->shost_recovery = 1;
 			spin_unlock_irqrestore(
 			    &ioc->ioc_reset_in_progress_lock, flags);
-			_base_mask_interrupts(ioc);
+			mpt3sas_base_mask_interrupts(ioc);
 			_base_clear_outstanding_commands(ioc);
 		}
 
@@ -722,7 +785,11 @@ _base_fault_reset_work(struct work_struct *work)
 			return; /* don't rearm timer */
 	}
 	ioc->ioc_coredump_loop = 0;
-
+	if (ioc->time_sync_interval &&
+	    ++ioc->timestamp_update_count >= ioc->time_sync_interval) {
+		ioc->timestamp_update_count = 0;
+		_base_sync_drv_fw_timestamp(ioc);
+	}
 	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
  rearm_timer:
 	if (ioc->fault_reset_work_q)
@@ -746,6 +813,7 @@ mpt3sas_base_start_watchdog(struct MPT3SAS_ADAPTER *ioc)
 	if (ioc->fault_reset_work_q)
 		return;
 
+	ioc->timestamp_update_count = 0;
 	/* initialize fault polling */
 
 	INIT_DELAYED_WORK(&ioc->fault_reset_work, _base_fault_reset_work);
@@ -907,6 +975,20 @@ _base_sas_ioc_info(struct MPT3SAS_ADAPTER *ioc, MPI2DefaultReply_t *mpi_reply,
 
 	if (ioc_status == MPI2_IOCSTATUS_CONFIG_INVALID_PAGE)
 		return;
+	/*
+	 * Older Firmware version doesn't support driver trigger pages.
+	 * So, skip displaying 'config invalid type' type
+	 * of error message.
+	 */
+	if (request_hdr->Function == MPI2_FUNCTION_CONFIG) {
+		Mpi2ConfigRequest_t *rqst = (Mpi2ConfigRequest_t *)request_hdr;
+
+		if ((rqst->ExtPageType ==
+		    MPI2_CONFIG_EXTPAGETYPE_DRIVER_PERSISTENT_TRIGGER) &&
+		    !(ioc->logging_level & MPT_DEBUG_CONFIG)) {
+			return;
+		}
+	}
 
 	switch (ioc_status) {
 
@@ -1466,13 +1548,13 @@ _base_get_cb_idx(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 }
 
 /**
- * _base_mask_interrupts - disable interrupts
+ * mpt3sas_base_mask_interrupts - disable interrupts
  * @ioc: per adapter object
  *
  * Disabling ResetIRQ, Reply and Doorbell Interrupts
  */
-static void
-_base_mask_interrupts(struct MPT3SAS_ADAPTER *ioc)
+void
+mpt3sas_base_mask_interrupts(struct MPT3SAS_ADAPTER *ioc)
 {
 	u32 him_register;
 
@@ -1484,13 +1566,13 @@ _base_mask_interrupts(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
- * _base_unmask_interrupts - enable interrupts
+ * mpt3sas_base_unmask_interrupts - enable interrupts
  * @ioc: per adapter object
  *
  * Enabling only Reply Interrupts
  */
-static void
-_base_unmask_interrupts(struct MPT3SAS_ADAPTER *ioc)
+void
+mpt3sas_base_unmask_interrupts(struct MPT3SAS_ADAPTER *ioc)
 {
 	u32 him_register;
 
@@ -1628,7 +1710,7 @@ _base_process_reply_queue(struct adapter_reply_queue *reply_q)
 		 * So that FW can find enough entries to post the Reply
 		 * Descriptors in the reply descriptor post queue.
 		 */
-		if (!base_mod64(completed_cmds, ioc->thresh_hold)) {
+		if (completed_cmds >= ioc->thresh_hold) {
 			if (ioc->combined_reply_queue) {
 				writel(reply_q->reply_post_host_index |
 						((msix_index  & 7) <<
@@ -1742,6 +1824,13 @@ _base_irqpoll(struct irq_poll *irqpoll, int budget)
 		reply_q->irq_poll_scheduled = false;
 		reply_q->irq_line_enable = true;
 		enable_irq(reply_q->os_irq);
+		/*
+		 * Go for one more round of processing the
+		 * reply descriptor post queue incase if HBA
+		 * Firmware has posted some reply descriptors
+		 * while reenabling the IRQ.
+		 */
+		_base_process_reply_queue(reply_q);
 	}
 
 	return num_entries;
@@ -1787,12 +1876,14 @@ _base_is_controller_msix_enabled(struct MPT3SAS_ADAPTER *ioc)
 /**
  * mpt3sas_base_sync_reply_irqs - flush pending MSIX interrupts
  * @ioc: per adapter object
+ * @poll: poll over reply descriptor pools incase interrupt for
+ *		timed-out SCSI command got delayed
  * Context: non ISR conext
  *
  * Called when a Task Management request has completed.
  */
 void
-mpt3sas_base_sync_reply_irqs(struct MPT3SAS_ADAPTER *ioc)
+mpt3sas_base_sync_reply_irqs(struct MPT3SAS_ADAPTER *ioc, u8 poll)
 {
 	struct adapter_reply_queue *reply_q;
 
@@ -1809,19 +1900,25 @@ mpt3sas_base_sync_reply_irqs(struct MPT3SAS_ADAPTER *ioc)
 		/* TMs are on msix_index == 0 */
 		if (reply_q->msix_index == 0)
 			continue;
+		synchronize_irq(pci_irq_vector(ioc->pdev, reply_q->msix_index));
 		if (reply_q->irq_poll_scheduled) {
 			/* Calling irq_poll_disable will wait for any pending
 			 * callbacks to have completed.
 			 */
 			irq_poll_disable(&reply_q->irqpoll);
 			irq_poll_enable(&reply_q->irqpoll);
-			reply_q->irq_poll_scheduled = false;
-			reply_q->irq_line_enable = true;
-			enable_irq(reply_q->os_irq);
-			continue;
+			/* check how the scheduled poll has ended,
+			 * clean up only if necessary
+			 */
+			if (reply_q->irq_poll_scheduled) {
+				reply_q->irq_poll_scheduled = false;
+				reply_q->irq_line_enable = true;
+				enable_irq(reply_q->os_irq);
+			}
 		}
-		synchronize_irq(pci_irq_vector(ioc->pdev, reply_q->msix_index));
 	}
+	if (poll)
+		_base_process_reply_queue(reply_q);
 }
 
 /**
@@ -3372,7 +3469,7 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 		goto out_fail;
 	}
 
-	_base_mask_interrupts(ioc);
+	mpt3sas_base_mask_interrupts(ioc);
 
 	r = _base_get_ioc_facts(ioc);
 	if (r) {
@@ -4708,6 +4805,311 @@ _base_update_ioc_page1_inlinewith_perf_mode(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
+ * _base_get_event_diag_triggers - get event diag trigger values from
+ *				persistent pages
+ * @ioc : per adapter object
+ *
+ * Return nothing.
+ */
+static void
+_base_get_event_diag_triggers(struct MPT3SAS_ADAPTER *ioc)
+{
+	Mpi26DriverTriggerPage2_t trigger_pg2;
+	struct SL_WH_EVENT_TRIGGER_T *event_tg;
+	MPI26_DRIVER_MPI_EVENT_TIGGER_ENTRY *mpi_event_tg;
+	Mpi2ConfigReply_t mpi_reply;
+	int r = 0, i = 0;
+	u16 count = 0;
+	u16 ioc_status;
+
+	r = mpt3sas_config_get_driver_trigger_pg2(ioc, &mpi_reply,
+	    &trigger_pg2);
+	if (r)
+		return;
+
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
+	    MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+		dinitprintk(ioc,
+		    ioc_err(ioc,
+		    "%s: Failed to get trigger pg2, ioc_status(0x%04x)\n",
+		   __func__, ioc_status));
+		return;
+	}
+
+	if (le16_to_cpu(trigger_pg2.NumMPIEventTrigger)) {
+		count = le16_to_cpu(trigger_pg2.NumMPIEventTrigger);
+		count = min_t(u16, NUM_VALID_ENTRIES, count);
+		ioc->diag_trigger_event.ValidEntries = count;
+
+		event_tg = &ioc->diag_trigger_event.EventTriggerEntry[0];
+		mpi_event_tg = &trigger_pg2.MPIEventTriggers[0];
+		for (i = 0; i < count; i++) {
+			event_tg->EventValue = le16_to_cpu(
+			    mpi_event_tg->MPIEventCode);
+			event_tg->LogEntryQualifier = le16_to_cpu(
+			    mpi_event_tg->MPIEventCodeSpecific);
+			event_tg++;
+			mpi_event_tg++;
+		}
+	}
+}
+
+/**
+ * _base_get_scsi_diag_triggers - get scsi diag trigger values from
+ *				persistent pages
+ * @ioc : per adapter object
+ *
+ * Return nothing.
+ */
+static void
+_base_get_scsi_diag_triggers(struct MPT3SAS_ADAPTER *ioc)
+{
+	Mpi26DriverTriggerPage3_t trigger_pg3;
+	struct SL_WH_SCSI_TRIGGER_T *scsi_tg;
+	MPI26_DRIVER_SCSI_SENSE_TIGGER_ENTRY *mpi_scsi_tg;
+	Mpi2ConfigReply_t mpi_reply;
+	int r = 0, i = 0;
+	u16 count = 0;
+	u16 ioc_status;
+
+	r = mpt3sas_config_get_driver_trigger_pg3(ioc, &mpi_reply,
+	    &trigger_pg3);
+	if (r)
+		return;
+
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
+	    MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+		dinitprintk(ioc,
+		    ioc_err(ioc,
+		    "%s: Failed to get trigger pg3, ioc_status(0x%04x)\n",
+		    __func__, ioc_status));
+		return;
+	}
+
+	if (le16_to_cpu(trigger_pg3.NumSCSISenseTrigger)) {
+		count = le16_to_cpu(trigger_pg3.NumSCSISenseTrigger);
+		count = min_t(u16, NUM_VALID_ENTRIES, count);
+		ioc->diag_trigger_scsi.ValidEntries = count;
+
+		scsi_tg = &ioc->diag_trigger_scsi.SCSITriggerEntry[0];
+		mpi_scsi_tg = &trigger_pg3.SCSISenseTriggers[0];
+		for (i = 0; i < count; i++) {
+			scsi_tg->ASCQ = mpi_scsi_tg->ASCQ;
+			scsi_tg->ASC = mpi_scsi_tg->ASC;
+			scsi_tg->SenseKey = mpi_scsi_tg->SenseKey;
+
+			scsi_tg++;
+			mpi_scsi_tg++;
+		}
+	}
+}
+
+/**
+ * _base_get_mpi_diag_triggers - get mpi diag trigger values from
+ *				persistent pages
+ * @ioc : per adapter object
+ *
+ * Return nothing.
+ */
+static void
+_base_get_mpi_diag_triggers(struct MPT3SAS_ADAPTER *ioc)
+{
+	Mpi26DriverTriggerPage4_t trigger_pg4;
+	struct SL_WH_MPI_TRIGGER_T *status_tg;
+	MPI26_DRIVER_IOCSTATUS_LOGINFO_TIGGER_ENTRY *mpi_status_tg;
+	Mpi2ConfigReply_t mpi_reply;
+	int r = 0, i = 0;
+	u16 count = 0;
+	u16 ioc_status;
+
+	r = mpt3sas_config_get_driver_trigger_pg4(ioc, &mpi_reply,
+	    &trigger_pg4);
+	if (r)
+		return;
+
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
+	    MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+		dinitprintk(ioc,
+		    ioc_err(ioc,
+		    "%s: Failed to get trigger pg4, ioc_status(0x%04x)\n",
+		    __func__, ioc_status));
+		return;
+	}
+
+	if (le16_to_cpu(trigger_pg4.NumIOCStatusLogInfoTrigger)) {
+		count = le16_to_cpu(trigger_pg4.NumIOCStatusLogInfoTrigger);
+		count = min_t(u16, NUM_VALID_ENTRIES, count);
+		ioc->diag_trigger_mpi.ValidEntries = count;
+
+		status_tg = &ioc->diag_trigger_mpi.MPITriggerEntry[0];
+		mpi_status_tg = &trigger_pg4.IOCStatusLoginfoTriggers[0];
+
+		for (i = 0; i < count; i++) {
+			status_tg->IOCStatus = le16_to_cpu(
+			    mpi_status_tg->IOCStatus);
+			status_tg->IocLogInfo = le32_to_cpu(
+			    mpi_status_tg->LogInfo);
+
+			status_tg++;
+			mpi_status_tg++;
+		}
+	}
+}
+
+/**
+ * _base_get_master_diag_triggers - get master diag trigger values from
+ *				persistent pages
+ * @ioc : per adapter object
+ *
+ * Return nothing.
+ */
+static void
+_base_get_master_diag_triggers(struct MPT3SAS_ADAPTER *ioc)
+{
+	Mpi26DriverTriggerPage1_t trigger_pg1;
+	Mpi2ConfigReply_t mpi_reply;
+	int r;
+	u16 ioc_status;
+
+	r = mpt3sas_config_get_driver_trigger_pg1(ioc, &mpi_reply,
+	    &trigger_pg1);
+	if (r)
+		return;
+
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
+	    MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+		dinitprintk(ioc,
+		    ioc_err(ioc,
+		    "%s: Failed to get trigger pg1, ioc_status(0x%04x)\n",
+		   __func__, ioc_status));
+		return;
+	}
+
+	if (le16_to_cpu(trigger_pg1.NumMasterTrigger))
+		ioc->diag_trigger_master.MasterData |=
+		    le32_to_cpu(
+		    trigger_pg1.MasterTriggers[0].MasterTriggerFlags);
+}
+
+/**
+ * _base_check_for_trigger_pages_support - checks whether HBA FW supports
+ *					driver trigger pages or not
+ * @ioc : per adapter object
+ *
+ * Returns trigger flags mask if HBA FW supports driver trigger pages,
+ * otherwise returns EFAULT.
+ */
+static int
+_base_check_for_trigger_pages_support(struct MPT3SAS_ADAPTER *ioc)
+{
+	Mpi26DriverTriggerPage0_t trigger_pg0;
+	int r = 0;
+	Mpi2ConfigReply_t mpi_reply;
+	u16 ioc_status;
+
+	r = mpt3sas_config_get_driver_trigger_pg0(ioc, &mpi_reply,
+	    &trigger_pg0);
+	if (r)
+		return -EFAULT;
+
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
+	    MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS)
+		return -EFAULT;
+
+	return le16_to_cpu(trigger_pg0.TriggerFlags);
+}
+
+/**
+ * _base_get_diag_triggers - Retrieve diag trigger values from
+ *				persistent pages.
+ * @ioc : per adapter object
+ *
+ * Return nothing.
+ */
+static void
+_base_get_diag_triggers(struct MPT3SAS_ADAPTER *ioc)
+{
+	int trigger_flags;
+
+	/*
+	 * Default setting of master trigger.
+	 */
+	ioc->diag_trigger_master.MasterData =
+	    (MASTER_TRIGGER_FW_FAULT + MASTER_TRIGGER_ADAPTER_RESET);
+
+	trigger_flags = _base_check_for_trigger_pages_support(ioc);
+	if (trigger_flags < 0)
+		return;
+
+	ioc->supports_trigger_pages = 1;
+
+	/*
+	 * Retrieve master diag trigger values from driver trigger pg1
+	 * if master trigger bit enabled in TriggerFlags.
+	 */
+	if ((u16)trigger_flags &
+	    MPI26_DRIVER_TRIGGER0_FLAG_MASTER_TRIGGER_VALID)
+		_base_get_master_diag_triggers(ioc);
+
+	/*
+	 * Retrieve event diag trigger values from driver trigger pg2
+	 * if event trigger bit enabled in TriggerFlags.
+	 */
+	if ((u16)trigger_flags &
+	    MPI26_DRIVER_TRIGGER0_FLAG_MPI_EVENT_TRIGGER_VALID)
+		_base_get_event_diag_triggers(ioc);
+
+	/*
+	 * Retrieve scsi diag trigger values from driver trigger pg3
+	 * if scsi trigger bit enabled in TriggerFlags.
+	 */
+	if ((u16)trigger_flags &
+	    MPI26_DRIVER_TRIGGER0_FLAG_SCSI_SENSE_TRIGGER_VALID)
+		_base_get_scsi_diag_triggers(ioc);
+	/*
+	 * Retrieve mpi error diag trigger values from driver trigger pg4
+	 * if loginfo trigger bit enabled in TriggerFlags.
+	 */
+	if ((u16)trigger_flags &
+	    MPI26_DRIVER_TRIGGER0_FLAG_LOGINFO_TRIGGER_VALID)
+		_base_get_mpi_diag_triggers(ioc);
+}
+
+/**
+ * _base_update_diag_trigger_pages - Update the driver trigger pages after
+ *			online FW update, incase updated FW supports driver
+ *			trigger pages.
+ * @ioc : per adapter object
+ *
+ * Return nothing.
+ */
+static void
+_base_update_diag_trigger_pages(struct MPT3SAS_ADAPTER *ioc)
+{
+
+	if (ioc->diag_trigger_master.MasterData)
+		mpt3sas_config_update_driver_trigger_pg1(ioc,
+		    &ioc->diag_trigger_master, 1);
+
+	if (ioc->diag_trigger_event.ValidEntries)
+		mpt3sas_config_update_driver_trigger_pg2(ioc,
+		    &ioc->diag_trigger_event, 1);
+
+	if (ioc->diag_trigger_scsi.ValidEntries)
+		mpt3sas_config_update_driver_trigger_pg3(ioc,
+		    &ioc->diag_trigger_scsi, 1);
+
+	if (ioc->diag_trigger_mpi.ValidEntries)
+		mpt3sas_config_update_driver_trigger_pg4(ioc,
+		    &ioc->diag_trigger_mpi, 1);
+}
+
+/**
  * _base_static_config_pages - static start of day config pages
  * @ioc: per adapter object
  */
@@ -4716,7 +5118,7 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 {
 	Mpi2ConfigReply_t mpi_reply;
 	u32 iounit_pg1_flags;
-
+	int tg_flags = 0;
 	ioc->nvme_abort_timeout = 30;
 	mpt3sas_config_get_manufacturing_pg0(ioc, &mpi_reply, &ioc->manu_pg0);
 	if (ioc->ir_firmware)
@@ -4748,7 +5150,24 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 		else
 			ioc->nvme_abort_timeout = ioc->manu_pg11.NVMeAbortTO;
 	}
-
+	ioc->time_sync_interval =
+	    ioc->manu_pg11.TimeSyncInterval & MPT3SAS_TIMESYNC_MASK;
+	if (ioc->time_sync_interval) {
+		if (ioc->manu_pg11.TimeSyncInterval & MPT3SAS_TIMESYNC_UNIT_MASK)
+			ioc->time_sync_interval =
+			    ioc->time_sync_interval * SECONDS_PER_HOUR;
+		else
+			ioc->time_sync_interval =
+			    ioc->time_sync_interval * SECONDS_PER_MIN;
+		dinitprintk(ioc, ioc_info(ioc,
+		    "Driver-FW TimeSync interval is %d seconds. ManuPg11 TimeSync Unit is in %s\n",
+		    ioc->time_sync_interval, (ioc->manu_pg11.TimeSyncInterval &
+		    MPT3SAS_TIMESYNC_UNIT_MASK) ? "Hour" : "Minute"));
+	} else {
+		if (ioc->is_gen35_ioc)
+			ioc_warn(ioc,
+			    "TimeSync Interval in Manuf page-11 is not enabled. Periodic Time-Sync will be disabled\n");
+	}
 	mpt3sas_config_get_bios_pg2(ioc, &mpi_reply, &ioc->bios_pg2);
 	mpt3sas_config_get_bios_pg3(ioc, &mpi_reply, &ioc->bios_pg3);
 	mpt3sas_config_get_ioc_pg8(ioc, &mpi_reply, &ioc->ioc_pg8);
@@ -4776,6 +5195,29 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 		ioc->temp_sensors_count = ioc->iounit_pg8.NumSensors;
 	if (ioc->is_aero_ioc)
 		_base_update_ioc_page1_inlinewith_perf_mode(ioc);
+	if (ioc->is_gen35_ioc) {
+		if (ioc->is_driver_loading)
+			_base_get_diag_triggers(ioc);
+		else {
+			/*
+			 * In case of online HBA FW update operation,
+			 * check whether updated FW supports the driver trigger
+			 * pages or not.
+			 * - If previous FW has not supported driver trigger
+			 *   pages and newer FW supports them then update these
+			 *   pages with current diag trigger values.
+			 * - If previous FW has supported driver trigger pages
+			 *   and new FW doesn't support them then disable
+			 *   support_trigger_pages flag.
+			 */
+			tg_flags = _base_check_for_trigger_pages_support(ioc);
+			if (!ioc->supports_trigger_pages && tg_flags != -EFAULT)
+				_base_update_diag_trigger_pages(ioc);
+			else if (ioc->supports_trigger_pages &&
+			    tg_flags == -EFAULT)
+				ioc->supports_trigger_pages = 0;
+		}
+	}
 }
 
 /**
@@ -5257,7 +5699,6 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 		_base_release_memory_pools(ioc);
 		goto retry_allocation;
 	}
-	memset(ioc->request, 0, sz);
 
 	if (retry_sz)
 		ioc_err(ioc, "request pool: dma_alloc_coherent succeed: hba_depth(%d), chains_per_io(%d), frame_sz(%d), total(%d kb)\n",
@@ -5616,6 +6057,23 @@ _base_wait_on_iocstate(struct MPT3SAS_ADAPTER *ioc, u32 ioc_state, int timeout)
 	} while (--cntdn);
 
 	return current_state;
+}
+
+/**
+ * _base_dump_reg_set -	This function will print hexdump of register set.
+ * @ioc: per adapter object
+ *
+ * Returns nothing.
+ */
+static inline void
+_base_dump_reg_set(struct MPT3SAS_ADAPTER *ioc)
+{
+	unsigned int i, sz = 256;
+	u32 __iomem *reg = (u32 __iomem *)ioc->chip;
+
+	ioc_info(ioc, "System Register set:\n");
+	for (i = 0; i < (sz / sizeof(u32)); i++)
+		pr_info("%08x: %08x\n", (i * 4), readl(&reg[i]));
 }
 
 /**
@@ -6430,7 +6888,7 @@ _base_send_ioc_init(struct MPT3SAS_ADAPTER *ioc)
 
 	r = _base_handshake_req_reply_wait(ioc,
 	    sizeof(Mpi2IOCInitRequest_t), (u32 *)&mpi_request,
-	    sizeof(Mpi2IOCInitReply_t), (u16 *)&mpi_reply, 10);
+	    sizeof(Mpi2IOCInitReply_t), (u16 *)&mpi_reply, 30);
 
 	if (r != 0) {
 		ioc_err(ioc, "%s: handshake failed (r=%d)\n", __func__, r);
@@ -6444,6 +6902,8 @@ _base_send_ioc_init(struct MPT3SAS_ADAPTER *ioc)
 		r = -EIO;
 	}
 
+	/* Reset TimeSync Counter*/
+	ioc->timestamp_update_count = 0;
 	return r;
 }
 
@@ -6797,6 +7257,7 @@ _base_diag_reset(struct MPT3SAS_ADAPTER *ioc)
 		if (count++ > 20) {
 			ioc_info(ioc,
 			    "Stop writing magic sequence after 20 retries\n");
+			_base_dump_reg_set(ioc);
 			goto out;
 		}
 
@@ -6825,6 +7286,7 @@ _base_diag_reset(struct MPT3SAS_ADAPTER *ioc)
 		if (host_diagnostic == 0xFFFFFFFF) {
 			ioc_info(ioc,
 			    "Invalid host diagnostic register value\n");
+			_base_dump_reg_set(ioc);
 			goto out;
 		}
 		if (!(host_diagnostic & MPI2_DIAG_RESET_ADAPTER))
@@ -6859,6 +7321,7 @@ _base_diag_reset(struct MPT3SAS_ADAPTER *ioc)
 	if (ioc_state) {
 		ioc_err(ioc, "%s: failed going to ready state (ioc_state=0x%x)\n",
 			__func__, ioc_state);
+		_base_dump_reg_set(ioc);
 		goto out;
 	}
 
@@ -7101,7 +7564,7 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc)
 
  skip_init_reply_post_host_index:
 
-	_base_unmask_interrupts(ioc);
+	mpt3sas_base_unmask_interrupts(ioc);
 
 	if (ioc->hba_mpi_version_belonged != MPI2_VERSION) {
 		r = _base_display_fwpkg_version(ioc);
@@ -7150,7 +7613,7 @@ mpt3sas_base_free_resources(struct MPT3SAS_ADAPTER *ioc)
 	/* synchronizing freeing resource with pci_access_mutex lock */
 	mutex_lock(&ioc->pci_access_mutex);
 	if (ioc->chip_phys && ioc->chip) {
-		_base_mask_interrupts(ioc);
+		mpt3sas_base_mask_interrupts(ioc);
 		ioc->shost_recovery = 1;
 		_base_make_ioc_ready(ioc, SOFT_RESET);
 		ioc->shost_recovery = 0;
@@ -7716,7 +8179,7 @@ mpt3sas_base_hard_reset_handler(struct MPT3SAS_ADAPTER *ioc,
 	}
 	_base_pre_reset_handler(ioc);
 	mpt3sas_wait_for_commands_to_complete(ioc);
-	_base_mask_interrupts(ioc);
+	mpt3sas_base_mask_interrupts(ioc);
 	r = _base_make_ioc_ready(ioc, type);
 	if (r)
 		goto out;

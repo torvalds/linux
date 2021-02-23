@@ -201,7 +201,7 @@ void fimc_capture_irq_handler(struct fimc_dev *fimc, int deq_buf)
 	if (!list_empty(&cap->pending_buf_q)) {
 
 		v_buf = fimc_pending_queue_pop(cap);
-		fimc_hw_set_output_addr(fimc, &v_buf->paddr, cap->buf_index);
+		fimc_hw_set_output_addr(fimc, &v_buf->addr, cap->buf_index);
 		v_buf->index = cap->buf_index;
 
 		/* Move the buffer to the capture active queue */
@@ -410,7 +410,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 	int min_bufs;
 
 	spin_lock_irqsave(&fimc->slock, flags);
-	fimc_prepare_addr(ctx, &buf->vb.vb2_buf, &ctx->d_frame, &buf->paddr);
+	fimc_prepare_addr(ctx, &buf->vb.vb2_buf, &ctx->d_frame, &buf->addr);
 
 	if (!test_bit(ST_CAPT_SUSPENDED, &fimc->state) &&
 	    !test_bit(ST_CAPT_STREAM, &fimc->state) &&
@@ -419,7 +419,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 		int buf_id = (vid_cap->reqbufs_count == 1) ? -1 :
 				vid_cap->buf_index;
 
-		fimc_hw_set_output_addr(fimc, &buf->paddr, buf_id);
+		fimc_hw_set_output_addr(fimc, &buf->addr, buf_id);
 		buf->index = vid_cap->buf_index;
 		fimc_active_queue_add(vid_cap, buf);
 
@@ -495,17 +495,6 @@ static int fimc_capture_open(struct file *file)
 
 		ret = fimc_pipeline_call(ve, open, &ve->vdev.entity, true);
 
-		if (ret == 0 && vc->user_subdev_api && vc->inh_sensor_ctrls) {
-			/*
-			 * Recreate controls of the the video node to drop
-			 * any controls inherited from the sensor subdev.
-			 */
-			fimc_ctrls_delete(vc->ctx);
-
-			ret = fimc_ctrls_create(vc->ctx);
-			if (ret == 0)
-				vc->inh_sensor_ctrls = false;
-		}
 		if (ret == 0)
 			ve->vdev.entity.use_count++;
 
@@ -1246,8 +1235,11 @@ static int fimc_cap_streamoff(struct file *file, void *priv,
 	if (ret < 0)
 		return ret;
 
-	media_pipeline_stop(&vc->ve.vdev.entity);
-	vc->streaming = false;
+	if (vc->streaming) {
+		media_pipeline_stop(&vc->ve.vdev.entity);
+		vc->streaming = false;
+	}
+
 	return 0;
 }
 
@@ -1279,7 +1271,7 @@ static int fimc_cap_g_selection(struct file *file, void *fh,
 	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
 	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
 		f = &ctx->d_frame;
-		/* fall through */
+		fallthrough;
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 	case V4L2_SEL_TGT_CROP_DEFAULT:
 		s->r.left = 0;
@@ -1290,7 +1282,7 @@ static int fimc_cap_g_selection(struct file *file, void *fh,
 
 	case V4L2_SEL_TGT_COMPOSE:
 		f = &ctx->d_frame;
-		/* fall through */
+		fallthrough;
 	case V4L2_SEL_TGT_CROP:
 		s->r.left = f->offs_h;
 		s->r.top = f->offs_v;
@@ -1398,7 +1390,7 @@ static int fimc_link_setup(struct media_entity *entity,
 
 	vc->input = sd->grp_id;
 
-	if (vc->user_subdev_api || vc->inh_sensor_ctrls)
+	if (vc->user_subdev_api)
 		return 0;
 
 	/* Inherit V4L2 controls from the image sensor subdev. */
@@ -1601,7 +1593,7 @@ static int fimc_subdev_get_selection(struct v4l2_subdev *sd,
 	switch (sel->target) {
 	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
 		f = &ctx->d_frame;
-		/* fall through */
+		fallthrough;
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 		r->width = f->o_width;
 		r->height = f->o_height;
@@ -1888,6 +1880,7 @@ int fimc_initialize_capture_subdev(struct fimc_dev *fimc)
 		return ret;
 
 	sd->entity.ops = &fimc_sd_media_ops;
+	sd->entity.function = MEDIA_ENT_F_PROC_VIDEO_SCALER;
 	sd->internal_ops = &fimc_capture_sd_internal_ops;
 	v4l2_set_subdevdata(sd, fimc);
 	return 0;

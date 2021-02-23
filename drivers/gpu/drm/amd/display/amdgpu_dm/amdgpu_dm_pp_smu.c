@@ -346,13 +346,6 @@ bool dm_pp_get_clock_levels_by_type(
 			get_default_clock_levels(clk_type, dc_clks);
 			return true;
 		}
-	} else if (adev->smu.ppt_funcs && adev->smu.ppt_funcs->get_clock_by_type) {
-		if (smu_get_clock_by_type(&adev->smu,
-					  dc_to_pp_clock_type(clk_type),
-					  &pp_clks)) {
-			get_default_clock_levels(clk_type, dc_clks);
-			return true;
-		}
 	}
 
 	pp_to_dc_clock_levels(&pp_clks, dc_clks, clk_type);
@@ -361,13 +354,6 @@ bool dm_pp_get_clock_levels_by_type(
 		if (adev->powerplay.pp_funcs->get_display_mode_validation_clocks(
 						pp_handle, &validation_clks)) {
 			/* Error in pplib. Provide default values. */
-			DRM_INFO("DM_PPLIB: Warning: using default validation clocks!\n");
-			validation_clks.engine_max_clock = 72000;
-			validation_clks.memory_max_clock = 80000;
-			validation_clks.level = 0;
-		}
-	} else if (adev->smu.ppt_funcs && adev->smu.ppt_funcs->get_max_high_clocks) {
-		if (smu_get_max_high_clocks(&adev->smu, &validation_clks)) {
 			DRM_INFO("DM_PPLIB: Warning: using default validation clocks!\n");
 			validation_clks.engine_max_clock = 72000;
 			validation_clks.memory_max_clock = 80000;
@@ -461,11 +447,6 @@ bool dm_pp_get_clock_levels_by_type_with_voltage(
 						&pp_clk_info);
 		if (ret)
 			return false;
-	} else if (adev->smu.ppt_funcs && adev->smu.ppt_funcs->get_clock_by_type_with_voltage) {
-		if (smu_get_clock_by_type_with_voltage(&adev->smu,
-						       dc_to_pp_clock_type(clk_type),
-						       &pp_clk_info))
-			return false;
 	}
 
 	pp_to_dc_clock_levels_with_voltage(&pp_clk_info, clk_level_info, clk_type);
@@ -477,7 +458,21 @@ bool dm_pp_notify_wm_clock_changes(
 	const struct dc_context *ctx,
 	struct dm_pp_wm_sets_with_clock_ranges *wm_with_clock_ranges)
 {
-	/* TODO: to be implemented */
+	struct amdgpu_device *adev = ctx->driver_context;
+	void *pp_handle = adev->powerplay.pp_handle;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	/*
+	 * Limit this watermark setting for Polaris for now
+	 * TODO: expand this to other ASICs
+	 */
+	if ((adev->asic_type >= CHIP_POLARIS10) && (adev->asic_type <= CHIP_VEGAM)
+	     && pp_funcs && pp_funcs->set_watermarks_for_clocks_ranges) {
+		if (!pp_funcs->set_watermarks_for_clocks_ranges(pp_handle,
+						(void *)wm_with_clock_ranges))
+			return true;
+	}
+
 	return false;
 }
 
@@ -528,8 +523,6 @@ bool dm_pp_get_static_clocks(
 		ret = adev->powerplay.pp_funcs->get_current_clocks(
 			adev->powerplay.pp_handle,
 			&pp_clk_info);
-	else if (adev->smu.ppt_funcs)
-		ret = smu_get_current_clocks(&adev->smu, &pp_clk_info);
 	else
 		return false;
 	if (ret)
@@ -542,7 +535,7 @@ bool dm_pp_get_static_clocks(
 	return true;
 }
 
-void pp_rv_set_wm_ranges(struct pp_smu *pp,
+static void pp_rv_set_wm_ranges(struct pp_smu *pp,
 		struct pp_smu_wm_range_sets *ranges)
 {
 	const struct dc_context *ctx = pp->dm;
@@ -592,12 +585,9 @@ void pp_rv_set_wm_ranges(struct pp_smu *pp,
 	if (pp_funcs && pp_funcs->set_watermarks_for_clocks_ranges)
 		pp_funcs->set_watermarks_for_clocks_ranges(pp_handle,
 							   &wm_with_clock_ranges);
-	else if (adev->smu.ppt_funcs)
-		smu_set_watermarks_for_clock_ranges(&adev->smu,
-				&wm_with_clock_ranges);
 }
 
-void pp_rv_set_pme_wa_enable(struct pp_smu *pp)
+static void pp_rv_set_pme_wa_enable(struct pp_smu *pp)
 {
 	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
@@ -606,11 +596,9 @@ void pp_rv_set_pme_wa_enable(struct pp_smu *pp)
 
 	if (pp_funcs && pp_funcs->notify_smu_enable_pwe)
 		pp_funcs->notify_smu_enable_pwe(pp_handle);
-	else if (adev->smu.ppt_funcs)
-		smu_notify_smu_enable_pwe(&adev->smu);
 }
 
-void pp_rv_set_active_display_count(struct pp_smu *pp, int count)
+static void pp_rv_set_active_display_count(struct pp_smu *pp, int count)
 {
 	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
@@ -623,7 +611,7 @@ void pp_rv_set_active_display_count(struct pp_smu *pp, int count)
 	pp_funcs->set_active_display_count(pp_handle, count);
 }
 
-void pp_rv_set_min_deep_sleep_dcfclk(struct pp_smu *pp, int clock)
+static void pp_rv_set_min_deep_sleep_dcfclk(struct pp_smu *pp, int clock)
 {
 	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
@@ -636,7 +624,7 @@ void pp_rv_set_min_deep_sleep_dcfclk(struct pp_smu *pp, int clock)
 	pp_funcs->set_min_deep_sleep_dcefclk(pp_handle, clock);
 }
 
-void pp_rv_set_hard_min_dcefclk_by_freq(struct pp_smu *pp, int clock)
+static void pp_rv_set_hard_min_dcefclk_by_freq(struct pp_smu *pp, int clock)
 {
 	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
@@ -649,7 +637,7 @@ void pp_rv_set_hard_min_dcefclk_by_freq(struct pp_smu *pp, int clock)
 	pp_funcs->set_hard_min_dcefclk_by_freq(pp_handle, clock);
 }
 
-void pp_rv_set_hard_min_fclk_by_freq(struct pp_smu *pp, int mhz)
+static void pp_rv_set_hard_min_fclk_by_freq(struct pp_smu *pp, int mhz)
 {
 	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
@@ -667,65 +655,8 @@ static enum pp_smu_status pp_nv_set_wm_ranges(struct pp_smu *pp,
 {
 	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
-	struct dm_pp_wm_sets_with_clock_ranges_soc15 wm_with_clock_ranges;
-	struct dm_pp_clock_range_for_dmif_wm_set_soc15 *wm_dce_clocks =
-			wm_with_clock_ranges.wm_dmif_clocks_ranges;
-	struct dm_pp_clock_range_for_mcif_wm_set_soc15 *wm_soc_clocks =
-			wm_with_clock_ranges.wm_mcif_clocks_ranges;
-	int32_t i;
 
-	wm_with_clock_ranges.num_wm_dmif_sets = ranges->num_reader_wm_sets;
-	wm_with_clock_ranges.num_wm_mcif_sets = ranges->num_writer_wm_sets;
-
-	for (i = 0; i < wm_with_clock_ranges.num_wm_dmif_sets; i++) {
-		if (ranges->reader_wm_sets[i].wm_inst > 3)
-			wm_dce_clocks[i].wm_set_id = WM_SET_A;
-		else
-			wm_dce_clocks[i].wm_set_id =
-					ranges->reader_wm_sets[i].wm_inst;
-		wm_dce_clocks[i].wm_max_dcfclk_clk_in_khz =
-			ranges->reader_wm_sets[i].max_drain_clk_mhz * 1000;
-		wm_dce_clocks[i].wm_min_dcfclk_clk_in_khz =
-			ranges->reader_wm_sets[i].min_drain_clk_mhz * 1000;
-		wm_dce_clocks[i].wm_max_mem_clk_in_khz =
-			ranges->reader_wm_sets[i].max_fill_clk_mhz * 1000;
-		wm_dce_clocks[i].wm_min_mem_clk_in_khz =
-			ranges->reader_wm_sets[i].min_fill_clk_mhz * 1000;
-	}
-
-	for (i = 0; i < wm_with_clock_ranges.num_wm_mcif_sets; i++) {
-		if (ranges->writer_wm_sets[i].wm_inst > 3)
-			wm_soc_clocks[i].wm_set_id = WM_SET_A;
-		else
-			wm_soc_clocks[i].wm_set_id =
-					ranges->writer_wm_sets[i].wm_inst;
-		wm_soc_clocks[i].wm_max_socclk_clk_in_khz =
-			ranges->writer_wm_sets[i].max_fill_clk_mhz * 1000;
-		wm_soc_clocks[i].wm_min_socclk_clk_in_khz =
-			ranges->writer_wm_sets[i].min_fill_clk_mhz * 1000;
-		wm_soc_clocks[i].wm_max_mem_clk_in_khz =
-			ranges->writer_wm_sets[i].max_drain_clk_mhz * 1000;
-		wm_soc_clocks[i].wm_min_mem_clk_in_khz =
-			ranges->writer_wm_sets[i].min_drain_clk_mhz * 1000;
-	}
-
-	smu_set_watermarks_for_clock_ranges(&adev->smu,	&wm_with_clock_ranges);
-
-	return PP_SMU_RESULT_OK;
-}
-
-enum pp_smu_status pp_nv_set_pme_wa_enable(struct pp_smu *pp)
-{
-	const struct dc_context *ctx = pp->dm;
-	struct amdgpu_device *adev = ctx->driver_context;
-	struct smu_context *smu = &adev->smu;
-
-	if (!smu->ppt_funcs)
-		return PP_SMU_RESULT_UNSUPPORTED;
-
-	/* 0: successful or smu.ppt_funcs->set_azalia_d3_pme = NULL;  1: fail */
-	if (smu_set_azalia_d3_pme(smu))
-		return PP_SMU_RESULT_FAIL;
+	smu_set_watermarks_for_clock_ranges(&adev->smu, ranges);
 
 	return PP_SMU_RESULT_OK;
 }
@@ -810,7 +741,7 @@ pp_nv_set_hard_min_uclk_by_freq(struct pp_smu *pp, int mhz)
 }
 
 static enum pp_smu_status pp_nv_set_pstate_handshake_support(
-	struct pp_smu *pp, BOOLEAN pstate_handshake_supported)
+	struct pp_smu *pp, bool pstate_handshake_supported)
 {
 	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
@@ -920,60 +851,8 @@ static enum pp_smu_status pp_rn_set_wm_ranges(struct pp_smu *pp,
 {
 	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
-	struct smu_context *smu = &adev->smu;
-	struct dm_pp_wm_sets_with_clock_ranges_soc15 wm_with_clock_ranges;
-	struct dm_pp_clock_range_for_dmif_wm_set_soc15 *wm_dce_clocks =
-			wm_with_clock_ranges.wm_dmif_clocks_ranges;
-	struct dm_pp_clock_range_for_mcif_wm_set_soc15 *wm_soc_clocks =
-			wm_with_clock_ranges.wm_mcif_clocks_ranges;
-	int32_t i;
 
-	if (!smu->ppt_funcs)
-		return PP_SMU_RESULT_UNSUPPORTED;
-
-	wm_with_clock_ranges.num_wm_dmif_sets = ranges->num_reader_wm_sets;
-	wm_with_clock_ranges.num_wm_mcif_sets = ranges->num_writer_wm_sets;
-
-	for (i = 0; i < wm_with_clock_ranges.num_wm_dmif_sets; i++) {
-		if (ranges->reader_wm_sets[i].wm_inst > 3)
-			wm_dce_clocks[i].wm_set_id = WM_SET_A;
-		else
-			wm_dce_clocks[i].wm_set_id =
-					ranges->reader_wm_sets[i].wm_inst;
-
-		wm_dce_clocks[i].wm_min_dcfclk_clk_in_khz =
-			ranges->reader_wm_sets[i].min_drain_clk_mhz;
-
-		wm_dce_clocks[i].wm_max_dcfclk_clk_in_khz =
-			ranges->reader_wm_sets[i].max_drain_clk_mhz;
-
-		wm_dce_clocks[i].wm_min_mem_clk_in_khz =
-			ranges->reader_wm_sets[i].min_fill_clk_mhz;
-
-		wm_dce_clocks[i].wm_max_mem_clk_in_khz =
-			ranges->reader_wm_sets[i].max_fill_clk_mhz;
-	}
-
-	for (i = 0; i < wm_with_clock_ranges.num_wm_mcif_sets; i++) {
-		if (ranges->writer_wm_sets[i].wm_inst > 3)
-			wm_soc_clocks[i].wm_set_id = WM_SET_A;
-		else
-			wm_soc_clocks[i].wm_set_id =
-					ranges->writer_wm_sets[i].wm_inst;
-		wm_soc_clocks[i].wm_min_socclk_clk_in_khz =
-				ranges->writer_wm_sets[i].min_fill_clk_mhz;
-
-		wm_soc_clocks[i].wm_max_socclk_clk_in_khz =
-			ranges->writer_wm_sets[i].max_fill_clk_mhz;
-
-		wm_soc_clocks[i].wm_min_mem_clk_in_khz =
-			ranges->writer_wm_sets[i].min_drain_clk_mhz;
-
-		wm_soc_clocks[i].wm_max_mem_clk_in_khz =
-			ranges->writer_wm_sets[i].max_drain_clk_mhz;
-	}
-
-	smu_set_watermarks_for_clock_ranges(&adev->smu, &wm_with_clock_ranges);
+	smu_set_watermarks_for_clock_ranges(&adev->smu, ranges);
 
 	return PP_SMU_RESULT_OK;
 }

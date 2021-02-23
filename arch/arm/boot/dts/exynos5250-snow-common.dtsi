@@ -217,7 +217,7 @@
 		};
 	};
 
-	mmc3_pwrseq: mmc3_pwrseq {
+	mmc3_pwrseq: mmc3-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&gpx0 2 GPIO_ACTIVE_LOW>, /* WIFI_RSTn */
 			      <&gpx0 1 GPIO_ACTIVE_LOW>; /* WIFI_EN */
@@ -289,7 +289,7 @@
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <378000>;
 
-	max77686: max77686@9 {
+	max77686: pmic@9 {
 		compatible = "maxim,max77686";
 		interrupt-parent = <&gpx3>;
 		interrupts = <2 IRQ_TYPE_NONE>;

@@ -73,9 +73,9 @@ ath5k_is_rfkill_set(struct ath5k_hw *ah)
 }
 
 static void
-ath5k_tasklet_rfkill_toggle(unsigned long data)
+ath5k_tasklet_rfkill_toggle(struct tasklet_struct *t)
 {
-	struct ath5k_hw *ah = (void *)data;
+	struct ath5k_hw *ah = from_tasklet(ah, t, rf_kill.toggleq);
 	bool blocked;
 
 	blocked = ath5k_is_rfkill_set(ah);
@@ -90,8 +90,7 @@ ath5k_rfkill_hw_start(struct ath5k_hw *ah)
 	ah->rf_kill.gpio = ah->ah_capabilities.cap_eeprom.ee_rfkill_pin;
 	ah->rf_kill.polarity = ah->ah_capabilities.cap_eeprom.ee_rfkill_pol;
 
-	tasklet_init(&ah->rf_kill.toggleq, ath5k_tasklet_rfkill_toggle,
-		(unsigned long)ah);
+	tasklet_setup(&ah->rf_kill.toggleq, ath5k_tasklet_rfkill_toggle);
 
 	ath5k_rfkill_disable(ah);
 

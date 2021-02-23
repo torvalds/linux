@@ -346,6 +346,7 @@ enum mlx5_event {
 	MLX5_EVENT_TYPE_NIC_VPORT_CHANGE   = 0xd,
 
 	MLX5_EVENT_TYPE_ESW_FUNCTIONS_CHANGED = 0xe,
+	MLX5_EVENT_TYPE_VHCA_STATE_CHANGE = 0xf,
 
 	MLX5_EVENT_TYPE_DCT_DRAINED        = 0x1c,
 	MLX5_EVENT_TYPE_DCT_KEY_VIOLATION  = 0x1d,
@@ -366,6 +367,7 @@ enum {
 enum {
 	MLX5_GENERAL_SUBTYPE_DELAY_DROP_TIMEOUT = 0x1,
 	MLX5_GENERAL_SUBTYPE_PCI_POWER_CHANGE_EVENT = 0x5,
+	MLX5_GENERAL_SUBTYPE_FW_LIVE_PATCH_EVENT = 0x7,
 	MLX5_GENERAL_SUBTYPE_PCI_SYNC_FOR_FW_UPDATE_EVENT = 0x8,
 };
 
@@ -716,6 +718,11 @@ struct mlx5_eqe_sync_fw_update {
 	u8 sync_rst_state;
 };
 
+struct mlx5_eqe_vhca_state {
+	__be16 ec_function;
+	__be16 function_id;
+} __packed;
+
 union ev_data {
 	__be32				raw[7];
 	struct mlx5_eqe_cmd		cmd;
@@ -735,6 +742,7 @@ union ev_data {
 	struct mlx5_eqe_temp_warning	temp_warning;
 	struct mlx5_eqe_xrq_err		xrq_err;
 	struct mlx5_eqe_sync_fw_update	sync_fw_update;
+	struct mlx5_eqe_vhca_state	vhca_state;
 } __packed;
 
 struct mlx5_eqe {
@@ -816,7 +824,7 @@ struct mlx5_mini_cqe8 {
 		__be32 rx_hash_result;
 		struct {
 			__be16 checksum;
-			__be16 rsvd;
+			__be16 stridx;
 		};
 		struct {
 			__be16 wqe_counter;
@@ -836,6 +844,7 @@ enum {
 
 enum {
 	MLX5_CQE_FORMAT_CSUM = 0x1,
+	MLX5_CQE_FORMAT_CSUM_STRIDX = 0x3,
 };
 
 #define MLX5_MINI_CQE_ARRAY_SIZE 8
@@ -1074,6 +1083,7 @@ enum {
 	MLX5_MATCH_INNER_HEADERS	= 1 << 2,
 	MLX5_MATCH_MISC_PARAMETERS_2	= 1 << 3,
 	MLX5_MATCH_MISC_PARAMETERS_3	= 1 << 4,
+	MLX5_MATCH_MISC_PARAMETERS_4	= 1 << 5,
 };
 
 enum {

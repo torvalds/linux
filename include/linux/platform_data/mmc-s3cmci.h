@@ -35,6 +35,7 @@ struct s3c24xx_mci_pdata {
 	unsigned long	ocr_avail;
 	void		(*set_power)(unsigned char power_mode,
 				     unsigned short vdd);
+	struct gpio_desc *bus[6];
 };
 
 /**
@@ -44,6 +45,7 @@ struct s3c24xx_mci_pdata {
  * Copy the platform data supplied by @pdata so that this can be marked
  * __initdata.
  */
+extern void s3c24xx_mci_def_set_power(unsigned char power_mode, unsigned short vdd);
 extern void s3c24xx_mci_set_platdata(struct s3c24xx_mci_pdata *pdata);
 
 #endif /* _ARCH_NCI_H */

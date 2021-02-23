@@ -3,6 +3,7 @@
  * Freescale Management Complex (MC) bus driver
  *
  * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
+ * Copyright 2019-2020 NXP
  * Author: German Rivera <German.Rivera@freescale.com>
  *
  */
@@ -59,6 +60,9 @@ struct fsl_mc_addr_translation_range {
 	phys_addr_t start_phys_addr;
 };
 
+#define FSL_MC_GCR1	0x0
+#define GCR1_P1_STOP	BIT(31)
+
 #define FSL_MC_FAPR	0x28
 #define MC_FAPR_PL	BIT(18)
 #define MC_FAPR_BMT	BIT(17)
@@ -77,6 +81,12 @@ static int fsl_mc_bus_match(struct device *dev, struct device_driver *drv)
 	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
 	struct fsl_mc_driver *mc_drv = to_fsl_mc_driver(drv);
 	bool found = false;
+
+	/* When driver_override is set, only bind to the matching driver */
+	if (mc_dev->driver_override) {
+		found = !strcmp(mc_dev->driver_override, mc_drv->driver.name);
+		goto out;
+	}
 
 	if (!mc_drv->match_id_table)
 		goto out;
@@ -147,8 +157,52 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(modalias);
 
+static ssize_t driver_override_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
+	char *driver_override, *old = mc_dev->driver_override;
+	char *cp;
+
+	if (WARN_ON(dev->bus != &fsl_mc_bus_type))
+		return -EINVAL;
+
+	if (count >= (PAGE_SIZE - 1))
+		return -EINVAL;
+
+	driver_override = kstrndup(buf, count, GFP_KERNEL);
+	if (!driver_override)
+		return -ENOMEM;
+
+	cp = strchr(driver_override, '\n');
+	if (cp)
+		*cp = '\0';
+
+	if (strlen(driver_override)) {
+		mc_dev->driver_override = driver_override;
+	} else {
+		kfree(driver_override);
+		mc_dev->driver_override = NULL;
+	}
+
+	kfree(old);
+
+	return count;
+}
+
+static ssize_t driver_override_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", mc_dev->driver_override);
+}
+static DEVICE_ATTR_RW(driver_override);
+
 static struct attribute *fsl_mc_dev_attrs[] = {
 	&dev_attr_modalias.attr,
+	&dev_attr_driver_override.attr,
 	NULL,
 };
 
@@ -452,7 +506,7 @@ common_cleanup:
 }
 
 static int get_dprc_icid(struct fsl_mc_io *mc_io,
-			 int container_id, u16 *icid)
+			 int container_id, u32 *icid)
 {
 	struct dprc_attributes attr;
 	int error;
@@ -564,11 +618,8 @@ static int fsl_mc_device_get_mmio_regions(struct fsl_mc_device *mc_dev,
 
 		regions[i].end = regions[i].start + region_desc.size - 1;
 		regions[i].name = "fsl-mc object MMIO region";
-		regions[i].flags = IORESOURCE_IO;
-		if (region_desc.flags & DPRC_REGION_CACHEABLE)
-			regions[i].flags |= IORESOURCE_CACHEABLE;
-		if (region_desc.flags & DPRC_REGION_SHAREABLE)
-			regions[i].flags |= IORESOURCE_MEM;
+		regions[i].flags = region_desc.flags & IORESOURCE_BITS;
+		regions[i].flags |= IORESOURCE_MEM;
 	}
 
 	mc_dev->regions = regions;
@@ -630,6 +681,7 @@ int fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
 		if (!mc_bus)
 			return -ENOMEM;
 
+		mutex_init(&mc_bus->scan_mutex);
 		mc_dev = &mc_bus->mc_dev;
 	} else {
 		/*
@@ -748,6 +800,9 @@ EXPORT_SYMBOL_GPL(fsl_mc_device_add);
  */
 void fsl_mc_device_remove(struct fsl_mc_device *mc_dev)
 {
+	kfree(mc_dev->driver_override);
+	mc_dev->driver_override = NULL;
+
 	/*
 	 * The device-specific remove callback will get invoked by device_del()
 	 */
@@ -908,9 +963,6 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	u32 mc_portal_size, mc_stream_id;
 	struct resource *plat_res;
 
-	if (!iommu_present(&fsl_mc_bus_type))
-		return -EPROBE_DEFER;
-
 	mc = devm_kzalloc(&pdev->dev, sizeof(*mc), GFP_KERNEL);
 	if (!mc)
 		return -ENOMEM;
@@ -918,24 +970,42 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mc);
 
 	plat_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	mc->fsl_mc_regs = devm_ioremap_resource(&pdev->dev, plat_res);
-	if (IS_ERR(mc->fsl_mc_regs))
-		return PTR_ERR(mc->fsl_mc_regs);
+	if (plat_res) {
+		mc->fsl_mc_regs = devm_ioremap_resource(&pdev->dev, plat_res);
+		if (IS_ERR(mc->fsl_mc_regs))
+			return PTR_ERR(mc->fsl_mc_regs);
+	}
 
-	if (IS_ENABLED(CONFIG_ACPI) && !dev_of_node(&pdev->dev)) {
-		mc_stream_id = readl(mc->fsl_mc_regs + FSL_MC_FAPR);
+	if (mc->fsl_mc_regs) {
 		/*
-		 * HW ORs the PL and BMT bit, places the result in bit 15 of
-		 * the StreamID and ORs in the ICID. Calculate it accordingly.
+		 * Some bootloaders pause the MC firmware before booting the
+		 * kernel so that MC will not cause faults as soon as the
+		 * SMMU probes due to the fact that there's no configuration
+		 * in place for MC.
+		 * At this point MC should have all its SMMU setup done so make
+		 * sure it is resumed.
 		 */
-		mc_stream_id = (mc_stream_id & 0xffff) |
+		writel(readl(mc->fsl_mc_regs + FSL_MC_GCR1) & (~GCR1_P1_STOP),
+		       mc->fsl_mc_regs + FSL_MC_GCR1);
+
+		if (IS_ENABLED(CONFIG_ACPI) && !dev_of_node(&pdev->dev)) {
+			mc_stream_id = readl(mc->fsl_mc_regs + FSL_MC_FAPR);
+			/*
+			 * HW ORs the PL and BMT bit, places the result in bit
+			 * 14 of the StreamID and ORs in the ICID. Calculate it
+			 * accordingly.
+			 */
+			mc_stream_id = (mc_stream_id & 0xffff) |
 				((mc_stream_id & (MC_FAPR_PL | MC_FAPR_BMT)) ?
-					0x4000 : 0);
-		error = acpi_dma_configure_id(&pdev->dev, DEV_DMA_COHERENT,
-					      &mc_stream_id);
-		if (error)
-			dev_warn(&pdev->dev, "failed to configure dma: %d.\n",
-				 error);
+					BIT(14) : 0);
+			error = acpi_dma_configure_id(&pdev->dev,
+						      DEV_DMA_COHERENT,
+						      &mc_stream_id);
+			if (error)
+				dev_warn(&pdev->dev,
+					 "failed to configure dma: %d.\n",
+					 error);
+		}
 	}
 
 	/*

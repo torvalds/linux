@@ -336,7 +336,7 @@
 #include <linux/completion.h>
 #include <linux/uuid.h>
 #include <crypto/chacha.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
 
 #include <asm/processor.h>
 #include <linux/uaccess.h>
@@ -1277,7 +1277,6 @@ void add_interrupt_randomness(int irq, int irq_flags)
 
 	fast_mix(fast_pool);
 	add_interrupt_bench(cycles);
-	this_cpu_add(net_rand_state.s1, fast_pool->pool[cycles & 3]);
 
 	if (unlikely(crng_init == 0)) {
 		if ((fast_pool->count >= 64) &&

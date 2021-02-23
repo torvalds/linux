@@ -25,6 +25,7 @@ typedef void (*kunit_resource_free_t)(struct kunit_resource *);
 /**
  * struct kunit_resource - represents a *test managed resource*
  * @data: for the user to store arbitrary data.
+ * @name: optional name
  * @free: a user supplied function to free the resource. Populated by
  * kunit_resource_alloc().
  *
@@ -80,10 +81,10 @@ typedef void (*kunit_resource_free_t)(struct kunit_resource *);
  */
 struct kunit_resource {
 	void *data;
-	const char *name;		/* optional name */
+	const char *name;
+	kunit_resource_free_t free;
 
 	/* private: internal use only. */
-	kunit_resource_free_t free;
 	struct kref refcount;
 	struct list_head node;
 };
@@ -92,6 +93,9 @@ struct kunit;
 
 /* Size of log associated with test. */
 #define KUNIT_LOG_SIZE	512
+
+/* Maximum size of parameter description string. */
+#define KUNIT_PARAM_DESC_SIZE 128
 
 /*
  * TAP specifies subtest stream indentation of 4 spaces, 8 spaces for a
@@ -106,6 +110,7 @@ struct kunit;
  *
  * @run_case: the function representing the actual test case.
  * @name:     the name of the test case.
+ * @generate_params: the generator function for parameterized tests.
  *
  * A test case is a function with the signature,
  * ``void (*)(struct kunit *)``
@@ -140,6 +145,7 @@ struct kunit;
 struct kunit_case {
 	void (*run_case)(struct kunit *test);
 	const char *name;
+	const void* (*generate_params)(const void *prev, char *desc);
 
 	/* private: internal use only. */
 	bool success;
@@ -161,6 +167,27 @@ static inline char *kunit_status_to_string(bool status)
  * &struct kunit_case for an example on how to use it.
  */
 #define KUNIT_CASE(test_name) { .run_case = test_name, .name = #test_name }
+
+/**
+ * KUNIT_CASE_PARAM - A helper for creation a parameterized &struct kunit_case
+ *
+ * @test_name: a reference to a test case function.
+ * @gen_params: a reference to a parameter generator function.
+ *
+ * The generator function::
+ *
+ *	const void* gen_params(const void *prev, char *desc)
+ *
+ * is used to lazily generate a series of arbitrarily typed values that fit into
+ * a void*. The argument @prev is the previously returned value, which should be
+ * used to derive the next value; @prev is set to NULL on the initial generator
+ * call. When no more values are available, the generator must return NULL.
+ * Optionally write a string into @desc (size of KUNIT_PARAM_DESC_SIZE)
+ * describing the parameter.
+ */
+#define KUNIT_CASE_PARAM(test_name, gen_params)			\
+		{ .run_case = test_name, .name = #test_name,	\
+		  .generate_params = gen_params }
 
 /**
  * struct kunit_suite - describes a related collection of &struct kunit_case
@@ -207,6 +234,10 @@ struct kunit {
 	const char *name; /* Read only after initialization! */
 	char *log; /* Points at case log after initialization */
 	struct kunit_try_catch try_catch;
+	/* param_value is the current parameter value for a test case. */
+	const void *param_value;
+	/* param_index stores the index of the parameter in parameterized tests. */
+	int param_index;
 	/*
 	 * success starts as true, and may only be set to false during a
 	 * test case; thus, it is safe to update this across multiple
@@ -224,6 +255,11 @@ struct kunit {
 	struct list_head resources; /* Protected by lock. */
 };
 
+static inline void kunit_set_failure(struct kunit *test)
+{
+	WRITE_ONCE(test->success, false);
+}
+
 void kunit_init_test(struct kunit *test, const char *name, char *log);
 
 int kunit_run_tests(struct kunit_suite *suite);
@@ -233,47 +269,79 @@ size_t kunit_suite_num_test_cases(struct kunit_suite *suite);
 unsigned int kunit_test_case_num(struct kunit_suite *suite,
 				 struct kunit_case *test_case);
 
-int __kunit_test_suites_init(struct kunit_suite **suites);
+int __kunit_test_suites_init(struct kunit_suite * const * const suites);
 
 void __kunit_test_suites_exit(struct kunit_suite **suites);
+
+#if IS_BUILTIN(CONFIG_KUNIT)
+int kunit_run_all_tests(void);
+#else
+static inline int kunit_run_all_tests(void)
+{
+	return 0;
+}
+#endif /* IS_BUILTIN(CONFIG_KUNIT) */
+
+#ifdef MODULE
+/**
+ * kunit_test_suites_for_module() - used to register one or more
+ *			 &struct kunit_suite with KUnit.
+ *
+ * @__suites: a statically allocated list of &struct kunit_suite.
+ *
+ * Registers @__suites with the test framework. See &struct kunit_suite for
+ * more information.
+ *
+ * If a test suite is built-in, module_init() gets translated into
+ * an initcall which we don't want as the idea is that for builtins
+ * the executor will manage execution.  So ensure we do not define
+ * module_{init|exit} functions for the builtin case when registering
+ * suites via kunit_test_suites() below.
+ */
+#define kunit_test_suites_for_module(__suites)				\
+	static int __init kunit_test_suites_init(void)			\
+	{								\
+		return __kunit_test_suites_init(__suites);		\
+	}								\
+	module_init(kunit_test_suites_init);				\
+									\
+	static void __exit kunit_test_suites_exit(void)			\
+	{								\
+		return __kunit_test_suites_exit(__suites);		\
+	}								\
+	module_exit(kunit_test_suites_exit)
+#else
+#define kunit_test_suites_for_module(__suites)
+#endif /* MODULE */
+
+#define __kunit_test_suites(unique_array, unique_suites, ...)		       \
+	static struct kunit_suite *unique_array[] = { __VA_ARGS__, NULL };     \
+	kunit_test_suites_for_module(unique_array);			       \
+	static struct kunit_suite **unique_suites			       \
+	__used __section(".kunit_test_suites") = unique_array
 
 /**
  * kunit_test_suites() - used to register one or more &struct kunit_suite
  *			 with KUnit.
  *
- * @suites_list...: a statically allocated list of &struct kunit_suite.
+ * @__suites: a statically allocated list of &struct kunit_suite.
  *
- * Registers @suites_list with the test framework. See &struct kunit_suite for
+ * Registers @suites with the test framework. See &struct kunit_suite for
  * more information.
  *
- * When builtin, KUnit tests are all run as late_initcalls; this means
- * that they cannot test anything where tests must run at a different init
- * phase. One significant restriction resulting from this is that KUnit
- * cannot reliably test anything that is initialize in the late_init phase;
- * another is that KUnit is useless to test things that need to be run in
- * an earlier init phase.
+ * When builtin,  KUnit tests are all run via executor; this is done
+ * by placing the array of struct kunit_suite * in the .kunit_test_suites
+ * ELF section.
  *
- * An alternative is to build the tests as a module.  Because modules
- * do not support multiple late_initcall()s, we need to initialize an
- * array of suites for a module.
+ * An alternative is to build the tests as a module.  Because modules do not
+ * support multiple initcall()s, we need to initialize an array of suites for a
+ * module.
  *
- * TODO(brendanhiggins@google.com): Don't run all KUnit tests as
- * late_initcalls.  I have some future work planned to dispatch all KUnit
- * tests from the same place, and at the very least to do so after
- * everything else is definitely initialized.
  */
-#define kunit_test_suites(suites_list...)				\
-	static struct kunit_suite *suites[] = {suites_list, NULL};	\
-	static int kunit_test_suites_init(void)				\
-	{								\
-		return __kunit_test_suites_init(suites);		\
-	}								\
-	late_initcall(kunit_test_suites_init);				\
-	static void __exit kunit_test_suites_exit(void)			\
-	{								\
-		return __kunit_test_suites_exit(suites);		\
-	}								\
-	module_exit(kunit_test_suites_exit)
+#define kunit_test_suites(__suites...)						\
+	__kunit_test_suites(__UNIQUE_ID(array),				\
+			    __UNIQUE_ID(suites),			\
+			    ##__suites)
 
 #define kunit_test_suite(suite)	kunit_test_suites(&suite)
 
@@ -343,6 +411,7 @@ static inline void kunit_put_resource(struct kunit_resource *res)
  *        none is supplied, the resource data value is simply set to @data.
  *	  If an init function is supplied, @data is passed to it instead.
  * @free: a user-supplied function to free the resource (if needed).
+ * @res: The resource.
  * @data: value to pass to init function or set in resource data field.
  */
 int kunit_add_resource(struct kunit *test,
@@ -356,7 +425,9 @@ int kunit_add_resource(struct kunit *test,
  * @test: The test context object.
  * @init: a user-supplied function to initialize the resource data, if needed.
  * @free: a user-supplied function to free the resource data, if needed.
- * @name_data: name and data to be set for resource.
+ * @res: The resource.
+ * @name: name to be set for resource.
+ * @data: value to pass to init function or set in resource data field.
  */
 int kunit_add_named_resource(struct kunit *test,
 			     kunit_resource_init_t init,
@@ -494,8 +565,8 @@ static inline int kunit_destroy_named_resource(struct kunit *test,
 }
 
 /**
- * kunit_remove_resource: remove resource from resource list associated with
- *			  test.
+ * kunit_remove_resource() - remove resource from resource list associated with
+ *			     test.
  * @test: The test context object.
  * @res: The resource to be removed.
  *
@@ -1064,7 +1135,7 @@ do {									       \
 	KUNIT_ASSERTION(test,						       \
 			strcmp(__left, __right) op 0,			       \
 			kunit_binary_str_assert,			       \
-			KUNIT_INIT_BINARY_ASSERT_STRUCT(test,		       \
+			KUNIT_INIT_BINARY_STR_ASSERT_STRUCT(test,	       \
 							assert_type,	       \
 							#op,		       \
 							#left,		       \
@@ -1700,5 +1771,26 @@ do {									       \
 						ptr,			       \
 						fmt,			       \
 						##__VA_ARGS__)
+
+/**
+ * KUNIT_ARRAY_PARAM() - Define test parameter generator from an array.
+ * @name:  prefix for the test parameter generator function.
+ * @array: array of test parameters.
+ * @get_desc: function to convert param to description; NULL to use default
+ *
+ * Define function @name_gen_params which uses @array to generate parameters.
+ */
+#define KUNIT_ARRAY_PARAM(name, array, get_desc)						\
+	static const void *name##_gen_params(const void *prev, char *desc)			\
+	{											\
+		typeof((array)[0]) *__next = prev ? ((typeof(__next)) prev) + 1 : (array);	\
+		if (__next - (array) < ARRAY_SIZE((array))) {					\
+			void (*__get_desc)(typeof(__next), char *) = get_desc;			\
+			if (__get_desc)								\
+				__get_desc(__next, desc);					\
+			return __next;								\
+		}										\
+		return NULL;									\
+	}
 
 #endif /* _KUNIT_TEST_H */

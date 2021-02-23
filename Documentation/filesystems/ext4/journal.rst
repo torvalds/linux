@@ -28,6 +28,17 @@ metadata are written to disk through the journal. This is slower but
 safest. If ``data=writeback``, dirty data blocks are not flushed to the
 disk before the metadata are written to disk through the journal.
 
+In case of ``data=ordered`` mode, Ext4 also supports fast commits which
+help reduce commit latency significantly. The default ``data=ordered``
+mode works by logging metadata blocks to the journal. In fast commit
+mode, Ext4 only stores the minimal delta needed to recreate the
+affected metadata in fast commit space that is shared with JBD2.
+Once the fast commit area fills in or if fast commit is not possible
+or if JBD2 commit timer goes off, Ext4 performs a traditional full commit.
+A full commit invalidates all the fast commits that happened before
+it and thus it makes the fast commit area empty for further fast
+commits. This feature needs to be enabled at mkfs time.
+
 The journal inode is typically inode 8. The first 68 bytes of the
 journal inode are replicated in the ext4 superblock. The journal itself
 is normal (but hidden) file within the filesystem. The file usually
@@ -245,6 +256,10 @@ which is 1024 bytes long:
      - s\_padding2
      -
    * - 0x54
+     - \_\_be32
+     - s\_num\_fc\_blocks
+     - Number of fast commit blocks in the journal.
+   * - 0x58
      - \_\_u32
      - s\_padding[42]
      -
@@ -299,6 +314,8 @@ The journal incompat features are any combination of the following:
      - This journal uses v3 of the checksum on-disk format. This is the same as
        v2, but the journal block tag size is fixed regardless of the size of
        block numbers. (JBD2\_FEATURE\_INCOMPAT\_CSUM\_V3)
+   * - 0x20
+     - Journal has fast commit blocks. (JBD2\_FEATURE\_INCOMPAT\_FAST\_COMMIT)
 
 .. _jbd2_checksum_type:
 
@@ -609,3 +626,108 @@ bytes long (but uses a full block):
      - h\_commit\_nsec
      - Nanoseconds component of the above timestamp.
 
+Fast commits
+~~~~~~~~~~~~
+
+Fast commit area is organized as a log of tag length values. Each TLV has
+a ``struct ext4_fc_tl`` in the beginning which stores the tag and the length
+of the entire field. It is followed by variable length tag specific value.
+Here is the list of supported tags and their meanings:
+
+.. list-table::
+   :widths: 8 20 20 32
+   :header-rows: 1
+
+   * - Tag
+     - Meaning
+     - Value struct
+     - Description
+   * - EXT4_FC_TAG_HEAD
+     - Fast commit area header
+     - ``struct ext4_fc_head``
+     - Stores the TID of the transaction after which these fast commits should
+       be applied.
+   * - EXT4_FC_TAG_ADD_RANGE
+     - Add extent to inode
+     - ``struct ext4_fc_add_range``
+     - Stores the inode number and extent to be added in this inode
+   * - EXT4_FC_TAG_DEL_RANGE
+     - Remove logical offsets to inode
+     - ``struct ext4_fc_del_range``
+     - Stores the inode number and the logical offset range that needs to be
+       removed
+   * - EXT4_FC_TAG_CREAT
+     - Create directory entry for a newly created file
+     - ``struct ext4_fc_dentry_info``
+     - Stores the parent inode number, inode number and directory entry of the
+       newly created file
+   * - EXT4_FC_TAG_LINK
+     - Link a directory entry to an inode
+     - ``struct ext4_fc_dentry_info``
+     - Stores the parent inode number, inode number and directory entry
+   * - EXT4_FC_TAG_UNLINK
+     - Unlink a directory entry of an inode
+     - ``struct ext4_fc_dentry_info``
+     - Stores the parent inode number, inode number and directory entry
+
+   * - EXT4_FC_TAG_PAD
+     - Padding (unused area)
+     - None
+     - Unused bytes in the fast commit area.
+
+   * - EXT4_FC_TAG_TAIL
+     - Mark the end of a fast commit
+     - ``struct ext4_fc_tail``
+     - Stores the TID of the commit, CRC of the fast commit of which this tag
+       represents the end of
+
+Fast Commit Replay Idempotence
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Fast commits tags are idempotent in nature provided the recovery code follows
+certain rules. The guiding principle that the commit path follows while
+committing is that it stores the result of a particular operation instead of
+storing the procedure.
+
+Let's consider this rename operation: 'mv /a /b'. Let's assume dirent '/a'
+was associated with inode 10. During fast commit, instead of storing this
+operation as a procedure "rename a to b", we store the resulting file system
+state as a "series" of outcomes:
+
+- Link dirent b to inode 10
+- Unlink dirent a
+- Inode 10 with valid refcount
+
+Now when recovery code runs, it needs "enforce" this state on the file
+system. This is what guarantees idempotence of fast commit replay.
+
+Let's take an example of a procedure that is not idempotent and see how fast
+commits make it idempotent. Consider following sequence of operations:
+
+1) rm A
+2) mv B A
+3) read A
+
+If we store this sequence of operations as is then the replay is not idempotent.
+Let's say while in replay, we crash after (2). During the second replay,
+file A (which was actually created as a result of "mv B A" operation) would get
+deleted. Thus, file named A would be absent when we try to read A. So, this
+sequence of operations is not idempotent. However, as mentioned above, instead
+of storing the procedure fast commits store the outcome of each procedure. Thus
+the fast commit log for above procedure would be as follows:
+
+(Let's assume dirent A was linked to inode 10 and dirent B was linked to
+inode 11 before the replay)
+
+1) Unlink A
+2) Link A to inode 11
+3) Unlink B
+4) Inode 11
+
+If we crash after (3) we will have file A linked to inode 11. During the second
+replay, we will remove file A (inode 11). But we will create it back and make
+it point to inode 11. We won't find B, so we'll just skip that step. At this
+point, the refcount for inode 11 is not reliable, but that gets fixed by the
+replay of last inode 11 tag. Thus, by converting a non-idempotent procedure
+into a series of idempotent outcomes, fast commits ensured idempotence during
+the replay.

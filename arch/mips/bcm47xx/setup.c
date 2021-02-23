@@ -141,7 +141,7 @@ static void __init bcm47xx_register_bcma(void)
 
 /*
  * Memory setup is done in the early part of MIPS's arch_mem_init. It's supposed
- * to detect memory and record it with add_memory_region.
+ * to detect memory and record it with memblock_add.
  * Any extra initializaion performed here must not use kmalloc or bootmem.
  */
 void __init plat_mem_setup(void)

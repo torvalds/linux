@@ -21,35 +21,3 @@ config CRYPTO_DEV_CHELSIO
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called chcr.
-
-config CHELSIO_IPSEC_INLINE
-	bool "Chelsio IPSec XFRM Tx crypto offload"
-	depends on CHELSIO_T4
-	depends on CRYPTO_DEV_CHELSIO
-	depends on XFRM_OFFLOAD
-	depends on INET_ESP_OFFLOAD || INET6_ESP_OFFLOAD
-	default n
-	help
-	  Enable support for IPSec Tx Inline.
-
-config CRYPTO_DEV_CHELSIO_TLS
-	tristate "Chelsio Crypto Inline TLS Driver"
-	depends on CHELSIO_T4
-	depends on TLS_TOE
-	select CRYPTO_DEV_CHELSIO
-	help
-	  Support Chelsio Inline TLS with Chelsio crypto accelerator.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called chtls.
-
-config CHELSIO_TLS_DEVICE
-	bool "Chelsio Inline KTLS Offload"
-	depends on CHELSIO_T4
-	depends on TLS_DEVICE
-	select CRYPTO_DEV_CHELSIO
-	default y
-	help
-	  This flag enables support for kernel tls offload over Chelsio T6
-	  crypto accelerator. CONFIG_CHELSIO_TLS_DEVICE flag can be enabled
-	  only if CONFIG_TLS and CONFIG_TLS_DEVICE flags are enabled.

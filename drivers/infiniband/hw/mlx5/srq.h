@@ -28,6 +28,7 @@ struct mlx5_srq_attr {
 	u32 user_index;
 	u64 db_record;
 	__be64 *pas;
+	struct ib_umem *umem;
 	u32 tm_log_list_size;
 	u32 tm_next_tag;
 	u32 tm_hw_phase_cnt;
@@ -56,7 +57,7 @@ struct mlx5_srq_table {
 
 int mlx5_cmd_create_srq(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 			struct mlx5_srq_attr *in);
-void mlx5_cmd_destroy_srq(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq);
+int mlx5_cmd_destroy_srq(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq);
 int mlx5_cmd_query_srq(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 		       struct mlx5_srq_attr *out);
 int mlx5_cmd_arm_srq(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,

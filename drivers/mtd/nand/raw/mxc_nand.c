@@ -21,7 +21,6 @@
 #include <linux/completion.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/platform_data/mtd-mxc_nand.h>
 
 #define DRIVER_NAME "mxc_nand"
 
@@ -184,7 +183,6 @@ struct mxc_nand_host {
 	unsigned int		buf_start;
 
 	const struct mxc_nand_devtype_data *devtype_data;
-	struct mxc_nand_platform_data pdata;
 };
 
 static const char * const part_probes[] = {
@@ -669,7 +667,7 @@ static void mxc_nand_enable_hwecc_v1_v2(struct nand_chip *chip, bool enable)
 	struct mxc_nand_host *host = nand_get_controller_data(chip);
 	uint16_t config1;
 
-	if (chip->ecc.mode != NAND_ECC_HW)
+	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST)
 		return;
 
 	config1 = readw(NFC_V1_V2_CONFIG1);
@@ -687,7 +685,7 @@ static void mxc_nand_enable_hwecc_v3(struct nand_chip *chip, bool enable)
 	struct mxc_nand_host *host = nand_get_controller_data(chip);
 	uint32_t config2;
 
-	if (chip->ecc.mode != NAND_ECC_HW)
+	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST)
 		return;
 
 	config2 = readl(NFC_V3_CONFIG2);
@@ -1117,7 +1115,8 @@ static void preset_v1(struct mtd_info *mtd)
 	struct mxc_nand_host *host = nand_get_controller_data(nand_chip);
 	uint16_t config1 = 0;
 
-	if (nand_chip->ecc.mode == NAND_ECC_HW && mtd->writesize)
+	if (nand_chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_ON_HOST &&
+	    mtd->writesize)
 		config1 |= NFC_V1_V2_CONFIG1_ECC_EN;
 
 	if (!host->devtype_data->irqpending_quirk)
@@ -1227,7 +1226,7 @@ static void preset_v2(struct mtd_info *mtd)
 	if (mtd->writesize) {
 		uint16_t pages_per_block = mtd->erasesize / mtd->writesize;
 
-		if (nand_chip->ecc.mode == NAND_ECC_HW)
+		if (nand_chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_ON_HOST)
 			config1 |= NFC_V1_V2_CONFIG1_ECC_EN;
 
 		host->eccsize = get_eccsize(mtd);
@@ -1303,7 +1302,7 @@ static void preset_v3(struct mtd_info *mtd)
 	}
 
 	if (mtd->writesize) {
-		if (chip->ecc.mode == NAND_ECC_HW)
+		if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_ON_HOST)
 			config2 |= NFC_V3_CONFIG2_ECC_EN;
 
 		config2 |= NFC_V3_CONFIG2_PPB(
@@ -1610,69 +1609,15 @@ static inline int is_imx53_nfc(struct mxc_nand_host *host)
 	return host->devtype_data == &imx53_nand_devtype_data;
 }
 
-static const struct platform_device_id mxcnd_devtype[] = {
-	{
-		.name = "imx21-nand",
-		.driver_data = (kernel_ulong_t) &imx21_nand_devtype_data,
-	}, {
-		.name = "imx27-nand",
-		.driver_data = (kernel_ulong_t) &imx27_nand_devtype_data,
-	}, {
-		.name = "imx25-nand",
-		.driver_data = (kernel_ulong_t) &imx25_nand_devtype_data,
-	}, {
-		.name = "imx51-nand",
-		.driver_data = (kernel_ulong_t) &imx51_nand_devtype_data,
-	}, {
-		.name = "imx53-nand",
-		.driver_data = (kernel_ulong_t) &imx53_nand_devtype_data,
-	}, {
-		/* sentinel */
-	}
-};
-MODULE_DEVICE_TABLE(platform, mxcnd_devtype);
-
-#ifdef CONFIG_OF
 static const struct of_device_id mxcnd_dt_ids[] = {
-	{
-		.compatible = "fsl,imx21-nand",
-		.data = &imx21_nand_devtype_data,
-	}, {
-		.compatible = "fsl,imx27-nand",
-		.data = &imx27_nand_devtype_data,
-	}, {
-		.compatible = "fsl,imx25-nand",
-		.data = &imx25_nand_devtype_data,
-	}, {
-		.compatible = "fsl,imx51-nand",
-		.data = &imx51_nand_devtype_data,
-	}, {
-		.compatible = "fsl,imx53-nand",
-		.data = &imx53_nand_devtype_data,
-	},
+	{ .compatible = "fsl,imx21-nand", .data = &imx21_nand_devtype_data, },
+	{ .compatible = "fsl,imx27-nand", .data = &imx27_nand_devtype_data, },
+	{ .compatible = "fsl,imx25-nand", .data = &imx25_nand_devtype_data, },
+	{ .compatible = "fsl,imx51-nand", .data = &imx51_nand_devtype_data, },
+	{ .compatible = "fsl,imx53-nand", .data = &imx53_nand_devtype_data, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mxcnd_dt_ids);
-
-static int mxcnd_probe_dt(struct mxc_nand_host *host)
-{
-	struct device_node *np = host->dev->of_node;
-	const struct of_device_id *of_id =
-		of_match_device(mxcnd_dt_ids, host->dev);
-
-	if (!np)
-		return 1;
-
-	host->devtype_data = of_id->data;
-
-	return 0;
-}
-#else
-static int mxcnd_probe_dt(struct mxc_nand_host *host)
-{
-	return 1;
-}
-#endif
 
 static int mxcnd_attach_chip(struct nand_chip *chip)
 {
@@ -1680,8 +1625,13 @@ static int mxcnd_attach_chip(struct nand_chip *chip)
 	struct mxc_nand_host *host = nand_get_controller_data(chip);
 	struct device *dev = mtd->dev.parent;
 
-	switch (chip->ecc.mode) {
-	case NAND_ECC_HW:
+	chip->ecc.bytes = host->devtype_data->eccbytes;
+	host->eccsize = host->devtype_data->eccsize;
+	chip->ecc.size = 512;
+	mtd_set_ooblayout(mtd, host->devtype_data->ooblayout);
+
+	switch (chip->ecc.engine_type) {
+	case NAND_ECC_ENGINE_TYPE_ON_HOST:
 		chip->ecc.read_page = mxc_nand_read_page;
 		chip->ecc.read_page_raw = mxc_nand_read_page_raw;
 		chip->ecc.read_oob = mxc_nand_read_oob;
@@ -1690,7 +1640,7 @@ static int mxcnd_attach_chip(struct nand_chip *chip)
 		chip->ecc.write_oob = mxc_nand_write_oob;
 		break;
 
-	case NAND_ECC_SOFT:
+	case NAND_ECC_ENGINE_TYPE_SOFT:
 		break;
 
 	default:
@@ -1728,7 +1678,7 @@ static int mxcnd_attach_chip(struct nand_chip *chip)
 	 */
 	host->used_oobsize = min(mtd->oobsize, 218U);
 
-	if (chip->ecc.mode == NAND_ECC_HW) {
+	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_ON_HOST) {
 		if (is_imx21_nfc(host) || is_imx27_nfc(host))
 			chip->ecc.strength = 1;
 		else
@@ -1794,20 +1744,7 @@ static int mxcnd_probe(struct platform_device *pdev)
 	if (IS_ERR(host->clk))
 		return PTR_ERR(host->clk);
 
-	err = mxcnd_probe_dt(host);
-	if (err > 0) {
-		struct mxc_nand_platform_data *pdata =
-					dev_get_platdata(&pdev->dev);
-		if (pdata) {
-			host->pdata = *pdata;
-			host->devtype_data = (struct mxc_nand_devtype_data *)
-						pdev->id_entry->driver_data;
-		} else {
-			err = -ENODEV;
-		}
-	}
-	if (err < 0)
-		return err;
+	host->devtype_data = device_get_match_data(&pdev->dev);
 
 	if (!host->devtype_data->setup_interface)
 		this->options |= NAND_KEEP_TIMINGS;
@@ -1835,27 +1772,7 @@ static int mxcnd_probe(struct platform_device *pdev)
 	if (host->devtype_data->axi_offset)
 		host->regs_axi = host->base + host->devtype_data->axi_offset;
 
-	this->ecc.bytes = host->devtype_data->eccbytes;
-	host->eccsize = host->devtype_data->eccsize;
-
 	this->legacy.select_chip = host->devtype_data->select_chip;
-	this->ecc.size = 512;
-	mtd_set_ooblayout(mtd, host->devtype_data->ooblayout);
-
-	if (host->pdata.hw_ecc) {
-		this->ecc.mode = NAND_ECC_HW;
-	} else {
-		this->ecc.mode = NAND_ECC_SOFT;
-		this->ecc.algo = NAND_ECC_HAMMING;
-	}
-
-	/* NAND bus width determines access functions used by upper layer */
-	if (host->pdata.width == 2)
-		this->options |= NAND_BUSWIDTH_16;
-
-	/* update flash based bbt */
-	if (host->pdata.flash_bbt)
-		this->bbt_options |= NAND_BBT_USE_FLASH;
 
 	init_completion(&host->op_completion);
 
@@ -1897,9 +1814,7 @@ static int mxcnd_probe(struct platform_device *pdev)
 		goto escan;
 
 	/* Register the partitions */
-	err = mtd_device_parse_register(mtd, part_probes, NULL,
-					host->pdata.parts,
-					host->pdata.nr_parts);
+	err = mtd_device_parse_register(mtd, part_probes, NULL, NULL, 0);
 	if (err)
 		goto cleanup_nand;
 
@@ -1936,7 +1851,6 @@ static struct platform_driver mxcnd_driver = {
 		   .name = DRIVER_NAME,
 		   .of_match_table = of_match_ptr(mxcnd_dt_ids),
 	},
-	.id_table = mxcnd_devtype,
 	.probe = mxcnd_probe,
 	.remove = mxcnd_remove,
 };

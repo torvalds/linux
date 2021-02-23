@@ -151,33 +151,94 @@ out:
 }
 EXPORT_SYMBOL_GPL(xprt_unregister_transport);
 
-/**
- * xprt_load_transport - load a transport implementation
- * @transport_name: transport to load
- *
- * Returns:
- * 0:		transport successfully loaded
- * -ENOENT:	transport module not available
- */
-int xprt_load_transport(const char *transport_name)
+static void
+xprt_class_release(const struct xprt_class *t)
 {
-	struct xprt_class *t;
-	int result;
+	module_put(t->owner);
+}
 
-	result = 0;
-	spin_lock(&xprt_list_lock);
+static const struct xprt_class *
+xprt_class_find_by_ident_locked(int ident)
+{
+	const struct xprt_class *t;
+
 	list_for_each_entry(t, &xprt_list, list) {
-		if (strcmp(t->name, transport_name) == 0) {
-			spin_unlock(&xprt_list_lock);
-			goto out;
+		if (t->ident != ident)
+			continue;
+		if (!try_module_get(t->owner))
+			continue;
+		return t;
+	}
+	return NULL;
+}
+
+static const struct xprt_class *
+xprt_class_find_by_ident(int ident)
+{
+	const struct xprt_class *t;
+
+	spin_lock(&xprt_list_lock);
+	t = xprt_class_find_by_ident_locked(ident);
+	spin_unlock(&xprt_list_lock);
+	return t;
+}
+
+static const struct xprt_class *
+xprt_class_find_by_netid_locked(const char *netid)
+{
+	const struct xprt_class *t;
+	unsigned int i;
+
+	list_for_each_entry(t, &xprt_list, list) {
+		for (i = 0; t->netid[i][0] != '\0'; i++) {
+			if (strcmp(t->netid[i], netid) != 0)
+				continue;
+			if (!try_module_get(t->owner))
+				continue;
+			return t;
 		}
 	}
-	spin_unlock(&xprt_list_lock);
-	result = request_module("xprt%s", transport_name);
-out:
-	return result;
+	return NULL;
 }
-EXPORT_SYMBOL_GPL(xprt_load_transport);
+
+static const struct xprt_class *
+xprt_class_find_by_netid(const char *netid)
+{
+	const struct xprt_class *t;
+
+	spin_lock(&xprt_list_lock);
+	t = xprt_class_find_by_netid_locked(netid);
+	if (!t) {
+		spin_unlock(&xprt_list_lock);
+		request_module("rpc%s", netid);
+		spin_lock(&xprt_list_lock);
+		t = xprt_class_find_by_netid_locked(netid);
+	}
+	spin_unlock(&xprt_list_lock);
+	return t;
+}
+
+/**
+ * xprt_find_transport_ident - convert a netid into a transport identifier
+ * @netid: transport to load
+ *
+ * Returns:
+ * > 0:		transport identifier
+ * -ENOENT:	transport module not available
+ */
+int xprt_find_transport_ident(const char *netid)
+{
+	const struct xprt_class *t;
+	int ret;
+
+	t = xprt_class_find_by_netid(netid);
+	if (!t)
+		return -ENOENT;
+	ret = t->ident;
+	xprt_class_release(t);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(xprt_find_transport_ident);
 
 static void xprt_clear_locked(struct rpc_xprt *xprt)
 {
@@ -834,8 +895,7 @@ void xprt_connect(struct rpc_task *task)
 {
 	struct rpc_xprt	*xprt = task->tk_rqstp->rq_xprt;
 
-	dprintk("RPC: %5u xprt_connect xprt %p %s connected\n", task->tk_pid,
-			xprt, (xprt_connected(xprt) ? "is" : "is not"));
+	trace_xprt_connect(xprt);
 
 	if (!xprt_bound(xprt)) {
 		task->tk_status = -EAGAIN;
@@ -1131,8 +1191,6 @@ void xprt_complete_rqst(struct rpc_task *task, int copied)
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = req->rq_xprt;
 
-	trace_xprt_complete_rqst(xprt, req->rq_xid, copied);
-
 	xprt->stat.recvs++;
 
 	req->rq_private_buf.len = copied;
@@ -1269,7 +1327,6 @@ xprt_request_enqueue_transmit(struct rpc_task *task)
 				/* Note: req is added _before_ pos */
 				list_add_tail(&req->rq_xmit, &pos->rq_xmit);
 				INIT_LIST_HEAD(&req->rq_xmit2);
-				trace_xprt_enq_xmit(task, 1);
 				goto out;
 			}
 		} else if (RPC_IS_SWAPPER(task)) {
@@ -1281,7 +1338,6 @@ xprt_request_enqueue_transmit(struct rpc_task *task)
 				/* Note: req is added _before_ pos */
 				list_add_tail(&req->rq_xmit, &pos->rq_xmit);
 				INIT_LIST_HEAD(&req->rq_xmit2);
-				trace_xprt_enq_xmit(task, 2);
 				goto out;
 			}
 		} else if (!req->rq_seqno) {
@@ -1290,13 +1346,11 @@ xprt_request_enqueue_transmit(struct rpc_task *task)
 					continue;
 				list_add_tail(&req->rq_xmit2, &pos->rq_xmit2);
 				INIT_LIST_HEAD(&req->rq_xmit);
-				trace_xprt_enq_xmit(task, 3);
 				goto out;
 			}
 		}
 		list_add_tail(&req->rq_xmit, &xprt->xmit_queue);
 		INIT_LIST_HEAD(&req->rq_xmit2);
-		trace_xprt_enq_xmit(task, 4);
 out:
 		set_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate);
 		spin_unlock(&xprt->queue_lock);
@@ -1414,9 +1468,9 @@ bool xprt_prepare_transmit(struct rpc_task *task)
 	struct rpc_rqst	*req = task->tk_rqstp;
 	struct rpc_xprt	*xprt = req->rq_xprt;
 
-	dprintk("RPC: %5u xprt_prepare_transmit\n", task->tk_pid);
-
 	if (!xprt_lock_write(xprt, task)) {
+		trace_xprt_transmit_queued(xprt, task);
+
 		/* Race breaker: someone may have transmitted us */
 		if (!test_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate))
 			rpc_wake_up_queued_task_set_status(&xprt->sending,
@@ -1520,10 +1574,13 @@ xprt_transmit(struct rpc_task *task)
 {
 	struct rpc_rqst *next, *req = task->tk_rqstp;
 	struct rpc_xprt	*xprt = req->rq_xprt;
-	int status;
+	int counter, status;
 
 	spin_lock(&xprt->queue_lock);
+	counter = 0;
 	while (!list_empty(&xprt->xmit_queue)) {
+		if (++counter == 20)
+			break;
 		next = list_first_entry(&xprt->xmit_queue,
 				struct rpc_rqst, rq_xmit);
 		xprt_pin_rqst(next);
@@ -1531,7 +1588,6 @@ xprt_transmit(struct rpc_task *task)
 		status = xprt_request_transmit(next, task);
 		if (status == -EBADMSG && next != req)
 			status = 0;
-		cond_resched();
 		spin_lock(&xprt->queue_lock);
 		xprt_unpin_rqst(next);
 		if (status == 0) {
@@ -1747,8 +1803,8 @@ xprt_request_init(struct rpc_task *task)
 	req->rq_rcv_buf.bvec = NULL;
 	req->rq_release_snd_buf = NULL;
 	xprt_init_majortimeo(task, req);
-	dprintk("RPC: %5u reserved req %p xid %08x\n", task->tk_pid,
-			req, ntohl(req->rq_xid));
+
+	trace_xprt_reserve(req);
 }
 
 static void
@@ -1838,7 +1894,6 @@ void xprt_release(struct rpc_task *task)
 	if (req->rq_release_snd_buf)
 		req->rq_release_snd_buf(req);
 
-	dprintk("RPC: %5u release request %p\n", task->tk_pid, req);
 	if (likely(!bc_prealloc(req)))
 		xprt->ops->free_slot(xprt, req);
 	else
@@ -1902,21 +1957,17 @@ static void xprt_init(struct rpc_xprt *xprt, struct net *net)
 struct rpc_xprt *xprt_create_transport(struct xprt_create *args)
 {
 	struct rpc_xprt	*xprt;
-	struct xprt_class *t;
+	const struct xprt_class *t;
 
-	spin_lock(&xprt_list_lock);
-	list_for_each_entry(t, &xprt_list, list) {
-		if (t->ident == args->ident) {
-			spin_unlock(&xprt_list_lock);
-			goto found;
-		}
+	t = xprt_class_find_by_ident(args->ident);
+	if (!t) {
+		dprintk("RPC: transport (%d) not supported\n", args->ident);
+		return ERR_PTR(-EIO);
 	}
-	spin_unlock(&xprt_list_lock);
-	dprintk("RPC: transport (%d) not supported\n", args->ident);
-	return ERR_PTR(-EIO);
 
-found:
 	xprt = t->setup(args);
+	xprt_class_release(t);
+
 	if (IS_ERR(xprt))
 		goto out;
 	if (args->flags & XPRT_CREATE_NO_IDLE_TIMEOUT)

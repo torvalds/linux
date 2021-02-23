@@ -8,7 +8,8 @@
 
 /dts-v1/;
 #include "r8a774c0-ek874.dts"
-#define MIPI_PARENT_I2C i2c3
+#define MIPI_OV5645_PARENT_I2C i2c3
+#define MIPI_IMX219_PARENT_I2C i2c3
 #include "aistarvision-mipi-adapter-2.1.dtsi"
 
 / {

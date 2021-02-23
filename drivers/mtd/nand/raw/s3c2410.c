@@ -30,7 +30,6 @@
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
-#include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
 #include <linux/platform_data/mtd-nand-s3c2410.h>
@@ -134,7 +133,8 @@ enum s3c_nand_clk_state {
 
 /**
  * struct s3c2410_nand_info - NAND controller state.
- * @mtds: An array of MTD instances on this controoler.
+ * @controller: Base controller structure.
+ * @mtds: An array of MTD instances on this controller.
  * @platform: The platform data for this board.
  * @device: The platform device we bound to.
  * @clk: The clock resource for this controller.
@@ -146,6 +146,7 @@ enum s3c_nand_clk_state {
  * @clk_rate: The clock rate from @clk.
  * @clk_state: The current clock state.
  * @cpu_type: The exact type of this controller.
+ * @freq_transition: CPUFreq notifier block
  */
 struct s3c2410_nand_info {
 	/* mtd info */
@@ -904,7 +905,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 	nmtd->info	   = info;
 	nmtd->set	   = set;
 
-	chip->ecc.mode = info->platform->ecc_mode;
+	chip->ecc.engine_type = info->platform->engine_type;
 
 	/*
 	 * If you use u-boot BBT creation code, specifying this flag will
@@ -929,24 +930,24 @@ static int s3c2410_nand_attach_chip(struct nand_chip *chip)
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 
-	switch (chip->ecc.mode) {
+	switch (chip->ecc.engine_type) {
 
-	case NAND_ECC_NONE:
+	case NAND_ECC_ENGINE_TYPE_NONE:
 		dev_info(info->device, "ECC disabled\n");
 		break;
 
-	case NAND_ECC_SOFT:
+	case NAND_ECC_ENGINE_TYPE_SOFT:
 		/*
-		 * This driver expects Hamming based ECC when ecc_mode is set
-		 * to NAND_ECC_SOFT. Force ecc.algo to NAND_ECC_HAMMING to
-		 * avoid adding an extra ecc_algo field to
-		 * s3c2410_platform_nand.
+		 * This driver expects Hamming based ECC when engine_type is set
+		 * to NAND_ECC_ENGINE_TYPE_SOFT. Force ecc.algo to
+		 * NAND_ECC_ALGO_HAMMING to avoid adding an extra ecc_algo field
+		 * to s3c2410_platform_nand.
 		 */
-		chip->ecc.algo = NAND_ECC_HAMMING;
+		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 		dev_info(info->device, "soft ECC\n");
 		break;
 
-	case NAND_ECC_HW:
+	case NAND_ECC_ENGINE_TYPE_ON_HOST:
 		chip->ecc.calculate = s3c2410_nand_calculate_ecc;
 		chip->ecc.correct   = s3c2410_nand_correct_data;
 		chip->ecc.strength  = 1;

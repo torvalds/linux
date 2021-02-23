@@ -32,12 +32,12 @@ config SH_DMAE
 	  Enable support for the Renesas SuperH DMA controllers.
 
 config RCAR_DMAC
-	tristate "Renesas R-Car Gen2 DMA Controller"
+	tristate "Renesas R-Car Gen{2,3} and RZ/G{1,2} DMA Controller"
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select RENESAS_DMA
 	help
 	  This driver supports the general purpose DMA controller found in the
-	  Renesas R-Car second generation SoCs.
+	  Renesas R-Car Gen{2,3} and RZ/G{1,2} SoCs.
 
 config RENESAS_USB_DMAC
 	tristate "Renesas USB-DMA Controller"

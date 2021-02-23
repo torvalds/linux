@@ -10,7 +10,6 @@ config NIOS2
 	select COMMON_CLK
 	select TIMER_OF
 	select GENERIC_ATOMIC64
-	select GENERIC_CLOCKEVENTS
 	select GENERIC_CPU_DEVICES
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
@@ -27,6 +26,7 @@ config NIOS2
 	select USB_ARCH_HAS_HCD if USB_SUPPORT
 	select CPU_NO_EFFICIENT_FFS
 	select MMU_GATHER_NO_RANGE if MMU
+	select SET_FS
 
 config GENERIC_CSUM
 	def_bool y

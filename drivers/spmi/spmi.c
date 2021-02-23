@@ -23,6 +23,7 @@ static DEFINE_IDA(ctrl_ida);
 static void spmi_dev_release(struct device *dev)
 {
 	struct spmi_device *sdev = to_spmi_device(dev);
+
 	kfree(sdev);
 }
 
@@ -33,6 +34,7 @@ static const struct device_type spmi_dev_type = {
 static void spmi_ctrl_release(struct device *dev)
 {
 	struct spmi_controller *ctrl = to_spmi_controller(dev);
+
 	ida_simple_remove(&ctrl_ida, ctrl->nr);
 	kfree(ctrl);
 }
@@ -357,6 +359,14 @@ static int spmi_drv_remove(struct device *dev)
 	return 0;
 }
 
+static void spmi_drv_shutdown(struct device *dev)
+{
+	const struct spmi_driver *sdrv = to_spmi_driver(dev->driver);
+
+	if (sdrv && sdrv->shutdown)
+		sdrv->shutdown(to_spmi_device(dev));
+}
+
 static int spmi_drv_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	int ret;
@@ -373,6 +383,7 @@ static struct bus_type spmi_bus_type = {
 	.match		= spmi_device_match,
 	.probe		= spmi_drv_probe,
 	.remove		= spmi_drv_remove,
+	.shutdown	= spmi_drv_shutdown,
 	.uevent		= spmi_drv_uevent,
 };
 
@@ -487,7 +498,7 @@ static void of_spmi_register_devices(struct spmi_controller *ctrl)
 			continue;
 
 		sdev->dev.of_node = node;
-		sdev->usid = (u8) reg[0];
+		sdev->usid = (u8)reg[0];
 
 		err = spmi_device_add(sdev);
 		if (err) {
@@ -531,6 +542,7 @@ EXPORT_SYMBOL_GPL(spmi_controller_add);
 static int spmi_ctrl_remove_device(struct device *dev, void *data)
 {
 	struct spmi_device *spmidev = to_spmi_device(dev);
+
 	if (dev->type == &spmi_dev_type)
 		spmi_device_remove(spmidev);
 	return 0;
@@ -545,13 +557,10 @@ static int spmi_ctrl_remove_device(struct device *dev, void *data)
  */
 void spmi_controller_remove(struct spmi_controller *ctrl)
 {
-	int dummy;
-
 	if (!ctrl)
 		return;
 
-	dummy = device_for_each_child(&ctrl->dev, NULL,
-				      spmi_ctrl_remove_device);
+	device_for_each_child(&ctrl->dev, NULL, spmi_ctrl_remove_device);
 	device_del(&ctrl->dev);
 }
 EXPORT_SYMBOL_GPL(spmi_controller_remove);

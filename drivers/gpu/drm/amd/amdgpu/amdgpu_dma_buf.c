@@ -35,46 +35,11 @@
 #include "amdgpu_display.h"
 #include "amdgpu_gem.h"
 #include "amdgpu_dma_buf.h"
+#include "amdgpu_xgmi.h"
 #include <drm/amdgpu_drm.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-fence-array.h>
 #include <linux/pci-p2pdma.h>
-
-/**
- * amdgpu_gem_prime_vmap - &dma_buf_ops.vmap implementation
- * @obj: GEM BO
- *
- * Sets up an in-kernel virtual mapping of the BO's memory.
- *
- * Returns:
- * The virtual address of the mapping or an error pointer.
- */
-void *amdgpu_gem_prime_vmap(struct drm_gem_object *obj)
-{
-	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
-	int ret;
-
-	ret = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.num_pages,
-			  &bo->dma_buf_vmap);
-	if (ret)
-		return ERR_PTR(ret);
-
-	return bo->dma_buf_vmap.virtual;
-}
-
-/**
- * amdgpu_gem_prime_vunmap - &dma_buf_ops.vunmap implementation
- * @obj: GEM BO
- * @vaddr: Virtual address (unused)
- *
- * Tears down the in-kernel virtual mapping of the BO's memory.
- */
-void amdgpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
-{
-	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
-
-	ttm_bo_kunmap(&bo->dma_buf_vmap);
-}
 
 /**
  * amdgpu_gem_prime_mmap - &drm_driver.gem_prime_mmap implementation
@@ -280,7 +245,7 @@ static struct sg_table *amdgpu_dma_buf_map(struct dma_buf_attachment *attach,
 	struct sg_table *sgt;
 	long r;
 
-	if (!bo->pin_count) {
+	if (!bo->tbo.pin_count) {
 		/* move buffer into GTT or VRAM */
 		struct ttm_operation_ctx ctx = { false, false };
 		unsigned domains = AMDGPU_GEM_DOMAIN_GTT;
@@ -302,7 +267,8 @@ static struct sg_table *amdgpu_dma_buf_map(struct dma_buf_attachment *attach,
 
 	switch (bo->tbo.mem.mem_type) {
 	case TTM_PL_TT:
-		sgt = drm_prime_pages_to_sg(bo->tbo.ttm->pages,
+		sgt = drm_prime_pages_to_sg(obj->dev,
+					    bo->tbo.ttm->pages,
 					    bo->tbo.num_pages);
 		if (IS_ERR(sgt))
 			return sgt;
@@ -388,7 +354,8 @@ static int amdgpu_dma_buf_begin_cpu_access(struct dma_buf *dma_buf,
 	if (unlikely(ret != 0))
 		return ret;
 
-	if (!bo->pin_count && (bo->allowed_domains & AMDGPU_GEM_DOMAIN_GTT)) {
+	if (!bo->tbo.pin_count &&
+	    (bo->allowed_domains & AMDGPU_GEM_DOMAIN_GTT)) {
 		amdgpu_bo_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_GTT);
 		ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	}
@@ -454,9 +421,10 @@ static struct drm_gem_object *
 amdgpu_dma_buf_create_obj(struct drm_device *dev, struct dma_buf *dma_buf)
 {
 	struct dma_resv *resv = dma_buf->resv;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_bo *bo;
 	struct amdgpu_bo_param bp;
+	struct drm_gem_object *gobj;
 	int ret;
 
 	memset(&bp, 0, sizeof(bp));
@@ -467,17 +435,20 @@ amdgpu_dma_buf_create_obj(struct drm_device *dev, struct dma_buf *dma_buf)
 	bp.type = ttm_bo_type_sg;
 	bp.resv = resv;
 	dma_resv_lock(resv, NULL);
-	ret = amdgpu_bo_create(adev, &bp, &bo);
+	ret = amdgpu_gem_object_create(adev, dma_buf->size, PAGE_SIZE,
+			AMDGPU_GEM_DOMAIN_CPU,
+			0, ttm_bo_type_sg, resv, &gobj);
 	if (ret)
 		goto error;
 
+	bo = gem_to_amdgpu_bo(gobj);
 	bo->allowed_domains = AMDGPU_GEM_DOMAIN_GTT;
 	bo->preferred_domains = AMDGPU_GEM_DOMAIN_GTT;
 	if (dma_buf->ops != &amdgpu_dmabuf_ops)
 		bo->prime_shared_count = 1;
 
 	dma_resv_unlock(resv);
-	return &bo->tbo.base;
+	return gobj;
 
 error:
 	dma_resv_unlock(resv);
@@ -594,4 +565,37 @@ struct drm_gem_object *amdgpu_gem_prime_import(struct drm_device *dev,
 	get_dma_buf(dma_buf);
 	obj->import_attach = attach;
 	return obj;
+}
+
+/**
+ * amdgpu_dmabuf_is_xgmi_accessible - Check if xgmi available for P2P transfer
+ *
+ * @adev: amdgpu_device pointer of the importer
+ * @bo: amdgpu buffer object
+ *
+ * Returns:
+ * True if dmabuf accessible over xgmi, false otherwise.
+ */
+bool amdgpu_dmabuf_is_xgmi_accessible(struct amdgpu_device *adev,
+				      struct amdgpu_bo *bo)
+{
+	struct drm_gem_object *obj = &bo->tbo.base;
+	struct drm_gem_object *gobj;
+
+	if (obj->import_attach) {
+		struct dma_buf *dma_buf = obj->import_attach->dmabuf;
+
+		if (dma_buf->ops != &amdgpu_dmabuf_ops)
+			/* No XGMI with non AMD GPUs */
+			return false;
+
+		gobj = dma_buf->priv;
+		bo = gem_to_amdgpu_bo(gobj);
+	}
+
+	if (amdgpu_xgmi_same_hive(adev, amdgpu_ttm_adev(bo->tbo.bdev)) &&
+			(bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM))
+		return true;
+
+	return false;
 }

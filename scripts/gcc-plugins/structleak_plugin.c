@@ -68,9 +68,7 @@ static void register_attributes(void *event_data, void *data)
 {
 	user_attr.name			= "user";
 	user_attr.handler		= handle_user_attribute;
-#if BUILDING_GCC_VERSION >= 4007
 	user_attr.affects_type_identity	= true;
-#endif
 
 	register_attribute(&user_attr);
 }
@@ -137,11 +135,9 @@ static void initialize(tree var)
 		if (!gimple_assign_single_p(stmt))
 			continue;
 		rhs1 = gimple_assign_rhs1(stmt);
-#if BUILDING_GCC_VERSION >= 4007
 		/* ... of a non-clobbering expression... */
 		if (TREE_CLOBBER_P(rhs1))
 			continue;
-#endif
 		/* ... to our variable... */
 		if (gimple_get_lhs(stmt) != var)
 			continue;

@@ -272,38 +272,59 @@ static int ip101a_g_config_init(struct phy_device *phydev)
 	return phy_write(phydev, IP10XX_SPEC_CTRL_STATUS, c);
 }
 
-static int ip101a_g_config_intr(struct phy_device *phydev)
-{
-	u16 val;
-
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		/* INTR pin used: Speed/link/duplex will cause an interrupt */
-		val = IP101A_G_IRQ_PIN_USED;
-	else
-		val = IP101A_G_IRQ_ALL_MASK;
-
-	return phy_write(phydev, IP101A_G_IRQ_CONF_STATUS, val);
-}
-
-static int ip101a_g_did_interrupt(struct phy_device *phydev)
-{
-	int val = phy_read(phydev, IP101A_G_IRQ_CONF_STATUS);
-
-	if (val < 0)
-		return 0;
-
-	return val & (IP101A_G_IRQ_SPEED_CHANGE |
-		      IP101A_G_IRQ_DUPLEX_CHANGE |
-		      IP101A_G_IRQ_LINK_CHANGE);
-}
-
 static int ip101a_g_ack_interrupt(struct phy_device *phydev)
 {
 	int err = phy_read(phydev, IP101A_G_IRQ_CONF_STATUS);
+
 	if (err < 0)
 		return err;
 
 	return 0;
+}
+
+static int ip101a_g_config_intr(struct phy_device *phydev)
+{
+	u16 val;
+	int err;
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = ip101a_g_ack_interrupt(phydev);
+		if (err)
+			return err;
+
+		/* INTR pin used: Speed/link/duplex will cause an interrupt */
+		val = IP101A_G_IRQ_PIN_USED;
+		err = phy_write(phydev, IP101A_G_IRQ_CONF_STATUS, val);
+	} else {
+		val = IP101A_G_IRQ_ALL_MASK;
+		err = phy_write(phydev, IP101A_G_IRQ_CONF_STATUS, val);
+		if (err)
+			return err;
+
+		err = ip101a_g_ack_interrupt(phydev);
+	}
+
+	return err;
+}
+
+static irqreturn_t ip101a_g_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, IP101A_G_IRQ_CONF_STATUS);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & (IP101A_G_IRQ_SPEED_CHANGE |
+			    IP101A_G_IRQ_DUPLEX_CHANGE |
+			    IP101A_G_IRQ_LINK_CHANGE)))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static struct phy_driver icplus_driver[] = {
@@ -332,8 +353,7 @@ static struct phy_driver icplus_driver[] = {
 	/* PHY_BASIC_FEATURES */
 	.probe		= ip101a_g_probe,
 	.config_intr	= ip101a_g_config_intr,
-	.did_interrupt	= ip101a_g_did_interrupt,
-	.ack_interrupt	= ip101a_g_ack_interrupt,
+	.handle_interrupt = ip101a_g_handle_interrupt,
 	.config_init	= &ip101a_g_config_init,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,

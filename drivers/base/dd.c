@@ -19,7 +19,7 @@
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/delay.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kthread.h>
@@ -486,7 +486,8 @@ static ssize_t state_synced_show(struct device *dev,
 	device_lock(dev);
 	val = dev->state_synced;
 	device_unlock(dev);
-	return sprintf(buf, "%u\n", val);
+
+	return sysfs_emit(buf, "%u\n", val);
 }
 static DEVICE_ATTR_RO(state_synced);
 
@@ -611,6 +612,8 @@ dev_groups_failed:
 	else if (drv->remove)
 		drv->remove(dev);
 probe_failed:
+	kfree(dev->dma_range_map);
+	dev->dma_range_map = NULL;
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_DRIVER_NOT_BOUND, dev);
@@ -658,15 +661,14 @@ done:
  */
 static int really_probe_debug(struct device *dev, struct device_driver *drv)
 {
-	ktime_t calltime, delta, rettime;
+	ktime_t calltime, rettime;
 	int ret;
 
 	calltime = ktime_get();
 	ret = really_probe(dev, drv);
 	rettime = ktime_get();
-	delta = ktime_sub(rettime, calltime);
 	pr_debug("probe of %s returned %d after %lld usecs\n",
-		 dev_name(dev), ret, (s64) ktime_to_us(delta));
+		 dev_name(dev), ret, ktime_us_delta(rettime, calltime));
 	return ret;
 }
 
@@ -717,7 +719,7 @@ EXPORT_SYMBOL_GPL(wait_for_device_probe);
  *
  * If the device has a parent, runtime-resume the parent before driver probing.
  */
-int driver_probe_device(struct device_driver *drv, struct device *dev)
+static int driver_probe_device(struct device_driver *drv, struct device *dev)
 {
 	int ret = 0;
 
@@ -1117,6 +1119,8 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 
 	drv = dev->driver;
 	if (drv) {
+		pm_runtime_get_sync(dev);
+
 		while (device_links_busy(dev)) {
 			__device_driver_unlock(dev, parent);
 
@@ -1128,12 +1132,11 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 			 * have released the driver successfully while this one
 			 * was waiting, so check for that.
 			 */
-			if (dev->driver != drv)
+			if (dev->driver != drv) {
+				pm_runtime_put(dev);
 				return;
+			}
 		}
-
-		pm_runtime_get_sync(dev);
-		pm_runtime_clean_up_links(dev);
 
 		driver_sysfs_remove(dev);
 

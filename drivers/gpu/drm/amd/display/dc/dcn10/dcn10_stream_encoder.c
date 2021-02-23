@@ -619,7 +619,7 @@ void enc1_stream_encoder_dvi_set_stream_attribute(
 	enc1_stream_encoder_set_stream_attribute_helper(enc1, crtc_timing);
 }
 
-void enc1_stream_encoder_set_mst_bandwidth(
+void enc1_stream_encoder_set_throttled_vcp_size(
 	struct stream_encoder *enc,
 	struct fixed31_32 avg_time_slots_per_mtp)
 {
@@ -896,10 +896,10 @@ void enc1_stream_encoder_dp_blank(
 	 */
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_DIS_DEFER, 2);
 	/* Larger delay to wait until VBLANK - use max retry of
-	 * 10us*5000=50ms. This covers 41.7ms of minimum 24 Hz mode +
+	 * 10us*10200=102ms. This covers 100.0ms of minimum 10 Hz mode +
 	 * a little more because we may not trust delay accuracy.
 	 */
-	max_retries = DP_BLANK_MAX_RETRY * 250;
+	max_retries = DP_BLANK_MAX_RETRY * 501;
 
 	/* disable DP stream */
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, 0);
@@ -1021,88 +1021,6 @@ void enc1_reset_hdmi_stream_attribute(
 
 #include "include/audio_types.h"
 
-/**
-* speakersToChannels
-*
-* @brief
-*  translate speakers to channels
-*
-*  FL  - Front Left
-*  FR  - Front Right
-*  RL  - Rear Left
-*  RR  - Rear Right
-*  RC  - Rear Center
-*  FC  - Front Center
-*  FLC - Front Left Center
-*  FRC - Front Right Center
-*  RLC - Rear Left Center
-*  RRC - Rear Right Center
-*  LFE - Low Freq Effect
-*
-*               FC
-*          FLC      FRC
-*    FL                    FR
-*
-*                    LFE
-*              ()
-*
-*
-*    RL                    RR
-*          RLC      RRC
-*               RC
-*
-*             ch  8   7   6   5   4   3   2   1
-* 0b00000011      -   -   -   -   -   -   FR  FL
-* 0b00000111      -   -   -   -   -   LFE FR  FL
-* 0b00001011      -   -   -   -   FC  -   FR  FL
-* 0b00001111      -   -   -   -   FC  LFE FR  FL
-* 0b00010011      -   -   -   RC  -   -   FR  FL
-* 0b00010111      -   -   -   RC  -   LFE FR  FL
-* 0b00011011      -   -   -   RC  FC  -   FR  FL
-* 0b00011111      -   -   -   RC  FC  LFE FR  FL
-* 0b00110011      -   -   RR  RL  -   -   FR  FL
-* 0b00110111      -   -   RR  RL  -   LFE FR  FL
-* 0b00111011      -   -   RR  RL  FC  -   FR  FL
-* 0b00111111      -   -   RR  RL  FC  LFE FR  FL
-* 0b01110011      -   RC  RR  RL  -   -   FR  FL
-* 0b01110111      -   RC  RR  RL  -   LFE FR  FL
-* 0b01111011      -   RC  RR  RL  FC  -   FR  FL
-* 0b01111111      -   RC  RR  RL  FC  LFE FR  FL
-* 0b11110011      RRC RLC RR  RL  -   -   FR  FL
-* 0b11110111      RRC RLC RR  RL  -   LFE FR  FL
-* 0b11111011      RRC RLC RR  RL  FC  -   FR  FL
-* 0b11111111      RRC RLC RR  RL  FC  LFE FR  FL
-* 0b11000011      FRC FLC -   -   -   -   FR  FL
-* 0b11000111      FRC FLC -   -   -   LFE FR  FL
-* 0b11001011      FRC FLC -   -   FC  -   FR  FL
-* 0b11001111      FRC FLC -   -   FC  LFE FR  FL
-* 0b11010011      FRC FLC -   RC  -   -   FR  FL
-* 0b11010111      FRC FLC -   RC  -   LFE FR  FL
-* 0b11011011      FRC FLC -   RC  FC  -   FR  FL
-* 0b11011111      FRC FLC -   RC  FC  LFE FR  FL
-* 0b11110011      FRC FLC RR  RL  -   -   FR  FL
-* 0b11110111      FRC FLC RR  RL  -   LFE FR  FL
-* 0b11111011      FRC FLC RR  RL  FC  -   FR  FL
-* 0b11111111      FRC FLC RR  RL  FC  LFE FR  FL
-*
-* @param
-*  speakers - speaker information as it comes from CEA audio block
-*/
-/* translate speakers to channels */
-
-union audio_cea_channels {
-	uint8_t all;
-	struct audio_cea_channels_bits {
-		uint32_t FL:1;
-		uint32_t FR:1;
-		uint32_t LFE:1;
-		uint32_t FC:1;
-		uint32_t RL_RC:1;
-		uint32_t RR:1;
-		uint32_t RC_RLC_FLC:1;
-		uint32_t RRC_FRC:1;
-	} channels;
-};
 
 /* 25.2MHz/1.001*/
 /* 25.2MHz/1.001*/
@@ -1616,8 +1534,8 @@ static const struct stream_encoder_funcs dcn10_str_enc_funcs = {
 		enc1_stream_encoder_hdmi_set_stream_attribute,
 	.dvi_set_stream_attribute =
 		enc1_stream_encoder_dvi_set_stream_attribute,
-	.set_mst_bandwidth =
-		enc1_stream_encoder_set_mst_bandwidth,
+	.set_throttled_vcp_size =
+		enc1_stream_encoder_set_throttled_vcp_size,
 	.update_hdmi_info_packets =
 		enc1_stream_encoder_update_hdmi_info_packets,
 	.stop_hdmi_info_packets =

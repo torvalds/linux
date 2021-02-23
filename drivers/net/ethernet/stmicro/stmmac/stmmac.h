@@ -13,6 +13,7 @@
 #define DRV_MODULE_VERSION	"Jan_2016"
 
 #include <linux/clk.h>
+#include <linux/hrtimer.h>
 #include <linux/if_vlan.h>
 #include <linux/stmmac.h>
 #include <linux/phylink.h>
@@ -46,7 +47,7 @@ struct stmmac_tx_info {
 struct stmmac_tx_queue {
 	u32 tx_count_frames;
 	int tbs;
-	struct timer_list txtimer;
+	struct hrtimer txtimer;
 	u32 queue_index;
 	struct stmmac_priv *priv_data;
 	struct dma_extended_desc *dma_etx ____cacheline_aligned_in_smp;
@@ -171,9 +172,11 @@ struct stmmac_priv {
 
 	/* RX Queue */
 	struct stmmac_rx_queue rx_queue[MTL_MAX_RX_QUEUES];
+	unsigned int dma_rx_size;
 
 	/* TX Queue */
 	struct stmmac_tx_queue tx_queue[MTL_MAX_TX_QUEUES];
+	unsigned int dma_tx_size;
 
 	/* Generic channel for NAPI */
 	struct stmmac_channel channel[STMMAC_CH_MAX];
@@ -205,6 +208,7 @@ struct stmmac_priv {
 	int tx_lpi_timer;
 	int tx_lpi_enabled;
 	int eee_tw_timer;
+	bool eee_sw_timer_en;
 	unsigned int mode;
 	unsigned int chain_mode;
 	int extend_desc;
@@ -266,6 +270,8 @@ int stmmac_dvr_probe(struct device *device,
 		     struct stmmac_resources *res);
 void stmmac_disable_eee_mode(struct stmmac_priv *priv);
 bool stmmac_eee_init(struct stmmac_priv *priv);
+int stmmac_reinit_queues(struct net_device *dev, u32 rx_cnt, u32 tx_cnt);
+int stmmac_reinit_ringparam(struct net_device *dev, u32 rx_size, u32 tx_size);
 
 #if IS_ENABLED(CONFIG_STMMAC_SELFTESTS)
 void stmmac_selftest_run(struct net_device *dev,

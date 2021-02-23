@@ -35,7 +35,6 @@
 #include "dcn30_dpp.h"
 #include "dcn10/dcn10_cm_common.h"
 #include "dcn30_cm_common.h"
-#include "clk_mgr.h"
 #include "reg_helper.h"
 #include "abm.h"
 #include "clk_mgr.h"
@@ -220,15 +219,13 @@ static void dcn30_set_writeback(
 		struct dc_writeback_info *wb_info,
 		struct dc_state *context)
 {
-	struct dwbc *dwb;
 	struct mcif_wb *mcif_wb;
 	struct mcif_buf_params *mcif_buf_params;
 
 	ASSERT(wb_info->dwb_pipe_inst < MAX_DWB_PIPES);
 	ASSERT(wb_info->wb_enabled);
 	ASSERT(wb_info->mpcc_inst >= 0);
-	ASSERT(wb_info->mpcc_inst < 4);
-	dwb = dc->res_pool->dwbc[wb_info->dwb_pipe_inst];
+	ASSERT(wb_info->mpcc_inst < dc->res_pool->mpcc_count);
 	mcif_wb = dc->res_pool->mcif_wb[wb_info->dwb_pipe_inst];
 	mcif_buf_params = &wb_info->mcif_buf_params;
 
@@ -465,6 +462,19 @@ void dcn30_init_hw(struct dc *dc)
 		hws->funcs.disable_vga(dc->hwseq);
 	}
 
+	if (dc->debug.enable_mem_low_power.bits.dmcu) {
+		// Force ERAM to shutdown if DMCU is not enabled
+		if (dc->debug.disable_dmcu || dc->config.disable_dmcu) {
+			REG_UPDATE(DMU_MEM_PWR_CNTL, DMCU_ERAM_MEM_PWR_FORCE, 3);
+		}
+	}
+
+	// Set default OPTC memory power states
+	if (dc->debug.enable_mem_low_power.bits.optc) {
+		// Shutdown when unassigned and light sleep in VBLANK
+		REG_SET_2(ODM_MEM_PWR_CTRL3, 0, ODM_MEM_UNASSIGNED_PWR_MODE, 3, ODM_MEM_VBLANK_PWR_MODE, 1);
+	}
+
 	if (dc->ctx->dc_bios->fw_info_valid) {
 		res_pool->ref_clocks.xtalin_clock_inKhz =
 				dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency;
@@ -620,11 +630,18 @@ void dcn30_init_hw(struct dc *dc)
 	if (hws->funcs.enable_power_gating_plane)
 		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
 
+	if (!dcb->funcs->is_accelerated_mode(dcb) && dc->res_pool->hubbub->funcs->init_watermarks)
+		dc->res_pool->hubbub->funcs->init_watermarks(dc->res_pool->hubbub);
+
 	if (dc->clk_mgr->funcs->notify_wm_ranges)
 		dc->clk_mgr->funcs->notify_wm_ranges(dc->clk_mgr);
 
 	if (dc->clk_mgr->funcs->set_hard_max_memclk)
 		dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
+
+	if (dc->res_pool->hubbub->funcs->force_pstate_change_control)
+		dc->res_pool->hubbub->funcs->force_pstate_change_control(
+				dc->res_pool->hubbub, false, false);
 }
 
 void dcn30_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
@@ -651,7 +668,7 @@ void dcn30_update_info_frame(struct pipe_ctx *pipe_ctx)
 	is_hdmi_tmds = dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal);
 	is_dp = dc_is_dp_signal(pipe_ctx->stream->signal);
 
-	if (!is_hdmi_tmds)
+	if (!is_hdmi_tmds && !is_dp)
 		return;
 
 	if (is_hdmi_tmds)
@@ -692,28 +709,128 @@ void dcn30_program_dmdata_engine(struct pipe_ctx *pipe_ctx)
 
 bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 {
-	unsigned int surface_size;
+	union dmub_rb_cmd cmd;
+	unsigned int surface_size, refresh_hz, denom;
+	uint32_t tmr_delay = 0, tmr_scale = 0;
 
 	if (!dc->ctx->dmub_srv)
 		return false;
 
 	if (enable) {
-		if (dc->current_state
-				&& dc->current_state->stream_count == 1 // single display only
-				&& dc->current_state->stream_status[0].plane_count == 1 // single surface only
-				&& dc->current_state->stream_status[0].plane_states[0]->address.page_table_base.quad_part == 0 // no VM
-				// Only 8 and 16 bit formats
-				&& dc->current_state->stream_status[0].plane_states[0]->format <= SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F
-				&& dc->current_state->stream_status[0].plane_states[0]->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB8888) {
+		if (dc->current_state) {
+			int i;
 
-			surface_size = dc->current_state->stream_status[0].plane_states[0]->plane_size.surface_pitch *
+			/* First, check no-memory-requests case */
+			for (i = 0; i < dc->current_state->stream_count; i++) {
+				if (dc->current_state->stream_status[i]
+					    .plane_count)
+					/* Fail eligibility on a visible stream */
+					break;
+			}
+
+			if (dc->current_state->stream_count == 1 // single display only
+			    && dc->current_state->stream_status[0].plane_count == 1 // single surface only
+			    && dc->current_state->stream_status[0].plane_states[0]->address.page_table_base.quad_part == 0 // no VM
+			    // Only 8 and 16 bit formats
+			    && dc->current_state->stream_status[0].plane_states[0]->format <= SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F
+			    && dc->current_state->stream_status[0].plane_states[0]->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB8888) {
+				surface_size = dc->current_state->stream_status[0].plane_states[0]->plane_size.surface_pitch *
 					dc->current_state->stream_status[0].plane_states[0]->plane_size.surface_size.height *
-					(dc->current_state->stream_status[0].plane_states[0]->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ? 8 : 4);
+					(dc->current_state->stream_status[0].plane_states[0]->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ?
+					 8 : 4);
+			} else {
+				// TODO: remove hard code size
+				surface_size = 128 * 1024 * 1024;
+			}
 
+			// TODO: remove hard code size
+			if (surface_size < 128 * 1024 * 1024) {
+				refresh_hz = div_u64((unsigned long long) dc->current_state->streams[0]->timing.pix_clk_100hz *
+						     100LL,
+						     (dc->current_state->streams[0]->timing.v_total *
+						      dc->current_state->streams[0]->timing.h_total));
+
+				/*
+				 * Delay_Us = 65.28 * (64 + MallFrameCacheTmrDly) * 2^MallFrameCacheTmrScale
+				 * Delay_Us / 65.28 = (64 + MallFrameCacheTmrDly) * 2^MallFrameCacheTmrScale
+				 * (Delay_Us / 65.28) / 2^MallFrameCacheTmrScale = 64 + MallFrameCacheTmrDly
+				 * MallFrameCacheTmrDly = ((Delay_Us / 65.28) / 2^MallFrameCacheTmrScale) - 64
+				 *                      = (1000000 / refresh) / 65.28 / 2^MallFrameCacheTmrScale - 64
+				 *                      = 1000000 / (refresh * 65.28 * 2^MallFrameCacheTmrScale) - 64
+				 *                      = (1000000 * 100) / (refresh * 6528 * 2^MallFrameCacheTmrScale) - 64
+				 *
+				 * need to round up the result of the division before the subtraction
+				 */
+				denom = refresh_hz * 6528;
+				tmr_delay = div_u64((100000000LL + denom - 1), denom) - 64LL;
+
+				/* scale should be increased until it fits into 6 bits */
+				while (tmr_delay & ~0x3F) {
+					tmr_scale++;
+
+					if (tmr_scale > 3) {
+						/* The delay exceeds the range of the hystersis timer */
+						ASSERT(false);
+						return false;
+					}
+
+					denom *= 2;
+					tmr_delay = div_u64((100000000LL + denom - 1), denom) - 64LL;
+				}
+
+				/* Enable MALL */
+				memset(&cmd, 0, sizeof(cmd));
+				cmd.mall.header.type = DMUB_CMD__MALL;
+				cmd.mall.header.sub_type =
+					DMUB_CMD__MALL_ACTION_ALLOW;
+				cmd.mall.header.payload_bytes =
+					sizeof(cmd.mall) -
+					sizeof(cmd.mall.header);
+				cmd.mall.tmr_delay = tmr_delay;
+				cmd.mall.tmr_scale = tmr_scale;
+
+				dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
+				dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
+
+				return true;
+			}
 		}
 
+		/* No applicable optimizations */
 		return false;
 	}
 
+	/* Disable MALL */
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.mall.header.type = DMUB_CMD__MALL;
+	cmd.mall.header.sub_type = DMUB_CMD__MALL_ACTION_DISALLOW;
+	cmd.mall.header.payload_bytes =
+		sizeof(cmd.mall) - sizeof(cmd.mall.header);
+
+	dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
+	dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
+	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
+
 	return true;
+}
+
+void dcn30_hardware_release(struct dc *dc)
+{
+	/* if pstate unsupported, force it supported */
+	if (!dc->clk_mgr->clks.p_state_change_support &&
+			dc->res_pool->hubbub->funcs->force_pstate_change_control)
+		dc->res_pool->hubbub->funcs->force_pstate_change_control(
+				dc->res_pool->hubbub, true, true);
+}
+
+void dcn30_set_disp_pattern_generator(const struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		enum controller_dp_test_pattern test_pattern,
+		enum controller_dp_color_space color_space,
+		enum dc_color_depth color_depth,
+		const struct tg_color *solid_color,
+		int width, int height, int offset)
+{
+	pipe_ctx->stream_res.opp->funcs->opp_set_disp_pattern_generator(pipe_ctx->stream_res.opp, test_pattern,
+			color_space, color_depth, solid_color, width, height, offset);
 }

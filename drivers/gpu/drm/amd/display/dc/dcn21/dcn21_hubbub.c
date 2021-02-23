@@ -99,6 +99,8 @@ void dcn21_dchvm_init(struct hubbub *hubbub)
 
 		//Poll until HOSTVM_PREFETCH_DONE = 1
 		REG_WAIT(DCHVM_RIOMMU_STAT0, HOSTVM_PREFETCH_DONE, 1, 5, 100);
+
+		hubbub->riommu_active = true;
 	}
 }
 

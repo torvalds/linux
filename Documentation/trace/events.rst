@@ -589,8 +589,19 @@ name::
         { .type = "int",                .name = "my_int_field" },
   };
 
-See synth_field_size() for available types. If field_name contains [n]
-the field is considered to be an array.
+See synth_field_size() for available types.
+
+If field_name contains [n], the field is considered to be a static array.
+
+If field_names contains[] (no subscript), the field is considered to
+be a dynamic array, which will only take as much space in the event as
+is required to hold the array.
+
+Because space for an event is reserved before assigning field values
+to the event, using dynamic arrays implies that the piecewise
+in-kernel API described below can't be used with dynamic arrays.  The
+other non-piecewise in-kernel APIs can, however, be used with dynamic
+arrays.
 
 If the event is created from within a module, a pointer to the module
 must be passed to synth_event_create().  This will ensure that the
@@ -787,13 +798,13 @@ To trace a synthetic using the piecewise method described above, the
 synth_event_trace_start() function is used to 'open' the synthetic
 event trace::
 
-       struct synth_trace_state trace_state;
+       struct synth_event_trace_state trace_state;
 
        ret = synth_event_trace_start(schedtest_event_file, &trace_state);
 
 It's passed the trace_event_file representing the synthetic event
 using the same methods as described above, along with a pointer to a
-struct synth_trace_state object, which will be zeroed before use and
+struct synth_event_trace_state object, which will be zeroed before use and
 used to maintain state between this and following calls.
 
 Once the event has been opened, which means space for it has been
@@ -805,7 +816,7 @@ lookup per field.
 
 To assign the values one after the other without lookups,
 synth_event_add_next_val() should be used.  Each call is passed the
-same synth_trace_state object used in the synth_event_trace_start(),
+same synth_event_trace_state object used in the synth_event_trace_start(),
 along with the value to set the next field in the event.  After each
 field is set, the 'cursor' points to the next field, which will be set
 by the subsequent call, continuing until all the fields have been set
@@ -834,7 +845,7 @@ this method would be (without error-handling code)::
        ret = synth_event_add_next_val(395, &trace_state);
 
 To assign the values in any order, synth_event_add_val() should be
-used.  Each call is passed the same synth_trace_state object used in
+used.  Each call is passed the same synth_event_trace_state object used in
 the synth_event_trace_start(), along with the field name of the field
 to set and the value to set it to.  The same sequence of calls as in
 the above examples using this method would be (without error-handling
@@ -856,7 +867,7 @@ can be used but not both at the same time.
 
 Finally, the event won't be actually traced until it's 'closed',
 which is done using synth_event_trace_end(), which takes only the
-struct synth_trace_state object used in the previous calls::
+struct synth_event_trace_state object used in the previous calls::
 
        ret = synth_event_trace_end(&trace_state);
 

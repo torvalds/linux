@@ -24,6 +24,7 @@
 #include <linux/wait.h>
 #include <linux/anon_inodes.h>
 #include <uapi/linux/kfd_ioctl.h>
+#include "amdgpu.h"
 #include "amdgpu_vm.h"
 #include "kfd_priv.h"
 #include "kfd_smi_events.h"
@@ -148,15 +149,94 @@ static int kfd_smi_ev_release(struct inode *inode, struct file *filep)
 	return 0;
 }
 
+static void add_event_to_kfifo(struct kfd_dev *dev, unsigned int smi_event,
+			      char *event_msg, int len)
+{
+	struct kfd_smi_client *client;
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(client, &dev->smi_clients, list) {
+		if (!(READ_ONCE(client->events) &
+				KFD_SMI_EVENT_MASK_FROM_INDEX(smi_event)))
+			continue;
+		spin_lock(&client->lock);
+		if (kfifo_avail(&client->fifo) >= len) {
+			kfifo_in(&client->fifo, event_msg, len);
+			wake_up_all(&client->wait_queue);
+		} else {
+			pr_debug("smi_event(EventID: %u): no space left\n",
+					smi_event);
+		}
+		spin_unlock(&client->lock);
+	}
+
+	rcu_read_unlock();
+}
+
+void kfd_smi_event_update_gpu_reset(struct kfd_dev *dev, bool post_reset)
+{
+	/*
+	 * GpuReset msg = Reset seq number (incremented for
+	 * every reset message sent before GPU reset).
+	 * 1 byte event + 1 byte space + 8 bytes seq num +
+	 * 1 byte \n + 1 byte \0 = 12
+	 */
+	char fifo_in[12];
+	int len;
+	unsigned int event;
+
+	if (list_empty(&dev->smi_clients))
+		return;
+
+	memset(fifo_in, 0x0, sizeof(fifo_in));
+
+	if (post_reset) {
+		event = KFD_SMI_EVENT_GPU_POST_RESET;
+	} else {
+		event = KFD_SMI_EVENT_GPU_PRE_RESET;
+		++(dev->reset_seq_num);
+	}
+
+	len = snprintf(fifo_in, sizeof(fifo_in), "%x %x\n", event,
+						dev->reset_seq_num);
+
+	add_event_to_kfifo(dev, event, fifo_in, len);
+}
+
+void kfd_smi_event_update_thermal_throttling(struct kfd_dev *dev,
+					     uint32_t throttle_bitmask)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)dev->kgd;
+	/*
+	 * ThermalThrottle msg = throttle_bitmask(8):
+	 * 			 thermal_interrupt_count(16):
+	 * 1 byte event + 1 byte space + 8 byte throttle_bitmask +
+	 * 1 byte : + 16 byte thermal_interupt_counter + 1 byte \n +
+	 * 1 byte \0 = 29
+	 */
+	char fifo_in[29];
+	int len;
+
+	if (list_empty(&dev->smi_clients))
+		return;
+
+	len = snprintf(fifo_in, sizeof(fifo_in), "%x %x:%llx\n",
+		       KFD_SMI_EVENT_THERMAL_THROTTLE, throttle_bitmask,
+		       atomic64_read(&adev->smu.throttle_int_counter));
+
+	add_event_to_kfifo(dev, KFD_SMI_EVENT_THERMAL_THROTTLE,	fifo_in, len);
+}
+
 void kfd_smi_event_update_vmfault(struct kfd_dev *dev, uint16_t pasid)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)dev->kgd;
 	struct amdgpu_task_info task_info;
 	/* VmFault msg = (hex)uint32_pid(8) + :(1) + task name(16) = 25 */
-	/* 16 bytes event + 1 byte space + 25 bytes msg + 1 byte \n = 43
+	/* 1 byte event + 1 byte space + 25 bytes msg + 1 byte \n +
+	 * 1 byte \0 = 29
 	 */
-	char fifo_in[43];
-	struct kfd_smi_client *client;
+	char fifo_in[29];
 	int len;
 
 	if (list_empty(&dev->smi_clients))
@@ -168,25 +248,10 @@ void kfd_smi_event_update_vmfault(struct kfd_dev *dev, uint16_t pasid)
 	if (!task_info.pid)
 		return;
 
-	len = snprintf(fifo_in, 43, "%x %x:%s\n", KFD_SMI_EVENT_VMFAULT,
+	len = snprintf(fifo_in, sizeof(fifo_in), "%x %x:%s\n", KFD_SMI_EVENT_VMFAULT,
 		task_info.pid, task_info.task_name);
 
-	rcu_read_lock();
-
-	list_for_each_entry_rcu(client, &dev->smi_clients, list) {
-		if (!(READ_ONCE(client->events) & KFD_SMI_EVENT_VMFAULT))
-			continue;
-		spin_lock(&client->lock);
-		if (kfifo_avail(&client->fifo) >= len) {
-			kfifo_in(&client->fifo, fifo_in, len);
-			wake_up_all(&client->wait_queue);
-		}
-		else
-			pr_debug("smi_event(vmfault): no space left\n");
-		spin_unlock(&client->lock);
-	}
-
-	rcu_read_unlock();
+	add_event_to_kfifo(dev, KFD_SMI_EVENT_VMFAULT, fifo_in, len);
 }
 
 int kfd_smi_event_open(struct kfd_dev *dev, uint32_t *fd)

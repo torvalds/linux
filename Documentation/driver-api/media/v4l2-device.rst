@@ -3,7 +3,7 @@
 V4L2 device instance
 --------------------
 
-Each device instance is represented by a struct :c:type:`v4l2_device`.
+Each device instance is represented by a struct v4l2_device.
 Very simple devices can just allocate this struct, but most of the time you
 would embed this struct inside a larger struct.
 
@@ -18,9 +18,9 @@ dev->driver_data field is ``NULL``, it will be linked to
 
 Drivers that want integration with the media device framework need to set
 dev->driver_data manually to point to the driver-specific device structure
-that embed the struct :c:type:`v4l2_device` instance. This is achieved by a
+that embed the struct v4l2_device instance. This is achieved by a
 ``dev_set_drvdata()`` call before registering the V4L2 device instance.
-They must also set the struct :c:type:`v4l2_device` mdev field to point to a
+They must also set the struct v4l2_device mdev field to point to a
 properly initialized and registered :c:type:`media_device` instance.
 
 If :c:type:`v4l2_dev <v4l2_device>`\ ->name is empty then it will be set to a

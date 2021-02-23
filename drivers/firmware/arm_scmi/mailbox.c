@@ -110,7 +110,7 @@ static int mailbox_chan_free(int id, void *p, void *data)
 	struct scmi_chan_info *cinfo = p;
 	struct scmi_mailbox *smbox = cinfo->transport_info;
 
-	if (!IS_ERR(smbox->chan)) {
+	if (smbox && !IS_ERR(smbox->chan)) {
 		mbox_free_channel(smbox->chan);
 		cinfo->transport_info = NULL;
 		smbox->chan = NULL;
@@ -181,7 +181,7 @@ mailbox_poll_done(struct scmi_chan_info *cinfo, struct scmi_xfer *xfer)
 	return shmem_poll_done(smbox->shmem, xfer);
 }
 
-static struct scmi_transport_ops scmi_mailbox_ops = {
+static const struct scmi_transport_ops scmi_mailbox_ops = {
 	.chan_available = mailbox_chan_available,
 	.chan_setup = mailbox_chan_setup,
 	.chan_free = mailbox_chan_free,

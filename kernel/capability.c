@@ -418,7 +418,7 @@ EXPORT_SYMBOL(ns_capable_noaudit);
 /**
  * ns_capable_setid - Determine if the current task has a superior capability
  * in effect, while signalling that this check is being done from within a
- * setid syscall.
+ * setid or setgroups syscall.
  * @ns:  The usernamespace we want the capability in
  * @cap: The capability to be tested for
  *

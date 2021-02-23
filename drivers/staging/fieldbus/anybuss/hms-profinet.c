@@ -66,10 +66,7 @@ static int profi_id_get(struct fieldbus_dev *fbdev, char *buf,
 			       sizeof(response));
 	if (ret < 0)
 		return ret;
-	return snprintf(buf, max_size, "%02X:%02X:%02X:%02X:%02X:%02X\n",
-		response.addr[0], response.addr[1],
-		response.addr[2], response.addr[3],
-		response.addr[4], response.addr[5]);
+	return snprintf(buf, max_size, "%pM\n", response.addr);
 }
 
 static bool profi_enable_get(struct fieldbus_dev *fbdev)
