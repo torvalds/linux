@@ -28,8 +28,21 @@
  *       Configure sockets as bi-directional tx/rx sockets, sets up fill and
  *       completion rings on each socket, tx/rx in both directions. Only nopoll
  *       mode is used
+ *    e. Statistics
+ *       Trigger some error conditions and ensure that the appropriate statistics
+ *       are incremented. Within this test, the following statistics are tested:
+ *       i.   rx dropped
+ *            Increase the UMEM frame headroom to a value which results in
+ *            insufficient space in the rx buffer for both the packet and the headroom.
+ *       ii.  tx invalid
+ *            Set the 'len' field of tx descriptors to an invalid value (umem frame
+ *            size + 1).
+ *       iii. rx ring full
+ *            Reduce the size of the RX ring to a fraction of the fill ring size.
+ *       iv.  fill queue empty
+ *            Do not populate the fill queue and then try to receive pkts.
  *
- * Total tests: 8
+ * Total tests: 10
  *
  * Flow:
  * -----
@@ -95,10 +108,11 @@ static void __exit_with_error(int error, const char *file, const char *func, int
 #define exit_with_error(error) __exit_with_error(error, __FILE__, __func__, __LINE__)
 
 #define print_ksft_result(void)\
-	(ksft_test_result_pass("PASS: %s %s %s%s\n", configured_mode ? "DRV" : "SKB",\
+	(ksft_test_result_pass("PASS: %s %s %s%s%s\n", configured_mode ? "DRV" : "SKB",\
 			       test_type == TEST_TYPE_POLL ? "POLL" : "NOPOLL",\
 			       test_type == TEST_TYPE_TEARDOWN ? "Socket Teardown" : "",\
-			       test_type == TEST_TYPE_BIDI ? "Bi-directional Sockets" : ""))
+			       test_type == TEST_TYPE_BIDI ? "Bi-directional Sockets" : "",\
+			       test_type == TEST_TYPE_STATS ? "Stats" : ""))
 
 static void pthread_init_mutex(void)
 {
@@ -260,13 +274,20 @@ static void gen_eth_frame(struct xsk_umem_info *umem, u64 addr)
 static void xsk_configure_umem(struct ifobject *data, void *buffer, u64 size)
 {
 	int ret;
+	struct xsk_umem_config cfg = {
+		.fill_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
+		.comp_size = XSK_RING_CONS__DEFAULT_NUM_DESCS,
+		.frame_size = XSK_UMEM__DEFAULT_FRAME_SIZE,
+		.frame_headroom = frame_headroom,
+		.flags = XSK_UMEM__DEFAULT_FLAGS
+	};
 
 	data->umem = calloc(1, sizeof(struct xsk_umem_info));
 	if (!data->umem)
 		exit_with_error(errno);
 
 	ret = xsk_umem__create(&data->umem->umem, buffer, size,
-			       &data->umem->fq, &data->umem->cq, NULL);
+			       &data->umem->fq, &data->umem->cq, &cfg);
 	if (ret)
 		exit_with_error(ret);
 
@@ -298,7 +319,7 @@ static int xsk_configure_socket(struct ifobject *ifobject)
 		exit_with_error(errno);
 
 	ifobject->xsk->umem = ifobject->umem;
-	cfg.rx_size = XSK_RING_CONS__DEFAULT_NUM_DESCS;
+	cfg.rx_size = rxqsize;
 	cfg.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS;
 	cfg.libbpf_flags = 0;
 	cfg.xdp_flags = xdp_flags;
@@ -565,6 +586,8 @@ static void tx_only(struct xsk_socket_info *xsk, u32 *frameptr, int batch_size)
 {
 	u32 idx;
 	unsigned int i;
+	bool tx_invalid_test = stat_test_type == STAT_TEST_TX_INVALID;
+	u32 len = tx_invalid_test ? XSK_UMEM__DEFAULT_FRAME_SIZE + 1 : PKT_SIZE;
 
 	while (xsk_ring_prod__reserve(&xsk->tx, batch_size, &idx) < batch_size)
 		complete_tx_only(xsk, batch_size);
@@ -573,11 +596,16 @@ static void tx_only(struct xsk_socket_info *xsk, u32 *frameptr, int batch_size)
 		struct xdp_desc *tx_desc = xsk_ring_prod__tx_desc(&xsk->tx, idx + i);
 
 		tx_desc->addr = (*frameptr + i) << XSK_UMEM__DEFAULT_FRAME_SHIFT;
-		tx_desc->len = PKT_SIZE;
+		tx_desc->len = len;
 	}
 
 	xsk_ring_prod__submit(&xsk->tx, batch_size);
-	xsk->outstanding_tx += batch_size;
+	if (!tx_invalid_test) {
+		xsk->outstanding_tx += batch_size;
+	} else {
+		if (!NEED_WAKEUP || xsk_ring_prod__needs_wakeup(&xsk->tx))
+			kick_tx(xsk);
+	}
 	*frameptr += batch_size;
 	*frameptr %= num_frames;
 	complete_tx_only(xsk, batch_size);
@@ -686,6 +714,48 @@ static void worker_pkt_dump(void)
 		}
 		fprintf(stdout, "DEBUG>> L5: payload: %d\n", payload);
 		fprintf(stdout, "---------------------------------------\n");
+	}
+}
+
+static void worker_stats_validate(struct ifobject *ifobject)
+{
+	struct xdp_statistics stats;
+	socklen_t optlen;
+	int err;
+	struct xsk_socket *xsk = stat_test_type == STAT_TEST_TX_INVALID ?
+							ifdict[!ifobject->ifdict_index]->xsk->xsk :
+							ifobject->xsk->xsk;
+	int fd = xsk_socket__fd(xsk);
+	unsigned long xsk_stat = 0, expected_stat = opt_pkt_count;
+
+	sigvar = 0;
+
+	optlen = sizeof(stats);
+	err = getsockopt(fd, SOL_XDP, XDP_STATISTICS, &stats, &optlen);
+	if (err)
+		return;
+
+	if (optlen == sizeof(struct xdp_statistics)) {
+		switch (stat_test_type) {
+		case STAT_TEST_RX_DROPPED:
+			xsk_stat = stats.rx_dropped;
+			break;
+		case STAT_TEST_TX_INVALID:
+			xsk_stat = stats.tx_invalid_descs;
+			break;
+		case STAT_TEST_RX_FULL:
+			xsk_stat = stats.rx_ring_full;
+			expected_stat -= RX_FULL_RXQSIZE;
+			break;
+		case STAT_TEST_RX_FILL_EMPTY:
+			xsk_stat = stats.rx_fill_ring_empty_descs;
+			break;
+		default:
+			break;
+		}
+
+		if (xsk_stat == expected_stat)
+			sigvar = 1;
 	}
 }
 
@@ -827,7 +897,8 @@ static void *worker_testapp_validate(void *arg)
 			thread_common_ops(ifobject, bufs, &sync_mutex_tx, &spinning_rx);
 
 		print_verbose("Interface [%s] vector [Rx]\n", ifobject->ifname);
-		xsk_populate_fill_ring(ifobject->umem);
+		if (stat_test_type != STAT_TEST_RX_FILL_EMPTY)
+			xsk_populate_fill_ring(ifobject->umem);
 
 		TAILQ_INIT(&head);
 		if (debug_pkt_dump) {
@@ -849,15 +920,21 @@ static void *worker_testapp_validate(void *arg)
 				if (ret <= 0)
 					continue;
 			}
-			rx_pkt(ifobject->xsk, fds);
-			worker_pkt_validate();
+
+			if (test_type != TEST_TYPE_STATS) {
+				rx_pkt(ifobject->xsk, fds);
+				worker_pkt_validate();
+			} else {
+				worker_stats_validate(ifobject);
+			}
 
 			if (sigvar)
 				break;
 		}
 
-		print_verbose("Received %d packets on interface %s\n",
-			       pkt_counter, ifobject->ifname);
+		if (test_type != TEST_TYPE_STATS)
+			print_verbose("Received %d packets on interface %s\n",
+				pkt_counter, ifobject->ifname);
 
 		if (test_type == TEST_TYPE_TEARDOWN)
 			print_verbose("Destroying socket\n");
@@ -931,7 +1008,7 @@ static void testapp_validate(void)
 		free(pkt_buf);
 	}
 
-	if (!(test_type == TEST_TYPE_TEARDOWN) && !bidi)
+	if (!(test_type == TEST_TYPE_TEARDOWN) && !bidi && !(test_type == TEST_TYPE_STATS))
 		print_ksft_result();
 }
 
@@ -945,6 +1022,32 @@ static void testapp_sockets(void)
 		print_verbose("Creating socket\n");
 		testapp_validate();
 		test_type == TEST_TYPE_BIDI ? bidi_pass++ : bidi_pass;
+	}
+
+	print_ksft_result();
+}
+
+static void testapp_stats(void)
+{
+	for (int i = 0; i < STAT_TEST_TYPE_MAX; i++) {
+		stat_test_type = i;
+
+		/* reset defaults */
+		rxqsize = XSK_RING_CONS__DEFAULT_NUM_DESCS;
+		frame_headroom = XSK_UMEM__DEFAULT_FRAME_HEADROOM;
+
+		switch (stat_test_type) {
+		case STAT_TEST_RX_DROPPED:
+			frame_headroom = XSK_UMEM__DEFAULT_FRAME_SIZE -
+						XDP_PACKET_HEADROOM - 1;
+			break;
+		case STAT_TEST_RX_FULL:
+			rxqsize = RX_FULL_RXQSIZE;
+			break;
+		default:
+			break;
+		}
+		testapp_validate();
 	}
 
 	print_ksft_result();
@@ -1037,6 +1140,10 @@ static void run_pkt_test(int mode, int type)
 	prev_pkt = -1;
 	ifdict[0]->fv.vector = tx;
 	ifdict[1]->fv.vector = rx;
+	sigvar = 0;
+	stat_test_type = -1;
+	rxqsize = XSK_RING_CONS__DEFAULT_NUM_DESCS;
+	frame_headroom = XSK_UMEM__DEFAULT_FRAME_HEADROOM;
 
 	switch (mode) {
 	case (TEST_MODE_SKB):
@@ -1055,7 +1162,9 @@ static void run_pkt_test(int mode, int type)
 
 	pthread_init_mutex();
 
-	if ((test_type != TEST_TYPE_TEARDOWN) && (test_type != TEST_TYPE_BIDI))
+	if (test_type == TEST_TYPE_STATS)
+		testapp_stats();
+	else if ((test_type != TEST_TYPE_TEARDOWN) && (test_type != TEST_TYPE_BIDI))
 		testapp_validate();
 	else
 		testapp_sockets();

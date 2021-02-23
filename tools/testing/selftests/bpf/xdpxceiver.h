@@ -42,6 +42,7 @@
 #define POLL_TMOUT 1000
 #define NEED_WAKEUP true
 #define DEFAULT_PKT_CNT 10000
+#define RX_FULL_RXQSIZE 32
 
 #define print_verbose(x...) do { if (opt_verbose) ksft_print_msg(x); } while (0)
 
@@ -61,7 +62,16 @@ enum TEST_TYPES {
 	TEST_TYPE_POLL,
 	TEST_TYPE_TEARDOWN,
 	TEST_TYPE_BIDI,
+	TEST_TYPE_STATS,
 	TEST_TYPE_MAX
+};
+
+enum STAT_TEST_TYPES {
+	STAT_TEST_RX_DROPPED,
+	STAT_TEST_TX_INVALID,
+	STAT_TEST_RX_FULL,
+	STAT_TEST_RX_FILL_EMPTY,
+	STAT_TEST_TYPE_MAX
 };
 
 static int configured_mode = TEST_MODE_UNCONFIGURED;
@@ -81,6 +91,9 @@ static u8 pkt_data[XSK_UMEM__DEFAULT_FRAME_SIZE];
 static u32 pkt_counter;
 static long prev_pkt = -1;
 static int sigvar;
+static int stat_test_type;
+static u32 rxqsize;
+static u32 frame_headroom;
 
 struct xsk_umem_info {
 	struct xsk_ring_prod fq;
