@@ -717,6 +717,8 @@ be removed.  Switch while you still can; the old one won't stay.
 **mandatory**
 
 ->setxattr() and xattr_handler.set() get dentry and inode passed separately.
+The xattr_handler.set() gets passed the user namespace of the mount the inode
+is seen from so filesystems can idmap the i_uid and i_gid accordingly.
 dentry might be yet to be attached to inode, so do _not_ use its ->d_inode
 in the instances.  Rationale: !@#!@# security_d_instantiate() needs to be
 called before we attach dentry to inode and !@#!@##!@$!$#!@#$!@$!@$ smack

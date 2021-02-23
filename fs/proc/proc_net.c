@@ -289,7 +289,8 @@ static struct dentry *proc_tgid_net_lookup(struct inode *dir,
 	return de;
 }
 
-static int proc_tgid_net_getattr(const struct path *path, struct kstat *stat,
+static int proc_tgid_net_getattr(struct user_namespace *mnt_userns,
+				 const struct path *path, struct kstat *stat,
 				 u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
@@ -297,7 +298,7 @@ static int proc_tgid_net_getattr(const struct path *path, struct kstat *stat,
 
 	net = get_proc_task_net(inode);
 
-	generic_fillattr(inode, stat);
+	generic_fillattr(&init_user_ns, inode, stat);
 
 	if (net != NULL) {
 		stat->nlink = net->proc_net->nlink;
