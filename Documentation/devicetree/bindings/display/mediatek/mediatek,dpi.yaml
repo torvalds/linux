@@ -50,15 +50,10 @@ properties:
       - const: sleep
 
   port:
-    type: object
+    $ref: /schemas/graph.yaml#/properties/port
     description:
-      Output port node with endpoint definitions as described in
-      Documentation/devicetree/bindings/graph.txt. This port should be connected
-      to the input port of an attached HDMI or LVDS encoder chip.
-
-    properties:
-      endpoint:
-        type: object
+      Output port node. This port should be connected to the input port of an
+      attached HDMI or LVDS encoder chip.
 
 required:
   - compatible
