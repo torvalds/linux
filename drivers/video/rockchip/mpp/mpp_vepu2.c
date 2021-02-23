@@ -434,6 +434,7 @@ static int vepu_control(struct mpp_session *session, struct mpp_request *req)
 		priv = session->priv;
 
 		cnt = req->size / sizeof(elem);
+		cnt = (cnt > ENC_INFO_BUTT) ? ENC_INFO_BUTT : cnt;
 		mpp_debug(DEBUG_IOCTL, "codec info count %d\n", cnt);
 		for (i = 0; i < cnt; i++) {
 			if (copy_from_user(&elem, req->data + i * sizeof(elem), sizeof(elem))) {
