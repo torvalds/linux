@@ -1093,14 +1093,13 @@ static long sc2310_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKMODULE_SET_HDR_CFG:
 		hdr_cfg = (struct rkmodule_hdr_cfg *)arg;
-		mode = sc2310->cur_mode;
 		if (sc2310->streaming) {
 			ret = sc2310_write_array(sc2310->client, sc2310->cur_mode->reg_list);
 			if (ret)
 				return ret;
 		}
-		w = mode->width;
-		h = mode->height;
+		w = sc2310->cur_mode->width;
+		h = sc2310->cur_mode->height;
 		for (i = 0; i < sc2310->cfg_num; i++) {
 			if (w == supported_modes[i].width &&
 			h == supported_modes[i].height &&
@@ -1109,12 +1108,14 @@ static long sc2310_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				break;
 			}
 		}
+
 		if (i == sc2310->cfg_num) {
 			dev_err(&sc2310->client->dev,
 				"not find hdr mode:%d %dx%d config\n",
 				hdr_cfg->hdr_mode, w, h);
 			ret = -EINVAL;
 		} else {
+			mode = sc2310->cur_mode;
 			w = mode->hts_def - mode->width;
 			h = mode->vts_def - mode->height;
 			__v4l2_ctrl_modify_range(sc2310->hblank, w, w, 1, w);
