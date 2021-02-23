@@ -2564,7 +2564,7 @@ static void io_complete_rw_iopoll(struct kiocb *kiocb, long res, long res2)
 		req_set_fail_links(req);
 
 	WRITE_ONCE(req->result, res);
-	/* order with io_poll_complete() checking ->result */
+	/* order with io_iopoll_complete() checking ->result */
 	smp_wmb();
 	WRITE_ONCE(req->iopoll_completed, 1);
 }
