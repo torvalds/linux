@@ -316,6 +316,8 @@ struct kvm_vcpu_arch {
 		struct kvm_guest_debug_arch regs;
 		/* Statistical profiling extension */
 		u64 pmscr_el1;
+		/* Self-hosted trace */
+		u64 trfcr_el1;
 	} host_debug_state;
 
 	/* VGIC state */

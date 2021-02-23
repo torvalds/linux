@@ -65,6 +65,19 @@
 						// use EL1&0 translation.
 
 .Lskip_spe_\@:
+	/* Trace buffer */
+	ubfx	x0, x1, #ID_AA64DFR0_TRBE_SHIFT, #4
+	cbz	x0, .Lskip_trace_\@		// Skip if TraceBuffer is not present
+
+	mrs_s	x0, SYS_TRBIDR_EL1
+	and	x0, x0, TRBIDR_PROG
+	cbnz	x0, .Lskip_trace_\@		// If TRBE is available at EL2
+
+	mov	x0, #(MDCR_EL2_E2TB_MASK << MDCR_EL2_E2TB_SHIFT)
+	orr	x2, x2, x0			// allow the EL1&0 translation
+						// to own it.
+
+.Lskip_trace_\@:
 	msr	mdcr_el2, x2			// Configure debug traps
 .endm
 
