@@ -12,7 +12,7 @@ config VFIO_PLATFORM
 
 config VFIO_AMBA
 	tristate "VFIO support for AMBA devices"
-	depends on VFIO_PLATFORM && ARM_AMBA
+	depends on VFIO_PLATFORM && (ARM_AMBA || COMPILE_TEST)
 	help
 	  Support for ARM AMBA devices with VFIO. This is required to make
 	  use of ARM AMBA devices present on the system using the VFIO
