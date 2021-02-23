@@ -52,4 +52,11 @@ config MLX5_VDPA_NET
 	  be executed by the hardware. It also supports a variety of stateless
 	  offloads depending on the actual device used and firmware version.
 
+config VP_VDPA
+	tristate "Virtio PCI bridge vDPA driver"
+	select VIRTIO_PCI_LIB
+	depends on PCI_MSI
+	help
+	  This kernel module bridges virtio PCI device to vDPA bus.
+
 endif # VDPA
