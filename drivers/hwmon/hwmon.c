@@ -79,7 +79,7 @@ static struct attribute *hwmon_dev_attrs[] = {
 static umode_t hwmon_dev_name_is_visible(struct kobject *kobj,
 					 struct attribute *attr, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 
 	if (to_hwmon_device(dev)->name == NULL)
 		return 0;
