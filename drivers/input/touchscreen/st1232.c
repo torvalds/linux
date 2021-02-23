@@ -94,8 +94,13 @@ static int st1232_ts_wait_ready(struct st1232_ts_data *ts)
 
 	for (retries = 10; retries; retries--) {
 		error = st1232_ts_read_data(ts, REG_STATUS, 1);
-		if (!error && ts->read_buf[0] == (STATUS_NORMAL | STATUS_IDLE | ERROR_NONE))
-			return 0;
+		if (!error) {
+			switch (ts->read_buf[0]) {
+			case STATUS_NORMAL | ERROR_NONE:
+			case STATUS_IDLE | ERROR_NONE:
+				return 0;
+			}
+		}
 
 		usleep_range(1000, 2000);
 	}
