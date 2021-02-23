@@ -161,6 +161,11 @@ do
 	fi
 	echo "# TORTURE_KCONFIG_GDB_ARG=''" >> $i
 done
+
+# Extract settings from the last qemu-cmd file transformed above.
+grep '^#' $i | sed -e 's/^# //' > $T/qemu-cmd-settings
+. $T/qemu-cmd-settings
+
 grep -v '^#' $T/batches.oldrun | awk '
 BEGIN {
 	oldbatch = 1;
