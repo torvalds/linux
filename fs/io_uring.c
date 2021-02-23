@@ -1507,7 +1507,7 @@ static void __io_cqring_fill_event(struct io_kiocb *req, long res,
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_uring_cqe *cqe;
 
-	trace_io_uring_complete(ctx, req->user_data, res);
+	trace_io_uring_complete(ctx, req->user_data, res, cflags);
 
 	/*
 	 * If we can't get a cq entry, userspace overflowed the
