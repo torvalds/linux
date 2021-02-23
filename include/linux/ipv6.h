@@ -84,7 +84,6 @@ struct ipv6_params {
 	__s32 autoconf;
 };
 extern struct ipv6_params ipv6_defaults;
-#include <linux/icmpv6.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
 
