@@ -131,6 +131,7 @@ static enum qcom_scm_convention __get_convention(void)
 	struct qcom_scm_res res;
 	enum qcom_scm_convention probed_convention;
 	int ret;
+	bool forced = false;
 
 	if (likely(qcom_scm_convention != SMC_CONVENTION_UNKNOWN))
 		return qcom_scm_convention;
@@ -144,6 +145,18 @@ static enum qcom_scm_convention __get_convention(void)
 	if (!ret && res.result[0] == 1)
 		goto found;
 
+	/*
+	 * Some SC7180 firmwares didn't implement the
+	 * QCOM_SCM_INFO_IS_CALL_AVAIL call, so we fallback to forcing ARM_64
+	 * calling conventions on these firmwares. Luckily we don't make any
+	 * early calls into the firmware on these SoCs so the device pointer
+	 * will be valid here to check if the compatible matches.
+	 */
+	if (of_device_is_compatible(__scm ? __scm->dev->of_node : NULL, "qcom,scm-sc7180")) {
+		forced = true;
+		goto found;
+	}
+
 	probed_convention = SMC_CONVENTION_ARM_32;
 	ret = __scm_smc_call(NULL, &desc, probed_convention, &res, true);
 	if (!ret && res.result[0] == 1)
@@ -154,8 +167,9 @@ found:
 	spin_lock_irqsave(&scm_query_lock, flags);
 	if (probed_convention != qcom_scm_convention) {
 		qcom_scm_convention = probed_convention;
-		pr_info("qcom_scm: convention: %s\n",
-			qcom_scm_convention_names[qcom_scm_convention]);
+		pr_info("qcom_scm: convention: %s%s\n",
+			qcom_scm_convention_names[qcom_scm_convention],
+			forced ? " (forced)" : "");
 	}
 	spin_unlock_irqrestore(&scm_query_lock, flags);
 
