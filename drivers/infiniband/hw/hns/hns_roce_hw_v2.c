@@ -681,8 +681,7 @@ static void write_dwqe(struct hns_roce_dev *hr_dev, struct hns_roce_qp *qp,
 	roce_set_field(rc_sq_wqe->byte_4, V2_RC_SEND_WQE_BYTE_4_WQE_INDEX_M,
 		       V2_RC_SEND_WQE_BYTE_4_WQE_INDEX_S, qp->sq.head);
 
-	hns_roce_write512(hr_dev, wqe, hr_dev->mem_base +
-			  HNS_ROCE_DWQE_SIZE * qp->ibqp.qp_num);
+	hns_roce_write512(hr_dev, wqe, qp->sq.db_reg_l);
 }
 
 static int hns_roce_v2_post_send(struct ib_qp *ibqp,

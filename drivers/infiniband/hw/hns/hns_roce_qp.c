@@ -840,9 +840,14 @@ static int alloc_qp_db(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 			resp->cap_flags |= HNS_ROCE_QP_CAP_RQ_RECORD_DB;
 		}
 	} else {
-		/* QP doorbell register address */
-		hr_qp->sq.db_reg_l = hr_dev->reg_base + hr_dev->sdb_offset +
-				     DB_REG_OFFSET * hr_dev->priv_uar.index;
+		if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09)
+			hr_qp->sq.db_reg_l = hr_dev->mem_base +
+					     HNS_ROCE_DWQE_SIZE * hr_qp->qpn;
+		else
+			hr_qp->sq.db_reg_l =
+				hr_dev->reg_base + hr_dev->sdb_offset +
+				DB_REG_OFFSET * hr_dev->priv_uar.index;
+
 		hr_qp->rq.db_reg_l = hr_dev->reg_base + hr_dev->odb_offset +
 				     DB_REG_OFFSET * hr_dev->priv_uar.index;
 
@@ -1011,36 +1016,36 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		}
 	}
 
-	ret = alloc_qp_db(hr_dev, hr_qp, init_attr, udata, &ucmd, &resp);
-	if (ret) {
-		ibdev_err(ibdev, "failed to alloc QP doorbell, ret = %d.\n",
-			  ret);
-		goto err_wrid;
-	}
-
 	ret = alloc_qp_buf(hr_dev, hr_qp, init_attr, udata, ucmd.buf_addr);
 	if (ret) {
 		ibdev_err(ibdev, "failed to alloc QP buffer, ret = %d.\n", ret);
-		goto err_db;
+		goto err_buf;
 	}
 
 	ret = alloc_qpn(hr_dev, hr_qp);
 	if (ret) {
 		ibdev_err(ibdev, "failed to alloc QPN, ret = %d.\n", ret);
-		goto err_buf;
+		goto err_qpn;
+	}
+
+	ret = alloc_qp_db(hr_dev, hr_qp, init_attr, udata, &ucmd, &resp);
+	if (ret) {
+		ibdev_err(ibdev, "failed to alloc QP doorbell, ret = %d.\n",
+			  ret);
+		goto err_db;
 	}
 
 	ret = alloc_qpc(hr_dev, hr_qp);
 	if (ret) {
 		ibdev_err(ibdev, "failed to alloc QP context, ret = %d.\n",
 			  ret);
-		goto err_qpn;
+		goto err_qpc;
 	}
 
 	ret = hns_roce_qp_store(hr_dev, hr_qp, init_attr);
 	if (ret) {
 		ibdev_err(ibdev, "failed to store QP, ret = %d.\n", ret);
-		goto err_qpc;
+		goto err_store;
 	}
 
 	if (udata) {
@@ -1055,7 +1060,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_QP_FLOW_CTRL) {
 		ret = hr_dev->hw->qp_flow_control_init(hr_dev, hr_qp);
 		if (ret)
-			goto err_store;
+			goto err_flow_ctrl;
 	}
 
 	hr_qp->ibqp.qp_num = hr_qp->qpn;
@@ -1065,17 +1070,17 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 
 	return 0;
 
-err_store:
+err_flow_ctrl:
 	hns_roce_qp_remove(hr_dev, hr_qp);
-err_qpc:
+err_store:
 	free_qpc(hr_dev, hr_qp);
-err_qpn:
-	free_qpn(hr_dev, hr_qp);
-err_buf:
-	free_qp_buf(hr_dev, hr_qp);
-err_db:
+err_qpc:
 	free_qp_db(hr_dev, hr_qp, udata);
-err_wrid:
+err_db:
+	free_qpn(hr_dev, hr_qp);
+err_qpn:
+	free_qp_buf(hr_dev, hr_qp);
+err_buf:
 	free_kernel_wrid(hr_qp);
 	return ret;
 }
