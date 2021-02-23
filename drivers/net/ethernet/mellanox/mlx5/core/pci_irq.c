@@ -24,9 +24,6 @@ struct mlx5_irq {
 struct mlx5_irq_table {
 	struct mlx5_irq *irq;
 	int nvec;
-#ifdef CONFIG_RFS_ACCEL
-	struct cpu_rmap *rmap;
-#endif
 };
 
 int mlx5_irq_table_init(struct mlx5_core_dev *dev)
@@ -159,8 +156,6 @@ static void irq_release(struct kref *kref)
 	 */
 	irq_set_affinity_hint(irq->irqn, NULL);
 	free_cpumask_var(irq->mask);
-	/* this line is releasing this irq from the rmap */
-	irq_set_affinity_notifier(irq->irqn, NULL);
 	free_irq(irq->irqn, &irq->nh);
 }
 
@@ -210,10 +205,11 @@ static void irq_set_name(char *name, int vecidx)
 
 static int irq_request(struct mlx5_core_dev *dev, int i)
 {
-	struct mlx5_irq *irq = mlx5_irq_get(dev, i);
 	char name[MLX5_MAX_IRQ_NAME];
+	struct mlx5_irq *irq;
 	int err;
 
+	irq = mlx5_irq_get(dev, i);
 	irq->irqn = pci_irq_vector(dev->pdev, i);
 	irq_set_name(name, i);
 	ATOMIC_INIT_NOTIFIER_HEAD(&irq->nh);
@@ -223,15 +219,22 @@ static int irq_request(struct mlx5_core_dev *dev, int i)
 			  &irq->nh);
 	if (err) {
 		mlx5_core_err(dev, "Failed to request irq. err = %d\n", err);
-		return err;
+		goto err_req_irq;
 	}
 	if (!zalloc_cpumask_var(&irq->mask, GFP_KERNEL)) {
 		mlx5_core_warn(dev, "zalloc_cpumask_var failed\n");
-		free_irq(irq->irqn, &irq->nh);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_cpumask;
 	}
 	kref_init(&irq->kref);
 	return 0;
+
+err_cpumask:
+	free_irq(irq->irqn, &irq->nh);
+err_req_irq:
+	if (i != 0)
+		irq_set_affinity_notifier(irq->irqn, NULL);
+	return err;
 }
 
 /**
@@ -271,62 +274,11 @@ struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, int vecidx,
 	return irq;
 }
 
-static void irq_clear_rmap(struct mlx5_core_dev *dev)
-{
-#ifdef CONFIG_RFS_ACCEL
-	struct mlx5_irq_table *irq_table = dev->priv.irq_table;
-
-	free_irq_cpu_rmap(irq_table->rmap);
-#endif
-}
-
-static int irq_set_rmap(struct mlx5_core_dev *mdev)
-{
-	int err = 0;
-#ifdef CONFIG_RFS_ACCEL
-	struct mlx5_irq_table *irq_table = mdev->priv.irq_table;
-	int num_affinity_vec;
-	int vecidx;
-
-	num_affinity_vec = mlx5_irq_get_num_comp(irq_table);
-	irq_table->rmap = alloc_irq_cpu_rmap(num_affinity_vec);
-	if (!irq_table->rmap) {
-		err = -ENOMEM;
-		mlx5_core_err(mdev, "Failed to allocate cpu_rmap. err %d", err);
-		goto err_out;
-	}
-
-	vecidx = MLX5_IRQ_VEC_COMP_BASE;
-	for (; vecidx < irq_table->nvec; vecidx++) {
-		err = irq_cpu_rmap_add(irq_table->rmap,
-				       pci_irq_vector(mdev->pdev, vecidx));
-		if (err) {
-			mlx5_core_err(mdev, "irq_cpu_rmap_add failed. err %d",
-				      err);
-			goto err_irq_cpu_rmap_add;
-		}
-	}
-	return 0;
-
-err_irq_cpu_rmap_add:
-	irq_clear_rmap(mdev);
-err_out:
-#endif
-	return err;
-}
-
 struct cpumask *
 mlx5_irq_get_affinity_mask(struct mlx5_irq_table *irq_table, int vecidx)
 {
 	return irq_table->irq[vecidx].mask;
 }
-
-#ifdef CONFIG_RFS_ACCEL
-struct cpu_rmap *mlx5_irq_get_rmap(struct mlx5_irq_table *irq_table)
-{
-	return irq_table->rmap;
-}
-#endif
 
 int mlx5_irq_table_create(struct mlx5_core_dev *dev)
 {
@@ -360,22 +312,11 @@ int mlx5_irq_table_create(struct mlx5_core_dev *dev)
 
 	table->nvec = nvec;
 
-	err = irq_set_rmap(dev);
-	if (err)
-		goto err_set_rmap;
-
 	return 0;
 
-err_set_rmap:
-	pci_free_irq_vectors(dev->pdev);
 err_free_irq:
 	kfree(table->irq);
 	return err;
-}
-
-static void irq_table_clear_rmap(struct mlx5_irq_table *table)
-{
-	cpu_rmap_put(table->rmap);
 }
 
 void mlx5_irq_table_destroy(struct mlx5_core_dev *dev)
@@ -385,7 +326,6 @@ void mlx5_irq_table_destroy(struct mlx5_core_dev *dev)
 	if (mlx5_core_is_sf(dev))
 		return;
 
-	irq_table_clear_rmap(table);
 	pci_free_irq_vectors(dev->pdev);
 	kfree(table->irq);
 }
