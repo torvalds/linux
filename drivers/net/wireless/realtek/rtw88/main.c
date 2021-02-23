@@ -1394,7 +1394,6 @@ static int rtw_chip_parameter_setup(struct rtw_dev *rtwdev)
 	struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_hal *hal = &rtwdev->hal;
 	struct rtw_efuse *efuse = &rtwdev->efuse;
-	int ret = 0;
 
 	switch (rtw_hci_type(rtwdev)) {
 	case RTW_HCI_TYPE_PCIE:
@@ -1432,7 +1431,7 @@ static int rtw_chip_parameter_setup(struct rtw_dev *rtwdev)
 
 	hal->bfee_sts_cap = 3;
 
-	return ret;
+	return 0;
 }
 
 static int rtw_chip_efuse_enable(struct rtw_dev *rtwdev)
