@@ -3497,7 +3497,7 @@ static int btusb_mtk_setup_firmware_79xx(struct hci_dev *hdev, const char *fwnam
 	fw_ptr = fw->data;
 	fw_bin_ptr = fw_ptr;
 	globaldesc = (struct btmtk_global_desc *)(fw_ptr + MTK_FW_ROM_PATCH_HEADER_SIZE);
-	section_num = globaldesc->section_num;
+	section_num = le32_to_cpu(globaldesc->section_num);
 
 	for (i = 0; i < section_num; i++) {
 		first_block = 1;
@@ -3505,8 +3505,8 @@ static int btusb_mtk_setup_firmware_79xx(struct hci_dev *hdev, const char *fwnam
 		sectionmap = (struct btmtk_section_map *)(fw_ptr + MTK_FW_ROM_PATCH_HEADER_SIZE +
 			      MTK_FW_ROM_PATCH_GD_SIZE + MTK_FW_ROM_PATCH_SEC_MAP_SIZE * i);
 
-		section_offset = sectionmap->secoffset;
-		dl_size = sectionmap->bin_info_spec.dlsize;
+		section_offset = le32_to_cpu(sectionmap->secoffset);
+		dl_size = le32_to_cpu(sectionmap->bin_info_spec.dlsize);
 
 		if (dl_size > 0) {
 			retry = 20;
@@ -3742,7 +3742,7 @@ static int btusb_mtk_setup(struct hci_dev *hdev)
 	int err, status;
 	u32 dev_id;
 	char fw_bin_name[64];
-	u32 fw_version;
+	u32 fw_version = 0;
 	u8 param;
 
 	calltime = ktime_get();
