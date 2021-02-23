@@ -138,6 +138,10 @@ properties:
           - const: google,juniper-sku16
           - const: google,juniper
           - const: mediatek,mt8183
+      - items:
+          - enum:
+              - mediatek,mt8516-pumpkin
+          - const: mediatek,mt8516
 
 additionalProperties: true
 
