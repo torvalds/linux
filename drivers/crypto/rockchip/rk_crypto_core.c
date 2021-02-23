@@ -34,6 +34,7 @@
 	.hw_init = rk_hw_crypto_v1_init,\
 	.hw_deinit = rk_hw_crypto_v1_deinit,\
 	.hw_info_size = sizeof(struct rk_hw_crypto_v1_info),\
+	.default_pka_offset = 0,\
 }
 
 #define RK_CRYPTO_V2_SOC_DATA_INIT(names, soft_aes_192) {\
@@ -47,6 +48,7 @@
 	.hw_init = rk_hw_crypto_v2_init,\
 	.hw_deinit = rk_hw_crypto_v2_deinit,\
 	.hw_info_size = sizeof(struct rk_hw_crypto_v2_info),\
+	.default_pka_offset = 0x0480,\
 }
 
 static int rk_crypto_enable_clk(struct rk_crypto_info *dev)
@@ -524,12 +526,19 @@ static int rk_crypto_probe(struct platform_device *pdev)
 
 	spin_lock_init(&crypto_info->lock);
 
+	/* get crypto base */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	crypto_info->reg = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(crypto_info->reg)) {
 		err = PTR_ERR(crypto_info->reg);
 		goto err_crypto;
 	}
+
+	/* get pka base, if pka reg not set, pka reg = crypto + pka offset */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	crypto_info->pka_reg = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(crypto_info->pka_reg))
+		crypto_info->pka_reg = crypto_info->reg + crypto_info->soc_data->default_pka_offset;
 
 	crypto_info->clks_num = devm_clk_bulk_get_all(&pdev->dev, &crypto_info->clk_bulks);
 	if (crypto_info->clks_num < 0) {

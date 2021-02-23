@@ -75,8 +75,8 @@ enum pka_opcode {
 #define PKA_CLK_ENABLE()
 #define PKA_CLK_DISABLE()
 
-#define PKA_READ(offset)	readl_relaxed((crypto_base) + (offset))
-#define PKA_WRITE(val, offset)	writel_relaxed((val), (crypto_base) + (offset))
+#define PKA_READ(offset)	readl_relaxed((pka_base) + (offset))
+#define PKA_WRITE(val, offset)	writel_relaxed((val), (pka_base) + (offset))
 
 #define PKA_BIGNUM_WORDS(x)	(rk_bn_get_size(x) / sizeof(u32))
 
@@ -89,7 +89,7 @@ enum pka_opcode {
 		cpu_relax(); \
 } while (0)
 
-#define PKA_GET_SRAM_ADDR(addr)	((void *)(crypto_base + CRYPTO_SRAM_BASE + (addr)))
+#define PKA_GET_SRAM_ADDR(addr)	((void *)(pka_base + CRYPTO_SRAM_BASE + (addr)))
 
 /*************************************************************************
  * Macros for calling PKA operations (names according to operation issue *
@@ -148,7 +148,7 @@ enum pka_opcode {
 #define RK_PKA_TERMINATE()	pka_exec_op(PKA_OPCODE_TERMINATE, 0, 0, 0, 0, 0, 0, 0, 0)
 
 /********************* Private Variable Definition ***************************/
-static void __iomem *crypto_base;
+static void __iomem *pka_base;
 
 static void pka_word_memcpy(u32 *dst, u32 *src, u32 size)
 {
@@ -170,7 +170,7 @@ static int pka_wait_pipe_rdy(void)
 {
 	u32 reg_val = 0;
 
-	return readl_poll_timeout(crypto_base + CRYPTO_PKA_PIPE_RDY, reg_val,
+	return readl_poll_timeout(pka_base + CRYPTO_PKA_PIPE_RDY, reg_val,
 				  reg_val, PKA_POLL_PERIOD_US, PKA_POLL_TIMEOUT_US);
 }
 
@@ -178,7 +178,7 @@ static int pka_wait_done(void)
 {
 	u32 reg_val = 0;
 
-	return readl_poll_timeout(crypto_base + CRYPTO_PKA_DONE, reg_val,
+	return readl_poll_timeout(pka_base + CRYPTO_PKA_DONE, reg_val,
 				  reg_val, PKA_POLL_PERIOD_US, PKA_POLL_TIMEOUT_US);
 }
 
@@ -597,7 +597,7 @@ static u32 pka_calc_and_init_np(struct rk_bignum *bn, u8 r_t0, u8 r_t1, u8 r_t2)
 
 void rk_pka_set_crypto_base(void __iomem *base)
 {
-	crypto_base = base;
+	pka_base = base;
 }
 
 /**

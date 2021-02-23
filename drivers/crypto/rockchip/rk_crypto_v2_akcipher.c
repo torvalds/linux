@@ -266,7 +266,7 @@ static int rk_rsa_init_tfm(struct crypto_akcipher *tfm)
 
 	ctx->dev = info;
 
-	rk_pka_set_crypto_base(ctx->dev->reg);
+	rk_pka_set_crypto_base(ctx->dev->pka_reg);
 
 	return 0;
 }
