@@ -218,10 +218,12 @@
 	};
 
 	soc@0 {
-		compatible = "simple-bus";
+		compatible = "fsl,imx8mp-soc", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x0 0x3e000000>;
+		nvmem-cells = <&imx8mp_uid>;
+		nvmem-cell-names = "soc_unique_id";
 
 		aips1: bus@30000000 {
 			compatible = "fsl,aips-bus", "simple-bus";
@@ -328,8 +330,16 @@
 				#address-cells = <1>;
 				#size-cells = <1>;
 
+				imx8mp_uid: unique-id@420 {
+					reg = <0x8 0x8>;
+				};
+
 				cpu_speed_grade: speed-grade@10 {
 					reg = <0x10 4>;
+				};
+
+				eth_mac1: mac-address@90 {
+					reg = <0x90 6>;
 				};
 			};
 
@@ -762,13 +772,18 @@
 				assigned-clocks = <&clk IMX8MP_CLK_ENET_AXI>,
 						  <&clk IMX8MP_CLK_ENET_TIMER>,
 						  <&clk IMX8MP_CLK_ENET_REF>,
-						  <&clk IMX8MP_CLK_ENET_TIMER>;
+						  <&clk IMX8MP_CLK_ENET_PHY_REF>;
 				assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_266M>,
 							 <&clk IMX8MP_SYS_PLL2_100M>,
-							 <&clk IMX8MP_SYS_PLL2_125M>;
-				assigned-clock-rates = <0>, <0>, <125000000>, <100000000>;
+							 <&clk IMX8MP_SYS_PLL2_125M>,
+							 <&clk IMX8MP_SYS_PLL2_50M>;
+				assigned-clock-rates = <0>, <100000000>, <125000000>, <0>;
 				fsl,num-tx-queues = <3>;
 				fsl,num-rx-queues = <3>;
+				nvmem-cells = <&eth_mac1>;
+				nvmem-cell-names = "mac-address";
+				fsl,stop-mode = <&gpr 0x10 3>;
+				nvmem_macaddr_swap;
 				status = "disabled";
 			};
 		};

@@ -1111,7 +1111,7 @@ static int __init mvebu_mbus_common_init(struct mvebu_mbus_state *mbus,
 
 	mbus->sdramwins_base = ioremap(sdramwins_phys_base, sdramwins_size);
 	if (!mbus->sdramwins_base) {
-		iounmap(mbus_state.mbuswins_base);
+		iounmap(mbus->mbuswins_base);
 		return -ENOMEM;
 	}
 

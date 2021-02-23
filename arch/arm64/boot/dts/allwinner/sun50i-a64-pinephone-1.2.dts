@@ -7,7 +7,7 @@
 
 / {
 	model = "Pine64 PinePhone (1.2)";
-	compatible = "pine64,pinephone-1.2", "allwinner,sun50i-a64";
+	compatible = "pine64,pinephone-1.2", "pine64,pinephone", "allwinner,sun50i-a64";
 
 	wifi_pwrseq: wifi-pwrseq {
 		compatible = "mmc-pwrseq-simple";
