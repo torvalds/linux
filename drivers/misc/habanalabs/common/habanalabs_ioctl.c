@@ -446,6 +446,25 @@ static int pll_frequency_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 		min((size_t) max_size, sizeof(freq_info))) ? -EFAULT : 0;
 }
 
+static int power_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	u32 max_size = args->return_size;
+	struct hl_power_info power_info = {0};
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	int rc;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	rc = hl_fw_cpucp_power_get(hdev, &power_info.power);
+	if (rc)
+		return rc;
+
+	return copy_to_user(out, &power_info,
+		min((size_t) max_size, sizeof(power_info))) ? -EFAULT : 0;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
@@ -525,6 +544,9 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_PLL_FREQUENCY:
 		return pll_frequency_info(hpriv, args);
+
+	case HL_INFO_POWER:
+		return power_info(hpriv, args);
 
 	default:
 		dev_err(dev, "Invalid request %d\n", args->op);

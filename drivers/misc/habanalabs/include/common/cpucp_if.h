@@ -296,6 +296,9 @@ enum pq_init_status {
  *       The result is composed of 4 outputs, each is 16-bit
  *       frequency in MHz.
  *
+ * CPUCP_PACKET_POWER_GET
+ *       Fetch the present power consumption of the device (Current * Voltage).
+ *
  */
 
 enum cpucp_packet_id {
@@ -329,6 +332,8 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_PCIE_REPLAY_CNT_GET,	/* internal */
 	CPUCP_PACKET_TOTAL_ENERGY_GET,		/* internal */
 	CPUCP_PACKET_PLL_INFO_GET,		/* internal */
+	CPUCP_PACKET_NIC_STATUS,		/* internal */
+	CPUCP_PACKET_POWER_GET,			/* internal */
 };
 
 #define CPUCP_PACKET_FENCE_VAL	0xFE8CE7A5

@@ -297,6 +297,7 @@ enum hl_device_status {
 #define HL_INFO_SYNC_MANAGER		14
 #define HL_INFO_TOTAL_ENERGY		15
 #define HL_INFO_PLL_FREQUENCY		16
+#define HL_INFO_POWER			17
 
 #define HL_INFO_VERSION_MAX_LEN	128
 #define HL_INFO_CARD_NAME_MAX_LEN	16
@@ -408,6 +409,14 @@ struct hl_info_energy {
 
 struct hl_pll_frequency_info {
 	__u16 output[HL_PLL_NUM_OUTPUTS];
+};
+
+/**
+ * struct hl_power_info - power information
+ * @power: power consumption
+ */
+struct hl_power_info {
+	__u64 power;
 };
 
 /**

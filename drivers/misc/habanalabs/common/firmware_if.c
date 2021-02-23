@@ -565,6 +565,29 @@ int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, u16 pll_index,
 	return rc;
 }
 
+int hl_fw_cpucp_power_get(struct hl_device *hdev, u64 *power)
+{
+	struct cpucp_packet pkt;
+	u64 result;
+	int rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_POWER_GET <<
+				CPUCP_PKT_CTL_OPCODE_SHIFT);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+			HL_CPUCP_INFO_TIMEOUT_USEC, &result);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to read power, error %d\n", rc);
+		return rc;
+	}
+
+	*power = result;
+
+	return rc;
+}
+
 static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 {
 	/* Some of the status codes below are deprecated in newer f/w
