@@ -159,7 +159,10 @@ do
 	then
 		echo "# seconds=$dur" >> $i
 	fi
-	echo "# TORTURE_KCONFIG_GDB_ARG=''" >> $i
+	if test -n "$arg_remote"
+	then
+		echo "# TORTURE_KCONFIG_GDB_ARG=''" >> $i
+	fi
 done
 
 # Extract settings from the last qemu-cmd file transformed above.

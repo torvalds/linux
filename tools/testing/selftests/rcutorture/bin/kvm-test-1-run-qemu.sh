@@ -67,7 +67,11 @@ then
 	base_resdir=`echo $resdir | sed -e 's/\.[0-9]\+$//'`
 	if ! test -f $base_resdir/vmlinux
 	then
-		base_resdir=/path/to
+		base_resdir="`cat re-run`/$resdir"
+		if ! test -f $base_resdir/vmlinux
+		then
+			base_resdir=/path/to
+		fi
 	fi
 	echo Waiting for you to attach a debug session, for example: > /dev/tty
 	echo "    gdb $base_resdir/vmlinux" > /dev/tty
