@@ -2015,9 +2015,10 @@ static void do_nocb_bypass_wakeup_timer(struct timer_list *t)
 	struct rcu_data *rdp = from_timer(rdp, t, nocb_bypass_timer);
 
 	trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("Timer"));
-	rcu_nocb_lock_irqsave(rdp, flags);
+
+	raw_spin_lock_irqsave(&rdp->nocb_gp_lock, flags);
 	smp_mb__after_spinlock(); /* Timer expire before wakeup. */
-	__call_rcu_nocb_wake(rdp, true, flags);
+	__wake_nocb_gp(rdp, rdp, false, flags);
 }
 
 /*
