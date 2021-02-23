@@ -50,6 +50,8 @@
   bitmap_allocate_region
   __bitmap_clear
   bitmap_find_next_zero_area_off
+  bitmap_parselist
+  bitmap_parselist_user
   bitmap_print_to_pagebuf
   bitmap_release_region
   __bitmap_set
