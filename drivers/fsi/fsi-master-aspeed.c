@@ -101,11 +101,15 @@ static int __opb_write(struct fsi_master_aspeed *aspeed, u32 addr,
 	u32 reg, status;
 	int ret;
 
-	writel(CMD_WRITE, base + OPB0_RW);
-	writel(transfer_size, base + OPB0_XFER_SIZE);
-	writel(addr, base + OPB0_FSI_ADDR);
-	writel(val, base + OPB0_FSI_DATA_W);
-	writel(0x1, base + OPB_IRQ_CLEAR);
+	/*
+	 * The ordering of these writes up until the trigger
+	 * write does not matter, so use writel_relaxed.
+	 */
+	writel_relaxed(CMD_WRITE, base + OPB0_RW);
+	writel_relaxed(transfer_size, base + OPB0_XFER_SIZE);
+	writel_relaxed(addr, base + OPB0_FSI_ADDR);
+	writel_relaxed(val, base + OPB0_FSI_DATA_W);
+	writel_relaxed(0x1, base + OPB_IRQ_CLEAR);
 	writel(0x1, base + OPB_TRIGGER);
 
 	ret = readl_poll_timeout(base + OPB_IRQ_STATUS, reg,
@@ -149,10 +153,14 @@ static int __opb_read(struct fsi_master_aspeed *aspeed, uint32_t addr,
 	u32 result, reg;
 	int status, ret;
 
-	writel(CMD_READ, base + OPB0_RW);
-	writel(transfer_size, base + OPB0_XFER_SIZE);
-	writel(addr, base + OPB0_FSI_ADDR);
-	writel(0x1, base + OPB_IRQ_CLEAR);
+	/*
+	 * The ordering of these writes up until the trigger
+	 * write does not matter, so use writel_relaxed.
+	 */
+	writel_relaxed(CMD_READ, base + OPB0_RW);
+	writel_relaxed(transfer_size, base + OPB0_XFER_SIZE);
+	writel_relaxed(addr, base + OPB0_FSI_ADDR);
+	writel_relaxed(0x1, base + OPB_IRQ_CLEAR);
 	writel(0x1, base + OPB_TRIGGER);
 
 	ret = readl_poll_timeout(base + OPB_IRQ_STATUS, reg,
