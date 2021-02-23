@@ -1387,8 +1387,11 @@ int bch2_dev_allocator_start(struct bch_dev *ca)
 
 	p = kthread_create(bch2_allocator_thread, ca,
 			   "bch-alloc/%s", ca->name);
-	if (IS_ERR(p))
+	if (IS_ERR(p)) {
+		bch_err(ca->fs, "error creating allocator thread: %li",
+			PTR_ERR(p));
 		return PTR_ERR(p);
+	}
 
 	get_task_struct(p);
 	rcu_assign_pointer(ca->alloc_thread, p);

@@ -315,8 +315,10 @@ int bch2_rebalance_start(struct bch_fs *c)
 		return 0;
 
 	p = kthread_create(bch2_rebalance_thread, c, "bch-rebalance/%s", c->name);
-	if (IS_ERR(p))
+	if (IS_ERR(p)) {
+		bch_err(c, "error creating rebalance thread: %li", PTR_ERR(p));
 		return PTR_ERR(p);
+	}
 
 	get_task_struct(p);
 	rcu_assign_pointer(c->rebalance.thread, p);

@@ -691,8 +691,10 @@ int bch2_journal_reclaim_start(struct journal *j)
 
 	p = kthread_create(bch2_journal_reclaim_thread, j,
 			   "bch-reclaim/%s", c->name);
-	if (IS_ERR(p))
+	if (IS_ERR(p)) {
+		bch_err(c, "error creating journal reclaim thread: %li", PTR_ERR(p));
 		return PTR_ERR(p);
+	}
 
 	get_task_struct(p);
 	j->reclaim_thread = p;

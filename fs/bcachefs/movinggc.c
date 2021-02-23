@@ -348,8 +348,10 @@ int bch2_copygc_start(struct bch_fs *c)
 		return -ENOMEM;
 
 	t = kthread_create(bch2_copygc_thread, c, "bch-copygc/%s", c->name);
-	if (IS_ERR(t))
+	if (IS_ERR(t)) {
+		bch_err(c, "error creating copygc thread: %li", PTR_ERR(t));
 		return PTR_ERR(t);
+	}
 
 	get_task_struct(t);
 
