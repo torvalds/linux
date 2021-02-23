@@ -8800,9 +8800,10 @@ void __io_uring_files_cancel(struct files_struct *files)
 
 	if (files) {
 		io_uring_remove_task_files(tctx);
-	} else if (tctx->io_wq && current->flags & PF_EXITING) {
-		io_wq_destroy(tctx->io_wq);
-		tctx->io_wq = NULL;
+		if (tctx->io_wq) {
+			io_wq_destroy(tctx->io_wq);
+			tctx->io_wq = NULL;
+		}
 	}
 }
 
