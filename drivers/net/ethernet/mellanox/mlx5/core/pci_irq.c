@@ -16,6 +16,8 @@ struct mlx5_irq {
 	struct atomic_notifier_head nh;
 	cpumask_var_t mask;
 	char name[MLX5_MAX_IRQ_NAME];
+	struct kref kref;
+	int irqn;
 };
 
 struct mlx5_irq_table {
@@ -146,13 +148,35 @@ out:
 	return ret;
 }
 
+static void irq_release(struct kref *kref)
+{
+	struct mlx5_irq *irq = container_of(kref, struct mlx5_irq, kref);
+
+	free_irq(irq->irqn, &irq->nh);
+}
+
+static void irq_put(struct mlx5_irq *irq)
+{
+	kref_put(&irq->kref, irq_release);
+}
+
 int mlx5_irq_attach_nb(struct mlx5_irq_table *irq_table, int vecidx,
 		       struct notifier_block *nb)
 {
 	struct mlx5_irq *irq;
+	int err;
 
 	irq = &irq_table->irq[vecidx];
-	return atomic_notifier_chain_register(&irq->nh, nb);
+	err = kref_get_unless_zero(&irq->kref);
+	if (WARN_ON_ONCE(!err))
+		/* Something very bad happens here, we are enabling EQ
+		 * on non-existing IRQ.
+		 */
+		return -ENOENT;
+	err = atomic_notifier_chain_register(&irq->nh, nb);
+	if (err)
+		irq_put(irq);
+	return err;
 }
 
 int mlx5_irq_detach_nb(struct mlx5_irq_table *irq_table, int vecidx,
@@ -161,6 +185,7 @@ int mlx5_irq_detach_nb(struct mlx5_irq_table *irq_table, int vecidx,
 	struct mlx5_irq *irq;
 
 	irq = &irq_table->irq[vecidx];
+	irq_put(irq);
 	return atomic_notifier_chain_unregister(&irq->nh, nb);
 }
 
@@ -189,28 +214,26 @@ static int request_irqs(struct mlx5_core_dev *dev, int nvec)
 
 	for (i = 0; i < nvec; i++) {
 		struct mlx5_irq *irq = mlx5_irq_get(dev, i);
-		int irqn = pci_irq_vector(dev->pdev, i);
 
+		irq->irqn = pci_irq_vector(dev->pdev, i);
 		irq_set_name(name, i);
 		ATOMIC_INIT_NOTIFIER_HEAD(&irq->nh);
 		snprintf(irq->name, MLX5_MAX_IRQ_NAME,
 			 "%s@pci:%s", name, pci_name(dev->pdev));
-		err = request_irq(irqn, mlx5_irq_int_handler, 0, irq->name,
+		err = request_irq(irq->irqn, mlx5_irq_int_handler, 0, irq->name,
 				  &irq->nh);
 		if (err) {
 			mlx5_core_err(dev, "Failed to request irq\n");
 			goto err_request_irq;
 		}
+		kref_init(&irq->kref);
 	}
 	return 0;
 
 err_request_irq:
-	while (i--) {
-		struct mlx5_irq *irq = mlx5_irq_get(dev, i);
-		int irqn = pci_irq_vector(dev->pdev, i);
+	while (i--)
+		irq_put(mlx5_irq_get(dev, i));
 
-		free_irq(irqn, &irq->nh);
-	}
 	return  err;
 }
 
@@ -264,10 +287,8 @@ static int set_comp_irq_affinity_hint(struct mlx5_core_dev *mdev, int i)
 {
 	int vecidx = MLX5_IRQ_VEC_COMP_BASE + i;
 	struct mlx5_irq *irq;
-	int irqn;
 
 	irq = mlx5_irq_get(mdev, vecidx);
-	irqn = pci_irq_vector(mdev->pdev, vecidx);
 	if (!zalloc_cpumask_var(&irq->mask, GFP_KERNEL)) {
 		mlx5_core_warn(mdev, "zalloc_cpumask_var failed");
 		return -ENOMEM;
@@ -276,9 +297,9 @@ static int set_comp_irq_affinity_hint(struct mlx5_core_dev *mdev, int i)
 	cpumask_set_cpu(cpumask_local_spread(i, mdev->priv.numa_node),
 			irq->mask);
 	if (IS_ENABLED(CONFIG_SMP) &&
-	    irq_set_affinity_hint(irqn, irq->mask))
+	    irq_set_affinity_hint(irq->irqn, irq->mask))
 		mlx5_core_warn(mdev, "irq_set_affinity_hint failed, irq 0x%.4x",
-			       irqn);
+			       irq->irqn);
 
 	return 0;
 }
@@ -287,11 +308,9 @@ static void clear_comp_irq_affinity_hint(struct mlx5_core_dev *mdev, int i)
 {
 	int vecidx = MLX5_IRQ_VEC_COMP_BASE + i;
 	struct mlx5_irq *irq;
-	int irqn;
 
 	irq = mlx5_irq_get(mdev, vecidx);
-	irqn = pci_irq_vector(mdev->pdev, vecidx);
-	irq_set_affinity_hint(irqn, NULL);
+	irq_set_affinity_hint(irq->irqn, NULL);
 	free_cpumask_var(irq->mask);
 }
 
@@ -344,8 +363,7 @@ static void unrequest_irqs(struct mlx5_core_dev *dev)
 	int i;
 
 	for (i = 0; i < table->nvec; i++)
-		free_irq(pci_irq_vector(dev->pdev, i),
-			 &mlx5_irq_get(dev, i)->nh);
+		irq_put(mlx5_irq_get(dev, i));
 }
 
 int mlx5_irq_table_create(struct mlx5_core_dev *dev)
@@ -422,8 +440,7 @@ void mlx5_irq_table_destroy(struct mlx5_core_dev *dev)
 	irq_clear_rmap(dev);
 	clear_comp_irqs_affinity_hints(dev);
 	for (i = 0; i < table->nvec; i++)
-		free_irq(pci_irq_vector(dev->pdev, i),
-			 &mlx5_irq_get(dev, i)->nh);
+		irq_release(&mlx5_irq_get(dev, i)->kref);
 	pci_free_irq_vectors(dev->pdev);
 	kfree(table->irq);
 }
