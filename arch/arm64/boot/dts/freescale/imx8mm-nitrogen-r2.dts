@@ -17,6 +17,13 @@
 		regulator-max-microvolt = <1800000>;
 	};
 
+	reg_vref_3v3: regulator-vref-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vref-3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
 	reg_wlan_vmmc: regulator-wlan-vmmc {
 		compatible = "regulator-fixed";
 		pinctrl-names = "default";
@@ -209,6 +216,8 @@
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
+	vmmc-supply = <&reg_vref_3v3>;
+	vqmmc-supply = <&reg_vref_1v8>;
 	status = "okay";
 };
 
