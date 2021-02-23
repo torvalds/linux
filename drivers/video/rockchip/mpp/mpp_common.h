@@ -31,6 +31,7 @@
 #define MPP_FLAGS_LAST_MSG		(0x00000002)
 #define MPP_FLAGS_REG_FD_NO_TRANS	(0x00000004)
 #define MPP_FLAGS_SCL_FD_NO_TRANS	(0x00000008)
+#define MPP_FLAGS_REG_NO_OFFSET		(0x00000010)
 #define MPP_FLAGS_SECURE_MODE		(0x00010000)
 
 /**
@@ -326,6 +327,7 @@ struct mpp_session {
 	/* trans info set by user */
 	int trans_count;
 	u16 trans_table[MPP_MAX_REG_TRANS_NUM];
+	u32 msg_flags;
 	/* link to mpp_service session_list */
 	struct list_head session_link;
 	/* private data */

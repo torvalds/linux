@@ -49,7 +49,7 @@
 
 #define REVDEC_GET_PROD_NUM(x)		(((x) >> 16) & 0xffff)
 #define RKVDEC_REG_FORMAT_INDEX		9
-#define RKVDEC_GET_FORMAT(x)		((x) & 0x3FF)
+#define RKVDEC_GET_FORMAT(x)		((x) & 0x3ff)
 
 #define RKVDEC_REG_START_EN_BASE       0x28
 

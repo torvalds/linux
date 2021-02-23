@@ -558,7 +558,6 @@ static int fill_scaling_list_pps(struct rkvdec_task *task,
 	void *vaddr = NULL;
 	u8 *pps = NULL;
 	u32 scaling_fd = 0;
-	u32 scaling_offset;
 	int ret = 0;
 	u32 base = sub_addr_offset;
 
@@ -581,13 +580,9 @@ static int fill_scaling_list_pps(struct rkvdec_task *task,
 		goto done;
 	}
 	pps = vaddr + offset;
-
-	memcpy(&scaling_offset, pps + base, sizeof(scaling_offset));
-	scaling_offset = le32_to_cpu(scaling_offset);
-
-	scaling_fd = scaling_offset & 0x3ff;
-	scaling_offset = scaling_offset >> 10;
-
+	/* NOTE: scaling buffer in pps, have no offset */
+	memcpy(&scaling_fd, pps + base, sizeof(scaling_fd));
+	scaling_fd = le32_to_cpu(scaling_fd);
 	if (scaling_fd > 0) {
 		struct mpp_mem_region *mem_region = NULL;
 		u32 tmp = 0;
@@ -601,7 +596,6 @@ static int fill_scaling_list_pps(struct rkvdec_task *task,
 		}
 
 		tmp = mem_region->iova & 0xffffffff;
-		tmp += scaling_offset;
 		tmp = cpu_to_le32(tmp);
 		mpp_debug(DEBUG_PPS_FILL,
 			  "pps at %p, scaling fd: %3d => %pad + offset %10d\n",
@@ -625,10 +619,18 @@ static int rkvdec_process_scl_fd(struct mpp_session *session,
 				 struct mpp_task_msgs *msgs)
 {
 	int ret = 0;
+	int pps_fd;
+	u32 pps_offset;
 	int idx = RKVDEC_REG_PPS_BASE_INDEX;
-	int pps_fd = task->reg[idx] & 0x3ff;
-	int pps_offset = task->reg[idx] >> 10;
 	u32 fmt = RKVDEC_GET_FORMAT(task->reg[RKVDEC_REG_SYS_CTRL_INDEX]);
+
+	if (session->msg_flags & MPP_FLAGS_REG_NO_OFFSET) {
+		pps_fd = task->reg[idx];
+		pps_offset = 0;
+	} else {
+		pps_fd = task->reg[idx] & 0x3ff;
+		pps_offset = task->reg[idx] >> 10;
+	}
 
 	pps_offset += mpp_query_reg_offset_info(&task->off_inf, idx);
 	if (pps_fd > 0) {
@@ -710,16 +712,18 @@ static int rkvdec_process_reg_fd(struct mpp_session *session,
 	 */
 	if (fmt == RKVDEC_FMT_VP9D) {
 		int fd;
-		int idx;
 		u32 offset;
 		dma_addr_t iova = 0;
 		struct mpp_mem_region *mem_region = NULL;
+		int idx = RKVDEC_REG_VP9_REFCOLMV_BASE_INDEX;
 
-		idx = RKVDEC_REG_VP9_REFCOLMV_BASE_INDEX;
-		offset = task->reg[idx];
-		fd = task->reg[idx] & 0x3ff;
-
-		offset = offset >> 10 << 4;
+		if (session->msg_flags & MPP_FLAGS_REG_NO_OFFSET) {
+			fd = task->reg[idx];
+			offset = 0;
+		} else {
+			fd = task->reg[idx] & 0x3ff;
+			offset = task->reg[idx] >> 10 << 4;
+		}
 		offset += mpp_query_reg_offset_info(&task->off_inf, idx);
 		mem_region = mpp_task_attach_fd(&task->mpp_task, fd);
 		if (IS_ERR(mem_region))

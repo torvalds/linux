@@ -1146,6 +1146,7 @@ static long mpp_dev_ioctl(struct file *filp,
 			return -EFAULT;
 		/* last, process task message */
 		if (mpp_msg_is_last(req)) {
+			session->msg_flags = task_msgs.flags;
 			if (task_msgs.set_cnt > 0) {
 				ret = mpp_process_task(session, &task_msgs);
 				if (ret)
@@ -1332,9 +1333,17 @@ int mpp_translate_reg_address(struct mpp_session *session,
 	}
 
 	for (i = 0; i < cnt; i++) {
+		int usr_fd;
+		u32 offset;
 		struct mpp_mem_region *mem_region = NULL;
-		int usr_fd = reg[tbl[i]] & 0x3FF;
-		int offset = reg[tbl[i]] >> 10;
+
+		if (session->msg_flags & MPP_FLAGS_REG_NO_OFFSET) {
+			usr_fd = reg[tbl[i]];
+			offset = 0;
+		} else {
+			usr_fd = reg[tbl[i]] & 0x3ff;
+			offset = reg[tbl[i]] >> 10;
+		}
 
 		if (usr_fd == 0)
 			continue;

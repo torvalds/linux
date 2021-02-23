@@ -249,9 +249,17 @@ static int iep2_process_reg_fd(struct mpp_session *session,
 	u32 *paddr = &task->params.src[0].y;
 
 	for (i = 0; i < addr_num; ++i) {
+		int usr_fd;
+		u32 offset;
 		struct mpp_mem_region *mem_region = NULL;
-		int usr_fd = paddr[i] & 0x3FF;
-		int offset = paddr[i] >> 10;
+
+		if (session->msg_flags & MPP_FLAGS_REG_NO_OFFSET) {
+			usr_fd = paddr[i];
+			offset = 0;
+		} else {
+			usr_fd = paddr[i] & 0x3ff;
+			offset = paddr[i] >> 10;
+		}
 
 		if (usr_fd == 0 || iep2_addr_rnum[i] == -1)
 			continue;

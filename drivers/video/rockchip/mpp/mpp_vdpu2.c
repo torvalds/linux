@@ -209,13 +209,19 @@ static int vdpu_process_reg_fd(struct mpp_session *session,
 		return ret;
 
 	if (likely(fmt == VDPU2_FMT_H264D)) {
-		u32 idx = VDPU2_REG_DIR_MV_BASE_INDEX;
-		struct mpp_mem_region *mem_region = NULL;
+		int fd;
+		u32 offset;
 		dma_addr_t iova = 0;
-		u32 offset = task->reg[idx];
-		int fd = task->reg[idx] & 0x3ff;
+		struct mpp_mem_region *mem_region = NULL;
+		int idx = VDPU2_REG_DIR_MV_BASE_INDEX;
 
-		offset = offset >> 10 << 4;
+		if (session->msg_flags & MPP_FLAGS_REG_NO_OFFSET) {
+			fd = task->reg[idx];
+			offset = 0;
+		} else {
+			fd = task->reg[idx] & 0x3ff;
+			offset = task->reg[idx] >> 10 << 4;
+		}
 		offset += mpp_query_reg_offset_info(&task->off_inf, idx);
 		mem_region = mpp_task_attach_fd(&task->mpp_task, fd);
 		if (IS_ERR(mem_region))
