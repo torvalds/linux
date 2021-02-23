@@ -2274,6 +2274,7 @@ config MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS
 
 config TRIM_UNUSED_KSYMS
 	bool "Trim unused exported kernel symbols"
+	depends on BROKEN
 	help
 	  The kernel and some modules make many symbols available for
 	  other modules to use via EXPORT_SYMBOL() and variants. Depending
