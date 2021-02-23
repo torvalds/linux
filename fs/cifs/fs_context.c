@@ -140,6 +140,7 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_u32("rsize", Opt_rsize),
 	fsparam_u32("wsize", Opt_wsize),
 	fsparam_u32("actimeo", Opt_actimeo),
+	fsparam_u32("acdirmax", Opt_acdirmax),
 	fsparam_u32("echo_interval", Opt_echo_interval),
 	fsparam_u32("max_credits", Opt_max_credits),
 	fsparam_u32("handletimeout", Opt_handletimeout),
@@ -936,6 +937,13 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 			goto cifs_parse_mount_err;
 		}
 		break;
+	case Opt_acdirmax:
+		ctx->acdirmax = HZ * result.uint_32;
+		if (ctx->acdirmax > CIFS_MAX_ACTIMEO) {
+			cifs_dbg(VFS, "acdirmax too large\n");
+			goto cifs_parse_mount_err;
+		}
+		break;
 	case Opt_echo_interval:
 		ctx->echo_interval = result.uint_32;
 		break;
@@ -1362,6 +1370,7 @@ int smb3_init_fs_context(struct fs_context *fc)
 	ctx->strict_io = true;
 
 	ctx->actimeo = CIFS_DEF_ACTIMEO;
+	ctx->acdirmax = CIFS_DEF_ACTIMEO;
 
 	/* Most clients set timeout to 0, allows server to use its default */
 	ctx->handle_timeout = 0; /* See MS-SMB2 spec section 2.2.14.2.12 */

@@ -637,8 +637,9 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_printf(s, ",snapshot=%llu", tcon->snapshot_time);
 	if (tcon->handle_timeout)
 		seq_printf(s, ",handletimeout=%u", tcon->handle_timeout);
-	/* convert actimeo and display it in seconds */
+	/* convert actimeo and directory attribute timeout and display in seconds */
 	seq_printf(s, ",actimeo=%lu", cifs_sb->ctx->actimeo / HZ);
+	seq_printf(s, ",acdirmax=%lu", cifs_sb->ctx->acdirmax / HZ);
 
 	if (tcon->ses->chan_max > 1)
 		seq_printf(s, ",multichannel,max_channels=%zu",

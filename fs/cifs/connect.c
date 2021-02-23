@@ -2278,6 +2278,8 @@ compare_mount_options(struct super_block *sb, struct cifs_mnt_data *mnt_data)
 
 	if (old->ctx->actimeo != new->ctx->actimeo)
 		return 0;
+	if (old->ctx->acdirmax != new->ctx->acdirmax)
+		return 0;
 
 	return 1;
 }
