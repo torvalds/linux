@@ -8708,6 +8708,7 @@ static void io_req_cache_free(struct list_head *list, struct task_struct *tsk)
 static void io_req_caches_free(struct io_ring_ctx *ctx, struct task_struct *tsk)
 {
 	struct io_submit_state *submit_state = &ctx->submit_state;
+	struct io_comp_state *cs = &ctx->submit_state.comp;
 
 	mutex_lock(&ctx->uring_lock);
 
@@ -8717,11 +8718,12 @@ static void io_req_caches_free(struct io_ring_ctx *ctx, struct task_struct *tsk)
 		submit_state->free_reqs = 0;
 	}
 
-	io_req_cache_free(&submit_state->comp.free_list, NULL);
-
 	spin_lock_irq(&ctx->completion_lock);
-	io_req_cache_free(&submit_state->comp.locked_free_list, NULL);
+	list_splice_init(&cs->locked_free_list, &cs->free_list);
+	cs->locked_free_nr = 0;
 	spin_unlock_irq(&ctx->completion_lock);
+
+	io_req_cache_free(&cs->free_list, NULL);
 
 	mutex_unlock(&ctx->uring_lock);
 }
