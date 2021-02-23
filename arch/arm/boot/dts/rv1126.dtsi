@@ -1183,17 +1183,11 @@
 		status = "disabled";
 	};
 
-	rng: rng@ff500000 {
+	rng: rng@ff500400 {
 		compatible = "rockchip,cryptov2-rng";
-		reg = <0xff500000 0x4000>;
-		clocks = <&cru CLK_CRYPTO_CORE>, <&cru CLK_CRYPTO_PKA>,
-			<&cru ACLK_CRYPTO>, <&cru HCLK_CRYPTO>;
-		clock-names = "clk_crypto", "clk_crypto_apk",
-				"aclk_crypto", "hclk_crypto";
-		assigned-clocks = <&cru CLK_CRYPTO_CORE>, <&cru CLK_CRYPTO_PKA>,
-					<&cru ACLK_CRYPTO>, <&cru HCLK_CRYPTO>;
-		assigned-clock-rates = <150000000>, <150000000>,
-					<200000000>, <100000000>;
+		reg = <0xff500400 0x80>;
+		clocks = <&cru HCLK_CRYPTO>;
+		clock-names = "hclk_crypto";
 		power-domains = <&power RV1126_PD_CRYPTO>;
 		resets = <&cru SRST_CRYPTO_CORE>;
 		reset-names = "reset";
@@ -1202,7 +1196,7 @@
 
 	crypto: crypto@ff500000 {
 		compatible = "rockchip,rv1126-crypto";
-		reg = <0xff500000 0x4000>;
+		reg = <0xff500000 0x400>, <0xff500480 0x3B80>;
 		interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_CRYPTO_CORE>, <&cru CLK_CRYPTO_PKA>,
 			<&cru ACLK_CRYPTO>, <&cru HCLK_CRYPTO>;
