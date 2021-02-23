@@ -1301,6 +1301,7 @@ static struct platform_driver qcom_scm_driver = {
 	.driver = {
 		.name	= "qcom_scm",
 		.of_match_table = qcom_scm_dt_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = qcom_scm_probe,
 	.shutdown = qcom_scm_shutdown,
