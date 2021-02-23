@@ -44,6 +44,14 @@ fi
 
 awk -v image="$image" -v consolelog="$consolelog" -v jitter_dir="$jitter_dir" \
     -v seconds="$seconds" '
+/^# seconds=/ {
+	if (seconds == "")
+		print $0;
+	else
+		print "# seconds=" seconds;
+	next;
+}
+
 /^# TORTURE_JITTER_START=/ {
 	print "# TORTURE_JITTER_START=\". jitterstart.sh " $4 " " jitter_dir " " $6 " " $7;
 	next;
