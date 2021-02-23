@@ -722,7 +722,7 @@ enum dmub_status dmub_srv_cmd_with_reply_data(struct dmub_srv *dmub,
 static inline void dmub_rb_out_trace_buffer_front(struct dmub_rb *rb,
 				 void *entry)
 {
-	const uint64_t *src = (const uint64_t *)(rb->base_address) + rb->rptr / sizeof(uint64_t);
+	const uint64_t *src = (const uint64_t *)(rb->base_address) + rb->wrpt / sizeof(uint64_t);
 	uint64_t *dst = (uint64_t *)entry;
 	uint8_t i;
 
