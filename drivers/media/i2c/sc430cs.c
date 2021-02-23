@@ -244,7 +244,7 @@ static const struct regval sc430cs_linear_10_2560x1440_regs[] = {
 	{0x360f, 0x01},
 	{0x3620, 0x08},
 	{0x3637, 0x25},
-	{0x363a, 0x1f},
+	{0x363a, 0x12},
 	{0x3670, 0x0a},
 	{0x3671, 0x07},
 	{0x3672, 0x57},
@@ -508,17 +508,6 @@ static int sc430cs_set_gain_reg(struct sc430cs *sc430cs, u32 gain)
 				 SC430CS_REG_ANA_FINE_GAIN,
 				 SC430CS_REG_VALUE_08BIT,
 				 ANA_Fine_gain_reg);
-
-	if (gain * 1000 < 2048 * 1469)                     //2xdcg   dcg = 1.469
-		ret |= sc430cs_write_reg(sc430cs->client,
-					 0x363a,
-					 SC430CS_REG_VALUE_08BIT,
-					 0x0b);
-	else
-		ret |= sc430cs_write_reg(sc430cs->client,
-					 0x363a,
-					 SC430CS_REG_VALUE_08BIT,
-					 0x17);
 
 	return ret;
 }
