@@ -105,29 +105,7 @@ validate_ip_utility()
 	[ ! $(type -P ip) ] && { echo "'ip' not found. Skipping tests."; test_exit $ksft_skip 1; }
 }
 
-vethXDPgeneric()
-{
-	ip link set dev $1 xdpdrv off
-	ip netns exec $3 ip link set dev $2 xdpdrv off
-}
-
-vethXDPnative()
-{
-	ip link set dev $1 xdpgeneric off
-	ip netns exec $3 ip link set dev $2 xdpgeneric off
-}
-
 execxdpxceiver()
 {
-	local -a 'paramkeys=("${!'"$1"'[@]}")' copy
-	paramkeysstr=${paramkeys[*]}
-
-	for index in $paramkeysstr;
-		do
-			current=$1"[$index]"
-			copy[$index]=${!current}
-		done
-
-	./${XSKOBJ} -i ${VETH0} -i ${VETH1},${NS1} ${copy[*]} -C ${NUMPKTS} ${VERBOSE_ARG} \
-		${DUMP_PKTS_ARG}
+	./${XSKOBJ} -i ${VETH0} -i ${VETH1},${NS1} -C ${NUMPKTS} ${VERBOSE_ARG} ${DUMP_PKTS_ARG}
 }

@@ -18,12 +18,7 @@
  * These selftests test AF_XDP SKB and Native/DRV modes using veth
  * Virtual Ethernet interfaces.
  *
- * The following tests are run:
- *
- * 1. AF_XDP SKB mode
- *    Generic mode XDP is driver independent, used when the driver does
- *    not have support for XDP. Works on any netdevice using sockets and
- *    generic XDP path. XDP hook from netif_receive_skb().
+ * For each mode, the following tests are run:
  *    a. nopoll - soft-irq processing
  *    b. poll - using poll() syscall
  *    c. Socket Teardown
@@ -33,17 +28,6 @@
  *       Configure sockets as bi-directional tx/rx sockets, sets up fill and
  *       completion rings on each socket, tx/rx in both directions. Only nopoll
  *       mode is used
- *
- * 2. AF_XDP DRV/Native mode
- *    Works on any netdevice with XDP_REDIRECT support, driver dependent. Processes
- *    packets before SKB allocation. Provides better performance than SKB. Driver
- *    hook available just after DMA of buffer descriptor.
- *    a. nopoll
- *    b. poll
- *    c. Socket Teardown
- *    d. Bi-directional sockets
- *    - Only copy mode is supported because veth does not currently support
- *      zero-copy mode
  *
  * Total tests: 8
  *
@@ -98,17 +82,23 @@ typedef __u16 __sum16;
 
 static void __exit_with_error(int error, const char *file, const char *func, int line)
 {
-	ksft_test_result_fail
-	    ("[%s:%s:%i]: ERROR: %d/\"%s\"\n", file, func, line, error, strerror(error));
-	ksft_exit_xfail();
+	if (configured_mode == TEST_MODE_UNCONFIGURED) {
+		ksft_exit_fail_msg
+		("[%s:%s:%i]: ERROR: %d/\"%s\"\n", file, func, line, error, strerror(error));
+	} else {
+		ksft_test_result_fail
+		("[%s:%s:%i]: ERROR: %d/\"%s\"\n", file, func, line, error, strerror(error));
+		ksft_exit_xfail();
+	}
 }
 
 #define exit_with_error(error) __exit_with_error(error, __FILE__, __func__, __LINE__)
 
 #define print_ksft_result(void)\
-	(ksft_test_result_pass("PASS: %s %s %s%s\n", uut ? "DRV" : "SKB", opt_poll ? "POLL" :\
-			       "NOPOLL", opt_teardown ? "Socket Teardown" : "",\
-			       opt_bidi ? "Bi-directional Sockets" : ""))
+	(ksft_test_result_pass("PASS: %s %s %s%s\n", configured_mode ? "DRV" : "SKB",\
+			       test_type == TEST_TYPE_POLL ? "POLL" : "NOPOLL",\
+			       test_type == TEST_TYPE_TEARDOWN ? "Socket Teardown" : "",\
+			       test_type == TEST_TYPE_BIDI ? "Bi-directional Sockets" : ""))
 
 static void pthread_init_mutex(void)
 {
@@ -311,10 +301,10 @@ static int xsk_configure_socket(struct ifobject *ifobject)
 	cfg.rx_size = XSK_RING_CONS__DEFAULT_NUM_DESCS;
 	cfg.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS;
 	cfg.libbpf_flags = 0;
-	cfg.xdp_flags = opt_xdp_flags;
-	cfg.bind_flags = opt_xdp_bind_flags;
+	cfg.xdp_flags = xdp_flags;
+	cfg.bind_flags = xdp_bind_flags;
 
-	if (!opt_bidi) {
+	if (test_type != TEST_TYPE_BIDI) {
 		rxr = (ifobject->fv.vector == rx) ? &ifobject->xsk->rx : NULL;
 		txr = (ifobject->fv.vector == tx) ? &ifobject->xsk->tx : NULL;
 	} else {
@@ -334,12 +324,6 @@ static int xsk_configure_socket(struct ifobject *ifobject)
 static struct option long_options[] = {
 	{"interface", required_argument, 0, 'i'},
 	{"queue", optional_argument, 0, 'q'},
-	{"poll", no_argument, 0, 'p'},
-	{"xdp-skb", no_argument, 0, 'S'},
-	{"xdp-native", no_argument, 0, 'N'},
-	{"copy", no_argument, 0, 'c'},
-	{"tear-down", no_argument, 0, 'T'},
-	{"bidi", optional_argument, 0, 'B'},
 	{"dump-pkts", optional_argument, 0, 'D'},
 	{"verbose", no_argument, 0, 'v'},
 	{"tx-pkt-count", optional_argument, 0, 'C'},
@@ -353,12 +337,6 @@ static void usage(const char *prog)
 	    "  Options:\n"
 	    "  -i, --interface      Use interface\n"
 	    "  -q, --queue=n        Use queue n (default 0)\n"
-	    "  -p, --poll           Use poll syscall\n"
-	    "  -S, --xdp-skb=n      Use XDP SKB mode\n"
-	    "  -N, --xdp-native=n   Enforce XDP DRV (native) mode\n"
-	    "  -c, --copy           Force copy mode\n"
-	    "  -T, --tear-down      Tear down sockets by repeatedly recreating them\n"
-	    "  -B, --bidi           Bi-directional sockets test\n"
 	    "  -D, --dump-pkts      Dump packets L2 - L5\n"
 	    "  -v, --verbose        Verbose output\n"
 	    "  -C, --tx-pkt-count=n Number of packets to send\n";
@@ -448,7 +426,7 @@ static void parse_command_line(int argc, char **argv)
 	opterr = 0;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "i:q:pSNcTBDC:v", long_options, &option_index);
+		c = getopt_long(argc, argv, "i:q:DC:v", long_options, &option_index);
 
 		if (c == -1)
 			break;
@@ -471,28 +449,6 @@ static void parse_command_line(int argc, char **argv)
 		case 'q':
 			opt_queue = atoi(optarg);
 			break;
-		case 'p':
-			opt_poll = 1;
-			break;
-		case 'S':
-			opt_xdp_flags |= XDP_FLAGS_SKB_MODE;
-			opt_xdp_bind_flags |= XDP_COPY;
-			uut = ORDER_CONTENT_VALIDATE_XDP_SKB;
-			break;
-		case 'N':
-			opt_xdp_flags |= XDP_FLAGS_DRV_MODE;
-			opt_xdp_bind_flags |= XDP_COPY;
-			uut = ORDER_CONTENT_VALIDATE_XDP_DRV;
-			break;
-		case 'c':
-			opt_xdp_bind_flags |= XDP_COPY;
-			break;
-		case 'T':
-			opt_teardown = 1;
-			break;
-		case 'B':
-			opt_bidi = 1;
-			break;
 		case 'D':
 			debug_pkt_dump = 1;
 			break;
@@ -506,6 +462,11 @@ static void parse_command_line(int argc, char **argv)
 			usage(basename(argv[0]));
 			ksft_exit_xfail();
 		}
+	}
+
+	if (!opt_pkt_count) {
+		print_verbose("No tx-pkt-count specified, using default %u\n", DEFAULT_PKT_CNT);
+		opt_pkt_count = DEFAULT_PKT_CNT;
 	}
 
 	if (!validate_interfaces()) {
@@ -659,7 +620,7 @@ static void tx_only_all(struct ifobject *ifobject)
 	while ((opt_pkt_count && pkt_cnt < opt_pkt_count) || !opt_pkt_count) {
 		int batch_size = get_batch_size(pkt_cnt);
 
-		if (opt_poll) {
+		if (test_type == TEST_TYPE_POLL) {
 			ret = poll(fds, 1, POLL_TMOUT);
 			if (ret <= 0)
 				continue;
@@ -883,7 +844,7 @@ static void *worker_testapp_validate(void *arg)
 		pthread_mutex_unlock(&sync_mutex);
 
 		while (1) {
-			if (opt_poll) {
+			if (test_type == TEST_TYPE_POLL) {
 				ret = poll(fds, 1, POLL_TMOUT);
 				if (ret <= 0)
 					continue;
@@ -898,11 +859,11 @@ static void *worker_testapp_validate(void *arg)
 		print_verbose("Received %d packets on interface %s\n",
 			       pkt_counter, ifobject->ifname);
 
-		if (opt_teardown)
+		if (test_type == TEST_TYPE_TEARDOWN)
 			print_verbose("Destroying socket\n");
 	}
 
-	if (!opt_bidi || bidi_pass) {
+	if ((test_type != TEST_TYPE_BIDI) || bidi_pass) {
 		xsk_socket__delete(ifobject->xsk->xsk);
 		(void)xsk_umem__delete(ifobject->umem->umem);
 	}
@@ -912,11 +873,12 @@ static void *worker_testapp_validate(void *arg)
 static void testapp_validate(void)
 {
 	struct timespec max_wait = { 0, 0 };
+	bool bidi = test_type == TEST_TYPE_BIDI;
 
 	pthread_attr_init(&attr);
 	pthread_attr_setstacksize(&attr, THREAD_STACK);
 
-	if (opt_bidi && bidi_pass) {
+	if ((test_type == TEST_TYPE_BIDI) && bidi_pass) {
 		pthread_init_mutex();
 		if (!switching_notify) {
 			print_verbose("Switching Tx/Rx vectors\n");
@@ -927,10 +889,10 @@ static void testapp_validate(void)
 	pthread_mutex_lock(&sync_mutex);
 
 	/*Spawn RX thread */
-	if (!opt_bidi || !bidi_pass) {
+	if (!bidi || !bidi_pass) {
 		if (pthread_create(&t0, &attr, worker_testapp_validate, ifdict[1]))
 			exit_with_error(errno);
-	} else if (opt_bidi && bidi_pass) {
+	} else if (bidi && bidi_pass) {
 		/*switch Tx/Rx vectors */
 		ifdict[0]->fv.vector = rx;
 		if (pthread_create(&t0, &attr, worker_testapp_validate, ifdict[0]))
@@ -947,10 +909,10 @@ static void testapp_validate(void)
 	pthread_mutex_unlock(&sync_mutex);
 
 	/*Spawn TX thread */
-	if (!opt_bidi || !bidi_pass) {
+	if (!bidi || !bidi_pass) {
 		if (pthread_create(&t1, &attr, worker_testapp_validate, ifdict[0]))
 			exit_with_error(errno);
-	} else if (opt_bidi && bidi_pass) {
+	} else if (bidi && bidi_pass) {
 		/*switch Tx/Rx vectors */
 		ifdict[1]->fv.vector = tx;
 		if (pthread_create(&t1, &attr, worker_testapp_validate, ifdict[1]))
@@ -969,19 +931,20 @@ static void testapp_validate(void)
 		free(pkt_buf);
 	}
 
-	if (!opt_teardown && !opt_bidi)
+	if (!(test_type == TEST_TYPE_TEARDOWN) && !bidi)
 		print_ksft_result();
 }
 
 static void testapp_sockets(void)
 {
-	for (int i = 0; i < (opt_teardown ? MAX_TEARDOWN_ITER : MAX_BIDI_ITER); i++) {
+	for (int i = 0; i < ((test_type == TEST_TYPE_TEARDOWN) ? MAX_TEARDOWN_ITER : MAX_BIDI_ITER);
+	     i++) {
 		pkt_counter = 0;
 		prev_pkt = -1;
 		sigvar = 0;
 		print_verbose("Creating socket\n");
 		testapp_validate();
-		opt_bidi ? bidi_pass++ : bidi_pass;
+		test_type == TEST_TYPE_BIDI ? bidi_pass++ : bidi_pass;
 	}
 
 	print_ksft_result();
@@ -1008,6 +971,98 @@ static void init_iface_config(struct ifaceconfigobj *ifaceconfig)
 	ifdict[1]->src_port = ifaceconfig->dst_port;
 }
 
+static void *nsdisablemodethread(void *args)
+{
+	struct targs *targs = args;
+
+	targs->retptr = false;
+
+	if (switch_namespace(targs->idx)) {
+		targs->retptr = bpf_set_link_xdp_fd(ifdict[targs->idx]->ifindex, -1, targs->flags);
+	} else {
+		targs->retptr = errno;
+		print_verbose("Failed to switch namespace to %s\n", ifdict[targs->idx]->nsname);
+	}
+
+	pthread_exit(NULL);
+}
+
+static void disable_xdp_mode(int mode)
+{
+	int err = 0;
+	__u32 flags = XDP_FLAGS_UPDATE_IF_NOEXIST | mode;
+	char *mode_str = mode & XDP_FLAGS_SKB_MODE ? "skb" : "drv";
+
+	for (int i = 0; i < MAX_INTERFACES; i++) {
+		if (strcmp(ifdict[i]->nsname, "")) {
+			struct targs *targs;
+
+			targs = malloc(sizeof(*targs));
+			memset(targs, 0, sizeof(*targs));
+			if (!targs)
+				exit_with_error(errno);
+
+			targs->idx = i;
+			targs->flags = flags;
+			if (pthread_create(&ns_thread, NULL, nsdisablemodethread, targs))
+				exit_with_error(errno);
+
+			pthread_join(ns_thread, NULL);
+			err = targs->retptr;
+			free(targs);
+		} else {
+			err = bpf_set_link_xdp_fd(ifdict[i]->ifindex, -1, flags);
+		}
+
+		if (err) {
+			print_verbose("Failed to disable %s mode on interface %s\n",
+						mode_str, ifdict[i]->ifname);
+			exit_with_error(err);
+		}
+
+		print_verbose("Disabled %s mode for interface: %s\n", mode_str, ifdict[i]->ifname);
+		configured_mode = mode & XDP_FLAGS_SKB_MODE ? TEST_MODE_DRV : TEST_MODE_SKB;
+	}
+}
+
+static void run_pkt_test(int mode, int type)
+{
+	test_type = type;
+
+	/* reset defaults after potential previous test */
+	xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
+	pkt_counter = 0;
+	switching_notify = 0;
+	bidi_pass = 0;
+	prev_pkt = -1;
+	ifdict[0]->fv.vector = tx;
+	ifdict[1]->fv.vector = rx;
+
+	switch (mode) {
+	case (TEST_MODE_SKB):
+		if (configured_mode == TEST_MODE_DRV)
+			disable_xdp_mode(XDP_FLAGS_DRV_MODE);
+		xdp_flags |= XDP_FLAGS_SKB_MODE;
+		break;
+	case (TEST_MODE_DRV):
+		if (configured_mode == TEST_MODE_SKB)
+			disable_xdp_mode(XDP_FLAGS_SKB_MODE);
+		xdp_flags |= XDP_FLAGS_DRV_MODE;
+		break;
+	default:
+		break;
+	}
+
+	pthread_init_mutex();
+
+	if ((test_type != TEST_TYPE_TEARDOWN) && (test_type != TEST_TYPE_BIDI))
+		testapp_validate();
+	else
+		testapp_sockets();
+
+	pthread_destroy_mutex();
+}
+
 int main(int argc, char **argv)
 {
 	struct rlimit _rlim = { RLIM_INFINITY, RLIM_INFINITY };
@@ -1021,6 +1076,7 @@ int main(int argc, char **argv)
 	const char *IP2 = "192.168.100.161";
 	u16 UDP_DST_PORT = 2020;
 	u16 UDP_SRC_PORT = 2121;
+	int i, j;
 
 	ifaceconfig = malloc(sizeof(struct ifaceconfigobj));
 	memcpy(ifaceconfig->dst_mac, MAC1, ETH_ALEN);
@@ -1046,23 +1102,17 @@ int main(int argc, char **argv)
 
 	init_iface_config(ifaceconfig);
 
-	pthread_init_mutex();
+	disable_xdp_mode(XDP_FLAGS_DRV_MODE);
 
-	ksft_set_plan(1);
+	ksft_set_plan(TEST_MODE_MAX * TEST_TYPE_MAX);
 
-	if (!opt_teardown && !opt_bidi) {
-		testapp_validate();
-	} else if (opt_teardown && opt_bidi) {
-		ksft_test_result_fail("ERROR: parameters -T and -B cannot be used together\n");
-		ksft_exit_xfail();
-	} else {
-		testapp_sockets();
+	for (i = 0; i < TEST_MODE_MAX; i++) {
+		for (j = 0; j < TEST_TYPE_MAX; j++)
+			run_pkt_test(i, j);
 	}
 
 	for (int i = 0; i < MAX_INTERFACES; i++)
 		free(ifdict[i]);
-
-	pthread_destroy_mutex();
 
 	ksft_exit_pass();
 
