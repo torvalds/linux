@@ -1,0 +1,3 @@
+per-file crypto/*=file:/crypto/OWNERS
+per-file mm/*=file:/mm/OWNERS
+per-file net/*=file:/net/OWNERS

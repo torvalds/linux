@@ -1,0 +1,12 @@
+# The full list of approvers is defined in
+# https://android.googlesource.com/kernel/common/+/refs/meta/config/OWNERS
+
+# The following OWNERS are defined at the top level to improve the OWNERS
+# suggestions through any user interface. Consider those people the ones that
+# can help with finding the best person to review.
+adelva@google.com
+gregkh@google.com
+maennich@google.com
+saravanak@google.com
+surenb@google.com
+tkjos@google.com
