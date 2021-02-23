@@ -243,6 +243,7 @@ extern unsigned long get_each_object_track(struct kmem_cache *s,
 static inline void print_tracking(struct kmem_cache *s, void *object)
 {
 }
+#ifdef CONFIG_SLUB
 static inline unsigned long get_each_object_track(struct kmem_cache *s,
 		struct page *page, enum track_item alloc,
 		int (*fn)(const struct kmem_cache *, const void *,
@@ -250,6 +251,7 @@ static inline unsigned long get_each_object_track(struct kmem_cache *s,
 {
 	return 0;
 }
+#endif
 #endif
 
 /*
