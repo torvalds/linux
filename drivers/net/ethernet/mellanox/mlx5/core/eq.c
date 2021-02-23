@@ -471,14 +471,7 @@ static int create_async_eq(struct mlx5_core_dev *dev,
 	int err;
 
 	mutex_lock(&eq_table->lock);
-	/* Async EQs must share irq index 0 */
-	if (param->irq_index != 0) {
-		err = -EINVAL;
-		goto unlock;
-	}
-
 	err = create_map_eq(dev, eq, param);
-unlock:
 	mutex_unlock(&eq_table->lock);
 	return err;
 }
@@ -996,8 +989,11 @@ int mlx5_eq_table_create(struct mlx5_core_dev *dev)
 
 	eq_table->num_comp_eqs =
 		min_t(int,
-		      mlx5_irq_get_num_comp(eq_table->irq_table),
+		      mlx5_irq_table_get_num_comp(eq_table->irq_table),
 		      num_eqs - MLX5_MAX_ASYNC_EQS);
+	if (mlx5_core_is_sf(dev))
+		eq_table->num_comp_eqs = min_t(int, eq_table->num_comp_eqs,
+					       MLX5_COMP_EQS_PER_SF);
 
 	err = create_async_eqs(dev);
 	if (err) {
