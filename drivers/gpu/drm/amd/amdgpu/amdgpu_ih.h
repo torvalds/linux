@@ -66,6 +66,9 @@ struct amdgpu_ih_ring {
 	unsigned		rptr;
 	atomic_t		lock;
 	struct amdgpu_ih_regs	ih_regs;
+
+	/* For waiting on IH processing at checkpoint. */
+	wait_queue_head_t wait_process;
 };
 
 /* provided by the ih block */
@@ -87,6 +90,8 @@ int amdgpu_ih_ring_init(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih,
 void amdgpu_ih_ring_fini(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih);
 void amdgpu_ih_ring_write(struct amdgpu_ih_ring *ih, const uint32_t *iv,
 			  unsigned int num_dw);
+int amdgpu_ih_wait_on_checkpoint_process(struct amdgpu_device *adev,
+					struct amdgpu_ih_ring *ih);
 int amdgpu_ih_process(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih);
 void amdgpu_ih_decode_iv_helper(struct amdgpu_device *adev,
 				struct amdgpu_ih_ring *ih,
