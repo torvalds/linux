@@ -2211,15 +2211,20 @@ static int emulate_svm_instr(struct kvm_vcpu *vcpu, int opcode)
 		[SVM_INSTR_VMSAVE] = vmsave_interception,
 	};
 	struct vcpu_svm *svm = to_svm(vcpu);
+	int ret;
 
 	if (is_guest_mode(vcpu)) {
 		svm->vmcb->control.exit_code = guest_mode_exit_codes[opcode];
 		svm->vmcb->control.exit_info_1 = 0;
 		svm->vmcb->control.exit_info_2 = 0;
 
-		return nested_svm_vmexit(svm);
-	} else
-		return svm_instr_handlers[opcode](svm);
+		/* Returns '1' or -errno on failure, '0' on success. */
+		ret = nested_svm_vmexit(svm);
+		if (ret)
+			return ret;
+		return 1;
+	}
+	return svm_instr_handlers[opcode](svm);
 }
 
 /*
