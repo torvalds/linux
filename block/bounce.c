@@ -242,12 +242,11 @@ static struct bio *bounce_clone_bio(struct bio *bio_src)
 	 *    __bio_clone_fast() anyways.
 	 */
 	if (bio_is_passthrough(bio_src))
-		bio = bio_kmalloc(GFP_NOIO, bio_segments(bio_src));
+		bio = bio_kmalloc(GFP_NOIO | __GFP_NOFAIL,
+				  bio_segments(bio_src));
 	else
 		bio = bio_alloc_bioset(GFP_NOIO, bio_segments(bio_src),
 				       &bounce_bio_set);
-	if (!bio)
-		return NULL;
 	bio->bi_bdev		= bio_src->bi_bdev;
 	if (bio_flagged(bio_src, BIO_REMAPPED))
 		bio_set_flag(bio, BIO_REMAPPED);
