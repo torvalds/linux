@@ -310,11 +310,10 @@ static int nd_blk_probe(struct device *dev)
 		return nsblk_attach_disk(nsblk);
 }
 
-static int nd_blk_remove(struct device *dev)
+static void nd_blk_remove(struct device *dev)
 {
 	if (is_nd_btt(dev))
 		nvdimm_namespace_detach_btt(to_nd_btt(dev));
-	return 0;
 }
 
 static struct nd_device_driver nd_blk_driver = {

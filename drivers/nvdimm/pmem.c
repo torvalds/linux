@@ -563,7 +563,7 @@ static int nd_pmem_probe(struct device *dev)
 	return pmem_attach_disk(dev, ndns);
 }
 
-static int nd_pmem_remove(struct device *dev)
+static void nd_pmem_remove(struct device *dev)
 {
 	struct pmem_device *pmem = dev_get_drvdata(dev);
 
@@ -578,8 +578,6 @@ static int nd_pmem_remove(struct device *dev)
 		pmem->bb_state = NULL;
 	}
 	nvdimm_flush(to_nd_region(dev->parent), NULL);
-
-	return 0;
 }
 
 static void nd_pmem_shutdown(struct device *dev)
