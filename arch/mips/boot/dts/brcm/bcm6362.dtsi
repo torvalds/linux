@@ -1,4 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
+
+#include "dt-bindings/clock/bcm6362-clock.h"
+#include "dt-bindings/reset/bcm6362-reset.h"
+#include "dt-bindings/soc/bcm6362-pm.h"
+
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
