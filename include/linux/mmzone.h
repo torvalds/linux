@@ -210,6 +210,19 @@ enum node_stat_item {
 };
 
 /*
+ * Returns true if the item should be printed in THPs (/proc/vmstat
+ * currently prints number of anon, file and shmem THPs. But the item
+ * is charged in pages).
+ */
+static __always_inline bool vmstat_item_print_in_thp(enum node_stat_item item)
+{
+	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
+		return false;
+
+	return item == NR_ANON_THPS;
+}
+
+/*
  * Returns true if the value is measured in bytes (most vmstat values are
  * measured in pages). This defines the API part, the internal representation
  * might be different.
