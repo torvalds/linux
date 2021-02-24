@@ -214,8 +214,7 @@ static void bounce_end_io_read_isa(struct bio *bio)
 	__bounce_end_io_read(bio, &isa_page_pool);
 }
 
-static struct bio *bounce_clone_bio(struct bio *bio_src, gfp_t gfp_mask,
-		struct bio_set *bs)
+static struct bio *bounce_clone_bio(struct bio *bio_src, gfp_t gfp_mask)
 {
 	struct bvec_iter iter;
 	struct bio_vec bv;
@@ -242,8 +241,11 @@ static struct bio *bounce_clone_bio(struct bio *bio_src, gfp_t gfp_mask,
 	 *    asking for trouble and would force extra work on
 	 *    __bio_clone_fast() anyways.
 	 */
-
-	bio = bio_alloc_bioset(gfp_mask, bio_segments(bio_src), bs);
+	if (bio_is_passthrough(bio_src))
+		bio = bio_kmalloc(gfp_mask, bio_segments(bio_src));
+	else
+		bio = bio_alloc_bioset(gfp_mask, bio_segments(bio_src),
+				       &bounce_bio_set);
 	if (!bio)
 		return NULL;
 	bio->bi_bdev		= bio_src->bi_bdev;
@@ -296,7 +298,6 @@ static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
 	unsigned i = 0;
 	bool bounce = false;
 	int sectors = 0;
-	bool passthrough = bio_is_passthrough(*bio_orig);
 
 	bio_for_each_segment(from, *bio_orig, iter) {
 		if (i++ < BIO_MAX_PAGES)
@@ -307,14 +308,14 @@ static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
 	if (!bounce)
 		return;
 
-	if (!passthrough && sectors < bio_sectors(*bio_orig)) {
+	if (!bio_is_passthrough(*bio_orig) &&
+	    sectors < bio_sectors(*bio_orig)) {
 		bio = bio_split(*bio_orig, sectors, GFP_NOIO, &bounce_bio_split);
 		bio_chain(bio, *bio_orig);
 		submit_bio_noacct(*bio_orig);
 		*bio_orig = bio;
 	}
-	bio = bounce_clone_bio(*bio_orig, GFP_NOIO, passthrough ? NULL :
-			&bounce_bio_set);
+	bio = bounce_clone_bio(*bio_orig, GFP_NOIO);
 
 	/*
 	 * Bvec table can't be updated by bio_for_each_segment_all(),
