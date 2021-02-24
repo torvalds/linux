@@ -180,15 +180,17 @@ int mlx5_rl_add_rate_raw(struct mlx5_core_dev *dev, void *rl_in, u16 uid,
 	int err = 0;
 	u32 rate;
 
-	rate = MLX5_GET(set_pp_rate_limit_context, rl_in, rate_limit);
-	mutex_lock(&table->rl_lock);
+	if (!table->max_size)
+		return -EOPNOTSUPP;
 
+	rate = MLX5_GET(set_pp_rate_limit_context, rl_in, rate_limit);
 	if (!rate || !mlx5_rl_is_in_range(dev, rate)) {
 		mlx5_core_err(dev, "Invalid rate: %u, should be %u to %u\n",
 			      rate, table->min_rate, table->max_rate);
-		err = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
+
+	mutex_lock(&table->rl_lock);
 
 	entry = find_rl_entry(table, rl_in, uid, dedicated_entry);
 	if (!entry) {
