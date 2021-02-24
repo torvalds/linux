@@ -761,8 +761,6 @@ static int hugetlbfs_setattr(struct user_namespace *mnt_userns,
 	unsigned int ia_valid = attr->ia_valid;
 	struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
 
-	BUG_ON(!inode);
-
 	error = setattr_prepare(&init_user_ns, dentry, attr);
 	if (error)
 		return error;
