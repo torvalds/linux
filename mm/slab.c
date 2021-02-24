@@ -3717,7 +3717,7 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 	__cache_free(cachep, objp, _RET_IP_);
 	local_irq_restore(flags);
 
-	trace_kmem_cache_free(_RET_IP_, objp);
+	trace_kmem_cache_free(_RET_IP_, objp, cachep->name);
 }
 EXPORT_SYMBOL(kmem_cache_free);
 
