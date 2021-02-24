@@ -78,6 +78,8 @@ struct can_tdc_const {
 #ifdef CONFIG_CAN_CALC_BITTIMING
 int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 		       const struct can_bittiming_const *btc);
+
+void can_calc_tdco(struct net_device *dev);
 #else /* !CONFIG_CAN_CALC_BITTIMING */
 static inline int
 can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
@@ -85,6 +87,10 @@ can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 {
 	netdev_err(dev, "bit-timing calculation not available\n");
 	return -EINVAL;
+}
+
+static inline void can_calc_tdco(struct net_device *dev)
+{
 }
 #endif /* CONFIG_CAN_CALC_BITTIMING */
 
