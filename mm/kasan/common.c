@@ -60,7 +60,7 @@ void kasan_disable_current(void)
 
 void __kasan_unpoison_range(const void *address, size_t size)
 {
-	unpoison_range(address, size);
+	kasan_unpoison(address, size);
 }
 
 #if CONFIG_KASAN_STACK
@@ -69,7 +69,7 @@ void kasan_unpoison_task_stack(struct task_struct *task)
 {
 	void *base = task_stack_page(task);
 
-	unpoison_range(base, THREAD_SIZE);
+	kasan_unpoison(base, THREAD_SIZE);
 }
 
 /* Unpoison the stack for the current task beyond a watermark sp value. */
@@ -82,7 +82,7 @@ asmlinkage void kasan_unpoison_task_stack_below(const void *watermark)
 	 */
 	void *base = (void *)((unsigned long)watermark & ~(THREAD_SIZE - 1));
 
-	unpoison_range(base, watermark - base);
+	kasan_unpoison(base, watermark - base);
 }
 #endif /* CONFIG_KASAN_STACK */
 
@@ -105,18 +105,17 @@ void __kasan_alloc_pages(struct page *page, unsigned int order)
 	if (unlikely(PageHighMem(page)))
 		return;
 
-	tag = random_tag();
+	tag = kasan_random_tag();
 	for (i = 0; i < (1 << order); i++)
 		page_kasan_tag_set(page + i, tag);
-	unpoison_range(page_address(page), PAGE_SIZE << order);
+	kasan_unpoison(page_address(page), PAGE_SIZE << order);
 }
 
 void __kasan_free_pages(struct page *page, unsigned int order)
 {
 	if (likely(!PageHighMem(page)))
-		poison_range(page_address(page),
-				PAGE_SIZE << order,
-				KASAN_FREE_PAGE);
+		kasan_poison(page_address(page), PAGE_SIZE << order,
+			     KASAN_FREE_PAGE);
 }
 
 /*
@@ -246,18 +245,18 @@ void __kasan_poison_slab(struct page *page)
 
 	for (i = 0; i < compound_nr(page); i++)
 		page_kasan_tag_reset(page + i);
-	poison_range(page_address(page), page_size(page),
+	kasan_poison(page_address(page), page_size(page),
 		     KASAN_KMALLOC_REDZONE);
 }
 
 void __kasan_unpoison_object_data(struct kmem_cache *cache, void *object)
 {
-	unpoison_range(object, cache->object_size);
+	kasan_unpoison(object, cache->object_size);
 }
 
 void __kasan_poison_object_data(struct kmem_cache *cache, void *object)
 {
-	poison_range(object, cache->object_size, KASAN_KMALLOC_REDZONE);
+	kasan_poison(object, cache->object_size, KASAN_KMALLOC_REDZONE);
 }
 
 /*
@@ -294,7 +293,7 @@ static u8 assign_tag(struct kmem_cache *cache, const void *object,
 	 * set, assign a tag when the object is being allocated (init == false).
 	 */
 	if (!cache->ctor && !(cache->flags & SLAB_TYPESAFE_BY_RCU))
-		return init ? KASAN_TAG_KERNEL : random_tag();
+		return init ? KASAN_TAG_KERNEL : kasan_random_tag();
 
 	/* For caches that either have a constructor or SLAB_TYPESAFE_BY_RCU: */
 #ifdef CONFIG_SLAB
@@ -305,7 +304,7 @@ static u8 assign_tag(struct kmem_cache *cache, const void *object,
 	 * For SLUB assign a random tag during slab creation, otherwise reuse
 	 * the already assigned tag.
 	 */
-	return init ? random_tag() : get_tag(object);
+	return init ? kasan_random_tag() : get_tag(object);
 #endif
 }
 
@@ -346,12 +345,12 @@ static bool ____kasan_slab_free(struct kmem_cache *cache, void *object,
 	if (unlikely(cache->flags & SLAB_TYPESAFE_BY_RCU))
 		return false;
 
-	if (check_invalid_free(tagged_object)) {
+	if (kasan_check_invalid_free(tagged_object)) {
 		kasan_report_invalid_free(tagged_object, ip);
 		return true;
 	}
 
-	poison_range(object, cache->object_size, KASAN_KMALLOC_FREE);
+	kasan_poison(object, cache->object_size, KASAN_KMALLOC_FREE);
 
 	if (!kasan_stack_collection_enabled())
 		return false;
@@ -361,7 +360,7 @@ static bool ____kasan_slab_free(struct kmem_cache *cache, void *object,
 
 	kasan_set_free_info(cache, object, tag);
 
-	return quarantine_put(cache, object);
+	return kasan_quarantine_put(cache, object);
 }
 
 bool __kasan_slab_free(struct kmem_cache *cache, void *object, unsigned long ip)
@@ -386,7 +385,7 @@ void __kasan_slab_free_mempool(void *ptr, unsigned long ip)
 			kasan_report_invalid_free(ptr, ip);
 			return;
 		}
-		poison_range(ptr, page_size(page), KASAN_FREE_PAGE);
+		kasan_poison(ptr, page_size(page), KASAN_FREE_PAGE);
 	} else {
 		____kasan_slab_free(page->slab_cache, ptr, ip, false);
 	}
@@ -409,7 +408,7 @@ static void *____kasan_kmalloc(struct kmem_cache *cache, const void *object,
 	u8 tag;
 
 	if (gfpflags_allow_blocking(flags))
-		quarantine_reduce();
+		kasan_quarantine_reduce();
 
 	if (unlikely(object == NULL))
 		return NULL;
@@ -421,9 +420,9 @@ static void *____kasan_kmalloc(struct kmem_cache *cache, const void *object,
 	tag = assign_tag(cache, object, false, keep_tag);
 
 	/* Tag is ignored in set_tag without CONFIG_KASAN_SW/HW_TAGS */
-	unpoison_range(set_tag(object, tag), size);
-	poison_range((void *)redzone_start, redzone_end - redzone_start,
-		     KASAN_KMALLOC_REDZONE);
+	kasan_unpoison(set_tag(object, tag), size);
+	kasan_poison((void *)redzone_start, redzone_end - redzone_start,
+			   KASAN_KMALLOC_REDZONE);
 
 	if (kasan_stack_collection_enabled())
 		set_alloc_info(cache, (void *)object, flags);
@@ -452,7 +451,7 @@ void * __must_check __kasan_kmalloc_large(const void *ptr, size_t size,
 	unsigned long redzone_end;
 
 	if (gfpflags_allow_blocking(flags))
-		quarantine_reduce();
+		kasan_quarantine_reduce();
 
 	if (unlikely(ptr == NULL))
 		return NULL;
@@ -462,8 +461,8 @@ void * __must_check __kasan_kmalloc_large(const void *ptr, size_t size,
 				KASAN_GRANULE_SIZE);
 	redzone_end = (unsigned long)ptr + page_size(page);
 
-	unpoison_range(ptr, size);
-	poison_range((void *)redzone_start, redzone_end - redzone_start,
+	kasan_unpoison(ptr, size);
+	kasan_poison((void *)redzone_start, redzone_end - redzone_start,
 		     KASAN_PAGE_REDZONE);
 
 	return (void *)ptr;

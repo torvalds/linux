@@ -666,7 +666,7 @@ static void add_ignores(struct objtool_file *file)
 static const char *uaccess_safe_builtin[] = {
 	/* KASAN */
 	"kasan_report",
-	"check_memory_region",
+	"kasan_check_range",
 	/* KASAN out-of-line */
 	"__asan_loadN_noabort",
 	"__asan_load1_noabort",

@@ -61,7 +61,7 @@ __setup("kasan_multi_shot", kasan_set_multi_shot);
 static void print_error_description(struct kasan_access_info *info)
 {
 	pr_err("BUG: KASAN: %s in %pS\n",
-		get_bug_type(info), (void *)info->ip);
+		kasan_get_bug_type(info), (void *)info->ip);
 	if (info->access_size)
 		pr_err("%s of size %zu at addr %px by task %s/%d\n",
 			info->is_write ? "Write" : "Read", info->access_size,
@@ -247,7 +247,7 @@ static void print_address_description(void *addr, u8 tag)
 		dump_page(page, "kasan: bad access detected");
 	}
 
-	print_address_stack_frame(addr);
+	kasan_print_address_stack_frame(addr);
 }
 
 static bool meta_row_is_guilty(const void *row, const void *addr)
@@ -293,7 +293,7 @@ static void print_memory_metadata(const void *addr)
 		 * function, because generic functions may try to
 		 * access kasan mapping for the passed address.
 		 */
-		metadata_fetch_row(&metadata[0], row);
+		kasan_metadata_fetch_row(&metadata[0], row);
 
 		print_hex_dump(KERN_ERR, buffer,
 			DUMP_PREFIX_NONE, META_BYTES_PER_ROW, 1,
@@ -350,7 +350,7 @@ void kasan_report_invalid_free(void *object, unsigned long ip)
 
 	start_report(&flags);
 	pr_err("BUG: KASAN: double-free or invalid-free in %pS\n", (void *)ip);
-	print_tags(tag, object);
+	kasan_print_tags(tag, object);
 	pr_err("\n");
 	print_address_description(object, tag);
 	pr_err("\n");
@@ -378,7 +378,8 @@ static void __kasan_report(unsigned long addr, size_t size, bool is_write,
 
 	info.access_addr = tagged_addr;
 	if (addr_has_metadata(untagged_addr))
-		info.first_bad_addr = find_first_bad_addr(tagged_addr, size);
+		info.first_bad_addr =
+			kasan_find_first_bad_addr(tagged_addr, size);
 	else
 		info.first_bad_addr = untagged_addr;
 	info.access_size = size;
@@ -389,7 +390,7 @@ static void __kasan_report(unsigned long addr, size_t size, bool is_write,
 
 	print_error_description(&info);
 	if (addr_has_metadata(untagged_addr))
-		print_tags(get_tag(tagged_addr), info.first_bad_addr);
+		kasan_print_tags(get_tag(tagged_addr), info.first_bad_addr);
 	pr_err("\n");
 
 	if (addr_has_metadata(untagged_addr)) {
