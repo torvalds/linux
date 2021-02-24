@@ -844,7 +844,7 @@ retry:
 	b = btree_cache_find(bc, k);
 	if (unlikely(!b)) {
 		if (nofill)
-			return NULL;
+			goto out;
 
 		b = bch2_btree_node_fill(c, NULL, k, btree_id,
 					 level, SIX_LOCK_read, true);
@@ -853,8 +853,12 @@ retry:
 		if (!b)
 			goto retry;
 
+		if (IS_ERR(b) &&
+		    !bch2_btree_cache_cannibalize_lock(c, NULL))
+			goto retry;
+
 		if (IS_ERR(b))
-			return b;
+			goto out;
 	} else {
 lock_node:
 		ret = six_lock_read(&b->c.lock, lock_node_check_fn, (void *) k);
@@ -889,7 +893,8 @@ lock_node:
 
 	if (unlikely(btree_node_read_error(b))) {
 		six_unlock_read(&b->c.lock);
-		return ERR_PTR(-EIO);
+		b = ERR_PTR(-EIO);
+		goto out;
 	}
 
 	EBUG_ON(b->c.btree_id != btree_id);
@@ -898,7 +903,8 @@ lock_node:
 	EBUG_ON(b->key.k.type == KEY_TYPE_btree_ptr_v2 &&
 		bkey_cmp(b->data->min_key,
 			 bkey_i_to_btree_ptr_v2(&b->key)->v.min_key));
-
+out:
+	bch2_btree_cache_cannibalize_unlock(c);
 	return b;
 }
 
