@@ -1409,8 +1409,17 @@ int mlx5e_open_icosq(struct mlx5e_channel *c, struct mlx5e_params *params,
 	if (err)
 		goto err_free_icosq;
 
+	if (param->is_tls) {
+		sq->ktls_resync = mlx5e_ktls_rx_resync_create_resp_list();
+		if (IS_ERR(sq->ktls_resync)) {
+			err = PTR_ERR(sq->ktls_resync);
+			goto err_destroy_icosq;
+		}
+	}
 	return 0;
 
+err_destroy_icosq:
+	mlx5e_destroy_sq(c->mdev, sq->sqn);
 err_free_icosq:
 	mlx5e_free_icosq(sq);
 
@@ -1432,6 +1441,8 @@ void mlx5e_close_icosq(struct mlx5e_icosq *sq)
 {
 	struct mlx5e_channel *c = sq->channel;
 
+	if (sq->ktls_resync)
+		mlx5e_ktls_rx_resync_destroy_resp_list(sq->ktls_resync);
 	mlx5e_destroy_sq(c->mdev, sq->sqn);
 	mlx5e_free_icosq_descs(sq);
 	mlx5e_free_icosq(sq);
