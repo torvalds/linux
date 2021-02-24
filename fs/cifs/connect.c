@@ -3379,15 +3379,15 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 
 	rc = mount_get_conns(ctx, cifs_sb, &xid, &server, &ses, &tcon);
 	/*
-	 * Unconditionally try to get an DFS referral (even cached) to determine whether it is an
-	 * DFS mount.
+	 * If called with 'nodfs' mount option, then skip DFS resolving.  Otherwise unconditionally
+	 * try to get an DFS referral (even cached) to determine whether it is an DFS mount.
 	 *
 	 * Skip prefix path to provide support for DFS referrals from w2k8 servers which don't seem
 	 * to respond with PATH_NOT_COVERED to requests that include the prefix.
 	 */
-	if (dfs_cache_find(xid, ses, cifs_sb->local_nls, cifs_remap(cifs_sb), ctx->UNC + 1, NULL,
+	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_DFS) ||
+	    dfs_cache_find(xid, ses, cifs_sb->local_nls, cifs_remap(cifs_sb), ctx->UNC + 1, NULL,
 			   NULL)) {
-		/* No DFS referral was returned.  Looks like a regular share. */
 		if (rc)
 			goto error;
 		/* Check if it is fully accessible and then mount it */
