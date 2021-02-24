@@ -161,7 +161,7 @@ config HMEM_REPORTING
 	default n
 	depends on NUMA
 	help
-	  Enable reporting for heterogenous memory access attributes under
+	  Enable reporting for heterogeneous memory access attributes under
 	  their non-uniform memory nodes.
 
 source "drivers/base/test/Kconfig"
