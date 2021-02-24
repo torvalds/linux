@@ -1900,8 +1900,8 @@ uint64_t reduceSizeAndFraction(
 		}
 		while (num % prime_numbers[i] == 0 &&
 			   denom % prime_numbers[i] == 0) {
-			num /= prime_numbers[i];
-			denom /= prime_numbers[i];
+			num = div_u64(num, prime_numbers[i]);
+			denom = div_u64(denom, prime_numbers[i]);
 		}
 	}
 	*numerator = num;
@@ -1987,8 +1987,8 @@ int dcn10_align_pixel_clocks(
 
 				phase[i] = (uint64_t)embedded_pix_clk_100hz*
 					hw_crtc_timing[i].h_total*
-					hw_crtc_timing[i].v_total/
-					get_clock_divider(grouped_pipes[i], true);
+					hw_crtc_timing[i].v_total;
+				phase[i] = div_u64(phase[i], get_clock_divider(grouped_pipes[i], true));
 				modulo[i] = (uint64_t)dp_ref_clk_100hz*
 					embedded_h_total*
 					embedded_v_total;

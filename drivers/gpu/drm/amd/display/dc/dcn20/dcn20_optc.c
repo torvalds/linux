@@ -323,8 +323,8 @@ void optc2_align_vblanks(
 	uint32_t master_v_active = 0;
 	uint32_t master_h_total = 0;
 	uint32_t slave_h_total = 0;
-	uint64_t L, XY, p = 10000;
-	uint32_t X, Y;
+	uint64_t L, XY;
+	uint32_t X, Y, p = 10000;
 	uint32_t master_update_lock;
 
 	/* disable slave OTG */
@@ -355,11 +355,12 @@ void optc2_align_vblanks(
 	REG_GET(OTG_H_TOTAL, OTG_H_TOTAL, &master_h_total);
 
 	/* calculate when to enable slave OTG */
-	L = p * slave_h_total * master_pixel_clock_100Hz /
-		master_h_total / slave_pixel_clock_100Hz;
-	XY = L / p;
+	L = (uint64_t)p * slave_h_total * master_pixel_clock_100Hz;
+	L = div_u64(L, master_h_total);
+	L = div_u64(L, slave_pixel_clock_100Hz);
+	XY = div_u64(L, p);
 	Y = master_v_active - XY - 1;
-	X = ((XY + 1) * p - L) * master_h_total / master_clock_divider / p;
+	X = div_u64(((XY + 1) * p - L) * master_h_total, p * master_clock_divider);
 
 	/*
 	 * set master OTG to unlock when V/H

@@ -424,7 +424,7 @@ bool resource_are_vblanks_synchronizable(
 	uint32_t base60_refresh_rates[] = {10, 20, 5};
 	uint8_t i;
 	uint8_t rr_count = sizeof(base60_refresh_rates)/sizeof(base60_refresh_rates[0]);
-	int64_t frame_time_diff;
+	uint64_t frame_time_diff;
 
 	if (stream1->ctx->dc->config.vblank_alignment_dto_params &&
 		stream1->ctx->dc->config.vblank_alignment_max_frame_time_diff > 0 &&
@@ -441,15 +441,15 @@ bool resource_are_vblanks_synchronizable(
 		if (stream2->timing.pix_clk_100hz*100/stream2->timing.h_total/
 				stream2->timing.v_total > 60)
 			return false;
-		frame_time_diff = (int64_t)10000 *
+		frame_time_diff = (uint64_t)10000 *
 			stream1->timing.h_total *
 			stream1->timing.v_total *
-			stream2->timing.pix_clk_100hz /
-			stream1->timing.pix_clk_100hz /
-			stream2->timing.h_total /
-			stream2->timing.v_total;
+			stream2->timing.pix_clk_100hz;
+		frame_time_diff = div_u64(frame_time_diff, stream1->timing.pix_clk_100hz);
+		frame_time_diff = div_u64(frame_time_diff, stream2->timing.h_total);
+		frame_time_diff = div_u64(frame_time_diff, stream2->timing.v_total);
 		for (i = 0; i < rr_count; i++) {
-			int64_t diff = (frame_time_diff * base60_refresh_rates[i]) / 10 - 10000;
+			int64_t diff = (int64_t)div_u64(frame_time_diff * base60_refresh_rates[i], 10) - 10000;
 
 			if (diff < 0)
 				diff = -diff;
