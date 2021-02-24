@@ -134,17 +134,24 @@ static void __init bmips_smp_setup(void)
 	if (!board_ebase_setup)
 		board_ebase_setup = &bmips_ebase_setup;
 
-	__cpu_number_map[boot_cpu] = 0;
-	__cpu_logical_map[0] = boot_cpu;
+	if (max_cpus > 1) {
+		__cpu_number_map[boot_cpu] = 0;
+		__cpu_logical_map[0] = boot_cpu;
 
-	for (i = 0; i < max_cpus; i++) {
-		if (i != boot_cpu) {
-			__cpu_number_map[i] = cpu;
-			__cpu_logical_map[cpu] = i;
-			cpu++;
+		for (i = 0; i < max_cpus; i++) {
+			if (i != boot_cpu) {
+				__cpu_number_map[i] = cpu;
+				__cpu_logical_map[cpu] = i;
+				cpu++;
+			}
+			set_cpu_possible(i, 1);
+			set_cpu_present(i, 1);
 		}
-		set_cpu_possible(i, 1);
-		set_cpu_present(i, 1);
+	} else {
+		__cpu_number_map[0] = boot_cpu;
+		__cpu_logical_map[0] = 0;
+		set_cpu_possible(0, 1);
+		set_cpu_present(0, 1);
 	}
 }
 
