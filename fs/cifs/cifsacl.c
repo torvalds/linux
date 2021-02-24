@@ -1275,8 +1275,8 @@ static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
 	if (dacloffset) {
 		dacl_ptr = (struct cifs_acl *)((char *)pntsd + dacloffset);
 		if (end_of_acl < (char *)dacl_ptr + le16_to_cpu(dacl_ptr->size)) {
-			cifs_dbg(VFS, "Existing ACL size is wrong. Discarding old ACL\n");
-			dacl_ptr = NULL;
+			cifs_dbg(VFS, "Server returned illegal ACL size\n");
+			return -EINVAL;
 		}
 	}
 
