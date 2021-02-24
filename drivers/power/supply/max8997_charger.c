@@ -263,7 +263,7 @@ static int max8997_battery_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(&pdev->dev, "failed to register extcon notifier\n");
 			return ret;
-		};
+		}
 	}
 
 	return 0;
