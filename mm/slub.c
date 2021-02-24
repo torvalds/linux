@@ -1785,7 +1785,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 
 	page->objects = oo_objects(oo);
 
-	account_slab_page(page, oo_order(oo), s);
+	account_slab_page(page, oo_order(oo), s, flags);
 
 	page->slab_cache = s;
 	__SetPageSlab(page);
