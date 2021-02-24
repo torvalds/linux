@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
+
+#include "dt-bindings/clock/bcm3368-clock.h"
+
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
