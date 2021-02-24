@@ -3420,8 +3420,7 @@ static unsigned int allowed_mems_nr(struct hstate *h)
 	mpol_allowed = policy_nodemask_current(gfp_mask);
 
 	for_each_node_mask(node, cpuset_current_mems_allowed) {
-		if (!mpol_allowed ||
-		    (mpol_allowed && node_isset(node, *mpol_allowed)))
+		if (!mpol_allowed || node_isset(node, *mpol_allowed))
 			nr += array[node];
 	}
 
