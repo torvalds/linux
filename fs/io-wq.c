@@ -56,6 +56,8 @@ struct io_worker {
 	const struct cred *cur_creds;
 	const struct cred *saved_creds;
 
+	struct completion ref_done;
+
 	struct rcu_head rcu;
 };
 
@@ -129,7 +131,7 @@ static bool io_worker_get(struct io_worker *worker)
 static void io_worker_release(struct io_worker *worker)
 {
 	if (refcount_dec_and_test(&worker->ref))
-		wake_up_process(worker->task);
+		complete(&worker->ref_done);
 }
 
 static inline struct io_wqe_acct *io_work_get_acct(struct io_wqe *wqe,
@@ -157,14 +159,9 @@ static void io_worker_exit(struct io_worker *worker)
 	struct io_wqe_acct *acct = io_wqe_get_acct(worker);
 	unsigned flags;
 
-	/*
-	 * If we're not at zero, someone else is holding a brief reference
-	 * to the worker. Wait for that to go away.
-	 */
-	set_current_state(TASK_INTERRUPTIBLE);
-	if (!refcount_dec_and_test(&worker->ref))
-		schedule();
-	__set_current_state(TASK_RUNNING);
+	if (refcount_dec_and_test(&worker->ref))
+		complete(&worker->ref_done);
+	wait_for_completion(&worker->ref_done);
 
 	preempt_disable();
 	current->flags &= ~PF_IO_WORKER;
@@ -615,6 +612,7 @@ static bool create_io_worker(struct io_wq *wq, struct io_wqe *wqe, int index)
 	worker->nulls_node.pprev = NULL;
 	worker->wqe = wqe;
 	spin_lock_init(&worker->lock);
+	init_completion(&worker->ref_done);
 
 	refcount_inc(&wq->refs);
 
@@ -724,6 +722,7 @@ static int io_wq_manager(void *data)
 	io_wq_check_workers(wq);
 
 	if (refcount_dec_and_test(&wq->refs)) {
+		wq->manager = NULL;
 		complete(&wq->done);
 		do_exit(0);
 	}
@@ -734,6 +733,7 @@ static int io_wq_manager(void *data)
 			io_wq_for_each_worker(wq->wqes[node], io_wq_worker_wake, NULL);
 		rcu_read_unlock();
 	}
+	wq->manager = NULL;
 	do_exit(0);
 }
 
