@@ -1078,6 +1078,7 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 		crt->base.post_disable = hsw_post_disable_crt;
 		crt->base.enable_clock = hsw_ddi_enable_clock;
 		crt->base.disable_clock = hsw_ddi_disable_clock;
+		crt->base.is_clock_enabled = hsw_ddi_is_clock_enabled;
 	} else {
 		if (HAS_PCH_SPLIT(dev_priv)) {
 			crt->base.compute_config = pch_crt_compute_config;

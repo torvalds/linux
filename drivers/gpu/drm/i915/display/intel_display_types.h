@@ -226,6 +226,10 @@ struct intel_encoder {
 	void (*enable_clock)(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *crtc_state);
 	void (*disable_clock)(struct intel_encoder *encoder);
+	/*
+	 * Returns whether the port clock is enabled or not.
+	 */
+	bool (*is_clock_enabled)(struct intel_encoder *encoder);
 	enum hpd_pin hpd_pin;
 	enum intel_display_power_domain power_domain;
 	/* for communication with audio component; protected by av_mutex */

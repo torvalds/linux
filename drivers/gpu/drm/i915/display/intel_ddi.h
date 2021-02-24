@@ -36,6 +36,7 @@ void intel_ddi_get_clock(struct intel_encoder *encoder,
 void hsw_ddi_enable_clock(struct intel_encoder *encoder,
 			  const struct intel_crtc_state *crtc_state);
 void hsw_ddi_disable_clock(struct intel_encoder *encoder);
+bool hsw_ddi_is_clock_enabled(struct intel_encoder *encoder);
 void hsw_ddi_get_config(struct intel_encoder *encoder,
 			struct intel_crtc_state *crtc_state);
 struct intel_shared_dpll *icl_ddi_combo_get_pll(struct intel_encoder *encoder);
