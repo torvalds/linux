@@ -801,7 +801,7 @@ struct io_kiocb {
 
 	struct io_ring_ctx		*ctx;
 	unsigned int			flags;
-	refcount_t			refs;
+	atomic_t			refs;
 	struct task_struct		*task;
 	u64				user_data;
 
@@ -1470,29 +1470,39 @@ static bool io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force,
 	return ret;
 }
 
+/*
+ * Shamelessly stolen from the mm implementation of page reference checking,
+ * see commit f958d7b528b1 for details.
+ */
+#define req_ref_zero_or_close_to_overflow(req)	\
+	((unsigned int) atomic_read(&(req->refs)) + 127u <= 127u)
+
 static inline bool req_ref_inc_not_zero(struct io_kiocb *req)
 {
-	return refcount_inc_not_zero(&req->refs);
+	return atomic_inc_not_zero(&req->refs);
 }
 
 static inline bool req_ref_sub_and_test(struct io_kiocb *req, int refs)
 {
-	return refcount_sub_and_test(refs, &req->refs);
+	WARN_ON_ONCE(req_ref_zero_or_close_to_overflow(req));
+	return atomic_sub_and_test(refs, &req->refs);
 }
 
 static inline bool req_ref_put_and_test(struct io_kiocb *req)
 {
-	return refcount_dec_and_test(&req->refs);
+	WARN_ON_ONCE(req_ref_zero_or_close_to_overflow(req));
+	return atomic_dec_and_test(&req->refs);
 }
 
 static inline void req_ref_put(struct io_kiocb *req)
 {
-	refcount_dec(&req->refs);
+	WARN_ON_ONCE(req_ref_put_and_test(req));
 }
 
 static inline void req_ref_get(struct io_kiocb *req)
 {
-	refcount_inc(&req->refs);
+	WARN_ON_ONCE(req_ref_zero_or_close_to_overflow(req));
+	atomic_inc(&req->refs);
 }
 
 static void __io_cqring_fill_event(struct io_kiocb *req, long res,
@@ -6383,7 +6393,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	req->link = NULL;
 	req->fixed_rsrc_refs = NULL;
 	/* one is dropped after submission, the other at completion */
-	refcount_set(&req->refs, 2);
+	atomic_set(&req->refs, 2);
 	req->task = current;
 	req->result = 0;
 	req->work.list.next = NULL;
