@@ -985,6 +985,7 @@ SYM_FUNC_START_LOCAL(__primary_switch)
 
 	tlbi	vmalle1				// Remove any stale TLB entries
 	dsb	nsh
+	isb
 
 	msr	sctlr_el1, x19			// re-enable the MMU
 	isb
