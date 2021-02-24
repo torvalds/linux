@@ -1125,11 +1125,14 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 		return;
 	}
 
-	if (extcon_get_state(rphy->edev, cable) != rport->vbus_attached)
+	if (extcon_get_state(rphy->edev, cable) != rport->vbus_attached) {
 		extcon_set_state_sync(rphy->edev,
 					cable, rport->vbus_attached);
-	else if (rport->state == OTG_STATE_A_HOST &&
-		 extcon_get_state(rphy->edev, cable))
+
+		if (!rport->vbus_attached)
+			cable = EXTCON_NONE;
+	} else if (rport->state == OTG_STATE_A_HOST &&
+		 extcon_get_state(rphy->edev, cable)) {
 		/*
 		 * If plug in OTG host cable when the rport state is
 		 * OTG_STATE_B_PERIPHERAL, the vbus voltage will stay
@@ -1137,6 +1140,8 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 		 * changed. We need to set cable state here.
 		 */
 		extcon_set_state_sync(rphy->edev, cable, false);
+		cable = EXTCON_NONE;
+	}
 
 	if (rphy->edev_self &&
 	    (extcon_get_state(rphy->edev, EXTCON_USB) !=
