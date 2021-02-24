@@ -2468,23 +2468,23 @@
 
 		opp-200000000 {
 			opp-hz = /bits/ 64 <200000000>;
-			opp-microvolt = <725000 725000 1000000>;
-			opp-microvolt-L0 = <725000 725000 1000000>;
+			opp-microvolt = <750000 750000 1000000>;
+			opp-microvolt-L0 = <775000 775000 1000000>;
 		};
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
-			opp-microvolt = <725000 725000 1000000>;
-			opp-microvolt-L0 = <725000 725000 1000000>;
+			opp-microvolt = <750000 750000 1000000>;
+			opp-microvolt-L0 = <775000 775000 1000000>;
 		};
 		opp-396000000 {
 			opp-hz = /bits/ 64 <396000000>;
-			opp-microvolt = <725000 725000 1000000>;
-			opp-microvolt-L0 = <750000 750000 1000000>;
+			opp-microvolt = <750000 750000 1000000>;
+			opp-microvolt-L0 = <775000 775000 1000000>;
 		};
 		opp-500000000 {
 			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <725000 725000 1000000>;
-			opp-microvolt-L0 = <750000 750000 1000000>;
+			opp-microvolt = <750000 750000 1000000>;
+			opp-microvolt-L0 = <775000 775000 1000000>;
 		};
 		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
