@@ -784,8 +784,8 @@ static inline void acpi_processor_cstate_first_run_checks(void)
 	dmi_check_system(processor_power_dmi_table);
 	max_cstate = acpi_processor_cstate_check(max_cstate);
 	if (max_cstate < ACPI_C_STATES_MAX)
-		pr_notice("ACPI: processor limited to max C-state %d\n",
-			  max_cstate);
+		pr_notice("processor limited to max C-state %d\n", max_cstate);
+
 	first_run++;
 
 	if (nocst)
