@@ -487,11 +487,13 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
  *	allocator.  Typically used for migration target pages when no pages
  *	are available in the pool.  The hugetlb free page path will
  *	immediately free pages with this flag set to the buddy allocator.
+ * HPG_freed - Set when page is on the free lists.
  */
 enum hugetlb_page_flags {
 	HPG_restore_reserve = 0,
 	HPG_migratable,
 	HPG_temporary,
+	HPG_freed,
 	__NR_HPAGEFLAGS,
 };
 
@@ -536,6 +538,7 @@ static inline void ClearHPage##uname(struct page *page)		\
 HPAGEFLAG(RestoreReserve, restore_reserve)
 HPAGEFLAG(Migratable, migratable)
 HPAGEFLAG(Temporary, temporary)
+HPAGEFLAG(Freed, freed)
 
 #ifdef CONFIG_HUGETLB_PAGE
 
