@@ -42,6 +42,9 @@ struct can_priv {
 	struct can_bittiming bittiming, data_bittiming;
 	const struct can_bittiming_const *bittiming_const,
 		*data_bittiming_const;
+	struct can_tdc tdc;
+	const struct can_tdc_const *tdc_const;
+
 	const u16 *termination_const;
 	unsigned int termination_const_cnt;
 	u16 termination;
