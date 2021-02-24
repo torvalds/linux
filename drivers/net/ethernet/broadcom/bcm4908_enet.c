@@ -570,6 +570,7 @@ static int bcm4908_enet_poll(struct napi_struct *napi, int weight)
 
 		if (len < ETH_ZLEN ||
 		    (ctl & (DMA_CTL_STATUS_SOP | DMA_CTL_STATUS_EOP)) != (DMA_CTL_STATUS_SOP | DMA_CTL_STATUS_EOP)) {
+			kfree_skb(slot.skb);
 			enet->netdev->stats.rx_dropped++;
 			break;
 		}
