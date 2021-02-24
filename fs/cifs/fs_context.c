@@ -141,6 +141,7 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_u32("wsize", Opt_wsize),
 	fsparam_u32("actimeo", Opt_actimeo),
 	fsparam_u32("acdirmax", Opt_acdirmax),
+	fsparam_u32("acregmax", Opt_acregmax),
 	fsparam_u32("echo_interval", Opt_echo_interval),
 	fsparam_u32("max_credits", Opt_max_credits),
 	fsparam_u32("handletimeout", Opt_handletimeout),
@@ -930,10 +931,10 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		ctx->wsize = result.uint_32;
 		ctx->got_wsize = true;
 		break;
-	case Opt_actimeo:
-		ctx->actimeo = HZ * result.uint_32;
-		if (ctx->actimeo > CIFS_MAX_ACTIMEO) {
-			cifs_dbg(VFS, "attribute cache timeout too large\n");
+	case Opt_acregmax:
+		ctx->acregmax = HZ * result.uint_32;
+		if (ctx->acregmax > CIFS_MAX_ACTIMEO) {
+			cifs_dbg(VFS, "acregmax too large\n");
 			goto cifs_parse_mount_err;
 		}
 		break;
@@ -943,6 +944,18 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 			cifs_dbg(VFS, "acdirmax too large\n");
 			goto cifs_parse_mount_err;
 		}
+		break;
+	case Opt_actimeo:
+		if (HZ * result.uint_32 > CIFS_MAX_ACTIMEO) {
+			cifs_dbg(VFS, "timeout too large\n");
+			goto cifs_parse_mount_err;
+		}
+		if ((ctx->acdirmax != CIFS_DEF_ACTIMEO) ||
+		    (ctx->acregmax != CIFS_DEF_ACTIMEO)) {
+			cifs_dbg(VFS, "actimeo ignored since acregmax or acdirmax specified\n");
+			break;
+		}
+		ctx->acdirmax = ctx->acregmax = HZ * result.uint_32;
 		break;
 	case Opt_echo_interval:
 		ctx->echo_interval = result.uint_32;
@@ -1369,7 +1382,7 @@ int smb3_init_fs_context(struct fs_context *fc)
 	/* default is to use strict cifs caching semantics */
 	ctx->strict_io = true;
 
-	ctx->actimeo = CIFS_DEF_ACTIMEO;
+	ctx->acregmax = CIFS_DEF_ACTIMEO;
 	ctx->acdirmax = CIFS_DEF_ACTIMEO;
 
 	/* Most clients set timeout to 0, allows server to use its default */

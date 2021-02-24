@@ -2276,7 +2276,7 @@ compare_mount_options(struct super_block *sb, struct cifs_mnt_data *mnt_data)
 	if (strcmp(old->local_nls->charset, new->local_nls->charset))
 		return 0;
 
-	if (old->ctx->actimeo != new->ctx->actimeo)
+	if (old->ctx->acregmax != new->ctx->acregmax)
 		return 0;
 	if (old->ctx->acdirmax != new->ctx->acdirmax)
 		return 0;

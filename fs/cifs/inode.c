@@ -2209,10 +2209,10 @@ cifs_inode_needs_reval(struct inode *inode)
 				   cifs_i->time + cifs_sb->ctx->acdirmax))
 			return true;
 	} else { /* file */
-		if (!cifs_sb->ctx->actimeo)
+		if (!cifs_sb->ctx->acregmax)
 			return true;
 		if (!time_in_range(jiffies, cifs_i->time,
-				   cifs_i->time + cifs_sb->ctx->actimeo))
+				   cifs_i->time + cifs_sb->ctx->acregmax))
 			return true;
 	}
 
