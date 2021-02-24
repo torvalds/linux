@@ -282,32 +282,6 @@ static_assert(sizeof(union peci_package_power_limit_low) ==
 	      PECI_PCS_REGISTER_SIZE);
 
 /**
- * union peci_dram_power_info_high - DRAM Power Info high PCS
- * This PCS coresponds to the MSR@61Ch - MSR_DRAM_POWER_INFO, bits [63:32]
- * Accessing over PECI: PCS=0x23, Parameter=0x0000
- * @value: PCS register value
- * @bits:	PCS register bits
- *		@max_pwr:	Bits [14:0]  - Maximal DRAM Power
- *		@rsvd0:		Bits [15:15]
- *		@max_win:	Bits [22:16] - Maximal Time Window
- *		@rsvd1:		Bits [30:23]
- *		@lock:		Bits [31:31] - Locking bit
- */
-union peci_dram_power_info_high {
-	u32 value;
-	struct {
-		u32 max_pwr	: 15;
-		u32 rsvd0	: 1;
-		u32 max_win	: 7;
-		u32 rsvd1	: 8;
-		u32 lock	: 1;
-	} __attribute__((__packed__)) bits;
-} __attribute__((__packed__));
-
-static_assert(sizeof(union peci_dram_power_info_high) ==
-	      PECI_PCS_REGISTER_SIZE);
-
-/**
  * union peci_dram_power_info_low - DRAM Power Info low PCS
  * This PCS coresponds to the MSR@61Ch - MSR_DRAM_POWER_INFO, bits [31:0]
  * Accessing over PECI: PCS=0x24, Parameter=0x0000
