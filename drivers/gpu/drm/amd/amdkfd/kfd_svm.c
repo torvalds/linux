@@ -99,11 +99,123 @@ static void svm_range_remove_notifier(struct svm_range *prange)
 		mmu_interval_notifier_remove(&prange->notifier);
 }
 
+static int
+svm_range_dma_map_dev(struct device *dev, dma_addr_t **dma_addr,
+		      unsigned long *hmm_pfns, uint64_t npages)
+{
+	enum dma_data_direction dir = DMA_BIDIRECTIONAL;
+	dma_addr_t *addr = *dma_addr;
+	struct page *page;
+	int i, r;
+
+	if (!addr) {
+		addr = kvmalloc_array(npages, sizeof(*addr),
+				      GFP_KERNEL | __GFP_ZERO);
+		if (!addr)
+			return -ENOMEM;
+		*dma_addr = addr;
+	}
+
+	for (i = 0; i < npages; i++) {
+		if (WARN_ONCE(addr[i] && !dma_mapping_error(dev, addr[i]),
+			      "leaking dma mapping\n"))
+			dma_unmap_page(dev, addr[i], PAGE_SIZE, dir);
+
+		page = hmm_pfn_to_page(hmm_pfns[i]);
+		addr[i] = dma_map_page(dev, page, 0, PAGE_SIZE, dir);
+		r = dma_mapping_error(dev, addr[i]);
+		if (r) {
+			pr_debug("failed %d dma_map_page\n", r);
+			return r;
+		}
+		pr_debug("dma mapping 0x%llx for page addr 0x%lx\n",
+			 addr[i] >> PAGE_SHIFT, page_to_pfn(page));
+	}
+	return 0;
+}
+
+static int
+svm_range_dma_map(struct svm_range *prange, unsigned long *bitmap,
+		  unsigned long *hmm_pfns)
+{
+	struct kfd_process *p;
+	uint32_t gpuidx;
+	int r;
+
+	p = container_of(prange->svms, struct kfd_process, svms);
+
+	for_each_set_bit(gpuidx, bitmap, MAX_GPU_INSTANCE) {
+		struct kfd_process_device *pdd;
+		struct amdgpu_device *adev;
+
+		pr_debug("mapping to gpu idx 0x%x\n", gpuidx);
+		pdd = kfd_process_device_from_gpuidx(p, gpuidx);
+		if (!pdd) {
+			pr_debug("failed to find device idx %d\n", gpuidx);
+			return -EINVAL;
+		}
+		adev = (struct amdgpu_device *)pdd->dev->kgd;
+
+		r = svm_range_dma_map_dev(adev->dev, &prange->dma_addr[gpuidx],
+					  hmm_pfns, prange->npages);
+		if (r)
+			break;
+	}
+
+	return r;
+}
+
+static void svm_range_dma_unmap(struct device *dev, dma_addr_t *dma_addr,
+				unsigned long offset, unsigned long npages)
+{
+	enum dma_data_direction dir = DMA_BIDIRECTIONAL;
+	int i;
+
+	if (!dma_addr)
+		return;
+
+	for (i = offset; i < offset + npages; i++) {
+		if (!dma_addr[i] || dma_mapping_error(dev, dma_addr[i]))
+			continue;
+		pr_debug("dma unmapping 0x%llx\n", dma_addr[i] >> PAGE_SHIFT);
+		dma_unmap_page(dev, dma_addr[i], PAGE_SIZE, dir);
+		dma_addr[i] = 0;
+	}
+}
+
+static void svm_range_free_dma_mappings(struct svm_range *prange)
+{
+	struct kfd_process_device *pdd;
+	dma_addr_t *dma_addr;
+	struct device *dev;
+	struct kfd_process *p;
+	uint32_t gpuidx;
+
+	p = container_of(prange->svms, struct kfd_process, svms);
+
+	for (gpuidx = 0; gpuidx < MAX_GPU_INSTANCE; gpuidx++) {
+		dma_addr = prange->dma_addr[gpuidx];
+		if (!dma_addr)
+			continue;
+
+		pdd = kfd_process_device_from_gpuidx(p, gpuidx);
+		if (!pdd) {
+			pr_debug("failed to find device idx %d\n", gpuidx);
+			continue;
+		}
+		dev = &pdd->dev->pdev->dev;
+		svm_range_dma_unmap(dev, dma_addr, 0, prange->npages);
+		kvfree(dma_addr);
+		prange->dma_addr[gpuidx] = NULL;
+	}
+}
+
 static void svm_range_free(struct svm_range *prange)
 {
 	pr_debug("svms 0x%p prange 0x%p [0x%lx 0x%lx]\n", prange->svms, prange,
 		 prange->start, prange->last);
 
+	svm_range_free_dma_mappings(prange);
 	mutex_destroy(&prange->lock);
 	kfree(prange);
 }
@@ -147,6 +259,15 @@ svm_range *svm_range_new(struct svm_range_list *svms, uint64_t start,
 	pr_debug("svms 0x%p [0x%llx 0x%llx]\n", svms, start, last);
 
 	return prange;
+}
+
+static int svm_range_bo_validate(void *param, struct amdgpu_bo *bo)
+{
+	struct ttm_operation_ctx ctx = { false, false };
+
+	amdgpu_bo_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_VRAM);
+
+	return ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 }
 
 static int
@@ -291,6 +412,61 @@ svm_range_is_same_attrs(struct svm_range *old, struct svm_range *new)
 		old->granularity == new->granularity);
 }
 
+static int
+svm_range_split_array(void *ppnew, void *ppold, size_t size,
+		      uint64_t old_start, uint64_t old_n,
+		      uint64_t new_start, uint64_t new_n)
+{
+	unsigned char *new, *old, *pold;
+	uint64_t d;
+
+	if (!ppold)
+		return 0;
+	pold = *(unsigned char **)ppold;
+	if (!pold)
+		return 0;
+
+	new = kvmalloc_array(new_n, size, GFP_KERNEL);
+	if (!new)
+		return -ENOMEM;
+
+	d = (new_start - old_start) * size;
+	memcpy(new, pold + d, new_n * size);
+
+	old = kvmalloc_array(old_n, size, GFP_KERNEL);
+	if (!old) {
+		kvfree(new);
+		return -ENOMEM;
+	}
+
+	d = (new_start == old_start) ? new_n * size : 0;
+	memcpy(old, pold + d, old_n * size);
+
+	kvfree(pold);
+	*(void **)ppold = old;
+	*(void **)ppnew = new;
+
+	return 0;
+}
+
+static int
+svm_range_split_pages(struct svm_range *new, struct svm_range *old,
+		      uint64_t start, uint64_t last)
+{
+	uint64_t npages = last - start + 1;
+	int i, r;
+
+	for (i = 0; i < MAX_GPU_INSTANCE; i++) {
+		r = svm_range_split_array(&new->dma_addr[i], &old->dma_addr[i],
+					  sizeof(*old->dma_addr[i]), old->start,
+					  npages, new->start, new->npages);
+		if (r)
+			return r;
+	}
+
+	return 0;
+}
+
 /**
  * svm_range_split_adjust - split range and adjust
  *
@@ -299,7 +475,7 @@ svm_range_is_same_attrs(struct svm_range *old, struct svm_range *new)
  * @start: the old range adjust to start address in pages
  * @last: the old range adjust to last address in pages
  *
- * Copy attributes in old range to new
+ * Copy system memory dma_addr in old range to new
  * range from new_start up to size new->npages, the remaining old range is from
  * start to last
  *
@@ -310,6 +486,8 @@ static int
 svm_range_split_adjust(struct svm_range *new, struct svm_range *old,
 		      uint64_t start, uint64_t last)
 {
+	int r;
+
 	pr_debug("svms 0x%p new 0x%lx old [0x%lx 0x%lx] => [0x%llx 0x%llx]\n",
 		 new->svms, new->start, old->start, old->last, start, last);
 
@@ -318,6 +496,10 @@ svm_range_split_adjust(struct svm_range *new, struct svm_range *old,
 		WARN_ONCE(1, "invalid new range start or last\n");
 		return -EINVAL;
 	}
+
+	r = svm_range_split_pages(new, old, start, last);
+	if (r)
+		return r;
 
 	old->npages = last - start + 1;
 	old->start = start;
@@ -425,6 +607,249 @@ svm_range_add_child(struct svm_range *prange, struct mm_struct *mm,
 	list_add_tail(&pchild->child_list, &prange->child_list);
 }
 
+static uint64_t
+svm_range_get_pte_flags(struct amdgpu_device *adev, struct svm_range *prange)
+{
+	uint32_t flags = prange->flags;
+	uint32_t mapping_flags;
+	uint64_t pte_flags;
+
+	pte_flags = AMDGPU_PTE_VALID;
+	pte_flags |= AMDGPU_PTE_SYSTEM | AMDGPU_PTE_SNOOPED;
+
+	mapping_flags = AMDGPU_VM_PAGE_READABLE | AMDGPU_VM_PAGE_WRITEABLE;
+
+	if (flags & KFD_IOCTL_SVM_FLAG_GPU_RO)
+		mapping_flags &= ~AMDGPU_VM_PAGE_WRITEABLE;
+	if (flags & KFD_IOCTL_SVM_FLAG_GPU_EXEC)
+		mapping_flags |= AMDGPU_VM_PAGE_EXECUTABLE;
+	if (flags & KFD_IOCTL_SVM_FLAG_COHERENT)
+		mapping_flags |= AMDGPU_VM_MTYPE_UC;
+	else
+		mapping_flags |= AMDGPU_VM_MTYPE_NC;
+
+	/* TODO: add CHIP_ARCTURUS new flags for vram mapping */
+
+	pte_flags |= amdgpu_gem_va_map_flags(adev, mapping_flags);
+
+	/* Apply ASIC specific mapping flags */
+	amdgpu_gmc_get_vm_pte(adev, &prange->mapping, &pte_flags);
+
+	pr_debug("PTE flags 0x%llx\n", pte_flags);
+
+	return pte_flags;
+}
+
+static int
+svm_range_unmap_from_gpu(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+			 uint64_t start, uint64_t last,
+			 struct dma_fence **fence)
+{
+	uint64_t init_pte_value = 0;
+
+	pr_debug("[0x%llx 0x%llx]\n", start, last);
+
+	return amdgpu_vm_bo_update_mapping(adev, adev, vm, false, true, NULL,
+					   start, last, init_pte_value, 0,
+					   NULL, NULL, fence);
+}
+
+static int
+svm_range_unmap_from_gpus(struct svm_range *prange, unsigned long start,
+			  unsigned long last)
+{
+	DECLARE_BITMAP(bitmap, MAX_GPU_INSTANCE);
+	struct kfd_process_device *pdd;
+	struct dma_fence *fence = NULL;
+	struct amdgpu_device *adev;
+	struct kfd_process *p;
+	uint32_t gpuidx;
+	int r = 0;
+
+	bitmap_or(bitmap, prange->bitmap_access, prange->bitmap_aip,
+		  MAX_GPU_INSTANCE);
+	p = container_of(prange->svms, struct kfd_process, svms);
+
+	for_each_set_bit(gpuidx, bitmap, MAX_GPU_INSTANCE) {
+		pr_debug("unmap from gpu idx 0x%x\n", gpuidx);
+		pdd = kfd_process_device_from_gpuidx(p, gpuidx);
+		if (!pdd) {
+			pr_debug("failed to find device idx %d\n", gpuidx);
+			return -EINVAL;
+		}
+		adev = (struct amdgpu_device *)pdd->dev->kgd;
+
+		r = svm_range_unmap_from_gpu(adev, drm_priv_to_vm(pdd->drm_priv),
+					     start, last, &fence);
+		if (r)
+			break;
+
+		if (fence) {
+			r = dma_fence_wait(fence, false);
+			dma_fence_put(fence);
+			fence = NULL;
+			if (r)
+				break;
+		}
+		amdgpu_amdkfd_flush_gpu_tlb_pasid((struct kgd_dev *)adev,
+						  p->pasid);
+	}
+
+	return r;
+}
+
+static int
+svm_range_map_to_gpu(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+		     struct svm_range *prange, dma_addr_t *dma_addr,
+		     struct dma_fence **fence)
+{
+	uint64_t pte_flags;
+	int r = 0;
+
+	pr_debug("svms 0x%p [0x%lx 0x%lx]\n", prange->svms, prange->start,
+		 prange->last);
+
+	prange->mapping.start = prange->start;
+	prange->mapping.last = prange->last;
+	prange->mapping.offset = 0;
+	pte_flags = svm_range_get_pte_flags(adev, prange);
+
+	r = amdgpu_vm_bo_update_mapping(adev, adev, vm, false, false, NULL,
+					prange->mapping.start,
+					prange->mapping.last, pte_flags,
+					prange->mapping.offset, NULL,
+					dma_addr, &vm->last_update);
+	if (r) {
+		pr_debug("failed %d to map to gpu 0x%lx\n", r, prange->start);
+		goto out;
+	}
+
+	r = amdgpu_vm_update_pdes(adev, vm, false);
+	if (r) {
+		pr_debug("failed %d to update directories 0x%lx\n", r,
+			 prange->start);
+		goto out;
+	}
+
+	if (fence)
+		*fence = dma_fence_get(vm->last_update);
+
+out:
+	return r;
+}
+
+static int svm_range_map_to_gpus(struct svm_range *prange,
+				 unsigned long *bitmap, bool wait)
+{
+	struct kfd_process_device *pdd;
+	struct amdgpu_device *adev;
+	struct kfd_process *p;
+	struct dma_fence *fence = NULL;
+	uint32_t gpuidx;
+	int r = 0;
+
+	p = container_of(prange->svms, struct kfd_process, svms);
+	for_each_set_bit(gpuidx, bitmap, MAX_GPU_INSTANCE) {
+		pdd = kfd_process_device_from_gpuidx(p, gpuidx);
+		if (!pdd) {
+			pr_debug("failed to find device idx %d\n", gpuidx);
+			return -EINVAL;
+		}
+		adev = (struct amdgpu_device *)pdd->dev->kgd;
+
+		pdd = kfd_bind_process_to_device(pdd->dev, p);
+		if (IS_ERR(pdd))
+			return -EINVAL;
+
+		r = svm_range_map_to_gpu(adev, drm_priv_to_vm(pdd->drm_priv),
+					 prange, prange->dma_addr[gpuidx],
+					 wait ? &fence : NULL);
+		if (r)
+			break;
+
+		if (fence) {
+			r = dma_fence_wait(fence, false);
+			dma_fence_put(fence);
+			fence = NULL;
+			if (r) {
+				pr_debug("failed %d to dma fence wait\n", r);
+				break;
+			}
+		}
+	}
+
+	return r;
+}
+
+struct svm_validate_context {
+	struct kfd_process *process;
+	struct svm_range *prange;
+	bool intr;
+	unsigned long bitmap[MAX_GPU_INSTANCE];
+	struct ttm_validate_buffer tv[MAX_GPU_INSTANCE+1];
+	struct list_head validate_list;
+	struct ww_acquire_ctx ticket;
+};
+
+static int svm_range_reserve_bos(struct svm_validate_context *ctx)
+{
+	struct kfd_process_device *pdd;
+	struct amdgpu_device *adev;
+	struct amdgpu_vm *vm;
+	uint32_t gpuidx;
+	int r;
+
+	INIT_LIST_HEAD(&ctx->validate_list);
+	for_each_set_bit(gpuidx, ctx->bitmap, MAX_GPU_INSTANCE) {
+		pdd = kfd_process_device_from_gpuidx(ctx->process, gpuidx);
+		if (!pdd) {
+			pr_debug("failed to find device idx %d\n", gpuidx);
+			return -EINVAL;
+		}
+		adev = (struct amdgpu_device *)pdd->dev->kgd;
+		vm = drm_priv_to_vm(pdd->drm_priv);
+
+		ctx->tv[gpuidx].bo = &vm->root.base.bo->tbo;
+		ctx->tv[gpuidx].num_shared = 4;
+		list_add(&ctx->tv[gpuidx].head, &ctx->validate_list);
+	}
+
+	r = ttm_eu_reserve_buffers(&ctx->ticket, &ctx->validate_list,
+				   ctx->intr, NULL);
+	if (r) {
+		pr_debug("failed %d to reserve bo\n", r);
+		return r;
+	}
+
+	for_each_set_bit(gpuidx, ctx->bitmap, MAX_GPU_INSTANCE) {
+		pdd = kfd_process_device_from_gpuidx(ctx->process, gpuidx);
+		if (!pdd) {
+			pr_debug("failed to find device idx %d\n", gpuidx);
+			r = -EINVAL;
+			goto unreserve_out;
+		}
+		adev = (struct amdgpu_device *)pdd->dev->kgd;
+
+		r = amdgpu_vm_validate_pt_bos(adev, drm_priv_to_vm(pdd->drm_priv),
+					      svm_range_bo_validate, NULL);
+		if (r) {
+			pr_debug("failed %d validate pt bos\n", r);
+			goto unreserve_out;
+		}
+	}
+
+	return 0;
+
+unreserve_out:
+	ttm_eu_backoff_reservation(&ctx->ticket, &ctx->validate_list);
+	return r;
+}
+
+static void svm_range_unreserve_bos(struct svm_validate_context *ctx)
+{
+	ttm_eu_backoff_reservation(&ctx->ticket, &ctx->validate_list);
+}
+
 /*
  * Validation+GPU mapping with concurrent invalidation (MMU notifiers)
  *
@@ -453,8 +878,26 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 				      struct svm_range *prange,
 				      uint32_t gpuidx, bool intr, bool wait)
 {
+	struct svm_validate_context ctx;
 	struct hmm_range *hmm_range;
 	int r = 0;
+
+	ctx.process = container_of(prange->svms, struct kfd_process, svms);
+	ctx.prange = prange;
+	ctx.intr = intr;
+
+	if (gpuidx < MAX_GPU_INSTANCE) {
+		bitmap_zero(ctx.bitmap, MAX_GPU_INSTANCE);
+		bitmap_set(ctx.bitmap, gpuidx, 1);
+	} else {
+		bitmap_or(ctx.bitmap, prange->bitmap_access,
+			  prange->bitmap_aip, MAX_GPU_INSTANCE);
+	}
+
+	if (bitmap_empty(ctx.bitmap, MAX_GPU_INSTANCE))
+		return 0;
+
+	svm_range_reserve_bos(&ctx);
 
 	if (!prange->actual_loc) {
 		r = amdgpu_hmm_range_get_pages(&prange->notifier, mm, NULL,
@@ -463,6 +906,13 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 					       false, true);
 		if (r) {
 			pr_debug("failed %d to get svm range pages\n", r);
+			goto unreserve_out;
+		}
+
+		r = svm_range_dma_map(prange, ctx.bitmap,
+				      hmm_range->hmm_pfns);
+		if (r) {
+			pr_debug("failed %d to dma map range\n", r);
 			goto unreserve_out;
 		}
 	}
@@ -474,12 +924,17 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 			goto unlock_out;
 		}
 	}
+	if (!list_empty(&prange->child_list)) {
+		r = -EAGAIN;
+		goto unlock_out;
+	}
 
-	/* TODO: map to GPU */
+	r = svm_range_map_to_gpus(prange, ctx.bitmap, wait);
 
 unlock_out:
 	svm_range_unlock(prange);
 unreserve_out:
+	svm_range_unreserve_bos(&ctx);
 
 	return r;
 }
@@ -834,6 +1289,7 @@ svm_range_unmap_from_cpu(struct mm_struct *mm, struct svm_range *prange,
 	struct svm_range_list *svms;
 	struct svm_range *pchild;
 	struct kfd_process *p;
+	unsigned long s, l;
 	bool unmap_parent;
 
 	p = kfd_lookup_process_by_mm(mm);
@@ -846,8 +1302,19 @@ svm_range_unmap_from_cpu(struct mm_struct *mm, struct svm_range *prange,
 
 	unmap_parent = start <= prange->start && last >= prange->last;
 
-	list_for_each_entry(pchild, &prange->child_list, child_list)
+	list_for_each_entry(pchild, &prange->child_list, child_list) {
+		mutex_lock_nested(&pchild->lock, 1);
+		s = max(start, pchild->start);
+		l = min(last, pchild->last);
+		if (l >= s)
+			svm_range_unmap_from_gpus(pchild, s, l);
 		svm_range_unmap_split(mm, prange, pchild, start, last);
+		mutex_unlock(&pchild->lock);
+	}
+	s = max(start, prange->start);
+	l = min(last, prange->last);
+	if (l >= s)
+		svm_range_unmap_from_gpus(prange, s, l);
 	svm_range_unmap_split(mm, prange, prange, start, last);
 
 	if (unmap_parent)

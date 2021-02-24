@@ -948,13 +948,6 @@ static int process_update_pds(struct amdkfd_process_info *process_info,
 	return 0;
 }
 
-static struct amdgpu_vm *drm_priv_to_vm(struct drm_file *drm_priv)
-{
-	struct amdgpu_fpriv *fpriv = drm_priv->driver_priv;
-
-	return &fpriv->vm;
-}
-
 static int init_kfd_vm(struct amdgpu_vm *vm, void **process_info,
 		       struct dma_fence **ef)
 {

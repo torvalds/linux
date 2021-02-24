@@ -234,6 +234,10 @@ uint8_t amdgpu_amdkfd_get_xgmi_hops_count(struct kgd_dev *dst, struct kgd_dev *s
 	})
 
 /* GPUVM API */
+#define drm_priv_to_vm(drm_priv)					\
+	(&((struct amdgpu_fpriv *)					\
+		((struct drm_file *)(drm_priv))->driver_priv)->vm)
+
 int amdgpu_amdkfd_gpuvm_acquire_process_vm(struct kgd_dev *kgd,
 					struct file *filp, u32 pasid,
 					void **process_info,

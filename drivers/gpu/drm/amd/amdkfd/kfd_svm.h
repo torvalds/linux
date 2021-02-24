@@ -57,7 +57,9 @@ struct svm_work_list_item {
  * @update_list:link list node used to add to update_list
  * @remove_list:link list node used to add to remove list
  * @insert_list:link list node used to add to insert list
+ * @mapping:    bo_va mapping structure to create and update GPU page table
  * @npages:     number of pages
+ * @dma_addr:   dma mapping address on each GPU for system memory physical page
  * @lock:       protect prange start, last, child_list, svm_bo_list
  * @saved_flags:save/restore current PF_MEMALLOC flags
  * @flags:      flags defined as KFD_IOCTL_SVM_FLAG_*
@@ -85,7 +87,9 @@ struct svm_range {
 	struct list_head		update_list;
 	struct list_head		remove_list;
 	struct list_head		insert_list;
+	struct amdgpu_bo_va_mapping	mapping;
 	uint64_t			npages;
+	dma_addr_t			*dma_addr[MAX_GPU_INSTANCE];
 	struct mutex                    lock;
 	unsigned int                    saved_flags;
 	uint32_t			flags;
