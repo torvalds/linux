@@ -1413,6 +1413,15 @@ slab_flags_t kmem_cache_flags(unsigned int object_size,
 	size_t len;
 	char *next_block;
 	slab_flags_t block_flags;
+	slab_flags_t slub_debug_local = slub_debug;
+
+	/*
+	 * If the slab cache is for debugging (e.g. kmemleak) then
+	 * don't store user (stack trace) information by default,
+	 * but let the user enable it via the command line below.
+	 */
+	if (flags & SLAB_NOLEAKTRACE)
+		slub_debug_local &= ~SLAB_STORE_USER;
 
 	len = strlen(name);
 	next_block = slub_debug_string;
@@ -1447,7 +1456,7 @@ slab_flags_t kmem_cache_flags(unsigned int object_size,
 		}
 	}
 
-	return flags | slub_debug;
+	return flags | slub_debug_local;
 }
 #else /* !CONFIG_SLUB_DEBUG */
 static inline void setup_object_debug(struct kmem_cache *s,
