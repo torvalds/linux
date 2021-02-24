@@ -14,7 +14,6 @@
 #include <linux/vmalloc.h>
 #include <linux/uio_driver.h>
 #include <linux/xarray.h>
-#include <linux/radix-tree.h>
 #include <linux/stringify.h>
 #include <linux/bitops.h>
 #include <linux/highmem.h>
@@ -145,7 +144,7 @@ struct tcmu_dev {
 	uint32_t dbi_max;
 	uint32_t dbi_thresh;
 	unsigned long *data_bitmap;
-	struct radix_tree_root data_blocks;
+	struct xarray data_blocks;
 
 	struct xarray commands;
 
@@ -502,13 +501,13 @@ static inline int tcmu_get_empty_block(struct tcmu_dev *udev,
 				       int prev_dbi, int *iov_cnt)
 {
 	struct page *page;
-	int ret, dbi;
+	int dbi;
 
 	dbi = find_first_zero_bit(udev->data_bitmap, udev->dbi_thresh);
 	if (dbi == udev->dbi_thresh)
 		return -1;
 
-	page = radix_tree_lookup(&udev->data_blocks, dbi);
+	page = xa_load(&udev->data_blocks, dbi);
 	if (!page) {
 		if (atomic_add_return(1, &global_db_count) >
 				      tcmu_global_max_blocks)
@@ -519,8 +518,7 @@ static inline int tcmu_get_empty_block(struct tcmu_dev *udev,
 		if (!page)
 			goto err_alloc;
 
-		ret = radix_tree_insert(&udev->data_blocks, dbi, page);
-		if (ret)
+		if (xa_store(&udev->data_blocks, dbi, page, GFP_KERNEL))
 			goto err_insert;
 	}
 
@@ -559,7 +557,7 @@ static int tcmu_get_empty_blocks(struct tcmu_dev *udev,
 static inline struct page *
 tcmu_get_block_page(struct tcmu_dev *udev, uint32_t dbi)
 {
-	return radix_tree_lookup(&udev->data_blocks, dbi);
+	return xa_load(&udev->data_blocks, dbi);
 }
 
 static inline void tcmu_free_cmd(struct tcmu_cmd *tcmu_cmd)
@@ -1582,7 +1580,7 @@ static struct se_device *tcmu_alloc_device(struct se_hba *hba, const char *name)
 	timer_setup(&udev->qfull_timer, tcmu_qfull_timedout, 0);
 	timer_setup(&udev->cmd_timer, tcmu_cmd_timedout, 0);
 
-	INIT_RADIX_TREE(&udev->data_blocks, GFP_KERNEL);
+	xa_init(&udev->data_blocks);
 
 	return &udev->se_dev;
 }
@@ -1606,19 +1604,19 @@ static int tcmu_check_and_free_pending_cmd(struct tcmu_cmd *cmd)
 	return -EINVAL;
 }
 
-static void tcmu_blocks_release(struct radix_tree_root *blocks,
-				int start, int end)
+static void tcmu_blocks_release(struct xarray *blocks, unsigned long first,
+				unsigned long last)
 {
-	int i;
+	XA_STATE(xas, blocks, first);
 	struct page *page;
 
-	for (i = start; i < end; i++) {
-		page = radix_tree_delete(blocks, i);
-		if (page) {
-			__free_page(page);
-			atomic_dec(&global_db_count);
-		}
+	xas_lock(&xas);
+	xas_for_each(&xas, page, last) {
+		xas_store(&xas, NULL);
+		__free_page(page);
+		atomic_dec(&global_db_count);
 	}
+	xas_unlock(&xas);
 }
 
 static void tcmu_remove_all_queued_tmr(struct tcmu_dev *udev)
@@ -2946,7 +2944,7 @@ static void find_free_blocks(void)
 		unmap_mapping_range(udev->inode->i_mapping, off, 0, 1);
 
 		/* Release the block pages */
-		tcmu_blocks_release(&udev->data_blocks, start, end);
+		tcmu_blocks_release(&udev->data_blocks, start, end - 1);
 		mutex_unlock(&udev->cmdr_lock);
 
 		total_freed += end - start;
