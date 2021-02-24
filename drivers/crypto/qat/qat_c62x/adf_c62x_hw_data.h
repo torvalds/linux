@@ -19,6 +19,7 @@
 #define ADF_C62X_SMIAPF1_MASK_OFFSET (0x3A000 + 0x30)
 #define ADF_C62X_SMIA0_MASK 0xFFFF
 #define ADF_C62X_SMIA1_MASK 0x1
+#define ADF_C62X_SOFTSTRAP_CSR_OFFSET 0x2EC
 /* Error detection and correction */
 #define ADF_C62X_AE_CTX_ENABLES(i) (i * 0x1000 + 0x20818)
 #define ADF_C62X_AE_MISC_CONTROL(i) (i * 0x1000 + 0x20960)
@@ -30,6 +31,10 @@
 
 #define ADF_C62X_PF2VF_OFFSET(i)	(0x3A000 + 0x280 + ((i) * 0x04))
 #define ADF_C62X_VINTMSK_OFFSET(i)	(0x3A000 + 0x200 + ((i) * 0x04))
+
+/* AE to function mapping */
+#define ADF_C62X_AE2FUNC_MAP_GRP_A_NUM_REGS 80
+#define ADF_C62X_AE2FUNC_MAP_GRP_B_NUM_REGS 10
 
 /* Firmware Binary */
 #define ADF_C62X_FW "qat_c62x.bin"

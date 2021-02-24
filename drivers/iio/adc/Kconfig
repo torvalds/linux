@@ -295,7 +295,7 @@ config ASPEED_ADC
 config AT91_ADC
 	tristate "Atmel AT91 ADC"
 	depends on ARCH_AT91 || COMPILE_TEST
-	depends on INPUT && SYSFS
+	depends on INPUT && SYSFS && OF
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
@@ -702,6 +702,17 @@ config MCP3911
 
 	  This driver can also be built as a module. If so, the module will be
 	  called mcp3911.
+
+config MEDIATEK_MT6360_ADC
+	tristate "Mediatek MT6360 ADC driver"
+	depends on MFD_MT6360
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here to enable MT6360 ADC support.
+	  Integrated for System Monitoring includes
+	  is used in smartphones and tablets and supports a 11 channel
+	  general purpose ADC.
 
 config MEDIATEK_MT6577_AUXADC
 	tristate "MediaTek AUXADC driver"
@@ -1217,8 +1228,15 @@ config XILINX_XADC
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  Say yes here to have support for the Xilinx XADC. The driver does support
-	  both the ZYNQ interface to the XADC as well as the AXI-XADC interface.
+	  Say yes here to have support for the Xilinx 7 Series XADC or
+	  UltraScale/UltraScale+ System Management Wizard.
+
+	  For the 7 Series the driver does support both the ZYNQ interface
+	  to the XADC as well as the AXI-XADC interface.
+
+	  The driver also support the Xilinx System Management Wizard IP core
+	  that can be used to access the System Monitor ADC on the Xilinx
+	  UltraScale and UltraScale+ FPGAs.
 
 	  The driver can also be build as a module. If so, the module will be called
 	  xilinx-xadc.

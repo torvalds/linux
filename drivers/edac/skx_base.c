@@ -174,7 +174,7 @@ static bool skx_check_ecc(u32 mcmtr)
 	return !!GET_BITFIELD(mcmtr, 2, 2);
 }
 
-static int skx_get_dimm_config(struct mem_ctl_info *mci)
+static int skx_get_dimm_config(struct mem_ctl_info *mci, struct res_config *cfg)
 {
 	struct skx_pvt *pvt = mci->pvt_info;
 	u32 mtr, mcmtr, amap, mcddrtcfg;
@@ -195,7 +195,7 @@ static int skx_get_dimm_config(struct mem_ctl_info *mci)
 			pci_read_config_dword(imc->chan[i].cdev,
 					      0x80 + 4 * j, &mtr);
 			if (IS_DIMM_PRESENT(mtr)) {
-				ndimms += skx_get_dimm_info(mtr, mcmtr, amap, dimm, imc, i, j);
+				ndimms += skx_get_dimm_info(mtr, mcmtr, amap, dimm, imc, i, j, cfg);
 			} else if (IS_NVDIMM_PRESENT(mcddrtcfg, j)) {
 				ndimms += skx_get_nvdimm_info(dimm, imc, i, j,
 							      EDAC_MOD_STR);
@@ -702,7 +702,7 @@ static int __init skx_init(void)
 			d->imc[i].node_id = node_id;
 			rc = skx_register_mci(&d->imc[i], d->imc[i].chan[0].cdev,
 					      "Skylake Socket", EDAC_MOD_STR,
-					      skx_get_dimm_config);
+					      skx_get_dimm_config, cfg);
 			if (rc < 0)
 				goto fail;
 		}

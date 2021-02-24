@@ -251,7 +251,7 @@ static int sd_ctl_doflags(struct ctl_table *table, int write,
 	unsigned long flags = *(unsigned long *)table->data;
 	size_t data_size = 0;
 	size_t len = 0;
-	char *tmp;
+	char *tmp, *buf;
 	int idx;
 
 	if (write)
@@ -269,17 +269,17 @@ static int sd_ctl_doflags(struct ctl_table *table, int write,
 		return 0;
 	}
 
-	tmp = kcalloc(data_size + 1, sizeof(*tmp), GFP_KERNEL);
-	if (!tmp)
+	buf = kcalloc(data_size + 1, sizeof(*buf), GFP_KERNEL);
+	if (!buf)
 		return -ENOMEM;
 
 	for_each_set_bit(idx, &flags, __SD_FLAG_CNT) {
 		char *name = sd_flag_debug[idx].name;
 
-		len += snprintf(tmp + len, strlen(name) + 2, "%s ", name);
+		len += snprintf(buf + len, strlen(name) + 2, "%s ", name);
 	}
 
-	tmp += *ppos;
+	tmp = buf + *ppos;
 	len -= *ppos;
 
 	if (len > *lenp)
@@ -294,7 +294,7 @@ static int sd_ctl_doflags(struct ctl_table *table, int write,
 	*lenp = len;
 	*ppos += len;
 
-	kfree(tmp);
+	kfree(buf);
 
 	return 0;
 }
@@ -486,7 +486,7 @@ static char *task_group_path(struct task_group *tg)
 static void
 print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 {
-	if (rq->curr == p)
+	if (task_current(rq, p))
 		SEQ_printf(m, ">R");
 	else
 		SEQ_printf(m, " %c", task_state_to_char(p));

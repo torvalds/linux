@@ -31,7 +31,7 @@
 void __iomem *ioremap(phys_addr_t offset, unsigned long size);
 
 #define iounmap iounmap
-extern void iounmap(void *addr);
+extern void iounmap(void __iomem *addr);
 
 #include <asm-generic/io.h>
 

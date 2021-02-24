@@ -17,6 +17,29 @@
 extern int expr_debug;
 #endif
 
+struct expr_id_data {
+	union {
+		double val;
+		struct {
+			double val;
+			const char *metric_name;
+			const char *metric_expr;
+		} ref;
+		struct expr_id	*parent;
+	};
+
+	enum {
+		/* Holding a double value. */
+		EXPR_ID_DATA__VALUE,
+		/* Reference to another metric. */
+		EXPR_ID_DATA__REF,
+		/* A reference but the value has been computed. */
+		EXPR_ID_DATA__REF_VALUE,
+		/* A parent is remembered for the recursion check. */
+		EXPR_ID_DATA__PARENT,
+	} kind;
+};
+
 static size_t key_hash(const void *key, void *ctx __maybe_unused)
 {
 	const char *str = (const char *)key;
@@ -48,6 +71,7 @@ int expr__add_id(struct expr_parse_ctx *ctx, const char *id)
 		return -ENOMEM;
 
 	data_ptr->parent = ctx->parent;
+	data_ptr->kind = EXPR_ID_DATA__PARENT;
 
 	ret = hashmap__set(&ctx->ids, id, data_ptr,
 			   (const void **)&old_key, (void **)&old_data);
@@ -69,7 +93,7 @@ int expr__add_id_val(struct expr_parse_ctx *ctx, const char *id, double val)
 	if (!data_ptr)
 		return -ENOMEM;
 	data_ptr->val = val;
-	data_ptr->is_ref = false;
+	data_ptr->kind = EXPR_ID_DATA__VALUE;
 
 	ret = hashmap__set(&ctx->ids, id, data_ptr,
 			   (const void **)&old_key, (void **)&old_data);
@@ -114,8 +138,7 @@ int expr__add_ref(struct expr_parse_ctx *ctx, struct metric_ref *ref)
 	 */
 	data_ptr->ref.metric_name = ref->metric_name;
 	data_ptr->ref.metric_expr = ref->metric_expr;
-	data_ptr->ref.counted = false;
-	data_ptr->is_ref = true;
+	data_ptr->kind = EXPR_ID_DATA__REF;
 
 	ret = hashmap__set(&ctx->ids, name, data_ptr,
 			   (const void **)&old_key, (void **)&old_data);
@@ -148,17 +171,30 @@ int expr__resolve_id(struct expr_parse_ctx *ctx, const char *id,
 
 	data = *datap;
 
-	pr_debug2("lookup: is_ref %d, counted %d, val %f: %s\n",
-		  data->is_ref, data->ref.counted, data->val, id);
-
-	if (data->is_ref && !data->ref.counted) {
-		data->ref.counted = true;
+	switch (data->kind) {
+	case EXPR_ID_DATA__VALUE:
+		pr_debug2("lookup(%s): val %f\n", id, data->val);
+		break;
+	case EXPR_ID_DATA__PARENT:
+		pr_debug2("lookup(%s): parent %s\n", id, data->parent->id);
+		break;
+	case EXPR_ID_DATA__REF:
+		pr_debug2("lookup(%s): ref metric name %s\n", id,
+			data->ref.metric_name);
 		pr_debug("processing metric: %s ENTRY\n", id);
-		if (expr__parse(&data->val, ctx, data->ref.metric_expr, 1)) {
+		data->kind = EXPR_ID_DATA__REF_VALUE;
+		if (expr__parse(&data->ref.val, ctx, data->ref.metric_expr, 1)) {
 			pr_debug("%s failed to count\n", id);
 			return -1;
 		}
 		pr_debug("processing metric: %s EXIT: %f\n", id, data->val);
+		break;
+	case EXPR_ID_DATA__REF_VALUE:
+		pr_debug2("lookup(%s): ref val %f metric name %s\n", id,
+			data->ref.val, data->ref.metric_name);
+		break;
+	default:
+		assert(0);  /* Unreachable. */
 	}
 
 	return 0;
@@ -240,4 +276,18 @@ int expr__find_other(const char *expr, const char *one,
 		expr__del_id(ctx, one);
 
 	return ret;
+}
+
+double expr_id_data__value(const struct expr_id_data *data)
+{
+	if (data->kind == EXPR_ID_DATA__VALUE)
+		return data->val;
+	assert(data->kind == EXPR_ID_DATA__REF_VALUE);
+	return data->ref.val;
+}
+
+struct expr_id *expr_id_data__parent(struct expr_id_data *data)
+{
+	assert(data->kind == EXPR_ID_DATA__PARENT);
+	return data->parent;
 }

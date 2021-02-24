@@ -158,7 +158,8 @@ int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 	return err;
 }
 
-int mmc_send_if_cond(struct mmc_host *host, u32 ocr)
+static int __mmc_send_if_cond(struct mmc_host *host, u32 ocr, u8 pcie_bits,
+			      u32 *resp)
 {
 	struct mmc_command cmd = {};
 	int err;
@@ -171,7 +172,7 @@ int mmc_send_if_cond(struct mmc_host *host, u32 ocr)
 	 * SD 1.0 cards.
 	 */
 	cmd.opcode = SD_SEND_IF_COND;
-	cmd.arg = ((ocr & 0xFF8000) != 0) << 8 | test_pattern;
+	cmd.arg = ((ocr & 0xFF8000) != 0) << 8 | pcie_bits << 8 | test_pattern;
 	cmd.flags = MMC_RSP_SPI_R7 | MMC_RSP_R7 | MMC_CMD_BCR;
 
 	err = mmc_wait_for_cmd(host, &cmd, 0);
@@ -185,6 +186,50 @@ int mmc_send_if_cond(struct mmc_host *host, u32 ocr)
 
 	if (result_pattern != test_pattern)
 		return -EIO;
+
+	if (resp)
+		*resp = cmd.resp[0];
+
+	return 0;
+}
+
+int mmc_send_if_cond(struct mmc_host *host, u32 ocr)
+{
+	return __mmc_send_if_cond(host, ocr, 0, NULL);
+}
+
+int mmc_send_if_cond_pcie(struct mmc_host *host, u32 ocr)
+{
+	u32 resp = 0;
+	u8 pcie_bits = 0;
+	int ret;
+
+	if (host->caps2 & MMC_CAP2_SD_EXP) {
+		/* Probe card for SD express support via PCIe. */
+		pcie_bits = 0x10;
+		if (host->caps2 & MMC_CAP2_SD_EXP_1_2V)
+			/* Probe also for 1.2V support. */
+			pcie_bits = 0x30;
+	}
+
+	ret = __mmc_send_if_cond(host, ocr, pcie_bits, &resp);
+	if (ret)
+		return 0;
+
+	/* Continue with the SD express init, if the card supports it. */
+	resp &= 0x3000;
+	if (pcie_bits && resp) {
+		if (resp == 0x3000)
+			host->ios.timing = MMC_TIMING_SD_EXP_1_2V;
+		else
+			host->ios.timing = MMC_TIMING_SD_EXP;
+
+		/*
+		 * According to the spec the clock shall also be gated, but
+		 * let's leave this to the host driver for more flexibility.
+		 */
+		return host->ops->init_sd_express(host, &host->ios);
+	}
 
 	return 0;
 }

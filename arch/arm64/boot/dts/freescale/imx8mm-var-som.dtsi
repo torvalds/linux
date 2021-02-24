@@ -135,13 +135,10 @@
 	pmic@4b {
 		compatible = "rohm,bd71847";
 		reg = <0x4b>;
+		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pmic>;
 		interrupt-parent = <&gpio2>;
-		/*
-		 * The interrupt is not correct. It should be level low,
-		 * however with internal pull up this causes IRQ storm.
-		 */
-		interrupts = <8 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
 		rohm,reset-snvs-powered;
 
 		#clock-cells = <0>;
@@ -398,7 +395,7 @@
 
 	pinctrl_pmic: pmicirqgrp {
 		fsl,pins = <
-			MX8MM_IOMUXC_SD1_DATA6_GPIO2_IO8	0x41
+			MX8MM_IOMUXC_SD1_DATA6_GPIO2_IO8	0x141
 		>;
 	};
 
@@ -555,7 +552,7 @@
 
 	pinctrl_wdog: wdoggrp {
 		fsl,pins = <
-			MX8MM_IOMUXC_GPIO1_IO02_WDOG1_WDOG_B	0xc6
+			MX8MM_IOMUXC_GPIO1_IO02_WDOG1_WDOG_B	0x166
 		>;
 	};
 };

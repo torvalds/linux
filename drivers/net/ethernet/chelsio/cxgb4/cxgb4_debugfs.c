@@ -2671,7 +2671,7 @@ do { \
 	seq_printf(seq, "%-12s", s); \
 	for (i = 0; i < n; ++i) \
 		seq_printf(seq, " %16" fmt_spec, v); \
-		seq_putc(seq, '\n'); \
+	seq_putc(seq, '\n'); \
 } while (0)
 #define S(s, v) S3("s", s, v)
 #define T3(fmt_spec, s, v) S3(fmt_spec, s, tx[i].v)
@@ -3573,6 +3573,8 @@ static int chcr_stats_show(struct seq_file *seq, void *v)
 		   atomic64_read(&adap->ch_ktls_stats.ktls_tx_complete_pkts));
 	seq_printf(seq, "TX trim pkts :                    %20llu\n",
 		   atomic64_read(&adap->ch_ktls_stats.ktls_tx_trimmed_pkts));
+	seq_printf(seq, "TX sw fallback :                  %20llu\n",
+		   atomic64_read(&adap->ch_ktls_stats.ktls_tx_fallback));
 	while (i < MAX_NPORTS) {
 		ktls_port = &adap->ch_ktls_stats.ktls_port[i];
 		seq_printf(seq, "Port %d\n", i);

@@ -50,7 +50,6 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 /*
  * These are used to set parameters in the core dumps.
  */
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE		4096
 #define ELF_CLASS			ELFCLASS32
 #define ELF_PLAT_INIT(_r, load_addr)	{ _r->a0 = 0; }

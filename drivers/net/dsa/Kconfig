@@ -24,6 +24,8 @@ config NET_DSA_LOOP
 	  This enables support for a fake mock-up switch chip which
 	  exercises the DSA APIs.
 
+source "drivers/net/dsa/hirschmann/Kconfig"
+
 config NET_DSA_LANTIQ_GSWIP
 	tristate "Lantiq / Intel GSWIP"
 	depends on HAS_IOMEM && NET_DSA
@@ -57,6 +59,8 @@ source "drivers/net/dsa/ocelot/Kconfig"
 source "drivers/net/dsa/qca/Kconfig"
 
 source "drivers/net/dsa/sja1105/Kconfig"
+
+source "drivers/net/dsa/xrs700x/Kconfig"
 
 config NET_DSA_QCA8K
 	tristate "Qualcomm Atheros QCA8K Ethernet switch family support"

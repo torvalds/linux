@@ -26,7 +26,9 @@ struct mlx5e_rep_indr_block_priv {
 };
 
 int mlx5e_rep_encap_entry_attach(struct mlx5e_priv *priv,
-				 struct mlx5e_encap_entry *e)
+				 struct mlx5e_encap_entry *e,
+				 struct mlx5e_neigh *m_neigh,
+				 struct net_device *neigh_dev)
 {
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_rep_uplink_priv *uplink_priv = &rpriv->uplink_priv;
@@ -39,9 +41,9 @@ int mlx5e_rep_encap_entry_attach(struct mlx5e_priv *priv,
 		return err;
 
 	mutex_lock(&rpriv->neigh_update.encap_lock);
-	nhe = mlx5e_rep_neigh_entry_lookup(priv, &e->m_neigh);
+	nhe = mlx5e_rep_neigh_entry_lookup(priv, m_neigh);
 	if (!nhe) {
-		err = mlx5e_rep_neigh_entry_create(priv, e, &nhe);
+		err = mlx5e_rep_neigh_entry_create(priv, m_neigh, neigh_dev, &nhe);
 		if (err) {
 			mutex_unlock(&rpriv->neigh_update.encap_lock);
 			mlx5_tun_entropy_refcount_dec(tun_entropy,
@@ -107,18 +109,22 @@ void mlx5e_rep_update_flows(struct mlx5e_priv *priv,
 		mlx5e_tc_encap_flows_del(priv, e, &flow_list);
 
 	if (neigh_connected && !(e->flags & MLX5_ENCAP_ENTRY_VALID)) {
+		struct net_device *route_dev;
+
 		ether_addr_copy(e->h_dest, ha);
 		ether_addr_copy(eth->h_dest, ha);
 		/* Update the encap source mac, in case that we delete
 		 * the flows when encap source mac changed.
 		 */
-		ether_addr_copy(eth->h_source, e->route_dev->dev_addr);
+		route_dev = __dev_get_by_index(dev_net(priv->netdev), e->route_dev_ifindex);
+		if (route_dev)
+			ether_addr_copy(eth->h_source, route_dev->dev_addr);
 
 		mlx5e_tc_encap_flows_add(priv, e, &flow_list);
 	}
 unlock:
 	mutex_unlock(&esw->offloads.encap_tbl_lock);
-	mlx5e_put_encap_flow_list(priv, &flow_list);
+	mlx5e_put_flow_list(priv, &flow_list);
 }
 
 static int
@@ -622,6 +628,11 @@ bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 	if (!reg_c0)
 		return true;
 
+	/* If reg_c0 is not equal to the default flow tag then skb->mark
+	 * is not supported and must be reset back to 0.
+	 */
+	skb->mark = 0;
+
 	priv = netdev_priv(skb->dev);
 	esw = priv->mdev->priv.eswitch;
 
@@ -642,7 +653,7 @@ bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 
 		tc_skb_ext->chain = chain;
 
-		zone_restore_id = reg_c1 & ZONE_RESTORE_MAX;
+		zone_restore_id = reg_c1 & ESW_ZONE_ID_MASK;
 
 		uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
 		uplink_priv = &uplink_rpriv->uplink_priv;
@@ -651,7 +662,7 @@ bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 			return false;
 	}
 
-	tunnel_id = reg_c1 >> REG_MAPPING_SHIFT(TUNNEL_TO_REG);
+	tunnel_id = reg_c1 >> ESW_TUN_OFFSET;
 	return mlx5e_restore_tunnel(priv, skb, tc_priv, tunnel_id);
 #endif /* CONFIG_NET_TC_SKB_EXT */
 

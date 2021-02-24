@@ -45,6 +45,8 @@ enum tb_cfg_pkg_type {
  * @TB_SECURITY_USBONLY: Only tunnel USB controller of the connected
  *			 Thunderbolt dock (and Display Port). All PCIe
  *			 links downstream of the dock are removed.
+ * @TB_SECURITY_NOPCIE: For USB4 systems this level is used when the
+ *			PCIe tunneling is disabled from the BIOS.
  */
 enum tb_security_level {
 	TB_SECURITY_NONE,
@@ -52,6 +54,7 @@ enum tb_security_level {
 	TB_SECURITY_SECURE,
 	TB_SECURITY_DPONLY,
 	TB_SECURITY_USBONLY,
+	TB_SECURITY_NOPCIE,
 };
 
 /**
@@ -179,6 +182,8 @@ void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir);
  * @lock: Lock to serialize access to the following fields of this structure
  * @vendor_name: Name of the vendor (or %NULL if not known)
  * @device_name: Name of the device (or %NULL if not known)
+ * @link_speed: Speed of the link in Gb/s
+ * @link_width: Width of the link (1 or 2)
  * @is_unplugged: The XDomain is unplugged
  * @resume: The XDomain is being resumed
  * @needs_uuid: If the XDomain does not have @remote_uuid it will be
@@ -223,6 +228,8 @@ struct tb_xdomain {
 	struct mutex lock;
 	const char *vendor_name;
 	const char *device_name;
+	unsigned int link_speed;
+	unsigned int link_width;
 	bool is_unplugged;
 	bool resume;
 	bool needs_uuid;
@@ -243,6 +250,8 @@ struct tb_xdomain {
 	u8 depth;
 };
 
+int tb_xdomain_lane_bonding_enable(struct tb_xdomain *xd);
+void tb_xdomain_lane_bonding_disable(struct tb_xdomain *xd);
 int tb_xdomain_enable_paths(struct tb_xdomain *xd, u16 transmit_path,
 			    u16 transmit_ring, u16 receive_path,
 			    u16 receive_ring);
@@ -344,6 +353,9 @@ void tb_unregister_protocol_handler(struct tb_protocol_handler *handler);
  * @prtcvers: Protocol version from the properties directory
  * @prtcrevs: Protocol software revision from the properties directory
  * @prtcstns: Protocol settings mask from the properties directory
+ * @debugfs_dir: Pointer to the service debugfs directory. Always created
+ *		 when debugfs is enabled. Can be used by service drivers to
+ *		 add their own entries under the service.
  *
  * Each domain exposes set of services it supports as collection of
  * properties. For each service there will be one corresponding
@@ -357,6 +369,7 @@ struct tb_service {
 	u32 prtcvers;
 	u32 prtcrevs;
 	u32 prtcstns;
+	struct dentry *debugfs_dir;
 };
 
 static inline struct tb_service *tb_service_get(struct tb_service *svc)
@@ -471,6 +484,8 @@ struct tb_nhi {
  * @irq: MSI-X irq number if the ring uses MSI-X. %0 otherwise.
  * @vector: MSI-X vector number the ring uses (only set if @irq is > 0)
  * @flags: Ring specific flags
+ * @e2e_tx_hop: Transmit HopID when E2E is enabled. Only applicable to
+ *		RX ring. For TX ring this should be set to %0.
  * @sof_mask: Bit mask used to detect start of frame PDF
  * @eof_mask: Bit mask used to detect end of frame PDF
  * @start_poll: Called when ring interrupt is triggered to start
@@ -494,6 +509,7 @@ struct tb_ring {
 	int irq;
 	u8 vector;
 	unsigned int flags;
+	int e2e_tx_hop;
 	u16 sof_mask;
 	u16 eof_mask;
 	void (*start_poll)(void *data);
@@ -504,6 +520,8 @@ struct tb_ring {
 #define RING_FLAG_NO_SUSPEND	BIT(0)
 /* Configure the ring to be in frame mode */
 #define RING_FLAG_FRAME		BIT(1)
+/* Enable end-to-end flow control */
+#define RING_FLAG_E2E		BIT(2)
 
 struct ring_frame;
 typedef void (*ring_cb)(struct tb_ring *, struct ring_frame *, bool canceled);
@@ -552,7 +570,8 @@ struct ring_frame {
 struct tb_ring *tb_ring_alloc_tx(struct tb_nhi *nhi, int hop, int size,
 				 unsigned int flags);
 struct tb_ring *tb_ring_alloc_rx(struct tb_nhi *nhi, int hop, int size,
-				 unsigned int flags, u16 sof_mask, u16 eof_mask,
+				 unsigned int flags, int e2e_tx_hop,
+				 u16 sof_mask, u16 eof_mask,
 				 void (*start_poll)(void *), void *poll_data);
 void tb_ring_start(struct tb_ring *ring);
 void tb_ring_stop(struct tb_ring *ring);

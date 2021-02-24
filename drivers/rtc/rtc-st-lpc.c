@@ -250,7 +250,7 @@ static int st_rtc_probe(struct platform_device *pdev)
 	rtc->rtc_dev->range_max = U64_MAX;
 	do_div(rtc->rtc_dev->range_max, rtc->clkrate);
 
-	ret = rtc_register_device(rtc->rtc_dev);
+	ret = devm_rtc_register_device(rtc->rtc_dev);
 	if (ret) {
 		clk_disable_unprepare(rtc->clk);
 		return ret;

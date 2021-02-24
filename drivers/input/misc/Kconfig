@@ -73,6 +73,17 @@ config INPUT_AD714X_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad714x-spi.
 
+config INPUT_ARIEL_PWRBUTTON
+	tristate "Dell Wyse 3020 Power Button Driver"
+	depends on SPI
+	depends on MACH_MMP3_DT || COMPILE_TEST
+	help
+	  Say Y to enable support for reporting power button status on
+	  on Dell Wyse 3020 ("Ariel") thin client.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ariel-pwrbutton.
+
 config INPUT_ARIZONA_HAPTICS
 	tristate "Arizona haptics support"
 	depends on MFD_ARIZONA && SND_SOC
@@ -608,6 +619,18 @@ config INPUT_RB532_BUTTON
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rb532_button.
+
+config INPUT_DA7280_HAPTICS
+	tristate "Dialog Semiconductor DA7280 haptics support"
+	depends on INPUT && I2C
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the Dialog DA7280 haptics driver.
+	  The haptics can be controlled by PWM or GPIO
+	  with I2C communication.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called da7280.
 
 config INPUT_DA9052_ONKEY
 	tristate "Dialog DA9052/DA9053 Onkey"

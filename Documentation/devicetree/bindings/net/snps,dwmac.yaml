@@ -126,7 +126,7 @@ properties:
       in a different mode than the PHY in order to function.
 
   snps,axi-config:
-    $ref: /schemas/types.yaml#definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       AXI BUS Mode parameters. Phandle to a node that can contain the
       following properties
@@ -141,7 +141,7 @@ properties:
         * snps,rb, rebuild INCRx Burst
 
   snps,mtl-rx-config:
-    $ref: /schemas/types.yaml#definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Multiple RX Queues parameters. Phandle to a node that can
       contain the following properties
@@ -161,10 +161,11 @@ properties:
             * snps,route-dcbcp, DCB Control Packets
             * snps,route-up, Untagged Packets
             * snps,route-multi-broad, Multicast & Broadcast Packets
-          * snps,priority, RX queue priority (Range 0x0 to 0xF)
+          * snps,priority, bitmask of the tagged frames priorities assigned to
+            the queue
 
   snps,mtl-tx-config:
-    $ref: /schemas/types.yaml#definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Multiple TX Queues parameters. Phandle to a node that can
       contain the following properties
@@ -188,7 +189,10 @@ properties:
             * snps,idle_slope, unlock on WoL
             * snps,high_credit, max write outstanding req. limit
             * snps,low_credit, max read outstanding req. limit
-          * snps,priority, TX queue priority (Range 0x0 to 0xF)
+          * snps,priority, bitmask of the priorities assigned to the queue.
+            When a PFC frame is received with priorities matching the bitmask,
+            the queue is blocked from transmitting for the pause time specified
+            in the PFC frame.
 
   snps,reset-gpio:
     deprecated: true
@@ -198,7 +202,7 @@ properties:
 
   snps,reset-active-low:
     deprecated: true
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Indicates that the PHY Reset is active low
 
@@ -208,55 +212,54 @@ properties:
       Triplet of delays. The 1st cell is reset pre-delay in micro
       seconds. The 2nd cell is reset pulse in micro seconds. The 3rd
       cell is reset post-delay in micro seconds.
-    $ref: /schemas/types.yaml#definitions/uint32-array
     minItems: 3
     maxItems: 3
 
   snps,aal:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Use Address-Aligned Beats
 
   snps,fixed-burst:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Program the DMA to use the fixed burst mode
 
   snps,mixed-burst:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Program the DMA to use the mixed burst mode
 
   snps,force_thresh_dma_mode:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Force DMA to use the threshold mode for both tx and rx
 
   snps,force_sf_dma_mode:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Force DMA to use the Store and Forward mode for both tx and
       rx. This flag is ignored if force_thresh_dma_mode is set.
 
   snps,en-tx-lpi-clockgating:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Enable gating of the MAC TX clock during TX low-power mode
 
   snps,multicast-filter-bins:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Number of multicast filter hash bins supported by this device
       instance
 
   snps,perfect-filter-entries:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Number of perfect filter entries supported by this device
       instance
 
   snps,ps-speed:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Port selection speed that can be passed to the core when PCS
       is supported. For example, this is used in case of SGMII and
@@ -307,25 +310,25 @@ allOf:
         snps,pbl:
           description:
             Programmable Burst Length (tx and rx)
-          $ref: /schemas/types.yaml#definitions/uint32
+          $ref: /schemas/types.yaml#/definitions/uint32
           enum: [2, 4, 8]
 
         snps,txpbl:
           description:
             Tx Programmable Burst Length. If set, DMA tx will use this
             value rather than snps,pbl.
-          $ref: /schemas/types.yaml#definitions/uint32
+          $ref: /schemas/types.yaml#/definitions/uint32
           enum: [2, 4, 8]
 
         snps,rxpbl:
           description:
             Rx Programmable Burst Length. If set, DMA rx will use this
             value rather than snps,pbl.
-          $ref: /schemas/types.yaml#definitions/uint32
+          $ref: /schemas/types.yaml#/definitions/uint32
           enum: [2, 4, 8]
 
         snps,no-pbl-x8:
-          $ref: /schemas/types.yaml#definitions/flag
+          $ref: /schemas/types.yaml#/definitions/flag
           description:
             Don\'t multiply the pbl/txpbl/rxpbl values by 8. For core
             rev < 3.50, don\'t multiply the values by 4.
@@ -351,7 +354,7 @@ allOf:
     then:
       properties:
         snps,tso:
-          $ref: /schemas/types.yaml#definitions/flag
+          $ref: /schemas/types.yaml#/definitions/flag
           description:
             Enables the TSO feature otherwise it will be managed by
             MAC HW capability register.

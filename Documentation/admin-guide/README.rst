@@ -398,8 +398,8 @@ If something goes wrong
 
    If you for some reason cannot do the above (you have a pre-compiled
    kernel image or similar), telling me as much about your setup as
-   possible will help.  Please read the :ref:`admin-guide/reporting-bugs.rst <reportingbugs>`
-   document for details.
+   possible will help.  Please read
+   'Documentation/admin-guide/reporting-issues.rst' for details.
 
  - Alternatively, you can use gdb on a running kernel. (read-only; i.e. you
    cannot change values or set break points.) To do this, first compile the

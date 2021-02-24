@@ -21,24 +21,6 @@
 		     "marvell,armada3720", "marvell,armada3710";
 };
 
-/* U11 */
 &sdhci0 {
-	non-removable;
-	bus-width = <8>;
-	mmc-ddr-1_8v;
-	mmc-hs400-1_8v;
-	marvell,xenon-emmc;
-	marvell,xenon-tun-count = <9>;
-	marvell,pad-type = "fixed-1-8v";
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc_pins>;
 	status = "okay";
-
-	#address-cells = <1>;
-	#size-cells = <0>;
-	mmccard: mmccard@0 {
-		compatible = "mmc-card";
-		reg = <0>;
-	};
 };

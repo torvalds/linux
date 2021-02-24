@@ -115,7 +115,7 @@ static ssize_t default_roce_mode_show(struct config_item *item,
 	if (gid_type < 0)
 		return gid_type;
 
-	return sprintf(buf, "%s\n", ib_cache_gid_type_str(gid_type));
+	return sysfs_emit(buf, "%s\n", ib_cache_gid_type_str(gid_type));
 }
 
 static ssize_t default_roce_mode_store(struct config_item *item,
@@ -131,8 +131,10 @@ static ssize_t default_roce_mode_store(struct config_item *item,
 		return ret;
 
 	gid_type = ib_cache_gid_parse_type_str(buf);
-	if (gid_type < 0)
+	if (gid_type < 0) {
+		cma_configfs_params_put(cma_dev);
 		return -EINVAL;
+	}
 
 	ret = cma_set_default_gid_type(cma_dev, group->port_num, gid_type);
 
@@ -157,7 +159,7 @@ static ssize_t default_roce_tos_show(struct config_item *item, char *buf)
 	tos = cma_get_default_roce_tos(cma_dev, group->port_num);
 	cma_configfs_params_put(cma_dev);
 
-	return sprintf(buf, "%u\n", tos);
+	return sysfs_emit(buf, "%u\n", tos);
 }
 
 static ssize_t default_roce_tos_store(struct config_item *item,

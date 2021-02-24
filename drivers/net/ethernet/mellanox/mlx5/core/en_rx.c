@@ -47,12 +47,11 @@
 #include "fpga/ipsec.h"
 #include "en_accel/ipsec_rxtx.h"
 #include "en_accel/tls_rxtx.h"
-#include "lib/clock.h"
 #include "en/xdp.h"
 #include "en/xsk/rx.h"
 #include "en/health.h"
 #include "en/params.h"
-#include "en/txrx.h"
+#include "devlink.h"
 
 static struct sk_buff *
 mlx5e_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
@@ -213,11 +212,6 @@ static inline u32 mlx5e_decompress_cqes_start(struct mlx5e_rq *rq,
 	return mlx5e_decompress_cqes_cont(rq, wq, 1, budget_rem) - 1;
 }
 
-static inline bool mlx5e_page_is_reserved(struct page *page)
-{
-	return page_is_pfmemalloc(page) || page_to_nid(page) != numa_mem_id();
-}
-
 static inline bool mlx5e_rx_cache_put(struct mlx5e_rq *rq,
 				      struct mlx5e_dma_info *dma_info)
 {
@@ -230,7 +224,7 @@ static inline bool mlx5e_rx_cache_put(struct mlx5e_rq *rq,
 		return false;
 	}
 
-	if (unlikely(mlx5e_page_is_reserved(dma_info->page))) {
+	if (!dev_page_is_reusable(dma_info->page)) {
 		stats->cache_waive++;
 		return false;
 	}
@@ -503,7 +497,7 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 {
 	struct mlx5e_mpw_info *wi = &rq->mpwqe.info[ix];
 	struct mlx5e_dma_info *dma_info = &wi->umr.dma_info[0];
-	struct mlx5e_icosq *sq = &rq->channel->icosq;
+	struct mlx5e_icosq *sq = rq->icosq;
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	struct mlx5e_umr_wqe *umr_wqe;
 	u16 xlt_offset = ix << (MLX5E_LOG_ALIGNED_MPWQE_PPW - 1);
@@ -670,13 +664,13 @@ int mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 			sqcc += wi->num_wqebbs;
 
 			if (last_wqe && unlikely(get_cqe_opcode(cqe) != MLX5_CQE_REQ)) {
-				netdev_WARN_ONCE(cq->channel->netdev,
+				netdev_WARN_ONCE(cq->netdev,
 						 "Bad OP in ICOSQ CQE: 0x%x\n",
 						 get_cqe_opcode(cqe));
 				mlx5e_dump_error_cqe(&sq->cq, sq->sqn,
 						     (struct mlx5_err_cqe *)cqe);
 				if (!test_and_set_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state))
-					queue_work(cq->channel->priv->wq, &sq->recover_work);
+					queue_work(cq->priv->wq, &sq->recover_work);
 				break;
 			}
 
@@ -697,7 +691,7 @@ int mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 				break;
 #endif
 			default:
-				netdev_WARN_ONCE(cq->channel->netdev,
+				netdev_WARN_ONCE(cq->netdev,
 						 "Bad WQE type in ICOSQ WQE info: 0x%x\n",
 						 wi->wqe_type);
 			}
@@ -713,9 +707,9 @@ int mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 
 INDIRECT_CALLABLE_SCOPE bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq)
 {
-	struct mlx5e_icosq *sq = &rq->channel->icosq;
 	struct mlx5_wq_ll *wq = &rq->mpwqe.wq;
 	u8  umr_completed = rq->mpwqe.umr_completed;
+	struct mlx5e_icosq *sq = rq->icosq;
 	int alloc_err = 0;
 	u8  missing, i;
 	u16 head;
@@ -1067,9 +1061,8 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 	}
 
 	if (unlikely(mlx5e_rx_hw_stamp(rq->tstamp)))
-		skb_hwtstamps(skb)->hwtstamp =
-				mlx5_timecounter_cyc2time(rq->clock, get_cqe_ts(cqe));
-
+		skb_hwtstamps(skb)->hwtstamp = mlx5e_cqe_ts_to_ns(rq->ptp_cyc2time,
+								  rq->clock, get_cqe_ts(cqe));
 	skb_record_rx_queue(skb, rq->ix);
 
 	if (likely(netdev->features & NETIF_F_RXHASH))
@@ -1127,12 +1120,8 @@ struct sk_buff *mlx5e_build_linear_skb(struct mlx5e_rq *rq, void *va,
 static void mlx5e_fill_xdp_buff(struct mlx5e_rq *rq, void *va, u16 headroom,
 				u32 len, struct xdp_buff *xdp)
 {
-	xdp->data_hard_start = va;
-	xdp->data = va + headroom;
-	xdp_set_data_meta_invalid(xdp);
-	xdp->data_end = xdp->data + len;
-	xdp->rxq = &rq->xdp_rxq;
-	xdp->frame_sz = rq->buff.frame0_sz;
+	xdp_init_buff(xdp, rq->buff.frame0_sz, &rq->xdp_rxq);
+	xdp_prepare_buff(xdp, va, headroom, len, false);
 }
 
 static struct sk_buff *
@@ -1218,11 +1207,12 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 static void trigger_report(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 {
 	struct mlx5_err_cqe *err_cqe = (struct mlx5_err_cqe *)cqe;
+	struct mlx5e_priv *priv = rq->priv;
 
 	if (cqe_syndrome_needs_recover(err_cqe->syndrome) &&
 	    !test_and_set_bit(MLX5E_RQ_STATE_RECOVERING, &rq->state)) {
 		mlx5e_dump_error_cqe(&rq->cq, rq->rqn, err_cqe);
-		queue_work(rq->channel->priv->wq, &rq->recover_work);
+		queue_work(priv->wq, &rq->recover_work);
 	}
 }
 
@@ -1262,8 +1252,10 @@ static void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 	mlx5e_complete_rx_cqe(rq, cqe, cqe_bcnt, skb);
 
 	if (mlx5e_cqe_regb_chain(cqe))
-		if (!mlx5e_tc_update_skb(cqe, skb))
+		if (!mlx5e_tc_update_skb(cqe, skb)) {
+			dev_kfree_skb_any(skb);
 			goto free_wqe;
+		}
 
 	napi_gro_receive(rq->cq.napi, skb);
 
@@ -1316,8 +1308,10 @@ static void mlx5e_handle_rx_cqe_rep(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 	if (rep->vlan && skb_vlan_tag_present(skb))
 		skb_vlan_pop(skb);
 
-	if (!mlx5e_rep_tc_update_skb(cqe, skb, &tc_priv))
+	if (!mlx5e_rep_tc_update_skb(cqe, skb, &tc_priv)) {
+		dev_kfree_skb_any(skb);
 		goto free_wqe;
+	}
 
 	napi_gro_receive(rq->cq.napi, skb);
 
@@ -1371,8 +1365,10 @@ static void mlx5e_handle_rx_cqe_mpwrq_rep(struct mlx5e_rq *rq, struct mlx5_cqe64
 
 	mlx5e_complete_rx_cqe(rq, cqe, cqe_bcnt, skb);
 
-	if (!mlx5e_rep_tc_update_skb(cqe, skb, &tc_priv))
+	if (!mlx5e_rep_tc_update_skb(cqe, skb, &tc_priv)) {
+		dev_kfree_skb_any(skb);
 		goto mpwrq_cqe_out;
+	}
 
 	napi_gro_receive(rq->cq.napi, skb);
 
@@ -1528,8 +1524,10 @@ static void mlx5e_handle_rx_cqe_mpwrq(struct mlx5e_rq *rq, struct mlx5_cqe64 *cq
 	mlx5e_complete_rx_cqe(rq, cqe, cqe_bcnt, skb);
 
 	if (mlx5e_cqe_regb_chain(cqe))
-		if (!mlx5e_tc_update_skb(cqe, skb))
+		if (!mlx5e_tc_update_skb(cqe, skb)) {
+			dev_kfree_skb_any(skb);
 			goto mpwrq_cqe_out;
+		}
 
 	napi_gro_receive(rq->cq.napi, skb);
 
@@ -1584,7 +1582,7 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 	} while ((++work_done < budget) && (cqe = mlx5_cqwq_get_cqe(cqwq)));
 
 out:
-	if (rq->xdp_prog)
+	if (rcu_access_pointer(rq->xdp_prog))
 		mlx5e_xdp_rx_poll_complete(rq);
 
 	mlx5_cqwq_update_db_record(cqwq);
@@ -1667,9 +1665,8 @@ static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
 	}
 
 	if (unlikely(mlx5e_rx_hw_stamp(tstamp)))
-		skb_hwtstamps(skb)->hwtstamp =
-				mlx5_timecounter_cyc2time(rq->clock, get_cqe_ts(cqe));
-
+		skb_hwtstamps(skb)->hwtstamp = mlx5e_cqe_ts_to_ns(rq->ptp_cyc2time,
+								  rq->clock, get_cqe_ts(cqe));
 	skb_record_rx_queue(skb, rq->ix);
 
 	if (likely(netdev->features & NETIF_F_RXHASH))
@@ -1771,8 +1768,9 @@ wq_free_wqe:
 
 int mlx5e_rq_set_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params, bool xsk)
 {
+	struct net_device *netdev = rq->netdev;
 	struct mlx5_core_dev *mdev = rq->mdev;
-	struct mlx5e_channel *c = rq->channel;
+	struct mlx5e_priv *priv = rq->priv;
 
 	switch (rq->wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
@@ -1784,15 +1782,13 @@ int mlx5e_rq_set_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params, bool
 		rq->post_wqes = mlx5e_post_rx_mpwqes;
 		rq->dealloc_wqe = mlx5e_dealloc_rx_mpwqe;
 
-		rq->handle_rx_cqe = c->priv->profile->rx_handlers->handle_rx_cqe_mpwqe;
-#ifdef CONFIG_MLX5_EN_IPSEC
-		if (MLX5_IPSEC_DEV(mdev)) {
-			netdev_err(c->netdev, "MPWQE RQ with IPSec offload not supported\n");
+		rq->handle_rx_cqe = priv->profile->rx_handlers->handle_rx_cqe_mpwqe;
+		if (mlx5_fpga_is_ipsec_device(mdev)) {
+			netdev_err(netdev, "MPWQE RQ with Innova IPSec offload not supported\n");
 			return -EINVAL;
 		}
-#endif
 		if (!rq->handle_rx_cqe) {
-			netdev_err(c->netdev, "RX handler of MPWQE RQ is not set\n");
+			netdev_err(netdev, "RX handler of MPWQE RQ is not set\n");
 			return -EINVAL;
 		}
 		break;
@@ -1807,16 +1803,61 @@ int mlx5e_rq_set_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params, bool
 
 #ifdef CONFIG_MLX5_EN_IPSEC
 		if ((mlx5_fpga_ipsec_device_caps(mdev) & MLX5_ACCEL_IPSEC_CAP_DEVICE) &&
-		    c->priv->ipsec)
+		    priv->ipsec)
 			rq->handle_rx_cqe = mlx5e_ipsec_handle_rx_cqe;
 		else
 #endif
-			rq->handle_rx_cqe = c->priv->profile->rx_handlers->handle_rx_cqe;
+			rq->handle_rx_cqe = priv->profile->rx_handlers->handle_rx_cqe;
 		if (!rq->handle_rx_cqe) {
-			netdev_err(c->netdev, "RX handler of RQ is not set\n");
+			netdev_err(netdev, "RX handler of RQ is not set\n");
 			return -EINVAL;
 		}
 	}
 
 	return 0;
+}
+
+static void mlx5e_trap_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
+{
+	struct mlx5e_priv *priv = netdev_priv(rq->netdev);
+	struct mlx5_wq_cyc *wq = &rq->wqe.wq;
+	struct mlx5e_wqe_frag_info *wi;
+	struct sk_buff *skb;
+	u32 cqe_bcnt;
+	u16 trap_id;
+	u16 ci;
+
+	trap_id  = get_cqe_flow_tag(cqe);
+	ci       = mlx5_wq_cyc_ctr2ix(wq, be16_to_cpu(cqe->wqe_counter));
+	wi       = get_frag(rq, ci);
+	cqe_bcnt = be32_to_cpu(cqe->byte_cnt);
+
+	if (unlikely(MLX5E_RX_ERR_CQE(cqe))) {
+		rq->stats->wqe_err++;
+		goto free_wqe;
+	}
+
+	skb = mlx5e_skb_from_cqe_nonlinear(rq, cqe, wi, cqe_bcnt);
+	if (!skb)
+		goto free_wqe;
+
+	mlx5e_complete_rx_cqe(rq, cqe, cqe_bcnt, skb);
+	skb_push(skb, ETH_HLEN);
+
+	mlx5_devlink_trap_report(rq->mdev, trap_id, skb, &priv->dl_port);
+	dev_kfree_skb_any(skb);
+
+free_wqe:
+	mlx5e_free_rx_wqe(rq, wi, false);
+	mlx5_wq_cyc_pop(wq);
+}
+
+void mlx5e_rq_set_trap_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params)
+{
+	rq->wqe.skb_from_cqe = mlx5e_rx_is_linear_skb(params, NULL) ?
+			       mlx5e_skb_from_cqe_linear :
+			       mlx5e_skb_from_cqe_nonlinear;
+	rq->post_wqes = mlx5e_post_rx_wqes;
+	rq->dealloc_wqe = mlx5e_dealloc_rx_wqe;
+	rq->handle_rx_cqe = mlx5e_trap_handle_rx_cqe;
 }

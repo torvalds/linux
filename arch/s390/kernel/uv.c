@@ -129,8 +129,15 @@ int uv_destroy_page(unsigned long paddr)
 		.paddr = paddr
 	};
 
-	if (uv_call(0, (u64)&uvcb))
+	if (uv_call(0, (u64)&uvcb)) {
+		/*
+		 * Older firmware uses 107/d as an indication of a non secure
+		 * page. Let us emulate the newer variant (no-op).
+		 */
+		if (uvcb.header.rc == 0x107 && uvcb.header.rrc == 0xd)
+			return 0;
 		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -361,7 +368,7 @@ static ssize_t uv_query_max_guest_cpus(struct kobject *kobj,
 				       struct kobj_attribute *attr, char *page)
 {
 	return scnprintf(page, PAGE_SIZE, "%d\n",
-			uv_info.max_guest_cpus);
+			uv_info.max_guest_cpu_id + 1);
 }
 
 static struct kobj_attribute uv_query_max_guest_cpus_attr =

@@ -62,6 +62,35 @@
 		states = <1100000 0>, <1300000 1>;
 	};
 
+	reg_vcc_dram: vcc-dram {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc-dram";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+		regulator-always-on;
+		regulator-boot-on;
+		enable-active-high;
+		gpio = <&r_pio 0 9 GPIO_ACTIVE_HIGH>; /* PL9 */
+		vin-supply = <&reg_vcc5v0>;
+	};
+
+	reg_vcc1v2: vcc1v2 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc1v2";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-always-on;
+		regulator-boot-on;
+		enable-active-high;
+		gpio = <&r_pio 0 8 GPIO_ACTIVE_HIGH>; /* PL8 */
+		vin-supply = <&reg_vcc5v0>;
+	};
+
+	poweroff {
+		compatible = "regulator-poweroff";
+		cpu-supply = <&reg_vcc1v2>;
+	};
+
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
@@ -125,6 +154,7 @@
 
 	bluetooth {
 		compatible = "brcm,bcm43438-bt";
+		max-speed = <1500000>;
 		clocks = <&rtc 1>;
 		clock-names = "lpo";
 		vbat-supply = <&reg_vcc3v3>;
@@ -134,6 +164,70 @@
 		shutdown-gpios = <&pio 6 12 GPIO_ACTIVE_HIGH>; /* PG12 */
 	};
 
+};
+
+&pio {
+	gpio-line-names =
+		/* PA */
+		"CON2-P13", "CON2-P11", "CON2-P22", "CON2-P15",
+			"CON3-P03", "CON3-P02", "CON2-P07", "CON2-P29",
+		"CON2-P31", "CON2-P33", "CON2-P35", "CON2-P05",
+			"CON2-P03", "CON2-P08", "CON2-P10", "CON2-P16",
+		"CON2-P12", "CON2-P37", "CON2-P28", "CON2-P27",
+			"CON2-P40", "CON2-P38", "", "",
+		"", "", "", "", "", "", "", "",
+
+		/* PB */
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+
+		/* PC */
+		"CON2-P19", "CON2-P21", "CON2-P23", "CON2-P24",
+			"CON2-P18", "", "", "CON2-P26",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+
+		/* PD */
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "CSI-PWR-EN", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+
+		/* PE */
+		"CN3-P17", "CN3-P13", "CN3-P09", "CN3-P07",
+			"CN3-P19", "CN3-P21", "CN3-P22", "CN3-P20",
+		"CN3-P18", "CN3-P16", "CN3-P14", "CN3-P12",
+			"CN3-P05", "CN3-P03", "CN3-P06", "CN3-P08",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+
+		/* PF */
+		"SDC0-D1", "SDC0-D0", "SDC0-CLK", "SDC0-CMD", "SDC0-D3",
+			"SDC0-D2", "SDC0-DET", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+
+		/* PG */
+		"WL-SDIO-CLK", "WL-SDIO-CMD", "WL-SDIO-D0", "WL-SDIO-D1",
+			"WL-SDIO-D2", "WL-SDIO-D3", "BT-UART-TX", "BT-UART-RX",
+		"BT-UART-RTS", "BT-UART-CTS", "WL-WAKE-AP", "BT-WAKE-AP",
+			"BT-RST-N", "AP-WAKE-BT", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&r_pio {
+	gpio-line-names =
+		/* PL */
+		"", "CPUX-SET", "CON2-P32", "POWER-KEY", "CON2-P36",
+			"VCC-IO-EN", "USB0-ID", "WL-PWR-EN",
+		"PWR-STB", "PWR-DRAM", "PWR-LED", "IR-RX", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
 };
 
 &usb_otg {

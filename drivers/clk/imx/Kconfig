@@ -5,9 +5,7 @@ config MXC_CLK
 	depends on ARCH_MXC || COMPILE_TEST
 
 config MXC_CLK_SCU
-	tristate "IMX SCU clock"
-	depends on ARCH_MXC || COMPILE_TEST
-	depends on IMX_SCU && HAVE_ARM_SMCCC
+	tristate
 
 config CLK_IMX1
 	def_bool SOC_IMX1

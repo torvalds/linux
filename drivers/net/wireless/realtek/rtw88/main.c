@@ -16,17 +16,17 @@
 #include "debug.h"
 #include "bf.h"
 
-unsigned int rtw_fw_lps_deep_mode;
-EXPORT_SYMBOL(rtw_fw_lps_deep_mode);
+bool rtw_disable_lps_deep_mode;
+EXPORT_SYMBOL(rtw_disable_lps_deep_mode);
 bool rtw_bf_support = true;
 unsigned int rtw_debug_mask;
 EXPORT_SYMBOL(rtw_debug_mask);
 
-module_param_named(lps_deep_mode, rtw_fw_lps_deep_mode, uint, 0644);
+module_param_named(disable_lps_deep, rtw_disable_lps_deep_mode, bool, 0644);
 module_param_named(support_bf, rtw_bf_support, bool, 0644);
 module_param_named(debug_mask, rtw_debug_mask, uint, 0644);
 
-MODULE_PARM_DESC(lps_deep_mode, "Deeper PS mode. If 0, deep PS is disabled");
+MODULE_PARM_DESC(disable_lps_deep, "Set Y to disable Deep PS");
 MODULE_PARM_DESC(support_bf, "Set Y to enable beamformee support");
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 
@@ -67,6 +67,7 @@ static struct ieee80211_channel rtw_channeltable_5g[] = {
 	{.center_freq = 5660, .hw_value = 132,},
 	{.center_freq = 5680, .hw_value = 136,},
 	{.center_freq = 5700, .hw_value = 140,},
+	{.center_freq = 5720, .hw_value = 144,},
 	{.center_freq = 5745, .hw_value = 149,},
 	{.center_freq = 5765, .hw_value = 153,},
 	{.center_freq = 5785, .hw_value = 157,},
@@ -196,7 +197,7 @@ static void rtw_watch_dog_work(struct work_struct *work)
 		clear_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags);
 
 	if (busy_traffic != test_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags))
-		rtw_coex_wl_status_change_notify(rtwdev);
+		rtw_coex_wl_status_change_notify(rtwdev, 0);
 
 	if (stats->tx_cnt > RTW_LPS_THRESHOLD ||
 	    stats->rx_cnt > RTW_LPS_THRESHOLD)
@@ -893,6 +894,7 @@ static u64 rtw_update_rate_mask(struct rtw_dev *rtwdev,
 
 void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 {
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
 	struct ieee80211_sta *sta = si->sta;
 	struct rtw_efuse *efuse = &rtwdev->efuse;
 	struct rtw_hal *hal = &rtwdev->hal;
@@ -937,6 +939,7 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 		} else {
 			wireless_set = WIRELESS_OFDM;
 		}
+		dm_info->rrsr_val_init = RRSR_INIT_5G;
 	} else if (hal->current_band_type == RTW_BAND_2G) {
 		ra_mask |= sta->supp_rates[NL80211_BAND_2GHZ];
 		if (sta->vht_cap.vht_supported) {
@@ -954,6 +957,7 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 		} else {
 			wireless_set = WIRELESS_CCK | WIRELESS_OFDM;
 		}
+		dm_info->rrsr_val_init = RRSR_INIT_2G;
 	} else {
 		rtw_err(rtwdev, "Unknown band type\n");
 		wireless_set = 0;
@@ -1021,6 +1025,26 @@ static int rtw_wait_firmware_completion(struct rtw_dev *rtwdev)
 	}
 
 	return 0;
+}
+
+static enum rtw_lps_deep_mode rtw_update_lps_deep_mode(struct rtw_dev *rtwdev,
+						       struct rtw_fw_state *fw)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+
+	if (rtw_disable_lps_deep_mode || !chip->lps_deep_mode_supported ||
+	    !fw->feature)
+		return LPS_DEEP_MODE_NONE;
+
+	if ((chip->lps_deep_mode_supported & BIT(LPS_DEEP_MODE_PG)) &&
+	    (fw->feature & FW_FEATURE_PG))
+		return LPS_DEEP_MODE_PG;
+
+	if ((chip->lps_deep_mode_supported & BIT(LPS_DEEP_MODE_LCLK)) &&
+	    (fw->feature & FW_FEATURE_LCLK))
+		return LPS_DEEP_MODE_LCLK;
+
+	return LPS_DEEP_MODE_NONE;
 }
 
 static int rtw_power_on(struct rtw_dev *rtwdev)
@@ -1097,6 +1121,9 @@ int rtw_core_start(struct rtw_dev *rtwdev)
 
 	rtw_sec_enable_sec_engine(rtwdev);
 
+	rtwdev->lps_conf.deep_mode = rtw_update_lps_deep_mode(rtwdev, &rtwdev->fw);
+	rtwdev->lps_conf.wow_deep_mode = rtw_update_lps_deep_mode(rtwdev, &rtwdev->wow_fw);
+
 	/* rcr reset after powered on */
 	rtw_write32(rtwdev, REG_RCR, rtwdev->hal.rcr);
 
@@ -1130,6 +1157,9 @@ void rtw_core_stop(struct rtw_dev *rtwdev)
 	cancel_delayed_work_sync(&coex->defreeze_work);
 	cancel_delayed_work_sync(&coex->wl_remain_work);
 	cancel_delayed_work_sync(&coex->bt_remain_work);
+	cancel_delayed_work_sync(&coex->wl_connecting_work);
+	cancel_delayed_work_sync(&coex->bt_multi_link_remain_work);
+	cancel_delayed_work_sync(&coex->wl_ccklock_work);
 
 	mutex_lock(&rtwdev->mutex);
 
@@ -1249,7 +1279,6 @@ static void rtw_set_supported_band(struct ieee80211_hw *hw,
 
 err_out:
 	rtw_err(rtwdev, "failed to set supported band\n");
-	kfree(sband);
 }
 
 static void rtw_unset_supported_band(struct ieee80211_hw *hw,
@@ -1257,6 +1286,17 @@ static void rtw_unset_supported_band(struct ieee80211_hw *hw,
 {
 	kfree(hw->wiphy->bands[NL80211_BAND_2GHZ]);
 	kfree(hw->wiphy->bands[NL80211_BAND_5GHZ]);
+}
+
+static void __update_firmware_feature(struct rtw_dev *rtwdev,
+				      struct rtw_fw_state *fw)
+{
+	u32 feature;
+	const struct rtw_fw_hdr *fw_hdr =
+				(const struct rtw_fw_hdr *)fw->firmware->data;
+
+	feature = le32_to_cpu(fw_hdr->feature);
+	fw->feature = feature & FW_FEATURE_SIG ? feature : 0;
 }
 
 static void __update_firmware_info(struct rtw_dev *rtwdev,
@@ -1269,6 +1309,8 @@ static void __update_firmware_info(struct rtw_dev *rtwdev,
 	fw->version = le16_to_cpu(fw_hdr->version);
 	fw->sub_version = fw_hdr->subversion;
 	fw->sub_index = fw_hdr->subindex;
+
+	__update_firmware_feature(rtwdev, fw);
 }
 
 static void __update_firmware_info_legacy(struct rtw_dev *rtwdev,
@@ -1551,6 +1593,8 @@ static int rtw_chip_board_info_setup(struct rtw_dev *rtwdev)
 	rtw_phy_setup_phy_cond(rtwdev, 0);
 
 	rtw_phy_init_tx_power(rtwdev);
+	if (rfe_def->agc_btg_tbl)
+		rtw_load_table(rtwdev, rfe_def->agc_btg_tbl);
 	rtw_load_table(rtwdev, rfe_def->phy_pg_tbl);
 	rtw_load_table(rtwdev, rfe_def->txpwr_lmt_tbl);
 	rtw_phy_tx_power_by_rate_config(hal);
@@ -1614,7 +1658,7 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 
 	timer_setup(&rtwdev->tx_report.purge_timer,
 		    rtw_tx_report_purge_timer, 0);
-	tasklet_setup(&rtwdev->tx_tasklet, rtw_tx_tasklet);
+	rtwdev->tx_wq = alloc_workqueue("rtw_tx_wq", WQ_UNBOUND | WQ_HIGHPRI, 0);
 
 	INIT_DELAYED_WORK(&rtwdev->watch_dog_work, rtw_watch_dog_work);
 	INIT_DELAYED_WORK(&coex->bt_relink_work, rtw_coex_bt_relink_work);
@@ -1622,6 +1666,11 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 	INIT_DELAYED_WORK(&coex->defreeze_work, rtw_coex_defreeze_work);
 	INIT_DELAYED_WORK(&coex->wl_remain_work, rtw_coex_wl_remain_work);
 	INIT_DELAYED_WORK(&coex->bt_remain_work, rtw_coex_bt_remain_work);
+	INIT_DELAYED_WORK(&coex->wl_connecting_work, rtw_coex_wl_connecting_work);
+	INIT_DELAYED_WORK(&coex->bt_multi_link_remain_work,
+			  rtw_coex_bt_multi_link_remain_work);
+	INIT_DELAYED_WORK(&coex->wl_ccklock_work, rtw_coex_wl_ccklock_work);
+	INIT_WORK(&rtwdev->tx_work, rtw_tx_work);
 	INIT_WORK(&rtwdev->c2h_work, rtw_c2h_work);
 	INIT_WORK(&rtwdev->fw_recovery_work, rtw_fw_recovery_work);
 	INIT_WORK(&rtwdev->ba_work, rtw_txq_ba_work);
@@ -1639,14 +1688,11 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 	mutex_init(&rtwdev->hal.tx_power_mutex);
 
 	init_waitqueue_head(&rtwdev->coex.wait);
+	init_completion(&rtwdev->lps_leave_check);
 
 	rtwdev->sec.total_cam_num = 32;
 	rtwdev->hal.current_channel = 1;
 	set_bit(RTW_BC_MC_MACID, rtwdev->mac_id_map);
-	if (!(BIT(rtw_fw_lps_deep_mode) & chip->lps_deep_mode_supported))
-		rtwdev->lps_conf.deep_mode = LPS_DEEP_MODE_NONE;
-	else
-		rtwdev->lps_conf.deep_mode = rtw_fw_lps_deep_mode;
 
 	rtw_stats_init(rtwdev);
 
@@ -1671,6 +1717,7 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 			return ret;
 		}
 	}
+
 	return 0;
 }
 EXPORT_SYMBOL(rtw_core_init);
@@ -1690,7 +1737,7 @@ void rtw_core_deinit(struct rtw_dev *rtwdev)
 	if (wow_fw->firmware)
 		release_firmware(wow_fw->firmware);
 
-	tasklet_kill(&rtwdev->tx_tasklet);
+	destroy_workqueue(rtwdev->tx_wq);
 	spin_lock_irqsave(&rtwdev->tx_report.q_lock, flags);
 	skb_queue_purge(&rtwdev->tx_report.queue);
 	spin_unlock_irqrestore(&rtwdev->tx_report.q_lock, flags);

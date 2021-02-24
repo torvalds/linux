@@ -1062,26 +1062,6 @@ static const struct v4l2_ctrl_config ctrl_select_isp_version = {
 	.def = 0,
 };
 
-#if 0 /* #ifdef CONFIG_ION */
-/*
- * Control for ISP ion device fd
- *
- * userspace will open ion device and pass the fd to kernel.
- * this fd will be used to map shared fd to buffer.
- */
-/* V4L2_CID_ATOMISP_ION_DEVICE_FD is not defined */
-static const struct v4l2_ctrl_config ctrl_ion_dev_fd = {
-	.ops = &ctrl_ops,
-	.id = V4L2_CID_ATOMISP_ION_DEVICE_FD,
-	.type = V4L2_CTRL_TYPE_INTEGER,
-	.name = "Ion Device Fd",
-	.min = -1,
-	.max = 1024,
-	.step = 1,
-	.def = ION_FD_UNSET
-};
-#endif
-
 static void atomisp_init_subdev_pipe(struct atomisp_sub_device *asd,
 				     struct atomisp_video_pipe *pipe, enum v4l2_buf_type buf_type)
 {

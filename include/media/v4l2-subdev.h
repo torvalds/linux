@@ -309,7 +309,7 @@ struct v4l2_subdev_audio_ops {
 };
 
 /**
- * enum v4l2_mbus_frame_desc_entry - media bus frame description flags
+ * enum v4l2_mbus_frame_desc_flags - media bus frame description flags
  *
  * @V4L2_MBUS_FRAME_DESC_FL_LEN_MAX:
  *	Indicates that &struct v4l2_mbus_frame_desc_entry->length field

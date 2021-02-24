@@ -42,9 +42,8 @@ static int uverbs_free_counters(struct ib_uobject *uobject,
 	struct ib_counters *counters = uobject->object;
 	int ret;
 
-	ret = ib_destroy_usecnt(&counters->usecnt, why, uobject);
-	if (ret)
-		return ret;
+	if (atomic_read(&counters->usecnt))
+		return -EBUSY;
 
 	ret = counters->device->ops.destroy_counters(counters);
 	if (ret)

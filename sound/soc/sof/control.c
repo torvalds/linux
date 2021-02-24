@@ -114,6 +114,28 @@ int snd_sof_volume_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
+int snd_sof_volume_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
+{
+	struct soc_mixer_control *sm = (struct soc_mixer_control *)kcontrol->private_value;
+	struct snd_sof_control *scontrol = sm->dobj.private;
+	unsigned int channels = scontrol->num_channels;
+	int platform_max;
+
+	if (!sm->platform_max)
+		sm->platform_max = sm->max;
+	platform_max = sm->platform_max;
+
+	if (platform_max == 1 && !strstr(kcontrol->id.name, " Volume"))
+		uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+	else
+		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+
+	uinfo->count = channels;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = platform_max - sm->min;
+	return 0;
+}
+
 int snd_sof_switch_get(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol)
 {
@@ -309,7 +331,7 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	 * the length (as bytes) is needed to know the correct copy
 	 * length of data from tlvd->tlv.
 	 */
-	if (copy_from_user(&header, tlvd, sizeof(const struct snd_ctl_tlv)))
+	if (copy_from_user(&header, tlvd, sizeof(struct snd_ctl_tlv)))
 		return -EFAULT;
 
 	/* make sure TLV info is consistent */
@@ -351,7 +373,7 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	}
 
 	/* be->max has been verified to be >= sizeof(struct sof_abi_hdr) */
-	if (cdata->data->size > be->max - sizeof(const struct sof_abi_hdr)) {
+	if (cdata->data->size > be->max - sizeof(struct sof_abi_hdr)) {
 		dev_err_ratelimited(scomp->dev, "error: Mismatch in ABI data size (truncated?).\n");
 		return -EINVAL;
 	}
@@ -405,15 +427,15 @@ int snd_sof_bytes_ext_volatile_get(struct snd_kcontrol *kcontrol, unsigned int _
 		goto out;
 
 	/* check data size doesn't exceed max coming from topology */
-	if (cdata->data->size > be->max - sizeof(const struct sof_abi_hdr)) {
+	if (cdata->data->size > be->max - sizeof(struct sof_abi_hdr)) {
 		dev_err_ratelimited(scomp->dev, "error: user data size %d exceeds max size %zu.\n",
 				    cdata->data->size,
-				    be->max - sizeof(const struct sof_abi_hdr));
+				    be->max - sizeof(struct sof_abi_hdr));
 		ret = -EINVAL;
 		goto out;
 	}
 
-	data_size = cdata->data->size + sizeof(const struct sof_abi_hdr);
+	data_size = cdata->data->size + sizeof(struct sof_abi_hdr);
 
 	/* make sure we don't exceed size provided by user space for data */
 	if (data_size > size) {
@@ -423,7 +445,7 @@ int snd_sof_bytes_ext_volatile_get(struct snd_kcontrol *kcontrol, unsigned int _
 
 	header.numid = scontrol->cmd;
 	header.length = data_size;
-	if (copy_to_user(tlvd, &header, sizeof(const struct snd_ctl_tlv))) {
+	if (copy_to_user(tlvd, &header, sizeof(struct snd_ctl_tlv))) {
 		ret = -EFAULT;
 		goto out;
 	}
@@ -466,14 +488,14 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	cdata->data->abi = SOF_ABI_VERSION;
 
 	/* check data size doesn't exceed max coming from topology */
-	if (cdata->data->size > be->max - sizeof(const struct sof_abi_hdr)) {
+	if (cdata->data->size > be->max - sizeof(struct sof_abi_hdr)) {
 		dev_err_ratelimited(scomp->dev, "error: user data size %d exceeds max size %zu.\n",
 				    cdata->data->size,
-				    be->max - sizeof(const struct sof_abi_hdr));
+				    be->max - sizeof(struct sof_abi_hdr));
 		return -EINVAL;
 	}
 
-	data_size = cdata->data->size + sizeof(const struct sof_abi_hdr);
+	data_size = cdata->data->size + sizeof(struct sof_abi_hdr);
 
 	/* make sure we don't exceed size provided by user space for data */
 	if (data_size > size)
@@ -481,7 +503,7 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 
 	header.numid = scontrol->cmd;
 	header.length = data_size;
-	if (copy_to_user(tlvd, &header, sizeof(const struct snd_ctl_tlv)))
+	if (copy_to_user(tlvd, &header, sizeof(struct snd_ctl_tlv)))
 		return -EFAULT;
 
 	if (copy_to_user(tlvd->tlv, cdata->data, data_size))

@@ -270,7 +270,7 @@ static inline bool amdtp_stream_wait_callback(struct amdtp_stream *s,
 					      unsigned int timeout)
 {
 	return wait_event_timeout(s->callback_wait,
-				  s->callbacked == true,
+				  s->callbacked,
 				  msecs_to_jiffies(timeout)) > 0;
 }
 

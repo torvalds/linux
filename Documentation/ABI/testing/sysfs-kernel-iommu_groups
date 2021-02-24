@@ -33,3 +33,33 @@ Description:    In case an RMRR is used only by graphics or USB devices
 		it is now exposed as "direct-relaxable" instead of "direct".
 		In device assignment use case, for instance, those RMRR
 		are considered to be relaxable and safe.
+
+What:		/sys/kernel/iommu_groups/<grp_id>/type
+Date:		November 2020
+KernelVersion:	v5.11
+Contact:	Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
+Description:	/sys/kernel/iommu_groups/<grp_id>/type shows the type of default
+		domain in use by iommu for this group. See include/linux/iommu.h
+		for possible read values. A privileged user could request kernel to
+		change the group type by writing to this file. Valid write values:
+
+		========  ======================================================
+		DMA       All the DMA transactions from the device in this group
+		          are translated by the iommu.
+		identity  All the DMA transactions from the device in this group
+		          are not translated by the iommu.
+		auto      Change to the type the device was booted with.
+		========  ======================================================
+
+		The default domain type of a group may be modified only when
+
+		- The group has only one device.
+		- The device in the group is not bound to any device driver.
+		  So, the users must unbind the appropriate driver before
+		  changing the default domain type.
+
+		Unbinding a device driver will take away the driver's control
+		over the device and if done on devices that host root file
+		system could lead to catastrophic effects (the users might
+		need to reboot the machine to get it to normal state). So, it's
+		expected that the users understand what they're doing.

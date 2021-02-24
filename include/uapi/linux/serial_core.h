@@ -134,8 +134,6 @@
 /*Digi jsm */
 #define PORT_JSM        69
 
-#define PORT_PNX8XXX	70
-
 /* SUN4V Hypervisor Console */
 #define PORT_SUNHV	72
 
@@ -209,9 +207,6 @@
 
 /* Atheros AR933X SoC */
 #define PORT_AR933X	99
-
-/* Energy Micro efm32 SoC */
-#define PORT_EFMUART   100
 
 /* ARC (Synopsys) on-chip UART */
 #define PORT_ARC       101

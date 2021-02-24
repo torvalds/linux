@@ -18,7 +18,8 @@ struct fib_alias {
 	s16			fa_default;
 	u8			offload:1,
 				trap:1,
-				unused:6;
+				offload_failed:1,
+				unused:5;
 	struct rcu_head		rcu;
 };
 
@@ -39,9 +40,10 @@ int fib_nh_match(struct net *net, struct fib_config *cfg, struct fib_info *fi,
 		 struct netlink_ext_ack *extack);
 bool fib_metrics_match(struct fib_config *cfg, struct fib_info *fi);
 int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
-		  struct fib_rt_info *fri, unsigned int flags);
+		  const struct fib_rt_info *fri, unsigned int flags);
 void rtmsg_fib(int event, __be32 key, struct fib_alias *fa, int dst_len,
 	       u32 tb_id, const struct nl_info *info, unsigned int nlm_flags);
+size_t fib_nlmsg_size(struct fib_info *fi);
 
 static inline void fib_result_assign(struct fib_result *res,
 				     struct fib_info *fi)

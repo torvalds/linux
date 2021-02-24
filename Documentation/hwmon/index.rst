@@ -49,6 +49,7 @@ Hardware Monitoring Kernel Drivers
    bt1-pvt
    coretemp
    corsair-cpro
+   corsair-psu
    da9052
    da9055
    dell-smm-hwmon
@@ -100,6 +101,7 @@ Hardware Monitoring Kernel Drivers
    lm95234
    lm95245
    lochnagar
+   ltc2992
    ltc2945
    ltc2947
    ltc2978
@@ -110,6 +112,7 @@ Hardware Monitoring Kernel Drivers
    ltc4245
    ltc4260
    ltc4261
+   max127
    max16064
    max16065
    max1619
@@ -132,6 +135,7 @@ Hardware Monitoring Kernel Drivers
    mcp3021
    menf21bmc
    mlxreg-fan
+   mp2975
    nct6683
    nct6775
    nct7802
@@ -143,11 +147,14 @@ Hardware Monitoring Kernel Drivers
    pc87360
    pc87427
    pcf8591
+   pm6764tr
    pmbus
    powr1220
    pxe1610
    pwm-fan
+   q54sj108a2
    raspberrypi-hwmon
+   sbtsi_temp
    sch5627
    sch5636
    scpi-hwmon

@@ -31,6 +31,11 @@
 #define PTP_CLASS_V2_VLAN (PTP_CLASS_V2 | PTP_CLASS_VLAN)
 #define PTP_CLASS_L4      (PTP_CLASS_IPV4 | PTP_CLASS_IPV6)
 
+#define PTP_MSGTYPE_SYNC        0x0
+#define PTP_MSGTYPE_DELAY_REQ   0x1
+#define PTP_MSGTYPE_PDELAY_REQ  0x2
+#define PTP_MSGTYPE_PDELAY_RESP 0x3
+
 #define PTP_EV_PORT 319
 #define PTP_GEN_BIT 0x08 /* indicates general message, if set in message type */
 
@@ -140,7 +145,7 @@ static inline u8 ptp_get_msgtype(const struct ptp_header *hdr,
 	/* The return is meaningless. The stub function would not be
 	 * executed since no available header from ptp_parse_header.
 	 */
-	return 0;
+	return PTP_MSGTYPE_SYNC;
 }
 #endif
 #endif /* _PTP_CLASSIFY_H_ */

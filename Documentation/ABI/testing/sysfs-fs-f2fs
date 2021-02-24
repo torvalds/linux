@@ -20,10 +20,13 @@ What:		/sys/fs/f2fs/<disk>/gc_idle
 Date:		July 2013
 Contact:	"Namjae Jeon" <namjae.jeon@samsung.com>
 Description:	Controls the victim selection policy for garbage collection.
-		Setting gc_idle = 0(default) will disable this option. Setting
-		gc_idle = 1 will select the Cost Benefit approach & setting
-		gc_idle = 2 will select the greedy approach & setting
-		gc_idle = 3 will select the age-threshold based approach.
+		Setting gc_idle = 0(default) will disable this option. Setting:
+
+		===========  ===============================================
+		gc_idle = 1  will select the Cost Benefit approach & setting
+		gc_idle = 2  will select the greedy approach & setting
+		gc_idle = 3  will select the age-threshold based approach.
+		===========  ===============================================
 
 What:		/sys/fs/f2fs/<disk>/reclaim_segments
 Date:		October 2013
@@ -46,10 +49,17 @@ Date:		November 2013
 Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
 Description:	Controls the in-place-update policy.
 		updates in f2fs. User can set:
-		0x01: F2FS_IPU_FORCE, 0x02: F2FS_IPU_SSR,
-		0x04: F2FS_IPU_UTIL,  0x08: F2FS_IPU_SSR_UTIL,
-		0x10: F2FS_IPU_FSYNC, 0x20: F2FS_IPU_ASYNC,
-		0x40: F2FS_IPU_NOCACHE.
+
+		====  =================
+		0x01  F2FS_IPU_FORCE
+		0x02  F2FS_IPU_SSR
+		0x04  F2FS_IPU_UTIL
+		0x08  F2FS_IPU_SSR_UTIL
+		0x10  F2FS_IPU_FSYNC
+		0x20  F2FS_IPU_ASYNC,
+		0x40  F2FS_IPU_NOCACHE
+		====  =================
+
 		Refer segment.h for details.
 
 What:		/sys/fs/f2fs/<disk>/min_ipu_util
@@ -332,21 +342,70 @@ Date:		April 2020
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:	Give a way to attach REQ_META|FUA to data writes
 		given temperature-based bits. Now the bits indicate:
-		*      REQ_META     |      REQ_FUA      |
-		*    5 |    4 |   3 |    2 |    1 |   0 |
-		* Cold | Warm | Hot | Cold | Warm | Hot |
+
+		+-------------------+-------------------+
+		|      REQ_META     |      REQ_FUA      |
+		+------+------+-----+------+------+-----+
+		|    5 |    4 |   3 |    2 |    1 |   0 |
+		+------+------+-----+------+------+-----+
+		| Cold | Warm | Hot | Cold | Warm | Hot |
+		+------+------+-----+------+------+-----+
 
 What:		/sys/fs/f2fs/<disk>/node_io_flag
 Date:		June 2020
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:	Give a way to attach REQ_META|FUA to node writes
 		given temperature-based bits. Now the bits indicate:
-		*      REQ_META     |      REQ_FUA      |
-		*    5 |    4 |   3 |    2 |    1 |   0 |
-		* Cold | Warm | Hot | Cold | Warm | Hot |
+
+		+-------------------+-------------------+
+		|      REQ_META     |      REQ_FUA      |
+		+------+------+-----+------+------+-----+
+		|    5 |    4 |   3 |    2 |    1 |   0 |
+		+------+------+-----+------+------+-----+
+		| Cold | Warm | Hot | Cold | Warm | Hot |
+		+------+------+-----+------+------+-----+
 
 What:		/sys/fs/f2fs/<disk>/iostat_period_ms
 Date:		April 2020
 Contact:	"Daeho Jeong" <daehojeong@google.com>
 Description:	Give a way to change iostat_period time. 3secs by default.
 		The new iostat trace gives stats gap given the period.
+What:		/sys/fs/f2fs/<disk>/max_io_bytes
+Date:		December 2020
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:	This gives a control to limit the bio size in f2fs.
+		Default is zero, which will follow underlying block layer limit,
+		whereas, if it has a certain bytes value, f2fs won't submit a
+		bio larger than that size.
+
+What:		/sys/fs/f2fs/<disk>/stat/sb_status
+Date:		December 2020
+Contact:	"Chao Yu" <yuchao0@huawei.com>
+Description:	Show status of f2fs superblock in real time.
+
+		====== ===================== =================================
+		value  sb status macro       description
+		0x1    SBI_IS_DIRTY          dirty flag for checkpoint
+		0x2    SBI_IS_CLOSE          specify unmounting
+		0x4    SBI_NEED_FSCK         need fsck.f2fs to fix
+		0x8    SBI_POR_DOING         recovery is doing or not
+		0x10   SBI_NEED_SB_WRITE     need to recover superblock
+		0x20   SBI_NEED_CP           need to checkpoint
+		0x40   SBI_IS_SHUTDOWN       shutdown by ioctl
+		0x80   SBI_IS_RECOVERED      recovered orphan/data
+		0x100  SBI_CP_DISABLED       CP was disabled last mount
+		0x200  SBI_CP_DISABLED_QUICK CP was disabled quickly
+		0x400  SBI_QUOTA_NEED_FLUSH  need to flush quota info in CP
+		0x800  SBI_QUOTA_SKIP_FLUSH  skip flushing quota in current CP
+		0x1000 SBI_QUOTA_NEED_REPAIR quota file may be corrupted
+		0x2000 SBI_IS_RESIZEFS       resizefs is in process
+		====== ===================== =================================
+
+What:		/sys/fs/f2fs/<disk>/ckpt_thread_ioprio
+Date:		January 2021
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	Give a way to change checkpoint merge daemon's io priority.
+		Its default value is "be,3", which means "BE" I/O class and
+		I/O priority "3". We can select the class between "rt" and "be",
+		and set the I/O priority within valid range of it. "," delimiter
+		is necessary in between I/O class and priority number.

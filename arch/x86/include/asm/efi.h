@@ -12,6 +12,7 @@
 #include <linux/pgtable.h>
 
 extern unsigned long efi_fw_vendor, efi_config_table;
+extern unsigned long efi_mixed_mode_stack_pa;
 
 /*
  * We map the EFI regions needed for runtime services non-contiguously,
@@ -68,17 +69,33 @@ extern unsigned long efi_fw_vendor, efi_config_table;
 		#f " called with too many arguments (" #p ">" #n ")");	\
 })
 
+static inline void efi_fpu_begin(void)
+{
+	/*
+	 * The UEFI calling convention (UEFI spec 2.3.2 and 2.3.4) requires
+	 * that FCW and MXCSR (64-bit) must be initialized prior to calling
+	 * UEFI code.  (Oddly the spec does not require that the FPU stack
+	 * be empty.)
+	 */
+	kernel_fpu_begin_mask(KFPU_387 | KFPU_MXCSR);
+}
+
+static inline void efi_fpu_end(void)
+{
+	kernel_fpu_end();
+}
+
 #ifdef CONFIG_X86_32
 #define arch_efi_call_virt_setup()					\
 ({									\
-	kernel_fpu_begin();						\
+	efi_fpu_begin();						\
 	firmware_restrict_branch_speculation_start();			\
 })
 
 #define arch_efi_call_virt_teardown()					\
 ({									\
 	firmware_restrict_branch_speculation_end();			\
-	kernel_fpu_end();						\
+	efi_fpu_end();							\
 })
 
 #define arch_efi_call_virt(p, f, args...)	p->f(args)
@@ -94,22 +111,12 @@ extern asmlinkage u64 __efi_call(void *fp, ...);
 	__efi_call(__VA_ARGS__);					\
 })
 
-/*
- * struct efi_scratch - Scratch space used while switching to/from efi_mm
- * @phys_stack: stack used during EFI Mixed Mode
- * @prev_mm:    store/restore stolen mm_struct while switching to/from efi_mm
- */
-struct efi_scratch {
-	u64			phys_stack;
-	struct mm_struct	*prev_mm;
-} __packed;
-
 #define arch_efi_call_virt_setup()					\
 ({									\
 	efi_sync_low_kernel_mappings();					\
-	kernel_fpu_begin();						\
+	efi_fpu_begin();						\
 	firmware_restrict_branch_speculation_start();			\
-	efi_switch_mm(&efi_mm);						\
+	efi_enter_mm();							\
 })
 
 #define arch_efi_call_virt(p, f, args...)				\
@@ -117,9 +124,9 @@ struct efi_scratch {
 
 #define arch_efi_call_virt_teardown()					\
 ({									\
-	efi_switch_mm(efi_scratch.prev_mm);				\
+	efi_leave_mm();							\
 	firmware_restrict_branch_speculation_end();			\
-	kernel_fpu_end();						\
+	efi_fpu_end();							\
 })
 
 #ifdef CONFIG_KASAN
@@ -136,7 +143,6 @@ struct efi_scratch {
 
 #endif /* CONFIG_X86_32 */
 
-extern struct efi_scratch efi_scratch;
 extern int __init efi_memblock_x86_reserve_range(void);
 extern void __init efi_print_memmap(void);
 extern void __init efi_map_region(efi_memory_desc_t *md);
@@ -149,9 +155,11 @@ extern void __init efi_dump_pagetable(void);
 extern void __init efi_apply_memmap_quirks(void);
 extern int __init efi_reuse_config(u64 tables, int nr_tables);
 extern void efi_delete_dummy_variable(void);
-extern void efi_switch_mm(struct mm_struct *mm);
-extern void efi_recover_from_page_fault(unsigned long phys_addr);
+extern void efi_crash_gracefully_on_page_fault(unsigned long phys_addr);
 extern void efi_free_boot_services(void);
+
+void efi_enter_mm(void);
+void efi_leave_mm(void);
 
 /* kexec external ABI */
 struct efi_setup_data {
@@ -213,8 +221,6 @@ static inline bool efi_is_64bit(void)
 
 static inline bool efi_is_native(void)
 {
-	if (!IS_ENABLED(CONFIG_X86_64))
-		return true;
 	return efi_is_64bit();
 }
 
@@ -381,5 +387,8 @@ static inline void efi_fake_memmap_early(void)
 {
 }
 #endif
+
+#define arch_ima_efi_boot_mode	\
+	({ extern struct boot_params boot_params; boot_params.secure_boot; })
 
 #endif /* _ASM_X86_EFI_H */

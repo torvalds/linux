@@ -30,7 +30,7 @@ static int udp_dump_one(struct udp_table *tbl,
 			const struct inet_diag_req_v2 *req)
 {
 	struct sk_buff *in_skb = cb->skb;
-	int err = -EINVAL;
+	int err;
 	struct sock *sk = NULL;
 	struct sk_buff *rep;
 	struct net *net = sock_net(in_skb->sk);

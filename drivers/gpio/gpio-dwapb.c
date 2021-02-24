@@ -343,8 +343,8 @@ static int dwapb_irq_set_type(struct irq_data *d, u32 type)
 #ifdef CONFIG_PM_SLEEP
 static int dwapb_irq_set_wake(struct irq_data *d, unsigned int enable)
 {
-	struct irq_chip_generic *igc = irq_data_get_irq_chip_data(d);
-	struct dwapb_gpio *gpio = igc->private;
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct dwapb_gpio *gpio = to_dwapb_gpio(gc);
 	struct dwapb_context *ctx = gpio->ports[0].ctx;
 	irq_hw_number_t bit = irqd_to_hwirq(d);
 
@@ -616,10 +616,9 @@ static int dwapb_get_reset(struct dwapb_gpio *gpio)
 	int err;
 
 	gpio->rst = devm_reset_control_get_optional_shared(gpio->dev, NULL);
-	if (IS_ERR(gpio->rst)) {
-		dev_err(gpio->dev, "Cannot get reset descriptor\n");
-		return PTR_ERR(gpio->rst);
-	}
+	if (IS_ERR(gpio->rst))
+		return dev_err_probe(gpio->dev, PTR_ERR(gpio->rst),
+				     "Cannot get reset descriptor\n");
 
 	err = reset_control_deassert(gpio->rst);
 	if (err) {
@@ -723,6 +722,8 @@ static int dwapb_gpio_probe(struct platform_device *pdev)
 		if (err)
 			return err;
 	}
+
+	platform_set_drvdata(pdev, gpio);
 
 	return 0;
 }

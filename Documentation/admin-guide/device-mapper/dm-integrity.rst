@@ -117,7 +117,7 @@ journal_watermark:number
 
 commit_time:number
 	Commit time in milliseconds. When this time passes, the journal is
-	written. The journal is also written immediatelly if the FLUSH
+	written. The journal is also written immediately if the FLUSH
 	request is received.
 
 internal_hash:algorithm(:key)	(the key is optional)
@@ -147,7 +147,7 @@ journal_crypt:algorithm(:key)	(the key is optional)
 	"salsa20" or "ctr(aes)").
 
 	The journal contains history of last writes to the block device,
-	an attacker reading the journal could see the last sector nubmers
+	an attacker reading the journal could see the last sector numbers
 	that were written. From the sector numbers, the attacker can infer
 	the size of files that were written. To protect against this
 	situation, you can encrypt the journal.
@@ -177,14 +177,20 @@ bitmap_flush_interval:number
 	The bitmap flush interval in milliseconds. The metadata buffers
 	are synchronized when this interval expires.
 
+allow_discards
+	Allow block discard requests (a.k.a. TRIM) for the integrity device.
+	Discards are only allowed to devices using internal hash.
+
 fix_padding
 	Use a smaller padding of the tag area that is more
 	space-efficient. If this option is not present, large padding is
 	used - that is for compatibility with older kernels.
 
-allow_discards
-	Allow block discard requests (a.k.a. TRIM) for the integrity device.
-	Discards are only allowed to devices using internal hash.
+legacy_recalculate
+	Allow recalculating of volumes with HMAC keys. This is disabled by
+	default for security reasons - an attacker could modify the volume,
+	set recalc_sector to zero, and the kernel would not detect the
+	modification.
 
 The journal mode (D/J), buffer_sectors, journal_watermark, commit_time and
 allow_discards can be changed when reloading the target (load an inactive

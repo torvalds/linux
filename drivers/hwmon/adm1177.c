@@ -25,11 +25,11 @@
 
 /**
  * struct adm1177_state - driver instance specific data
- * @client		pointer to i2c client
- * @reg			regulator info for the the power supply of the device
- * @r_sense_uohm	current sense resistor value
- * @alert_threshold_ua	current limit for shutdown
- * @vrange_high		internal voltage divider
+ * @client:		pointer to i2c client
+ * @reg:		regulator info for the power supply of the device
+ * @r_sense_uohm:	current sense resistor value
+ * @alert_threshold_ua:	current limit for shutdown
+ * @vrange_high:	internal voltage divider
  */
 struct adm1177_state {
 	struct i2c_client	*client;

@@ -1223,9 +1223,10 @@ out_map_in_map:
 
 static void test_map_large(void)
 {
+
 	struct bigkey {
 		int a;
-		char b[116];
+		char b[4096];
 		long long c;
 	} key;
 	int fd, i, value;
@@ -1311,22 +1312,58 @@ static void test_map_stress(void)
 #define DO_UPDATE 1
 #define DO_DELETE 0
 
+#define MAP_RETRIES 20
+
+static int map_update_retriable(int map_fd, const void *key, const void *value,
+				int flags, int attempts)
+{
+	while (bpf_map_update_elem(map_fd, key, value, flags)) {
+		if (!attempts || (errno != EAGAIN && errno != EBUSY))
+			return -errno;
+
+		usleep(1);
+		attempts--;
+	}
+
+	return 0;
+}
+
+static int map_delete_retriable(int map_fd, const void *key, int attempts)
+{
+	while (bpf_map_delete_elem(map_fd, key)) {
+		if (!attempts || (errno != EAGAIN && errno != EBUSY))
+			return -errno;
+
+		usleep(1);
+		attempts--;
+	}
+
+	return 0;
+}
+
 static void test_update_delete(unsigned int fn, void *data)
 {
 	int do_update = ((int *)data)[1];
 	int fd = ((int *)data)[0];
-	int i, key, value;
+	int i, key, value, err;
 
 	for (i = fn; i < MAP_SIZE; i += TASKS) {
 		key = value = i;
 
 		if (do_update) {
-			assert(bpf_map_update_elem(fd, &key, &value,
-						   BPF_NOEXIST) == 0);
-			assert(bpf_map_update_elem(fd, &key, &value,
-						   BPF_EXIST) == 0);
+			err = map_update_retriable(fd, &key, &value, BPF_NOEXIST, MAP_RETRIES);
+			if (err)
+				printf("error %d %d\n", err, errno);
+			assert(err == 0);
+			err = map_update_retriable(fd, &key, &value, BPF_EXIST, MAP_RETRIES);
+			if (err)
+				printf("error %d %d\n", err, errno);
+			assert(err == 0);
 		} else {
-			assert(bpf_map_delete_elem(fd, &key) == 0);
+			err = map_delete_retriable(fd, &key, MAP_RETRIES);
+			if (err)
+				printf("error %d %d\n", err, errno);
+			assert(err == 0);
 		}
 	}
 }

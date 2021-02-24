@@ -15,7 +15,7 @@ static int ionic_dl_flash_update(struct devlink *dl,
 {
 	struct ionic *ionic = devlink_priv(dl);
 
-	return ionic_firmware_update(ionic->lif, params->file_name, extack);
+	return ionic_firmware_update(ionic->lif, params->fw, extack);
 }
 
 static int ionic_dl_info_get(struct devlink *dl, struct devlink_info_req *req,

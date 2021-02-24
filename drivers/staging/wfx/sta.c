@@ -5,17 +5,11 @@
  * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  */
-#include <linux/etherdevice.h>
 #include <net/mac80211.h>
 
 #include "sta.h"
 #include "wfx.h"
-#include "fwio.h"
-#include "bh.h"
-#include "key.h"
 #include "scan.h"
-#include "debug.h"
-#include "hif_tx.h"
 #include "hif_tx_mib.h"
 
 #define HIF_MAX_ARP_IP_ADDRTABLE_ENTRIES 2
@@ -63,7 +57,7 @@ void wfx_suspend_hot_dev(struct wfx_dev *wdev, enum sta_notify_cmd cmd)
 
 static void wfx_filter_beacon(struct wfx_vif *wvif, bool filter_beacon)
 {
-	const struct hif_ie_table_entry filter_ies[] = {
+	static const struct hif_ie_table_entry filter_ies[] = {
 		{
 			.ie_id        = WLAN_EID_VENDOR_SPECIFIC,
 			.has_changed  = 1,

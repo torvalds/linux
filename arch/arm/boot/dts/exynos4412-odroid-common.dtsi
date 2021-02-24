@@ -22,12 +22,12 @@
 		reg = <0x0204F000 0x1000>;
 	};
 
-	gpio_keys {
+	gpio_keys: gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_power_key>;
 
-		power_key {
+		power-key {
 			gpios = <&gpx1 3 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			label = "power key";
@@ -122,7 +122,6 @@
 };
 
 &clock {
-	clocks = <&clock CLK_XUSBXTI>;
 	assigned-clocks = <&clock CLK_FOUT_EPLL>;
 	assigned-clock-rates = <45158401>;
 };
@@ -172,7 +171,7 @@
 };
 
 &pinctrl_1 {
-	gpio_power_key: power_key {
+	gpio_power_key: power-key {
 		samsung,pins = "gpx1-3";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
@@ -256,7 +255,6 @@
 };
 
 &hsotg {
-	dr_mode = "peripheral";
 	status = "okay";
 	vusb_d-supply = <&ldo15_reg>;
 	vusb_a-supply = <&ldo12_reg>;
@@ -267,7 +265,7 @@
 	samsung,i2c-max-bus-freq = <400000>;
 	status = "okay";
 
-	usb3503: usb3503@8 {
+	usb3503: usb-hub@8 {
 		compatible = "smsc,usb3503";
 		reg = <0x08>;
 
@@ -493,7 +491,7 @@
 
 &i2c_1 {
 	status = "okay";
-	max98090: max98090@10 {
+	max98090: audio-codec@10 {
 		compatible = "maxim,max98090";
 		reg = <0x10>;
 		interrupt-parent = <&gpx0>;

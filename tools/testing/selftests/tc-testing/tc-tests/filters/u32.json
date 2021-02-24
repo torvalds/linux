@@ -201,5 +201,51 @@
         "teardown": [
             "$TC qdisc del dev $DEV1 ingress"
         ]
+    },
+    {
+        "id": "0692",
+        "name": "Test u32 sample option, divisor 256",
+        "category": [
+            "filter",
+            "u32"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 ingress",
+            "$TC filter add dev $DEV1 ingress prio 99 handle 1: u32 divisor 256"
+        ],
+        "cmdUnderTest": "bash -c \"for mask in ff ffff ffffff ffffffff ff00ff ff0000ff ffff00ff; do $TC filter add dev $DEV1 ingress prio 99 u32 ht 1: sample u32 0x10203040 \\$mask match u8 0 0 classid 1:1; done\"",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter show dev $DEV1 ingress",
+        "matchPattern": "filter protocol all pref 99 u32( (chain|fh|order) [0-9:]+){3} key ht 1 bkt 40 flowid 1:1",
+        "matchCount": "7",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress"
+        ]
+    },
+    {
+        "id": "2478",
+        "name": "Test u32 sample option, divisor 16",
+        "category": [
+            "filter",
+            "u32"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 ingress",
+            "$TC filter add dev $DEV1 ingress prio 99 handle 1: u32 divisor 256"
+        ],
+        "cmdUnderTest": "bash -c \"for mask in 70 f0 ff0 fff0 ff00f0; do $TC filter add dev $DEV1 ingress prio 99 u32 ht 1: sample u32 0x10203040 \\$mask match u8 0 0 classid 1:1; done\"",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter show dev $DEV1 ingress",
+        "matchPattern": "filter protocol all pref 99 u32( (chain|fh|order) [0-9:]+){3} key ht 1 bkt 4 flowid 1:1",
+        "matchCount": "5",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress"
+        ]
     }
 ]

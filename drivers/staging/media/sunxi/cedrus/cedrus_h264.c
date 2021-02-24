@@ -203,7 +203,7 @@ static void _cedrus_write_ref_list(struct cedrus_ctx *ctx,
 		position = cedrus_buf->codec.h264.position;
 
 		sram_array[i] |= position << 1;
-		if (ref_list[i].fields & V4L2_H264_BOTTOM_FIELD_REF)
+		if (ref_list[i].fields == V4L2_H264_BOTTOM_FIELD_REF)
 			sram_array[i] |= BIT(0);
 	}
 
@@ -446,7 +446,7 @@ static void cedrus_set_params(struct cedrus_ctx *ctx,
 	reg |= (pps->second_chroma_qp_index_offset & 0x3f) << 16;
 	reg |= (pps->chroma_qp_index_offset & 0x3f) << 8;
 	reg |= (pps->pic_init_qp_minus26 + 26 + slice->slice_qp_delta) & 0x3f;
-	if (pps->flags & V4L2_H264_PPS_FLAG_SCALING_MATRIX_PRESENT)
+	if (!(pps->flags & V4L2_H264_PPS_FLAG_SCALING_MATRIX_PRESENT))
 		reg |= VE_H264_SHS_QP_SCALING_MATRIX_DEFAULT;
 	cedrus_write(dev, VE_H264_SHS_QP, reg);
 

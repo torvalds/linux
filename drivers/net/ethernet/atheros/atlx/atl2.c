@@ -2549,7 +2549,6 @@ static s32 atl2_write_phy_reg(struct atl2_hw *hw, u32 reg_addr, u16 phy_data)
  */
 static s32 atl2_phy_setup_autoneg_adv(struct atl2_hw *hw)
 {
-	s32 ret_val;
 	s16 mii_autoneg_adv_reg;
 
 	/* Read the MII Auto-Neg Advertisement Register (Address 4). */
@@ -2605,12 +2604,7 @@ static s32 atl2_phy_setup_autoneg_adv(struct atl2_hw *hw)
 
 	hw->mii_autoneg_adv_reg = mii_autoneg_adv_reg;
 
-	ret_val = atl2_write_phy_reg(hw, MII_ADVERTISE, mii_autoneg_adv_reg);
-
-	if (ret_val)
-		return ret_val;
-
-	return 0;
+	return atl2_write_phy_reg(hw, MII_ADVERTISE, mii_autoneg_adv_reg);
 }
 
 /*

@@ -211,10 +211,24 @@ struct tb_regs_switch_header {
 #define ROUTER_CS_9				0x09
 #define ROUTER_CS_25				0x19
 #define ROUTER_CS_26				0x1a
+#define ROUTER_CS_26_OPCODE_MASK		GENMASK(15, 0)
 #define ROUTER_CS_26_STATUS_MASK		GENMASK(29, 24)
 #define ROUTER_CS_26_STATUS_SHIFT		24
 #define ROUTER_CS_26_ONS			BIT(30)
 #define ROUTER_CS_26_OV				BIT(31)
+
+/* USB4 router operations opcodes */
+enum usb4_switch_op {
+	USB4_SWITCH_OP_QUERY_DP_RESOURCE = 0x10,
+	USB4_SWITCH_OP_ALLOC_DP_RESOURCE = 0x11,
+	USB4_SWITCH_OP_DEALLOC_DP_RESOURCE = 0x12,
+	USB4_SWITCH_OP_NVM_WRITE = 0x20,
+	USB4_SWITCH_OP_NVM_AUTH = 0x21,
+	USB4_SWITCH_OP_NVM_READ = 0x22,
+	USB4_SWITCH_OP_NVM_SET_OFFSET = 0x23,
+	USB4_SWITCH_OP_DROM_READ = 0x24,
+	USB4_SWITCH_OP_NVM_SECTOR_SIZE = 0x25,
+};
 
 /* Router TMU configuration */
 #define TMU_RTR_CS_0				0x00
@@ -450,6 +464,7 @@ struct tb_regs_hop {
 #define TB_LC_SX_CTRL_L1D		BIT(17)
 #define TB_LC_SX_CTRL_L2C		BIT(20)
 #define TB_LC_SX_CTRL_L2D		BIT(21)
+#define TB_LC_SX_CTRL_SLI		BIT(29)
 #define TB_LC_SX_CTRL_UPSTREAM		BIT(30)
 #define TB_LC_SX_CTRL_SLP		BIT(31)
 

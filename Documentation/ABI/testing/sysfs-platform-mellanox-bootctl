@@ -5,10 +5,13 @@ Contact:	"Liming Sun <lsun@mellanox.com>"
 Description:
 		The Life-cycle state of the SoC, which could be one of the
 		following values.
-		  Production - Production state and can be updated to secure
-		  GA Secured - Secure chip and not able to change state
-		  GA Non-Secured - Non-Secure chip and not able to change state
-		  RMA - Return Merchandise Authorization
+
+		==============  =============================================
+		Production      Production state and can be updated to secure
+		GA Secured      Secure chip and not able to change state
+		GA Non-Secured  Non-Secure chip and not able to change state
+		RMA             Return Merchandise Authorization
+		==============  =============================================
 
 What:		/sys/bus/platform/devices/MLNXBF04:00/post_reset_wdog
 Date:		Oct 2019
@@ -25,10 +28,13 @@ KernelVersion:	5.5
 Contact:	"Liming Sun <lsun@mellanox.com>"
 Description:
 		The source of the boot stream for the next reset. It could be
-		one of the following values.
-		  external - boot from external source (USB or PCIe)
-		  emmc - boot from the onchip eMMC
-		  emmc_legacy - boot from the onchip eMMC in legacy (slow) mode
+		one of the following values:
+
+		===========  ===============================================
+		external     boot from external source (USB or PCIe)
+		emmc         boot from the onchip eMMC
+		emmc_legacy  boot from the onchip eMMC in legacy (slow) mode
+		===========  ===============================================
 
 What:		/sys/bus/platform/devices/MLNXBF04:00/second_reset_action
 Date:		Oct 2019
@@ -38,11 +44,14 @@ Description:
 		Update the source of the boot stream after next reset. It could
 		be one of the following values and will be applied after next
 		reset.
-		  external - boot from external source (USB or PCIe)
-		  emmc - boot from the onchip eMMC
-		  emmc_legacy - boot from the onchip eMMC in legacy (slow) mode
-		  swap_emmc - swap the primary / secondary boot partition
-		  none - cancel the action
+
+		===========  ===============================================
+		external     boot from external source (USB or PCIe)
+		emmc         boot from the onchip eMMC
+		emmc_legacy  boot from the onchip eMMC in legacy (slow) mode
+		swap_emmc    swap the primary / secondary boot partition
+		none         cancel the action
+		===========  ===============================================
 
 What:		/sys/bus/platform/devices/MLNXBF04:00/secure_boot_fuse_state
 Date:		Oct 2019
@@ -50,9 +59,12 @@ KernelVersion:	5.5
 Contact:	"Liming Sun <lsun@mellanox.com>"
 Description:
 		The state of eFuse versions with the following values.
-		  InUse - burnt, valid and currently in use
-		  Used - burnt and valid
-		  Free - not burnt and free to use
-		  Skipped - not burnt but not free (skipped)
-		  Wasted - burnt and invalid
-		  Invalid - not burnt but marked as valid (error state).
+
+		=======  ===============================================
+		InUse    burnt, valid and currently in use
+		Used     burnt and valid
+		Free     not burnt and free to use
+		Skipped  not burnt but not free (skipped)
+		Wasted   burnt and invalid
+		Invalid  not burnt but marked as valid (error state).
+		=======  ===============================================

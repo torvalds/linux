@@ -50,6 +50,7 @@ struct dpp;
 struct dce_hwseq;
 
 struct hw_sequencer_funcs {
+	void (*hardware_release)(struct dc *dc);
 	/* Embedded Display Related */
 	void (*edp_power_control)(struct dc_link *link, bool enable);
 	void (*edp_wait_for_hpd_ready)(struct dc_link *link, bool power_up);
@@ -66,8 +67,6 @@ struct hw_sequencer_funcs {
 			const struct dc_stream_state *stream,
 			int num_planes, struct dc_state *context);
 	void (*program_front_end_for_ctx)(struct dc *dc,
-			struct dc_state *context);
-	bool (*disconnect_pipes)(struct dc *dc,
 			struct dc_state *context);
 	void (*wait_for_pending_cleared)(struct dc *dc,
 			struct dc_state *context);
@@ -215,11 +214,19 @@ struct hw_sequencer_funcs {
 
 	void (*set_pipe)(struct pipe_ctx *pipe_ctx);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	/* Idle Optimization Related */
 	bool (*apply_idle_power_optimizations)(struct dc *dc, bool enable);
-#endif
 
+	bool (*is_abm_supported)(struct dc *dc,
+			struct dc_state *context, struct dc_stream_state *stream);
+
+	void (*set_disp_pattern_generator)(const struct dc *dc,
+			struct pipe_ctx *pipe_ctx,
+			enum controller_dp_test_pattern test_pattern,
+			enum controller_dp_color_space color_space,
+			enum dc_color_depth color_depth,
+			const struct tg_color *solid_color,
+			int width, int height, int offset);
 };
 
 void color_space_to_black_color(

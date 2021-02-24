@@ -333,6 +333,9 @@ enum mt7615_reg_base {
 #define MT_WF_RFCR_DROP_NDPA		BIT(20)
 #define MT_WF_RFCR_DROP_UNWANTED_CTL	BIT(21)
 
+#define MT_WF_RMAC_MORE(_band)		MT_WF_RMAC((_band) ? 0x124 : 0x024)
+#define MT_WF_RMAC_MORE_MUAR_MODE	GENMASK(31, 30)
+
 #define MT_WF_RFCR1(_band)		MT_WF_RMAC((_band) ? 0x104 : 0x004)
 #define MT_WF_RFCR1_DROP_ACK		BIT(4)
 #define MT_WF_RFCR1_DROP_BF_POLL	BIT(5)
@@ -341,6 +344,14 @@ enum mt7615_reg_base {
 #define MT_WF_RFCR1_DROP_CFACK		BIT(8)
 
 #define MT_CHFREQ(_band)		MT_WF_RMAC((_band) ? 0x130 : 0x030)
+
+#define MT_WF_RMAC_MAR0			MT_WF_RMAC(0x025c)
+#define MT_WF_RMAC_MAR1			MT_WF_RMAC(0x0260)
+#define MT_WF_RMAC_MAR1_ADDR		GENMASK(15, 0)
+#define MT_WF_RMAC_MAR1_START		BIT(16)
+#define MT_WF_RMAC_MAR1_WRITE		BIT(17)
+#define MT_WF_RMAC_MAR1_IDX		GENMASK(29, 24)
+#define MT_WF_RMAC_MAR1_GROUP		GENMASK(31, 30)
 
 #define MT_WF_RMAC_MIB_TIME0		MT_WF_RMAC(0x03c4)
 #define MT_WF_RMAC_MIB_RXTIME_CLR	BIT(31)

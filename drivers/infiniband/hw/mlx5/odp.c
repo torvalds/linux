@@ -102,7 +102,7 @@ static void populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
 	if (flags & MLX5_IB_UPD_XLT_ZAP) {
 		for (; pklm != end; pklm++, idx++) {
 			pklm->bcount = cpu_to_be32(MLX5_IMR_MTT_SIZE);
-			pklm->key = cpu_to_be32(imr->dev->null_mkey);
+			pklm->key = cpu_to_be32(mr_to_mdev(imr)->null_mkey);
 			pklm->va = 0;
 		}
 		return;
@@ -129,7 +129,7 @@ static void populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
 	 * locking around the xarray.
 	 */
 	lockdep_assert_held(&to_ib_umem_odp(imr->umem)->umem_mutex);
-	lockdep_assert_held(&imr->dev->odp_srcu);
+	lockdep_assert_held(&mr_to_mdev(imr)->odp_srcu);
 
 	for (; pklm != end; pklm++, idx++) {
 		struct mlx5_ib_mr *mtt = xa_load(&imr->implicit_children, idx);
@@ -139,7 +139,7 @@ static void populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
 			pklm->key = cpu_to_be32(mtt->ibmr.lkey);
 			pklm->va = cpu_to_be64(idx * MLX5_IMR_MTT_SIZE);
 		} else {
-			pklm->key = cpu_to_be32(imr->dev->null_mkey);
+			pklm->key = cpu_to_be32(mr_to_mdev(imr)->null_mkey);
 			pklm->va = 0;
 		}
 	}
@@ -199,7 +199,7 @@ static void dma_fence_odp_mr(struct mlx5_ib_mr *mr)
 	mutex_unlock(&odp->umem_mutex);
 
 	if (!mr->cache_ent) {
-		mlx5_core_destroy_mkey(mr->dev->mdev, &mr->mmkey);
+		mlx5_core_destroy_mkey(mr_to_mdev(mr)->mdev, &mr->mmkey);
 		WARN_ON(mr->descs);
 	}
 }
@@ -222,19 +222,19 @@ static void free_implicit_child_mr(struct mlx5_ib_mr *mr, bool need_imr_xlt)
 	WARN_ON(atomic_read(&mr->num_deferred_work));
 
 	if (need_imr_xlt) {
-		srcu_key = srcu_read_lock(&mr->dev->odp_srcu);
+		srcu_key = srcu_read_lock(&mr_to_mdev(mr)->odp_srcu);
 		mutex_lock(&odp_imr->umem_mutex);
 		mlx5_ib_update_xlt(mr->parent, idx, 1, 0,
 				   MLX5_IB_UPD_XLT_INDIRECT |
 				   MLX5_IB_UPD_XLT_ATOMIC);
 		mutex_unlock(&odp_imr->umem_mutex);
-		srcu_read_unlock(&mr->dev->odp_srcu, srcu_key);
+		srcu_read_unlock(&mr_to_mdev(mr)->odp_srcu, srcu_key);
 	}
 
 	dma_fence_odp_mr(mr);
 
 	mr->parent = NULL;
-	mlx5_mr_cache_free(mr->dev, mr);
+	mlx5_mr_cache_free(mr_to_mdev(mr), mr);
 	ib_umem_odp_release(odp);
 	if (atomic_dec_and_test(&imr->num_deferred_work))
 		wake_up(&imr->q_deferred_work);
@@ -274,7 +274,7 @@ static void destroy_unused_implicit_child_mr(struct mlx5_ib_mr *mr)
 		goto out_unlock;
 
 	atomic_inc(&imr->num_deferred_work);
-	call_srcu(&mr->dev->odp_srcu, &mr->odp_destroy.rcu,
+	call_srcu(&mr_to_mdev(mr)->odp_srcu, &mr->odp_destroy.rcu,
 		  free_implicit_child_mr_rcu);
 
 out_unlock:
@@ -476,12 +476,13 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 	if (IS_ERR(odp))
 		return ERR_CAST(odp);
 
-	ret = mr = mlx5_mr_cache_alloc(imr->dev, MLX5_IMR_MTT_CACHE_ENTRY,
-				       imr->access_flags);
+	ret = mr = mlx5_mr_cache_alloc(
+		mr_to_mdev(imr), MLX5_IMR_MTT_CACHE_ENTRY, imr->access_flags);
 	if (IS_ERR(mr))
 		goto out_umem;
 
 	mr->ibmr.pd = imr->ibmr.pd;
+	mr->ibmr.device = &mr_to_mdev(imr)->ib_dev;
 	mr->umem = &odp->umem;
 	mr->ibmr.lkey = mr->mmkey.key;
 	mr->ibmr.rkey = mr->mmkey.key;
@@ -517,11 +518,11 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 		goto out_mr;
 	}
 
-	mlx5_ib_dbg(imr->dev, "key %x mr %p\n", mr->mmkey.key, mr);
+	mlx5_ib_dbg(mr_to_mdev(imr), "key %x mr %p\n", mr->mmkey.key, mr);
 	return mr;
 
 out_mr:
-	mlx5_mr_cache_free(imr->dev, mr);
+	mlx5_mr_cache_free(mr_to_mdev(imr), mr);
 out_umem:
 	ib_umem_odp_release(odp);
 	return ret;
@@ -535,6 +536,10 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 	struct ib_umem_odp *umem_odp;
 	struct mlx5_ib_mr *imr;
 	int err;
+
+	if (!mlx5_ib_can_load_pas_with_umr(dev,
+					   MLX5_IMR_MTT_ENTRIES * PAGE_SIZE))
+		return ERR_PTR(-EOPNOTSUPP);
 
 	umem_odp = ib_umem_odp_alloc_implicit(&dev->ib_dev, access_flags);
 	if (IS_ERR(umem_odp))
@@ -551,6 +556,7 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 	imr->umem = &umem_odp->umem;
 	imr->ibmr.lkey = imr->mmkey.key;
 	imr->ibmr.rkey = imr->mmkey.key;
+	imr->ibmr.device = &dev->ib_dev;
 	imr->umem = &umem_odp->umem;
 	imr->is_odp_implicit = true;
 	atomic_set(&imr->num_deferred_work, 0);
@@ -584,7 +590,7 @@ out_umem:
 void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *imr)
 {
 	struct ib_umem_odp *odp_imr = to_ib_umem_odp(imr->umem);
-	struct mlx5_ib_dev *dev = imr->dev;
+	struct mlx5_ib_dev *dev = mr_to_mdev(imr);
 	struct list_head destroy_list;
 	struct mlx5_ib_mr *mtt;
 	struct mlx5_ib_mr *tmp;
@@ -654,10 +660,10 @@ void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *imr)
 void mlx5_ib_fence_odp_mr(struct mlx5_ib_mr *mr)
 {
 	/* Prevent new page faults and prefetch requests from succeeding */
-	xa_erase(&mr->dev->odp_mkeys, mlx5_base_mkey(mr->mmkey.key));
+	xa_erase(&mr_to_mdev(mr)->odp_mkeys, mlx5_base_mkey(mr->mmkey.key));
 
 	/* Wait for all running page-fault handlers to finish. */
-	synchronize_srcu(&mr->dev->odp_srcu);
+	synchronize_srcu(&mr_to_mdev(mr)->odp_srcu);
 
 	wait_event(mr->q_deferred_work, !atomic_read(&mr->num_deferred_work));
 
@@ -701,7 +707,7 @@ static int pagefault_real_mr(struct mlx5_ib_mr *mr, struct ib_umem_odp *odp,
 
 	if (ret < 0) {
 		if (ret != -EAGAIN)
-			mlx5_ib_err(mr->dev,
+			mlx5_ib_err(mr_to_mdev(mr),
 				    "Failed to update mkey page tables\n");
 		goto out;
 	}
@@ -791,7 +797,7 @@ out:
 					 MLX5_IB_UPD_XLT_ATOMIC);
 	mutex_unlock(&odp_imr->umem_mutex);
 	if (err) {
-		mlx5_ib_err(imr->dev, "Failed to update PAS\n");
+		mlx5_ib_err(mr_to_mdev(imr), "Failed to update PAS\n");
 		return err;
 	}
 	return ret;
@@ -811,7 +817,7 @@ static int pagefault_mr(struct mlx5_ib_mr *mr, u64 io_virt, size_t bcnt,
 {
 	struct ib_umem_odp *odp = to_ib_umem_odp(mr->umem);
 
-	lockdep_assert_held(&mr->dev->odp_srcu);
+	lockdep_assert_held(&mr_to_mdev(mr)->odp_srcu);
 	if (unlikely(io_virt < mr->mmkey.iova))
 		return -EFAULT;
 
@@ -831,17 +837,13 @@ static int pagefault_mr(struct mlx5_ib_mr *mr, u64 io_virt, size_t bcnt,
 				     flags);
 }
 
-int mlx5_ib_init_odp_mr(struct mlx5_ib_mr *mr, bool enable)
+int mlx5_ib_init_odp_mr(struct mlx5_ib_mr *mr)
 {
-	u32 flags = MLX5_PF_FLAGS_SNAPSHOT;
 	int ret;
 
-	if (enable)
-		flags |= MLX5_PF_FLAGS_ENABLE;
-
-	ret = pagefault_real_mr(mr, to_ib_umem_odp(mr->umem),
-				mr->umem->address, mr->umem->length, NULL,
-				flags);
+	ret = pagefault_real_mr(mr, to_ib_umem_odp(mr->umem), mr->umem->address,
+				mr->umem->length, NULL,
+				MLX5_PF_FLAGS_SNAPSHOT | MLX5_PF_FLAGS_ENABLE);
 	return ret >= 0 ? 0 : ret;
 }
 
@@ -1783,7 +1785,7 @@ static void mlx5_ib_prefetch_mr_work(struct work_struct *w)
 
 	/* We rely on IB/core that work is executed if we have num_sge != 0 only. */
 	WARN_ON(!work->num_sge);
-	dev = work->frags[0].mr->dev;
+	dev = mr_to_mdev(work->frags[0].mr);
 	/* SRCU should be held when calling to mlx5_odp_populate_xlt() */
 	srcu_key = srcu_read_lock(&dev->odp_srcu);
 	for (i = 0; i < work->num_sge; ++i) {

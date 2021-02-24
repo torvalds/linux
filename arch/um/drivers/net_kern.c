@@ -160,7 +160,7 @@ static int uml_net_open(struct net_device *dev)
 
 	err = um_request_irq(dev->irq, lp->fd, IRQ_READ, uml_net_interrupt,
 			     IRQF_SHARED, dev->name, dev);
-	if (err != 0) {
+	if (err < 0) {
 		printk(KERN_ERR "uml_net_open: failed to get irq(%d)\n", err);
 		err = -ENETUNREACH;
 		goto out_close;

@@ -384,6 +384,20 @@ static ssize_t chp_chid_external_show(struct device *dev,
 }
 static DEVICE_ATTR(chid_external, 0444, chp_chid_external_show, NULL);
 
+static ssize_t chp_esc_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct channel_path *chp = to_channelpath(dev);
+	ssize_t rc;
+
+	mutex_lock(&chp->lock);
+	rc = sprintf(buf, "%x\n", chp->desc_fmt1.esc);
+	mutex_unlock(&chp->lock);
+
+	return rc;
+}
+static DEVICE_ATTR(esc, 0444, chp_esc_show, NULL);
+
 static ssize_t util_string_read(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *attr, char *buf,
 				loff_t off, size_t count)
@@ -414,6 +428,7 @@ static struct attribute *chp_attrs[] = {
 	&dev_attr_shared.attr,
 	&dev_attr_chid.attr,
 	&dev_attr_chid_external.attr,
+	&dev_attr_esc.attr,
 	NULL,
 };
 static struct attribute_group chp_attr_group = {

@@ -685,6 +685,7 @@
 		reg = <0x0 0x03520000 0x0 0x1000>,
 		      <0x0 0x03540000 0x0 0x1000>;
 		reg-names = "padctl", "ao";
+		interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;
 
 		resets = <&bpmp TEGRA186_RESET_XUSB_PADCTL>;
 		reset-names = "padctl";
@@ -845,7 +846,9 @@
 		#interrupt-cells = <3>;
 		interrupt-controller;
 		reg = <0x0 0x03881000 0x0 0x1000>,
-		      <0x0 0x03882000 0x0 0x2000>;
+		      <0x0 0x03882000 0x0 0x2000>,
+		      <0x0 0x03884000 0x0 0x2000>,
+		      <0x0 0x03886000 0x0 0x2000>;
 		interrupts = <GIC_PPI 9
 			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 		interrupt-parent = <&gic>;
@@ -1501,6 +1504,34 @@
 		};
 	};
 
+	sata@3507000 {
+		compatible = "nvidia,tegra186-ahci";
+		reg = <0x0 0x03507000 0x0 0x00002000>, /* AHCI */
+		      <0x0 0x03500000 0x0 0x00007000>, /* SATA */
+		      <0x0 0x03A90000 0x0 0x00010000>; /* SATA AUX */
+		interrupts = <GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>;
+
+		power-domains = <&bpmp TEGRA186_POWER_DOMAIN_SAX>;
+		interconnects = <&mc TEGRA186_MEMORY_CLIENT_SATAR &emc>,
+				<&mc TEGRA186_MEMORY_CLIENT_SATAW &emc>;
+		interconnect-names = "dma-mem", "write";
+		iommus = <&smmu TEGRA186_SID_SATA>;
+
+		clocks = <&bpmp TEGRA186_CLK_SATA>,
+			 <&bpmp TEGRA186_CLK_SATA_OOB>;
+		clock-names = "sata", "sata-oob";
+		assigned-clocks = <&bpmp TEGRA186_CLK_SATA>,
+				  <&bpmp TEGRA186_CLK_SATA_OOB>;
+		assigned-clock-parents = <&bpmp TEGRA186_CLK_PLLP_OUT0>,
+					 <&bpmp TEGRA186_CLK_PLLP>;
+		assigned-clock-rates = <102000000>,
+				       <204000000>;
+		resets = <&bpmp TEGRA186_RESET_SATA>,
+			<&bpmp TEGRA186_RESET_SATACOLD>;
+		reset-names = "sata", "sata-cold";
+		status = "disabled";
+	};
+
 	bpmp: bpmp {
 		compatible = "nvidia,tegra186-bpmp";
 		interconnects = <&mc TEGRA186_MEMORY_CLIENT_BPMPR &emc>,
@@ -1534,7 +1565,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu@0 {
+		denver_0: cpu@0 {
 			compatible = "nvidia,tegra186-denver";
 			device_type = "cpu";
 			i-cache-size = <0x20000>;
@@ -1547,7 +1578,7 @@
 			reg = <0x000>;
 		};
 
-		cpu@1 {
+		denver_1: cpu@1 {
 			compatible = "nvidia,tegra186-denver";
 			device_type = "cpu";
 			i-cache-size = <0x20000>;
@@ -1560,7 +1591,7 @@
 			reg = <0x001>;
 		};
 
-		cpu@2 {
+		ca57_0: cpu@2 {
 			compatible = "arm,cortex-a57";
 			device_type = "cpu";
 			i-cache-size = <0xC000>;
@@ -1573,7 +1604,7 @@
 			reg = <0x100>;
 		};
 
-		cpu@3 {
+		ca57_1: cpu@3 {
 			compatible = "arm,cortex-a57";
 			device_type = "cpu";
 			i-cache-size = <0xC000>;
@@ -1586,7 +1617,7 @@
 			reg = <0x101>;
 		};
 
-		cpu@4 {
+		ca57_2: cpu@4 {
 			compatible = "arm,cortex-a57";
 			device_type = "cpu";
 			i-cache-size = <0xC000>;
@@ -1599,7 +1630,7 @@
 			reg = <0x102>;
 		};
 
-		cpu@5 {
+		ca57_3: cpu@5 {
 			compatible = "arm,cortex-a57";
 			device_type = "cpu";
 			i-cache-size = <0xC000>;
@@ -1629,6 +1660,44 @@
 			cache-line-size = <64>;
 			cache-sets = <2048>;
 		};
+	};
+
+	pmu_denver {
+		compatible = "nvidia,denver-pmu", "arm,armv8-pmuv3";
+		interrupts = <GIC_SPI 320 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 321 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&denver_0 &denver_1>;
+	};
+
+	pmu_a57 {
+		compatible = "arm,cortex-a57-pmu", "arm,armv8-pmuv3";
+		interrupts = <GIC_SPI 296 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 298 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 299 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&ca57_0 &ca57_1 &ca57_2 &ca57_3>;
+	};
+
+	sound {
+		status = "disabled";
+
+		clocks = <&bpmp TEGRA186_CLK_PLLA>,
+			 <&bpmp TEGRA186_CLK_PLL_A_OUT0>;
+		clock-names = "pll_a", "plla_out0";
+		assigned-clocks = <&bpmp TEGRA186_CLK_PLLA>,
+				  <&bpmp TEGRA186_CLK_PLL_A_OUT0>,
+				  <&bpmp TEGRA186_CLK_AUD_MCLK>;
+		assigned-clock-parents = <0>,
+					 <&bpmp TEGRA186_CLK_PLLA>,
+					 <&bpmp TEGRA186_CLK_PLL_A_OUT0>;
+		/*
+		 * PLLA supports dynamic ramp. Below initial rate is chosen
+		 * for this to work and oscillate between base rates required
+		 * for 8x and 11.025x sample rate streams.
+		 */
+		assigned-clock-rates = <258000000>;
+
+		iommus = <&smmu TEGRA186_SID_APE>;
 	};
 
 	thermal-zones {

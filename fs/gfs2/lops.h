@@ -27,8 +27,6 @@ extern void gfs2_log_submit_bio(struct bio **biop, int opf);
 extern void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh);
 extern int gfs2_find_jhead(struct gfs2_jdesc *jd,
 			   struct gfs2_log_header_host *head, bool keep_cache);
-extern void gfs2_meta_sync(struct gfs2_glock *gl);
-
 static inline unsigned int buf_limit(struct gfs2_sbd *sdp)
 {
 	unsigned int limit;

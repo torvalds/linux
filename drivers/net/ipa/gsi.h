@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2020 Linaro Ltd.
+ * Copyright (C) 2018-2021 Linaro Ltd.
  */
 #ifndef _GSI_H_
 #define _GSI_H_
@@ -12,6 +12,8 @@
 #include <linux/completion.h>
 #include <linux/platform_device.h>
 #include <linux/netdevice.h>
+
+#include "ipa_version.h"
 
 /* Maximum number of channels and event rings supported by the driver */
 #define GSI_CHANNEL_COUNT_MAX	17
@@ -31,10 +33,10 @@ struct ipa_gsi_endpoint_data;
 
 /* Execution environment IDs */
 enum gsi_ee_id {
-	GSI_EE_AP	= 0,
-	GSI_EE_MODEM	= 1,
-	GSI_EE_UC	= 2,
-	GSI_EE_TZ	= 3,
+	GSI_EE_AP				= 0x0,
+	GSI_EE_MODEM				= 0x1,
+	GSI_EE_UC				= 0x2,
+	GSI_EE_TZ				= 0x3,
 };
 
 struct gsi_ring {
@@ -94,12 +96,12 @@ struct gsi_trans_info {
 
 /* Hardware values signifying the state of a channel */
 enum gsi_channel_state {
-	GSI_CHANNEL_STATE_NOT_ALLOCATED	= 0x0,
-	GSI_CHANNEL_STATE_ALLOCATED	= 0x1,
-	GSI_CHANNEL_STATE_STARTED	= 0x2,
-	GSI_CHANNEL_STATE_STOPPED	= 0x3,
-	GSI_CHANNEL_STATE_STOP_IN_PROC	= 0x4,
-	GSI_CHANNEL_STATE_ERROR		= 0xf,
+	GSI_CHANNEL_STATE_NOT_ALLOCATED		= 0x0,
+	GSI_CHANNEL_STATE_ALLOCATED		= 0x1,
+	GSI_CHANNEL_STATE_STARTED		= 0x2,
+	GSI_CHANNEL_STATE_STOPPED		= 0x3,
+	GSI_CHANNEL_STATE_STOP_IN_PROC		= 0x4,
+	GSI_CHANNEL_STATE_ERROR			= 0xf,
 };
 
 /* We only care about channels between IPA and AP */
@@ -107,7 +109,6 @@ struct gsi_channel {
 	struct gsi *gsi;
 	bool toward_ipa;
 	bool command;			/* AP command TX channel or not */
-	bool use_prefetch;		/* use prefetch (else escape buf) */
 
 	u8 tlv_count;			/* # entries in TLV FIFO */
 	u16 tre_count;
@@ -141,37 +142,39 @@ enum gsi_evt_ring_state {
 struct gsi_evt_ring {
 	struct gsi_channel *channel;
 	struct completion completion;	/* signals event ring state changes */
-	enum gsi_evt_ring_state state;
 	struct gsi_ring ring;
 };
 
 struct gsi {
 	struct device *dev;		/* Same as IPA device */
+	enum ipa_version version;
 	struct net_device dummy_dev;	/* needed for NAPI */
-	void __iomem *virt;
+	void __iomem *virt_raw;		/* I/O mapped address range */
+	void __iomem *virt;		/* Adjusted for most registers */
 	u32 irq;
 	u32 channel_count;
 	u32 evt_ring_count;
 	struct gsi_channel channel[GSI_CHANNEL_COUNT_MAX];
 	struct gsi_evt_ring evt_ring[GSI_EVT_RING_COUNT_MAX];
-	u32 event_bitmap;
-	u32 event_enable_bitmap;
-	u32 modem_channel_bitmap;
+	u32 event_bitmap;		/* allocated event rings */
+	u32 modem_channel_bitmap;	/* modem channels to allocate */
+	u32 type_enabled_bitmap;	/* GSI IRQ types enabled */
+	u32 ieob_enabled_bitmap;	/* IEOB IRQ enabled (event rings) */
 	struct completion completion;	/* for global EE commands */
+	int result;			/* Negative errno (generic commands) */
 	struct mutex mutex;		/* protects commands, programming */
 };
 
 /**
  * gsi_setup() - Set up the GSI subsystem
  * @gsi:	Address of GSI structure embedded in an IPA structure
- * @legacy:	Set up for legacy hardware
  *
  * Return:	0 if successful, or a negative error code
  *
  * Performs initialization that must wait until the GSI hardware is
  * ready (including firmware loaded).
  */
-int gsi_setup(struct gsi *gsi, bool legacy);
+int gsi_setup(struct gsi *gsi);
 
 /**
  * gsi_teardown() - Tear down GSI subsystem
@@ -219,15 +222,15 @@ int gsi_channel_stop(struct gsi *gsi, u32 channel_id);
  * gsi_channel_reset() - Reset an allocated GSI channel
  * @gsi:	GSI pointer
  * @channel_id:	Channel to be reset
- * @legacy:	Legacy behavior
+ * @doorbell:	Whether to (possibly) enable the doorbell engine
  *
- * Reset a channel and reconfigure it.  The @legacy flag indicates
- * that some steps should be done differently for legacy hardware.
+ * Reset a channel and reconfigure it.  The @doorbell flag indicates
+ * that the doorbell engine should be enabled if needed.
  *
  * GSI hardware relinquishes ownership of all pending receive buffer
  * transactions and they will complete with their cancelled flag set.
  */
-void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool legacy);
+void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool doorbell);
 
 int gsi_channel_suspend(struct gsi *gsi, u32 channel_id, bool stop);
 int gsi_channel_resume(struct gsi *gsi, u32 channel_id, bool start);
@@ -236,15 +239,18 @@ int gsi_channel_resume(struct gsi *gsi, u32 channel_id, bool start);
  * gsi_init() - Initialize the GSI subsystem
  * @gsi:	Address of GSI structure embedded in an IPA structure
  * @pdev:	IPA platform device
+ * @version:	IPA hardware version (implies GSI version)
+ * @count:	Number of entries in the configuration data array
+ * @data:	Endpoint and channel configuration data
  *
  * Return:	0 if successful, or a negative error code
  *
  * Early stage initialization of the GSI subsystem, performing tasks
  * that can be done before the GSI hardware is ready to use.
  */
-int gsi_init(struct gsi *gsi, struct platform_device *pdev, bool prefetch,
-	     u32 count, const struct ipa_gsi_endpoint_data *data,
-	     bool modem_alloc);
+int gsi_init(struct gsi *gsi, struct platform_device *pdev,
+	     enum ipa_version version, u32 count,
+	     const struct ipa_gsi_endpoint_data *data);
 
 /**
  * gsi_exit() - Exit the GSI subsystem

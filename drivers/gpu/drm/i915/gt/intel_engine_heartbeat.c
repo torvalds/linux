@@ -41,6 +41,8 @@ static void idle_pulse(struct intel_engine_cs *engine, struct i915_request *rq)
 {
 	engine->wakeref_serial = READ_ONCE(engine->serial) + 1;
 	i915_request_add_active_barriers(rq);
+	if (!engine->heartbeat.systole && intel_engine_has_heartbeat(engine))
+		engine->heartbeat.systole = i915_request_get(rq);
 }
 
 static void show_heartbeat(const struct i915_request *rq,
@@ -144,8 +146,6 @@ static void heartbeat(struct work_struct *wrk)
 		goto unlock;
 
 	idle_pulse(engine, rq);
-	if (engine->i915->params.enable_hangcheck)
-		engine->heartbeat.systole = i915_request_get(rq);
 
 	__i915_request_commit(rq);
 	__i915_request_queue(rq, &attr);
@@ -153,7 +153,7 @@ static void heartbeat(struct work_struct *wrk)
 unlock:
 	mutex_unlock(&ce->timeline->mutex);
 out:
-	if (!next_heartbeat(engine))
+	if (!engine->i915->params.enable_hangcheck || !next_heartbeat(engine))
 		i915_request_put(fetch_and_zero(&engine->heartbeat.systole));
 	intel_engine_pm_put(engine);
 }

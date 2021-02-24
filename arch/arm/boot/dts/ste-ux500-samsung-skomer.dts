@@ -8,6 +8,7 @@
 #include "ste-ab8505.dtsi"
 #include "ste-dbx5x0-pinctrl.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
@@ -118,6 +119,32 @@
 		pinctrl-0 = <&gpio_backlight_default_mode>;
 	};
 
+	/* Richtek RT8515GQW Flash LED Driver IC */
+	flash {
+		compatible = "richtek,rt8515";
+		/* GPIO 140 */
+		enf-gpios = <&gpio4 12 GPIO_ACTIVE_HIGH>;
+		/* GPIO 141 */
+		ent-gpios = <&gpio4 13 GPIO_ACTIVE_HIGH>;
+		/*
+		 * RFS is 16 kOhm and RTS is 100 kOhm giving
+		 * the flash max current 343mA and torch max
+		 * current 55 mA.
+		 */
+		richtek,rfs-ohms = <16000>;
+		richtek,rts-ohms = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_flash_default_mode>;
+
+		led {
+			function = LED_FUNCTION_FLASH;
+			color = <LED_COLOR_ID_WHITE>;
+			flash-max-timeout-us = <250000>;
+			flash-max-microamp = <343750>;
+			led-max-microamp = <55000>;
+		};
+	};
+
 	i2c-gpio-0 {
 		compatible = "i2c-gpio";
 		sda-gpios = <&gpio4 16 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
@@ -147,7 +174,7 @@
 
 	soc {
 		// External Micro SD slot
-		sdi0_per1@80126000 {
+		mmc@80126000 {
 			arm,primecell-periphid = <0x10480180>;
 			max-frequency = <100000000>;
 			bus-width = <4>;
@@ -169,7 +196,7 @@
 		};
 
 		// WLAN SDIO channel
-		sdi1_per2@80118000 {
+		mmc@80118000 {
 			arm,primecell-periphid = <0x10480180>;
 			max-frequency = <50000000>;
 			bus-width = <4>;
@@ -196,7 +223,7 @@
 		};
 
 		// eMMC
-		sdi2_per3@80005000 {
+		mmc@80005000 {
 			arm,primecell-periphid = <0x10480180>;
 		        max-frequency = <100000000>;
 			bus-width = <8>;
@@ -393,7 +420,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&dsi_default_mode>;
 
-			dsi-controller@a0351000 {
+			dsi@a0351000 {
 				panel {
 					/* NT35510-based Hydis HVA40WV1 */
 					compatible = "hydis,hva40wv1", "novatek,nt35510";
@@ -429,6 +456,16 @@
 			default_cfg5 {
 				pins = "GPIO21_AB3"; /* DAT31DIR */
 				ste,config = <&out_hi>;
+			};
+		};
+	};
+
+	/* The unused FBCLK needs to be pulled down on this machine */
+	sdi2 {
+		mc2_a_1_default {
+			default_cfg2 {
+				pins = "GPIO130_C8"; /* FBCLK */
+				ste,config = <&in_pd>;
 			};
 		};
 	};
@@ -473,6 +510,14 @@
 		gpio_backlight_default_mode: backlight_default {
 			skomer_cfg1 {
 				pins = "GPIO69_E2"; /* LCD_BL_CTRL */
+				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+	flash {
+		gpio_flash_default_mode: flash_default {
+			skomer_cfg1 {
+				pins = "GPIO140_B11", "GPIO141_C12";
 				ste,config = <&gpio_out_lo>;
 			};
 		};

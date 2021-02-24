@@ -101,7 +101,6 @@
 			reg = <0x12d10000 0x100>;
 			interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
 			#io-channel-cells = <1>;
-			io-channel-ranges;
 			status = "disabled";
 		};
 
@@ -148,7 +147,7 @@
 			#size-cells = <1>;
 			ranges;
 
-			usbdrd_dwc3_0: dwc3@12000000 {
+			usbdrd_dwc3_0: usb@12000000 {
 				compatible = "snps,dwc3";
 				reg = <0x12000000 0x10000>;
 				interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
@@ -170,7 +169,7 @@
 			#size-cells = <1>;
 			ranges;
 
-			usbdrd_dwc3_1: dwc3@12400000 {
+			usbdrd_dwc3_1: usb@12400000 {
 				compatible = "snps,dwc3";
 				reg = <0x12400000 0x10000>;
 				phys = <&usbdrd_phy1 0>, <&usbdrd_phy1 1>;
@@ -189,7 +188,7 @@
 			compatible = "samsung,exynos4210-ehci";
 			reg = <0x12110000 0x100>;
 			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
-			phys = <&usb2_phy 1>;
+			phys = <&usb2_phy 0>;
 			phy-names = "host";
 		};
 
@@ -197,12 +196,12 @@
 			compatible = "samsung,exynos4210-ohci";
 			reg = <0x12120000 0x100>;
 			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
-			phys = <&usb2_phy 1>;
+			phys = <&usb2_phy 0>;
 			phy-names = "host";
 		};
 
 		usb2_phy: phy@12130000 {
-			compatible = "samsung,exynos5250-usb2-phy";
+			compatible = "samsung,exynos5420-usb2-phy";
 			reg = <0x12130000 0x100>;
 			#phy-cells = <1>;
 		};

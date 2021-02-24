@@ -2126,7 +2126,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 
 	pr_debug("ib_pd %p\n", pd);
 
-	if (attrs->qp_type != IB_QPT_RC)
+	if (attrs->qp_type != IB_QPT_RC || attrs->create_flags)
 		return ERR_PTR(-EOPNOTSUPP);
 
 	php = to_c4iw_pd(pd);
@@ -2374,6 +2374,9 @@ int c4iw_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	pr_debug("ib_qp %p\n", ibqp);
 
+	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
+		return -EOPNOTSUPP;
+
 	/* iwarp does not support the RTR state */
 	if ((attr_mask & IB_QP_STATE) && (attr->qp_state == IB_QPS_RTR))
 		attr_mask &= ~IB_QP_STATE;
@@ -2471,7 +2474,7 @@ int c4iw_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	init_attr->cap.max_send_wr = qhp->attr.sq_num_entries;
 	init_attr->cap.max_recv_wr = qhp->attr.rq_num_entries;
 	init_attr->cap.max_send_sge = qhp->attr.sq_max_sges;
-	init_attr->cap.max_recv_sge = qhp->attr.sq_max_sges;
+	init_attr->cap.max_recv_sge = qhp->attr.rq_max_sges;
 	init_attr->cap.max_inline_data = T4_MAX_SEND_INLINE;
 	init_attr->sq_sig_type = qhp->sq_sig_all ? IB_SIGNAL_ALL_WR : 0;
 	return 0;
@@ -2679,6 +2682,9 @@ int c4iw_create_srq(struct ib_srq *ib_srq, struct ib_srq_init_attr *attrs,
 	int rqsize;
 	int ret;
 	int wr_len;
+
+	if (attrs->srq_type != IB_SRQT_BASIC)
+		return -EOPNOTSUPP;
 
 	pr_debug("%s ib_pd %p\n", __func__, pd);
 

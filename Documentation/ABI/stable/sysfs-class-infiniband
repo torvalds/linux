@@ -8,12 +8,14 @@ Date:		Apr, 2005
 KernelVersion:	v2.6.12
 Contact:	linux-rdma@vger.kernel.org
 Description:
+		=============== ===========================================
 		node_type:	(RO) Node type (CA, RNIC, usNIC, usNIC UDP,
 				switch or router)
 
 		node_guid:	(RO) Node GUID
 
 		sys_image_guid:	(RO) System image GUID
+		=============== ===========================================
 
 
 What:		/sys/class/infiniband/<device>/node_desc
@@ -47,6 +49,7 @@ KernelVersion:	v2.6.12
 Contact:	linux-rdma@vger.kernel.org
 Description:
 
+		=============== ===============================================
 		lid:		(RO) Port LID
 
 		rate:		(RO) Port data rate (active width * active
@@ -66,8 +69,9 @@ Description:
 
 		cap_mask:	(RO) Port capability mask. 2 bits here are
 				settable- IsCommunicationManagementSupported
-				(set when CM module is loaded) and IsSM (set via
-				open of issmN file).
+				(set when CM module is loaded) and IsSM (set
+				via open of issmN file).
+		=============== ===============================================
 
 
 What:		/sys/class/infiniband/<device>/ports/<port-num>/link_layer
@@ -103,8 +107,7 @@ Date:		Apr, 2005
 KernelVersion:	v2.6.12
 Contact:	linux-rdma@vger.kernel.org
 Description:
-		Errors info:
-		-----------
+		**Errors info**:
 
 		symbol_error: (RO) Total number of minor link errors detected on
 		one or more physical lanes.
@@ -142,8 +145,7 @@ Description:
 		intervention. It can also indicate hardware issues or extremely
 		poor link signal integrity
 
-		Data info:
-		---------
+		**Data info**:
 
 		port_xmit_data: (RO) Total number of data octets, divided by 4
 		(lanes), transmitted on all VLs. This is 64 bit counter
@@ -176,8 +178,7 @@ Description:
 		transmitted on all VLs from the port. This may include multicast
 		packets with errors.
 
-		Misc info:
-		---------
+		**Misc info**:
 
 		port_xmit_discards: (RO) Total number of outbound packets
 		discarded by the port because the port is down or congested.
@@ -244,9 +245,11 @@ Description:
 		two umad devices and two issm devices, while a switch will have
 		one device of each type (for switch port 0).
 
+		======= =====================================
 		ibdev:	(RO) Show Infiniband (IB) device name
 
 		port:	(RO) Display port number
+		======= =====================================
 
 
 What:		/sys/class/infiniband_mad/abi_version
@@ -264,10 +267,12 @@ Date:		Sept, 2005
 KernelVersion:	v2.6.14
 Contact:	linux-rdma@vger.kernel.org
 Description:
+		=============== ===========================================
 		ibdev:		(RO) Display Infiniband (IB) device name
 
 		abi_version:	(RO) Show ABI version of IB device specific
 				interfaces.
+		=============== ===========================================
 
 
 What:		/sys/class/infiniband_verbs/abi_version
@@ -289,12 +294,14 @@ Date:		Apr, 2005
 KernelVersion:	v2.6.12
 Contact:	linux-rdma@vger.kernel.org
 Description:
+		=============== ================================================
 		hw_rev:		(RO) Hardware revision number
 
 		hca_type:	(RO) Host Channel Adapter type: MT23108, MT25208
 				(MT23108 compat mode), MT25208 or MT25204
 
 		board_id:	(RO) Manufacturing board ID
+		=============== ================================================
 
 
 sysfs interface for Mellanox ConnectX HCA IB driver (mlx4)
@@ -307,11 +314,13 @@ Date:		Sep, 2007
 KernelVersion:	v2.6.24
 Contact:	linux-rdma@vger.kernel.org
 Description:
+		=============== ===============================
 		hw_rev:		(RO) Hardware revision number
 
 		hca_type:	(RO) Host channel adapter type
 
 		board_id:	(RO) Manufacturing board ID
+		=============== ===============================
 
 
 What:		/sys/class/infiniband/mlx4_X/iov/ports/<port-num>/gids/<n>
@@ -337,6 +346,7 @@ Description:
 		example, ports/1/pkeys/10 contains the value at index 10 in port
 		1's P_Key table.
 
+		======================= ==========================================
 		gids/<n>:		(RO) The physical port gids n = 0..127
 
 		admin_guids/<n>:	(RW) Allows examining or changing the
@@ -365,6 +375,7 @@ Description:
 					guest, whenever it uses its pkey index
 					1, will actually be using the real pkey
 					index 10.
+		======================= ==========================================
 
 
 What:		/sys/class/infiniband/mlx4_X/iov/<pci-slot-num>/ports/<m>/smi_enabled
@@ -376,12 +387,14 @@ Description:
 		Enabling QP0 on VFs for selected VF/port. By default, no VFs are
 		enabled for QP0 operation.
 
-		smi_enabled:	(RO) Indicates whether smi is currently enabled
-				for the indicated VF/port
+		================= ==== ===========================================
+		smi_enabled:	  (RO) Indicates whether smi is currently enabled
+				       for the indicated VF/port
 
-		enable_smi_admin:(RW) Used by the admin to request that smi
-				capability be enabled or disabled for the
-				indicated VF/port. 0 = disable, 1 = enable.
+		enable_smi_admin: (RW) Used by the admin to request that smi
+				       capability be enabled or disabled for the
+				       indicated VF/port. 0 = disable, 1 = enable.
+		================= ==== ===========================================
 
 		The requested enablement will occur at the next reset of the VF
 		(e.g. driver restart on the VM which owns the VF).
@@ -398,6 +411,7 @@ KernelVersion:	v2.6.35
 Contact:	linux-rdma@vger.kernel.org
 Description:
 
+		=============== =============================================
 		hw_rev:		(RO) Hardware revision number
 
 		hca_type:	(RO) Driver short name. Should normally match
@@ -406,6 +420,7 @@ Description:
 
 		board_id:	(RO) Manufacturing board id. (Vendor + device
 				information)
+		=============== =============================================
 
 
 sysfs interface for Intel IB driver qib
@@ -426,6 +441,7 @@ Date:		May, 2010
 KernelVersion:	v2.6.35
 Contact:	linux-rdma@vger.kernel.org
 Description:
+		=============== ======================================================
 		version:	(RO) Display version information of installed software
 				and drivers.
 
@@ -452,6 +468,7 @@ Description:
 		chip_reset:	(WO) Reset the chip if possible by writing
 				"reset" to this file. Only allowed if no user
 				contexts are open that use chip resources.
+		=============== ======================================================
 
 
 What:		/sys/class/infiniband/qibX/ports/N/sl2vl/[0-15]
@@ -471,14 +488,16 @@ Contact:	linux-rdma@vger.kernel.org
 Description:
 		Per-port congestion control. Both are binary attributes.
 
-		cc_table_bin:	(RO) Congestion control table size followed by
+		=============== ================================================
+		cc_table_bin	(RO) Congestion control table size followed by
 				table entries.
 
-		cc_settings_bin:(RO) Congestion settings: port control, control
+		cc_settings_bin (RO) Congestion settings: port control, control
 				map and an array of 16 entries for the
 				congestion entries - increase, timer, event log
 				trigger threshold and the minimum injection rate
 				delay.
+		=============== ================================================
 
 What:		/sys/class/infiniband/qibX/ports/N/linkstate/loopback
 What:		/sys/class/infiniband/qibX/ports/N/linkstate/led_override
@@ -491,6 +510,7 @@ Contact:	linux-rdma@vger.kernel.org
 Description:
 		[to be documented]
 
+		=============== ===============================================
 		loopback:	(WO)
 		led_override:	(WO)
 		hrtbt_enable:	(RW)
@@ -501,6 +521,7 @@ Description:
 				errors. Possible states are- "Initted",
 				"Present", "IB_link_up", "IB_configured" or
 				"Fatal_Hardware_Error".
+		=============== ===============================================
 
 What:		/sys/class/infiniband/qibX/ports/N/diag_counters/rc_resends
 What:		/sys/class/infiniband/qibX/ports/N/diag_counters/seq_naks
@@ -549,6 +570,7 @@ Contact:	Christian Benvenuti <benve@cisco.com>,
 		linux-rdma@vger.kernel.org
 Description:
 
+		=============== ===============================================
 		board_id:	(RO) Manufacturing board id
 
 		config:		(RO) Report the configuration for this PF
@@ -561,6 +583,7 @@ Description:
 
 		iface:		(RO) Shows which network interface this usNIC
 				entry is associated to (visible with ifconfig).
+		=============== ===============================================
 
 What:		/sys/class/infiniband/usnic_X/qpn/summary
 What:		/sys/class/infiniband/usnic_X/qpn/context
@@ -605,6 +628,7 @@ Date:		May, 2016
 KernelVersion:	v4.6
 Contact:	linux-rdma@vger.kernel.org
 Description:
+		=============== =============================================
 		hw_rev:		(RO) Hardware revision number
 
 		board_id:	(RO) Manufacturing board id
@@ -623,6 +647,7 @@ Description:
 				available.
 
 		tempsense:	(RO) Thermal sense information
+		=============== =============================================
 
 
 What:		/sys/class/infiniband/hfi1_X/ports/N/CCMgtA/cc_settings_bin
@@ -634,19 +659,21 @@ Contact:	linux-rdma@vger.kernel.org
 Description:
 		Per-port congestion control.
 
-		cc_table_bin:	(RO) CCA tables used by PSM2 Congestion control
+		=============== ================================================
+		cc_table_bin	(RO) CCA tables used by PSM2 Congestion control
 				table size followed by table entries. Binary
 				attribute.
 
-		cc_settings_bin:(RO) Congestion settings: port control, control
+		cc_settings_bin (RO) Congestion settings: port control, control
 				map and an array of 16 entries for the
 				congestion entries - increase, timer, event log
 				trigger threshold and the minimum injection rate
 				delay. Binary attribute.
 
-		cc_prescan:	(RW) enable prescanning for faster BECN
+		cc_prescan	(RW) enable prescanning for faster BECN
 				response. Write "on" to enable and "off" to
 				disable.
+		=============== ================================================
 
 What:		/sys/class/infiniband/hfi1_X/ports/N/sc2vl/[0-31]
 What:		/sys/class/infiniband/hfi1_X/ports/N/sl2sc/[0-31]
@@ -655,11 +682,13 @@ Date:		May, 2016
 KernelVersion:	v4.6
 Contact:	linux-rdma@vger.kernel.org
 Description:
+		=============== ===================================================
 		sc2vl/:		(RO) 32 files (0 - 31) used to translate sl->vl
 
 		sl2sc/:		(RO) 32 files (0 - 31) used to translate sl->sc
 
 		vl2mtu/:	(RO) 16 files (0 - 15) used to determine MTU for vl
+		=============== ===================================================
 
 
 What:		/sys/class/infiniband/hfi1_X/sdma_N/cpu_list
@@ -670,26 +699,28 @@ Contact:	linux-rdma@vger.kernel.org
 Description:
 		sdma<N>/ contains one directory per sdma engine (0 - 15)
 
+		=============== ==============================================
 		cpu_list:	(RW) List of cpus for user-process to sdma
 				engine assignment.
 
 		vl:		(RO) Displays the virtual lane (vl) the sdma
 				engine maps to.
+		=============== ==============================================
 
 		This interface gives the user control on the affinity settings
 		for the device. As an example, to set an sdma engine irq
 		affinity and thread affinity of a user processes to use the
 		sdma engine, which is "near" in terms of NUMA configuration, or
-		physical cpu location, the user will do:
+		physical cpu location, the user will do::
 
-		echo "3" > /proc/irq/<N>/smp_affinity_list
-		echo "4-7" > /sys/devices/.../sdma3/cpu_list
-		cat /sys/devices/.../sdma3/vl
-		0
-		echo "8" > /proc/irq/<M>/smp_affinity_list
-		echo "9-12" > /sys/devices/.../sdma4/cpu_list
-		cat /sys/devices/.../sdma4/vl
-		1
+		  echo "3" > /proc/irq/<N>/smp_affinity_list
+		  echo "4-7" > /sys/devices/.../sdma3/cpu_list
+		  cat /sys/devices/.../sdma3/vl
+		  0
+		  echo "8" > /proc/irq/<M>/smp_affinity_list
+		  echo "9-12" > /sys/devices/.../sdma4/cpu_list
+		  cat /sys/devices/.../sdma4/vl
+		  1
 
 		to make sure that when a process runs on cpus 4,5,6, or 7, and
 		uses vl=0, then sdma engine 3 is selected by the driver, and
@@ -711,11 +742,13 @@ Date:		Jan, 2016
 KernelVersion:	v4.10
 Contact:	linux-rdma@vger.kernel.org
 Description:
+		=============== ==== ========================
 		hw_rev:		(RO) Hardware revision number
 
 		hca_type:	(RO) Show HCA type (I40IW)
 
 		board_id:	(RO) I40IW board ID
+		=============== ==== ========================
 
 
 sysfs interface for QLogic qedr NIC Driver
@@ -728,9 +761,11 @@ KernelVersion:	v4.10
 Contact:	linux-rdma@vger.kernel.org
 Description:
 
+		=============== ==== ========================
 		hw_rev:		(RO) Hardware revision number
 
 		hca_type:	(RO) Display HCA type
+		=============== ==== ========================
 
 
 sysfs interface for VMware Paravirtual RDMA driver
@@ -744,11 +779,13 @@ KernelVersion:	v4.10
 Contact:	linux-rdma@vger.kernel.org
 Description:
 
+		=============== ==== =====================================
 		hw_rev:		(RO) Hardware revision number
 
 		hca_type:	(RO) Host channel adapter type
 
 		board_id:	(RO) Display PVRDMA manufacturing board ID
+		=============== ==== =====================================
 
 
 sysfs interface for Broadcom NetXtreme-E RoCE driver
@@ -760,6 +797,8 @@ Date:		Feb, 2017
 KernelVersion:	v4.11
 Contact:	linux-rdma@vger.kernel.org
 Description:
+		=============== ==== =========================
 		hw_rev:		(RO) Hardware revision number
 
 		hca_type:	(RO) Host channel adapter type
+		=============== ==== =========================

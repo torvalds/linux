@@ -1,62 +1,8 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2017        Intel Deutschland GmbH
- * Copyright(c) 2018 - 2020        Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2017        Intel Deutschland GmbH
- * Copyright(c) 2018 - 2020       Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018-2021 Intel Corporation
+ */
 #ifndef __iwl_fw_acpi__
 #define __iwl_fw_acpi__
 
@@ -100,7 +46,7 @@
 #define ACPI_ECKV_WIFI_DATA_SIZE	2
 
 /*
- * 1 type, 1 enabled, 1 black list size, 16 black list array
+ * 1 type, 1 enabled, 1 block list size, 16 block list array
  */
 #define APCI_WTAS_BLACK_LIST_MAX	16
 #define ACPI_WTAS_WIFI_DATA_SIZE	(3 + APCI_WTAS_BLACK_LIST_MAX)
@@ -108,9 +54,9 @@
 #define ACPI_WGDS_TABLE_SIZE		3
 
 #define ACPI_PPAG_WIFI_DATA_SIZE	((IWL_NUM_CHAIN_LIMITS * \
-					IWL_NUM_SUB_BANDS) + 3)
+					  IWL_NUM_SUB_BANDS) + 2)
 #define ACPI_PPAG_WIFI_DATA_SIZE_V2	((IWL_NUM_CHAIN_LIMITS * \
-					IWL_NUM_SUB_BANDS_V2) + 3)
+					  IWL_NUM_SUB_BANDS_V2) + 2)
 
 /* PPAG gain value bounds in 1/8 dBm */
 #define ACPI_PPAG_MIN_LB -16
@@ -147,13 +93,27 @@ enum iwl_dsm_values_indonesia {
 	DSM_VALUE_INDONESIA_MAX
 };
 
+/* DSM RFI uses a different GUID, so need separate definitions */
+
+#define DSM_RFI_FUNC_ENABLE 3
+
+enum iwl_dsm_values_rfi {
+	DSM_VALUE_RFI_ENABLE,
+	DSM_VALUE_RFI_DISABLE,
+	DSM_VALUE_RFI_MAX
+};
+
 #ifdef CONFIG_ACPI
 
 struct iwl_fw_runtime;
 
+extern const guid_t iwl_guid;
+extern const guid_t iwl_rfi_guid;
+
 void *iwl_acpi_get_object(struct device *dev, acpi_string method);
 
-int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func);
+int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
+			const guid_t *guid, u8 *value);
 
 union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 					 union acpi_object *data,
@@ -197,8 +157,8 @@ bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt);
 int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 		     struct iwl_per_chain_offset *table, u32 n_bands);
 
-int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt, __le32 *black_list_array,
-		     int *black_list_size);
+int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt, __le32 *block_list_array,
+		     int *block_list_size);
 
 #else /* CONFIG_ACPI */
 
@@ -213,7 +173,8 @@ static inline void *iwl_acpi_get_dsm_object(struct device *dev, int rev,
 	return ERR_PTR(-ENOENT);
 }
 
-static inline int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func)
+static inline int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
+				      const guid_t *guid, u8 *value)
 {
 	return -ENOENT;
 }
@@ -269,8 +230,8 @@ static inline bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
 }
 
 static inline int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
-				   __le32 *black_list_array,
-				   int *black_list_size)
+				   __le32 *block_list_array,
+				   int *block_list_size)
 {
 	return -ENOENT;
 }

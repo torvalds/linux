@@ -167,10 +167,10 @@ static void hns_roce_mr_free(struct hns_roce_dev *hr_dev,
 static int hns_roce_mr_enable(struct hns_roce_dev *hr_dev,
 			      struct hns_roce_mr *mr)
 {
-	int ret;
 	unsigned long mtpt_idx = key_to_hw_index(mr->key);
-	struct device *dev = hr_dev->dev;
 	struct hns_roce_cmd_mailbox *mailbox;
+	struct device *dev = hr_dev->dev;
+	int ret;
 
 	/* Allocate mailbox memory */
 	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
@@ -185,14 +185,14 @@ static int hns_roce_mr_enable(struct hns_roce_dev *hr_dev,
 	else
 		ret = hr_dev->hw->frmr_write_mtpt(hr_dev, mailbox->buf, mr);
 	if (ret) {
-		dev_err(dev, "Write mtpt fail!\n");
+		dev_err(dev, "failed to write mtpt, ret = %d.\n", ret);
 		goto err_page;
 	}
 
 	ret = hns_roce_hw_create_mpt(hr_dev, mailbox,
 				     mtpt_idx & (hr_dev->caps.num_mtpts - 1));
 	if (ret) {
-		dev_err(dev, "CREATE_MPT failed (%d)\n", ret);
+		dev_err(dev, "failed to create mpt, ret = %d.\n", ret);
 		goto err_page;
 	}
 
@@ -328,9 +328,10 @@ static int rereg_mr_trans(struct ib_mr *ibmr, int flags,
 	return ret;
 }
 
-int hns_roce_rereg_user_mr(struct ib_mr *ibmr, int flags, u64 start, u64 length,
-			   u64 virt_addr, int mr_access_flags, struct ib_pd *pd,
-			   struct ib_udata *udata)
+struct ib_mr *hns_roce_rereg_user_mr(struct ib_mr *ibmr, int flags, u64 start,
+				     u64 length, u64 virt_addr,
+				     int mr_access_flags, struct ib_pd *pd,
+				     struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibmr->device);
 	struct ib_device *ib_dev = &hr_dev->ib_dev;
@@ -341,11 +342,11 @@ int hns_roce_rereg_user_mr(struct ib_mr *ibmr, int flags, u64 start, u64 length,
 	int ret;
 
 	if (!mr->enabled)
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
 	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
 	if (IS_ERR(mailbox))
-		return PTR_ERR(mailbox);
+		return ERR_CAST(mailbox);
 
 	mtpt_idx = key_to_hw_index(mr->key) & (hr_dev->caps.num_mtpts - 1);
 	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, mtpt_idx, 0,
@@ -390,12 +391,12 @@ int hns_roce_rereg_user_mr(struct ib_mr *ibmr, int flags, u64 start, u64 length,
 
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 
-	return 0;
+	return NULL;
 
 free_cmd_mbox:
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 
-	return ret;
+	return ERR_PTR(ret);
 }
 
 int hns_roce_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
@@ -495,7 +496,7 @@ int hns_roce_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 
 	ret = ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, hns_roce_set_page);
 	if (ret < 1) {
-		ibdev_err(ibdev, "failed to store sg pages %d %d, cnt = %d.\n",
+		ibdev_err(ibdev, "failed to store sg pages %u %u, cnt = %d.\n",
 			  mr->npages, mr->pbl_mtr.hem_cfg.buf_pg_count, ret);
 		goto err_page_list;
 	}
@@ -509,7 +510,7 @@ int hns_roce_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		ibdev_err(ibdev, "failed to map sg mtr, ret = %d.\n", ret);
 		ret = 0;
 	} else {
-		mr->pbl_mtr.hem_cfg.buf_pg_shift = ilog2(ibmr->page_size);
+		mr->pbl_mtr.hem_cfg.buf_pg_shift = (u32)ilog2(ibmr->page_size);
 		ret = mr->npages;
 	}
 
@@ -695,15 +696,6 @@ static inline size_t mtr_bufs_size(struct hns_roce_buf_attr *attr)
 	return size;
 }
 
-static inline size_t mtr_kmem_direct_size(bool is_direct, size_t alloc_size,
-					  unsigned int page_shift)
-{
-	if (is_direct)
-		return ALIGN(alloc_size, 1 << page_shift);
-	else
-		return HNS_HW_DIRECT_PAGE_COUNT << page_shift;
-}
-
 /*
  * check the given pages in continuous address space
  * Returns 0 on success, or the error page num.
@@ -732,7 +724,6 @@ static void mtr_free_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr)
 	/* release kernel buffers */
 	if (mtr->kmem) {
 		hns_roce_buf_free(hr_dev, mtr->kmem);
-		kfree(mtr->kmem);
 		mtr->kmem = NULL;
 	}
 }
@@ -744,13 +735,12 @@ static int mtr_alloc_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	unsigned int best_pg_shift;
 	int all_pg_count = 0;
-	size_t direct_size;
 	size_t total_size;
 	int ret;
 
 	total_size = mtr_bufs_size(buf_attr);
 	if (total_size < 1) {
-		ibdev_err(ibdev, "Failed to check mtr size\n");
+		ibdev_err(ibdev, "failed to check mtr size\n.");
 		return -EINVAL;
 	}
 
@@ -762,7 +752,7 @@ static int mtr_alloc_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 		mtr->umem = ib_umem_get(ibdev, user_addr, total_size,
 					buf_attr->user_access);
 		if (IS_ERR_OR_NULL(mtr->umem)) {
-			ibdev_err(ibdev, "Failed to get umem, ret %ld\n",
+			ibdev_err(ibdev, "failed to get umem, ret = %ld.\n",
 				  PTR_ERR(mtr->umem));
 			return -ENOMEM;
 		}
@@ -780,19 +770,16 @@ static int mtr_alloc_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 		ret = 0;
 	} else {
 		mtr->umem = NULL;
-		mtr->kmem = kzalloc(sizeof(*mtr->kmem), GFP_KERNEL);
-		if (!mtr->kmem) {
-			ibdev_err(ibdev, "Failed to alloc kmem\n");
-			return -ENOMEM;
+		mtr->kmem =
+			hns_roce_buf_alloc(hr_dev, total_size,
+					   buf_attr->page_shift,
+					   is_direct ? HNS_ROCE_BUF_DIRECT : 0);
+		if (IS_ERR(mtr->kmem)) {
+			ibdev_err(ibdev, "failed to alloc kmem, ret = %ld.\n",
+				  PTR_ERR(mtr->kmem));
+			return PTR_ERR(mtr->kmem);
 		}
-		direct_size = mtr_kmem_direct_size(is_direct, total_size,
-						   buf_attr->page_shift);
-		ret = hns_roce_buf_alloc(hr_dev, total_size, direct_size,
-					 mtr->kmem, buf_attr->page_shift);
-		if (ret) {
-			ibdev_err(ibdev, "Failed to alloc kmem, ret %d\n", ret);
-			goto err_alloc_mem;
-		}
+
 		best_pg_shift = buf_attr->page_shift;
 		all_pg_count = mtr->kmem->npages;
 	}
@@ -800,7 +787,8 @@ static int mtr_alloc_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 	/* must bigger than minimum hardware page shift */
 	if (best_pg_shift < HNS_HW_PAGE_SHIFT || all_pg_count < 1) {
 		ret = -EINVAL;
-		ibdev_err(ibdev, "Failed to check mtr page shift %d count %d\n",
+		ibdev_err(ibdev,
+			  "failed to check mtr, page shift = %u count = %d.\n",
 			  best_pg_shift, all_pg_count);
 		goto err_alloc_mem;
 	}
@@ -841,12 +829,12 @@ static int mtr_get_pages(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 }
 
 int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
-		     dma_addr_t *pages, int page_cnt)
+		     dma_addr_t *pages, unsigned int page_cnt)
 {
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	struct hns_roce_buf_region *r;
+	unsigned int i;
 	int err;
-	int i;
 
 	/*
 	 * Only use the first page address as root ba when hopnum is 0, this
@@ -862,7 +850,7 @@ int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 		if (r->offset + r->count > page_cnt) {
 			err = -EINVAL;
 			ibdev_err(ibdev,
-				  "Failed to check mtr%d end %d + %d, max %d\n",
+				  "failed to check mtr%u end %u + %u, max %u.\n",
 				  i, r->offset, r->count, page_cnt);
 			return err;
 		}
@@ -870,7 +858,7 @@ int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 		err = mtr_map_region(hr_dev, mtr, &pages[r->offset], r);
 		if (err) {
 			ibdev_err(ibdev,
-				  "Failed to map mtr%d offset %d, err %d\n",
+				  "failed to map mtr%u offset %u, ret = %d.\n",
 				  i, r->offset, err);
 			return err;
 		}
@@ -883,13 +871,12 @@ int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 		      int offset, u64 *mtt_buf, int mtt_max, u64 *base_addr)
 {
 	struct hns_roce_hem_cfg *cfg = &mtr->hem_cfg;
+	int mtt_count, left;
 	int start_index;
-	int mtt_count;
 	int total = 0;
 	__le64 *mtts;
-	int npage;
+	u32 npage;
 	u64 addr;
-	int left;
 
 	if (!mtt_buf || mtt_max < 1)
 		goto done;

@@ -48,8 +48,6 @@ properties:
     description:
       End of conversion interrupt.
 
-  io-channel-ranges: true
-
 required:
   - compatible
   - reg
@@ -249,7 +247,6 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
         #io-channel-cells = <1>;
-        io-channel-ranges;
 
         /* Channel node */
         adc-chan@39 {

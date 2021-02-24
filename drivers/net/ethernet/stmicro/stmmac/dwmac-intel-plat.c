@@ -74,8 +74,6 @@ MODULE_DEVICE_TABLE(of, intel_eth_plat_match);
 
 static int intel_eth_plat_probe(struct platform_device *pdev)
 {
-	struct net_device *ndev = platform_get_drvdata(pdev);
-	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct plat_stmmacenet_data *plat_dat;
 	struct stmmac_resources stmmac_res;
 	const struct of_device_id *match;
@@ -83,7 +81,6 @@ static int intel_eth_plat_probe(struct platform_device *pdev)
 	unsigned long rate;
 	int ret;
 
-	plat_dat = priv->plat;
 	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
 	if (ret)
 		return ret;
@@ -113,8 +110,10 @@ static int intel_eth_plat_probe(struct platform_device *pdev)
 		/* Enable TX clock */
 		if (dwmac->data->tx_clk_en) {
 			dwmac->tx_clk = devm_clk_get(&pdev->dev, "tx_clk");
-			if (IS_ERR(dwmac->tx_clk))
+			if (IS_ERR(dwmac->tx_clk)) {
+				ret = PTR_ERR(dwmac->tx_clk);
 				goto err_remove_config_dt;
+			}
 
 			clk_prepare_enable(dwmac->tx_clk);
 
@@ -127,7 +126,7 @@ static int intel_eth_plat_probe(struct platform_device *pdev)
 				if (ret) {
 					dev_err(&pdev->dev,
 						"Failed to set tx_clk\n");
-					return ret;
+					goto err_remove_config_dt;
 				}
 			}
 		}
@@ -141,7 +140,7 @@ static int intel_eth_plat_probe(struct platform_device *pdev)
 			if (ret) {
 				dev_err(&pdev->dev,
 					"Failed to set clk_ptp_ref\n");
-				return ret;
+				goto err_remove_config_dt;
 			}
 		}
 	}

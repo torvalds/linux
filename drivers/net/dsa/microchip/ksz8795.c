@@ -23,7 +23,7 @@
 
 static const struct {
 	char string[ETH_GSTRING_LEN];
-} mib_names[TOTAL_SWITCH_COUNTER_NUM] = {
+} mib_names[] = {
 	{ "rx_hi" },
 	{ "rx_undersize" },
 	{ "rx_fragments" },
@@ -125,7 +125,7 @@ static void ksz8795_r_mib_cnt(struct ksz_device *dev, int port, u16 addr,
 	u8 check;
 	int loop;
 
-	ctrl_addr = addr + SWITCH_COUNTER_NUM * port;
+	ctrl_addr = addr + dev->reg_mib_cnt * port;
 	ctrl_addr |= IND_ACC_TABLE(TABLE_MIB | TABLE_READ);
 
 	mutex_lock(&dev->alu_mutex);
@@ -156,7 +156,7 @@ static void ksz8795_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 	u8 check;
 	int loop;
 
-	addr -= SWITCH_COUNTER_NUM;
+	addr -= dev->reg_mib_cnt;
 	ctrl_addr = (KS_MIB_TOTAL_RX_1 - KS_MIB_TOTAL_RX_0) * port;
 	ctrl_addr += addr + KS_MIB_TOTAL_RX_0;
 	ctrl_addr |= IND_ACC_TABLE(TABLE_MIB | TABLE_READ);
@@ -418,8 +418,8 @@ static void ksz8795_r_vlan_entries(struct ksz_device *dev, u16 addr)
 	int i;
 
 	ksz8795_r_table(dev, TABLE_VLAN, addr, &data);
-	addr *= 4;
-	for (i = 0; i < 4; i++) {
+	addr *= dev->phy_port_cnt;
+	for (i = 0; i < dev->phy_port_cnt; i++) {
 		dev->vlan_cache[addr + i].table[0] = (u16)data;
 		data >>= VLAN_TABLE_S;
 	}
@@ -433,7 +433,7 @@ static void ksz8795_r_vlan_table(struct ksz_device *dev, u16 vid, u16 *vlan)
 	u64 buf;
 
 	data = (u16 *)&buf;
-	addr = vid / 4;
+	addr = vid / dev->phy_port_cnt;
 	index = vid & 3;
 	ksz8795_r_table(dev, TABLE_VLAN, addr, &buf);
 	*vlan = data[index];
@@ -447,7 +447,7 @@ static void ksz8795_w_vlan_table(struct ksz_device *dev, u16 vid, u16 vlan)
 	u64 buf;
 
 	data = (u16 *)&buf;
-	addr = vid / 4;
+	addr = vid / dev->phy_port_cnt;
 	index = vid & 3;
 	ksz8795_r_table(dev, TABLE_VLAN, addr, &buf);
 	data[index] = vlan;
@@ -654,9 +654,10 @@ static enum dsa_tag_protocol ksz8795_get_tag_protocol(struct dsa_switch *ds,
 static void ksz8795_get_strings(struct dsa_switch *ds, int port,
 				u32 stringset, uint8_t *buf)
 {
+	struct ksz_device *dev = ds->priv;
 	int i;
 
-	for (i = 0; i < TOTAL_SWITCH_COUNTER_NUM; i++) {
+	for (i = 0; i < dev->mib_cnt; i++) {
 		memcpy(buf + i * ETH_GSTRING_LEN, mib_names[i].string,
 		       ETH_GSTRING_LEN);
 	}
@@ -691,12 +692,12 @@ static void ksz8795_port_stp_state_set(struct dsa_switch *ds, int port,
 	switch (state) {
 	case BR_STATE_DISABLED:
 		data |= PORT_LEARN_DISABLE;
-		if (port < SWITCH_PORT_NUM)
+		if (port < dev->phy_port_cnt)
 			member = 0;
 		break;
 	case BR_STATE_LISTENING:
 		data |= (PORT_RX_ENABLE | PORT_LEARN_DISABLE);
-		if (port < SWITCH_PORT_NUM &&
+		if (port < dev->phy_port_cnt &&
 		    p->stp_state == BR_STATE_DISABLED)
 			member = dev->host_mask | p->vid_member;
 		break;
@@ -720,7 +721,7 @@ static void ksz8795_port_stp_state_set(struct dsa_switch *ds, int port,
 		break;
 	case BR_STATE_BLOCKING:
 		data |= PORT_LEARN_DISABLE;
-		if (port < SWITCH_PORT_NUM &&
+		if (port < dev->phy_port_cnt &&
 		    p->stp_state == BR_STATE_DISABLED)
 			member = dev->host_mask | p->vid_member;
 		break;
@@ -750,17 +751,17 @@ static void ksz8795_port_stp_state_set(struct dsa_switch *ds, int port,
 
 static void ksz8795_flush_dyn_mac_table(struct ksz_device *dev, int port)
 {
-	u8 learn[TOTAL_PORT_NUM];
+	u8 learn[DSA_MAX_PORTS];
 	int first, index, cnt;
 	struct ksz_port *p;
 
-	if ((uint)port < TOTAL_PORT_NUM) {
+	if ((uint)port < dev->port_cnt) {
 		first = port;
 		cnt = port + 1;
 	} else {
 		/* Flush all ports. */
 		first = 0;
-		cnt = dev->mib_port_cnt;
+		cnt = dev->port_cnt;
 	}
 	for (index = first; index < cnt; index++) {
 		p = &dev->ports[index];
@@ -783,54 +784,54 @@ static void ksz8795_flush_dyn_mac_table(struct ksz_device *dev, int port)
 
 static int ksz8795_port_vlan_filtering(struct dsa_switch *ds, int port,
 				       bool flag,
-				       struct switchdev_trans *trans)
+				       struct netlink_ext_ack *extack)
 {
 	struct ksz_device *dev = ds->priv;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	ksz_cfg(dev, S_MIRROR_CTRL, SW_VLAN_ENABLE, flag);
 
 	return 0;
 }
 
-static void ksz8795_port_vlan_add(struct dsa_switch *ds, int port,
-				  const struct switchdev_obj_port_vlan *vlan)
+static int ksz8795_port_vlan_add(struct dsa_switch *ds, int port,
+				 const struct switchdev_obj_port_vlan *vlan,
+				 struct netlink_ext_ack *extack)
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	struct ksz_device *dev = ds->priv;
-	u16 data, vid, new_pvid = 0;
+	u16 data, new_pvid = 0;
 	u8 fid, member, valid;
 
 	ksz_port_cfg(dev, port, P_TAG_CTRL, PORT_REMOVE_TAG, untagged);
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		ksz8795_r_vlan_table(dev, vid, &data);
-		ksz8795_from_vlan(data, &fid, &member, &valid);
+	ksz8795_r_vlan_table(dev, vlan->vid, &data);
+	ksz8795_from_vlan(data, &fid, &member, &valid);
 
-		/* First time to setup the VLAN entry. */
-		if (!valid) {
-			/* Need to find a way to map VID to FID. */
-			fid = 1;
-			valid = 1;
-		}
-		member |= BIT(port);
-
-		ksz8795_to_vlan(fid, member, valid, &data);
-		ksz8795_w_vlan_table(dev, vid, data);
-
-		/* change PVID */
-		if (vlan->flags & BRIDGE_VLAN_INFO_PVID)
-			new_pvid = vid;
+	/* First time to setup the VLAN entry. */
+	if (!valid) {
+		/* Need to find a way to map VID to FID. */
+		fid = 1;
+		valid = 1;
 	}
+	member |= BIT(port);
+
+	ksz8795_to_vlan(fid, member, valid, &data);
+	ksz8795_w_vlan_table(dev, vlan->vid, data);
+
+	/* change PVID */
+	if (vlan->flags & BRIDGE_VLAN_INFO_PVID)
+		new_pvid = vlan->vid;
 
 	if (new_pvid) {
+		u16 vid;
+
 		ksz_pread16(dev, port, REG_PORT_CTRL_VID, &vid);
 		vid &= 0xfff;
 		vid |= new_pvid;
 		ksz_pwrite16(dev, port, REG_PORT_CTRL_VID, vid);
 	}
+
+	return 0;
 }
 
 static int ksz8795_port_vlan_del(struct dsa_switch *ds, int port,
@@ -838,7 +839,7 @@ static int ksz8795_port_vlan_del(struct dsa_switch *ds, int port,
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	struct ksz_device *dev = ds->priv;
-	u16 data, vid, pvid, new_pvid = 0;
+	u16 data, pvid, new_pvid = 0;
 	u8 fid, member, valid;
 
 	ksz_pread16(dev, port, REG_PORT_CTRL_VID, &pvid);
@@ -846,24 +847,22 @@ static int ksz8795_port_vlan_del(struct dsa_switch *ds, int port,
 
 	ksz_port_cfg(dev, port, P_TAG_CTRL, PORT_REMOVE_TAG, untagged);
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		ksz8795_r_vlan_table(dev, vid, &data);
-		ksz8795_from_vlan(data, &fid, &member, &valid);
+	ksz8795_r_vlan_table(dev, vlan->vid, &data);
+	ksz8795_from_vlan(data, &fid, &member, &valid);
 
-		member &= ~BIT(port);
+	member &= ~BIT(port);
 
-		/* Invalidate the entry if no more member. */
-		if (!member) {
-			fid = 0;
-			valid = 0;
-		}
-
-		if (pvid == vid)
-			new_pvid = 1;
-
-		ksz8795_to_vlan(fid, member, valid, &data);
-		ksz8795_w_vlan_table(dev, vid, data);
+	/* Invalidate the entry if no more member. */
+	if (!member) {
+		fid = 0;
+		valid = 0;
 	}
+
+	if (pvid == vlan->vid)
+		new_pvid = 1;
+
+	ksz8795_to_vlan(fid, member, valid, &data);
+	ksz8795_w_vlan_table(dev, vlan->vid, data);
 
 	if (new_pvid != pvid)
 		ksz_pwrite16(dev, port, REG_PORT_CTRL_VID, pvid);
@@ -992,8 +991,6 @@ static void ksz8795_config_cpu_port(struct dsa_switch *ds)
 	u8 remote;
 	int i;
 
-	ds->num_ports = dev->port_cnt + 1;
-
 	/* Switch marks the maximum frame with extra byte as oversize. */
 	ksz_cfg(dev, REG_SW_CTRL_2, SW_LEGAL_PACKET_DISABLE, true);
 	ksz_cfg(dev, S_TAIL_TAG_CTRL, SW_TAIL_TAG_ENABLE, true);
@@ -1005,7 +1002,7 @@ static void ksz8795_config_cpu_port(struct dsa_switch *ds)
 	ksz8795_port_setup(dev, dev->cpu_port, true);
 	dev->member = dev->host_mask;
 
-	for (i = 0; i < SWITCH_PORT_NUM; i++) {
+	for (i = 0; i < dev->phy_port_cnt; i++) {
 		p = &dev->ports[i];
 
 		/* Initialize to non-zero so that ksz_cfg_port_member() will
@@ -1016,7 +1013,7 @@ static void ksz8795_config_cpu_port(struct dsa_switch *ds)
 		ksz8795_port_stp_state_set(ds, i, BR_STATE_DISABLED);
 
 		/* Last port may be disabled. */
-		if (i == dev->port_cnt)
+		if (i == dev->phy_port_cnt)
 			break;
 		p->on = 1;
 		p->phy = 1;
@@ -1085,7 +1082,7 @@ static int ksz8795_setup(struct dsa_switch *ds)
 			   (BROADCAST_STORM_VALUE *
 			   BROADCAST_STORM_PROT_RATE) / 100);
 
-	for (i = 0; i < VLAN_TABLE_ENTRIES; i++)
+	for (i = 0; i < (dev->num_vlans / 4); i++)
 		ksz8795_r_vlan_entries(dev, i);
 
 	/* Setup STP address for STP operation. */
@@ -1098,6 +1095,8 @@ static int ksz8795_setup(struct dsa_switch *ds)
 	ksz8795_w_sta_mac_table(dev, 0, &alu);
 
 	ksz_init_mib_timer(dev);
+
+	ds->configure_vlan_while_not_filtering = false;
 
 	return 0;
 }
@@ -1117,11 +1116,9 @@ static const struct dsa_switch_ops ksz8795_switch_ops = {
 	.port_stp_state_set	= ksz8795_port_stp_state_set,
 	.port_fast_age		= ksz_port_fast_age,
 	.port_vlan_filtering	= ksz8795_port_vlan_filtering,
-	.port_vlan_prepare	= ksz_port_vlan_prepare,
 	.port_vlan_add		= ksz8795_port_vlan_add,
 	.port_vlan_del		= ksz8795_port_vlan_del,
 	.port_fdb_dump		= ksz_port_fdb_dump,
-	.port_mdb_prepare       = ksz_port_mdb_prepare,
 	.port_mdb_add           = ksz_port_mdb_add,
 	.port_mdb_del           = ksz_port_mdb_del,
 	.port_mirror_add	= ksz8795_port_mirror_add,
@@ -1150,10 +1147,6 @@ static int ksz8795_switch_detect(struct ksz_device *dev)
 	    (id2 != CHIP_ID_94 && id2 != CHIP_ID_95))
 		return -ENODEV;
 
-	dev->mib_port_cnt = TOTAL_PORT_NUM;
-	dev->phy_port_cnt = SWITCH_PORT_NUM;
-	dev->port_cnt = SWITCH_PORT_NUM;
-
 	if (id2 == CHIP_ID_95) {
 		u8 val;
 
@@ -1162,16 +1155,11 @@ static int ksz8795_switch_detect(struct ksz_device *dev)
 		if (val & PORT_FIBER_MODE)
 			id2 = 0x65;
 	} else if (id2 == CHIP_ID_94) {
-		dev->port_cnt--;
-		dev->last_port = dev->port_cnt;
 		id2 = 0x94;
 	}
 	id16 &= ~0xff;
 	id16 |= id2;
 	dev->chip_id = id16;
-
-	dev->cpu_port = dev->mib_port_cnt - 1;
-	dev->host_mask = BIT(dev->cpu_port);
 
 	return 0;
 }
@@ -1194,16 +1182,30 @@ static const struct ksz_chip_data ksz8795_switch_chips[] = {
 		.num_alus = 0,
 		.num_statics = 8,
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
-		.port_cnt = 4,		/* total physical port count */
+		.port_cnt = 5,		/* total cpu and user ports */
 	},
 	{
+		/*
+		 * WARNING
+		 * =======
+		 * KSZ8794 is similar to KSZ8795, except the port map
+		 * contains a gap between external and CPU ports, the
+		 * port map is NOT continuous. The per-port register
+		 * map is shifted accordingly too, i.e. registers at
+		 * offset 0x40 are NOT used on KSZ8794 and they ARE
+		 * used on KSZ8795 for external port 3.
+		 *           external  cpu
+		 * KSZ8794   0,1,2      4
+		 * KSZ8795   0,1,2,3    4
+		 * KSZ8765   0,1,2,3    4
+		 */
 		.chip_id = 0x8794,
 		.dev_name = "KSZ8794",
 		.num_vlans = 4096,
 		.num_alus = 0,
 		.num_statics = 8,
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
-		.port_cnt = 3,		/* total physical port count */
+		.port_cnt = 4,		/* total cpu and user ports */
 	},
 	{
 		.chip_id = 0x8765,
@@ -1212,7 +1214,7 @@ static const struct ksz_chip_data ksz8795_switch_chips[] = {
 		.num_alus = 0,
 		.num_statics = 8,
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
-		.port_cnt = 4,		/* total physical port count */
+		.port_cnt = 5,		/* total cpu and user ports */
 	},
 };
 
@@ -1230,9 +1232,13 @@ static int ksz8795_switch_init(struct ksz_device *dev)
 			dev->num_vlans = chip->num_vlans;
 			dev->num_alus = chip->num_alus;
 			dev->num_statics = chip->num_statics;
-			dev->port_cnt = chip->port_cnt;
+			dev->port_cnt = fls(chip->cpu_ports);
+			dev->cpu_port = fls(chip->cpu_ports) - 1;
+			dev->phy_port_cnt = dev->port_cnt - 1;
 			dev->cpu_ports = chip->cpu_ports;
-
+			dev->host_mask = chip->cpu_ports;
+			dev->port_mask = (BIT(dev->phy_port_cnt) - 1) |
+					 chip->cpu_ports;
 			break;
 		}
 	}
@@ -1241,30 +1247,27 @@ static int ksz8795_switch_init(struct ksz_device *dev)
 	if (!dev->cpu_ports)
 		return -ENODEV;
 
-	dev->port_mask = BIT(dev->port_cnt) - 1;
-	dev->port_mask |= dev->host_mask;
+	dev->reg_mib_cnt = KSZ8795_COUNTER_NUM;
+	dev->mib_cnt = ARRAY_SIZE(mib_names);
 
-	dev->reg_mib_cnt = SWITCH_COUNTER_NUM;
-	dev->mib_cnt = TOTAL_SWITCH_COUNTER_NUM;
-
-	i = dev->mib_port_cnt;
-	dev->ports = devm_kzalloc(dev->dev, sizeof(struct ksz_port) * i,
+	dev->ports = devm_kzalloc(dev->dev,
+				  dev->port_cnt * sizeof(struct ksz_port),
 				  GFP_KERNEL);
 	if (!dev->ports)
 		return -ENOMEM;
-	for (i = 0; i < dev->mib_port_cnt; i++) {
+	for (i = 0; i < dev->port_cnt; i++) {
 		mutex_init(&dev->ports[i].mib.cnt_mutex);
 		dev->ports[i].mib.counters =
 			devm_kzalloc(dev->dev,
 				     sizeof(u64) *
-				     (TOTAL_SWITCH_COUNTER_NUM + 1),
+				     (dev->mib_cnt + 1),
 				     GFP_KERNEL);
 		if (!dev->ports[i].mib.counters)
 			return -ENOMEM;
 	}
 
 	/* set the real number of ports */
-	dev->ds->num_ports = dev->port_cnt + 1;
+	dev->ds->num_ports = dev->port_cnt;
 
 	return 0;
 }

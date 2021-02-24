@@ -102,6 +102,7 @@
 		mod-def0-gpio = <&moxtet_sfp 2 GPIO_ACTIVE_LOW>;
 		tx-disable-gpio = <&moxtet_sfp 4 GPIO_ACTIVE_HIGH>;
 		rate-select0-gpio = <&moxtet_sfp 5 GPIO_ACTIVE_HIGH>;
+		maximum-power-milliwatt = <3000>;
 
 		/* enabled by U-Boot if SFP module is present */
 		status = "disabled";
@@ -146,7 +147,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&rgmii_pins>;
 	phy-mode = "rgmii-id";
-	phy = <&phy1>;
+	phy-handle = <&phy1>;
 	status = "okay";
 };
 
@@ -204,7 +205,7 @@
 			};
 
 			partition@20000 {
-				label = "u-boot";
+				label = "a53-firmware";
 				reg = <0x20000 0x160000>;
 			};
 

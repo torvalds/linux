@@ -143,11 +143,12 @@ config SND_MCHP_SOC_SPDIFTX
 	  - sama7g5
 
 	  This S/PDIF TX driver is compliant with IEC-60958 standard and
-	  includes programable User Data and Channel Status fields.
+	  includes programmable User Data and Channel Status fields.
 
 config SND_MCHP_SOC_SPDIFRX
 	tristate "Microchip ASoC driver for boards using S/PDIF RX"
 	depends on OF && (ARCH_AT91 || COMPILE_TEST)
+	depends on COMMON_CLK
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 	select REGMAP_MMIO
 	help
@@ -156,5 +157,5 @@ config SND_MCHP_SOC_SPDIFRX
 	  - sama7g5
 
 	  This S/PDIF RX driver is compliant with IEC-60958 standard and
-	  includes programable User Data and Channel Status fields.
+	  includes programmable User Data and Channel Status fields.
 endif

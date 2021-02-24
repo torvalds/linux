@@ -979,9 +979,9 @@
 			 <&tegra_car TEGRA210_CLK_SATA_OOB>;
 		clock-names = "sata", "sata-oob";
 		resets = <&tegra_car 124>,
-			 <&tegra_car 123>,
-			 <&tegra_car 129>;
-		reset-names = "sata", "sata-oob", "sata-cold";
+			 <&tegra_car 129>,
+			 <&tegra_car 123>;
+		reset-names = "sata", "sata-cold", "sata-oob";
 		status = "disabled";
 	};
 
@@ -997,6 +997,7 @@
 			 <&tegra_car 128>, /* hda2hdmi */
 			 <&tegra_car 111>; /* hda2codec_2x */
 		reset-names = "hda", "hda2hdmi", "hda2codec_2x";
+		power-domains = <&pd_sor>;
 		status = "disabled";
 	};
 
@@ -1040,8 +1041,10 @@
 	padctl: padctl@7009f000 {
 		compatible = "nvidia,tegra210-xusb-padctl";
 		reg = <0x0 0x7009f000 0x0 0x1000>;
+		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 		resets = <&tegra_car 142>;
 		reset-names = "padctl";
+		nvidia,pmc =  <&tegra_pmc>;
 
 		status = "disabled";
 
@@ -1306,6 +1309,32 @@
 		status = "disabled";
 	};
 
+	soctherm: thermal-sensor@700e2000 {
+		compatible = "nvidia,tegra210-soctherm";
+		reg = <0x0 0x700e2000 0x0 0x600>, /* SOC_THERM reg_base */
+		      <0x0 0x60006000 0x0 0x400>; /* CAR reg_base */
+		reg-names = "soctherm-reg", "car-reg";
+		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "thermal", "edp";
+		clocks = <&tegra_car TEGRA210_CLK_TSENSOR>,
+			<&tegra_car TEGRA210_CLK_SOC_THERM>;
+		clock-names = "tsensor", "soctherm";
+		resets = <&tegra_car 78>;
+		reset-names = "soctherm";
+		#thermal-sensor-cells = <1>;
+
+		throttle-cfgs {
+			throttle_heavy: heavy {
+				nvidia,priority = <100>;
+				nvidia,cpu-throt-percent = <85>;
+				nvidia,gpu-throt-level = <TEGRA_SOCTHERM_THROT_LEVEL_HIGH>;
+
+				#cooling-cells = <2>;
+			};
+		};
+	};
+
 	mipi: mipi@700e3000 {
 		compatible = "nvidia,tegra210-mipi";
 		reg = <0x0 0x700e3000 0x0 0x100>;
@@ -1344,7 +1373,7 @@
 		ranges = <0x702c0000 0x0 0x702c0000 0x00040000>;
 		status = "disabled";
 
-		adma: dma@702e2000 {
+		adma: dma-controller@702e2000 {
 			compatible = "nvidia,tegra210-adma";
 			reg = <0x702e2000 0x2000>;
 			interrupt-parent = <&agic>;
@@ -1424,6 +1453,91 @@
 					    "rx9",  "tx9",
 					    "rx10", "tx10";
 				status = "disabled";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					admaif1_port: port@0 {
+						reg = <0>;
+
+						admaif1_ep: endpoint {
+							remote-endpoint = <&xbar_admaif1_ep>;
+						};
+					};
+
+					admaif2_port: port@1 {
+						reg = <1>;
+
+						admaif2_ep: endpoint {
+							remote-endpoint = <&xbar_admaif2_ep>;
+						};
+					};
+
+					admaif3_port: port@2 {
+						reg = <2>;
+
+						admaif3_ep: endpoint {
+							remote-endpoint = <&xbar_admaif3_ep>;
+						};
+					};
+
+					admaif4_port: port@3 {
+						reg = <3>;
+
+						admaif4_ep: endpoint {
+							remote-endpoint = <&xbar_admaif4_ep>;
+						};
+					};
+
+					admaif5_port: port@4 {
+						reg = <4>;
+
+						admaif5_ep: endpoint {
+							remote-endpoint = <&xbar_admaif5_ep>;
+						};
+					};
+
+					admaif6_port: port@5 {
+						reg = <5>;
+
+						admaif6_ep: endpoint {
+							remote-endpoint = <&xbar_admaif6_ep>;
+						};
+					};
+
+					admaif7_port: port@6 {
+						reg = <6>;
+
+						admaif7_ep: endpoint {
+							remote-endpoint = <&xbar_admaif7_ep>;
+						};
+					};
+
+					admaif8_port: port@7 {
+						reg = <7>;
+
+						admaif8_ep: endpoint {
+							remote-endpoint = <&xbar_admaif8_ep>;
+						};
+					};
+
+					admaif9_port: port@8 {
+						reg = <8>;
+
+						admaif9_ep: endpoint {
+							remote-endpoint = <&xbar_admaif9_ep>;
+						};
+					};
+
+					admaif10_port: port@9 {
+						reg = <9>;
+
+						admaif10_ep: endpoint {
+							remote-endpoint = <&xbar_admaif10_ep>;
+						};
+					};
+				};
 			};
 
 			tegra_i2s1: i2s@702d1000 {
@@ -1526,6 +1640,89 @@
 				sound-name-prefix = "DMIC3";
 				status = "disabled";
 			};
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0x0>;
+
+					xbar_admaif1_ep: endpoint {
+						remote-endpoint = <&admaif1_ep>;
+					};
+				};
+
+				port@1 {
+					reg = <0x1>;
+
+					xbar_admaif2_ep: endpoint {
+						remote-endpoint = <&admaif2_ep>;
+					};
+				};
+
+				port@2 {
+					reg = <0x2>;
+
+					xbar_admaif3_ep: endpoint {
+						remote-endpoint = <&admaif3_ep>;
+					};
+				};
+
+				port@3 {
+					reg = <0x3>;
+
+					xbar_admaif4_ep: endpoint {
+						remote-endpoint = <&admaif4_ep>;
+					};
+				};
+
+				port@4 {
+					reg = <0x4>;
+					xbar_admaif5_ep: endpoint {
+						remote-endpoint = <&admaif5_ep>;
+					};
+				};
+				port@5 {
+					reg = <0x5>;
+
+					xbar_admaif6_ep: endpoint {
+						remote-endpoint = <&admaif6_ep>;
+					};
+				};
+
+				port@6 {
+					reg = <0x6>;
+
+					xbar_admaif7_ep: endpoint {
+						remote-endpoint = <&admaif7_ep>;
+					};
+				};
+
+				port@7 {
+					reg = <0x7>;
+
+					xbar_admaif8_ep: endpoint {
+						remote-endpoint = <&admaif8_ep>;
+					};
+				};
+
+				port@8 {
+					reg = <0x8>;
+
+					xbar_admaif9_ep: endpoint {
+						remote-endpoint = <&admaif9_ep>;
+					};
+				};
+
+				port@9 {
+					reg = <0x9>;
+
+					xbar_admaif10_ep: endpoint {
+						remote-endpoint = <&admaif10_ep>;
+					};
+				};
+			};
 		};
 	};
 
@@ -1535,8 +1732,9 @@
 		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		clocks = <&tegra_car TEGRA210_CLK_QSPI>;
-		clock-names = "qspi";
+		clocks = <&tegra_car TEGRA210_CLK_QSPI>,
+			 <&tegra_car TEGRA210_CLK_QSPI_PM>;
+		clock-names = "qspi", "qspi_out";
 		resets = <&tegra_car 211>;
 		reset-names = "qspi";
 		dmas = <&apbdma 5>, <&apbdma 5>;
@@ -1691,43 +1889,18 @@
 				      &{/cpus/cpu@2} &{/cpus/cpu@3}>;
 	};
 
-	timer {
-		compatible = "arm,armv8-timer";
-		interrupts = <GIC_PPI 13
-				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-			     <GIC_PPI 14
-				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-			     <GIC_PPI 11
-				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-			     <GIC_PPI 10
-				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
-		interrupt-parent = <&gic>;
-		arm,no-tick-in-suspend;
-	};
+	sound {
+		status = "disabled";
 
-	soctherm: thermal-sensor@700e2000 {
-		compatible = "nvidia,tegra210-soctherm";
-		reg = <0x0 0x700e2000 0x0 0x600>, /* SOC_THERM reg_base */
-		      <0x0 0x60006000 0x0 0x400>; /* CAR reg_base */
-		reg-names = "soctherm-reg", "car-reg";
-		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "thermal", "edp";
-		clocks = <&tegra_car TEGRA210_CLK_TSENSOR>,
-			<&tegra_car TEGRA210_CLK_SOC_THERM>;
-		clock-names = "tsensor", "soctherm";
-		resets = <&tegra_car 78>;
-		reset-names = "soctherm";
-		#thermal-sensor-cells = <1>;
+		clocks = <&tegra_car TEGRA210_CLK_PLL_A>,
+			 <&tegra_car TEGRA210_CLK_PLL_A_OUT0>;
+		clock-names = "pll_a", "plla_out0";
 
-		throttle-cfgs {
-			throttle_heavy: heavy {
-				nvidia,priority = <100>;
-				nvidia,cpu-throt-percent = <85>;
-
-				#cooling-cells = <2>;
-			};
-		};
+		assigned-clocks = <&tegra_car TEGRA210_CLK_PLL_A>,
+				  <&tegra_car TEGRA210_CLK_PLL_A_OUT0>,
+				  <&tegra_car TEGRA210_CLK_EXTERN1>;
+		assigned-clock-parents = <0>, <0>, <&tegra_car TEGRA210_CLK_PLL_A_OUT0>;
+		assigned-clock-rates = <368640000>, <49152000>, <12288000>;
 	};
 
 	thermal-zones {
@@ -1778,6 +1951,12 @@
 					temperature = <70000>;
 					hysteresis = <1000>;
 					type = "active";
+				};
+
+				mem-hot-trip {
+					temperature = <100000>;
+					hysteresis = <1000>;
+					type = "hot";
 				};
 
 				mem-shutdown-trip {
@@ -1842,6 +2021,12 @@
 					hysteresis = <0>;
 					type = "critical";
 				};
+
+				pllx-throttle-trip {
+					temperature = <100000>;
+					hysteresis = <1000>;
+					type = "hot";
+				};
 			};
 
 			cooling-maps {
@@ -1851,5 +2036,19 @@
 				 */
 			};
 		};
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+		interrupt-parent = <&gic>;
+		arm,no-tick-in-suspend;
 	};
 };

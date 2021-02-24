@@ -136,7 +136,7 @@ void __init imx_init_revision_from_anatop(void)
 
 			src_np = of_find_compatible_node(NULL, NULL,
 						     "fsl,imx6ul-src");
-			src_base = of_iomap(np, 0);
+			src_base = of_iomap(src_np, 0);
 			of_node_put(src_np);
 			WARN_ON(!src_base);
 			sbmr2 = readl_relaxed(src_base + SRC_SBMR2);

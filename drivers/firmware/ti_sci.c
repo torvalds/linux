@@ -1703,14 +1703,14 @@ fail:
  * @subtype:		Resource assignment subtype that is being requested
  *			from the given device.
  * @s_host:		Host processor ID to which the resources are allocated
- * @range_start:	Start index of the resource range
- * @range_num:		Number of resources in the range
+ * @desc:		Pointer to ti_sci_resource_desc to be updated with the
+ *			resource range start index and number of resources
  *
  * Return: 0 if all went fine, else return appropriate error.
  */
 static int ti_sci_get_resource_range(const struct ti_sci_handle *handle,
 				     u32 dev_id, u8 subtype, u8 s_host,
-				     u16 *range_start, u16 *range_num)
+				     struct ti_sci_resource_desc *desc)
 {
 	struct ti_sci_msg_resp_get_resource_range *resp;
 	struct ti_sci_msg_req_get_resource_range *req;
@@ -1721,7 +1721,7 @@ static int ti_sci_get_resource_range(const struct ti_sci_handle *handle,
 
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
-	if (!handle)
+	if (!handle || !desc)
 		return -EINVAL;
 
 	info = handle_to_ti_sci_info(handle);
@@ -1751,11 +1751,14 @@ static int ti_sci_get_resource_range(const struct ti_sci_handle *handle,
 
 	if (!ti_sci_is_response_ack(resp)) {
 		ret = -ENODEV;
-	} else if (!resp->range_start && !resp->range_num) {
+	} else if (!resp->range_num && !resp->range_num_sec) {
+		/* Neither of the two resource range is valid */
 		ret = -ENODEV;
 	} else {
-		*range_start = resp->range_start;
-		*range_num = resp->range_num;
+		desc->start = resp->range_start;
+		desc->num = resp->range_num;
+		desc->start_sec = resp->range_start_sec;
+		desc->num_sec = resp->range_num_sec;
 	};
 
 fail:
@@ -1771,18 +1774,18 @@ fail:
  * @dev_id:		TISCI device ID.
  * @subtype:		Resource assignment subtype that is being requested
  *			from the given device.
- * @range_start:	Start index of the resource range
- * @range_num:		Number of resources in the range
+ * @desc:		Pointer to ti_sci_resource_desc to be updated with the
+ *			resource range start index and number of resources
  *
  * Return: 0 if all went fine, else return appropriate error.
  */
 static int ti_sci_cmd_get_resource_range(const struct ti_sci_handle *handle,
 					 u32 dev_id, u8 subtype,
-					 u16 *range_start, u16 *range_num)
+					 struct ti_sci_resource_desc *desc)
 {
 	return ti_sci_get_resource_range(handle, dev_id, subtype,
 					 TI_SCI_IRQ_SECONDARY_HOST_INVALID,
-					 range_start, range_num);
+					 desc);
 }
 
 /**
@@ -1793,18 +1796,17 @@ static int ti_sci_cmd_get_resource_range(const struct ti_sci_handle *handle,
  * @subtype:		Resource assignment subtype that is being requested
  *			from the given device.
  * @s_host:		Host processor ID to which the resources are allocated
- * @range_start:	Start index of the resource range
- * @range_num:		Number of resources in the range
+ * @desc:		Pointer to ti_sci_resource_desc to be updated with the
+ *			resource range start index and number of resources
  *
  * Return: 0 if all went fine, else return appropriate error.
  */
 static
 int ti_sci_cmd_get_resource_range_from_shost(const struct ti_sci_handle *handle,
 					     u32 dev_id, u8 subtype, u8 s_host,
-					     u16 *range_start, u16 *range_num)
+					     struct ti_sci_resource_desc *desc)
 {
-	return ti_sci_get_resource_range(handle, dev_id, subtype, s_host,
-					 range_start, range_num);
+	return ti_sci_get_resource_range(handle, dev_id, subtype, s_host, desc);
 }
 
 /**
@@ -2047,28 +2049,17 @@ static int ti_sci_cmd_free_event_map(const struct ti_sci_handle *handle,
 }
 
 /**
- * ti_sci_cmd_ring_config() - configure RA ring
- * @handle:		Pointer to TI SCI handle.
- * @valid_params:	Bitfield defining validity of ring configuration
- *			parameters
- * @nav_id:		Device ID of Navigator Subsystem from which the ring is
- *			allocated
- * @index:		Ring index
- * @addr_lo:		The ring base address lo 32 bits
- * @addr_hi:		The ring base address hi 32 bits
- * @count:		Number of ring elements
- * @mode:		The mode of the ring
- * @size:		The ring element size.
- * @order_id:		Specifies the ring's bus order ID
+ * ti_sci_cmd_rm_ring_cfg() - Configure a NAVSS ring
+ * @handle:	Pointer to TI SCI handle.
+ * @params:	Pointer to ti_sci_msg_rm_ring_cfg ring config structure
  *
  * Return: 0 if all went well, else returns appropriate error value.
  *
- * See @ti_sci_msg_rm_ring_cfg_req for more info.
+ * See @ti_sci_msg_rm_ring_cfg and @ti_sci_msg_rm_ring_cfg_req for
+ * more info.
  */
-static int ti_sci_cmd_ring_config(const struct ti_sci_handle *handle,
-				  u32 valid_params, u16 nav_id, u16 index,
-				  u32 addr_lo, u32 addr_hi, u32 count,
-				  u8 mode, u8 size, u8 order_id)
+static int ti_sci_cmd_rm_ring_cfg(const struct ti_sci_handle *handle,
+				  const struct ti_sci_msg_rm_ring_cfg *params)
 {
 	struct ti_sci_msg_rm_ring_cfg_req *req;
 	struct ti_sci_msg_hdr *resp;
@@ -2092,15 +2083,17 @@ static int ti_sci_cmd_ring_config(const struct ti_sci_handle *handle,
 		return ret;
 	}
 	req = (struct ti_sci_msg_rm_ring_cfg_req *)xfer->xfer_buf;
-	req->valid_params = valid_params;
-	req->nav_id = nav_id;
-	req->index = index;
-	req->addr_lo = addr_lo;
-	req->addr_hi = addr_hi;
-	req->count = count;
-	req->mode = mode;
-	req->size = size;
-	req->order_id = order_id;
+	req->valid_params = params->valid_params;
+	req->nav_id = params->nav_id;
+	req->index = params->index;
+	req->addr_lo = params->addr_lo;
+	req->addr_hi = params->addr_hi;
+	req->count = params->count;
+	req->mode = params->mode;
+	req->size = params->size;
+	req->order_id = params->order_id;
+	req->virtid = params->virtid;
+	req->asel = params->asel;
 
 	ret = ti_sci_do_xfer(info, xfer);
 	if (ret) {
@@ -2109,90 +2102,11 @@ static int ti_sci_cmd_ring_config(const struct ti_sci_handle *handle,
 	}
 
 	resp = (struct ti_sci_msg_hdr *)xfer->xfer_buf;
-	ret = ti_sci_is_response_ack(resp) ? 0 : -ENODEV;
+	ret = ti_sci_is_response_ack(resp) ? 0 : -EINVAL;
 
 fail:
 	ti_sci_put_one_xfer(&info->minfo, xfer);
-	dev_dbg(dev, "RM_RA:config ring %u ret:%d\n", index, ret);
-	return ret;
-}
-
-/**
- * ti_sci_cmd_ring_get_config() - get RA ring configuration
- * @handle:	Pointer to TI SCI handle.
- * @nav_id:	Device ID of Navigator Subsystem from which the ring is
- *		allocated
- * @index:	Ring index
- * @addr_lo:	Returns ring's base address lo 32 bits
- * @addr_hi:	Returns ring's base address hi 32 bits
- * @count:	Returns number of ring elements
- * @mode:	Returns mode of the ring
- * @size:	Returns ring element size
- * @order_id:	Returns ring's bus order ID
- *
- * Return: 0 if all went well, else returns appropriate error value.
- *
- * See @ti_sci_msg_rm_ring_get_cfg_req for more info.
- */
-static int ti_sci_cmd_ring_get_config(const struct ti_sci_handle *handle,
-				      u32 nav_id, u32 index, u8 *mode,
-				      u32 *addr_lo, u32 *addr_hi,
-				      u32 *count, u8 *size, u8 *order_id)
-{
-	struct ti_sci_msg_rm_ring_get_cfg_resp *resp;
-	struct ti_sci_msg_rm_ring_get_cfg_req *req;
-	struct ti_sci_xfer *xfer;
-	struct ti_sci_info *info;
-	struct device *dev;
-	int ret = 0;
-
-	if (IS_ERR_OR_NULL(handle))
-		return -EINVAL;
-
-	info = handle_to_ti_sci_info(handle);
-	dev = info->dev;
-
-	xfer = ti_sci_get_one_xfer(info, TI_SCI_MSG_RM_RING_GET_CFG,
-				   TI_SCI_FLAG_REQ_ACK_ON_PROCESSED,
-				   sizeof(*req), sizeof(*resp));
-	if (IS_ERR(xfer)) {
-		ret = PTR_ERR(xfer);
-		dev_err(dev,
-			"RM_RA:Message get config failed(%d)\n", ret);
-		return ret;
-	}
-	req = (struct ti_sci_msg_rm_ring_get_cfg_req *)xfer->xfer_buf;
-	req->nav_id = nav_id;
-	req->index = index;
-
-	ret = ti_sci_do_xfer(info, xfer);
-	if (ret) {
-		dev_err(dev, "RM_RA:Mbox get config send fail %d\n", ret);
-		goto fail;
-	}
-
-	resp = (struct ti_sci_msg_rm_ring_get_cfg_resp *)xfer->xfer_buf;
-
-	if (!ti_sci_is_response_ack(resp)) {
-		ret = -ENODEV;
-	} else {
-		if (mode)
-			*mode = resp->mode;
-		if (addr_lo)
-			*addr_lo = resp->addr_lo;
-		if (addr_hi)
-			*addr_hi = resp->addr_hi;
-		if (count)
-			*count = resp->count;
-		if (size)
-			*size = resp->size;
-		if (order_id)
-			*order_id = resp->order_id;
-	};
-
-fail:
-	ti_sci_put_one_xfer(&info->minfo, xfer);
-	dev_dbg(dev, "RM_RA:get config ring %u ret:%d\n", index, ret);
+	dev_dbg(dev, "RM_RA:config ring %u ret:%d\n", params->index, ret);
 	return ret;
 }
 
@@ -2362,6 +2276,8 @@ static int ti_sci_cmd_rm_udmap_tx_ch_cfg(const struct ti_sci_handle *handle,
 	req->fdepth = params->fdepth;
 	req->tx_sched_priority = params->tx_sched_priority;
 	req->tx_burst_size = params->tx_burst_size;
+	req->tx_tdtype = params->tx_tdtype;
+	req->extended_ch_type = params->extended_ch_type;
 
 	ret = ti_sci_do_xfer(info, xfer);
 	if (ret) {
@@ -2921,8 +2837,7 @@ static void ti_sci_setup_ops(struct ti_sci_info *info)
 	iops->free_irq = ti_sci_cmd_free_irq;
 	iops->free_event_map = ti_sci_cmd_free_event_map;
 
-	rops->config = ti_sci_cmd_ring_config;
-	rops->get_config = ti_sci_cmd_ring_get_config;
+	rops->set_cfg = ti_sci_cmd_rm_ring_cfg;
 
 	psilops->pair = ti_sci_cmd_rm_psil_pair;
 	psilops->unpair = ti_sci_cmd_rm_psil_unpair;
@@ -3157,12 +3072,18 @@ u16 ti_sci_get_free_resource(struct ti_sci_resource *res)
 
 	raw_spin_lock_irqsave(&res->lock, flags);
 	for (set = 0; set < res->sets; set++) {
-		free_bit = find_first_zero_bit(res->desc[set].res_map,
-					       res->desc[set].num);
-		if (free_bit != res->desc[set].num) {
-			set_bit(free_bit, res->desc[set].res_map);
+		struct ti_sci_resource_desc *desc = &res->desc[set];
+		int res_count = desc->num + desc->num_sec;
+
+		free_bit = find_first_zero_bit(desc->res_map, res_count);
+		if (free_bit != res_count) {
+			set_bit(free_bit, desc->res_map);
 			raw_spin_unlock_irqrestore(&res->lock, flags);
-			return res->desc[set].start + free_bit;
+
+			if (desc->num && free_bit < desc->num)
+				return desc->start + free_bit;
+			else
+				return desc->start_sec + free_bit;
 		}
 	}
 	raw_spin_unlock_irqrestore(&res->lock, flags);
@@ -3183,10 +3104,14 @@ void ti_sci_release_resource(struct ti_sci_resource *res, u16 id)
 
 	raw_spin_lock_irqsave(&res->lock, flags);
 	for (set = 0; set < res->sets; set++) {
-		if (res->desc[set].start <= id &&
-		    (res->desc[set].num + res->desc[set].start) > id)
-			clear_bit(id - res->desc[set].start,
-				  res->desc[set].res_map);
+		struct ti_sci_resource_desc *desc = &res->desc[set];
+
+		if (desc->num && desc->start <= id &&
+		    (desc->start + desc->num) > id)
+			clear_bit(id - desc->start, desc->res_map);
+		else if (desc->num_sec && desc->start_sec <= id &&
+			 (desc->start_sec + desc->num_sec) > id)
+			clear_bit(id - desc->start_sec, desc->res_map);
 	}
 	raw_spin_unlock_irqrestore(&res->lock, flags);
 }
@@ -3203,7 +3128,7 @@ u32 ti_sci_get_num_resources(struct ti_sci_resource *res)
 	u32 set, count = 0;
 
 	for (set = 0; set < res->sets; set++)
-		count += res->desc[set].num;
+		count += res->desc[set].num + res->desc[set].num_sec;
 
 	return count;
 }
@@ -3227,7 +3152,7 @@ devm_ti_sci_get_resource_sets(const struct ti_sci_handle *handle,
 {
 	struct ti_sci_resource *res;
 	bool valid_set = false;
-	int i, ret;
+	int i, ret, res_count;
 
 	res = devm_kzalloc(dev, sizeof(*res), GFP_KERNEL);
 	if (!res)
@@ -3242,23 +3167,23 @@ devm_ti_sci_get_resource_sets(const struct ti_sci_handle *handle,
 	for (i = 0; i < res->sets; i++) {
 		ret = handle->ops.rm_core_ops.get_range(handle, dev_id,
 							sub_types[i],
-							&res->desc[i].start,
-							&res->desc[i].num);
+							&res->desc[i]);
 		if (ret) {
 			dev_dbg(dev, "dev = %d subtype %d not allocated for this host\n",
 				dev_id, sub_types[i]);
-			res->desc[i].start = 0;
-			res->desc[i].num = 0;
+			memset(&res->desc[i], 0, sizeof(res->desc[i]));
 			continue;
 		}
 
-		dev_dbg(dev, "dev = %d, subtype = %d, start = %d, num = %d\n",
+		dev_dbg(dev, "dev/sub_type: %d/%d, start/num: %d/%d | %d/%d\n",
 			dev_id, sub_types[i], res->desc[i].start,
-			res->desc[i].num);
+			res->desc[i].num, res->desc[i].start_sec,
+			res->desc[i].num_sec);
 
 		valid_set = true;
+		res_count = res->desc[i].num + res->desc[i].num_sec;
 		res->desc[i].res_map =
-			devm_kzalloc(dev, BITS_TO_LONGS(res->desc[i].num) *
+			devm_kzalloc(dev, BITS_TO_LONGS(res_count) *
 				     sizeof(*res->desc[i].res_map), GFP_KERNEL);
 		if (!res->desc[i].res_map)
 			return ERR_PTR(-ENOMEM);

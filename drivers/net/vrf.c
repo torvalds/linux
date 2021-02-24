@@ -9,6 +9,7 @@
  * Based on dummy, team and ipvlan drivers
  */
 
+#include <linux/ethtool.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
@@ -608,8 +609,7 @@ static netdev_tx_t vrf_xmit(struct sk_buff *skb, struct net_device *dev)
 	return ret;
 }
 
-static int vrf_finish_direct(struct net *net, struct sock *sk,
-			     struct sk_buff *skb)
+static void vrf_finish_direct(struct sk_buff *skb)
 {
 	struct net_device *vrf_dev = skb->dev;
 
@@ -628,7 +628,8 @@ static int vrf_finish_direct(struct net *net, struct sock *sk,
 		skb_pull(skb, ETH_HLEN);
 	}
 
-	return 1;
+	/* reset skb device */
+	nf_reset_ct(skb);
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -707,15 +708,41 @@ static struct sk_buff *vrf_ip6_out_redirect(struct net_device *vrf_dev,
 	return skb;
 }
 
+static int vrf_output6_direct_finish(struct net *net, struct sock *sk,
+				     struct sk_buff *skb)
+{
+	vrf_finish_direct(skb);
+
+	return vrf_ip6_local_out(net, sk, skb);
+}
+
 static int vrf_output6_direct(struct net *net, struct sock *sk,
 			      struct sk_buff *skb)
 {
+	int err = 1;
+
 	skb->protocol = htons(ETH_P_IPV6);
 
-	return NF_HOOK_COND(NFPROTO_IPV6, NF_INET_POST_ROUTING,
-			    net, sk, skb, NULL, skb->dev,
-			    vrf_finish_direct,
-			    !(IPCB(skb)->flags & IPSKB_REROUTED));
+	if (!(IPCB(skb)->flags & IPSKB_REROUTED))
+		err = nf_hook(NFPROTO_IPV6, NF_INET_POST_ROUTING, net, sk, skb,
+			      NULL, skb->dev, vrf_output6_direct_finish);
+
+	if (likely(err == 1))
+		vrf_finish_direct(skb);
+
+	return err;
+}
+
+static int vrf_ip6_out_direct_finish(struct net *net, struct sock *sk,
+				     struct sk_buff *skb)
+{
+	int err;
+
+	err = vrf_output6_direct(net, sk, skb);
+	if (likely(err == 1))
+		err = vrf_ip6_local_out(net, sk, skb);
+
+	return err;
 }
 
 static struct sk_buff *vrf_ip6_out_direct(struct net_device *vrf_dev,
@@ -728,18 +755,15 @@ static struct sk_buff *vrf_ip6_out_direct(struct net_device *vrf_dev,
 	skb->dev = vrf_dev;
 
 	err = nf_hook(NFPROTO_IPV6, NF_INET_LOCAL_OUT, net, sk,
-		      skb, NULL, vrf_dev, vrf_output6_direct);
+		      skb, NULL, vrf_dev, vrf_ip6_out_direct_finish);
 
 	if (likely(err == 1))
 		err = vrf_output6_direct(net, sk, skb);
 
-	/* reset skb device */
 	if (likely(err == 1))
-		nf_reset_ct(skb);
-	else
-		skb = NULL;
+		return skb;
 
-	return skb;
+	return NULL;
 }
 
 static struct sk_buff *vrf_ip6_out(struct net_device *vrf_dev,
@@ -919,15 +943,41 @@ static struct sk_buff *vrf_ip_out_redirect(struct net_device *vrf_dev,
 	return skb;
 }
 
+static int vrf_output_direct_finish(struct net *net, struct sock *sk,
+				    struct sk_buff *skb)
+{
+	vrf_finish_direct(skb);
+
+	return vrf_ip_local_out(net, sk, skb);
+}
+
 static int vrf_output_direct(struct net *net, struct sock *sk,
 			     struct sk_buff *skb)
 {
+	int err = 1;
+
 	skb->protocol = htons(ETH_P_IP);
 
-	return NF_HOOK_COND(NFPROTO_IPV4, NF_INET_POST_ROUTING,
-			    net, sk, skb, NULL, skb->dev,
-			    vrf_finish_direct,
-			    !(IPCB(skb)->flags & IPSKB_REROUTED));
+	if (!(IPCB(skb)->flags & IPSKB_REROUTED))
+		err = nf_hook(NFPROTO_IPV4, NF_INET_POST_ROUTING, net, sk, skb,
+			      NULL, skb->dev, vrf_output_direct_finish);
+
+	if (likely(err == 1))
+		vrf_finish_direct(skb);
+
+	return err;
+}
+
+static int vrf_ip_out_direct_finish(struct net *net, struct sock *sk,
+				    struct sk_buff *skb)
+{
+	int err;
+
+	err = vrf_output_direct(net, sk, skb);
+	if (likely(err == 1))
+		err = vrf_ip_local_out(net, sk, skb);
+
+	return err;
 }
 
 static struct sk_buff *vrf_ip_out_direct(struct net_device *vrf_dev,
@@ -940,18 +990,15 @@ static struct sk_buff *vrf_ip_out_direct(struct net_device *vrf_dev,
 	skb->dev = vrf_dev;
 
 	err = nf_hook(NFPROTO_IPV4, NF_INET_LOCAL_OUT, net, sk,
-		      skb, NULL, vrf_dev, vrf_output_direct);
+		      skb, NULL, vrf_dev, vrf_ip_out_direct_finish);
 
 	if (likely(err == 1))
 		err = vrf_output_direct(net, sk, skb);
 
-	/* reset skb device */
 	if (likely(err == 1))
-		nf_reset_ct(skb);
-	else
-		skb = NULL;
+		return skb;
 
-	return skb;
+	return NULL;
 }
 
 static struct sk_buff *vrf_ip_out(struct net_device *vrf_dev,
@@ -1190,6 +1237,61 @@ static struct sk_buff *vrf_rcv_nfhook(u8 pf, unsigned int hook,
 	return skb;
 }
 
+static int vrf_prepare_mac_header(struct sk_buff *skb,
+				  struct net_device *vrf_dev, u16 proto)
+{
+	struct ethhdr *eth;
+	int err;
+
+	/* in general, we do not know if there is enough space in the head of
+	 * the packet for hosting the mac header.
+	 */
+	err = skb_cow_head(skb, LL_RESERVED_SPACE(vrf_dev));
+	if (unlikely(err))
+		/* no space in the skb head */
+		return -ENOBUFS;
+
+	__skb_push(skb, ETH_HLEN);
+	eth = (struct ethhdr *)skb->data;
+
+	skb_reset_mac_header(skb);
+
+	/* we set the ethernet destination and the source addresses to the
+	 * address of the VRF device.
+	 */
+	ether_addr_copy(eth->h_dest, vrf_dev->dev_addr);
+	ether_addr_copy(eth->h_source, vrf_dev->dev_addr);
+	eth->h_proto = htons(proto);
+
+	/* the destination address of the Ethernet frame corresponds to the
+	 * address set on the VRF interface; therefore, the packet is intended
+	 * to be processed locally.
+	 */
+	skb->protocol = eth->h_proto;
+	skb->pkt_type = PACKET_HOST;
+
+	skb_postpush_rcsum(skb, skb->data, ETH_HLEN);
+
+	skb_pull_inline(skb, ETH_HLEN);
+
+	return 0;
+}
+
+/* prepare and add the mac header to the packet if it was not set previously.
+ * In this way, packet sniffers such as tcpdump can parse the packet correctly.
+ * If the mac header was already set, the original mac header is left
+ * untouched and the function returns immediately.
+ */
+static int vrf_add_mac_header_if_unset(struct sk_buff *skb,
+				       struct net_device *vrf_dev,
+				       u16 proto)
+{
+	if (skb_mac_header_was_set(skb))
+		return 0;
+
+	return vrf_prepare_mac_header(skb, vrf_dev, proto);
+}
+
 #if IS_ENABLED(CONFIG_IPV6)
 /* neighbor handling is done with actual device; do not want
  * to flip skb->dev for those ndisc packets. This really fails
@@ -1269,11 +1371,17 @@ static struct sk_buff *vrf_ip6_rcv(struct net_device *vrf_dev,
 	int orig_iif = skb->skb_iif;
 	bool need_strict = rt6_need_strict(&ipv6_hdr(skb)->daddr);
 	bool is_ndisc = ipv6_ndisc_frame(skb);
+	bool is_ll_src;
 
 	/* loopback, multicast & non-ND link-local traffic; do not push through
-	 * packet taps again. Reset pkt_type for upper layers to process skb
+	 * packet taps again. Reset pkt_type for upper layers to process skb.
+	 * for packets with lladdr src, however, skip so that the dst can be
+	 * determine at input using original ifindex in the case that daddr
+	 * needs strict
 	 */
-	if (skb->pkt_type == PACKET_LOOPBACK || (need_strict && !is_ndisc)) {
+	is_ll_src = ipv6_addr_type(&ipv6_hdr(skb)->saddr) & IPV6_ADDR_LINKLOCAL;
+	if (skb->pkt_type == PACKET_LOOPBACK ||
+	    (need_strict && !is_ndisc && !is_ll_src)) {
 		skb->dev = vrf_dev;
 		skb->skb_iif = vrf_dev->ifindex;
 		IP6CB(skb)->flags |= IP6SKB_L3SLAVE;
@@ -1289,9 +1397,15 @@ static struct sk_buff *vrf_ip6_rcv(struct net_device *vrf_dev,
 		skb->skb_iif = vrf_dev->ifindex;
 
 		if (!list_empty(&vrf_dev->ptype_all)) {
-			skb_push(skb, skb->mac_len);
-			dev_queue_xmit_nit(skb, vrf_dev);
-			skb_pull(skb, skb->mac_len);
+			int err;
+
+			err = vrf_add_mac_header_if_unset(skb, vrf_dev,
+							  ETH_P_IPV6);
+			if (likely(!err)) {
+				skb_push(skb, skb->mac_len);
+				dev_queue_xmit_nit(skb, vrf_dev);
+				skb_pull(skb, skb->mac_len);
+			}
 		}
 
 		IP6CB(skb)->flags |= IP6SKB_L3SLAVE;
@@ -1334,9 +1448,14 @@ static struct sk_buff *vrf_ip_rcv(struct net_device *vrf_dev,
 	vrf_rx_stats(vrf_dev, skb->len);
 
 	if (!list_empty(&vrf_dev->ptype_all)) {
-		skb_push(skb, skb->mac_len);
-		dev_queue_xmit_nit(skb, vrf_dev);
-		skb_pull(skb, skb->mac_len);
+		int err;
+
+		err = vrf_add_mac_header_if_unset(skb, vrf_dev, ETH_P_IP);
+		if (likely(!err)) {
+			skb_push(skb, skb->mac_len);
+			dev_queue_xmit_nit(skb, vrf_dev);
+			skb_pull(skb, skb->mac_len);
+		}
 	}
 
 	skb = vrf_rcv_nfhook(NFPROTO_IPV4, NF_INET_PRE_ROUTING, skb, vrf_dev);

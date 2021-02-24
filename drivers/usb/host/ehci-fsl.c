@@ -39,10 +39,10 @@ static struct hc_driver __read_mostly fsl_ehci_hc_driver;
 /*
  * fsl_ehci_drv_probe - initialize FSL-based HCDs
  * @pdev: USB Host Controller being probed
- * Context: !in_interrupt()
+ *
+ * Context: task context, might sleep
  *
  * Allocates basic resources for this USB host controller.
- *
  */
 static int fsl_ehci_drv_probe(struct platform_device *pdev)
 {
@@ -684,12 +684,11 @@ static const struct ehci_driver_overrides ehci_fsl_overrides __initconst = {
 /**
  * fsl_ehci_drv_remove - shutdown processing for FSL-based HCDs
  * @pdev: USB Host Controller being removed
- * Context: !in_interrupt()
+ *
+ * Context: task context, might sleep
  *
  * Reverses the effect of usb_hcd_fsl_probe().
- *
  */
-
 static int fsl_ehci_drv_remove(struct platform_device *pdev)
 {
 	struct fsl_usb2_platform_data *pdata = dev_get_platdata(&pdev->dev);

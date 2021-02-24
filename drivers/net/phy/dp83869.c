@@ -186,9 +186,13 @@ static int dp83869_ack_interrupt(struct phy_device *phydev)
 
 static int dp83869_config_intr(struct phy_device *phydev)
 {
-	int micr_status = 0;
+	int micr_status = 0, err;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = dp83869_ack_interrupt(phydev);
+		if (err)
+			return err;
+
 		micr_status = phy_read(phydev, MII_DP83869_MICR);
 		if (micr_status < 0)
 			return micr_status;
@@ -201,10 +205,40 @@ static int dp83869_config_intr(struct phy_device *phydev)
 			MII_DP83869_MICR_DUP_MODE_CHNG_INT_EN |
 			MII_DP83869_MICR_SLEEP_MODE_CHNG_INT_EN);
 
-		return phy_write(phydev, MII_DP83869_MICR, micr_status);
+		err = phy_write(phydev, MII_DP83869_MICR, micr_status);
+	} else {
+		err = phy_write(phydev, MII_DP83869_MICR, micr_status);
+		if (err)
+			return err;
+
+		err = dp83869_ack_interrupt(phydev);
 	}
 
-	return phy_write(phydev, MII_DP83869_MICR, micr_status);
+	return err;
+}
+
+static irqreturn_t dp83869_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status, irq_enabled;
+
+	irq_status = phy_read(phydev, MII_DP83869_ISR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	irq_enabled = phy_read(phydev, MII_DP83869_MICR);
+	if (irq_enabled < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & irq_enabled))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static int dp83869_set_wol(struct phy_device *phydev,
@@ -821,6 +855,10 @@ static int dp83869_probe(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
+	if (dp83869->mode == DP83869_RGMII_100_BASE ||
+	    dp83869->mode == DP83869_RGMII_1000_BASE)
+		phydev->port = PORT_FIBRE;
+
 	return dp83869_config_init(phydev);
 }
 
@@ -850,8 +888,8 @@ static struct phy_driver dp83869_driver[] = {
 		.soft_reset	= dp83869_phy_reset,
 
 		/* IRQ related */
-		.ack_interrupt	= dp83869_ack_interrupt,
 		.config_intr	= dp83869_config_intr,
+		.handle_interrupt = dp83869_handle_interrupt,
 		.read_status	= dp83869_read_status,
 
 		.get_tunable	= dp83869_get_tunable,

@@ -392,29 +392,21 @@ static void cpsw_rx_handler(void *token, int len, int status)
 	}
 
 	if (priv->xdp_prog) {
+		int headroom = CPSW_HEADROOM, size = len;
+
+		xdp_init_buff(&xdp, PAGE_SIZE, &priv->xdp_rxq[ch]);
 		if (status & CPDMA_RX_VLAN_ENCAP) {
-			xdp.data = pa + CPSW_HEADROOM +
-				   CPSW_RX_VLAN_ENCAP_HDR_SIZE;
-			xdp.data_end = xdp.data + len -
-				       CPSW_RX_VLAN_ENCAP_HDR_SIZE;
-		} else {
-			xdp.data = pa + CPSW_HEADROOM;
-			xdp.data_end = xdp.data + len;
+			headroom += CPSW_RX_VLAN_ENCAP_HDR_SIZE;
+			size -= CPSW_RX_VLAN_ENCAP_HDR_SIZE;
 		}
 
-		xdp_set_data_meta_invalid(&xdp);
-
-		xdp.data_hard_start = pa;
-		xdp.rxq = &priv->xdp_rxq[ch];
-		xdp.frame_sz = PAGE_SIZE;
+		xdp_prepare_buff(&xdp, pa, headroom, size, false);
 
 		port = priv->emac_port + cpsw->data.dual_emac;
-		ret = cpsw_run_xdp(priv, ch, &xdp, page, port);
+		ret = cpsw_run_xdp(priv, ch, &xdp, page, port, &len);
 		if (ret != CPSW_XDP_PASS)
 			goto requeue;
 
-		/* XDP prog might have changed packet data and boundaries */
-		len = xdp.data_end - xdp.data;
 		headroom = xdp.data - xdp.data_hard_start;
 
 		/* XDP prog can modify vlan tag, so can't use encap header */
@@ -838,9 +830,12 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		if (ret < 0)
 			goto err_cleanup;
 
-		if (cpts_register(cpsw->cpts))
-			dev_err(priv->dev, "error registering cpts device\n");
-
+		if (cpsw->cpts) {
+			if (cpts_register(cpsw->cpts))
+				dev_err(priv->dev, "error registering cpts device\n");
+			else
+				writel(0x10, &cpsw->wr_regs->misc_en);
+		}
 	}
 
 	cpsw_restore(priv);
@@ -1631,6 +1626,7 @@ static int cpsw_probe(struct platform_device *pdev)
 				       CPSW_MAX_QUEUES, CPSW_MAX_QUEUES);
 	if (!ndev) {
 		dev_err(dev, "error allocating net_device\n");
+		ret = -ENOMEM;
 		goto clean_cpts;
 	}
 
@@ -1716,7 +1712,6 @@ static int cpsw_probe(struct platform_device *pdev)
 
 	/* Enable misc CPTS evnt_pend IRQ */
 	cpts_set_irqpoll(cpsw->cpts, false);
-	writel(0x10, &cpsw->wr_regs->misc_en);
 
 skip_cpts:
 	cpsw_notice(priv, probe,

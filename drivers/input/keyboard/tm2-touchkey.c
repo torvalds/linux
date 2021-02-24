@@ -48,7 +48,7 @@ struct tm2_touchkey_data {
 	struct input_dev *input_dev;
 	struct led_classdev led_dev;
 	struct regulator *vdd;
-	struct regulator_bulk_data regulators[2];
+	struct regulator_bulk_data regulators[3];
 	const struct touchkey_variant *variant;
 	u32 keycodes[4];
 	int num_keycodes;
@@ -204,6 +204,7 @@ static int tm2_touchkey_probe(struct i2c_client *client,
 
 	touchkey->regulators[0].supply = "vcc";
 	touchkey->regulators[1].supply = "vdd";
+	touchkey->regulators[2].supply = "vddio";
 	error = devm_regulator_bulk_get(&client->dev,
 					ARRAY_SIZE(touchkey->regulators),
 					touchkey->regulators);

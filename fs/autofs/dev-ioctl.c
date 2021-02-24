@@ -4,9 +4,10 @@
  * Copyright 2008 Ian Kent <raven@themaw.net>
  */
 
+#include <linux/module.h>
 #include <linux/miscdevice.h>
 #include <linux/compat.h>
-#include <linux/syscalls.h>
+#include <linux/fdtable.h>
 #include <linux/magic.h>
 #include <linux/nospec.h>
 
@@ -289,7 +290,7 @@ static int autofs_dev_ioctl_closemount(struct file *fp,
 				       struct autofs_sb_info *sbi,
 				       struct autofs_dev_ioctl *param)
 {
-	return ksys_close(param->ioctlfd);
+	return close_fd(param->ioctlfd);
 }
 
 /*

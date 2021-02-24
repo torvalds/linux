@@ -69,9 +69,11 @@
 
 	eth0_power: fixedregulator@0 {
 		compatible = "regulator-fixed";
+
 		regulator-name = "eth0_power";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+
 		gpio = <&gpb 25 GPIO_ACTIVE_LOW>;
 		enable-active-high;
 	};
@@ -83,14 +85,37 @@
 
 	wlan0_power: fixedregulator@1 {
 		compatible = "regulator-fixed";
+
 		regulator-name = "wlan0_power";
+
 		gpio = <&gpb 19 GPIO_ACTIVE_LOW>;
+		enable-active-high;
+	};
+
+	otg_power: fixedregulator@2 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "otg_power";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+
+		gpio = <&gpf 14 GPIO_ACTIVE_LOW>;
 		enable-active-high;
 	};
 };
 
 &ext {
 	clock-frequency = <48000000>;
+};
+
+&cgu {
+	/*
+	 * Use the 32.768 kHz oscillator as the parent of the RTC for a higher
+	 * precision.
+	 */
+	assigned-clocks = <&cgu JZ4780_CLK_OTGPHY>, <&cgu JZ4780_CLK_RTC>;
+	assigned-clock-parents = <0>, <&cgu JZ4780_CLK_RTCLK>;
+	assigned-clock-rates = <48000000>;
 };
 
 &mmc0 {
@@ -396,6 +421,16 @@
 	status = "okay";
 };
 
+&otg_phy {
+	status = "okay";
+
+	vcc-supply = <&otg_power>;
+};
+
+&otg {
+	status = "okay";
+};
+
 &pinctrl {
 	pins_uart0: uart0 {
 		function = "uart0";
@@ -489,7 +524,11 @@
 };
 
 &tcu {
-	/* 3 MHz for the system timer and clocksource */
-	assigned-clocks = <&tcu TCU_CLK_TIMER0>, <&tcu TCU_CLK_TIMER1>;
-	assigned-clock-rates = <3000000>, <3000000>;
+	/*
+	 * 750 kHz for the system timer and 3 MHz for the clocksource,
+	 * use channel #0 for the system timer, #1 for the clocksource.
+	 */
+	assigned-clocks = <&tcu TCU_CLK_TIMER0>, <&tcu TCU_CLK_TIMER1>,
+					  <&tcu TCU_CLK_OST>;
+	assigned-clock-rates = <750000>, <3000000>, <3000000>;
 };

@@ -29,6 +29,7 @@ static DEFINE_MUTEX(hl_devs_idr_lock);
 
 static int timeout_locked = 5;
 static int reset_on_lockup = 1;
+static int memory_scrub = 1;
 
 module_param(timeout_locked, int, 0444);
 MODULE_PARM_DESC(timeout_locked,
@@ -37,6 +38,10 @@ MODULE_PARM_DESC(timeout_locked,
 module_param(reset_on_lockup, int, 0444);
 MODULE_PARM_DESC(reset_on_lockup,
 	"Do device reset on lockup (0 = no, 1 = yes, default yes)");
+
+module_param(memory_scrub, int, 0444);
+MODULE_PARM_DESC(memory_scrub,
+	"Scrub device memory in various states (0 = no, 1 = yes, default yes)");
 
 #define PCI_VENDOR_ID_HABANALABS	0x1da3
 
@@ -87,6 +92,7 @@ static enum hl_asic_type get_asic_type(u16 device)
  */
 int hl_device_open(struct inode *inode, struct file *filp)
 {
+	enum hl_device_status status;
 	struct hl_device *hdev;
 	struct hl_fpriv *hpriv;
 	int rc;
@@ -119,10 +125,10 @@ int hl_device_open(struct inode *inode, struct file *filp)
 
 	mutex_lock(&hdev->fpriv_list_lock);
 
-	if (hl_device_disabled_or_in_reset(hdev)) {
+	if (!hl_device_operational(hdev, &status)) {
 		dev_err_ratelimited(hdev->dev,
-			"Can't open %s because it is disabled or in reset\n",
-			dev_name(hdev->dev));
+			"Can't open %s because it is %s\n",
+			dev_name(hdev->dev), hdev->status[status]);
 		rc = -EPERM;
 		goto out_err;
 	}
@@ -199,7 +205,7 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 
 	mutex_lock(&hdev->fpriv_list_lock);
 
-	if (hl_device_disabled_or_in_reset(hdev)) {
+	if (!hl_device_operational(hdev, NULL)) {
 		dev_err_ratelimited(hdev->dev_ctrl,
 			"Can't open %s because it is disabled or in reset\n",
 			dev_name(hdev->dev_ctrl));
@@ -228,19 +234,20 @@ out_err:
 
 static void set_driver_behavior_per_device(struct hl_device *hdev)
 {
-	hdev->mmu_enable = 1;
 	hdev->cpu_enable = 1;
-	hdev->fw_loading = 1;
+	hdev->fw_loading = FW_TYPE_ALL_TYPES;
 	hdev->cpu_queues_enable = 1;
 	hdev->heartbeat = 1;
+	hdev->mmu_enable = 1;
 	hdev->clock_gating_mask = ULONG_MAX;
-
-	hdev->reset_pcilink = 0;
-	hdev->axi_drain = 0;
 	hdev->sram_scrambler_enable = 1;
 	hdev->dram_scrambler_enable = 1;
 	hdev->bmc_enable = 1;
 	hdev->hard_reset_on_fw_events = 1;
+	hdev->reset_on_preboot_fail = 1;
+
+	hdev->reset_pcilink = 0;
+	hdev->axi_drain = 0;
 }
 
 /*
@@ -281,8 +288,17 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 		hdev->asic_type = asic_type;
 	}
 
+	/* Assign status description string */
+	strncpy(hdev->status[HL_DEVICE_STATUS_MALFUNCTION],
+					"disabled", HL_STR_MAX);
+	strncpy(hdev->status[HL_DEVICE_STATUS_IN_RESET],
+					"in reset", HL_STR_MAX);
+	strncpy(hdev->status[HL_DEVICE_STATUS_NEEDS_RESET],
+					"needs reset", HL_STR_MAX);
+
 	hdev->major = hl_major;
 	hdev->reset_on_lockup = reset_on_lockup;
+	hdev->memory_scrub = memory_scrub;
 	hdev->pldm = 0;
 
 	set_driver_behavior_per_device(hdev);
@@ -528,6 +544,7 @@ static struct pci_driver hl_pci_driver = {
 	.id_table = ids,
 	.probe = hl_pci_probe,
 	.remove = hl_pci_remove,
+	.shutdown = hl_pci_remove,
 	.driver.pm = &hl_pm_ops,
 	.err_handler = &hl_pci_err_handler,
 };

@@ -7,7 +7,7 @@
 #include "hnae3.h"
 #include "hns3_enet.h"
 
-#define HNS3_DBG_READ_LEN 256
+#define HNS3_DBG_READ_LEN 65536
 #define HNS3_DBG_WRITE_LEN 1024
 
 static struct dentry *hns3_dbgfs_root;
@@ -162,7 +162,7 @@ static int hns3_dbg_queue_map(struct hnae3_handle *h)
 			continue;
 
 		dev_info(&h->pdev->dev,
-			 "      %4d            %4d            %4d\n",
+			 "      %4d            %4u            %4d\n",
 			 i, global_qid, priv->ring[i].tqp_vector->vector_irq);
 	}
 
@@ -178,6 +178,8 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 	u32 tx_index, rx_index;
 	u32 q_num, value;
 	dma_addr_t addr;
+	u16 mss_hw_csum;
+	u32 l234info;
 	int cnt;
 
 	cnt = sscanf(&cmd_buf[8], "%u %u", &q_num, &tx_index);
@@ -206,26 +208,46 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 
 	tx_desc = &ring->desc[tx_index];
 	addr = le64_to_cpu(tx_desc->addr);
+	mss_hw_csum = le16_to_cpu(tx_desc->tx.mss_hw_csum);
 	dev_info(dev, "TX Queue Num: %u, BD Index: %u\n", q_num, tx_index);
 	dev_info(dev, "(TX)addr: %pad\n", &addr);
 	dev_info(dev, "(TX)vlan_tag: %u\n", le16_to_cpu(tx_desc->tx.vlan_tag));
 	dev_info(dev, "(TX)send_size: %u\n",
 		 le16_to_cpu(tx_desc->tx.send_size));
-	dev_info(dev, "(TX)vlan_tso: %u\n", tx_desc->tx.type_cs_vlan_tso);
-	dev_info(dev, "(TX)l2_len: %u\n", tx_desc->tx.l2_len);
-	dev_info(dev, "(TX)l3_len: %u\n", tx_desc->tx.l3_len);
-	dev_info(dev, "(TX)l4_len: %u\n", tx_desc->tx.l4_len);
+
+	if (mss_hw_csum & BIT(HNS3_TXD_HW_CS_B)) {
+		u32 offset = le32_to_cpu(tx_desc->tx.ol_type_vlan_len_msec);
+		u32 start = le32_to_cpu(tx_desc->tx.type_cs_vlan_tso_len);
+
+		dev_info(dev, "(TX)csum start: %u\n",
+			 hnae3_get_field(start,
+					 HNS3_TXD_CSUM_START_M,
+					 HNS3_TXD_CSUM_START_S));
+		dev_info(dev, "(TX)csum offset: %u\n",
+			 hnae3_get_field(offset,
+					 HNS3_TXD_CSUM_OFFSET_M,
+					 HNS3_TXD_CSUM_OFFSET_S));
+	} else {
+		dev_info(dev, "(TX)vlan_tso: %u\n",
+			 tx_desc->tx.type_cs_vlan_tso);
+		dev_info(dev, "(TX)l2_len: %u\n", tx_desc->tx.l2_len);
+		dev_info(dev, "(TX)l3_len: %u\n", tx_desc->tx.l3_len);
+		dev_info(dev, "(TX)l4_len: %u\n", tx_desc->tx.l4_len);
+		dev_info(dev, "(TX)vlan_msec: %u\n",
+			 tx_desc->tx.ol_type_vlan_msec);
+		dev_info(dev, "(TX)ol2_len: %u\n", tx_desc->tx.ol2_len);
+		dev_info(dev, "(TX)ol3_len: %u\n", tx_desc->tx.ol3_len);
+		dev_info(dev, "(TX)ol4_len: %u\n", tx_desc->tx.ol4_len);
+	}
+
 	dev_info(dev, "(TX)vlan_tag: %u\n",
 		 le16_to_cpu(tx_desc->tx.outer_vlan_tag));
 	dev_info(dev, "(TX)tv: %u\n", le16_to_cpu(tx_desc->tx.tv));
-	dev_info(dev, "(TX)vlan_msec: %u\n", tx_desc->tx.ol_type_vlan_msec);
-	dev_info(dev, "(TX)ol2_len: %u\n", tx_desc->tx.ol2_len);
-	dev_info(dev, "(TX)ol3_len: %u\n", tx_desc->tx.ol3_len);
-	dev_info(dev, "(TX)ol4_len: %u\n", tx_desc->tx.ol4_len);
-	dev_info(dev, "(TX)paylen: %u\n", le32_to_cpu(tx_desc->tx.paylen));
+	dev_info(dev, "(TX)paylen_ol4cs: %u\n",
+		 le32_to_cpu(tx_desc->tx.paylen_ol4cs));
 	dev_info(dev, "(TX)vld_ra_ri: %u\n",
 		 le16_to_cpu(tx_desc->tx.bdtp_fe_sc_vld_ra_ri));
-	dev_info(dev, "(TX)mss: %u\n", le16_to_cpu(tx_desc->tx.mss));
+	dev_info(dev, "(TX)mss_hw_csum: %u\n", mss_hw_csum);
 
 	ring = &priv->ring[q_num + h->kinfo.num_tqps];
 	value = readl_relaxed(ring->tqp->io_base + HNS3_RING_RX_RING_TAIL_REG);
@@ -233,10 +255,21 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 	rx_desc = &ring->desc[rx_index];
 
 	addr = le64_to_cpu(rx_desc->addr);
+	l234info = le32_to_cpu(rx_desc->rx.l234_info);
 	dev_info(dev, "RX Queue Num: %u, BD Index: %u\n", q_num, rx_index);
 	dev_info(dev, "(RX)addr: %pad\n", &addr);
-	dev_info(dev, "(RX)l234_info: %u\n",
-		 le32_to_cpu(rx_desc->rx.l234_info));
+	dev_info(dev, "(RX)l234_info: %u\n", l234info);
+
+	if (l234info & BIT(HNS3_RXD_L2_CSUM_B)) {
+		u32 lo, hi;
+
+		lo = hnae3_get_field(l234info, HNS3_RXD_L2_CSUM_L_M,
+				     HNS3_RXD_L2_CSUM_L_S);
+		hi = hnae3_get_field(l234info, HNS3_RXD_L2_CSUM_H_M,
+				     HNS3_RXD_L2_CSUM_H_S);
+		dev_info(dev, "(RX)csum: %u\n", lo | hi << 8);
+	}
+
 	dev_info(dev, "(RX)pkt_len: %u\n", le16_to_cpu(rx_desc->rx.pkt_len));
 	dev_info(dev, "(RX)size: %u\n", le16_to_cpu(rx_desc->rx.size));
 	dev_info(dev, "(RX)rss_hash: %u\n", le32_to_cpu(rx_desc->rx.rss_hash));
@@ -324,6 +357,11 @@ static void hns3_dbg_dev_caps(struct hnae3_handle *h)
 		 test_bit(HNAE3_DEV_SUPPORT_PTP_B, caps) ? "yes" : "no");
 	dev_info(&h->pdev->dev, "support INT QL: %s\n",
 		 test_bit(HNAE3_DEV_SUPPORT_INT_QL_B, caps) ? "yes" : "no");
+	dev_info(&h->pdev->dev, "support HW TX csum: %s\n",
+		 test_bit(HNAE3_DEV_SUPPORT_HW_TX_CSUM_B, caps) ? "yes" : "no");
+	dev_info(&h->pdev->dev, "support UDP tunnel csum: %s\n",
+		 test_bit(HNAE3_DEV_SUPPORT_UDP_TUNNEL_CSUM_B, caps) ?
+		 "yes" : "no");
 }
 
 static void hns3_dbg_dev_specs(struct hnae3_handle *h)
@@ -347,8 +385,13 @@ static void hns3_dbg_dev_specs(struct hnae3_handle *h)
 	dev_info(priv->dev, "RX buffer length: %u\n", kinfo->rx_buf_len);
 	dev_info(priv->dev, "Desc num per TX queue: %u\n", kinfo->num_tx_desc);
 	dev_info(priv->dev, "Desc num per RX queue: %u\n", kinfo->num_rx_desc);
-	dev_info(priv->dev, "Total number of enabled TCs: %u\n", kinfo->num_tc);
+	dev_info(priv->dev, "Total number of enabled TCs: %u\n",
+		 kinfo->tc_info.num_tc);
 	dev_info(priv->dev, "MAX INT QL: %u\n", dev_specs->int_ql_max);
+	dev_info(priv->dev, "MAX INT GL: %u\n", dev_specs->max_int_gl);
+	dev_info(priv->dev, "MAX frame size: %u\n", dev_specs->max_frm_size);
+	dev_info(priv->dev, "MAX TM RATE: %uMbps\n", dev_specs->max_tm_rate);
+	dev_info(priv->dev, "MAX QSET number: %u\n", dev_specs->max_qset_num);
 }
 
 static ssize_t hns3_dbg_cmd_read(struct file *filp, char __user *buffer,
@@ -380,6 +423,30 @@ static ssize_t hns3_dbg_cmd_read(struct file *filp, char __user *buffer,
 	return (*ppos = len);
 }
 
+static int hns3_dbg_check_cmd(struct hnae3_handle *handle, char *cmd_buf)
+{
+	int ret = 0;
+
+	if (strncmp(cmd_buf, "help", 4) == 0)
+		hns3_dbg_help(handle);
+	else if (strncmp(cmd_buf, "queue info", 10) == 0)
+		ret = hns3_dbg_queue_info(handle, cmd_buf);
+	else if (strncmp(cmd_buf, "queue map", 9) == 0)
+		ret = hns3_dbg_queue_map(handle);
+	else if (strncmp(cmd_buf, "bd info", 7) == 0)
+		ret = hns3_dbg_bd_info(handle, cmd_buf);
+	else if (strncmp(cmd_buf, "dev capability", 14) == 0)
+		hns3_dbg_dev_caps(handle);
+	else if (strncmp(cmd_buf, "dev spec", 8) == 0)
+		hns3_dbg_dev_specs(handle);
+	else if (handle->ae_algo->ops->dbg_run_cmd)
+		ret = handle->ae_algo->ops->dbg_run_cmd(handle, cmd_buf);
+	else
+		ret = -EOPNOTSUPP;
+
+	return ret;
+}
+
 static ssize_t hns3_dbg_cmd_write(struct file *filp, const char __user *buffer,
 				  size_t count, loff_t *ppos)
 {
@@ -387,7 +454,7 @@ static ssize_t hns3_dbg_cmd_write(struct file *filp, const char __user *buffer,
 	struct hns3_nic_priv *priv  = handle->priv;
 	char *cmd_buf, *cmd_buf_tmp;
 	int uncopied_bytes;
-	int ret = 0;
+	int ret;
 
 	if (*ppos != 0)
 		return 0;
@@ -418,23 +485,7 @@ static ssize_t hns3_dbg_cmd_write(struct file *filp, const char __user *buffer,
 		count = cmd_buf_tmp - cmd_buf + 1;
 	}
 
-	if (strncmp(cmd_buf, "help", 4) == 0)
-		hns3_dbg_help(handle);
-	else if (strncmp(cmd_buf, "queue info", 10) == 0)
-		ret = hns3_dbg_queue_info(handle, cmd_buf);
-	else if (strncmp(cmd_buf, "queue map", 9) == 0)
-		ret = hns3_dbg_queue_map(handle);
-	else if (strncmp(cmd_buf, "bd info", 7) == 0)
-		ret = hns3_dbg_bd_info(handle, cmd_buf);
-	else if (strncmp(cmd_buf, "dev capability", 14) == 0)
-		hns3_dbg_dev_caps(handle);
-	else if (strncmp(cmd_buf, "dev spec", 8) == 0)
-		hns3_dbg_dev_specs(handle);
-	else if (handle->ae_algo->ops->dbg_run_cmd)
-		ret = handle->ae_algo->ops->dbg_run_cmd(handle, cmd_buf);
-	else
-		ret = -EOPNOTSUPP;
-
+	ret = hns3_dbg_check_cmd(handle, cmd_buf);
 	if (ret)
 		hns3_dbg_help(handle);
 
@@ -444,6 +495,39 @@ static ssize_t hns3_dbg_cmd_write(struct file *filp, const char __user *buffer,
 	return count;
 }
 
+static ssize_t hns3_dbg_read(struct file *filp, char __user *buffer,
+			     size_t count, loff_t *ppos)
+{
+	struct hnae3_handle *handle = filp->private_data;
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	struct hns3_nic_priv *priv = handle->priv;
+	char *cmd_buf, *read_buf;
+	ssize_t size = 0;
+	int ret = 0;
+
+	read_buf = kzalloc(HNS3_DBG_READ_LEN, GFP_KERNEL);
+	if (!read_buf)
+		return -ENOMEM;
+
+	cmd_buf = filp->f_path.dentry->d_iname;
+
+	if (ops->dbg_read_cmd)
+		ret = ops->dbg_read_cmd(handle, cmd_buf, read_buf,
+					HNS3_DBG_READ_LEN);
+
+	if (ret) {
+		dev_info(priv->dev, "unknown command\n");
+		goto out;
+	}
+
+	size = simple_read_from_buffer(buffer, count, ppos, read_buf,
+				       strlen(read_buf));
+
+out:
+	kfree(read_buf);
+	return size;
+}
+
 static const struct file_operations hns3_dbg_cmd_fops = {
 	.owner = THIS_MODULE,
 	.open  = simple_open,
@@ -451,14 +535,31 @@ static const struct file_operations hns3_dbg_cmd_fops = {
 	.write = hns3_dbg_cmd_write,
 };
 
+static const struct file_operations hns3_dbg_fops = {
+	.owner = THIS_MODULE,
+	.open  = simple_open,
+	.read  = hns3_dbg_read,
+};
+
 void hns3_dbg_init(struct hnae3_handle *handle)
 {
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
 	const char *name = pci_name(handle->pdev);
+	struct dentry *entry_dir;
 
 	handle->hnae3_dbgfs = debugfs_create_dir(name, hns3_dbgfs_root);
 
 	debugfs_create_file("cmd", 0600, handle->hnae3_dbgfs, handle,
 			    &hns3_dbg_cmd_fops);
+
+	entry_dir = debugfs_create_dir("tm", handle->hnae3_dbgfs);
+	if (ae_dev->dev_version > HNAE3_DEVICE_VERSION_V2)
+		debugfs_create_file(HNAE3_DBG_TM_NODES, 0600, entry_dir, handle,
+				    &hns3_dbg_fops);
+	debugfs_create_file(HNAE3_DBG_TM_PRI, 0600, entry_dir, handle,
+			    &hns3_dbg_fops);
+	debugfs_create_file(HNAE3_DBG_TM_QSET, 0600, entry_dir, handle,
+			    &hns3_dbg_fops);
 }
 
 void hns3_dbg_uninit(struct hnae3_handle *handle)

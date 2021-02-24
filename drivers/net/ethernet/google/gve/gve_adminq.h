@@ -79,12 +79,17 @@ struct gve_device_descriptor {
 
 static_assert(sizeof(struct gve_device_descriptor) == 40);
 
-struct device_option {
-	__be32 option_id;
-	__be32 option_length;
+struct gve_device_option {
+	__be16 option_id;
+	__be16 option_length;
+	__be32 feat_mask;
 };
 
-static_assert(sizeof(struct device_option) == 8);
+static_assert(sizeof(struct gve_device_option) == 8);
+
+#define GVE_DEV_OPT_ID_RAW_ADDRESSING 0x1
+#define GVE_DEV_OPT_LEN_RAW_ADDRESSING 0x0
+#define GVE_DEV_OPT_FEAT_MASK_RAW_ADDRESSING 0x0
 
 struct gve_adminq_configure_device_resources {
 	__be64 counter_array;
@@ -110,6 +115,8 @@ struct gve_adminq_unregister_page_list {
 };
 
 static_assert(sizeof(struct gve_adminq_unregister_page_list) == 4);
+
+#define GVE_RAW_ADDRESSING_QPL_ID 0xFFFFFFFF
 
 struct gve_adminq_create_tx_queue {
 	__be32 queue_id;
@@ -198,7 +205,7 @@ static_assert(sizeof(struct stats) == 16);
 
 struct gve_stats_report {
 	__be64 written_count;
-	struct stats stats[0];
+	struct stats stats[];
 };
 
 static_assert(sizeof(struct gve_stats_report) == 8);

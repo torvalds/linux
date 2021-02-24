@@ -1,19 +1,29 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 # SPDX-License-Identifier: GPL-2.0
 
 use strict;
+use warnings;
+use utf8;
 use Pod::Usage;
 use Getopt::Long;
 use File::Find;
 use Fcntl ':mode';
 
-my $help;
-my $man;
-my $debug;
+my $help = 0;
+my $man = 0;
+my $debug = 0;
+my $enable_lineno = 0;
 my $prefix="Documentation/ABI";
+
+#
+# If true, assumes that the description is formatted with ReST
+#
+my $description_is_rst = 1;
 
 GetOptions(
 	"debug|d+" => \$debug,
+	"enable-lineno" => \$enable_lineno,
+	"rst-source!" => \$description_is_rst,
 	"dir=s" => \$prefix,
 	'help|?' => \$help,
 	man => \$man
@@ -32,6 +42,7 @@ pod2usage(2) if ($cmd eq "search" && !$arg);
 require Data::Dumper if ($debug);
 
 my %data;
+my %symbols;
 
 #
 # Displays an error message, printing file name and line
@@ -39,7 +50,15 @@ my %data;
 sub parse_error($$$$) {
 	my ($file, $ln, $msg, $data) = @_;
 
-	print STDERR "file $file#$ln: $msg at\n\t$data";
+	$data =~ s/\s+$/\n/;
+
+	print STDERR "Warning: file $file#$ln:\n\t$msg";
+
+	if ($data ne "") {
+		print STDERR ". Line\n\t\t$data";
+	} else {
+	    print STDERR "\n";
+	}
 }
 
 #
@@ -55,24 +74,28 @@ sub parse_abi {
 	my $name = $file;
 	$name =~ s,.*/,,;
 
-	my $nametag = "File $name";
+	my $fn = $file;
+	$fn =~ s,Documentation/ABI/,,;
+
+	my $nametag = "File $fn";
 	$data{$nametag}->{what} = "File $name";
 	$data{$nametag}->{type} = "File";
 	$data{$nametag}->{file} = $name;
 	$data{$nametag}->{filepath} = $file;
 	$data{$nametag}->{is_file} = 1;
+	$data{$nametag}->{line_no} = 1;
 
 	my $type = $file;
 	$type =~ s,.*/(.*)/.*,$1,;
 
 	my $what;
 	my $new_what;
-	my $tag;
+	my $tag = "";
 	my $ln;
 	my $xrefs;
 	my $space;
 	my @labels;
-	my $label;
+	my $label = "";
 
 	print STDERR "Opening $file\n" if ($debug > 1);
 	open IN, $file;
@@ -95,16 +118,26 @@ sub parse_abi {
 
 			# Invalid, but it is a common mistake
 			if ($new_tag eq "where") {
-				parse_error($file, $ln, "tag 'Where' is invalid. Should be 'What:' instead", $_);
+				parse_error($file, $ln, "tag 'Where' is invalid. Should be 'What:' instead", "");
 				$new_tag = "what";
 			}
 
 			if ($new_tag =~ m/what/) {
 				$space = "";
+				$content =~ s/[,.;]$//;
+
+				push @{$symbols{$content}->{file}}, " $file:" . ($ln - 1);
+
 				if ($tag =~ m/what/) {
 					$what .= ", " . $content;
 				} else {
-					parse_error($file, $ln, "What '$what' doesn't have a description", "") if ($what && !$data{$what}->{description});
+					if ($what) {
+						parse_error($file, $ln, "What '$what' doesn't have a description", "") if (!$data{$what}->{description});
+
+						foreach my $w(split /, /, $what) {
+							$symbols{$w}->{xref} = $what;
+						};
+					}
 
 					$what = $content;
 					$label = $content;
@@ -113,7 +146,7 @@ sub parse_abi {
 				push @labels, [($content, $label)];
 				$tag = $new_tag;
 
-				push @{$data{$nametag}->{xrefs}}, [($content, $label)] if ($data{$nametag}->{what});
+				push @{$data{$nametag}->{symbols}}, $content if ($data{$nametag}->{what});
 				next;
 			}
 
@@ -121,30 +154,44 @@ sub parse_abi {
 				$tag = $new_tag;
 
 				if ($new_what) {
-					@{$data{$what}->{label}} = @labels if ($data{$nametag}->{what});
+					@{$data{$what}->{label_list}} = @labels if ($data{$nametag}->{what});
 					@labels = ();
 					$label = "";
 					$new_what = 0;
 
 					$data{$what}->{type} = $type;
-					$data{$what}->{file} = $name;
-					$data{$what}->{filepath} = $file;
+					if (!defined($data{$what}->{file})) {
+						$data{$what}->{file} = $name;
+						$data{$what}->{filepath} = $file;
+					} else {
+						if ($name ne $data{$what}->{file}) {
+							$data{$what}->{file} .= " " . $name;
+							$data{$what}->{filepath} .= " " . $file;
+						}
+					}
 					print STDERR "\twhat: $what\n" if ($debug > 1);
+					$data{$what}->{line_no} = $ln;
+				} else {
+					$data{$what}->{line_no} = $ln if (!defined($data{$what}->{line_no}));
 				}
 
 				if (!$what) {
 					parse_error($file, $ln, "'What:' should come first:", $_);
 					next;
 				}
-				if ($tag eq "description") {
-					next if ($content =~ m/^\s*$/);
-					if ($content =~ m/^(\s*)(.*)/) {
-						my $new_content = $2;
-						$space = $new_tag . $sep . $1;
-						while ($space =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {}
-						$space =~ s/./ /g;
-						$data{$what}->{$tag} .= "$new_content\n";
+				if ($new_tag eq "description") {
+					$sep =~ s,:, ,;
+					$content = ' ' x length($new_tag) . $sep . $content;
+					while ($content =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {}
+					if ($content =~ m/^(\s*)(\S.*)$/) {
+						# Preserve initial spaces for the first line
+						$space = $1;
+						$content = "$2\n";
+						$data{$what}->{$tag} .= $content;
+					} else {
+						undef($space);
 					}
+
 				} else {
 					$data{$what}->{$tag} = $content;
 				}
@@ -159,29 +206,24 @@ sub parse_abi {
 		}
 
 		if ($tag eq "description") {
-			if (!$data{$what}->{description}) {
-				next if (m/^\s*\n/);
-				if (m/^(\s*)(.*)/) {
+			my $content = $_;
+			while ($content =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {}
+			if (m/^\s*\n/) {
+				$data{$what}->{$tag} .= "\n";
+				next;
+			}
+
+			if (!defined($space)) {
+				# Preserve initial spaces for the first line
+				if ($content =~ m/^(\s*)(\S.*)$/) {
 					$space = $1;
-					while ($space =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {}
-					$data{$what}->{$tag} .= "$2\n";
+					$content = "$2\n";
 				}
 			} else {
-				my $content = $_;
-				if (m/^\s*\n/) {
-					$data{$what}->{$tag} .= $content;
-					next;
-				}
-
-				while ($content =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {}
 				$space = "" if (!($content =~ s/^($space)//));
-
-				# Compress spaces with tabs
-				$content =~ s<^ {8}> <\t>;
-				$content =~ s<^ {1,7}\t> <\t>;
-				$content =~ s< {1,7}\t> <\t>;
-				$data{$what}->{$tag} .= $content;
 			}
+			$data{$what}->{$tag} .= $content;
+
 			next;
 		}
 		if (m/^\s*(.*)/) {
@@ -191,32 +233,26 @@ sub parse_abi {
 		}
 
 		# Everything else is error
-		parse_error($file, $ln, "Unexpected line:", $_);
+		parse_error($file, $ln, "Unexpected content", $_);
 	}
-	$data{$nametag}->{description} =~ s/^\n+//;
+	$data{$nametag}->{description} =~ s/^\n+// if ($data{$nametag}->{description});
+	if ($what) {
+		parse_error($file, $ln, "What '$what' doesn't have a description", "") if (!$data{$what}->{description});
+
+		foreach my $w(split /, /,$what) {
+			$symbols{$w}->{xref} = $what;
+		};
+	}
 	close IN;
 }
 
-#
-# Outputs the book on ReST format
-#
+sub create_labels {
+	my %labels;
 
-my %labels;
+	foreach my $what (keys %data) {
+		next if ($data{$what}->{file} eq "File");
 
-sub output_rest {
-	foreach my $what (sort {
-				($data{$a}->{type} eq "File") cmp ($data{$b}->{type} eq "File") ||
-				$a cmp $b
-			       } keys %data) {
-		my $type = $data{$what}->{type};
-		my $file = $data{$what}->{file};
-		my $filepath = $data{$what}->{filepath};
-
-		my $w = $what;
-		$w =~ s/([\(\)\_\-\*\=\^\~\\])/\\$1/g;
-
-
-		foreach my $p (@{$data{$what}->{label}}) {
+		foreach my $p (@{$data{$what}->{label_list}}) {
 			my ($content, $label) = @{$p};
 			$label = "abi_" . $label . " ";
 			$label =~ tr/A-Z/a-z/;
@@ -233,81 +269,167 @@ sub output_rest {
 			}
 			$labels{$label} = 1;
 
-			$data{$what}->{label} .= $label;
-
-			printf ".. _%s:\n\n", $label;
+			$data{$what}->{label} = $label;
 
 			# only one label is enough
 			last;
 		}
+	}
+}
 
+#
+# Outputs the book on ReST format
+#
 
-		$filepath =~ s,.*/(.*/.*),\1,;;
-		$filepath =~ s,[/\-],_,g;;
-		my $fileref = "abi_file_".$filepath;
+# \b doesn't work well with paths. So, we need to define something else
+my $bondary = qr { (?<![\w\/\`\{])(?=[\w\/\`\{])|(?<=[\w\/\`\{])(?![\w\/\`\{]) }x;
 
-		if ($type eq "File") {
-			my $bar = $w;
-			$bar =~ s/./-/g;
+sub output_rest {
+	create_labels();
 
-			print ".. _$fileref:\n\n";
-			print "$w\n$bar\n\n";
-		} else {
-			my @names = split /\s*,\s*/,$w;
+	my $part = "";
 
+	foreach my $what (sort {
+				($data{$a}->{type} eq "File") cmp ($data{$b}->{type} eq "File") ||
+				$a cmp $b
+			       } keys %data) {
+		my $type = $data{$what}->{type};
+
+		my @file = split / /, $data{$what}->{file};
+		my @filepath = split / /, $data{$what}->{filepath};
+
+		if ($enable_lineno) {
+			printf "#define LINENO %s%s#%s\n\n",
+			       $prefix, $file[0],
+			       $data{$what}->{line_no};
+		}
+
+		my $w = $what;
+		$w =~ s/([\(\)\_\-\*\=\^\~\\])/\\$1/g;
+
+		if ($type ne "File") {
+			my $cur_part = $what;
+			if ($what =~ '/') {
+				if ($what =~ m#^(\/?(?:[\w\-]+\/?){1,2})#) {
+					$cur_part = "Symbols under $1";
+					$cur_part =~ s,/$,,;
+				}
+			}
+
+			if ($cur_part ne "" && $part ne $cur_part) {
+			    $part = $cur_part;
+			    my $bar = $part;
+			    $bar =~ s/./-/g;
+			    print "$part\n$bar\n\n";
+			}
+
+			printf ".. _%s:\n\n", $data{$what}->{label};
+
+			my @names = split /, /,$w;
 			my $len = 0;
 
 			foreach my $name (@names) {
+				$name = "**$name**";
 				$len = length($name) if (length($name) > $len);
 			}
-
-			print "What:\n\n";
 
 			print "+-" . "-" x $len . "-+\n";
 			foreach my $name (@names) {
 				printf "| %s", $name . " " x ($len - length($name)) . " |\n";
 				print "+-" . "-" x $len . "-+\n";
 			}
+
 			print "\n";
 		}
 
-		print "Defined on file :ref:`$file <$fileref>`\n\n" if ($type ne "File");
+		for (my $i = 0; $i < scalar(@filepath); $i++) {
+			my $path = $filepath[$i];
+			my $f = $file[$i];
 
-		my $desc = $data{$what}->{description};
-		$desc =~ s/^\s+//;
+			$path =~ s,.*/(.*/.*),$1,;;
+			$path =~ s,[/\-],_,g;;
+			my $fileref = "abi_file_".$path;
 
-		# Remove title markups from the description, as they won't work
-		$desc =~ s/\n[\-\*\=\^\~]+\n/\n/g;
+			if ($type eq "File") {
+				print ".. _$fileref:\n\n";
+			} else {
+				print "Defined on file :ref:`$f <$fileref>`\n\n";
+			}
+		}
+
+		if ($type eq "File") {
+			my $bar = $w;
+			$bar =~ s/./-/g;
+			print "$w\n$bar\n\n";
+		}
+
+		my $desc = "";
+		$desc = $data{$what}->{description} if (defined($data{$what}->{description}));
+		$desc =~ s/\s+$/\n/;
 
 		if (!($desc =~ /^\s*$/)) {
-			if ($desc =~ m/\:\n/ || $desc =~ m/\n[\t ]+/  || $desc =~ m/[\x00-\x08\x0b-\x1f\x7b-\xff]/) {
-				# put everything inside a code block
-				$desc =~ s/\n/\n /g;
+			if ($description_is_rst) {
+				# Remove title markups from the description
+				# Having titles inside ABI files will only work if extra
+				# care would be taken in order to strictly follow the same
+				# level order for each markup.
+				$desc =~ s/\n[\-\*\=\^\~]+\n/\n\n/g;
 
-				print "::\n\n";
-				print " $desc\n\n";
-			} else {
-				# Escape any special chars from description
-				$desc =~s/([\x00-\x08\x0b-\x1f\x21-\x2a\x2d\x2f\x3c-\x40\x5c\x5e-\x60\x7b-\xff])/\\$1/g;
+				# Enrich text by creating cross-references
+
+				$desc =~ s,Documentation/(?!devicetree)(\S+)\.rst,:doc:`/$1`,g;
+
+				my @matches = $desc =~ m,Documentation/ABI/([\w\/\-]+),;
+				foreach my $f (@matches) {
+					my $xref = $f;
+					my $path = $f;
+					$path =~ s,.*/(.*/.*),$1,;;
+					$path =~ s,[/\-],_,g;;
+					$xref .= " <abi_file_" . $path . ">";
+					$desc =~ s,\bDocumentation/ABI/$f\b,:ref:`$xref`,g;
+				}
+
+				@matches = $desc =~ m,$bondary(/sys/[^\s\.\,\;\:\*\s\`\'\(\)]+)$bondary,;
+
+				foreach my $s (@matches) {
+					if (defined($data{$s}) && defined($data{$s}->{label})) {
+						my $xref = $s;
+
+						$xref =~ s/([\x00-\x1f\x21-\x2f\x3a-\x40\x7b-\xff])/\\$1/g;
+						$xref = ":ref:`$xref <" . $data{$s}->{label} . ">`";
+
+						$desc =~ s,$bondary$s$bondary,$xref,g;
+					}
+				}
 
 				print "$desc\n\n";
+			} else {
+				$desc =~ s/^\s+//;
+
+				# Remove title markups from the description, as they won't work
+				$desc =~ s/\n[\-\*\=\^\~]+\n/\n\n/g;
+
+				if ($desc =~ m/\:\n/ || $desc =~ m/\n[\t ]+/  || $desc =~ m/[\x00-\x08\x0b-\x1f\x7b-\xff]/) {
+					# put everything inside a code block
+					$desc =~ s/\n/\n /g;
+
+					print "::\n\n";
+					print " $desc\n\n";
+				} else {
+					# Escape any special chars from description
+					$desc =~s/([\x00-\x08\x0b-\x1f\x21-\x2a\x2d\x2f\x3c-\x40\x5c\x5e-\x60\x7b-\xff])/\\$1/g;
+					print "$desc\n\n";
+				}
 			}
 		} else {
 			print "DESCRIPTION MISSING for $what\n\n" if (!$data{$what}->{is_file});
 		}
 
-		if ($data{$what}->{xrefs}) {
+		if ($data{$what}->{symbols}) {
 			printf "Has the following ABI:\n\n";
 
-			foreach my $p(@{$data{$what}->{xrefs}}) {
-				my ($content, $label) = @{$p};
-				$label = "abi_" . $label . " ";
-				$label =~ tr/A-Z/a-z/;
-
-				# Convert special chars to "_"
-				$label =~s/([\x00-\x2f\x3a-\x40\x5b-\x60\x7b-\xff])/_/g;
-				$label =~ s,_+,_,g;
-				$label =~ s,_$,,;
+			foreach my $content(@{$data{$what}->{symbols}}) {
+				my $label = $data{$symbols{$content}->{xref}}->{label};
 
 				# Escape special chars from content
 				$content =~s/([\x00-\x1f\x21-\x2f\x3a-\x40\x7b-\xff])/\\$1/g;
@@ -315,6 +437,14 @@ sub output_rest {
 				print "- :ref:`$content <$label>`\n\n";
 			}
 		}
+
+		if (defined($data{$what}->{users})) {
+			my $users = $data{$what}->{users};
+
+			$users =~ s/\n/\n\t/g;
+			printf "Users:\n\t%s\n\n", $users if ($users ne "");
+		}
+
 	}
 }
 
@@ -335,27 +465,34 @@ sub search_symbols {
 
 		print "\n$what\n$bar\n\n";
 
-		my $kernelversion = $data{$what}->{kernelversion};
-		my $contact = $data{$what}->{contact};
-		my $users = $data{$what}->{users};
-		my $date = $data{$what}->{date};
-		my $desc = $data{$what}->{description};
-		$kernelversion =~ s/^\s+//;
-		$contact =~ s/^\s+//;
-		$users =~ s/^\s+//;
-		$users =~ s/\n//g;
-		$date =~ s/^\s+//;
-		$desc =~ s/^\s+//;
+		my $kernelversion = $data{$what}->{kernelversion} if (defined($data{$what}->{kernelversion}));
+		my $contact = $data{$what}->{contact} if (defined($data{$what}->{contact}));
+		my $users = $data{$what}->{users} if (defined($data{$what}->{users}));
+		my $date = $data{$what}->{date} if (defined($data{$what}->{date}));
+		my $desc = $data{$what}->{description} if (defined($data{$what}->{description}));
+
+		$kernelversion =~ s/^\s+// if ($kernelversion);
+		$contact =~ s/^\s+// if ($contact);
+		if ($users) {
+			$users =~ s/^\s+//;
+			$users =~ s/\n//g;
+		}
+		$date =~ s/^\s+// if ($date);
+		$desc =~ s/^\s+// if ($desc);
 
 		printf "Kernel version:\t\t%s\n", $kernelversion if ($kernelversion);
 		printf "Date:\t\t\t%s\n", $date if ($date);
 		printf "Contact:\t\t%s\n", $contact if ($contact);
 		printf "Users:\t\t\t%s\n", $users if ($users);
-		print "Defined on file:\t$file\n\n";
+		print "Defined on file(s):\t$file\n\n";
 		print "Description:\n\n$desc";
 	}
 }
 
+# Ensure that the prefix will always end with a slash
+# While this is not needed for find, it makes the patch nicer
+# with --enable-lineno
+$prefix =~ s,/?$,/,;
 
 #
 # Parses all ABI files located at $prefix dir
@@ -367,12 +504,23 @@ print STDERR Data::Dumper->Dump([\%data], [qw(*data)]) if ($debug);
 #
 # Handles the command
 #
-if ($cmd eq "rest") {
-	output_rest;
-} elsif ($cmd eq "search") {
+if ($cmd eq "search") {
 	search_symbols;
-}
+} else {
+	if ($cmd eq "rest") {
+		output_rest;
+	}
 
+	# Warn about duplicated ABI entries
+	foreach my $what(sort keys %symbols) {
+		my @files = @{$symbols{$what}->{file}};
+
+		next if (scalar(@files) == 1);
+
+		printf STDERR "Warning: $what is defined %d times: @files\n",
+		    scalar(@files);
+	}
+}
 
 __END__
 
@@ -382,7 +530,8 @@ abi_book.pl - parse the Linux ABI files and produce a ReST book.
 
 =head1 SYNOPSIS
 
-B<abi_book.pl> [--debug] [--man] [--help] [--dir=<dir>] <COMAND> [<ARGUMENT>]
+B<abi_book.pl> [--debug] [--enable-lineno] [--man] [--help]
+	       [--(no-)rst-source] [--dir=<dir>] <COMAND> [<ARGUMENT>]
 
 Where <COMMAND> can be:
 
@@ -404,6 +553,17 @@ B<validate>              - validate the ABI contents
 
 Changes the location of the ABI search. By default, it uses
 the Documentation/ABI directory.
+
+=item B<--rst-source> and B<--no-rst-source>
+
+The input file may be using ReST syntax or not. Those two options allow
+selecting between a rst-compliant source ABI (--rst-source), or a
+plain text that may be violating ReST spec, so it requres some escaping
+logic (--no-rst-source).
+
+=item B<--enable-lineno>
+
+Enable output of #define LINENO lines.
 
 =item B<--debug>
 

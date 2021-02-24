@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2009, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2015		Intel Deutschland GmbH
- * Copyright (C) 2019 Intel Corporation
+ * Copyright (C) 2019-2020 Intel Corporation
  */
 
 #include <linux/kernel.h>
@@ -81,7 +81,8 @@ static void cfg80211_process_auth(struct wireless_dev *wdev,
 }
 
 static void cfg80211_process_deauth(struct wireless_dev *wdev,
-				    const u8 *buf, size_t len)
+				    const u8 *buf, size_t len,
+				    bool reconnect)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)buf;
@@ -89,7 +90,7 @@ static void cfg80211_process_deauth(struct wireless_dev *wdev,
 	u16 reason_code = le16_to_cpu(mgmt->u.deauth.reason_code);
 	bool from_ap = !ether_addr_equal(mgmt->sa, wdev->netdev->dev_addr);
 
-	nl80211_send_deauth(rdev, wdev->netdev, buf, len, GFP_KERNEL);
+	nl80211_send_deauth(rdev, wdev->netdev, buf, len, reconnect, GFP_KERNEL);
 
 	if (!wdev->current_bss ||
 	    !ether_addr_equal(wdev->current_bss->pub.bssid, bssid))
@@ -100,7 +101,8 @@ static void cfg80211_process_deauth(struct wireless_dev *wdev,
 }
 
 static void cfg80211_process_disassoc(struct wireless_dev *wdev,
-				      const u8 *buf, size_t len)
+				      const u8 *buf, size_t len,
+				      bool reconnect)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)buf;
@@ -108,7 +110,8 @@ static void cfg80211_process_disassoc(struct wireless_dev *wdev,
 	u16 reason_code = le16_to_cpu(mgmt->u.disassoc.reason_code);
 	bool from_ap = !ether_addr_equal(mgmt->sa, wdev->netdev->dev_addr);
 
-	nl80211_send_disassoc(rdev, wdev->netdev, buf, len, GFP_KERNEL);
+	nl80211_send_disassoc(rdev, wdev->netdev, buf, len, reconnect,
+			      GFP_KERNEL);
 
 	if (WARN_ON(!wdev->current_bss ||
 		    !ether_addr_equal(wdev->current_bss->pub.bssid, bssid)))
@@ -133,9 +136,9 @@ void cfg80211_rx_mlme_mgmt(struct net_device *dev, const u8 *buf, size_t len)
 	if (ieee80211_is_auth(mgmt->frame_control))
 		cfg80211_process_auth(wdev, buf, len);
 	else if (ieee80211_is_deauth(mgmt->frame_control))
-		cfg80211_process_deauth(wdev, buf, len);
+		cfg80211_process_deauth(wdev, buf, len, false);
 	else if (ieee80211_is_disassoc(mgmt->frame_control))
-		cfg80211_process_disassoc(wdev, buf, len);
+		cfg80211_process_disassoc(wdev, buf, len, false);
 }
 EXPORT_SYMBOL(cfg80211_rx_mlme_mgmt);
 
@@ -180,22 +183,23 @@ void cfg80211_abandon_assoc(struct net_device *dev, struct cfg80211_bss *bss)
 }
 EXPORT_SYMBOL(cfg80211_abandon_assoc);
 
-void cfg80211_tx_mlme_mgmt(struct net_device *dev, const u8 *buf, size_t len)
+void cfg80211_tx_mlme_mgmt(struct net_device *dev, const u8 *buf, size_t len,
+			   bool reconnect)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct ieee80211_mgmt *mgmt = (void *)buf;
 
 	ASSERT_WDEV_LOCK(wdev);
 
-	trace_cfg80211_tx_mlme_mgmt(dev, buf, len);
+	trace_cfg80211_tx_mlme_mgmt(dev, buf, len, reconnect);
 
 	if (WARN_ON(len < 2))
 		return;
 
 	if (ieee80211_is_deauth(mgmt->frame_control))
-		cfg80211_process_deauth(wdev, buf, len);
+		cfg80211_process_deauth(wdev, buf, len, reconnect);
 	else
-		cfg80211_process_disassoc(wdev, buf, len);
+		cfg80211_process_disassoc(wdev, buf, len, reconnect);
 }
 EXPORT_SYMBOL(cfg80211_tx_mlme_mgmt);
 
@@ -446,7 +450,7 @@ static void cfg80211_mgmt_registrations_update(struct wireless_dev *wdev)
 	struct cfg80211_mgmt_registration *reg;
 	struct mgmt_frame_regs upd = {};
 
-	ASSERT_RTNL();
+	lockdep_assert_held(&rdev->wiphy.mtx);
 
 	spin_lock_bh(&wdev->mgmt_registrations_lock);
 	if (!wdev->mgmt_registrations_need_update) {
@@ -488,10 +492,10 @@ void cfg80211_mgmt_registrations_update_wk(struct work_struct *wk)
 	rdev = container_of(wk, struct cfg80211_registered_device,
 			    mgmt_registrations_update_wk);
 
-	rtnl_lock();
+	wiphy_lock(&rdev->wiphy);
 	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list)
 		cfg80211_mgmt_registrations_update(wdev);
-	rtnl_unlock();
+	wiphy_unlock(&rdev->wiphy);
 }
 
 int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,

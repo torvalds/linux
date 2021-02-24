@@ -477,7 +477,7 @@ static int fsi_spi_transfer_one_message(struct spi_controller *ctlr,
 
 	rc = fsi_spi_check_mux(ctx->fsi, ctx->dev);
 	if (rc)
-		return rc;
+		goto error;
 
 	list_for_each_entry(transfer, &mesg->transfers, transfer_list) {
 		struct fsi_spi_sequence seq;

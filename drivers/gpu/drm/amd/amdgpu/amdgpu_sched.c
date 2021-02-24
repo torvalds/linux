@@ -29,7 +29,7 @@
 #include <drm/amdgpu_drm.h>
 
 #include "amdgpu.h"
-
+#include "amdgpu_sched.h"
 #include "amdgpu_vm.h"
 
 int amdgpu_to_sched_priority(int amdgpu_priority,

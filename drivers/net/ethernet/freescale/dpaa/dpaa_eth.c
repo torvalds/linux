@@ -53,6 +53,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/sort.h>
 #include <linux/phy_fixed.h>
+#include <linux/bpf.h>
+#include <linux/bpf_trace.h>
 #include <soc/fsl/bman.h>
 #include <soc/fsl/qman.h>
 #include "fman.h"
@@ -177,7 +179,7 @@ MODULE_PARM_DESC(tx_timeout, "The Tx timeout in ms");
 #define DPAA_HWA_SIZE (DPAA_PARSE_RESULTS_SIZE + DPAA_TIME_STAMP_SIZE \
 		       + DPAA_HASH_RESULTS_SIZE)
 #define DPAA_RX_PRIV_DATA_DEFAULT_SIZE (DPAA_TX_PRIV_DATA_SIZE + \
-					dpaa_rx_extra_headroom)
+					XDP_PACKET_HEADROOM - DPAA_HWA_SIZE)
 #ifdef CONFIG_DPAA_ERRATUM_A050385
 #define DPAA_RX_PRIV_DATA_A050385_SIZE (DPAA_A050385_ALIGN - DPAA_HWA_SIZE)
 #define DPAA_RX_PRIV_DATA_SIZE (fman_has_errata_a050385() ? \
@@ -1128,6 +1130,25 @@ static int dpaa_fq_init(struct dpaa_fq *dpaa_fq, bool td_enable)
 
 	dpaa_fq->fqid = qman_fq_fqid(fq);
 
+	if (dpaa_fq->fq_type == FQ_TYPE_RX_DEFAULT ||
+	    dpaa_fq->fq_type == FQ_TYPE_RX_PCD) {
+		err = xdp_rxq_info_reg(&dpaa_fq->xdp_rxq, dpaa_fq->net_dev,
+				       dpaa_fq->fqid, 0);
+		if (err) {
+			dev_err(dev, "xdp_rxq_info_reg() = %d\n", err);
+			return err;
+		}
+
+		err = xdp_rxq_info_reg_mem_model(&dpaa_fq->xdp_rxq,
+						 MEM_TYPE_PAGE_ORDER0, NULL);
+		if (err) {
+			dev_err(dev, "xdp_rxq_info_reg_mem_model() = %d\n",
+				err);
+			xdp_rxq_info_unreg(&dpaa_fq->xdp_rxq);
+			return err;
+		}
+	}
+
 	return 0;
 }
 
@@ -1156,6 +1177,11 @@ static int dpaa_fq_free_entry(struct device *dev, struct qman_fq *fq)
 				err = error;
 		}
 	}
+
+	if ((dpaa_fq->fq_type == FQ_TYPE_RX_DEFAULT ||
+	     dpaa_fq->fq_type == FQ_TYPE_RX_PCD) &&
+	    xdp_rxq_info_is_reg(&dpaa_fq->xdp_rxq))
+		xdp_rxq_info_unreg(&dpaa_fq->xdp_rxq);
 
 	qman_destroy_fq(fq);
 	list_del(&dpaa_fq->list);
@@ -1599,17 +1625,13 @@ static int dpaa_eth_refill_bpools(struct dpaa_priv *priv)
 {
 	struct dpaa_bp *dpaa_bp;
 	int *countptr;
-	int res;
 
 	dpaa_bp = priv->dpaa_bp;
 	if (!dpaa_bp)
 		return -EINVAL;
 	countptr = this_cpu_ptr(dpaa_bp->percpu_count);
-	res  = dpaa_eth_refill_bpool(dpaa_bp, countptr);
-	if (res)
-		return res;
 
-	return 0;
+	return dpaa_eth_refill_bpool(dpaa_bp, countptr);
 }
 
 /* Cleanup function for outgoing frame descriptors that were built on Tx path,
@@ -1623,6 +1645,9 @@ static int dpaa_eth_refill_bpools(struct dpaa_priv *priv)
  *
  * Return the skb backpointer, since for S/G frames the buffer containing it
  * gets freed here.
+ *
+ * No skb backpointer is set when transmitting XDP frames. Cleanup the buffer
+ * and return NULL in this case.
  */
 static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
 					  const struct qm_fd *fd, bool ts)
@@ -1633,6 +1658,7 @@ static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
 	dma_addr_t addr = qm_fd_addr(fd);
 	void *vaddr = phys_to_virt(addr);
 	const struct qm_sg_entry *sgt;
+	struct dpaa_eth_swbp *swbp;
 	struct sk_buff *skb;
 	u64 ns;
 	int i;
@@ -1661,11 +1687,20 @@ static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
 		}
 	} else {
 		dma_unmap_single(priv->tx_dma_dev, addr,
-				 priv->tx_headroom + qm_fd_get_length(fd),
+				 qm_fd_get_offset(fd) + qm_fd_get_length(fd),
 				 dma_dir);
 	}
 
-	skb = *(struct sk_buff **)vaddr;
+	swbp = (struct dpaa_eth_swbp *)vaddr;
+	skb = swbp->skb;
+
+	/* No skb backpointer is set when running XDP. An xdp_frame
+	 * backpointer is saved instead.
+	 */
+	if (!skb) {
+		xdp_return_frame(swbp->xdpf);
+		return NULL;
+	}
 
 	/* DMA unmapping is required before accessing the HW provided info */
 	if (ts && priv->tx_tstamp &&
@@ -1731,7 +1766,6 @@ static struct sk_buff *contig_fd_to_skb(const struct dpaa_priv *priv,
 			SKB_DATA_ALIGN(sizeof(struct skb_shared_info)));
 	if (WARN_ONCE(!skb, "Build skb failure on Rx\n"))
 		goto free_buffer;
-	WARN_ON(fd_off != priv->rx_headroom);
 	skb_reserve(skb, fd_off);
 	skb_put(skb, qm_fd_get_length(fd));
 
@@ -1879,8 +1913,8 @@ static int skb_to_contig_fd(struct dpaa_priv *priv,
 {
 	struct net_device *net_dev = priv->net_dev;
 	enum dma_data_direction dma_dir;
+	struct dpaa_eth_swbp *swbp;
 	unsigned char *buff_start;
-	struct sk_buff **skbh;
 	dma_addr_t addr;
 	int err;
 
@@ -1891,8 +1925,8 @@ static int skb_to_contig_fd(struct dpaa_priv *priv,
 	buff_start = skb->data - priv->tx_headroom;
 	dma_dir = DMA_TO_DEVICE;
 
-	skbh = (struct sk_buff **)buff_start;
-	*skbh = skb;
+	swbp = (struct dpaa_eth_swbp *)buff_start;
+	swbp->skb = skb;
 
 	/* Enable L3/L4 hardware checksum computation.
 	 *
@@ -1931,8 +1965,8 @@ static int skb_to_sg_fd(struct dpaa_priv *priv,
 	const enum dma_data_direction dma_dir = DMA_TO_DEVICE;
 	const int nr_frags = skb_shinfo(skb)->nr_frags;
 	struct net_device *net_dev = priv->net_dev;
+	struct dpaa_eth_swbp *swbp;
 	struct qm_sg_entry *sgt;
-	struct sk_buff **skbh;
 	void *buff_start;
 	skb_frag_t *frag;
 	dma_addr_t addr;
@@ -2005,8 +2039,8 @@ static int skb_to_sg_fd(struct dpaa_priv *priv,
 	qm_fd_set_sg(fd, priv->tx_headroom, skb->len);
 
 	/* DMA map the SGT page */
-	skbh = (struct sk_buff **)buff_start;
-	*skbh = skb;
+	swbp = (struct dpaa_eth_swbp *)buff_start;
+	swbp->skb = skb;
 
 	addr = dma_map_page(priv->tx_dma_dev, p, 0,
 			    priv->tx_headroom + DPAA_SGT_SIZE, dma_dir);
@@ -2067,7 +2101,7 @@ static inline int dpaa_xmit(struct dpaa_priv *priv,
 }
 
 #ifdef CONFIG_DPAA_ERRATUM_A050385
-static int dpaa_a050385_wa(struct net_device *net_dev, struct sk_buff **s)
+static int dpaa_a050385_wa_skb(struct net_device *net_dev, struct sk_buff **s)
 {
 	struct dpaa_priv *priv = netdev_priv(net_dev);
 	struct sk_buff *new_skb, *skb = *s;
@@ -2120,6 +2154,15 @@ workaround:
 	skb_copy_header(new_skb, skb);
 	new_skb->dev = skb->dev;
 
+	/* Copy relevant timestamp info from the old skb to the new */
+	if (priv->tx_tstamp) {
+		skb_shinfo(new_skb)->tx_flags = skb_shinfo(skb)->tx_flags;
+		skb_shinfo(new_skb)->hwtstamps = skb_shinfo(skb)->hwtstamps;
+		skb_shinfo(new_skb)->tskey = skb_shinfo(skb)->tskey;
+		if (skb->sk)
+			skb_set_owner_w(new_skb, skb->sk);
+	}
+
 	/* We move the headroom when we align it so we have to reset the
 	 * network and transport header offsets relative to the new data
 	 * pointer. The checksum offload relies on these offsets.
@@ -2127,10 +2170,89 @@ workaround:
 	skb_set_network_header(new_skb, skb_network_offset(skb));
 	skb_set_transport_header(new_skb, skb_transport_offset(skb));
 
-	/* TODO: does timestamping need the result in the old skb? */
 	dev_kfree_skb(skb);
 	*s = new_skb;
 
+	return 0;
+}
+
+static int dpaa_a050385_wa_xdpf(struct dpaa_priv *priv,
+				struct xdp_frame **init_xdpf)
+{
+	struct xdp_frame *new_xdpf, *xdpf = *init_xdpf;
+	void *new_buff, *aligned_data;
+	struct page *p;
+	u32 data_shift;
+	int headroom;
+
+	/* Check the data alignment and make sure the headroom is large
+	 * enough to store the xdpf backpointer. Use an aligned headroom
+	 * value.
+	 *
+	 * Due to alignment constraints, we give XDP access to the full 256
+	 * byte frame headroom. If the XDP program uses all of it, copy the
+	 * data to a new buffer and make room for storing the backpointer.
+	 */
+	if (PTR_IS_ALIGNED(xdpf->data, DPAA_FD_DATA_ALIGNMENT) &&
+	    xdpf->headroom >= priv->tx_headroom) {
+		xdpf->headroom = priv->tx_headroom;
+		return 0;
+	}
+
+	/* Try to move the data inside the buffer just enough to align it and
+	 * store the xdpf backpointer. If the available headroom isn't large
+	 * enough, resort to allocating a new buffer and copying the data.
+	 */
+	aligned_data = PTR_ALIGN_DOWN(xdpf->data, DPAA_FD_DATA_ALIGNMENT);
+	data_shift = xdpf->data - aligned_data;
+
+	/* The XDP frame's headroom needs to be large enough to accommodate
+	 * shifting the data as well as storing the xdpf backpointer.
+	 */
+	if (xdpf->headroom  >= data_shift + priv->tx_headroom) {
+		memmove(aligned_data, xdpf->data, xdpf->len);
+		xdpf->data = aligned_data;
+		xdpf->headroom = priv->tx_headroom;
+		return 0;
+	}
+
+	/* The new xdp_frame is stored in the new buffer. Reserve enough space
+	 * in the headroom for storing it along with the driver's private
+	 * info. The headroom needs to be aligned to DPAA_FD_DATA_ALIGNMENT to
+	 * guarantee the data's alignment in the buffer.
+	 */
+	headroom = ALIGN(sizeof(*new_xdpf) + priv->tx_headroom,
+			 DPAA_FD_DATA_ALIGNMENT);
+
+	/* Assure the extended headroom and data don't overflow the buffer,
+	 * while maintaining the mandatory tailroom.
+	 */
+	if (headroom + xdpf->len > DPAA_BP_RAW_SIZE -
+			SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+		return -ENOMEM;
+
+	p = dev_alloc_pages(0);
+	if (unlikely(!p))
+		return -ENOMEM;
+
+	/* Copy the data to the new buffer at a properly aligned offset */
+	new_buff = page_address(p);
+	memcpy(new_buff + headroom, xdpf->data, xdpf->len);
+
+	/* Create an XDP frame around the new buffer in a similar fashion
+	 * to xdp_convert_buff_to_frame.
+	 */
+	new_xdpf = new_buff;
+	new_xdpf->data = new_buff + headroom;
+	new_xdpf->len = xdpf->len;
+	new_xdpf->headroom = priv->tx_headroom;
+	new_xdpf->frame_sz = DPAA_BP_RAW_SIZE;
+	new_xdpf->mem.type = MEM_TYPE_PAGE_ORDER0;
+
+	/* Release the initial buffer */
+	xdp_return_frame_rx_napi(xdpf);
+
+	*init_xdpf = new_xdpf;
 	return 0;
 }
 #endif
@@ -2183,7 +2305,7 @@ dpaa_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 
 #ifdef CONFIG_DPAA_ERRATUM_A050385
 	if (unlikely(fman_has_errata_a050385())) {
-		if (dpaa_a050385_wa(net_dev, &skb))
+		if (dpaa_a050385_wa_skb(net_dev, &skb))
 			goto enomem;
 		nonlinear = skb_is_nonlinear(skb);
 	}
@@ -2267,8 +2389,11 @@ static int dpaa_eth_poll(struct napi_struct *napi, int budget)
 {
 	struct dpaa_napi_portal *np =
 			container_of(napi, struct dpaa_napi_portal, napi);
+	int cleaned;
 
-	int cleaned = qman_p_poll_dqrr(np->p, budget);
+	np->xdp_act = 0;
+
+	cleaned = qman_p_poll_dqrr(np->p, budget);
 
 	if (cleaned < budget) {
 		napi_complete_done(napi, cleaned);
@@ -2276,6 +2401,9 @@ static int dpaa_eth_poll(struct napi_struct *napi, int budget)
 	} else if (np->down) {
 		qman_p_irqsource_add(np->p, QM_PIRQ_DQRI);
 	}
+
+	if (np->xdp_act & XDP_REDIRECT)
+		xdp_do_flush();
 
 	return cleaned;
 }
@@ -2305,9 +2433,9 @@ static void dpaa_tx_conf(struct net_device *net_dev,
 }
 
 static inline int dpaa_eth_napi_schedule(struct dpaa_percpu_priv *percpu_priv,
-					 struct qman_portal *portal)
+					 struct qman_portal *portal, bool sched_napi)
 {
-	if (unlikely(in_irq() || !in_serving_softirq())) {
+	if (sched_napi) {
 		/* Disable QMan IRQ and invoke NAPI */
 		qman_p_irqsource_remove(portal, QM_PIRQ_DQRI);
 
@@ -2321,7 +2449,8 @@ static inline int dpaa_eth_napi_schedule(struct dpaa_percpu_priv *percpu_priv,
 
 static enum qman_cb_dqrr_result rx_error_dqrr(struct qman_portal *portal,
 					      struct qman_fq *fq,
-					      const struct qm_dqrr_entry *dq)
+					      const struct qm_dqrr_entry *dq,
+					      bool sched_napi)
 {
 	struct dpaa_fq *dpaa_fq = container_of(fq, struct dpaa_fq, fq_base);
 	struct dpaa_percpu_priv *percpu_priv;
@@ -2337,7 +2466,7 @@ static enum qman_cb_dqrr_result rx_error_dqrr(struct qman_portal *portal,
 
 	percpu_priv = this_cpu_ptr(priv->percpu_priv);
 
-	if (dpaa_eth_napi_schedule(percpu_priv, portal))
+	if (dpaa_eth_napi_schedule(percpu_priv, portal, sched_napi))
 		return qman_cb_dqrr_stop;
 
 	dpaa_eth_refill_bpools(priv);
@@ -2346,29 +2475,205 @@ static enum qman_cb_dqrr_result rx_error_dqrr(struct qman_portal *portal,
 	return qman_cb_dqrr_consume;
 }
 
+static int dpaa_xdp_xmit_frame(struct net_device *net_dev,
+			       struct xdp_frame *xdpf)
+{
+	struct dpaa_priv *priv = netdev_priv(net_dev);
+	struct rtnl_link_stats64 *percpu_stats;
+	struct dpaa_percpu_priv *percpu_priv;
+	struct dpaa_eth_swbp *swbp;
+	struct netdev_queue *txq;
+	void *buff_start;
+	struct qm_fd fd;
+	dma_addr_t addr;
+	int err;
+
+	percpu_priv = this_cpu_ptr(priv->percpu_priv);
+	percpu_stats = &percpu_priv->stats;
+
+#ifdef CONFIG_DPAA_ERRATUM_A050385
+	if (unlikely(fman_has_errata_a050385())) {
+		if (dpaa_a050385_wa_xdpf(priv, &xdpf)) {
+			err = -ENOMEM;
+			goto out_error;
+		}
+	}
+#endif
+
+	if (xdpf->headroom < DPAA_TX_PRIV_DATA_SIZE) {
+		err = -EINVAL;
+		goto out_error;
+	}
+
+	buff_start = xdpf->data - xdpf->headroom;
+
+	/* Leave empty the skb backpointer at the start of the buffer.
+	 * Save the XDP frame for easy cleanup on confirmation.
+	 */
+	swbp = (struct dpaa_eth_swbp *)buff_start;
+	swbp->skb = NULL;
+	swbp->xdpf = xdpf;
+
+	qm_fd_clear_fd(&fd);
+	fd.bpid = FSL_DPAA_BPID_INV;
+	fd.cmd |= cpu_to_be32(FM_FD_CMD_FCO);
+	qm_fd_set_contig(&fd, xdpf->headroom, xdpf->len);
+
+	addr = dma_map_single(priv->tx_dma_dev, buff_start,
+			      xdpf->headroom + xdpf->len,
+			      DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(priv->tx_dma_dev, addr))) {
+		err = -EINVAL;
+		goto out_error;
+	}
+
+	qm_fd_addr_set64(&fd, addr);
+
+	/* Bump the trans_start */
+	txq = netdev_get_tx_queue(net_dev, smp_processor_id());
+	txq->trans_start = jiffies;
+
+	err = dpaa_xmit(priv, percpu_stats, smp_processor_id(), &fd);
+	if (err) {
+		dma_unmap_single(priv->tx_dma_dev, addr,
+				 qm_fd_get_offset(&fd) + qm_fd_get_length(&fd),
+				 DMA_TO_DEVICE);
+		goto out_error;
+	}
+
+	return 0;
+
+out_error:
+	percpu_stats->tx_errors++;
+	return err;
+}
+
+static u32 dpaa_run_xdp(struct dpaa_priv *priv, struct qm_fd *fd, void *vaddr,
+			struct dpaa_fq *dpaa_fq, unsigned int *xdp_meta_len)
+{
+	ssize_t fd_off = qm_fd_get_offset(fd);
+	struct bpf_prog *xdp_prog;
+	struct xdp_frame *xdpf;
+	struct xdp_buff xdp;
+	u32 xdp_act;
+	int err;
+
+	rcu_read_lock();
+
+	xdp_prog = READ_ONCE(priv->xdp_prog);
+	if (!xdp_prog) {
+		rcu_read_unlock();
+		return XDP_PASS;
+	}
+
+	xdp_init_buff(&xdp, DPAA_BP_RAW_SIZE - DPAA_TX_PRIV_DATA_SIZE,
+		      &dpaa_fq->xdp_rxq);
+	xdp_prepare_buff(&xdp, vaddr + fd_off - XDP_PACKET_HEADROOM,
+			 XDP_PACKET_HEADROOM, qm_fd_get_length(fd), true);
+
+	/* We reserve a fixed headroom of 256 bytes under the erratum and we
+	 * offer it all to XDP programs to use. If no room is left for the
+	 * xdpf backpointer on TX, we will need to copy the data.
+	 * Disable metadata support since data realignments might be required
+	 * and the information can be lost.
+	 */
+#ifdef CONFIG_DPAA_ERRATUM_A050385
+	if (unlikely(fman_has_errata_a050385())) {
+		xdp_set_data_meta_invalid(&xdp);
+		xdp.data_hard_start = vaddr;
+		xdp.frame_sz = DPAA_BP_RAW_SIZE;
+	}
+#endif
+
+	xdp_act = bpf_prog_run_xdp(xdp_prog, &xdp);
+
+	/* Update the length and the offset of the FD */
+	qm_fd_set_contig(fd, xdp.data - vaddr, xdp.data_end - xdp.data);
+
+	switch (xdp_act) {
+	case XDP_PASS:
+#ifdef CONFIG_DPAA_ERRATUM_A050385
+		*xdp_meta_len = xdp_data_meta_unsupported(&xdp) ? 0 :
+				xdp.data - xdp.data_meta;
+#else
+		*xdp_meta_len = xdp.data - xdp.data_meta;
+#endif
+		break;
+	case XDP_TX:
+		/* We can access the full headroom when sending the frame
+		 * back out
+		 */
+		xdp.data_hard_start = vaddr;
+		xdp.frame_sz = DPAA_BP_RAW_SIZE;
+		xdpf = xdp_convert_buff_to_frame(&xdp);
+		if (unlikely(!xdpf)) {
+			free_pages((unsigned long)vaddr, 0);
+			break;
+		}
+
+		if (dpaa_xdp_xmit_frame(priv->net_dev, xdpf))
+			xdp_return_frame_rx_napi(xdpf);
+
+		break;
+	case XDP_REDIRECT:
+		/* Allow redirect to use the full headroom */
+		xdp.data_hard_start = vaddr;
+		xdp.frame_sz = DPAA_BP_RAW_SIZE;
+
+		err = xdp_do_redirect(priv->net_dev, &xdp, xdp_prog);
+		if (err) {
+			trace_xdp_exception(priv->net_dev, xdp_prog, xdp_act);
+			free_pages((unsigned long)vaddr, 0);
+		}
+		break;
+	default:
+		bpf_warn_invalid_xdp_action(xdp_act);
+		fallthrough;
+	case XDP_ABORTED:
+		trace_xdp_exception(priv->net_dev, xdp_prog, xdp_act);
+		fallthrough;
+	case XDP_DROP:
+		/* Free the buffer */
+		free_pages((unsigned long)vaddr, 0);
+		break;
+	}
+
+	rcu_read_unlock();
+
+	return xdp_act;
+}
+
 static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 						struct qman_fq *fq,
-						const struct qm_dqrr_entry *dq)
+						const struct qm_dqrr_entry *dq,
+						bool sched_napi)
 {
+	bool ts_valid = false, hash_valid = false;
 	struct skb_shared_hwtstamps *shhwtstamps;
+	unsigned int skb_len, xdp_meta_len = 0;
 	struct rtnl_link_stats64 *percpu_stats;
 	struct dpaa_percpu_priv *percpu_priv;
 	const struct qm_fd *fd = &dq->fd;
 	dma_addr_t addr = qm_fd_addr(fd);
+	struct dpaa_napi_portal *np;
 	enum qm_fd_format fd_format;
 	struct net_device *net_dev;
 	u32 fd_status, hash_offset;
+	struct qm_sg_entry *sgt;
 	struct dpaa_bp *dpaa_bp;
+	struct dpaa_fq *dpaa_fq;
 	struct dpaa_priv *priv;
-	unsigned int skb_len;
 	struct sk_buff *skb;
 	int *count_ptr;
+	u32 xdp_act;
 	void *vaddr;
+	u32 hash;
 	u64 ns;
 
+	dpaa_fq = container_of(fq, struct dpaa_fq, fq_base);
 	fd_status = be32_to_cpu(fd->status);
 	fd_format = qm_fd_get_format(fd);
-	net_dev = ((struct dpaa_fq *)fq)->net_dev;
+	net_dev = dpaa_fq->net_dev;
 	priv = netdev_priv(net_dev);
 	dpaa_bp = dpaa_bpid2pool(dq->fd.bpid);
 	if (!dpaa_bp)
@@ -2379,8 +2684,9 @@ static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 
 	percpu_priv = this_cpu_ptr(priv->percpu_priv);
 	percpu_stats = &percpu_priv->stats;
+	np = &percpu_priv->np;
 
-	if (unlikely(dpaa_eth_napi_schedule(percpu_priv, portal)))
+	if (unlikely(dpaa_eth_napi_schedule(percpu_priv, portal, sched_napi)))
 		return qman_cb_dqrr_stop;
 
 	/* Make sure we didn't run out of buffers */
@@ -2419,35 +2725,68 @@ static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 	count_ptr = this_cpu_ptr(dpaa_bp->percpu_count);
 	(*count_ptr)--;
 
-	if (likely(fd_format == qm_fd_contig))
+	/* Extract the timestamp stored in the headroom before running XDP */
+	if (priv->rx_tstamp) {
+		if (!fman_port_get_tstamp(priv->mac_dev->port[RX], vaddr, &ns))
+			ts_valid = true;
+		else
+			WARN_ONCE(1, "fman_port_get_tstamp failed!\n");
+	}
+
+	/* Extract the hash stored in the headroom before running XDP */
+	if (net_dev->features & NETIF_F_RXHASH && priv->keygen_in_use &&
+	    !fman_port_get_hash_result_offset(priv->mac_dev->port[RX],
+					      &hash_offset)) {
+		hash = be32_to_cpu(*(u32 *)(vaddr + hash_offset));
+		hash_valid = true;
+	}
+
+	if (likely(fd_format == qm_fd_contig)) {
+		xdp_act = dpaa_run_xdp(priv, (struct qm_fd *)fd, vaddr,
+				       dpaa_fq, &xdp_meta_len);
+		np->xdp_act |= xdp_act;
+		if (xdp_act != XDP_PASS) {
+			percpu_stats->rx_packets++;
+			percpu_stats->rx_bytes += qm_fd_get_length(fd);
+			return qman_cb_dqrr_consume;
+		}
 		skb = contig_fd_to_skb(priv, fd);
-	else
+	} else {
+		/* XDP doesn't support S/G frames. Return the fragments to the
+		 * buffer pool and release the SGT.
+		 */
+		if (READ_ONCE(priv->xdp_prog)) {
+			WARN_ONCE(1, "S/G frames not supported under XDP\n");
+			sgt = vaddr + qm_fd_get_offset(fd);
+			dpaa_release_sgt_members(sgt);
+			free_pages((unsigned long)vaddr, 0);
+			return qman_cb_dqrr_consume;
+		}
 		skb = sg_fd_to_skb(priv, fd);
+	}
 	if (!skb)
 		return qman_cb_dqrr_consume;
 
-	if (priv->rx_tstamp) {
+	if (xdp_meta_len)
+		skb_metadata_set(skb, xdp_meta_len);
+
+	/* Set the previously extracted timestamp */
+	if (ts_valid) {
 		shhwtstamps = skb_hwtstamps(skb);
 		memset(shhwtstamps, 0, sizeof(*shhwtstamps));
-
-		if (!fman_port_get_tstamp(priv->mac_dev->port[RX], vaddr, &ns))
-			shhwtstamps->hwtstamp = ns_to_ktime(ns);
-		else
-			dev_warn(net_dev->dev.parent, "fman_port_get_tstamp failed!\n");
+		shhwtstamps->hwtstamp = ns_to_ktime(ns);
 	}
 
 	skb->protocol = eth_type_trans(skb, net_dev);
 
-	if (net_dev->features & NETIF_F_RXHASH && priv->keygen_in_use &&
-	    !fman_port_get_hash_result_offset(priv->mac_dev->port[RX],
-					      &hash_offset)) {
+	/* Set the previously extracted hash */
+	if (hash_valid) {
 		enum pkt_hash_types type;
 
 		/* if L4 exists, it was used in the hash generation */
 		type = be32_to_cpu(fd->status) & FM_FD_STAT_L4CV ?
 			PKT_HASH_TYPE_L4 : PKT_HASH_TYPE_L3;
-		skb_set_hash(skb, be32_to_cpu(*(u32 *)(vaddr + hash_offset)),
-			     type);
+		skb_set_hash(skb, hash, type);
 	}
 
 	skb_len = skb->len;
@@ -2465,7 +2804,8 @@ static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 
 static enum qman_cb_dqrr_result conf_error_dqrr(struct qman_portal *portal,
 						struct qman_fq *fq,
-						const struct qm_dqrr_entry *dq)
+						const struct qm_dqrr_entry *dq,
+						bool sched_napi)
 {
 	struct dpaa_percpu_priv *percpu_priv;
 	struct net_device *net_dev;
@@ -2476,7 +2816,7 @@ static enum qman_cb_dqrr_result conf_error_dqrr(struct qman_portal *portal,
 
 	percpu_priv = this_cpu_ptr(priv->percpu_priv);
 
-	if (dpaa_eth_napi_schedule(percpu_priv, portal))
+	if (dpaa_eth_napi_schedule(percpu_priv, portal, sched_napi))
 		return qman_cb_dqrr_stop;
 
 	dpaa_tx_error(net_dev, priv, percpu_priv, &dq->fd, fq->fqid);
@@ -2486,7 +2826,8 @@ static enum qman_cb_dqrr_result conf_error_dqrr(struct qman_portal *portal,
 
 static enum qman_cb_dqrr_result conf_dflt_dqrr(struct qman_portal *portal,
 					       struct qman_fq *fq,
-					       const struct qm_dqrr_entry *dq)
+					       const struct qm_dqrr_entry *dq,
+					       bool sched_napi)
 {
 	struct dpaa_percpu_priv *percpu_priv;
 	struct net_device *net_dev;
@@ -2500,7 +2841,7 @@ static enum qman_cb_dqrr_result conf_dflt_dqrr(struct qman_portal *portal,
 
 	percpu_priv = this_cpu_ptr(priv->percpu_priv);
 
-	if (dpaa_eth_napi_schedule(percpu_priv, portal))
+	if (dpaa_eth_napi_schedule(percpu_priv, portal, sched_napi))
 		return qman_cb_dqrr_stop;
 
 	dpaa_tx_conf(net_dev, priv, percpu_priv, &dq->fd, fq->fqid);
@@ -2546,7 +2887,7 @@ static void dpaa_eth_napi_enable(struct dpaa_priv *priv)
 	for_each_online_cpu(i) {
 		percpu_priv = per_cpu_ptr(priv->percpu_priv, i);
 
-		percpu_priv->np.down = 0;
+		percpu_priv->np.down = false;
 		napi_enable(&percpu_priv->np.napi);
 	}
 }
@@ -2559,7 +2900,7 @@ static void dpaa_eth_napi_disable(struct dpaa_priv *priv)
 	for_each_online_cpu(i) {
 		percpu_priv = per_cpu_ptr(priv->percpu_priv, i);
 
-		percpu_priv->np.down = 1;
+		percpu_priv->np.down = true;
 		napi_disable(&percpu_priv->np.napi);
 	}
 }
@@ -2665,6 +3006,101 @@ static int dpaa_eth_stop(struct net_device *net_dev)
 	return err;
 }
 
+static bool xdp_validate_mtu(struct dpaa_priv *priv, int mtu)
+{
+	int max_contig_data = priv->dpaa_bp->size - priv->rx_headroom;
+
+	/* We do not support S/G fragments when XDP is enabled.
+	 * Limit the MTU in relation to the buffer size.
+	 */
+	if (mtu + VLAN_ETH_HLEN + ETH_FCS_LEN > max_contig_data) {
+		dev_warn(priv->net_dev->dev.parent,
+			 "The maximum MTU for XDP is %d\n",
+			 max_contig_data - VLAN_ETH_HLEN - ETH_FCS_LEN);
+		return false;
+	}
+
+	return true;
+}
+
+static int dpaa_change_mtu(struct net_device *net_dev, int new_mtu)
+{
+	struct dpaa_priv *priv = netdev_priv(net_dev);
+
+	if (priv->xdp_prog && !xdp_validate_mtu(priv, new_mtu))
+		return -EINVAL;
+
+	net_dev->mtu = new_mtu;
+	return 0;
+}
+
+static int dpaa_setup_xdp(struct net_device *net_dev, struct netdev_bpf *bpf)
+{
+	struct dpaa_priv *priv = netdev_priv(net_dev);
+	struct bpf_prog *old_prog;
+	int err;
+	bool up;
+
+	/* S/G fragments are not supported in XDP-mode */
+	if (bpf->prog && !xdp_validate_mtu(priv, net_dev->mtu)) {
+		NL_SET_ERR_MSG_MOD(bpf->extack, "MTU too large for XDP");
+		return -EINVAL;
+	}
+
+	up = netif_running(net_dev);
+
+	if (up)
+		dpaa_eth_stop(net_dev);
+
+	old_prog = xchg(&priv->xdp_prog, bpf->prog);
+	if (old_prog)
+		bpf_prog_put(old_prog);
+
+	if (up) {
+		err = dpaa_open(net_dev);
+		if (err) {
+			NL_SET_ERR_MSG_MOD(bpf->extack, "dpaa_open() failed");
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+static int dpaa_xdp(struct net_device *net_dev, struct netdev_bpf *xdp)
+{
+	switch (xdp->command) {
+	case XDP_SETUP_PROG:
+		return dpaa_setup_xdp(net_dev, xdp);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int dpaa_xdp_xmit(struct net_device *net_dev, int n,
+			 struct xdp_frame **frames, u32 flags)
+{
+	struct xdp_frame *xdpf;
+	int i, err, drops = 0;
+
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
+		return -EINVAL;
+
+	if (!netif_running(net_dev))
+		return -ENETDOWN;
+
+	for (i = 0; i < n; i++) {
+		xdpf = frames[i];
+		err = dpaa_xdp_xmit_frame(net_dev, xdpf);
+		if (err) {
+			xdp_return_frame_rx_napi(xdpf);
+			drops++;
+		}
+	}
+
+	return n - drops;
+}
+
 static int dpaa_ts_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct dpaa_priv *priv = netdev_priv(dev);
@@ -2731,6 +3167,9 @@ static const struct net_device_ops dpaa_ops = {
 	.ndo_set_rx_mode = dpaa_set_rx_mode,
 	.ndo_do_ioctl = dpaa_ioctl,
 	.ndo_setup_tc = dpaa_setup_tc,
+	.ndo_change_mtu = dpaa_change_mtu,
+	.ndo_bpf = dpaa_xdp,
+	.ndo_xdp_xmit = dpaa_xdp_xmit,
 };
 
 static int dpaa_napi_add(struct net_device *net_dev)
@@ -2862,10 +3301,16 @@ static u16 dpaa_get_headroom(struct dpaa_buffer_layout *bl,
 	 */
 	headroom = (u16)(bl[port].priv_data_size + DPAA_HWA_SIZE);
 
-	if (port == RX)
+	if (port == RX) {
+#ifdef CONFIG_DPAA_ERRATUM_A050385
+		if (unlikely(fman_has_errata_a050385()))
+			headroom = XDP_PACKET_HEADROOM;
+#endif
+
 		return ALIGN(headroom, DPAA_FD_RX_DATA_ALIGNMENT);
-	else
+	} else {
 		return ALIGN(headroom, DPAA_FD_DATA_ALIGNMENT);
+	}
 }
 
 static int dpaa_eth_probe(struct platform_device *pdev)

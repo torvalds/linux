@@ -28,7 +28,7 @@ struct time_travel_event {
 
 extern enum time_travel_mode time_travel_mode;
 
-void time_travel_sleep(unsigned long long duration);
+void time_travel_sleep(void);
 
 static inline void
 time_travel_set_event_fn(struct time_travel_event *e,
@@ -60,7 +60,7 @@ struct time_travel_event {
 
 #define time_travel_mode TT_MODE_OFF
 
-static inline void time_travel_sleep(unsigned long long duration)
+static inline void time_travel_sleep(void)
 {
 }
 

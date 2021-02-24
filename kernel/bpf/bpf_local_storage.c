@@ -67,7 +67,8 @@ bpf_selem_alloc(struct bpf_local_storage_map *smap, void *owner,
 	if (charge_mem && mem_charge(smap, owner, smap->elem_size))
 		return NULL;
 
-	selem = kzalloc(smap->elem_size, GFP_ATOMIC | __GFP_NOWARN);
+	selem = bpf_map_kzalloc(&smap->map, smap->elem_size,
+				GFP_ATOMIC | __GFP_NOWARN);
 	if (selem) {
 		if (value)
 			memcpy(SDATA(selem)->data, value, smap->map.value_size);
@@ -264,7 +265,8 @@ int bpf_local_storage_alloc(void *owner,
 	if (err)
 		return err;
 
-	storage = kzalloc(sizeof(*storage), GFP_ATOMIC | __GFP_NOWARN);
+	storage = bpf_map_kzalloc(&smap->map, sizeof(*storage),
+				  GFP_ATOMIC | __GFP_NOWARN);
 	if (!storage) {
 		err = -ENOMEM;
 		goto uncharge;
@@ -543,10 +545,8 @@ struct bpf_local_storage_map *bpf_local_storage_map_alloc(union bpf_attr *attr)
 	struct bpf_local_storage_map *smap;
 	unsigned int i;
 	u32 nbuckets;
-	u64 cost;
-	int ret;
 
-	smap = kzalloc(sizeof(*smap), GFP_USER | __GFP_NOWARN);
+	smap = kzalloc(sizeof(*smap), GFP_USER | __GFP_NOWARN | __GFP_ACCOUNT);
 	if (!smap)
 		return ERR_PTR(-ENOMEM);
 	bpf_map_init_from_attr(&smap->map, attr);
@@ -555,18 +555,10 @@ struct bpf_local_storage_map *bpf_local_storage_map_alloc(union bpf_attr *attr)
 	/* Use at least 2 buckets, select_bucket() is undefined behavior with 1 bucket */
 	nbuckets = max_t(u32, 2, nbuckets);
 	smap->bucket_log = ilog2(nbuckets);
-	cost = sizeof(*smap->buckets) * nbuckets + sizeof(*smap);
-
-	ret = bpf_map_charge_init(&smap->map.memory, cost);
-	if (ret < 0) {
-		kfree(smap);
-		return ERR_PTR(ret);
-	}
 
 	smap->buckets = kvcalloc(sizeof(*smap->buckets), nbuckets,
-				 GFP_USER | __GFP_NOWARN);
+				 GFP_USER | __GFP_NOWARN | __GFP_ACCOUNT);
 	if (!smap->buckets) {
-		bpf_map_charge_finish(&smap->map.memory);
 		kfree(smap);
 		return ERR_PTR(-ENOMEM);
 	}

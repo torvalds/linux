@@ -24,6 +24,21 @@ struct iio_map_internal {
 static LIST_HEAD(iio_map_list);
 static DEFINE_MUTEX(iio_map_list_lock);
 
+static int iio_map_array_unregister_locked(struct iio_dev *indio_dev)
+{
+	int ret = -ENODEV;
+	struct iio_map_internal *mapi, *next;
+
+	list_for_each_entry_safe(mapi, next, &iio_map_list, l) {
+		if (indio_dev == mapi->indio_dev) {
+			list_del(&mapi->l);
+			kfree(mapi);
+			ret = 0;
+		}
+	}
+	return ret;
+}
+
 int iio_map_array_register(struct iio_dev *indio_dev, struct iio_map *maps)
 {
 	int i = 0, ret = 0;
@@ -45,6 +60,8 @@ int iio_map_array_register(struct iio_dev *indio_dev, struct iio_map *maps)
 		i++;
 	}
 error_ret:
+	if (ret)
+		iio_map_array_unregister_locked(indio_dev);
 	mutex_unlock(&iio_map_list_lock);
 
 	return ret;
@@ -57,18 +74,12 @@ EXPORT_SYMBOL_GPL(iio_map_array_register);
  */
 int iio_map_array_unregister(struct iio_dev *indio_dev)
 {
-	int ret = -ENODEV;
-	struct iio_map_internal *mapi, *next;
+	int ret;
 
 	mutex_lock(&iio_map_list_lock);
-	list_for_each_entry_safe(mapi, next, &iio_map_list, l) {
-		if (indio_dev == mapi->indio_dev) {
-			list_del(&mapi->l);
-			kfree(mapi);
-			ret = 0;
-		}
-	}
+	ret = iio_map_array_unregister_locked(indio_dev);
 	mutex_unlock(&iio_map_list_lock);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(iio_map_array_unregister);
@@ -180,8 +191,8 @@ err_free_channel:
 	return ERR_PTR(err);
 }
 
-static struct iio_channel *of_iio_channel_get_by_name(struct device_node *np,
-						      const char *name)
+struct iio_channel *of_iio_channel_get_by_name(struct device_node *np,
+					       const char *name)
 {
 	struct iio_channel *chan = NULL;
 
@@ -219,6 +230,7 @@ static struct iio_channel *of_iio_channel_get_by_name(struct device_node *np,
 
 	return chan;
 }
+EXPORT_SYMBOL_GPL(of_iio_channel_get_by_name);
 
 static struct iio_channel *of_iio_channel_get_all(struct device *dev)
 {
@@ -260,12 +272,6 @@ error_free_chans:
 }
 
 #else /* CONFIG_OF */
-
-static inline struct iio_channel *
-of_iio_channel_get_by_name(struct device_node *np, const char *name)
-{
-	return NULL;
-}
 
 static inline struct iio_channel *of_iio_channel_get_all(struct device *dev)
 {
@@ -381,6 +387,29 @@ struct iio_channel *devm_iio_channel_get(struct device *dev,
 	return channel;
 }
 EXPORT_SYMBOL_GPL(devm_iio_channel_get);
+
+struct iio_channel *devm_of_iio_channel_get_by_name(struct device *dev,
+						    struct device_node *np,
+						    const char *channel_name)
+{
+	struct iio_channel **ptr, *channel;
+
+	ptr = devres_alloc(devm_iio_channel_free, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	channel = of_iio_channel_get_by_name(np, channel_name);
+	if (IS_ERR(channel)) {
+		devres_free(ptr);
+		return channel;
+	}
+
+	*ptr = channel;
+	devres_add(dev, ptr);
+
+	return channel;
+}
+EXPORT_SYMBOL_GPL(devm_of_iio_channel_get_by_name);
 
 struct iio_channel *iio_channel_get_all(struct device *dev)
 {

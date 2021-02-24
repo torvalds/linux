@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2012-2020  B.A.T.M.A.N. contributors:
+/* Copyright (C) B.A.T.M.A.N. contributors:
  *
  * Martin Hundebøll, Jeppe Ledet-Pedersen
  */
@@ -11,7 +11,6 @@
 #include <linux/bitops.h>
 #include <linux/byteorder/generic.h>
 #include <linux/compiler.h>
-#include <linux/debugfs.h>
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
 #include <linux/gfp.h>
@@ -30,7 +29,6 @@
 #include <linux/printk.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
-#include <linux/seq_file.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -39,7 +37,6 @@
 #include <linux/workqueue.h>
 #include <uapi/linux/batadv_packet.h>
 
-#include "hard-interface.h"
 #include "hash.h"
 #include "log.h"
 #include "originator.h"
@@ -1876,87 +1873,3 @@ void batadv_nc_mesh_free(struct batadv_priv *bat_priv)
 	batadv_nc_purge_paths(bat_priv, bat_priv->nc.decoding_hash, NULL);
 	batadv_hash_destroy(bat_priv->nc.decoding_hash);
 }
-
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
-/**
- * batadv_nc_nodes_seq_print_text() - print the nc node information
- * @seq: seq file to print on
- * @offset: not used
- *
- * Return: always 0
- */
-int batadv_nc_nodes_seq_print_text(struct seq_file *seq, void *offset)
-{
-	struct net_device *net_dev = (struct net_device *)seq->private;
-	struct batadv_priv *bat_priv = netdev_priv(net_dev);
-	struct batadv_hashtable *hash = bat_priv->orig_hash;
-	struct batadv_hard_iface *primary_if;
-	struct hlist_head *head;
-	struct batadv_orig_node *orig_node;
-	struct batadv_nc_node *nc_node;
-	int i;
-
-	primary_if = batadv_seq_print_text_primary_if_get(seq);
-	if (!primary_if)
-		goto out;
-
-	/* Traverse list of originators */
-	for (i = 0; i < hash->size; i++) {
-		head = &hash->table[i];
-
-		/* For each orig_node in this bin */
-		rcu_read_lock();
-		hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
-			/* no need to print the orig node if it does not have
-			 * network coding neighbors
-			 */
-			if (list_empty(&orig_node->in_coding_list) &&
-			    list_empty(&orig_node->out_coding_list))
-				continue;
-
-			seq_printf(seq, "Node:      %pM\n", orig_node->orig);
-
-			seq_puts(seq, " Ingoing:  ");
-			/* For each in_nc_node to this orig_node */
-			list_for_each_entry_rcu(nc_node,
-						&orig_node->in_coding_list,
-						list)
-				seq_printf(seq, "%pM ",
-					   nc_node->addr);
-			seq_puts(seq, "\n Outgoing: ");
-			/* For out_nc_node to this orig_node */
-			list_for_each_entry_rcu(nc_node,
-						&orig_node->out_coding_list,
-						list)
-				seq_printf(seq, "%pM ",
-					   nc_node->addr);
-			seq_puts(seq, "\n\n");
-		}
-		rcu_read_unlock();
-	}
-
-out:
-	if (primary_if)
-		batadv_hardif_put(primary_if);
-	return 0;
-}
-
-/**
- * batadv_nc_init_debugfs() - create nc folder and related files in debugfs
- * @bat_priv: the bat priv with all the soft interface information
- */
-void batadv_nc_init_debugfs(struct batadv_priv *bat_priv)
-{
-	struct dentry *nc_dir;
-
-	nc_dir = debugfs_create_dir("nc", bat_priv->debug_dir);
-
-	debugfs_create_u8("min_tq", 0644, nc_dir, &bat_priv->nc.min_tq);
-
-	debugfs_create_u32("max_fwd_delay", 0644, nc_dir,
-			   &bat_priv->nc.max_fwd_delay);
-
-	debugfs_create_u32("max_buffer_time", 0644, nc_dir,
-			   &bat_priv->nc.max_buffer_time);
-}
-#endif

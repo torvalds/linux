@@ -5,6 +5,7 @@
 #include "ste-ab8505.dtsi"
 #include "ste-dbx5x0-pinctrl.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
@@ -72,7 +73,7 @@
 
 	soc {
 		/* External Micro SD card slot */
-		sdi0_per1@80126000 {
+		mmc@80126000 {
 			status = "okay";
 
 			arm,primecell-periphid = <0x10480180>;
@@ -100,7 +101,7 @@
 		};
 
 		/* WLAN SDIO */
-		sdi1_per2@80118000 {
+		mmc@80118000 {
 			status = "okay";
 
 			arm,primecell-periphid = <0x10480180>;
@@ -134,7 +135,7 @@
 		};
 
 		/* eMMC */
-		sdi2_per3@80005000 {
+		mmc@80005000 {
 			status = "okay";
 
 			arm,primecell-periphid = <0x10480180>;
@@ -260,6 +261,11 @@
 				interrupt-parent = <&gpio6>;
 				interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
 
+				/* VDDA is "analog supply", 2.57-3.47 V */
+				vdda-supply = <&ab8500_ldo_aux2_reg>;
+				/* VDD is "digital supply" 1.71-3.47V */
+				vdd-supply = <&ab8500_ldo_aux5_reg>;
+
 				pinctrl-names = "default";
 				pinctrl-0 = <&tsp_default>;
 			};
@@ -284,7 +290,6 @@
 						regulator-name = "vreg_tsp_a3v3";
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
-						regulator-always-on; /* FIXME */
 					};
 
 					ab8500_ldo_aux3 {
@@ -301,7 +306,6 @@
 						regulator-name = "vreg_tsp_1v8";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
-						regulator-always-on; /* FIXME */
 					};
 
 					ab8500_ldo_aux6 {
@@ -322,10 +326,11 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&dsi_default_mode>;
 
-			dsi-controller@a0351000 {
+			dsi@a0351000 {
 				panel@0 {
 					compatible = "samsung,s6e63m0";
 					reg = <0>;
+					max-brightness = <15>;
 					vdd3-supply = <&panel_reg_3v0>;
 					vci-supply = <&panel_reg_1v8>;
 					reset-gpios = <&gpio4 11 GPIO_ACTIVE_LOW>;
@@ -367,6 +372,32 @@
 			/* GPIO91 (HOME_KEY) */
 			gpios = <&gpio2 27 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOMEPAGE>;
+		};
+	};
+
+	/* Richtek RT8515GQW Flash LED Driver IC */
+	flash {
+		compatible = "richtek,rt8515";
+		/* GPIO 140 */
+		enf-gpios = <&gpio4 12 GPIO_ACTIVE_HIGH>;
+		/* GPIO 141 */
+		ent-gpios = <&gpio4 13 GPIO_ACTIVE_HIGH>;
+		/*
+		 * RFS is 16 kOhm and RTS is 100 kOhm giving
+		 * the flash max current 343mA and torch max
+		 * current 55 mA.
+		 */
+		richtek,rfs-ohms = <16000>;
+		richtek,rts-ohms = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_flash_default_mode>;
+
+		led {
+			function = LED_FUNCTION_FLASH;
+			color = <LED_COLOR_ID_WHITE>;
+			flash-max-timeout-us = <250000>;
+			flash-max-microamp = <343750>;
+			led-max-microamp = <55000>;
 		};
 	};
 
@@ -491,6 +522,15 @@
 				pins = "GPIO77",	/* TOUCHKEY_SCL */
 				       "GPIO78";	/* TOUCHKEY_SDA */
 				ste,config = <&gpio_in_nopull>;
+			};
+		};
+	};
+
+	flash {
+		gpio_flash_default_mode: flash_default {
+			golden_cfg1 {
+				pins = "GPIO140_B11", "GPIO141_C12";
+				ste,config = <&gpio_out_lo>;
 			};
 		};
 	};

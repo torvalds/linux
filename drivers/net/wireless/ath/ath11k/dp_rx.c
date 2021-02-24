@@ -274,6 +274,28 @@ static void ath11k_dp_service_mon_ring(struct timer_list *t)
 		  msecs_to_jiffies(ATH11K_MON_TIMER_INTERVAL));
 }
 
+static int ath11k_dp_purge_mon_ring(struct ath11k_base *ab)
+{
+	int i, reaped = 0;
+	unsigned long timeout = jiffies + msecs_to_jiffies(DP_MON_PURGE_TIMEOUT_MS);
+
+	do {
+		for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++)
+			reaped += ath11k_dp_rx_process_mon_rings(ab, i,
+								 NULL,
+								 DP_MON_SERVICE_BUDGET);
+
+		/* nothing more to reap */
+		if (reaped < DP_MON_SERVICE_BUDGET)
+			return 0;
+
+	} while (time_before(jiffies, timeout));
+
+	ath11k_warn(ab, "dp mon ring purge timeout");
+
+	return -ETIMEDOUT;
+}
+
 /* Returns number of Rx buffers replenished */
 int ath11k_dp_rxbufs_replenish(struct ath11k_base *ab, int mac_id,
 			       struct dp_rxdma_ring *rx_ring,
@@ -377,7 +399,7 @@ static int ath11k_dp_rxdma_buf_ring_free(struct ath11k *ar,
 	spin_lock_bh(&rx_ring->idr_lock);
 	idr_for_each_entry(&rx_ring->bufs_idr, skb, buf_id) {
 		idr_remove(&rx_ring->bufs_idr, buf_id);
-		/* TODO: Understand where internal driver does this dma_unmap of
+		/* TODO: Understand where internal driver does this dma_unmap
 		 * of rxdma_buffer.
 		 */
 		dma_unmap_single(ar->ab->dev, ATH11K_SKB_RXCB(skb)->paddr,
@@ -399,7 +421,7 @@ static int ath11k_dp_rxdma_buf_ring_free(struct ath11k *ar,
 	spin_lock_bh(&rx_ring->idr_lock);
 	idr_for_each_entry(&rx_ring->bufs_idr, skb, buf_id) {
 		idr_remove(&rx_ring->bufs_idr, buf_id);
-		/* XXX: Understand where internal driver does this dma_unmap of
+		/* XXX: Understand where internal driver does this dma_unmap
 		 * of rxdma_buffer.
 		 */
 		dma_unmap_single(ar->ab->dev, ATH11K_SKB_RXCB(skb)->paddr,
@@ -960,7 +982,7 @@ int ath11k_peer_rx_tid_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id,
 
 	rx_tid->ba_win_sz = ba_win_sz;
 
-	/* TODO: Optimize the memory allocation for qos tid based on the
+	/* TODO: Optimize the memory allocation for qos tid based on
 	 * the actual BA window size in REO tid update path.
 	 */
 	if (tid == HAL_DESC_REO_NON_QOS_TID)
@@ -1141,7 +1163,7 @@ int ath11k_dp_peer_rx_pn_replay_config(struct ath11k_vif *arvif,
 		}
 	}
 
-	spin_unlock_bh(&ar->ab->base_lock);
+	spin_unlock_bh(&ab->base_lock);
 
 	return ret;
 }
@@ -1270,7 +1292,7 @@ int ath11k_dp_htt_tlv_iter(struct ath11k_base *ab, const void *ptr, size_t len,
 		len -= sizeof(*tlv);
 
 		if (tlv_len > len) {
-			ath11k_err(ab, "htt tlv parse failure of tag %hhu at byte %zd (%zu bytes left, %hhu expected)\n",
+			ath11k_err(ab, "htt tlv parse failure of tag %u at byte %zd (%zu bytes left, %u expected)\n",
 				   tlv_tag, ptr - begin, len, tlv_len);
 			return -EINVAL;
 		}
@@ -1359,22 +1381,22 @@ ath11k_update_per_peer_tx_stats(struct ath11k *ar,
 	 */
 
 	if (flags == WMI_RATE_PREAMBLE_HE && mcs > 11) {
-		ath11k_warn(ab, "Invalid HE mcs %hhd peer stats",  mcs);
+		ath11k_warn(ab, "Invalid HE mcs %d peer stats",  mcs);
 		return;
 	}
 
 	if (flags == WMI_RATE_PREAMBLE_HE && mcs > ATH11K_HE_MCS_MAX) {
-		ath11k_warn(ab, "Invalid HE mcs %hhd peer stats",  mcs);
+		ath11k_warn(ab, "Invalid HE mcs %d peer stats",  mcs);
 		return;
 	}
 
 	if (flags == WMI_RATE_PREAMBLE_VHT && mcs > ATH11K_VHT_MCS_MAX) {
-		ath11k_warn(ab, "Invalid VHT mcs %hhd peer stats",  mcs);
+		ath11k_warn(ab, "Invalid VHT mcs %d peer stats",  mcs);
 		return;
 	}
 
 	if (flags == WMI_RATE_PREAMBLE_HT && (mcs > ATH11K_HT_MCS_MAX || nss < 1)) {
-		ath11k_warn(ab, "Invalid HT mcs %hhd nss %hhd peer stats",
+		ath11k_warn(ab, "Invalid HT mcs %d nss %d peer stats",
 			    mcs, nss);
 		return;
 	}
@@ -1630,6 +1652,7 @@ void ath11k_dp_htt_htc_t2h_msg_handler(struct ath11k_base *ab,
 	u8 mac_addr[ETH_ALEN];
 	u16 peer_mac_h16;
 	u16 ast_hash;
+	u16 hw_peer_id;
 
 	ath11k_dbg(ab, ATH11K_DBG_DP_HTT, "dp_htt rx msg type :0x%0x\n", type);
 
@@ -1650,7 +1673,7 @@ void ath11k_dp_htt_htc_t2h_msg_handler(struct ath11k_base *ab,
 					 resp->peer_map_ev.info1);
 		ath11k_dp_get_mac_addr(resp->peer_map_ev.mac_addr_l32,
 				       peer_mac_h16, mac_addr);
-		ath11k_peer_map_event(ab, vdev_id, peer_id, mac_addr, 0);
+		ath11k_peer_map_event(ab, vdev_id, peer_id, mac_addr, 0, 0);
 		break;
 	case HTT_T2H_MSG_TYPE_PEER_MAP2:
 		vdev_id = FIELD_GET(HTT_T2H_PEER_MAP_INFO_VDEV_ID,
@@ -1663,7 +1686,10 @@ void ath11k_dp_htt_htc_t2h_msg_handler(struct ath11k_base *ab,
 				       peer_mac_h16, mac_addr);
 		ast_hash = FIELD_GET(HTT_T2H_PEER_MAP_INFO2_AST_HASH_VAL,
 				     resp->peer_map_ev.info2);
-		ath11k_peer_map_event(ab, vdev_id, peer_id, mac_addr, ast_hash);
+		hw_peer_id = FIELD_GET(HTT_T2H_PEER_MAP_INFO1_HW_PEER_ID,
+				       resp->peer_map_ev.info1);
+		ath11k_peer_map_event(ab, vdev_id, peer_id, mac_addr, ast_hash,
+				      hw_peer_id);
 		break;
 	case HTT_T2H_MSG_TYPE_PEER_UNMAP:
 	case HTT_T2H_MSG_TYPE_PEER_UNMAP2:
@@ -2272,6 +2298,7 @@ static void ath11k_dp_rx_h_ppdu(struct ath11k *ar, struct hal_rx_desc *rx_desc,
 {
 	u8 channel_num;
 	u32 center_freq;
+	struct ieee80211_channel *channel;
 
 	rx_status->freq = 0;
 	rx_status->rate_idx = 0;
@@ -2292,9 +2319,12 @@ static void ath11k_dp_rx_h_ppdu(struct ath11k *ar, struct hal_rx_desc *rx_desc,
 		rx_status->band = NL80211_BAND_5GHZ;
 	} else {
 		spin_lock_bh(&ar->data_lock);
-		rx_status->band = ar->rx_channel->band;
-		channel_num =
-			ieee80211_frequency_to_channel(ar->rx_channel->center_freq);
+		channel = ar->rx_channel;
+		if (channel) {
+			rx_status->band = channel->band;
+			channel_num =
+				ieee80211_frequency_to_channel(channel->center_freq);
+		}
 		spin_unlock_bh(&ar->data_lock);
 		ath11k_dbg_dump(ar->ab, ATH11K_DBG_DATA, NULL, "rx_desc: ",
 				rx_desc, sizeof(struct hal_rx_desc));
@@ -2715,7 +2745,7 @@ static struct sk_buff *ath11k_dp_rx_alloc_mon_status_buf(struct ath11k_base *ab,
 
 	paddr = dma_map_single(ab->dev, skb->data,
 			       skb->len + skb_tailroom(skb),
-			       DMA_BIDIRECTIONAL);
+			       DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(ab->dev, paddr)))
 		goto fail_free_skb;
 
@@ -2731,7 +2761,7 @@ static struct sk_buff *ath11k_dp_rx_alloc_mon_status_buf(struct ath11k_base *ab,
 
 fail_dma_unmap:
 	dma_unmap_single(ab->dev, paddr, skb->len + skb_tailroom(skb),
-			 DMA_BIDIRECTIONAL);
+			 DMA_FROM_DEVICE);
 fail_free_skb:
 	dev_kfree_skb_any(skb);
 fail_alloc_skb:
@@ -2795,7 +2825,7 @@ fail_desc_get:
 	idr_remove(&rx_ring->bufs_idr, buf_id);
 	spin_unlock_bh(&rx_ring->idr_lock);
 	dma_unmap_single(ab->dev, paddr, skb->len + skb_tailroom(skb),
-			 DMA_BIDIRECTIONAL);
+			 DMA_FROM_DEVICE);
 	dev_kfree_skb_any(skb);
 	ath11k_hal_srng_access_end(ab, srng);
 	spin_unlock_bh(&srng->lock);
@@ -2856,13 +2886,9 @@ static int ath11k_dp_rx_reap_mon_status_ring(struct ath11k_base *ab, int mac_id,
 
 			rxcb = ATH11K_SKB_RXCB(skb);
 
-			dma_sync_single_for_cpu(ab->dev, rxcb->paddr,
-						skb->len + skb_tailroom(skb),
-						DMA_FROM_DEVICE);
-
 			dma_unmap_single(ab->dev, rxcb->paddr,
 					 skb->len + skb_tailroom(skb),
-					 DMA_BIDIRECTIONAL);
+					 DMA_FROM_DEVICE);
 
 			tlv = (struct hal_tlv_hdr *)skb->data;
 			if (FIELD_GET(HAL_TLV_HDR_TAG, tlv->tl) !=
@@ -5028,5 +5054,31 @@ static int ath11k_dp_mon_link_free(struct ath11k *ar)
 int ath11k_dp_rx_pdev_mon_detach(struct ath11k *ar)
 {
 	ath11k_dp_mon_link_free(ar);
+	return 0;
+}
+
+int ath11k_dp_rx_pktlog_start(struct ath11k_base *ab)
+{
+	/* start reap timer */
+	mod_timer(&ab->mon_reap_timer,
+		  jiffies + msecs_to_jiffies(ATH11K_MON_TIMER_INTERVAL));
+
+	return 0;
+}
+
+int ath11k_dp_rx_pktlog_stop(struct ath11k_base *ab, bool stop_timer)
+{
+	int ret;
+
+	if (stop_timer)
+		del_timer_sync(&ab->mon_reap_timer);
+
+	/* reap all the monitor related rings */
+	ret = ath11k_dp_purge_mon_ring(ab);
+	if (ret) {
+		ath11k_warn(ab, "failed to purge dp mon ring: %d\n", ret);
+		return ret;
+	}
+
 	return 0;
 }

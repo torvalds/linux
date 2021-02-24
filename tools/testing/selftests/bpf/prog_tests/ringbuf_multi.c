@@ -81,7 +81,7 @@ void test_ringbuf_multi(void)
 
 	/* poll for samples, should get 2 ringbufs back */
 	err = ring_buffer__poll(ringbuf, -1);
-	if (CHECK(err != 4, "poll_res", "expected 4 records, got %d\n", err))
+	if (CHECK(err != 2, "poll_res", "expected 2 records, got %d\n", err))
 		goto cleanup;
 
 	/* expect extra polling to return nothing */

@@ -502,7 +502,6 @@ static struct i2c_driver adm1266_driver = {
 		   .of_match_table = adm1266_of_match,
 		  },
 	.probe_new = adm1266_probe,
-	.remove = pmbus_do_remove,
 	.id_table = adm1266_id,
 };
 

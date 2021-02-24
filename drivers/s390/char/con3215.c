@@ -289,16 +289,14 @@ static void raw3215_timeout(struct timer_list *t)
 
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
 	raw->flags &= ~RAW3215_TIMER_RUNS;
-	if (!tty_port_suspended(&raw->port)) {
-		raw3215_mk_write_req(raw);
-		raw3215_start_io(raw);
-		if ((raw->queued_read || raw->queued_write) &&
-		    !(raw->flags & RAW3215_WORKING) &&
-		    !(raw->flags & RAW3215_TIMER_RUNS)) {
-			raw->timer.expires = RAW3215_TIMEOUT + jiffies;
-			add_timer(&raw->timer);
-			raw->flags |= RAW3215_TIMER_RUNS;
-		}
+	raw3215_mk_write_req(raw);
+	raw3215_start_io(raw);
+	if ((raw->queued_read || raw->queued_write) &&
+	    !(raw->flags & RAW3215_WORKING) &&
+	    !(raw->flags & RAW3215_TIMER_RUNS)) {
+		raw->timer.expires = RAW3215_TIMEOUT + jiffies;
+		add_timer(&raw->timer);
+		raw->flags |= RAW3215_TIMER_RUNS;
 	}
 	spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
 }
@@ -311,7 +309,7 @@ static void raw3215_timeout(struct timer_list *t)
  */
 static inline void raw3215_try_io(struct raw3215_info *raw)
 {
-	if (!tty_port_initialized(&raw->port) || tty_port_suspended(&raw->port))
+	if (!tty_port_initialized(&raw->port))
 		return;
 	if (raw->queued_read != NULL)
 		raw3215_start_io(raw);
@@ -464,26 +462,6 @@ put_tty:
 }
 
 /*
- * Drop the oldest line from the output buffer.
- */
-static void raw3215_drop_line(struct raw3215_info *raw)
-{
-	int ix;
-	char ch;
-
-	BUG_ON(raw->written != 0);
-	ix = (raw->head - raw->count) & (RAW3215_BUFFER_SIZE - 1);
-	while (raw->count > 0) {
-		ch = raw->buffer[ix];
-		ix = (ix + 1) & (RAW3215_BUFFER_SIZE - 1);
-		raw->count--;
-		if (ch == 0x15)
-			break;
-	}
-	raw->head = ix;
-}
-
-/*
  * Wait until length bytes are available int the output buffer.
  * Has to be called with the s390irq lock held. Can be called
  * disabled.
@@ -491,13 +469,6 @@ static void raw3215_drop_line(struct raw3215_info *raw)
 static void raw3215_make_room(struct raw3215_info *raw, unsigned int length)
 {
 	while (RAW3215_BUFFER_SIZE - raw->count < length) {
-		/* While console is frozen for suspend we have no other
-		 * choice but to drop message from the buffer to make
-		 * room for even more messages. */
-		if (tty_port_suspended(&raw->port)) {
-			raw3215_drop_line(raw);
-			continue;
-		}
 		/* there might be a request pending */
 		raw->flags |= RAW3215_FLUSHING;
 		raw3215_mk_write_req(raw);
@@ -763,36 +734,6 @@ static int raw3215_set_offline (struct ccw_device *cdev)
 	return 0;
 }
 
-static int raw3215_pm_stop(struct ccw_device *cdev)
-{
-	struct raw3215_info *raw;
-	unsigned long flags;
-
-	/* Empty the output buffer, then prevent new I/O. */
-	raw = dev_get_drvdata(&cdev->dev);
-	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
-	raw3215_make_room(raw, RAW3215_BUFFER_SIZE);
-	tty_port_set_suspended(&raw->port, 1);
-	spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
-	return 0;
-}
-
-static int raw3215_pm_start(struct ccw_device *cdev)
-{
-	struct raw3215_info *raw;
-	unsigned long flags;
-
-	/* Allow I/O again and flush output buffer. */
-	raw = dev_get_drvdata(&cdev->dev);
-	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
-	tty_port_set_suspended(&raw->port, 0);
-	raw->flags |= RAW3215_FLUSHING;
-	raw3215_try_io(raw);
-	raw->flags &= ~RAW3215_FLUSHING;
-	spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
-	return 0;
-}
-
 static struct ccw_device_id raw3215_id[] = {
 	{ CCW_DEVICE(0x3215, 0) },
 	{ /* end of list */ },
@@ -808,9 +749,6 @@ static struct ccw_driver raw3215_ccw_driver = {
 	.remove		= &raw3215_remove,
 	.set_online	= &raw3215_set_online,
 	.set_offline	= &raw3215_set_offline,
-	.freeze		= &raw3215_pm_stop,
-	.thaw		= &raw3215_pm_start,
-	.restore	= &raw3215_pm_start,
 	.int_class	= IRQIO_C15,
 };
 
@@ -858,11 +796,6 @@ static void con3215_flush(void)
 	unsigned long flags;
 
 	raw = raw3215[0];  /* console 3215 is the first one */
-	if (tty_port_suspended(&raw->port))
-		/* The console is still frozen for suspend. */
-		if (ccw_device_force_console(raw->cdev))
-			/* Forcing didn't work, no panic message .. */
-			return;
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
 	raw3215_make_room(raw, RAW3215_BUFFER_SIZE);
 	spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
@@ -981,7 +914,6 @@ static int tty3215_open(struct tty_struct *tty, struct file * filp)
 
 	tty_port_tty_set(&raw->port, tty);
 
-	raw->port.low_latency = 0; /* don't use bottom half for pushing chars */
 	/*
 	 * Start up 3215 device
 	 */

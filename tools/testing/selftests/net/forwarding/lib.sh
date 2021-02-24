@@ -42,6 +42,47 @@ check_tc_version()
 	fi
 }
 
+# Old versions of tc don't understand "mpls_uc"
+check_tc_mpls_support()
+{
+	local dev=$1; shift
+
+	tc filter add dev $dev ingress protocol mpls_uc pref 1 handle 1 \
+		matchall action pipe &> /dev/null
+	if [[ $? -ne 0 ]]; then
+		echo "SKIP: iproute2 too old; tc is missing MPLS support"
+		return 1
+	fi
+	tc filter del dev $dev ingress protocol mpls_uc pref 1 handle 1 \
+		matchall
+}
+
+# Old versions of tc produce invalid json output for mpls lse statistics
+check_tc_mpls_lse_stats()
+{
+	local dev=$1; shift
+	local ret;
+
+	tc filter add dev $dev ingress protocol mpls_uc pref 1 handle 1 \
+		flower mpls lse depth 2                                 \
+		action continue &> /dev/null
+
+	if [[ $? -ne 0 ]]; then
+		echo "SKIP: iproute2 too old; tc-flower is missing extended MPLS support"
+		return 1
+	fi
+
+	tc -j filter show dev $dev ingress protocol mpls_uc | jq . &> /dev/null
+	ret=$?
+	tc filter del dev $dev ingress protocol mpls_uc pref 1 handle 1 \
+		flower
+
+	if [[ $ret -ne 0 ]]; then
+		echo "SKIP: iproute2 too old; tc-flower produces invalid json output for extended MPLS filters"
+		return 1
+	fi
+}
+
 check_tc_shblock_support()
 {
 	tc filter help 2>&1 | grep block &> /dev/null
@@ -65,6 +106,15 @@ check_tc_action_hw_stats_support()
 	tc actions help 2>&1 | grep -q hw_stats
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: iproute2 too old; tc is missing action hw_stats support"
+		exit 1
+	fi
+}
+
+check_ethtool_lanes_support()
+{
+	ethtool --help 2>&1| grep lanes &> /dev/null
+	if [[ $? -ne 0 ]]; then
+		echo "SKIP: ethtool too old; it is missing lanes support"
 		exit 1
 	fi
 }
@@ -263,6 +313,20 @@ not()
 	[[ $? != 0 ]]
 }
 
+get_max()
+{
+	local arr=("$@")
+
+	max=${arr[0]}
+	for cur in ${arr[@]}; do
+		if [[ $cur -gt $max ]]; then
+			max=$cur
+		fi
+	done
+
+	echo $max
+}
+
 grep_bridge_fdb()
 {
 	local addr=$1; shift
@@ -277,6 +341,11 @@ grep_bridge_fdb()
 	fi
 
 	$@ | grep $addr | grep $flag "$word"
+}
+
+wait_for_port_up()
+{
+	"$@" | grep -q "Link detected: yes"
 }
 
 wait_for_offload()
@@ -1269,4 +1338,111 @@ tcpdump_cleanup()
 tcpdump_show()
 {
 	tcpdump -e -n -r $capfile 2>&1
+}
+
+# return 0 if the packet wasn't seen on host2_if or 1 if it was
+mcast_packet_test()
+{
+	local mac=$1
+	local src_ip=$2
+	local ip=$3
+	local host1_if=$4
+	local host2_if=$5
+	local seen=0
+	local tc_proto="ip"
+	local mz_v6arg=""
+
+	# basic check to see if we were passed an IPv4 address, if not assume IPv6
+	if [[ ! $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+		tc_proto="ipv6"
+		mz_v6arg="-6"
+	fi
+
+	# Add an ACL on `host2_if` which will tell us whether the packet
+	# was received by it or not.
+	tc qdisc add dev $host2_if ingress
+	tc filter add dev $host2_if ingress protocol $tc_proto pref 1 handle 101 \
+		flower ip_proto udp dst_mac $mac action drop
+
+	$MZ $host1_if $mz_v6arg -c 1 -p 64 -b $mac -A $src_ip -B $ip -t udp "dp=4096,sp=2048" -q
+	sleep 1
+
+	tc -j -s filter show dev $host2_if ingress \
+		| jq -e ".[] | select(.options.handle == 101) \
+		| select(.options.actions[0].stats.packets == 1)" &> /dev/null
+	if [[ $? -eq 0 ]]; then
+		seen=1
+	fi
+
+	tc filter del dev $host2_if ingress protocol $tc_proto pref 1 handle 101 flower
+	tc qdisc del dev $host2_if ingress
+
+	return $seen
+}
+
+brmcast_check_sg_entries()
+{
+	local report=$1; shift
+	local slist=("$@")
+	local sarg=""
+
+	for src in "${slist[@]}"; do
+		sarg="${sarg} and .source_list[].address == \"$src\""
+	done
+	bridge -j -d -s mdb show dev br0 \
+		| jq -e ".[].mdb[] | \
+			 select(.grp == \"$TEST_GROUP\" and .source_list != null $sarg)" &>/dev/null
+	check_err $? "Wrong *,G entry source list after $report report"
+
+	for sgent in "${slist[@]}"; do
+		bridge -j -d -s mdb show dev br0 \
+			| jq -e ".[].mdb[] | \
+				 select(.grp == \"$TEST_GROUP\" and .src == \"$sgent\")" &>/dev/null
+		check_err $? "Missing S,G entry ($sgent, $TEST_GROUP)"
+	done
+}
+
+brmcast_check_sg_fwding()
+{
+	local should_fwd=$1; shift
+	local sources=("$@")
+
+	for src in "${sources[@]}"; do
+		local retval=0
+
+		mcast_packet_test $TEST_GROUP_MAC $src $TEST_GROUP $h2 $h1
+		retval=$?
+		if [ $should_fwd -eq 1 ]; then
+			check_fail $retval "Didn't forward traffic from S,G ($src, $TEST_GROUP)"
+		else
+			check_err $retval "Forwarded traffic for blocked S,G ($src, $TEST_GROUP)"
+		fi
+	done
+}
+
+brmcast_check_sg_state()
+{
+	local is_blocked=$1; shift
+	local sources=("$@")
+	local should_fail=1
+
+	if [ $is_blocked -eq 1 ]; then
+		should_fail=0
+	fi
+
+	for src in "${sources[@]}"; do
+		bridge -j -d -s mdb show dev br0 \
+			| jq -e ".[].mdb[] | \
+				 select(.grp == \"$TEST_GROUP\" and .source_list != null) |
+				 .source_list[] |
+				 select(.address == \"$src\") |
+				 select(.timer == \"0.00\")" &>/dev/null
+		check_err_fail $should_fail $? "Entry $src has zero timer"
+
+		bridge -j -d -s mdb show dev br0 \
+			| jq -e ".[].mdb[] | \
+				 select(.grp == \"$TEST_GROUP\" and .src == \"$src\" and \
+				 .flags[] == \"blocked\")" &>/dev/null
+		check_err_fail $should_fail $? "Entry $src has blocked flag"
+	done
 }

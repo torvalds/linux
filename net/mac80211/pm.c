@@ -1,4 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
+/*
+ * Portions
+ * Copyright (C) 2020-2021 Intel Corporation
+ */
 #include <net/mac80211.h>
 #include <net/rtnetlink.h>
 
@@ -11,7 +15,7 @@ static void ieee80211_sched_scan_cancel(struct ieee80211_local *local)
 {
 	if (ieee80211_request_sched_scan_stop(local))
 		return;
-	cfg80211_sched_scan_stopped_rtnl(local->hw.wiphy, 0);
+	cfg80211_sched_scan_stopped_locked(local->hw.wiphy, 0);
 }
 
 int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
@@ -149,21 +153,6 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 			continue;
 		case NL80211_IFTYPE_STATION:
 			ieee80211_mgd_quiesce(sdata);
-			break;
-		case NL80211_IFTYPE_WDS:
-			/* tear down aggregation sessions and remove STAs */
-			mutex_lock(&local->sta_mtx);
-			sta = sdata->u.wds.sta;
-			if (sta && sta->uploaded) {
-				enum ieee80211_sta_state state;
-
-				state = sta->sta_state;
-				for (; state > IEEE80211_STA_NOTEXIST; state--)
-					WARN_ON(drv_sta_state(local, sta->sdata,
-							      sta, state,
-							      state - 1));
-			}
-			mutex_unlock(&local->sta_mtx);
 			break;
 		default:
 			break;

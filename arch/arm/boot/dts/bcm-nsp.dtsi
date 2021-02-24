@@ -385,12 +385,12 @@
 			clock-names = "apb_pclk";
 		};
 
-		srab: srab@36000 {
+		srab: ethernet-switch@36000 {
 			compatible = "brcm,nsp-srab";
 			reg = <0x36000 0x1000>,
 			      <0x3f308 0x8>,
 			      <0x3f410 0xc>;
-			reg-names = "srab", "mux_config", "sgmii";
+			reg-names = "srab", "mux_config", "sgmii_config";
 			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>,
@@ -420,6 +420,10 @@
 			status = "disabled";
 
 			/* ports are defined in board DTS */
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 
 		i2c0: i2c@38000 {

@@ -2503,28 +2503,52 @@ static int validate_and_copy_dec_ttl(struct net *net,
 				     __be16 eth_type, __be16 vlan_tci,
 				     u32 mpls_label_count, bool log)
 {
-	int start, err;
-	u32 nested = true;
+	const struct nlattr *attrs[OVS_DEC_TTL_ATTR_MAX + 1];
+	int start, action_start, err, rem;
+	const struct nlattr *a, *actions;
 
-	if (!nla_len(attr))
-		return ovs_nla_add_action(sfa, OVS_ACTION_ATTR_DEC_TTL,
-					  NULL, 0, log);
+	memset(attrs, 0, sizeof(attrs));
+	nla_for_each_nested(a, attr, rem) {
+		int type = nla_type(a);
+
+		/* Ignore unknown attributes to be future proof. */
+		if (type > OVS_DEC_TTL_ATTR_MAX)
+			continue;
+
+		if (!type || attrs[type]) {
+			OVS_NLERR(log, "Duplicate or invalid key (type %d).",
+				  type);
+			return -EINVAL;
+		}
+
+		attrs[type] = a;
+	}
+
+	if (rem) {
+		OVS_NLERR(log, "Message has %d unknown bytes.", rem);
+		return -EINVAL;
+	}
+
+	actions = attrs[OVS_DEC_TTL_ATTR_ACTION];
+	if (!actions || (nla_len(actions) && nla_len(actions) < NLA_HDRLEN)) {
+		OVS_NLERR(log, "Missing valid actions attribute.");
+		return -EINVAL;
+	}
 
 	start = add_nested_action_start(sfa, OVS_ACTION_ATTR_DEC_TTL, log);
 	if (start < 0)
 		return start;
 
-	err = ovs_nla_add_action(sfa, OVS_DEC_TTL_ATTR_ACTION, &nested,
-				 sizeof(nested), log);
+	action_start = add_nested_action_start(sfa, OVS_DEC_TTL_ATTR_ACTION, log);
+	if (action_start < 0)
+		return action_start;
 
-	if (err)
-		return err;
-
-	err = __ovs_nla_copy_actions(net, attr, key, sfa, eth_type,
+	err = __ovs_nla_copy_actions(net, actions, key, sfa, eth_type,
 				     vlan_tci, mpls_label_count, log);
 	if (err)
 		return err;
 
+	add_nested_action_end(*sfa, action_start);
 	add_nested_action_end(*sfa, start);
 	return 0;
 }
@@ -3487,20 +3511,42 @@ out:
 static int dec_ttl_action_to_attr(const struct nlattr *attr,
 				  struct sk_buff *skb)
 {
-	int err = 0, rem = nla_len(attr);
-	struct nlattr *start;
+	struct nlattr *start, *action_start;
+	const struct nlattr *a;
+	int err = 0, rem;
 
 	start = nla_nest_start_noflag(skb, OVS_ACTION_ATTR_DEC_TTL);
-
 	if (!start)
 		return -EMSGSIZE;
 
-	err = ovs_nla_put_actions(nla_data(attr), rem, skb);
-	if (err)
-		nla_nest_cancel(skb, start);
-	else
-		nla_nest_end(skb, start);
+	nla_for_each_attr(a, nla_data(attr), nla_len(attr), rem) {
+		switch (nla_type(a)) {
+		case OVS_DEC_TTL_ATTR_ACTION:
 
+			action_start = nla_nest_start_noflag(skb, OVS_DEC_TTL_ATTR_ACTION);
+			if (!action_start) {
+				err = -EMSGSIZE;
+				goto out;
+			}
+
+			err = ovs_nla_put_actions(nla_data(a), nla_len(a), skb);
+			if (err)
+				goto out;
+
+			nla_nest_end(skb, action_start);
+			break;
+
+		default:
+			/* Ignore all other option to be future compatible */
+			break;
+		}
+	}
+
+	nla_nest_end(skb, start);
+	return 0;
+
+out:
+	nla_nest_cancel(skb, start);
 	return err;
 }
 

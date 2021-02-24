@@ -143,21 +143,6 @@
 	.macro MODRM mod opd1 opd2
 	.byte \mod | (\opd1 & 7) | ((\opd2 & 7) << 3)
 	.endm
-
-.macro RDPID opd
-	REG_TYPE rdpid_opd_type \opd
-	.if rdpid_opd_type == REG_TYPE_R64
-	R64_NUM rdpid_opd \opd
-	.else
-	R32_NUM rdpid_opd \opd
-	.endif
-	.byte 0xf3
-	.if rdpid_opd > 7
-	PFX_REX rdpid_opd 0
-	.endif
-	.byte 0x0f, 0xc7
-	MODRM 0xc0 rdpid_opd 0x7
-.endm
 #endif
 
 #endif

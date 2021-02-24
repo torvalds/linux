@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Adam Sampson <ats@offog.org>
+ * Copyright 2015-2020 Adam Sampson <ats@offog.org>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -72,14 +72,12 @@
 	leds {
 		compatible = "gpio-leds";
 
-		/* Marked "LED3" on the PCB. */
-		usr1 {
+		led-3 {
 			label = "pcduino3-nano:green:usr1";
 			gpios = <&pio 7 16 GPIO_ACTIVE_LOW>; /* PH16 */
 		};
 
-		/* Marked "LED4" on the PCB. */
-		usr2 {
+		led-4 {
 			label = "pcduino3-nano:green:usr2";
 			gpios = <&pio 7 15 GPIO_ACTIVE_LOW>; /* PH15 */
 		};
@@ -115,7 +113,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac_rgmii_pins>;
 	phy-handle = <&phy1>;
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-id";
 	status = "okay";
 };
 

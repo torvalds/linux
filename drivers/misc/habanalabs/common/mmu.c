@@ -9,7 +9,7 @@
 
 #include "habanalabs.h"
 
-static bool is_dram_va(struct hl_device *hdev, u64 virt_addr)
+bool hl_is_dram_va(struct hl_device *hdev, u64 virt_addr)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 
@@ -22,18 +22,25 @@ static bool is_dram_va(struct hl_device *hdev, u64 virt_addr)
  * hl_mmu_init() - initialize the MMU module.
  * @hdev: habanalabs device structure.
  *
- * This function does the following:
- * - Create a pool of pages for pgt_infos.
- * - Create a shadow table for pgt
- *
  * Return: 0 for success, non-zero for failure.
  */
 int hl_mmu_init(struct hl_device *hdev)
 {
-	if (hdev->mmu_enable)
-		return hdev->mmu_func.init(hdev);
+	int rc = -EOPNOTSUPP;
 
-	return 0;
+	if (!hdev->mmu_enable)
+		return 0;
+
+	if (hdev->mmu_func[MMU_DR_PGT].init != NULL) {
+		rc = hdev->mmu_func[MMU_DR_PGT].init(hdev);
+		if (rc)
+			return rc;
+	}
+
+	if (hdev->mmu_func[MMU_HR_PGT].init != NULL)
+		rc = hdev->mmu_func[MMU_HR_PGT].init(hdev);
+
+	return rc;
 }
 
 /**
@@ -48,8 +55,14 @@ int hl_mmu_init(struct hl_device *hdev)
  */
 void hl_mmu_fini(struct hl_device *hdev)
 {
-	if (hdev->mmu_enable)
-		hdev->mmu_func.fini(hdev);
+	if (!hdev->mmu_enable)
+		return;
+
+	if (hdev->mmu_func[MMU_DR_PGT].fini != NULL)
+		hdev->mmu_func[MMU_DR_PGT].fini(hdev);
+
+	if (hdev->mmu_func[MMU_HR_PGT].fini != NULL)
+		hdev->mmu_func[MMU_HR_PGT].fini(hdev);
 }
 
 /**
@@ -63,11 +76,23 @@ void hl_mmu_fini(struct hl_device *hdev)
 int hl_mmu_ctx_init(struct hl_ctx *ctx)
 {
 	struct hl_device *hdev = ctx->hdev;
+	int rc = -EOPNOTSUPP;
 
-	if (hdev->mmu_enable)
-		return hdev->mmu_func.ctx_init(ctx);
+	if (!hdev->mmu_enable)
+		return 0;
 
-	return 0;
+	mutex_init(&ctx->mmu_lock);
+
+	if (hdev->mmu_func[MMU_DR_PGT].ctx_init != NULL) {
+		rc = hdev->mmu_func[MMU_DR_PGT].ctx_init(ctx);
+		if (rc)
+			return rc;
+	}
+
+	if (hdev->mmu_func[MMU_HR_PGT].ctx_init != NULL)
+		rc = hdev->mmu_func[MMU_HR_PGT].ctx_init(ctx);
+
+	return rc;
 }
 
 /*
@@ -84,12 +109,20 @@ void hl_mmu_ctx_fini(struct hl_ctx *ctx)
 {
 	struct hl_device *hdev = ctx->hdev;
 
-	if (hdev->mmu_enable)
-		hdev->mmu_func.ctx_fini(ctx);
+	if (!hdev->mmu_enable)
+		return;
+
+	if (hdev->mmu_func[MMU_DR_PGT].ctx_fini != NULL)
+		hdev->mmu_func[MMU_DR_PGT].ctx_fini(ctx);
+
+	if (hdev->mmu_func[MMU_HR_PGT].ctx_fini != NULL)
+		hdev->mmu_func[MMU_HR_PGT].ctx_fini(ctx);
+
+	mutex_destroy(&ctx->mmu_lock);
 }
 
 /*
- * hl_mmu_unmap - unmaps a virtual addr
+ * hl_mmu_unmap_page - unmaps a virtual addr
  *
  * @ctx: pointer to the context structure
  * @virt_addr: virt addr to map from
@@ -109,7 +142,7 @@ void hl_mmu_ctx_fini(struct hl_ctx *ctx)
  * For optimization reasons PCI flush may be requested once after unmapping of
  * large area.
  */
-int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
+int hl_mmu_unmap_page(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
 		bool flush_pte)
 {
 	struct hl_device *hdev = ctx->hdev;
@@ -117,13 +150,13 @@ int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
 	struct hl_mmu_properties *mmu_prop;
 	u64 real_virt_addr;
 	u32 real_page_size, npages;
-	int i, rc = 0;
+	int i, rc = 0, pgt_residency;
 	bool is_dram_addr;
 
 	if (!hdev->mmu_enable)
 		return 0;
 
-	is_dram_addr = is_dram_va(hdev, virt_addr);
+	is_dram_addr = hl_is_dram_va(hdev, virt_addr);
 
 	if (is_dram_addr)
 		mmu_prop = &prop->dmmu;
@@ -131,6 +164,8 @@ int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
 		mmu_prop = &prop->pmmu_huge;
 	else
 		mmu_prop = &prop->pmmu;
+
+	pgt_residency = mmu_prop->host_resident ? MMU_HR_PGT : MMU_DR_PGT;
 
 	/*
 	 * The H/W handles mapping of specific page sizes. Hence if the page
@@ -150,7 +185,8 @@ int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
 	real_virt_addr = virt_addr;
 
 	for (i = 0 ; i < npages ; i++) {
-		rc = hdev->mmu_func.unmap(ctx, real_virt_addr, is_dram_addr);
+		rc = hdev->mmu_func[pgt_residency].unmap(ctx,
+						real_virt_addr, is_dram_addr);
 		if (rc)
 			break;
 
@@ -158,13 +194,13 @@ int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
 	}
 
 	if (flush_pte)
-		hdev->mmu_func.flush(ctx);
+		hdev->mmu_func[pgt_residency].flush(ctx);
 
 	return rc;
 }
 
 /*
- * hl_mmu_map - maps a virtual addr to physical addr
+ * hl_mmu_map_page - maps a virtual addr to physical addr
  *
  * @ctx: pointer to the context structure
  * @virt_addr: virt addr to map from
@@ -185,21 +221,22 @@ int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
  * For optimization reasons PCI flush may be requested once after mapping of
  * large area.
  */
-int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size,
-		bool flush_pte)
+int hl_mmu_map_page(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
+		u32 page_size, bool flush_pte)
 {
 	struct hl_device *hdev = ctx->hdev;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct hl_mmu_properties *mmu_prop;
 	u64 real_virt_addr, real_phys_addr;
 	u32 real_page_size, npages;
-	int i, rc, mapped_cnt = 0;
+	int i, rc, pgt_residency, mapped_cnt = 0;
 	bool is_dram_addr;
+
 
 	if (!hdev->mmu_enable)
 		return 0;
 
-	is_dram_addr = is_dram_va(hdev, virt_addr);
+	is_dram_addr = hl_is_dram_va(hdev, virt_addr);
 
 	if (is_dram_addr)
 		mmu_prop = &prop->dmmu;
@@ -207,6 +244,8 @@ int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size,
 		mmu_prop = &prop->pmmu_huge;
 	else
 		mmu_prop = &prop->pmmu;
+
+	pgt_residency = mmu_prop->host_resident ? MMU_HR_PGT : MMU_DR_PGT;
 
 	/*
 	 * The H/W handles mapping of specific page sizes. Hence if the page
@@ -216,7 +255,7 @@ int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size,
 		real_page_size = mmu_prop->page_size;
 	} else {
 		dev_err(hdev->dev,
-			"page size of %u is not %uKB aligned, can't unmap\n",
+			"page size of %u is not %uKB aligned, can't map\n",
 			page_size, mmu_prop->page_size >> 10);
 
 		return -EFAULT;
@@ -231,8 +270,9 @@ int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size,
 	real_phys_addr = phys_addr;
 
 	for (i = 0 ; i < npages ; i++) {
-		rc = hdev->mmu_func.map(ctx, real_virt_addr, real_phys_addr,
-				real_page_size, is_dram_addr);
+		rc = hdev->mmu_func[pgt_residency].map(ctx,
+						real_virt_addr, real_phys_addr,
+						real_page_size, is_dram_addr);
 		if (rc)
 			goto err;
 
@@ -242,21 +282,124 @@ int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size,
 	}
 
 	if (flush_pte)
-		hdev->mmu_func.flush(ctx);
+		hdev->mmu_func[pgt_residency].flush(ctx);
 
 	return 0;
 
 err:
 	real_virt_addr = virt_addr;
 	for (i = 0 ; i < mapped_cnt ; i++) {
-		if (hdev->mmu_func.unmap(ctx, real_virt_addr, is_dram_addr))
+		if (hdev->mmu_func[pgt_residency].unmap(ctx,
+						real_virt_addr, is_dram_addr))
 			dev_warn_ratelimited(hdev->dev,
 				"failed to unmap va: 0x%llx\n", real_virt_addr);
 
 		real_virt_addr += real_page_size;
 	}
 
-	hdev->mmu_func.flush(ctx);
+	hdev->mmu_func[pgt_residency].flush(ctx);
+
+	return rc;
+}
+
+/*
+ * hl_mmu_map_contiguous - implements a wrapper for hl_mmu_map_page
+ *                         for mapping contiguous physical memory
+ *
+ * @ctx: pointer to the context structure
+ * @virt_addr: virt addr to map from
+ * @phys_addr: phys addr to map to
+ * @size: size to map
+ *
+ */
+int hl_mmu_map_contiguous(struct hl_ctx *ctx, u64 virt_addr,
+					u64 phys_addr, u32 size)
+{
+	struct hl_device *hdev = ctx->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 curr_va, curr_pa;
+	u32 page_size;
+	bool flush_pte;
+	int rc = 0, off;
+
+	if (hl_mem_area_inside_range(virt_addr, size,
+			prop->dmmu.start_addr, prop->dmmu.end_addr))
+		page_size = prop->dmmu.page_size;
+	else if (hl_mem_area_inside_range(virt_addr, size,
+			prop->pmmu.start_addr, prop->pmmu.end_addr))
+		page_size = prop->pmmu.page_size;
+	else if (hl_mem_area_inside_range(virt_addr, size,
+			prop->pmmu_huge.start_addr, prop->pmmu_huge.end_addr))
+		page_size = prop->pmmu_huge.page_size;
+	else
+		return -EINVAL;
+
+	for (off = 0 ; off < size ; off += page_size) {
+		curr_va = virt_addr + off;
+		curr_pa = phys_addr + off;
+		flush_pte = (off + page_size) >= size;
+		rc = hl_mmu_map_page(ctx, curr_va, curr_pa, page_size,
+								flush_pte);
+		if (rc) {
+			dev_err(hdev->dev,
+				"Map failed for va 0x%llx to pa 0x%llx\n",
+				curr_va, curr_pa);
+			goto unmap;
+		}
+	}
+
+	return rc;
+
+unmap:
+	for (; off >= 0 ; off -= page_size) {
+		curr_va = virt_addr + off;
+		flush_pte = (off - (s32) page_size) < 0;
+		if (hl_mmu_unmap_page(ctx, curr_va, page_size, flush_pte))
+			dev_warn_ratelimited(hdev->dev,
+				"failed to unmap va 0x%llx\n", curr_va);
+	}
+
+	return rc;
+}
+
+/*
+ * hl_mmu_unmap_contiguous - implements a wrapper for hl_mmu_unmap_page
+ *                           for unmapping contiguous physical memory
+ *
+ * @ctx: pointer to the context structure
+ * @virt_addr: virt addr to unmap
+ * @size: size to unmap
+ *
+ */
+int hl_mmu_unmap_contiguous(struct hl_ctx *ctx, u64 virt_addr, u32 size)
+{
+	struct hl_device *hdev = ctx->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 curr_va;
+	u32 page_size;
+	bool flush_pte;
+	int rc = 0, off;
+
+	if (hl_mem_area_inside_range(virt_addr, size,
+			prop->dmmu.start_addr, prop->dmmu.end_addr))
+		page_size = prop->dmmu.page_size;
+	else if (hl_mem_area_inside_range(virt_addr, size,
+			prop->pmmu.start_addr, prop->pmmu.end_addr))
+		page_size = prop->pmmu.page_size;
+	else if (hl_mem_area_inside_range(virt_addr, size,
+			prop->pmmu_huge.start_addr, prop->pmmu_huge.end_addr))
+		page_size = prop->pmmu_huge.page_size;
+	else
+		return -EINVAL;
+
+	for (off = 0 ; off < size ; off += page_size) {
+		curr_va = virt_addr + off;
+		flush_pte = (off + page_size) >= size;
+		rc = hl_mmu_unmap_page(ctx, curr_va, page_size, flush_pte);
+		if (rc)
+			dev_warn_ratelimited(hdev->dev,
+				"Unmap failed for va 0x%llx\n", curr_va);
+	}
 
 	return rc;
 }
@@ -271,8 +414,14 @@ void hl_mmu_swap_out(struct hl_ctx *ctx)
 {
 	struct hl_device *hdev = ctx->hdev;
 
-	if (hdev->mmu_enable)
-		hdev->mmu_func.swap_out(ctx);
+	if (!hdev->mmu_enable)
+		return;
+
+	if (hdev->mmu_func[MMU_DR_PGT].swap_out != NULL)
+		hdev->mmu_func[MMU_DR_PGT].swap_out(ctx);
+
+	if (hdev->mmu_func[MMU_HR_PGT].swap_out != NULL)
+		hdev->mmu_func[MMU_HR_PGT].swap_out(ctx);
 }
 
 /*
@@ -285,8 +434,64 @@ void hl_mmu_swap_in(struct hl_ctx *ctx)
 {
 	struct hl_device *hdev = ctx->hdev;
 
-	if (hdev->mmu_enable)
-		hdev->mmu_func.swap_in(ctx);
+	if (!hdev->mmu_enable)
+		return;
+
+	if (hdev->mmu_func[MMU_DR_PGT].swap_in != NULL)
+		hdev->mmu_func[MMU_DR_PGT].swap_in(ctx);
+
+	if (hdev->mmu_func[MMU_HR_PGT].swap_in != NULL)
+		hdev->mmu_func[MMU_HR_PGT].swap_in(ctx);
+}
+
+int hl_mmu_va_to_pa(struct hl_ctx *ctx, u64 virt_addr, u64 *phys_addr)
+{
+	struct hl_mmu_hop_info hops;
+	u64 tmp_addr;
+	int rc;
+
+	rc = hl_mmu_get_tlb_info(ctx, virt_addr, &hops);
+	if (rc)
+		return rc;
+
+	/* last hop holds the phys address and flags */
+	tmp_addr = hops.hop_info[hops.used_hops - 1].hop_pte_val;
+	*phys_addr = (tmp_addr & HOP_PHYS_ADDR_MASK) | (virt_addr & FLAGS_MASK);
+
+	return 0;
+}
+
+int hl_mmu_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
+			struct hl_mmu_hop_info *hops)
+{
+	struct hl_device *hdev = ctx->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct hl_mmu_properties *mmu_prop;
+	int rc;
+	bool is_dram_addr;
+
+	if (!hdev->mmu_enable)
+		return -EOPNOTSUPP;
+
+	is_dram_addr = hl_mem_area_inside_range(virt_addr, prop->dmmu.page_size,
+						prop->dmmu.start_addr,
+						prop->dmmu.end_addr);
+
+	/* host-residency is the same in PMMU and HPMMU, use one of them */
+	mmu_prop = is_dram_addr ? &prop->dmmu : &prop->pmmu;
+
+	mutex_lock(&ctx->mmu_lock);
+
+	if (mmu_prop->host_resident)
+		rc = hdev->mmu_func[MMU_HR_PGT].get_tlb_info(ctx,
+							virt_addr, hops);
+	else
+		rc = hdev->mmu_func[MMU_DR_PGT].get_tlb_info(ctx,
+							virt_addr, hops);
+
+	mutex_unlock(&ctx->mmu_lock);
+
+	return rc;
 }
 
 int hl_mmu_if_set_funcs(struct hl_device *hdev)
@@ -297,7 +502,7 @@ int hl_mmu_if_set_funcs(struct hl_device *hdev)
 	switch (hdev->asic_type) {
 	case ASIC_GOYA:
 	case ASIC_GAUDI:
-		hl_mmu_v1_set_funcs(hdev);
+		hl_mmu_v1_set_funcs(hdev, &hdev->mmu_func[MMU_DR_PGT]);
 		break;
 	default:
 		dev_err(hdev->dev, "Unrecognized ASIC type %d\n",

@@ -628,4 +628,12 @@ config USB_NET_AQC111
 	  This driver should work with at least the following devices:
 	  * Aquantia AQtion USB to 5GbE
 
+config USB_RTL8153_ECM
+	tristate "RTL8153 ECM support"
+	depends on USB_NET_CDCETHER && (USB_RTL8152 || USB_RTL8152=n)
+	help
+	  This option supports ECM mode for RTL8153 ethernet adapter, when
+	  CONFIG_USB_RTL8152 is not set, or the RTL8153 device is not
+	  supported by r8152 driver.
+
 endif # USB_NET_DRIVERS

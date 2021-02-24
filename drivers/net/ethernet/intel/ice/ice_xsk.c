@@ -260,45 +260,6 @@ free_buf:
 }
 
 /**
- * ice_xsk_alloc_pools - allocate a buffer pool for an XDP socket
- * @vsi: VSI to allocate the buffer pool on
- *
- * Returns 0 on success, negative on error
- */
-static int ice_xsk_alloc_pools(struct ice_vsi *vsi)
-{
-	if (vsi->xsk_pools)
-		return 0;
-
-	vsi->xsk_pools = kcalloc(vsi->num_xsk_pools, sizeof(*vsi->xsk_pools),
-				 GFP_KERNEL);
-
-	if (!vsi->xsk_pools) {
-		vsi->num_xsk_pools = 0;
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
-/**
- * ice_xsk_remove_pool - Remove an buffer pool for a certain ring/qid
- * @vsi: VSI from which the VSI will be removed
- * @qid: Ring/qid associated with the buffer pool
- */
-static void ice_xsk_remove_pool(struct ice_vsi *vsi, u16 qid)
-{
-	vsi->xsk_pools[qid] = NULL;
-	vsi->num_xsk_pools_used--;
-
-	if (vsi->num_xsk_pools_used == 0) {
-		kfree(vsi->xsk_pools);
-		vsi->xsk_pools = NULL;
-		vsi->num_xsk_pools = 0;
-	}
-}
-
-/**
  * ice_xsk_pool_disable - disable a buffer pool region
  * @vsi: Current VSI
  * @qid: queue ID
@@ -307,12 +268,12 @@ static void ice_xsk_remove_pool(struct ice_vsi *vsi, u16 qid)
  */
 static int ice_xsk_pool_disable(struct ice_vsi *vsi, u16 qid)
 {
-	if (!vsi->xsk_pools || qid >= vsi->num_xsk_pools ||
-	    !vsi->xsk_pools[qid])
+	struct xsk_buff_pool *pool = xsk_get_pool_from_qid(vsi->netdev, qid);
+
+	if (!pool)
 		return -EINVAL;
 
-	xsk_pool_dma_unmap(vsi->xsk_pools[qid], ICE_RX_DMA_ATTR);
-	ice_xsk_remove_pool(vsi, qid);
+	xsk_pool_dma_unmap(pool, ICE_RX_DMA_ATTR);
 
 	return 0;
 }
@@ -333,22 +294,11 @@ ice_xsk_pool_enable(struct ice_vsi *vsi, struct xsk_buff_pool *pool, u16 qid)
 	if (vsi->type != ICE_VSI_PF)
 		return -EINVAL;
 
-	if (!vsi->num_xsk_pools)
-		vsi->num_xsk_pools = min_t(u16, vsi->num_rxq, vsi->num_txq);
-	if (qid >= vsi->num_xsk_pools)
+	if (qid >= vsi->netdev->real_num_rx_queues ||
+	    qid >= vsi->netdev->real_num_tx_queues)
 		return -EINVAL;
 
-	err = ice_xsk_alloc_pools(vsi);
-	if (err)
-		return err;
-
-	if (vsi->xsk_pools && vsi->xsk_pools[qid])
-		return -EBUSY;
-
-	vsi->xsk_pools[qid] = pool;
-	vsi->num_xsk_pools_used++;
-
-	err = xsk_pool_dma_map(vsi->xsk_pools[qid], ice_pf_to_dev(vsi->back),
+	err = xsk_pool_dma_map(pool, ice_pf_to_dev(vsi->back),
 			       ICE_RX_DMA_ATTR);
 	if (err)
 		return err;
@@ -446,8 +396,11 @@ bool ice_alloc_rx_bufs_zc(struct ice_ring *rx_ring, u16 count)
 		}
 	} while (--count);
 
-	if (rx_ring->next_to_use != ntu)
+	if (rx_ring->next_to_use != ntu) {
+		/* clear the status bits for the next_to_use descriptor */
+		rx_desc->wb.status_error0 = 0;
 		ice_release_rx_desc(rx_ring, ntu);
+	}
 
 	return ret;
 }
@@ -514,11 +467,10 @@ ice_run_xdp_zc(struct ice_ring *rx_ring, struct xdp_buff *xdp)
 	u32 act;
 
 	rcu_read_lock();
+	/* ZC patch is enabled only when XDP program is set,
+	 * so here it can not be NULL
+	 */
 	xdp_prog = READ_ONCE(rx_ring->xdp_prog);
-	if (!xdp_prog) {
-		rcu_read_unlock();
-		return ICE_XDP_PASS;
-	}
 
 	act = bpf_prog_run_xdp(xdp_prog, xdp);
 	switch (act) {
@@ -569,12 +521,6 @@ int ice_clean_rx_irq_zc(struct ice_ring *rx_ring, int budget)
 		u16 stat_err_bits;
 		u16 vlan_tag = 0;
 		u8 rx_ptype;
-
-		if (cleaned_count >= ICE_RX_BUF_WRITE) {
-			failure |= ice_alloc_rx_bufs_zc(rx_ring,
-							cleaned_count);
-			cleaned_count = 0;
-		}
 
 		rx_desc = ICE_RX_DESC(rx_ring, rx_ring->next_to_clean);
 
@@ -641,6 +587,9 @@ int ice_clean_rx_irq_zc(struct ice_ring *rx_ring, int budget)
 		ice_process_skb_fields(rx_ring, rx_desc, skb, rx_ptype);
 		ice_receive_skb(rx_ring, skb, vlan_tag);
 	}
+
+	if (cleaned_count >= ICE_RX_BUF_WRITE)
+		failure = !ice_alloc_rx_bufs_zc(rx_ring, cleaned_count);
 
 	ice_finalize_xdp_rx(rx_ring, xdp_xmit);
 	ice_update_rx_ring_stats(rx_ring, total_rx_packets, total_rx_bytes);
@@ -842,11 +791,8 @@ bool ice_xsk_any_rx_ring_ena(struct ice_vsi *vsi)
 {
 	int i;
 
-	if (!vsi->xsk_pools)
-		return false;
-
-	for (i = 0; i < vsi->num_xsk_pools; i++) {
-		if (vsi->xsk_pools[i])
+	ice_for_each_rxq(vsi, i) {
+		if (xsk_get_pool_from_qid(vsi->netdev, i))
 			return true;
 	}
 

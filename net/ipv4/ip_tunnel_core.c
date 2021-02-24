@@ -222,7 +222,7 @@ static int iptunnel_pmtud_build_icmp(struct sk_buff *skb, int mtu)
 		.code			= ICMP_FRAG_NEEDED,
 		.checksum		= 0,
 		.un.frag.__unused	= 0,
-		.un.frag.mtu		= ntohs(mtu),
+		.un.frag.mtu		= htons(mtu),
 	};
 	icmph->checksum = ip_compute_csum(icmph, len);
 	skb_reset_transport_header(skb);
@@ -245,7 +245,7 @@ static int iptunnel_pmtud_build_icmp(struct sk_buff *skb, int mtu)
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-	eth_header(skb, skb->dev, htons(eh.h_proto), eh.h_source, eh.h_dest, 0);
+	eth_header(skb, skb->dev, ntohs(eh.h_proto), eh.h_source, eh.h_dest, 0);
 	skb_reset_mac_header(skb);
 
 	return skb->len;
@@ -263,7 +263,7 @@ static int iptunnel_pmtud_check_icmp(struct sk_buff *skb, int mtu)
 	const struct icmphdr *icmph = icmp_hdr(skb);
 	const struct iphdr *iph = ip_hdr(skb);
 
-	if (mtu <= 576 || iph->frag_off != htons(IP_DF))
+	if (mtu < 576 || iph->frag_off != htons(IP_DF))
 		return 0;
 
 	if (ipv4_is_lbcast(iph->daddr)  || ipv4_is_multicast(iph->daddr) ||
@@ -338,7 +338,7 @@ static int iptunnel_pmtud_build_icmpv6(struct sk_buff *skb, int mtu)
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-	eth_header(skb, skb->dev, htons(eh.h_proto), eh.h_source, eh.h_dest, 0);
+	eth_header(skb, skb->dev, ntohs(eh.h_proto), eh.h_source, eh.h_dest, 0);
 	skb_reset_mac_header(skb);
 
 	return skb->len;
@@ -359,7 +359,7 @@ static int iptunnel_pmtud_check_icmpv6(struct sk_buff *skb, int mtu)
 	__be16 frag_off;
 	int offset;
 
-	if (mtu <= IPV6_MIN_MTU)
+	if (mtu < IPV6_MIN_MTU)
 		return 0;
 
 	if (stype == IPV6_ADDR_ANY || stype == IPV6_ADDR_MULTICAST ||
@@ -428,15 +428,6 @@ int skb_tunnel_check_pmtu(struct sk_buff *skb, struct dst_entry *encap_dst,
 	return 0;
 }
 EXPORT_SYMBOL(skb_tunnel_check_pmtu);
-
-/* Often modified stats are per cpu, other are shared (netdev->stats) */
-void ip_tunnel_get_stats64(struct net_device *dev,
-			   struct rtnl_link_stats64 *tot)
-{
-	netdev_stats_to_stats64(tot, &dev->stats);
-	dev_fetch_sw_netstats(tot, dev->tstats);
-}
-EXPORT_SYMBOL_GPL(ip_tunnel_get_stats64);
 
 static const struct nla_policy ip_tun_policy[LWTUNNEL_IP_MAX + 1] = {
 	[LWTUNNEL_IP_UNSPEC]	= { .strict_start_type = LWTUNNEL_IP_OPTS },
@@ -592,8 +583,9 @@ static int ip_tun_parse_opts_erspan(struct nlattr *attr,
 static int ip_tun_parse_opts(struct nlattr *attr, struct ip_tunnel_info *info,
 			     struct netlink_ext_ack *extack)
 {
-	int err, rem, opt_len, opts_len = 0, type = 0;
+	int err, rem, opt_len, opts_len = 0;
 	struct nlattr *nla;
+	__be16 type = 0;
 
 	if (!attr)
 		return 0;

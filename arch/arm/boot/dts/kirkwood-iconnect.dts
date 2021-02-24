@@ -72,7 +72,7 @@
 			};
 		};
 		serial@12000 {
-			status = "ok";
+			status = "okay";
 		};
 	};
 

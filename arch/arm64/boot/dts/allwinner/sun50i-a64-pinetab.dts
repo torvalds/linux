@@ -14,7 +14,7 @@
 #include <dt-bindings/pwm/pwm.h>
 
 / {
-	model = "PineTab";
+	model = "PineTab, Development Sample";
 	compatible = "pine64,pinetab", "allwinner,sun50i-a64";
 
 	aliases {
@@ -122,9 +122,6 @@
 	status = "okay";
 
 	port {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		csi_ep: endpoint {
 			remote-endpoint = <&ov5640_ep>;
 			bus-width = <8>;

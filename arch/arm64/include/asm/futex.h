@@ -16,7 +16,7 @@
 do {									\
 	unsigned int loops = FUTEX_MAX_LOOPS;				\
 									\
-	uaccess_enable();						\
+	uaccess_enable_privileged();					\
 	asm volatile(							\
 "	prfm	pstl1strm, %2\n"					\
 "1:	ldxr	%w1, %2\n"						\
@@ -39,7 +39,7 @@ do {									\
 	  "+r" (loops)							\
 	: "r" (oparg), "Ir" (-EFAULT), "Ir" (-EAGAIN)			\
 	: "memory");							\
-	uaccess_disable();						\
+	uaccess_disable_privileged();					\
 } while (0)
 
 static inline int
@@ -95,7 +95,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *_uaddr,
 		return -EFAULT;
 
 	uaddr = __uaccess_mask_ptr(_uaddr);
-	uaccess_enable();
+	uaccess_enable_privileged();
 	asm volatile("// futex_atomic_cmpxchg_inatomic\n"
 "	prfm	pstl1strm, %2\n"
 "1:	ldxr	%w1, %2\n"
@@ -118,7 +118,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *_uaddr,
 	: "+r" (ret), "=&r" (val), "+Q" (*uaddr), "=&r" (tmp), "+r" (loops)
 	: "r" (oldval), "r" (newval), "Ir" (-EFAULT), "Ir" (-EAGAIN)
 	: "memory");
-	uaccess_disable();
+	uaccess_disable_privileged();
 
 	if (!ret)
 		*uval = val;

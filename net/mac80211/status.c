@@ -49,7 +49,8 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	int ac;
 
 	if (info->flags & (IEEE80211_TX_CTL_NO_PS_BUFFER |
-			   IEEE80211_TX_CTL_AMPDU)) {
+			   IEEE80211_TX_CTL_AMPDU |
+			   IEEE80211_TX_CTL_HW_80211_ENCAP)) {
 		ieee80211_free_txskb(&local->hw, skb);
 		return;
 	}
@@ -627,16 +628,12 @@ static void ieee80211_report_ack_skb(struct ieee80211_local *local,
 		u64 cookie = IEEE80211_SKB_CB(skb)->ack.cookie;
 		struct ieee80211_sub_if_data *sdata;
 		struct ieee80211_hdr *hdr = (void *)skb->data;
-		__be16 ethertype = 0;
-
-		if (skb->len >= ETH_HLEN && skb->protocol == cpu_to_be16(ETH_P_802_3))
-			skb_copy_bits(skb, 2 * ETH_ALEN, &ethertype, ETH_TLEN);
 
 		rcu_read_lock();
 		sdata = ieee80211_sdata_from_skb(local, skb);
 		if (sdata) {
-			if (ethertype == sdata->control_port_protocol ||
-			    ethertype == cpu_to_be16(ETH_P_PREAUTH))
+			if (skb->protocol == sdata->control_port_protocol ||
+			    skb->protocol == cpu_to_be16(ETH_P_PREAUTH))
 				cfg80211_control_port_tx_status(&sdata->wdev,
 								cookie,
 								skb->data,
@@ -915,15 +912,6 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 			ieee80211_mpsp_trigger_process(
 				ieee80211_get_qos_ctl(hdr), sta, true, acked);
 
-		if (!acked && test_sta_flag(sta, WLAN_STA_PS_STA)) {
-			/*
-			 * The STA is in power save mode, so assume
-			 * that this TX packet failed because of that.
-			 */
-			ieee80211_handle_filtered_frame(local, sta, skb);
-			return;
-		}
-
 		if (ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL) &&
 		    (ieee80211_is_data(hdr->frame_control)) &&
 		    (rates_idx != -1))
@@ -1150,6 +1138,12 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 							    -info->status.ack_signal);
 				}
 			} else if (test_sta_flag(sta, WLAN_STA_PS_STA)) {
+				/*
+				 * The STA is in power save mode, so assume
+				 * that this TX packet failed because of that.
+				 */
+				if (skb)
+					ieee80211_handle_filtered_frame(local, sta, skb);
 				return;
 			} else if (noack_success) {
 				/* nothing to do here, do not account as lost */

@@ -200,10 +200,6 @@ static notrace u8 xive_esb_read(struct xive_irq_data *xd, u32 offset)
 	if (offset == XIVE_ESB_SET_PQ_10 && xd->flags & XIVE_IRQ_FLAG_STORE_EOI)
 		offset |= XIVE_ESB_LD_ST_MO;
 
-	/* Handle HW errata */
-	if (xd->flags & XIVE_IRQ_FLAG_SHIFT_BUG)
-		offset |= offset << 4;
-
 	if ((xd->flags & XIVE_IRQ_FLAG_H_INT_ESB) && xive_ops->esb_rw)
 		val = xive_ops->esb_rw(xd->hw_irq, offset, 0, 0);
 	else
@@ -214,10 +210,6 @@ static notrace u8 xive_esb_read(struct xive_irq_data *xd, u32 offset)
 
 static void xive_esb_write(struct xive_irq_data *xd, u32 offset, u64 data)
 {
-	/* Handle HW errata */
-	if (xd->flags & XIVE_IRQ_FLAG_SHIFT_BUG)
-		offset |= offset << 4;
-
 	if ((xd->flags & XIVE_IRQ_FLAG_H_INT_ESB) && xive_ops->esb_rw)
 		xive_ops->esb_rw(xd->hw_irq, offset, data, 1);
 	else
@@ -356,50 +348,40 @@ static void xive_do_queue_eoi(struct xive_cpu *xc)
  * EOI an interrupt at the source. There are several methods
  * to do this depending on the HW version and source type
  */
-static void xive_do_source_eoi(u32 hw_irq, struct xive_irq_data *xd)
+static void xive_do_source_eoi(struct xive_irq_data *xd)
 {
+	u8 eoi_val;
+
 	xd->stale_p = false;
+
 	/* If the XIVE supports the new "store EOI facility, use it */
-	if (xd->flags & XIVE_IRQ_FLAG_STORE_EOI)
+	if (xd->flags & XIVE_IRQ_FLAG_STORE_EOI) {
 		xive_esb_write(xd, XIVE_ESB_STORE_EOI, 0);
-	else if (hw_irq && xd->flags & XIVE_IRQ_FLAG_EOI_FW) {
-		/*
-		 * The FW told us to call it. This happens for some
-		 * interrupt sources that need additional HW whacking
-		 * beyond the ESB manipulation. For example LPC interrupts
-		 * on P9 DD1.0 needed a latch to be clared in the LPC bridge
-		 * itself. The Firmware will take care of it.
-		 */
-		if (WARN_ON_ONCE(!xive_ops->eoi))
-			return;
-		xive_ops->eoi(hw_irq);
-	} else {
-		u8 eoi_val;
-
-		/*
-		 * Otherwise for EOI, we use the special MMIO that does
-		 * a clear of both P and Q and returns the old Q,
-		 * except for LSIs where we use the "EOI cycle" special
-		 * load.
-		 *
-		 * This allows us to then do a re-trigger if Q was set
-		 * rather than synthesizing an interrupt in software
-		 *
-		 * For LSIs the HW EOI cycle is used rather than PQ bits,
-		 * as they are automatically re-triggred in HW when still
-		 * pending.
-		 */
-		if (xd->flags & XIVE_IRQ_FLAG_LSI)
-			xive_esb_read(xd, XIVE_ESB_LOAD_EOI);
-		else {
-			eoi_val = xive_esb_read(xd, XIVE_ESB_SET_PQ_00);
-			DBG_VERBOSE("eoi_val=%x\n", eoi_val);
-
-			/* Re-trigger if needed */
-			if ((eoi_val & XIVE_ESB_VAL_Q) && xd->trig_mmio)
-				out_be64(xd->trig_mmio, 0);
-		}
+		return;
 	}
+
+	/*
+	 * For LSIs, we use the "EOI cycle" special load rather than
+	 * PQ bits, as they are automatically re-triggered in HW when
+	 * still pending.
+	 */
+	if (xd->flags & XIVE_IRQ_FLAG_LSI) {
+		xive_esb_read(xd, XIVE_ESB_LOAD_EOI);
+		return;
+	}
+
+	/*
+	 * Otherwise, we use the special MMIO that does a clear of
+	 * both P and Q and returns the old Q. This allows us to then
+	 * do a re-trigger if Q was set rather than synthesizing an
+	 * interrupt in software
+	 */
+	eoi_val = xive_esb_read(xd, XIVE_ESB_SET_PQ_00);
+	DBG_VERBOSE("eoi_val=%x\n", eoi_val);
+
+	/* Re-trigger if needed */
+	if ((eoi_val & XIVE_ESB_VAL_Q) && xd->trig_mmio)
+		out_be64(xd->trig_mmio, 0);
 }
 
 /* irq_chip eoi callback, called with irq descriptor lock held */
@@ -416,8 +398,8 @@ static void xive_irq_eoi(struct irq_data *d)
 	 * been passed-through to a KVM guest
 	 */
 	if (!irqd_irq_disabled(d) && !irqd_is_forwarded_to_vcpu(d) &&
-	    !(xd->flags & XIVE_IRQ_NO_EOI))
-		xive_do_source_eoi(irqd_to_hwirq(d), xd);
+	    !(xd->flags & XIVE_IRQ_FLAG_NO_EOI))
+		xive_do_source_eoi(xd);
 	else
 		xd->stale_p = true;
 
@@ -432,9 +414,7 @@ static void xive_irq_eoi(struct irq_data *d)
 }
 
 /*
- * Helper used to mask and unmask an interrupt source. This
- * is only called for normal interrupts that do not require
- * masking/unmasking via firmware.
+ * Helper used to mask and unmask an interrupt source.
  */
 static void xive_do_source_set_mask(struct xive_irq_data *xd,
 				    bool mask)
@@ -681,20 +661,6 @@ static void xive_irq_unmask(struct irq_data *d)
 
 	pr_devel("xive_irq_unmask: irq %d data @%p\n", d->irq, xd);
 
-	/*
-	 * This is a workaround for PCI LSI problems on P9, for
-	 * these, we call FW to set the mask. The problems might
-	 * be fixed by P9 DD2.0, if that is the case, firmware
-	 * will no longer set that flag.
-	 */
-	if (xd->flags & XIVE_IRQ_FLAG_MASK_FW) {
-		unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
-		xive_ops->configure_irq(hw_irq,
-					get_hard_smp_processor_id(xd->target),
-					xive_irq_priority, d->irq);
-		return;
-	}
-
 	xive_do_source_set_mask(xd, false);
 }
 
@@ -703,20 +669,6 @@ static void xive_irq_mask(struct irq_data *d)
 	struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
 
 	pr_devel("xive_irq_mask: irq %d data @%p\n", d->irq, xd);
-
-	/*
-	 * This is a workaround for PCI LSI problems on P9, for
-	 * these, we call OPAL to set the mask. The problems might
-	 * be fixed by P9 DD2.0, if that is the case, firmware
-	 * will no longer set that flag.
-	 */
-	if (xd->flags & XIVE_IRQ_FLAG_MASK_FW) {
-		unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
-		xive_ops->configure_irq(hw_irq,
-					get_hard_smp_processor_id(xd->target),
-					0xff, d->irq);
-		return;
-	}
 
 	xive_do_source_set_mask(xd, true);
 }
@@ -837,14 +789,7 @@ static int xive_irq_retrigger(struct irq_data *d)
 	 * 11, then perform an EOI.
 	 */
 	xive_esb_read(xd, XIVE_ESB_SET_PQ_11);
-
-	/*
-	 * Note: We pass "0" to the hw_irq argument in order to
-	 * avoid calling into the backend EOI code which we don't
-	 * want to do in the case of a re-trigger. Backends typically
-	 * only do EOI for LSIs anyway.
-	 */
-	xive_do_source_eoi(0, xd);
+	xive_do_source_eoi(xd);
 
 	return 1;
 }
@@ -859,13 +804,6 @@ static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
 	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
 	int rc;
 	u8 pq;
-
-	/*
-	 * We only support this on interrupts that do not require
-	 * firmware calls for masking and unmasking
-	 */
-	if (xd->flags & XIVE_IRQ_FLAG_MASK_FW)
-		return -EIO;
 
 	/*
 	 * This is called by KVM with state non-NULL for enabling
@@ -966,7 +904,7 @@ static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
 		 * while masked, the generic code will re-mask it anyway.
 		 */
 		if (!xd->saved_p)
-			xive_do_source_eoi(hw_irq, xd);
+			xive_do_source_eoi(xd);
 
 	}
 	return 0;
@@ -1110,7 +1048,7 @@ static void xive_ipi_eoi(struct irq_data *d)
 	DBG_VERBOSE("IPI eoi: irq=%d [0x%lx] (HW IRQ 0x%x) pending=%02x\n",
 		    d->irq, irqd_to_hwirq(d), xc->hw_ipi, xc->pending_prio);
 
-	xive_do_source_eoi(xc->hw_ipi, &xc->ipi_data);
+	xive_do_source_eoi(&xc->ipi_data);
 	xive_do_queue_eoi(xc);
 }
 
@@ -1142,7 +1080,7 @@ static void __init xive_request_ipi(void)
 		return;
 
 	/* Initialize it */
-	virq = irq_create_mapping(xive_irq_domain, 0);
+	virq = irq_create_mapping(xive_irq_domain, XIVE_IPI_HW_IRQ);
 	xive_ipi_irq = virq;
 
 	WARN_ON(request_irq(virq, xive_muxed_ipi_action,
@@ -1242,7 +1180,7 @@ static int xive_irq_domain_map(struct irq_domain *h, unsigned int virq,
 
 #ifdef CONFIG_SMP
 	/* IPIs are special and come up with HW number 0 */
-	if (hw == 0) {
+	if (hw == XIVE_IPI_HW_IRQ) {
 		/*
 		 * IPIs are marked per-cpu. We use separate HW interrupts under
 		 * the hood but associated with the same "linux" interrupt
@@ -1271,7 +1209,7 @@ static void xive_irq_domain_unmap(struct irq_domain *d, unsigned int virq)
 	if (!data)
 		return;
 	hw_irq = (unsigned int)irqd_to_hwirq(data);
-	if (hw_irq)
+	if (hw_irq != XIVE_IPI_HW_IRQ)
 		xive_irq_free_data(virq);
 }
 
@@ -1303,16 +1241,71 @@ static int xive_irq_domain_match(struct irq_domain *h, struct device_node *node,
 	return xive_ops->match(node);
 }
 
+#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
+static const char * const esb_names[] = { "RESET", "OFF", "PENDING", "QUEUED" };
+
+static const struct {
+	u64  mask;
+	char *name;
+} xive_irq_flags[] = {
+	{ XIVE_IRQ_FLAG_STORE_EOI, "STORE_EOI" },
+	{ XIVE_IRQ_FLAG_LSI,       "LSI"       },
+	{ XIVE_IRQ_FLAG_H_INT_ESB, "H_INT_ESB" },
+	{ XIVE_IRQ_FLAG_NO_EOI,    "NO_EOI"    },
+};
+
+static void xive_irq_domain_debug_show(struct seq_file *m, struct irq_domain *d,
+				       struct irq_data *irqd, int ind)
+{
+	struct xive_irq_data *xd;
+	u64 val;
+	int i;
+
+	/* No IRQ domain level information. To be done */
+	if (!irqd)
+		return;
+
+	if (!is_xive_irq(irq_data_get_irq_chip(irqd)))
+		return;
+
+	seq_printf(m, "%*sXIVE:\n", ind, "");
+	ind++;
+
+	xd = irq_data_get_irq_handler_data(irqd);
+	if (!xd) {
+		seq_printf(m, "%*snot assigned\n", ind, "");
+		return;
+	}
+
+	val = xive_esb_read(xd, XIVE_ESB_GET);
+	seq_printf(m, "%*sESB:      %s\n", ind, "", esb_names[val & 0x3]);
+	seq_printf(m, "%*sPstate:   %s %s\n", ind, "", xd->stale_p ? "stale" : "",
+		   xd->saved_p ? "saved" : "");
+	seq_printf(m, "%*sTarget:   %d\n", ind, "", xd->target);
+	seq_printf(m, "%*sChip:     %d\n", ind, "", xd->src_chip);
+	seq_printf(m, "%*sTrigger:  0x%016llx\n", ind, "", xd->trig_page);
+	seq_printf(m, "%*sEOI:      0x%016llx\n", ind, "", xd->eoi_page);
+	seq_printf(m, "%*sFlags:    0x%llx\n", ind, "", xd->flags);
+	for (i = 0; i < ARRAY_SIZE(xive_irq_flags); i++) {
+		if (xd->flags & xive_irq_flags[i].mask)
+			seq_printf(m, "%*s%s\n", ind + 12, "", xive_irq_flags[i].name);
+	}
+}
+#endif
+
 static const struct irq_domain_ops xive_irq_domain_ops = {
 	.match = xive_irq_domain_match,
 	.map = xive_irq_domain_map,
 	.unmap = xive_irq_domain_unmap,
 	.xlate = xive_irq_domain_xlate,
+#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
+	.debug_show = xive_irq_domain_debug_show,
+#endif
 };
 
-static void __init xive_init_host(void)
+static void __init xive_init_host(struct device_node *np)
 {
-	xive_irq_domain = irq_domain_add_nomap(NULL, XIVE_MAX_IRQ,
+	xive_irq_domain = irq_domain_add_nomap(np, XIVE_MAX_IRQ,
 					       &xive_irq_domain_ops, NULL);
 	if (WARN_ON(xive_irq_domain == NULL))
 		return;
@@ -1421,7 +1414,7 @@ static void xive_flush_cpu_queue(unsigned int cpu, struct xive_cpu *xc)
 		 * Ignore anything that isn't a XIVE irq and ignore
 		 * IPIs, so can just be dropped.
 		 */
-		if (d->domain != xive_irq_domain || hw_irq == 0)
+		if (d->domain != xive_irq_domain || hw_irq == XIVE_IPI_HW_IRQ)
 			continue;
 
 		/*
@@ -1446,7 +1439,7 @@ static void xive_flush_cpu_queue(unsigned int cpu, struct xive_cpu *xc)
 		 * still asserted. Otherwise do an MSI retrigger.
 		 */
 		if (xd->flags & XIVE_IRQ_FLAG_LSI)
-			xive_do_source_eoi(irqd_to_hwirq(d), xd);
+			xive_do_source_eoi(xd);
 		else
 			xive_irq_retrigger(d);
 
@@ -1513,8 +1506,8 @@ void xive_shutdown(void)
 	xive_ops->shutdown();
 }
 
-bool __init xive_core_init(const struct xive_ops *ops, void __iomem *area, u32 offset,
-			   u8 max_prio)
+bool __init xive_core_init(struct device_node *np, const struct xive_ops *ops,
+			   void __iomem *area, u32 offset, u8 max_prio)
 {
 	xive_tima = area;
 	xive_tima_offset = offset;
@@ -1525,7 +1518,7 @@ bool __init xive_core_init(const struct xive_ops *ops, void __iomem *area, u32 o
 	__xive_enabled = true;
 
 	pr_devel("Initializing host..\n");
-	xive_init_host();
+	xive_init_host(np);
 
 	pr_devel("Initializing boot CPU..\n");
 
@@ -1655,7 +1648,7 @@ static int xive_core_debug_show(struct seq_file *m, void *private)
 		hw_irq = (unsigned int)irqd_to_hwirq(d);
 
 		/* IPIs are special (HW number 0) */
-		if (hw_irq)
+		if (hw_irq != XIVE_IPI_HW_IRQ)
 			xive_debug_show_irq(m, hw_irq, d);
 	}
 	return 0;

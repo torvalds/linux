@@ -325,6 +325,10 @@ static int vdec_s_fmt(struct file *file, void *fh, struct v4l2_format *f)
 
 	inst->width = format.fmt.pix_mp.width;
 	inst->height = format.fmt.pix_mp.height;
+	inst->crop.top = 0;
+	inst->crop.left = 0;
+	inst->crop.width = inst->width;
+	inst->crop.height = inst->height;
 
 	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 		inst->fmt_out = fmt;
@@ -342,6 +346,9 @@ vdec_g_selection(struct file *file, void *fh, struct v4l2_selection *s)
 	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
 	    s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		return -EINVAL;
+
+	s->r.top = 0;
+	s->r.left = 0;
 
 	switch (s->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
@@ -363,15 +370,11 @@ vdec_g_selection(struct file *file, void *fh, struct v4l2_selection *s)
 	case V4L2_SEL_TGT_COMPOSE:
 		if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 			return -EINVAL;
-		s->r.width = inst->out_width;
-		s->r.height = inst->out_height;
+		s->r = inst->crop;
 		break;
 	default:
 		return -EINVAL;
 	}
-
-	s->r.top = 0;
-	s->r.left = 0;
 
 	return 0;
 }
@@ -1309,6 +1312,21 @@ static void vdec_event_change(struct venus_inst *inst,
 
 	inst->width = format.fmt.pix_mp.width;
 	inst->height = format.fmt.pix_mp.height;
+	/*
+	 * Some versions of the firmware do not report crop information for
+	 * all codecs. For these cases, set the crop to the coded resolution.
+	 */
+	if (ev_data->input_crop.width > 0 && ev_data->input_crop.height > 0) {
+		inst->crop.left = ev_data->input_crop.left;
+		inst->crop.top = ev_data->input_crop.top;
+		inst->crop.width = ev_data->input_crop.width;
+		inst->crop.height = ev_data->input_crop.height;
+	} else {
+		inst->crop.left = 0;
+		inst->crop.top = 0;
+		inst->crop.width = ev_data->width;
+		inst->crop.height = ev_data->height;
+	}
 
 	inst->out_width = ev_data->width;
 	inst->out_height = ev_data->height;
@@ -1412,6 +1430,10 @@ static void vdec_inst_init(struct venus_inst *inst)
 	inst->fmt_cap = &vdec_formats[0];
 	inst->width = frame_width_min(inst);
 	inst->height = ALIGN(frame_height_min(inst), 32);
+	inst->crop.left = 0;
+	inst->crop.top = 0;
+	inst->crop.width = inst->width;
+	inst->crop.height = inst->height;
 	inst->out_width = frame_width_min(inst);
 	inst->out_height = frame_height_min(inst);
 	inst->fps = 30;

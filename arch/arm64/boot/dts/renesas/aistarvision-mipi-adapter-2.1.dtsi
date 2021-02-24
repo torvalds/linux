@@ -61,7 +61,7 @@
 	};
 };
 
-&MIPI_PARENT_I2C {
+&MIPI_OV5645_PARENT_I2C {
 	ov5645: ov5645@3c {
 		compatible = "ovti,ov5645";
 		reg = <0x3c>;
@@ -77,7 +77,9 @@
 			};
 		};
 	};
+};
 
+&MIPI_IMX219_PARENT_I2C {
 	imx219: imx219@10 {
 		compatible = "sony,imx219";
 		reg = <0x10>;

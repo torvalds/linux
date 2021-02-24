@@ -40,12 +40,8 @@
 static inline bool mlx5e_channel_no_affinity_change(struct mlx5e_channel *c)
 {
 	int current_cpu = smp_processor_id();
-	const struct cpumask *aff;
-	struct irq_data *idata;
 
-	idata = irq_desc_get_irq_data(c->irq_desc);
-	aff = irq_data_get_affinity_mask(idata);
-	return cpumask_test_cpu(current_cpu, aff);
+	return cpumask_test_cpu(current_cpu, c->aff_mask);
 }
 
 static void mlx5e_handle_tx_dim(struct mlx5e_txqsq *sq)
@@ -119,16 +115,20 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 					       napi);
 	struct mlx5e_ch_stats *ch_stats = c->stats;
 	struct mlx5e_xdpsq *xsksq = &c->xsksq;
+	struct mlx5e_txqsq __rcu **qos_sqs;
 	struct mlx5e_rq *xskrq = &c->xskrq;
 	struct mlx5e_rq *rq = &c->rq;
 	bool aff_change = false;
 	bool busy_xsk = false;
 	bool busy = false;
 	int work_done = 0;
+	u16 qos_sqs_size;
 	bool xsk_open;
 	int i;
 
 	rcu_read_lock();
+
+	qos_sqs = rcu_dereference(c->qos_sqs);
 
 	xsk_open = test_bit(MLX5E_CHANNEL_STATE_XSK, c->state);
 
@@ -136,6 +136,18 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 
 	for (i = 0; i < c->num_tc; i++)
 		busy |= mlx5e_poll_tx_cq(&c->sq[i].cq, budget);
+
+	if (unlikely(qos_sqs)) {
+		smp_rmb(); /* Pairs with mlx5e_qos_alloc_queues. */
+		qos_sqs_size = READ_ONCE(c->qos_sqs_size);
+
+		for (i = 0; i < qos_sqs_size; i++) {
+			struct mlx5e_txqsq *sq = rcu_dereference(qos_sqs[i]);
+
+			if (sq)
+				busy |= mlx5e_poll_tx_cq(&sq->cq, budget);
+		}
+	}
 
 	busy |= mlx5e_poll_xdpsq_cq(&c->xdpsq.cq);
 
@@ -190,6 +202,16 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 		mlx5e_handle_tx_dim(&c->sq[i]);
 		mlx5e_cq_arm(&c->sq[i].cq);
 	}
+	if (unlikely(qos_sqs)) {
+		for (i = 0; i < qos_sqs_size; i++) {
+			struct mlx5e_txqsq *sq = rcu_dereference(qos_sqs[i]);
+
+			if (sq) {
+				mlx5e_handle_tx_dim(sq);
+				mlx5e_cq_arm(&sq->cq);
+			}
+		}
+	}
 
 	mlx5e_handle_rx_dim(rq);
 
@@ -221,14 +243,13 @@ void mlx5e_completion_event(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe)
 
 	napi_schedule(cq->napi);
 	cq->event_ctr++;
-	cq->channel->stats->events++;
+	cq->ch_stats->events++;
 }
 
 void mlx5e_cq_error_event(struct mlx5_core_cq *mcq, enum mlx5_event event)
 {
 	struct mlx5e_cq *cq = container_of(mcq, struct mlx5e_cq, mcq);
-	struct mlx5e_channel *c = cq->channel;
-	struct net_device *netdev = c->netdev;
+	struct net_device *netdev = cq->netdev;
 
 	netdev_err(netdev, "%s: cqn=0x%.6x event=0x%.2x\n",
 		   __func__, mcq->cqn, event);

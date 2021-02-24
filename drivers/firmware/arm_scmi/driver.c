@@ -402,6 +402,14 @@ int scmi_do_xfer(const struct scmi_handle *handle, struct scmi_xfer *xfer)
 	return ret;
 }
 
+void scmi_reset_rx_to_maxsz(const struct scmi_handle *handle,
+			    struct scmi_xfer *xfer)
+{
+	struct scmi_info *info = handle_to_scmi_info(handle);
+
+	xfer->rx.len = info->desc->max_msg_size;
+}
+
 #define SCMI_MAX_RESPONSE_TIMEOUT	(2 * MSEC_PER_SEC)
 
 /**
@@ -735,6 +743,7 @@ static struct scmi_prot_devnames devnames[] = {
 	{ SCMI_PROTOCOL_CLOCK,  { "clocks" },},
 	{ SCMI_PROTOCOL_SENSOR, { "hwmon" },},
 	{ SCMI_PROTOCOL_RESET,  { "reset" },},
+	{ SCMI_PROTOCOL_VOLTAGE,  { "regulator" },},
 };
 
 static inline void
@@ -839,8 +848,6 @@ static int scmi_remove(struct platform_device *pdev)
 	struct scmi_info *info = platform_get_drvdata(pdev);
 	struct idr *idr = &info->tx_idr;
 
-	scmi_notification_exit(&info->handle);
-
 	mutex_lock(&scmi_list_mutex);
 	if (info->users)
 		ret = -EBUSY;
@@ -850,6 +857,8 @@ static int scmi_remove(struct platform_device *pdev)
 
 	if (ret)
 		return ret;
+
+	scmi_notification_exit(&info->handle);
 
 	/* Safe to free channels since no more users */
 	ret = idr_for_each(idr, info->desc->ops->chan_free, idr);
@@ -938,6 +947,7 @@ static int __init scmi_driver_init(void)
 	scmi_power_register();
 	scmi_reset_register();
 	scmi_sensors_register();
+	scmi_voltage_register();
 	scmi_system_register();
 
 	return platform_driver_register(&scmi_driver);
@@ -953,6 +963,7 @@ static void __exit scmi_driver_exit(void)
 	scmi_power_unregister();
 	scmi_reset_unregister();
 	scmi_sensors_unregister();
+	scmi_voltage_unregister();
 	scmi_system_unregister();
 
 	platform_driver_unregister(&scmi_driver);

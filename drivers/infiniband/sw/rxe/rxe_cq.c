@@ -123,11 +123,6 @@ int rxe_cq_post(struct rxe_cq *cq, struct rxe_cqe *cqe, int solicited)
 
 	memcpy(producer_addr(cq->queue), cqe, sizeof(*cqe));
 
-	/* make sure all changes to the CQ are written before we update the
-	 * producer pointer
-	 */
-	smp_wmb();
-
 	advance_producer(cq->queue);
 	spin_unlock_irqrestore(&cq->cq_lock, flags);
 

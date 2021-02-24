@@ -625,7 +625,6 @@ static void usage(const char *prog)
 
 int main(int ac, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	struct bpf_prog_load_attr prog_load_attr = {
 		.prog_type	= BPF_PROG_TYPE_XDP,
 	};
@@ -667,11 +666,6 @@ int main(int ac, char **argv)
 
 	if (optind == ac) {
 		usage(basename(argv[0]));
-		return 1;
-	}
-
-	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
-		perror("setrlimit(RLIMIT_MEMLOCK)");
 		return 1;
 	}
 

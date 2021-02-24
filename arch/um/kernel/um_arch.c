@@ -13,6 +13,7 @@
 #include <linux/sched.h>
 #include <linux/sched/task.h>
 #include <linux/kmsg_dump.h>
+#include <linux/suspend.h>
 
 #include <asm/processor.h>
 #include <asm/sections.h>
@@ -25,7 +26,8 @@
 #include <mem_user.h>
 #include <os.h>
 
-#define DEFAULT_COMMAND_LINE "root=98:0"
+#define DEFAULT_COMMAND_LINE_ROOT "root=98:0"
+#define DEFAULT_COMMAND_LINE_CONSOLE "console=tty"
 
 /* Changed in add_arg and setup_arch, which run before SMP is started */
 static char __initdata command_line[COMMAND_LINE_SIZE] = { 0 };
@@ -108,7 +110,8 @@ unsigned long end_vm;
 int ncpus = 1;
 
 /* Set in early boot */
-static int have_root __initdata = 0;
+static int have_root __initdata;
+static int have_console __initdata;
 
 /* Set in uml_mem_setup and modified in linux_main */
 long long physmem_size = 32 * 1024 * 1024;
@@ -158,6 +161,17 @@ static int __init no_skas_debug_setup(char *line, int *add)
 __uml_setup("debug", no_skas_debug_setup,
 "debug\n"
 "    this flag is not needed to run gdb on UML in skas mode\n\n"
+);
+
+static int __init uml_console_setup(char *line, int *add)
+{
+	have_console = 1;
+	return 0;
+}
+
+__uml_setup("console=", uml_console_setup,
+"console=<preferred console>\n"
+"    Specify the preferred console output driver\n\n"
 );
 
 static int __init Usage(char *line, int *add)
@@ -263,7 +277,10 @@ int __init linux_main(int argc, char **argv)
 			add_arg(argv[i]);
 	}
 	if (have_root == 0)
-		add_arg(DEFAULT_COMMAND_LINE);
+		add_arg(DEFAULT_COMMAND_LINE_ROOT);
+
+	if (have_console == 0)
+		add_arg(DEFAULT_COMMAND_LINE_CONSOLE);
 
 	host_task_size = os_get_top_address();
 	/*
@@ -377,3 +394,69 @@ void *text_poke(void *addr, const void *opcode, size_t len)
 void text_poke_sync(void)
 {
 }
+
+void uml_pm_wake(void)
+{
+	pm_system_wakeup();
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int um_suspend_valid(suspend_state_t state)
+{
+	return state == PM_SUSPEND_MEM;
+}
+
+static int um_suspend_prepare(void)
+{
+	um_irqs_suspend();
+	return 0;
+}
+
+static int um_suspend_enter(suspend_state_t state)
+{
+	if (WARN_ON(state != PM_SUSPEND_MEM))
+		return -EINVAL;
+
+	/*
+	 * This is identical to the idle sleep, but we've just
+	 * (during suspend) turned off all interrupt sources
+	 * except for the ones we want, so now we can only wake
+	 * up on something we actually want to wake up on. All
+	 * timing has also been suspended.
+	 */
+	um_idle_sleep();
+	return 0;
+}
+
+static void um_suspend_finish(void)
+{
+	um_irqs_resume();
+}
+
+const struct platform_suspend_ops um_suspend_ops = {
+	.valid = um_suspend_valid,
+	.prepare = um_suspend_prepare,
+	.enter = um_suspend_enter,
+	.finish = um_suspend_finish,
+};
+
+static int init_pm_wake_signal(void)
+{
+	/*
+	 * In external time-travel mode we can't use signals to wake up
+	 * since that would mess with the scheduling. We'll have to do
+	 * some additional work to support wakeup on virtio devices or
+	 * similar, perhaps implementing a fake RTC controller that can
+	 * trigger wakeup (and request the appropriate scheduling from
+	 * the external scheduler when going to suspend.)
+	 */
+	if (time_travel_mode != TT_MODE_EXTERNAL)
+		register_pm_wake_signal();
+
+	suspend_set_ops(&um_suspend_ops);
+
+	return 0;
+}
+
+late_initcall(init_pm_wake_signal);
+#endif

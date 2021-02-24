@@ -36,8 +36,7 @@ enum {
 
 enum {
 	IO_WQ_BIT_EXIT		= 0,	/* wq exiting */
-	IO_WQ_BIT_CANCEL	= 1,	/* cancel work on list */
-	IO_WQ_BIT_ERROR		= 2,	/* error on setup */
+	IO_WQ_BIT_ERROR		= 1,	/* error on setup */
 };
 
 enum {
@@ -65,9 +64,7 @@ struct io_worker {
 #endif
 	const struct cred *cur_creds;
 	const struct cred *saved_creds;
-	struct files_struct *restore_files;
 	struct nsproxy *restore_nsproxy;
-	struct fs_struct *restore_fs;
 };
 
 #if BITS_PER_LONG == 64
@@ -157,19 +154,19 @@ static bool __io_worker_unuse(struct io_wqe *wqe, struct io_worker *worker)
 		worker->cur_creds = worker->saved_creds = NULL;
 	}
 
-	if (current->files != worker->restore_files) {
+	if (current->files) {
 		__acquire(&wqe->lock);
 		raw_spin_unlock_irq(&wqe->lock);
 		dropped_lock = true;
 
 		task_lock(current);
-		current->files = worker->restore_files;
+		current->files = NULL;
 		current->nsproxy = worker->restore_nsproxy;
 		task_unlock(current);
 	}
 
-	if (current->fs != worker->restore_fs)
-		current->fs = worker->restore_fs;
+	if (current->fs)
+		current->fs = NULL;
 
 	/*
 	 * If we have an active mm, we need to drop the wq lock before unusing
@@ -330,11 +327,11 @@ static void io_worker_start(struct io_wqe *wqe, struct io_worker *worker)
 	allow_kernel_signal(SIGINT);
 
 	current->flags |= PF_IO_WORKER;
+	current->fs = NULL;
+	current->files = NULL;
 
 	worker->flags |= (IO_WORKER_F_UP | IO_WORKER_F_RUNNING);
-	worker->restore_files = current->files;
 	worker->restore_nsproxy = current->nsproxy;
-	worker->restore_fs = current->fs;
 	io_wqe_inc_running(wqe, worker);
 }
 
@@ -482,6 +479,10 @@ static void io_impersonate_work(struct io_worker *worker,
 		current->files = work->identity->files;
 		current->nsproxy = work->identity->nsproxy;
 		task_unlock(current);
+		if (!work->identity->files) {
+			/* failed grabbing files, ensure work gets cancelled */
+			work->flags |= IO_WQ_WORK_CANCEL;
+		}
 	}
 	if ((work->flags & IO_WQ_WORK_FS) && current->fs != work->identity->fs)
 		current->fs = work->identity->fs;
@@ -552,29 +553,21 @@ get_next:
 
 		/* handle a whole dependent link */
 		do {
-			struct io_wq_work *old_work, *next_hashed, *linked;
+			struct io_wq_work *next_hashed, *linked;
 			unsigned int hash = io_get_work_hash(work);
 
 			next_hashed = wq_next_work(work);
 			io_impersonate_work(worker, work);
-			/*
-			 * OK to set IO_WQ_WORK_CANCEL even for uncancellable
-			 * work, the worker function will do the right thing.
-			 */
-			if (test_bit(IO_WQ_BIT_CANCEL, &wq->state))
-				work->flags |= IO_WQ_WORK_CANCEL;
+			wq->do_work(work);
+			io_assign_current_work(worker, NULL);
 
-			old_work = work;
-			linked = wq->do_work(work);
-
+			linked = wq->free_work(work);
 			work = next_hashed;
 			if (!work && linked && !io_wq_is_hashed(linked)) {
 				work = linked;
 				linked = NULL;
 			}
 			io_assign_current_work(worker, work);
-			wq->free_work(old_work);
-
 			if (linked)
 				io_wqe_enqueue(wqe, linked);
 
@@ -728,12 +721,6 @@ static inline bool io_wqe_need_worker(struct io_wqe *wqe, int index)
 	return acct->nr_workers < acct->max_workers;
 }
 
-static bool io_wqe_worker_send_sig(struct io_worker *worker, void *data)
-{
-	send_sig(SIGINT, worker->task, 1);
-	return false;
-}
-
 /*
  * Iterate the passed in list and call the specific function for each
  * worker that isn't exiting
@@ -859,11 +846,9 @@ static void io_run_cancel(struct io_wq_work *work, struct io_wqe *wqe)
 	struct io_wq *wq = wqe->wq;
 
 	do {
-		struct io_wq_work *old_work = work;
-
 		work->flags |= IO_WQ_WORK_CANCEL;
-		work = wq->do_work(work);
-		wq->free_work(old_work);
+		wq->do_work(work);
+		work = wq->free_work(work);
 	} while (work);
 }
 
@@ -934,21 +919,6 @@ void io_wq_hash_work(struct io_wq_work *work, void *val)
 	work->flags |= (IO_WQ_WORK_HASHED | (bit << IO_WQ_HASH_SHIFT));
 }
 
-void io_wq_cancel_all(struct io_wq *wq)
-{
-	int node;
-
-	set_bit(IO_WQ_BIT_CANCEL, &wq->state);
-
-	rcu_read_lock();
-	for_each_node(node) {
-		struct io_wqe *wqe = wq->wqes[node];
-
-		io_wq_for_each_worker(wqe, io_wqe_worker_send_sig, NULL);
-	}
-	rcu_read_unlock();
-}
-
 struct io_cb_cancel_data {
 	work_cancel_fn *fn;
 	void *data;
@@ -968,7 +938,6 @@ static bool io_wq_worker_cancel(struct io_worker *worker, void *data)
 	 */
 	spin_lock_irqsave(&worker->lock, flags);
 	if (worker->cur_work &&
-	    !(worker->cur_work->flags & IO_WQ_WORK_NO_CANCEL) &&
 	    match->fn(worker->cur_work, match->data)) {
 		send_sig(SIGINT, worker->task, 1);
 		match->nr_running++;
@@ -1072,16 +1041,6 @@ enum io_wq_cancel io_wq_cancel_cb(struct io_wq *wq, work_cancel_fn *cancel,
 	if (match.nr_pending)
 		return IO_WQ_CANCEL_OK;
 	return IO_WQ_CANCEL_NOTFOUND;
-}
-
-static bool io_wq_io_cb_cancel_data(struct io_wq_work *work, void *data)
-{
-	return work == data;
-}
-
-enum io_wq_cancel io_wq_cancel_work(struct io_wq *wq, struct io_wq_work *cwork)
-{
-	return io_wq_cancel_cb(wq, io_wq_io_cb_cancel_data, (void *)cwork, false);
 }
 
 struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)

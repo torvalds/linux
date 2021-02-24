@@ -78,9 +78,9 @@ int mlx5dr_cmd_query_esw_caps(struct mlx5_core_dev *mdev,
 	caps->uplink_icm_address_tx =
 		MLX5_CAP64_ESW_FLOWTABLE(mdev,
 					 sw_steering_uplink_icm_address_tx);
-	caps->sw_owner =
-		MLX5_CAP_ESW_FLOWTABLE_FDB(mdev,
-					   sw_owner);
+	caps->sw_owner_v2 = MLX5_CAP_ESW_FLOWTABLE_FDB(mdev, sw_owner_v2);
+	if (!caps->sw_owner_v2)
+		caps->sw_owner = MLX5_CAP_ESW_FLOWTABLE_FDB(mdev, sw_owner);
 
 	return 0;
 }
@@ -92,13 +92,14 @@ int mlx5dr_cmd_query_device(struct mlx5_core_dev *mdev,
 	caps->eswitch_manager	= MLX5_CAP_GEN(mdev, eswitch_manager);
 	caps->gvmi		= MLX5_CAP_GEN(mdev, vhca_id);
 	caps->flex_protocols	= MLX5_CAP_GEN(mdev, flex_parser_protocols);
+	caps->sw_format_ver	= MLX5_CAP_GEN(mdev, steering_format_version);
 
-	if (mlx5dr_matcher_supp_flex_parser_icmp_v4(caps)) {
+	if (caps->flex_protocols & MLX5_FLEX_PARSER_ICMP_V4_ENABLED) {
 		caps->flex_parser_id_icmp_dw0 = MLX5_CAP_GEN(mdev, flex_parser_id_icmp_dw0);
 		caps->flex_parser_id_icmp_dw1 = MLX5_CAP_GEN(mdev, flex_parser_id_icmp_dw1);
 	}
 
-	if (mlx5dr_matcher_supp_flex_parser_icmp_v6(caps)) {
+	if (caps->flex_protocols & MLX5_FLEX_PARSER_ICMP_V6_ENABLED) {
 		caps->flex_parser_id_icmpv6_dw0 =
 			MLX5_CAP_GEN(mdev, flex_parser_id_icmpv6_dw0);
 		caps->flex_parser_id_icmpv6_dw1 =
@@ -112,10 +113,15 @@ int mlx5dr_cmd_query_device(struct mlx5_core_dev *mdev,
 	caps->nic_tx_allow_address =
 		MLX5_CAP64_FLOWTABLE(mdev, sw_steering_nic_tx_action_allow_icm_address);
 
-	caps->rx_sw_owner = MLX5_CAP_FLOWTABLE_NIC_RX(mdev, sw_owner);
-	caps->max_ft_level = MLX5_CAP_FLOWTABLE_NIC_RX(mdev, max_ft_level);
+	caps->rx_sw_owner_v2 = MLX5_CAP_FLOWTABLE_NIC_RX(mdev, sw_owner_v2);
+	caps->tx_sw_owner_v2 = MLX5_CAP_FLOWTABLE_NIC_TX(mdev, sw_owner_v2);
 
-	caps->tx_sw_owner = MLX5_CAP_FLOWTABLE_NIC_TX(mdev, sw_owner);
+	if (!caps->rx_sw_owner_v2)
+		caps->rx_sw_owner = MLX5_CAP_FLOWTABLE_NIC_RX(mdev, sw_owner);
+	if (!caps->tx_sw_owner_v2)
+		caps->tx_sw_owner = MLX5_CAP_FLOWTABLE_NIC_TX(mdev, sw_owner);
+
+	caps->max_ft_level = MLX5_CAP_FLOWTABLE_NIC_RX(mdev, max_ft_level);
 
 	caps->log_icm_size = MLX5_CAP_DEV_MEM(mdev, log_steering_sw_icm_size);
 	caps->hdr_modify_icm_addr =

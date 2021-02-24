@@ -215,7 +215,7 @@ static int pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 {
 	struct irq_alloc_info info;
-	int polarity;
+	bool polarity_low;
 	int ret;
 	u8 gsi;
 
@@ -230,7 +230,7 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 
 	switch (intel_mid_identify_cpu()) {
 	case INTEL_MID_CPU_CHIP_TANGIER:
-		polarity = IOAPIC_POL_HIGH;
+		polarity_low = false;
 
 		/* Special treatment for IRQ0 */
 		if (gsi == 0) {
@@ -252,11 +252,11 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 		}
 		break;
 	default:
-		polarity = IOAPIC_POL_LOW;
+		polarity_low = true;
 		break;
 	}
 
-	ioapic_set_alloc_attr(&info, dev_to_node(&dev->dev), 1, polarity);
+	ioapic_set_alloc_attr(&info, dev_to_node(&dev->dev), 1, polarity_low);
 
 	/*
 	 * MRST only have IOAPIC, the PCI irq lines are 1:1 mapped to

@@ -210,7 +210,7 @@ static void class_create_release(struct class *cls)
 }
 
 /**
- * class_create - create a struct class structure
+ * __class_create - create a struct class structure
  * @owner: pointer to the module that is to "own" this struct class
  * @name: pointer to a string for the name of this class.
  * @key: the lock_class_key for this class; used by mutex lock debugging

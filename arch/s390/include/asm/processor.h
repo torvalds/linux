@@ -14,20 +14,14 @@
 
 #include <linux/bits.h>
 
-#define CIF_ASCE_PRIMARY	0	/* primary asce needs fixup / uaccess */
-#define CIF_ASCE_SECONDARY	1	/* secondary asce needs fixup / uaccess */
 #define CIF_NOHZ_DELAY		2	/* delay HZ disable for a tick */
 #define CIF_FPU			3	/* restore FPU registers */
-#define CIF_IGNORE_IRQ		4	/* ignore interrupt (for udelay) */
 #define CIF_ENABLED_WAIT	5	/* in enabled wait state */
 #define CIF_MCCK_GUEST		6	/* machine check happening in guest */
 #define CIF_DEDICATED_CPU	7	/* this CPU is dedicated */
 
-#define _CIF_ASCE_PRIMARY	BIT(CIF_ASCE_PRIMARY)
-#define _CIF_ASCE_SECONDARY	BIT(CIF_ASCE_SECONDARY)
 #define _CIF_NOHZ_DELAY		BIT(CIF_NOHZ_DELAY)
 #define _CIF_FPU		BIT(CIF_FPU)
-#define _CIF_IGNORE_IRQ		BIT(CIF_IGNORE_IRQ)
 #define _CIF_ENABLED_WAIT	BIT(CIF_ENABLED_WAIT)
 #define _CIF_MCCK_GUEST		BIT(CIF_MCCK_GUEST)
 #define _CIF_DEDICATED_CPU	BIT(CIF_DEDICATED_CPU)
@@ -102,8 +96,6 @@ extern void __bpon(void);
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
 
-typedef unsigned int mm_segment_t;
-
 /*
  * Thread structure
  */
@@ -116,7 +108,6 @@ struct thread_struct {
 	unsigned long hardirq_timer;	/* task cputime in hardirq context */
 	unsigned long softirq_timer;	/* task cputime in softirq context */
 	unsigned long sys_call_table;	/* system call table address */
-	mm_segment_t mm_segment;
 	unsigned long gmap_addr;	/* address of last gmap fault. */
 	unsigned int gmap_write_flag;	/* gmap fault write indication */
 	unsigned int gmap_int_code;	/* int code of last gmap fault */
@@ -300,11 +291,6 @@ static inline unsigned long __rewind_psw(psw_t psw, unsigned long ilc)
 }
 
 /*
- * Function to stop a processor until the next interrupt occurs
- */
-void enabled_wait(void);
-
-/*
  * Function to drop a processor into disabled wait state
  */
 static __always_inline void __noreturn disabled_wait(void)
@@ -318,14 +304,10 @@ static __always_inline void __noreturn disabled_wait(void)
 }
 
 /*
- * Basic Machine Check/Program Check Handler.
+ * Basic Program Check Handler.
  */
-
 extern void s390_base_pgm_handler(void);
-extern void s390_base_ext_handler(void);
-
 extern void (*s390_base_pgm_handler_fn)(void);
-extern void (*s390_base_ext_handler_fn)(void);
 
 #define ARCH_LOW_ADDRESS_LIMIT	0x7fffffffUL
 

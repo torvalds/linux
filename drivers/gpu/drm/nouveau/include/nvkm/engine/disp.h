@@ -37,4 +37,5 @@ int gp100_disp_new(struct nvkm_device *, int, struct nvkm_disp **);
 int gp102_disp_new(struct nvkm_device *, int, struct nvkm_disp **);
 int gv100_disp_new(struct nvkm_device *, int, struct nvkm_disp **);
 int tu102_disp_new(struct nvkm_device *, int, struct nvkm_disp **);
+int ga102_disp_new(struct nvkm_device *, int, struct nvkm_disp **);
 #endif

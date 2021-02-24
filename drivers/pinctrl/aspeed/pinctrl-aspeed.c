@@ -286,13 +286,76 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 static bool aspeed_expr_is_gpio(const struct aspeed_sig_expr *expr)
 {
 	/*
-	 * The signal type is GPIO if the signal name has "GPIO" as a prefix.
-	 * strncmp (rather than strcmp) is used to implement the prefix
-	 * requirement.
+	 * We need to differentiate between GPIO and non-GPIO signals to
+	 * implement the gpio_request_enable() interface. For better or worse
+	 * the ASPEED pinctrl driver uses the expression names to determine
+	 * whether an expression will mux a pin for GPIO.
 	 *
-	 * expr->signal might look like "GPIOT3" in the GPIO case.
+	 * Generally we have the following - A GPIO such as B1 has:
+	 *
+	 *    - expr->signal set to "GPIOB1"
+	 *    - expr->function set to "GPIOB1"
+	 *
+	 * Using this fact we can determine whether the provided expression is
+	 * a GPIO expression by testing the signal name for the string prefix
+	 * "GPIO".
+	 *
+	 * However, some GPIOs are input-only, and the ASPEED datasheets name
+	 * them differently. An input-only GPIO such as T0 has:
+	 *
+	 *    - expr->signal set to "GPIT0"
+	 *    - expr->function set to "GPIT0"
+	 *
+	 * It's tempting to generalise the prefix test from "GPIO" to "GPI" to
+	 * account for both GPIOs and GPIs, but in doing so we run aground on
+	 * another feature:
+	 *
+	 * Some pins in the ASPEED BMC SoCs have a "pass-through" GPIO
+	 * function where the input state of one pin is replicated as the
+	 * output state of another (as if they were shorted together - a mux
+	 * configuration that is typically enabled by hardware strapping).
+	 * This feature allows the BMC to pass e.g. power button state through
+	 * to the host while the BMC is yet to boot, but take control of the
+	 * button state once the BMC has booted by muxing each pin as a
+	 * separate, pin-specific GPIO.
+	 *
+	 * Conceptually this pass-through mode is a form of GPIO and is named
+	 * as such in the datasheets, e.g. "GPID0". This naming similarity
+	 * trips us up with the simple GPI-prefixed-signal-name scheme
+	 * discussed above, as the pass-through configuration is not what we
+	 * want when muxing a pin as GPIO for the GPIO subsystem.
+	 *
+	 * On e.g. the AST2400, a pass-through function "GPID0" is grouped on
+	 * balls A18 and D16, where we have:
+	 *
+	 *    For ball A18:
+	 *    - expr->signal set to "GPID0IN"
+	 *    - expr->function set to "GPID0"
+	 *
+	 *    For ball D16:
+	 *    - expr->signal set to "GPID0OUT"
+	 *    - expr->function set to "GPID0"
+	 *
+	 * By contrast, the pin-specific GPIO expressions for the same pins are
+	 * as follows:
+	 *
+	 *    For ball A18:
+	 *    - expr->signal looks like "GPIOD0"
+	 *    - expr->function looks like "GPIOD0"
+	 *
+	 *    For ball D16:
+	 *    - expr->signal looks like "GPIOD1"
+	 *    - expr->function looks like "GPIOD1"
+	 *
+	 * Testing both the signal _and_ function names gives us the means
+	 * differentiate the pass-through GPIO pinmux configuration from the
+	 * pin-specific configuration that the GPIO subsystem is after: An
+	 * expression is a pin-specific (non-pass-through) GPIO configuration
+	 * if the signal prefix is "GPI" and the signal name matches the
+	 * function name.
 	 */
-	return strncmp(expr->signal, "GPIO", 4) == 0;
+	return !strncmp(expr->signal, "GPI", 3) &&
+			!strcmp(expr->signal, expr->function);
 }
 
 static bool aspeed_gpio_in_exprs(const struct aspeed_sig_expr **exprs)

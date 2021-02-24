@@ -353,9 +353,8 @@ int lmc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd) /*fold00*/
             switch(xc.command){
             case lmc_xilinx_reset: /*fold02*/
                 {
-                    u16 mii;
 		    spin_lock_irqsave(&sc->lmc_lock, flags);
-                    mii = lmc_mii_readreg (sc, 0, 16);
+                    lmc_mii_readreg (sc, 0, 16);
 
                     /*
                      * Make all of them 0 and make input
@@ -424,10 +423,9 @@ int lmc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd) /*fold00*/
                 break;
             case lmc_xilinx_load_prom: /*fold02*/
                 {
-                    u16 mii;
                     int timeout = 500000;
 		    spin_lock_irqsave(&sc->lmc_lock, flags);
-                    mii = lmc_mii_readreg (sc, 0, 16);
+                    lmc_mii_readreg (sc, 0, 16);
 
                     /*
                      * Make all of them 0 and make input
@@ -856,7 +854,7 @@ static int lmc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	spin_lock_init(&sc->lmc_lock);
 	pci_set_master(pdev);
 
-	printk(KERN_INFO "%s: detected at %lx, irq %d\n", dev->name,
+	printk(KERN_INFO "hdlc: detected at %lx, irq %d\n",
 	       dev->base_addr, dev->irq);
 
 	err = register_hdlc_device(dev);
@@ -901,6 +899,8 @@ static int lmc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
         break;
     default:
 	printk(KERN_WARNING "%s: LMC UNKNOWN CARD!\n", dev->name);
+	unregister_hdlc_device(dev);
+	return -EIO;
         break;
     }
 
@@ -1185,7 +1185,6 @@ static irqreturn_t lmc_interrupt (int irq, void *dev_instance) /*fold00*/
     int i;
     s32 stat;
     unsigned int badtx;
-    u32 firstcsr;
     int max_work = LMC_RXDESCS;
     int handled = 0;
 
@@ -1202,8 +1201,6 @@ static irqreturn_t lmc_interrupt (int irq, void *dev_instance) /*fold00*/
     if ( ! (csr & sc->lmc_intrmask)) {
         goto lmc_int_fail_out;
     }
-
-    firstcsr = csr;
 
     /* always go through this loop at least once */
     while (csr & sc->lmc_intrmask) {

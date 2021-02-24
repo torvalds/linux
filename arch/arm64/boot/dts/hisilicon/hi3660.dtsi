@@ -971,8 +971,8 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&crg_ctrl HI3660_CLK_GATE_SPI2>;
-			clock-names = "apb_pclk";
+			clocks = <&crg_ctrl HI3660_CLK_GATE_SPI2>, <&crg_ctrl HI3660_CLK_GATE_SPI2>;
+			clock-names = "sspclk", "apb_pclk";
 			pinctrl-names = "default";
 			pinctrl-0 = <&spi2_pmx_func &spi2_cfg_func>;
 			num-cs = <1>;
@@ -986,8 +986,8 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&crg_ctrl HI3660_CLK_GATE_SPI3>;
-			clock-names = "apb_pclk";
+			clocks = <&crg_ctrl HI3660_CLK_GATE_SPI3>, <&crg_ctrl HI3660_CLK_GATE_SPI3>;
+			clock-names = "sspclk", "apb_pclk";
 			pinctrl-names = "default";
 			pinctrl-0 = <&spi3_pmx_func &spi3_cfg_func>;
 			num-cs = <1>;
@@ -1045,7 +1045,8 @@
 			clocks = <&crg_ctrl HI3660_CLK_GATE_UFSIO_REF>,
 				<&crg_ctrl HI3660_CLK_GATE_UFSPHY_CFG>;
 			clock-names = "ref_clk", "phy_clk";
-			freq-table-hz = <0 0>, <0 0>;
+			freq-table-hz = <0 0
+					 0 0>;
 			/* offset: 0x84; bit: 12 */
 			resets = <&crg_rst 0x84 12>;
 			reset-names = "rst";
@@ -1112,7 +1113,7 @@
 
 		thermal-zones {
 
-			cls0: cls0 {
+			cls0: cls0-thermal {
 				polling-delay = <1000>;
 				polling-delay-passive = <100>;
 				sustainable-power = <4500>;
@@ -1121,13 +1122,13 @@
 				thermal-sensors = <&tsensor 1>;
 
 				trips {
-					threshold: trip-point@0 {
+					threshold: trip-point0 {
 						temperature = <65000>;
 						hysteresis = <1000>;
 						type = "passive";
 					};
 
-					target: trip-point@1 {
+					target: trip-point1 {
 						temperature = <75000>;
 						hysteresis = <1000>;
 						type = "passive";
@@ -1168,7 +1169,7 @@
 			};
 		};
 
-		dwc3: dwc3@ff100000 {
+		dwc3: usb@ff100000 {
 			compatible = "snps,dwc3";
 			reg = <0x0 0xff100000 0x0 0x100000>;
 

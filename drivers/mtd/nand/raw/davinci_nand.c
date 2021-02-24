@@ -585,7 +585,11 @@ static int davinci_nand_attach_chip(struct nand_chip *chip)
 	if (IS_ERR(pdata))
 		return PTR_ERR(pdata);
 
-	switch (info->chip.ecc.engine_type) {
+	/* Use board-specific ECC config */
+	chip->ecc.engine_type = pdata->engine_type;
+	chip->ecc.placement = pdata->ecc_placement;
+
+	switch (chip->ecc.engine_type) {
 	case NAND_ECC_ENGINE_TYPE_NONE:
 		pdata->ecc_bits = 0;
 		break;
@@ -597,7 +601,7 @@ static int davinci_nand_attach_chip(struct nand_chip *chip)
 		 * NAND_ECC_ALGO_HAMMING to avoid adding an extra ->ecc_algo
 		 * field to davinci_nand_pdata.
 		 */
-		info->chip.ecc.algo = NAND_ECC_ALGO_HAMMING;
+		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 		break;
 	case NAND_ECC_ENGINE_TYPE_ON_HOST:
 		if (pdata->ecc_bits == 4) {
@@ -624,12 +628,12 @@ static int davinci_nand_attach_chip(struct nand_chip *chip)
 			if (ret == -EBUSY)
 				return ret;
 
-			info->chip.ecc.calculate = nand_davinci_calculate_4bit;
-			info->chip.ecc.correct = nand_davinci_correct_4bit;
-			info->chip.ecc.hwctl = nand_davinci_hwctl_4bit;
-			info->chip.ecc.bytes = 10;
-			info->chip.ecc.options = NAND_ECC_GENERIC_ERASED_CHECK;
-			info->chip.ecc.algo = NAND_ECC_ALGO_BCH;
+			chip->ecc.calculate = nand_davinci_calculate_4bit;
+			chip->ecc.correct = nand_davinci_correct_4bit;
+			chip->ecc.hwctl = nand_davinci_hwctl_4bit;
+			chip->ecc.bytes = 10;
+			chip->ecc.options = NAND_ECC_GENERIC_ERASED_CHECK;
+			chip->ecc.algo = NAND_ECC_ALGO_BCH;
 
 			/*
 			 * Update ECC layout if needed ... for 1-bit HW ECC, the
@@ -647,20 +651,20 @@ static int davinci_nand_attach_chip(struct nand_chip *chip)
 			} else if (chunks == 4 || chunks == 8) {
 				mtd_set_ooblayout(mtd,
 						  nand_get_large_page_ooblayout());
-				info->chip.ecc.read_page = nand_davinci_read_page_hwecc_oob_first;
+				chip->ecc.read_page = nand_davinci_read_page_hwecc_oob_first;
 			} else {
 				return -EIO;
 			}
 		} else {
 			/* 1bit ecc hamming */
-			info->chip.ecc.calculate = nand_davinci_calculate_1bit;
-			info->chip.ecc.correct = nand_davinci_correct_1bit;
-			info->chip.ecc.hwctl = nand_davinci_hwctl_1bit;
-			info->chip.ecc.bytes = 3;
-			info->chip.ecc.algo = NAND_ECC_ALGO_HAMMING;
+			chip->ecc.calculate = nand_davinci_calculate_1bit;
+			chip->ecc.correct = nand_davinci_correct_1bit;
+			chip->ecc.hwctl = nand_davinci_hwctl_1bit;
+			chip->ecc.bytes = 3;
+			chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 		}
-		info->chip.ecc.size = 512;
-		info->chip.ecc.strength = pdata->ecc_bits;
+		chip->ecc.size = 512;
+		chip->ecc.strength = pdata->ecc_bits;
 		break;
 	default:
 		return -EINVAL;
@@ -850,10 +854,6 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	info->mask_ale		= pdata->mask_ale ? : MASK_ALE;
 	info->mask_cle		= pdata->mask_cle ? : MASK_CLE;
 
-	/* Use board-specific ECC config */
-	info->chip.ecc.engine_type = pdata->engine_type;
-	info->chip.ecc.placement = pdata->ecc_placement;
-
 	spin_lock_irq(&davinci_nand_lock);
 
 	/* put CSxNAND into NAND mode */
@@ -899,7 +899,7 @@ static int nand_davinci_remove(struct platform_device *pdev)
 	int ret;
 
 	spin_lock_irq(&davinci_nand_lock);
-	if (info->chip.ecc.placement == NAND_ECC_PLACEMENT_INTERLEAVED)
+	if (chip->ecc.placement == NAND_ECC_PLACEMENT_INTERLEAVED)
 		ecc4_busy = false;
 	spin_unlock_irq(&davinci_nand_lock);
 

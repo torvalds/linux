@@ -442,15 +442,15 @@ static int btmtksdio_rx_packet(struct btmtksdio_dev *bdev, u16 rx_size)
 	}
 
 	switch ((&pkts[i])->lsize) {
-		case 1:
-			dlen = skb->data[(&pkts[i])->loff];
-			break;
-		case 2:
-			dlen = get_unaligned_le16(skb->data +
+	case 1:
+		dlen = skb->data[(&pkts[i])->loff];
+		break;
+	case 2:
+		dlen = get_unaligned_le16(skb->data +
 						  (&pkts[i])->loff);
-			break;
-		default:
-			goto err_kfree_skb;
+		break;
+	default:
+		goto err_kfree_skb;
 	}
 
 	pad_size = skb->len - (&pkts[i])->hlen -  dlen;
@@ -704,7 +704,7 @@ static int mtk_setup_firmware(struct hci_dev *hdev, const char *fwname)
 	err = mtk_hci_wmt_sync(hdev, &wmt_params);
 	if (err < 0) {
 		bt_dev_err(hdev, "Failed to power on data RAM (%d)", err);
-		return err;
+		goto free_fw;
 	}
 
 	fw_ptr = fw->data;

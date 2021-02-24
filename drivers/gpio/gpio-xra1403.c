@@ -186,15 +186,7 @@ static int xra1403_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	ret = devm_gpiochip_add_data(&spi->dev, &xra->chip, xra);
-	if (ret < 0) {
-		dev_err(&spi->dev, "Unable to register gpiochip\n");
-		return ret;
-	}
-
-	spi_set_drvdata(spi, xra);
-
-	return 0;
+	return devm_gpiochip_add_data(&spi->dev, &xra->chip, xra);
 }
 
 static const struct spi_device_id xra1403_ids[] = {

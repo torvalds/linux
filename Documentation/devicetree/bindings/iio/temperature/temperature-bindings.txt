@@ -1,7 +1,0 @@
-If the temperature sensor device can be configured to use some specific
-thermocouple type, you can use the defined types provided in the file
-"include/dt-bindings/iio/temperature/thermocouple.h".
-
-Property:
-thermocouple-type:	A single cell representing the type of the thermocouple
-			used by the device.

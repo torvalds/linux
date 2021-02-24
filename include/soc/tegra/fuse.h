@@ -56,7 +56,11 @@ u32 tegra_read_straps(void);
 u32 tegra_read_ram_code(void);
 int tegra_fuse_readl(unsigned long offset, u32 *value);
 
+#ifdef CONFIG_ARCH_TEGRA
 extern struct tegra_sku_info tegra_sku_info;
+#else
+static struct tegra_sku_info tegra_sku_info __maybe_unused;
+#endif
 
 struct device *tegra_soc_device_register(void);
 

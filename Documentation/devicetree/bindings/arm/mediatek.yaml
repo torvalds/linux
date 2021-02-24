@@ -84,6 +84,10 @@ properties:
           - enum:
               - mediatek,mt8135-evbp1
           - const: mediatek,mt8135
+      - items:
+          - enum:
+              - mediatek,mt8167-pumpkin
+          - const: mediatek,mt8167
       - description: Google Elm (Acer Chromebook R13)
         items:
           - const: google,elm-rev8
@@ -116,7 +120,9 @@ properties:
           - const: mediatek,mt8183
       - description: Google Krane (Lenovo IdeaPad Duet, 10e,...)
         items:
-          - const: google,krane-sku176
+          - enum:
+              - google,krane-sku0
+              - google,krane-sku176
           - const: google,krane
           - const: mediatek,mt8183
 

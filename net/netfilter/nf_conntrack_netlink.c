@@ -167,9 +167,13 @@ nla_put_failure:
 	return -1;
 }
 
-static int ctnetlink_dump_timeout(struct sk_buff *skb, const struct nf_conn *ct)
+static int ctnetlink_dump_timeout(struct sk_buff *skb, const struct nf_conn *ct,
+				  bool skip_zero)
 {
 	long timeout = nf_ct_expires(ct) / HZ;
+
+	if (skip_zero && timeout == 0)
+		return 0;
 
 	if (nla_put_be32(skb, CTA_TIMEOUT, htonl(timeout)))
 		goto nla_put_failure;
@@ -179,7 +183,8 @@ nla_put_failure:
 	return -1;
 }
 
-static int ctnetlink_dump_protoinfo(struct sk_buff *skb, struct nf_conn *ct)
+static int ctnetlink_dump_protoinfo(struct sk_buff *skb, struct nf_conn *ct,
+				    bool destroy)
 {
 	const struct nf_conntrack_l4proto *l4proto;
 	struct nlattr *nest_proto;
@@ -193,7 +198,7 @@ static int ctnetlink_dump_protoinfo(struct sk_buff *skb, struct nf_conn *ct)
 	if (!nest_proto)
 		goto nla_put_failure;
 
-	ret = l4proto->to_nlattr(skb, nest_proto, ct);
+	ret = l4proto->to_nlattr(skb, nest_proto, ct, destroy);
 
 	nla_nest_end(skb, nest_proto);
 
@@ -537,8 +542,8 @@ static int ctnetlink_dump_info(struct sk_buff *skb, struct nf_conn *ct)
 		return -1;
 
 	if (!test_bit(IPS_OFFLOAD_BIT, &ct->status) &&
-	    (ctnetlink_dump_timeout(skb, ct) < 0 ||
-	     ctnetlink_dump_protoinfo(skb, ct) < 0))
+	    (ctnetlink_dump_timeout(skb, ct, false) < 0 ||
+	     ctnetlink_dump_protoinfo(skb, ct, false) < 0))
 		return -1;
 
 	return 0;
@@ -780,15 +785,19 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 		goto nla_put_failure;
 
 	if (events & (1 << IPCT_DESTROY)) {
-		if (ctnetlink_dump_acct(skb, ct, type) < 0 ||
-		    ctnetlink_dump_timestamp(skb, ct) < 0)
-			goto nla_put_failure;
-	} else {
-		if (ctnetlink_dump_timeout(skb, ct) < 0)
+		if (ctnetlink_dump_timeout(skb, ct, true) < 0)
 			goto nla_put_failure;
 
-		if (events & (1 << IPCT_PROTOINFO)
-		    && ctnetlink_dump_protoinfo(skb, ct) < 0)
+		if (ctnetlink_dump_acct(skb, ct, type) < 0 ||
+		    ctnetlink_dump_timestamp(skb, ct) < 0 ||
+		    ctnetlink_dump_protoinfo(skb, ct, true) < 0)
+			goto nla_put_failure;
+	} else {
+		if (ctnetlink_dump_timeout(skb, ct, false) < 0)
+			goto nla_put_failure;
+
+		if (events & (1 << IPCT_PROTOINFO) &&
+		    ctnetlink_dump_protoinfo(skb, ct, false) < 0)
 			goto nla_put_failure;
 
 		if ((events & (1 << IPCT_HELPER) || nfct_help(ct))
@@ -2677,12 +2686,6 @@ ctnetlink_glue_build_size(const struct nf_conn *ct)
 	       ;
 }
 
-static struct nf_conn *ctnetlink_glue_get_ct(const struct sk_buff *skb,
-					     enum ip_conntrack_info *ctinfo)
-{
-	return nf_ct_get(skb, ctinfo);
-}
-
 static int __ctnetlink_glue_build(struct sk_buff *skb, struct nf_conn *ct)
 {
 	const struct nf_conntrack_zone *zone;
@@ -2720,10 +2723,10 @@ static int __ctnetlink_glue_build(struct sk_buff *skb, struct nf_conn *ct)
 	if (ctnetlink_dump_status(skb, ct) < 0)
 		goto nla_put_failure;
 
-	if (ctnetlink_dump_timeout(skb, ct) < 0)
+	if (ctnetlink_dump_timeout(skb, ct, false) < 0)
 		goto nla_put_failure;
 
-	if (ctnetlink_dump_protoinfo(skb, ct) < 0)
+	if (ctnetlink_dump_protoinfo(skb, ct, false) < 0)
 		goto nla_put_failure;
 
 	if (ctnetlink_dump_helpinfo(skb, ct) < 0)
@@ -2916,7 +2919,6 @@ static void ctnetlink_glue_seqadj(struct sk_buff *skb, struct nf_conn *ct,
 }
 
 static struct nfnl_ct_hook ctnetlink_glue_hook = {
-	.get_ct		= ctnetlink_glue_get_ct,
 	.build_size	= ctnetlink_glue_build_size,
 	.build		= ctnetlink_glue_build,
 	.parse		= ctnetlink_glue_parse,

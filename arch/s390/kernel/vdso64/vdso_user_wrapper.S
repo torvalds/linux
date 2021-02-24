@@ -36,3 +36,4 @@ __kernel_\func:
 vdso_func gettimeofday
 vdso_func clock_getres
 vdso_func clock_gettime
+vdso_func getcpu

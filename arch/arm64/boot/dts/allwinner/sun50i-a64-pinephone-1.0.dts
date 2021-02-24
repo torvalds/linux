@@ -7,5 +7,10 @@
 
 / {
 	model = "Pine64 PinePhone Developer Batch (1.0)";
-	compatible = "pine64,pinephone-1.0", "allwinner,sun50i-a64";
+	compatible = "pine64,pinephone-1.0", "pine64,pinephone", "allwinner,sun50i-a64";
+};
+
+&sgm3140 {
+	enable-gpios = <&pio 2 3 GPIO_ACTIVE_HIGH>; /* PC3 */
+	flash-gpios = <&pio 3 24 GPIO_ACTIVE_HIGH>; /* PD24 */
 };

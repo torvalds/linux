@@ -11,10 +11,11 @@
 #include "mt76x02_mcu.h"
 #include "trace.h"
 
-static void mt76x02_pre_tbtt_tasklet(unsigned long arg)
+static void mt76x02_pre_tbtt_tasklet(struct tasklet_struct *t)
 {
-	struct mt76x02_dev *dev = (struct mt76x02_dev *)arg;
-	struct mt76_queue *q = dev->mt76.q_tx[MT_TXQ_PSD];
+	struct mt76x02_dev *dev = from_tasklet(dev, t, mt76.pre_tbtt_tasklet);
+	struct mt76_dev *mdev = &dev->mt76;
+	struct mt76_queue *q = dev->mphy.q_tx[MT_TXQ_PSD];
 	struct beacon_bc_data data = {};
 	struct sk_buff *skb;
 	int i;
@@ -35,9 +36,9 @@ static void mt76x02_pre_tbtt_tasklet(unsigned long arg)
 	mt76_wr(dev, MT_BCN_BYPASS_MASK,
 		0xff00 | ~(0xff00 >> dev->beacon_data_count));
 
-	mt76_csa_check(&dev->mt76);
+	mt76_csa_check(mdev);
 
-	if (dev->mt76.csa_complete)
+	if (mdev->csa_complete)
 		return;
 
 	mt76x02_enqueue_buffered_bc(dev, &data, 8);
@@ -58,8 +59,7 @@ static void mt76x02_pre_tbtt_tasklet(unsigned long arg)
 		struct ieee80211_vif *vif = info->control.vif;
 		struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 
-		mt76_tx_queue_skb(dev, MT_TXQ_PSD, skb, &mvif->group_wcid,
-				  NULL);
+		mt76_tx_queue_skb(dev, q, skb, &mvif->group_wcid, NULL);
 	}
 	spin_unlock_bh(&q->lock);
 }
@@ -102,27 +102,6 @@ void mt76x02e_init_beacon_config(struct mt76x02_dev *dev)
 	mt76x02_init_beacon_config(dev);
 }
 EXPORT_SYMBOL_GPL(mt76x02e_init_beacon_config);
-
-static int
-mt76x02_init_tx_queue(struct mt76x02_dev *dev, int qid, int idx, int n_desc)
-{
-	struct mt76_queue *hwq;
-	int err;
-
-	hwq = devm_kzalloc(dev->mt76.dev, sizeof(*hwq), GFP_KERNEL);
-	if (!hwq)
-		return -ENOMEM;
-
-	err = mt76_queue_alloc(dev, hwq, idx, n_desc, 0, MT_TX_RING_BASE);
-	if (err < 0)
-		return err;
-
-	dev->mt76.q_tx[qid] = hwq;
-
-	mt76x02_irq_enable(dev, MT_INT_TX_DONE(idx));
-
-	return 0;
-}
 
 static int
 mt76x02_init_rx_queue(struct mt76x02_dev *dev, struct mt76_queue *q,
@@ -169,14 +148,16 @@ static int mt76x02_poll_tx(struct napi_struct *napi, int budget)
 
 	mt76x02_mac_poll_tx_status(dev, false);
 
-	for (i = MT_TXQ_MCU; i >= 0; i--)
-		mt76_queue_tx_cleanup(dev, i, false);
+	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WM], false);
+	for (i = MT_TXQ_PSD; i >= 0; i--)
+		mt76_queue_tx_cleanup(dev, dev->mphy.q_tx[i], false);
 
 	if (napi_complete_done(napi, 0))
 		mt76x02_irq_enable(dev, MT_INT_TX_DONE_ALL);
 
-	for (i = MT_TXQ_MCU; i >= 0; i--)
-		mt76_queue_tx_cleanup(dev, i, false);
+	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WM], false);
+	for (i = MT_TXQ_PSD; i >= 0; i--)
+		mt76_queue_tx_cleanup(dev, dev->mphy.q_tx[i], false);
 
 	mt76_worker_schedule(&dev->mt76.tx_worker);
 
@@ -198,8 +179,7 @@ int mt76x02_dma_init(struct mt76x02_dev *dev)
 		return -ENOMEM;
 
 	dev->mt76.tx_worker.fn = mt76x02_tx_worker;
-	tasklet_init(&dev->mt76.pre_tbtt_tasklet, mt76x02_pre_tbtt_tasklet,
-		     (unsigned long)dev);
+	tasklet_setup(&dev->mt76.pre_tbtt_tasklet, mt76x02_pre_tbtt_tasklet);
 
 	spin_lock_init(&dev->txstatus_fifo_lock);
 	kfifo_init(&dev->txstatus_fifo, status_fifo, fifo_size);
@@ -209,21 +189,30 @@ int mt76x02_dma_init(struct mt76x02_dev *dev)
 	mt76_wr(dev, MT_WPDMA_RST_IDX, ~0);
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		ret = mt76x02_init_tx_queue(dev, i, mt76_ac_to_hwq(i),
-					    MT76x02_TX_RING_SIZE);
+		ret = mt76_init_tx_queue(&dev->mphy, i, mt76_ac_to_hwq(i),
+					 MT76x02_TX_RING_SIZE,
+					 MT_TX_RING_BASE);
 		if (ret)
 			return ret;
 	}
 
-	ret = mt76x02_init_tx_queue(dev, MT_TXQ_PSD,
-				    MT_TX_HW_QUEUE_MGMT, MT76x02_PSD_RING_SIZE);
+	ret = mt76_init_tx_queue(&dev->mphy, MT_TXQ_PSD, MT_TX_HW_QUEUE_MGMT,
+				 MT76x02_PSD_RING_SIZE, MT_TX_RING_BASE);
 	if (ret)
 		return ret;
 
-	ret = mt76x02_init_tx_queue(dev, MT_TXQ_MCU,
-				    MT_TX_HW_QUEUE_MCU, MT_MCU_RING_SIZE);
+	ret = mt76_init_mcu_queue(&dev->mt76, MT_MCUQ_WM, MT_TX_HW_QUEUE_MCU,
+				  MT_MCU_RING_SIZE, MT_TX_RING_BASE);
 	if (ret)
 		return ret;
+
+	mt76x02_irq_enable(dev,
+			   MT_INT_TX_DONE(IEEE80211_AC_VO) |
+			   MT_INT_TX_DONE(IEEE80211_AC_VI) |
+			   MT_INT_TX_DONE(IEEE80211_AC_BE) |
+			   MT_INT_TX_DONE(IEEE80211_AC_BK) |
+			   MT_INT_TX_DONE(MT_TX_HW_QUEUE_MGMT) |
+			   MT_INT_TX_DONE(MT_TX_HW_QUEUE_MCU));
 
 	ret = mt76x02_init_rx_queue(dev, &dev->mt76.q_rx[MT_RXQ_MCU], 1,
 				    MT_MCU_RING_SIZE, MT_RX_BUF_SIZE);
@@ -292,7 +281,7 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 		if (dev->mt76.csa_complete)
 			mt76_csa_finish(&dev->mt76);
 		else
-			mt76_queue_kick(dev, dev->mt76.q_tx[MT_TXQ_PSD]);
+			mt76_queue_kick(dev, dev->mphy.q_tx[MT_TXQ_PSD]);
 	}
 
 	if (intr & MT_INT_TX_STAT)
@@ -357,7 +346,7 @@ static bool mt76x02_tx_hang(struct mt76x02_dev *dev)
 	int i;
 
 	for (i = 0; i < 4; i++) {
-		q = dev->mt76.q_tx[i];
+		q = dev->mphy.q_tx[i];
 
 		if (!q->queued)
 			continue;
@@ -427,7 +416,7 @@ static void mt76x02_reset_state(struct mt76x02_dev *dev)
 		memset(msta, 0, sizeof(*msta));
 	}
 
-	dev->mphy.vif_mask = 0;
+	dev->mt76.vif_mask = 0;
 	dev->mt76.beacon_mask = 0;
 }
 
@@ -475,8 +464,9 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	if (restart)
 		mt76_mcu_restart(dev);
 
+	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WM], true);
 	for (i = 0; i < __MT_TXQ_MAX; i++)
-		mt76_queue_tx_cleanup(dev, i, true);
+		mt76_queue_tx_cleanup(dev, dev->mphy.q_tx[i], true);
 
 	mt76_for_each_q_rx(&dev->mt76, i) {
 		mt76_queue_rx_reset(dev, i);

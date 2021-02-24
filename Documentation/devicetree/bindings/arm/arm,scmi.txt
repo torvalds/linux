@@ -31,6 +31,14 @@ Optional properties:
 
 - mbox-names: shall be "tx" or "rx" depending on mboxes entries.
 
+- interrupts : when using smc or hvc transports, this optional
+	 property indicates that msg completion by the platform is indicated
+	 by an interrupt rather than by the return of the smc call. This
+	 should not be used except when the platform requires such behavior.
+
+- interrupt-names : if "interrupts" is present, interrupt-names must also
+	 be present and have the value "a2p".
+
 See Documentation/devicetree/bindings/mailbox/mailbox.txt for more details
 about the generic mailbox controller and client driver bindings.
 
@@ -61,6 +69,20 @@ domain binding[2].
 Required properties:
  - #power-domain-cells : Should be 1. Contains the device or the power
 			 domain ID value used by SCMI commands.
+
+Regulator bindings for the SCMI Regulator based on SCMI Message Protocol
+------------------------------------------------------------
+An SCMI Regulator is permanently bound to a well defined SCMI Voltage Domain,
+and should be always positioned as a root regulator.
+It does not support any current operation.
+
+SCMI Regulators are grouped under a 'regulators' node which in turn is a child
+of the SCMI Voltage protocol node inside the desired SCMI instance node.
+
+This binding uses the common regulator binding[6].
+
+Required properties:
+ - reg : shall identify an existent SCMI Voltage Domain.
 
 Sensor bindings for the sensors based on SCMI Message Protocol
 --------------------------------------------------------------
@@ -105,6 +127,7 @@ Required sub-node properties:
 [3] Documentation/devicetree/bindings/thermal/thermal*.yaml
 [4] Documentation/devicetree/bindings/sram/sram.yaml
 [5] Documentation/devicetree/bindings/reset/reset.txt
+[6] Documentation/devicetree/bindings/regulator/regulator.yaml
 
 Example:
 
@@ -168,6 +191,25 @@ firmware {
 		scmi_reset: protocol@16 {
 			reg = <0x16>;
 			#reset-cells = <1>;
+		};
+
+		scmi_voltage: protocol@17 {
+			reg = <0x17>;
+
+			regulators {
+				regulator_devX: regulator@0 {
+					reg = <0x0>;
+					regulator-max-microvolt = <3300000>;
+				};
+
+				regulator_devY: regulator@9 {
+					reg = <0x9>;
+					regulator-min-microvolt = <500000>;
+					regulator-max-microvolt = <4200000>;
+				};
+
+				...
+			};
 		};
 	};
 };

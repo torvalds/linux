@@ -40,6 +40,8 @@ The compatible list for this generic sound card currently:
 
  "fsl,imx-audio-tlv320aic32x4"
 
+ "fsl,imx-audio-si476x"
+
 Required properties:
 
   - compatible		: Contains one of entries in the compatible list.

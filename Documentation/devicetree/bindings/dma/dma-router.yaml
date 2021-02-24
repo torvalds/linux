@@ -23,7 +23,7 @@ properties:
     pattern: "^dma-router(@.*)?$"
 
   dma-masters:
-    $ref: /schemas/types.yaml#definitions/phandle-array
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     description:
       Array of phandles to the DMA controllers the router can direct
       the signal to.

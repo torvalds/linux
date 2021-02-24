@@ -72,6 +72,9 @@ properties:
           - const: asus,grouper
           - const: nvidia,tegra30
       - items:
+          - const: ouya,ouya
+          - const: nvidia,tegra30
+      - items:
           - enum:
               - nvidia,dalmore
               - nvidia,roth
@@ -117,9 +120,17 @@ properties:
         items:
           - const: nvidia,p3668-0000
           - const: nvidia,tegra194
+      - description: Jetson Xavier NX (eMMC)
+        items:
+          - const: nvidia,p3668-0001
+          - const: nvidia,tegra194
       - description: Jetson Xavier NX Developer Kit
         items:
           - const: nvidia,p3509-0000+p3668-0000
+          - const: nvidia,tegra194
+      - description: Jetson Xavier NX Developer Kit (eMMC)
+        items:
+          - const: nvidia,p3509-0000+p3668-0001
           - const: nvidia,tegra194
       - items:
           - enum:

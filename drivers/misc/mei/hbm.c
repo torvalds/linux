@@ -1377,7 +1377,6 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		dev_info(dev->dev, "hbm: stop response: resetting.\n");
 		/* force the reset */
 		return -EPROTO;
-		break;
 
 	case CLIENT_DISCONNECT_REQ_CMD:
 		dev_dbg(dev->dev, "hbm: disconnect request: message received\n");

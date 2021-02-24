@@ -111,7 +111,7 @@ typedef struct {
 
 	struct hash_mm_context *hash_context;
 
-	unsigned long vdso_base;
+	void __user *vdso;
 	/*
 	 * pagetable fragment support
 	 */
@@ -199,7 +199,7 @@ extern int mmu_io_psize;
 void mmu_early_init_devtree(void);
 void hash__early_init_devtree(void);
 void radix__early_init_devtree(void);
-#ifdef CONFIG_PPC_MEM_KEYS
+#ifdef CONFIG_PPC_PKEY
 void pkey_early_init_devtree(void);
 #else
 static inline void pkey_early_init_devtree(void) {}
@@ -240,6 +240,18 @@ static inline void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 extern void radix_init_pseries(void);
 #else
 static inline void radix_init_pseries(void) { };
+#endif
+
+#ifdef CONFIG_HOTPLUG_CPU
+#define arch_clear_mm_cpumask_cpu(cpu, mm)				\
+	do {								\
+		if (cpumask_test_cpu(cpu, mm_cpumask(mm))) {		\
+			atomic_dec(&(mm)->context.active_cpus);		\
+			cpumask_clear_cpu(cpu, mm_cpumask(mm));		\
+		}							\
+	} while (0)
+
+void cleanup_cpu_mmu_context(void);
 #endif
 
 static inline int get_user_context(mm_context_t *ctx, unsigned long ea)

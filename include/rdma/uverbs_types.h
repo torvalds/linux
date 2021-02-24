@@ -71,6 +71,8 @@ struct uverbs_obj_type_class {
 				       enum rdma_remove_reason why,
 				       struct uverbs_attr_bundle *attrs);
 	void (*remove_handle)(struct ib_uobject *uobj);
+	void (*swap_uobjects)(struct ib_uobject *obj_old,
+			      struct ib_uobject *obj_new);
 };
 
 struct uverbs_obj_type {
@@ -116,6 +118,9 @@ void rdma_alloc_abort_uobject(struct ib_uobject *uobj,
 			      bool hw_obj_valid);
 void rdma_alloc_commit_uobject(struct ib_uobject *uobj,
 			       struct uverbs_attr_bundle *attrs);
+void rdma_assign_uobject(struct ib_uobject *to_uobj,
+			 struct ib_uobject *new_uobj,
+			 struct uverbs_attr_bundle *attrs);
 
 /*
  * uverbs_uobject_get is called in order to increase the reference count on
@@ -138,8 +143,8 @@ struct uverbs_obj_fd_type {
 	 * because the driver is removed or the FD is closed.
 	 */
 	struct uverbs_obj_type  type;
-	int (*destroy_object)(struct ib_uobject *uobj,
-			      enum rdma_remove_reason why);
+	void (*destroy_object)(struct ib_uobject *uobj,
+			       enum rdma_remove_reason why);
 	const struct file_operations	*fops;
 	const char			*name;
 	int				flags;

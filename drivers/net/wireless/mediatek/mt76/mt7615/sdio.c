@@ -17,6 +17,7 @@
 #include "mt7615.h"
 #include "sdio.h"
 #include "mac.h"
+#include "mcu.h"
 
 static const struct sdio_device_id mt7663s_table[] = {
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MEDIATEK, 0x7603) },
@@ -227,11 +228,7 @@ static void mt7663s_init_work(struct work_struct *work)
 	if (mt7663s_mcu_init(dev))
 		return;
 
-	mt7615_mcu_set_eeprom(dev);
-	mt7615_mac_init(dev);
-	mt7615_phy_init(dev);
-	mt7615_mcu_del_wtbl_all(dev);
-	mt7615_check_offload_capability(dev);
+	mt7615_init_work(dev);
 }
 
 static int mt7663s_hw_init(struct mt7615_dev *dev, struct sdio_func *func)
@@ -294,30 +291,6 @@ release:
 	return ret;
 }
 
-static int mt7663s_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
-			   struct ieee80211_sta *sta)
-{
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
-	struct mt76_sdio *sdio = &mdev->sdio;
-	u32 pse, ple;
-	int err;
-
-	err = mt7615_mac_sta_add(mdev, vif, sta);
-	if (err < 0)
-		return err;
-
-	/* init sched data quota */
-	pse = mt76_get_field(dev, MT_PSE_PG_HIF0_GROUP, MT_HIF0_MIN_QUOTA);
-	ple = mt76_get_field(dev, MT_PLE_PG_HIF0_GROUP, MT_HIF0_MIN_QUOTA);
-
-	mutex_lock(&sdio->sched.lock);
-	sdio->sched.pse_data_quota = pse;
-	sdio->sched.ple_data_quota = ple;
-	mutex_unlock(&sdio->sched.lock);
-
-	return 0;
-}
-
 static int mt7663s_probe(struct sdio_func *func,
 			 const struct sdio_device_id *id)
 {
@@ -329,7 +302,7 @@ static int mt7663s_probe(struct sdio_func *func,
 		.tx_status_data = mt7663_usb_sdio_tx_status_data,
 		.rx_skb = mt7615_queue_rx_skb,
 		.sta_ps = mt7615_sta_ps,
-		.sta_add = mt7663s_sta_add,
+		.sta_add = mt7615_mac_sta_add,
 		.sta_remove = mt7615_mac_sta_remove,
 		.update_survey = mt7615_update_channel,
 	};
@@ -366,14 +339,11 @@ static int mt7663s_probe(struct sdio_func *func,
 
 	ret = mt76s_init(mdev, func, &mt7663s_ops);
 	if (ret < 0)
-		goto err_free;
-
-	INIT_WORK(&mdev->sdio.tx.xmit_work, mt7663s_tx_work);
-	INIT_WORK(&mdev->sdio.rx.recv_work, mt7663s_rx_work);
+		goto error;
 
 	ret = mt7663s_hw_init(dev, func);
 	if (ret)
-		goto err_deinit;
+		goto error;
 
 	mdev->rev = (mt76_rr(dev, MT_HW_CHIPID) << 16) |
 		    (mt76_rr(dev, MT_HW_REV) & 0xff);
@@ -384,7 +354,7 @@ static int mt7663s_probe(struct sdio_func *func,
 					    GFP_KERNEL);
 	if (!mdev->sdio.intr_data) {
 		ret = -ENOMEM;
-		goto err_deinit;
+		goto error;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(mdev->sdio.xmit_buf); i++) {
@@ -393,23 +363,29 @@ static int mt7663s_probe(struct sdio_func *func,
 						      GFP_KERNEL);
 		if (!mdev->sdio.xmit_buf[i]) {
 			ret = -ENOMEM;
-			goto err_deinit;
+			goto error;
 		}
 	}
 
 	ret = mt76s_alloc_queues(&dev->mt76);
 	if (ret)
-		goto err_deinit;
+		goto error;
+
+	ret = mt76_worker_setup(mt76_hw(dev), &mdev->sdio.txrx_worker,
+				mt7663s_txrx_worker, "sdio-txrx");
+	if (ret)
+		goto error;
+
+	sched_set_fifo_low(mdev->sdio.txrx_worker.task);
 
 	ret = mt7663_usb_sdio_register_device(dev);
 	if (ret)
-		goto err_deinit;
+		goto error;
 
 	return 0;
 
-err_deinit:
+error:
 	mt76s_deinit(&dev->mt76);
-err_free:
 	mt76_free_device(&dev->mt76);
 
 	return ret;
@@ -432,21 +408,33 @@ static int mt7663s_suspend(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
 	struct mt7615_dev *mdev = sdio_get_drvdata(func);
+	int err;
 
 	if (!test_bit(MT76_STATE_SUSPEND, &mdev->mphy.state) &&
 	    mt7615_firmware_offload(mdev)) {
 		int err;
 
-		err = mt7615_mcu_set_hif_suspend(mdev, true);
+		err = mt76_connac_mcu_set_hif_suspend(&mdev->mt76, true);
 		if (err < 0)
 			return err;
 	}
 
 	sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
 
-	mt76s_stop_txrx(&mdev->mt76);
+	err = mt7615_mcu_set_fw_ctrl(mdev);
+	if (err)
+		return err;
 
-	return mt7615_mcu_set_fw_ctrl(mdev);
+	mt76_worker_disable(&mdev->mt76.sdio.txrx_worker);
+	mt76_worker_disable(&mdev->mt76.sdio.status_worker);
+	mt76_worker_disable(&mdev->mt76.sdio.net_worker);
+
+	cancel_work_sync(&mdev->mt76.sdio.stat_work);
+	clear_bit(MT76_READING_STATS, &mdev->mphy.state);
+
+	mt76_tx_status_check(&mdev->mt76, NULL, true);
+
+	return 0;
 }
 
 static int mt7663s_resume(struct device *dev)
@@ -455,13 +443,17 @@ static int mt7663s_resume(struct device *dev)
 	struct mt7615_dev *mdev = sdio_get_drvdata(func);
 	int err;
 
+	mt76_worker_enable(&mdev->mt76.sdio.txrx_worker);
+	mt76_worker_enable(&mdev->mt76.sdio.status_worker);
+	mt76_worker_enable(&mdev->mt76.sdio.net_worker);
+
 	err = mt7615_mcu_set_drv_ctrl(mdev);
 	if (err)
 		return err;
 
 	if (!test_bit(MT76_STATE_SUSPEND, &mdev->mphy.state) &&
 	    mt7615_firmware_offload(mdev))
-		err = mt7615_mcu_set_hif_suspend(mdev, false);
+		err = mt76_connac_mcu_set_hif_suspend(&mdev->mt76, false);
 
 	return err;
 }

@@ -576,6 +576,11 @@ dasd_create_device(struct ccw_device *cdev)
 	dev_set_drvdata(&cdev->dev, device);
 	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 
+	device->paths_info = kset_create_and_add("paths_info", NULL,
+						 &device->cdev->dev.kobj);
+	if (!device->paths_info)
+		dev_warn(&cdev->dev, "Could not create paths_info kset\n");
+
 	return device;
 }
 
@@ -622,6 +627,9 @@ dasd_delete_device(struct dasd_device *device)
 	wait_event(dasd_delete_wq, atomic_read(&device->ref_count) == 0);
 
 	dasd_generic_free_discipline(device);
+
+	kset_unregister(device->paths_info);
+
 	/* Disconnect dasd_device structure from ccw_device structure. */
 	cdev = device->cdev;
 	device->cdev = NULL;
@@ -1641,6 +1649,39 @@ dasd_path_interval_store(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(path_interval, 0644, dasd_path_interval_show,
 		   dasd_path_interval_store);
 
+static ssize_t
+dasd_device_fcs_show(struct device *dev, struct device_attribute *attr,
+		     char *buf)
+{
+	struct dasd_device *device;
+	int fc_sec;
+	int rc;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return -ENODEV;
+	fc_sec = dasd_path_get_fcs_device(device);
+	if (fc_sec == -EINVAL)
+		rc = snprintf(buf, PAGE_SIZE, "Inconsistent\n");
+	else
+		rc = snprintf(buf, PAGE_SIZE, "%s\n", dasd_path_get_fcs_str(fc_sec));
+	dasd_put_device(device);
+
+	return rc;
+}
+static DEVICE_ATTR(fc_security, 0444, dasd_device_fcs_show, NULL);
+
+static ssize_t
+dasd_path_fcs_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	struct dasd_path *path = to_dasd_path(kobj);
+	unsigned int fc_sec = path->fc_security;
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", dasd_path_get_fcs_str(fc_sec));
+}
+
+static struct kobj_attribute path_fcs_attribute =
+	__ATTR(fc_security, 0444, dasd_path_fcs_show, NULL);
 
 #define DASD_DEFINE_ATTR(_name, _func)					\
 static ssize_t dasd_##_name##_show(struct device *dev,			\
@@ -1697,6 +1738,7 @@ static struct attribute * dasd_attrs[] = {
 	&dev_attr_path_reset.attr,
 	&dev_attr_hpf.attr,
 	&dev_attr_ese.attr,
+	&dev_attr_fc_security.attr,
 	NULL,
 };
 
@@ -1777,6 +1819,81 @@ dasd_set_feature(struct ccw_device *cdev, int feature, int flag)
 }
 EXPORT_SYMBOL(dasd_set_feature);
 
+static struct attribute *paths_info_attrs[] = {
+	&path_fcs_attribute.attr,
+	NULL,
+};
+
+static struct kobj_type path_attr_type = {
+	.release	= dasd_path_release,
+	.default_attrs	= paths_info_attrs,
+	.sysfs_ops	= &kobj_sysfs_ops,
+};
+
+static void dasd_path_init_kobj(struct dasd_device *device, int chp)
+{
+	device->path[chp].kobj.kset = device->paths_info;
+	kobject_init(&device->path[chp].kobj, &path_attr_type);
+}
+
+void dasd_path_create_kobj(struct dasd_device *device, int chp)
+{
+	int rc;
+
+	if (test_bit(DASD_FLAG_OFFLINE, &device->flags))
+		return;
+	if (!device->paths_info) {
+		dev_warn(&device->cdev->dev, "Unable to create paths objects\n");
+		return;
+	}
+	if (device->path[chp].in_sysfs)
+		return;
+	if (!device->path[chp].conf_data)
+		return;
+
+	dasd_path_init_kobj(device, chp);
+
+	rc = kobject_add(&device->path[chp].kobj, NULL, "%x.%02x",
+			 device->path[chp].cssid, device->path[chp].chpid);
+	if (rc)
+		kobject_put(&device->path[chp].kobj);
+	device->path[chp].in_sysfs = true;
+}
+EXPORT_SYMBOL(dasd_path_create_kobj);
+
+void dasd_path_create_kobjects(struct dasd_device *device)
+{
+	u8 lpm, opm;
+
+	opm = dasd_path_get_opm(device);
+	for (lpm = 0x80; lpm; lpm >>= 1) {
+		if (!(lpm & opm))
+			continue;
+		dasd_path_create_kobj(device, pathmask_to_pos(lpm));
+	}
+}
+EXPORT_SYMBOL(dasd_path_create_kobjects);
+
+static void dasd_path_remove_kobj(struct dasd_device *device, int chp)
+{
+	if (device->path[chp].in_sysfs) {
+		kobject_put(&device->path[chp].kobj);
+		device->path[chp].in_sysfs = false;
+	}
+}
+
+/*
+ * As we keep kobjects for the lifetime of a device, this function must not be
+ * called anywhere but in the context of offlining a device.
+ */
+void dasd_path_remove_kobjects(struct dasd_device *device)
+{
+	int i;
+
+	for (i = 0; i < 8; i++)
+		dasd_path_remove_kobj(device, i);
+}
+EXPORT_SYMBOL(dasd_path_remove_kobjects);
 
 int dasd_add_sysfs_files(struct ccw_device *cdev)
 {

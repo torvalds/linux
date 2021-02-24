@@ -14,6 +14,7 @@
 #include <linux/reset-controller.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
+#include <linux/module.h>
 #include <dt-bindings/power/meson8-power.h>
 #include <dt-bindings/power/meson-axg-power.h>
 #include <dt-bindings/power/meson-g12a-power.h>
@@ -412,8 +413,7 @@ static int meson_ee_pwrc_init_domain(struct platform_device *pdev,
 			dev_warn(&pdev->dev, "Invalid resets count %d for domain %s\n",
 				 count, dom->desc.name);
 
-		dom->rstc = devm_reset_control_array_get(&pdev->dev, false,
-							 false);
+		dom->rstc = devm_reset_control_array_get_exclusive(&pdev->dev);
 		if (IS_ERR(dom->rstc))
 			return PTR_ERR(dom->rstc);
 	}
@@ -602,6 +602,7 @@ static const struct of_device_id meson_ee_pwrc_match_table[] = {
 	},
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, meson_ee_pwrc_match_table);
 
 static struct platform_driver meson_ee_pwrc_driver = {
 	.probe = meson_ee_pwrc_probe,
@@ -611,4 +612,5 @@ static struct platform_driver meson_ee_pwrc_driver = {
 		.of_match_table	= meson_ee_pwrc_match_table,
 	},
 };
-builtin_platform_driver(meson_ee_pwrc_driver);
+module_platform_driver(meson_ee_pwrc_driver);
+MODULE_LICENSE("GPL v2");

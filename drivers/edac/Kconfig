@@ -81,14 +81,13 @@ config EDAC_AMD64
 	  Support for error detection and correction of DRAM ECC errors on
 	  the AMD64 families (>= K8) of memory controllers.
 
-config EDAC_AMD64_ERROR_INJECTION
-	bool "Sysfs HW Error injection facilities"
-	depends on EDAC_AMD64
-	help
-	  Recent Opterons (Family 10h and later) provide for Memory Error
-	  Injection into the ECC detection circuits. The amd64_edac module
-	  allows the operator/user to inject Uncorrectable and Correctable
-	  errors into DRAM.
+	  When EDAC_DEBUG is enabled, hardware error injection facilities
+	  through sysfs are available:
+
+	  AMD CPUs up to and excluding family 0x17 provide for Memory
+	  Error Injection into the ECC detection circuits. The amd64_edac
+	  module allows the operator/user to inject Uncorrectable and
+	  Correctable errors into DRAM.
 
 	  When enabled, in each of the respective memory controller directories
 	  (/sys/devices/system/edac/mc/mcX), there are 3 input files:
@@ -269,6 +268,15 @@ config EDAC_PND2
 	  first used on the Apollo Lake platform and Denverton
 	  micro-server but may appear on others in the future.
 
+config EDAC_IGEN6
+	tristate "Intel client SoC Integrated MC"
+	depends on PCI && X86_64 && PCI_MMCONFIG && ARCH_HAVE_NMI_SAFE_CMPXCHG
+	help
+	  Support for error detection and correction on the Intel
+	  client SoC Integrated Memory Controller using In-Band ECC IP.
+	  This In-Band ECC is first used on the Elkhart Lake SoC but
+	  may appear on others in the future.
+
 config EDAC_MPC85XX
 	bool "Freescale MPC83xx / MPC85xx"
 	depends on FSL_SOC && EDAC=y
@@ -282,13 +290,6 @@ config EDAC_LAYERSCAPE
 	help
 	  Support for error detection and correction on Freescale memory
 	  controllers on Layerscape SoCs.
-
-config EDAC_MV64X60
-	tristate "Marvell MV64x60"
-	depends on MV64X60
-	help
-	  Support for error detection and correction on the Marvell
-	  MV64360 and MV64460 chipsets.
 
 config EDAC_PASEMI
 	tristate "PA Semi PWRficient"
@@ -515,10 +516,10 @@ config EDAC_QCOM
 	  health, you should probably say 'Y' here.
 
 config EDAC_ASPEED
-	tristate "Aspeed AST 2500 SoC"
-	depends on MACH_ASPEED_G5
+	tristate "Aspeed AST BMC SoC"
+	depends on ARCH_ASPEED
 	help
-	  Support for error detection and correction on the Aspeed AST 2500 SoC.
+	  Support for error detection and correction on the Aspeed AST BMC SoC.
 
 	  First, ECC must be configured in the bootloader. Then, this driver
 	  will expose error counters via the EDAC kernel framework.

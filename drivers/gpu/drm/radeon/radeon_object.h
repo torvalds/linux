@@ -133,9 +133,6 @@ static inline u64 radeon_bo_mmap_offset(struct radeon_bo *bo)
 	return drm_vma_node_offset_addr(&bo->tbo.base.vma_node);
 }
 
-extern int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type,
-			  bool no_wait);
-
 extern int radeon_bo_create(struct radeon_device *rdev,
 			    unsigned long size, int byte_align,
 			    bool kernel, u32 domain, u32 flags,
@@ -149,7 +146,7 @@ extern void radeon_bo_unref(struct radeon_bo **bo);
 extern int radeon_bo_pin(struct radeon_bo *bo, u32 domain, u64 *gpu_addr);
 extern int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain,
 				    u64 max_offset, u64 *gpu_addr);
-extern int radeon_bo_unpin(struct radeon_bo *bo);
+extern void radeon_bo_unpin(struct radeon_bo *bo);
 extern int radeon_bo_evict_vram(struct radeon_device *rdev);
 extern void radeon_bo_force_delete(struct radeon_device *rdev);
 extern int radeon_bo_init(struct radeon_device *rdev);
@@ -166,7 +163,7 @@ extern int radeon_bo_check_tiling(struct radeon_bo *bo, bool has_moved,
 extern void radeon_bo_move_notify(struct ttm_buffer_object *bo,
 				  bool evict,
 				  struct ttm_resource *new_mem);
-extern int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
+extern vm_fault_t radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
 extern int radeon_bo_get_surface_reg(struct radeon_bo *bo);
 extern void radeon_bo_fence(struct radeon_bo *bo, struct radeon_fence *fence,
 			    bool shared);

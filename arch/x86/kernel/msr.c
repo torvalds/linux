@@ -99,11 +99,9 @@ static int filter_write(u32 reg)
 	if (!__ratelimit(&fw_rs))
 		return 0;
 
-	if (reg == MSR_IA32_ENERGY_PERF_BIAS)
-		return 0;
-
-	pr_err("Write to unrecognized MSR 0x%x by %s (pid: %d). Please report to x86@kernel.org.\n",
-	       reg, current->comm, current->pid);
+	pr_warn("Write to unrecognized MSR 0x%x by %s (pid: %d).\n",
+	        reg, current->comm, current->pid);
+	pr_warn("See https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/about for details.\n");
 
 	return 0;
 }
@@ -184,6 +182,13 @@ static long msr_ioctl(struct file *file, unsigned int ioc, unsigned long arg)
 		err = security_locked_down(LOCKDOWN_MSR);
 		if (err)
 			break;
+
+		err = filter_write(regs[1]);
+		if (err)
+			return err;
+
+		add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_STILL_OK);
+
 		err = wrmsr_safe_regs_on_cpu(cpu, regs);
 		if (err)
 			break;

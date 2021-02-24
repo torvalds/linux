@@ -197,31 +197,12 @@ config CLPS711X_TIMER
 	help
 	  Enables support for the Cirrus Logic PS711 timer.
 
-config ATLAS7_TIMER
-	bool "Atlas7 timer driver" if COMPILE_TEST
-	select CLKSRC_MMIO
-	help
-	  Enables support for the Atlas7 timer.
-
 config MXS_TIMER
 	bool "MXS timer driver" if COMPILE_TEST
 	select CLKSRC_MMIO
 	select STMP_DEVICE
 	help
 	  Enables support for the MXS timer.
-
-config PRIMA2_TIMER
-	bool "Prima2 timer driver" if COMPILE_TEST
-	select CLKSRC_MMIO
-	help
-	  Enables support for the Prima2 timer.
-
-config U300_TIMER
-	bool "U300 timer driver" if COMPILE_TEST
-	depends on ARM
-	select CLKSRC_MMIO
-	help
-	  Enables support for the U300 timer.
 
 config NSPIRE_TIMER
 	bool "NSpire timer driver" if COMPILE_TEST
@@ -241,15 +222,6 @@ config INTEGRATOR_AP_TIMER
 	select CLKSRC_MMIO
 	help
 	  Enables support for the Integrator-AP timer.
-
-config CLKSRC_EFM32
-	bool "Clocksource for Energy Micro's EFM32 SoCs" if !ARCH_EFM32
-	depends on OF && ARM && (ARCH_EFM32 || COMPILE_TEST)
-	select CLKSRC_MMIO
-	default ARCH_EFM32
-	help
-	  Support to use the timers of EFM32 SoCs as clock source and clock
-	  event device.
 
 config CLKSRC_LPC32XX
 	bool "Clocksource for LPC32XX" if COMPILE_TEST
@@ -274,16 +246,6 @@ config CLKSRC_TI_32K
 	help
 	  This option enables support for Texas Instruments 32.768 Hz clocksource
 	  available on many OMAP-like platforms.
-
-config CLKSRC_NPS
-	bool "NPS400 clocksource driver" if COMPILE_TEST
-	depends on !PHYS_ADDR_T_64BIT
-	select CLKSRC_MMIO
-	select TIMER_OF if OF
-	help
-	  NPS400 clocksource support.
-	  It has a 64-bit counter with update rate up to 1000MHz.
-	  This counter is accessed via couple of 32-bit memory-mapped registers.
 
 config CLKSRC_STM32
 	bool "Clocksource for STM32 SoCs" if !ARCH_STM32
@@ -563,7 +525,7 @@ config CLKSRC_QCOM
 
 config CLKSRC_VERSATILE
 	bool "ARM Versatile (Express) reference platforms clock source" if COMPILE_TEST
-	depends on GENERIC_SCHED_CLOCK && !ARCH_USES_GETTIMEOFFSET
+	depends on GENERIC_SCHED_CLOCK
 	select TIMER_OF
 	default y if (ARCH_VEXPRESS || ARCH_VERSATILE) && ARM
 	help
@@ -576,14 +538,6 @@ config CLKSRC_MIPS_GIC
 	depends on MIPS_GIC
 	select CLOCKSOURCE_WATCHDOG
 	select TIMER_OF
-
-config CLKSRC_TANGO_XTAL
-	bool "Clocksource for Tango SoC" if COMPILE_TEST
-	depends on ARM
-	select TIMER_OF
-	select CLKSRC_MMIO
-	help
-	  This enables the clocksource for Tango SoC.
 
 config CLKSRC_PXA
 	bool "Clocksource for PXA or SA-11x0 platform" if COMPILE_TEST
@@ -654,7 +608,7 @@ config ATCPIT100_TIMER
 
 config RISCV_TIMER
 	bool "Timer for the RISC-V platform" if COMPILE_TEST
-	depends on GENERIC_SCHED_CLOCK && RISCV
+	depends on GENERIC_SCHED_CLOCK && RISCV && RISCV_SBI
 	select TIMER_PROBE
 	select TIMER_OF
 	help

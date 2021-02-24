@@ -32,7 +32,7 @@
 #define CREATE_TRACE_POINTS
 #include "hns3_trace.h"
 
-#define hns3_set_field(origin, shift, val)	((origin) |= ((val) << (shift)))
+#define hns3_set_field(origin, shift, val)	((origin) |= (val) << (shift))
 #define hns3_tx_bd_count(S)	DIV_ROUND_UP(S, HNS3_MAX_BD_SIZE)
 
 #define hns3_rl_err(fmt, ...)						\
@@ -211,8 +211,8 @@ void hns3_set_vector_coalesce_rl(struct hns3_enet_tqp_vector *tqp_vector,
 	 * GL and RL(Rate Limiter) are 2 ways to acheive interrupt coalescing
 	 */
 
-	if (rl_reg > 0 && !tqp_vector->tx_group.coal.gl_adapt_enable &&
-	    !tqp_vector->rx_group.coal.gl_adapt_enable)
+	if (rl_reg > 0 && !tqp_vector->tx_group.coal.adapt_enable &&
+	    !tqp_vector->rx_group.coal.adapt_enable)
 		/* According to the hardware, the range of rl_reg is
 		 * 0-59 and the unit is 4.
 		 */
@@ -224,61 +224,113 @@ void hns3_set_vector_coalesce_rl(struct hns3_enet_tqp_vector *tqp_vector,
 void hns3_set_vector_coalesce_rx_gl(struct hns3_enet_tqp_vector *tqp_vector,
 				    u32 gl_value)
 {
-	u32 rx_gl_reg = hns3_gl_usec_to_reg(gl_value);
+	u32 new_val;
 
-	writel(rx_gl_reg, tqp_vector->mask_addr + HNS3_VECTOR_GL0_OFFSET);
+	if (tqp_vector->rx_group.coal.unit_1us)
+		new_val = gl_value | HNS3_INT_GL_1US;
+	else
+		new_val = hns3_gl_usec_to_reg(gl_value);
+
+	writel(new_val, tqp_vector->mask_addr + HNS3_VECTOR_GL0_OFFSET);
 }
 
 void hns3_set_vector_coalesce_tx_gl(struct hns3_enet_tqp_vector *tqp_vector,
 				    u32 gl_value)
 {
-	u32 tx_gl_reg = hns3_gl_usec_to_reg(gl_value);
+	u32 new_val;
 
-	writel(tx_gl_reg, tqp_vector->mask_addr + HNS3_VECTOR_GL1_OFFSET);
+	if (tqp_vector->tx_group.coal.unit_1us)
+		new_val = gl_value | HNS3_INT_GL_1US;
+	else
+		new_val = hns3_gl_usec_to_reg(gl_value);
+
+	writel(new_val, tqp_vector->mask_addr + HNS3_VECTOR_GL1_OFFSET);
 }
 
-static void hns3_vector_gl_rl_init(struct hns3_enet_tqp_vector *tqp_vector,
-				   struct hns3_nic_priv *priv)
+void hns3_set_vector_coalesce_tx_ql(struct hns3_enet_tqp_vector *tqp_vector,
+				    u32 ql_value)
 {
+	writel(ql_value, tqp_vector->mask_addr + HNS3_VECTOR_TX_QL_OFFSET);
+}
+
+void hns3_set_vector_coalesce_rx_ql(struct hns3_enet_tqp_vector *tqp_vector,
+				    u32 ql_value)
+{
+	writel(ql_value, tqp_vector->mask_addr + HNS3_VECTOR_RX_QL_OFFSET);
+}
+
+static void hns3_vector_coalesce_init(struct hns3_enet_tqp_vector *tqp_vector,
+				      struct hns3_nic_priv *priv)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(priv->ae_handle->pdev);
+	struct hns3_enet_coalesce *tx_coal = &tqp_vector->tx_group.coal;
+	struct hns3_enet_coalesce *rx_coal = &tqp_vector->rx_group.coal;
+
 	/* initialize the configuration for interrupt coalescing.
 	 * 1. GL (Interrupt Gap Limiter)
 	 * 2. RL (Interrupt Rate Limiter)
+	 * 3. QL (Interrupt Quantity Limiter)
 	 *
 	 * Default: enable interrupt coalescing self-adaptive and GL
 	 */
-	tqp_vector->tx_group.coal.gl_adapt_enable = 1;
-	tqp_vector->rx_group.coal.gl_adapt_enable = 1;
+	tx_coal->adapt_enable = 1;
+	rx_coal->adapt_enable = 1;
 
-	tqp_vector->tx_group.coal.int_gl = HNS3_INT_GL_50K;
-	tqp_vector->rx_group.coal.int_gl = HNS3_INT_GL_50K;
+	tx_coal->int_gl = HNS3_INT_GL_50K;
+	rx_coal->int_gl = HNS3_INT_GL_50K;
 
-	tqp_vector->rx_group.coal.flow_level = HNS3_FLOW_LOW;
-	tqp_vector->tx_group.coal.flow_level = HNS3_FLOW_LOW;
+	rx_coal->flow_level = HNS3_FLOW_LOW;
+	tx_coal->flow_level = HNS3_FLOW_LOW;
+
+	/* device version above V3(include V3), GL can configure 1us
+	 * unit, so uses 1us unit.
+	 */
+	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3) {
+		tx_coal->unit_1us = 1;
+		rx_coal->unit_1us = 1;
+	}
+
+	if (ae_dev->dev_specs.int_ql_max) {
+		tx_coal->ql_enable = 1;
+		rx_coal->ql_enable = 1;
+		tx_coal->int_ql_max = ae_dev->dev_specs.int_ql_max;
+		rx_coal->int_ql_max = ae_dev->dev_specs.int_ql_max;
+		tx_coal->int_ql = HNS3_INT_QL_DEFAULT_CFG;
+		rx_coal->int_ql = HNS3_INT_QL_DEFAULT_CFG;
+	}
 }
 
-static void hns3_vector_gl_rl_init_hw(struct hns3_enet_tqp_vector *tqp_vector,
-				      struct hns3_nic_priv *priv)
+static void
+hns3_vector_coalesce_init_hw(struct hns3_enet_tqp_vector *tqp_vector,
+			     struct hns3_nic_priv *priv)
 {
+	struct hns3_enet_coalesce *tx_coal = &tqp_vector->tx_group.coal;
+	struct hns3_enet_coalesce *rx_coal = &tqp_vector->rx_group.coal;
 	struct hnae3_handle *h = priv->ae_handle;
 
-	hns3_set_vector_coalesce_tx_gl(tqp_vector,
-				       tqp_vector->tx_group.coal.int_gl);
-	hns3_set_vector_coalesce_rx_gl(tqp_vector,
-				       tqp_vector->rx_group.coal.int_gl);
+	hns3_set_vector_coalesce_tx_gl(tqp_vector, tx_coal->int_gl);
+	hns3_set_vector_coalesce_rx_gl(tqp_vector, rx_coal->int_gl);
 	hns3_set_vector_coalesce_rl(tqp_vector, h->kinfo.int_rl_setting);
+
+	if (tx_coal->ql_enable)
+		hns3_set_vector_coalesce_tx_ql(tqp_vector, tx_coal->int_ql);
+
+	if (rx_coal->ql_enable)
+		hns3_set_vector_coalesce_rx_ql(tqp_vector, rx_coal->int_ql);
 }
 
 static int hns3_nic_set_real_num_queue(struct net_device *netdev)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	struct hnae3_knic_private_info *kinfo = &h->kinfo;
-	unsigned int queue_size = kinfo->rss_size * kinfo->num_tc;
+	struct hnae3_tc_info *tc_info = &kinfo->tc_info;
+	unsigned int queue_size = kinfo->num_tqps;
 	int i, ret;
 
-	if (kinfo->num_tc <= 1) {
+	if (tc_info->num_tc <= 1 && !tc_info->mqprio_active) {
 		netdev_reset_tc(netdev);
 	} else {
-		ret = netdev_set_num_tc(netdev, kinfo->num_tc);
+		ret = netdev_set_num_tc(netdev, tc_info->num_tc);
 		if (ret) {
 			netdev_err(netdev,
 				   "netdev_set_num_tc fail, ret=%d!\n", ret);
@@ -286,13 +338,11 @@ static int hns3_nic_set_real_num_queue(struct net_device *netdev)
 		}
 
 		for (i = 0; i < HNAE3_MAX_TC; i++) {
-			if (!kinfo->tc_info[i].enable)
+			if (!test_bit(i, &tc_info->tc_en))
 				continue;
 
-			netdev_set_tc_queue(netdev,
-					    kinfo->tc_info[i].tc,
-					    kinfo->tc_info[i].tqp_count,
-					    kinfo->tc_info[i].tqp_offset);
+			netdev_set_tc_queue(netdev, i, tc_info->tqp_count[i],
+					    tc_info->tqp_offset[i]);
 		}
 	}
 
@@ -318,7 +368,7 @@ static u16 hns3_get_max_available_channels(struct hnae3_handle *h)
 	u16 alloc_tqps, max_rss_size, rss_size;
 
 	h->ae_algo->ops->get_tqps_and_rss_info(h, &alloc_tqps, &max_rss_size);
-	rss_size = alloc_tqps / h->kinfo.num_tc;
+	rss_size = alloc_tqps / h->kinfo.tc_info.num_tc;
 
 	return min_t(u16, rss_size, max_rss_size);
 }
@@ -457,7 +507,7 @@ static int hns3_nic_net_open(struct net_device *netdev)
 
 	kinfo = &h->kinfo;
 	for (i = 0; i < HNAE3_MAX_USER_PRIO; i++)
-		netdev_set_prio_tc_map(netdev, i, kinfo->prio_tc[i]);
+		netdev_set_prio_tc_map(netdev, i, kinfo->tc_info.prio_tc[i]);
 
 	if (h->ae_algo->ops->set_timer_task)
 		h->ae_algo->ops->set_timer_task(priv->ae_handle, true);
@@ -644,7 +694,7 @@ void hns3_enable_vlan_filter(struct net_device *netdev, bool enable)
 	}
 }
 
-static int hns3_set_tso(struct sk_buff *skb, u32 *paylen,
+static int hns3_set_tso(struct sk_buff *skb, u32 *paylen_fdop_ol4cs,
 			u16 *mss, u32 *type_cs_vlan_tso)
 {
 	u32 l4_offset, hdr_len;
@@ -674,15 +724,6 @@ static int hns3_set_tso(struct sk_buff *skb, u32 *paylen,
 					 SKB_GSO_GRE_CSUM |
 					 SKB_GSO_UDP_TUNNEL |
 					 SKB_GSO_UDP_TUNNEL_CSUM)) {
-		if ((!(skb_shinfo(skb)->gso_type &
-		    SKB_GSO_PARTIAL)) &&
-		    (skb_shinfo(skb)->gso_type &
-		    SKB_GSO_UDP_TUNNEL_CSUM)) {
-			/* Software should clear the udp's checksum
-			 * field when tso is needed.
-			 */
-			l4.udp->check = 0;
-		}
 		/* reset l3&l4 pointers from outer to inner headers */
 		l3.hdr = skb_inner_network_header(skb);
 		l4.hdr = skb_inner_transport_header(skb);
@@ -711,8 +752,12 @@ static int hns3_set_tso(struct sk_buff *skb, u32 *paylen,
 	}
 
 	/* find the txbd field values */
-	*paylen = skb->len - hdr_len;
+	*paylen_fdop_ol4cs = skb->len - hdr_len;
 	hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_TSO_B, 1);
+
+	/* offload outer UDP header checksum */
+	if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_TUNNEL_CSUM)
+		hns3_set_field(*paylen_fdop_ol4cs, HNS3_TXD_OL4CS_B, 1);
 
 	/* get MSS for TSO */
 	*mss = skb_shinfo(skb)->gso_size;
@@ -782,7 +827,15 @@ static int hns3_get_l4_protocol(struct sk_buff *skb, u8 *ol4_proto,
  */
 static bool hns3_tunnel_csum_bug(struct sk_buff *skb)
 {
+	struct hns3_nic_priv *priv = netdev_priv(skb->dev);
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(priv->ae_handle->pdev);
 	union l4_hdr_info l4;
+
+	/* device version above V3(include V3), the hardware can
+	 * do this checksum offload.
+	 */
+	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3)
+		return false;
 
 	l4.hdr = skb_transport_header(skb);
 
@@ -952,6 +1005,7 @@ static int hns3_handle_vtags(struct hns3_enet_ring *tx_ring,
 			     struct sk_buff *skb)
 {
 	struct hnae3_handle *handle = tx_ring->tqp->handle;
+	struct hnae3_ae_dev *ae_dev;
 	struct vlan_ethhdr *vhdr;
 	int rc;
 
@@ -959,10 +1013,13 @@ static int hns3_handle_vtags(struct hns3_enet_ring *tx_ring,
 	      skb_vlan_tag_present(skb)))
 		return 0;
 
-	/* Since HW limitation, if port based insert VLAN enabled, only one VLAN
-	 * header is allowed in skb, otherwise it will cause RAS error.
+	/* For HW limitation on HNAE3_DEVICE_VERSION_V2, if port based insert
+	 * VLAN enabled, only one VLAN header is allowed in skb, otherwise it
+	 * will cause RAS error.
 	 */
+	ae_dev = pci_get_drvdata(handle->pdev);
 	if (unlikely(skb_vlan_tagged_multi(skb) &&
+		     ae_dev->dev_version <= HNAE3_DEVICE_VERSION_V2 &&
 		     handle->port_base_vlan_state ==
 		     HNAE3_PORT_BASE_VLAN_ENABLE))
 		return -EINVAL;
@@ -1004,15 +1061,31 @@ static int hns3_handle_vtags(struct hns3_enet_ring *tx_ring,
 	return 0;
 }
 
+/* check if the hardware is capable of checksum offloading */
+static bool hns3_check_hw_tx_csum(struct sk_buff *skb)
+{
+	struct hns3_nic_priv *priv = netdev_priv(skb->dev);
+
+	/* Kindly note, due to backward compatibility of the TX descriptor,
+	 * HW checksum of the non-IP packets and GSO packets is handled at
+	 * different place in the following code
+	 */
+	if (skb_csum_is_sctp(skb) || skb_is_gso(skb) ||
+	    !test_bit(HNS3_NIC_STATE_HW_TX_CSUM_ENABLE, &priv->state))
+		return false;
+
+	return true;
+}
+
 static int hns3_fill_skb_desc(struct hns3_enet_ring *ring,
 			      struct sk_buff *skb, struct hns3_desc *desc)
 {
 	u32 ol_type_vlan_len_msec = 0;
+	u32 paylen_ol4cs = skb->len;
 	u32 type_cs_vlan_tso = 0;
-	u32 paylen = skb->len;
+	u16 mss_hw_csum = 0;
 	u16 inner_vtag = 0;
 	u16 out_vtag = 0;
-	u16 mss = 0;
 	int ret;
 
 	ret = hns3_handle_vtags(ring, skb);
@@ -1037,6 +1110,17 @@ static int hns3_fill_skb_desc(struct hns3_enet_ring *ring,
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		u8 ol4_proto, il4_proto;
 
+		if (hns3_check_hw_tx_csum(skb)) {
+			/* set checksum start and offset, defined in 2 Bytes */
+			hns3_set_field(type_cs_vlan_tso, HNS3_TXD_CSUM_START_S,
+				       skb_checksum_start_offset(skb) >> 1);
+			hns3_set_field(ol_type_vlan_len_msec,
+				       HNS3_TXD_CSUM_OFFSET_S,
+				       skb->csum_offset >> 1);
+			mss_hw_csum |= BIT(HNS3_TXD_HW_CS_B);
+			goto out_hw_tx_csum;
+		}
+
 		skb_reset_mac_len(skb);
 
 		ret = hns3_get_l4_protocol(skb, &ol4_proto, &il4_proto);
@@ -1057,7 +1141,7 @@ static int hns3_fill_skb_desc(struct hns3_enet_ring *ring,
 			return ret;
 		}
 
-		ret = hns3_set_tso(skb, &paylen, &mss,
+		ret = hns3_set_tso(skb, &paylen_ol4cs, &mss_hw_csum,
 				   &type_cs_vlan_tso);
 		if (unlikely(ret < 0)) {
 			u64_stats_update_begin(&ring->syncp);
@@ -1067,12 +1151,13 @@ static int hns3_fill_skb_desc(struct hns3_enet_ring *ring,
 		}
 	}
 
+out_hw_tx_csum:
 	/* Set txbd */
 	desc->tx.ol_type_vlan_len_msec =
 		cpu_to_le32(ol_type_vlan_len_msec);
 	desc->tx.type_cs_vlan_tso_len = cpu_to_le32(type_cs_vlan_tso);
-	desc->tx.paylen = cpu_to_le32(paylen);
-	desc->tx.mss = cpu_to_le16(mss);
+	desc->tx.paylen_ol4cs = cpu_to_le32(paylen_ol4cs);
+	desc->tx.mss_hw_csum = cpu_to_le16(mss_hw_csum);
 	desc->tx.vlan_tag = cpu_to_le16(inner_vtag);
 	desc->tx.outer_vlan_tag = cpu_to_le16(out_vtag);
 
@@ -1583,6 +1668,13 @@ static int hns3_nic_set_features(struct net_device *netdev,
 		h->ae_algo->ops->enable_fd(h, enable);
 	}
 
+	if ((netdev->features & NETIF_F_HW_TC) > (features & NETIF_F_HW_TC) &&
+	    h->ae_algo->ops->cls_flower_active(h)) {
+		netdev_err(netdev,
+			   "there are offloaded TC filters active, cannot disable HW TC offload");
+		return -EINVAL;
+	}
+
 	netdev->features = features;
 	return 0;
 }
@@ -1708,7 +1800,6 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 {
 	struct tc_mqprio_qopt_offload *mqprio_qopt = type_data;
-	u8 *prio_tc = mqprio_qopt->qopt.prio_tc_map;
 	struct hnae3_knic_private_info *kinfo;
 	u8 tc = mqprio_qopt->qopt.num_tc;
 	u16 mode = mqprio_qopt->mode;
@@ -1731,16 +1822,70 @@ static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 	netif_dbg(h, drv, netdev, "setup tc: num_tc=%u\n", tc);
 
 	return (kinfo->dcb_ops && kinfo->dcb_ops->setup_tc) ?
-		kinfo->dcb_ops->setup_tc(h, tc ? tc : 1, prio_tc) : -EOPNOTSUPP;
+		kinfo->dcb_ops->setup_tc(h, mqprio_qopt) : -EOPNOTSUPP;
 }
+
+static int hns3_setup_tc_cls_flower(struct hns3_nic_priv *priv,
+				    struct flow_cls_offload *flow)
+{
+	int tc = tc_classid_to_hwtc(priv->netdev, flow->classid);
+	struct hnae3_handle *h = hns3_get_handle(priv->netdev);
+
+	switch (flow->command) {
+	case FLOW_CLS_REPLACE:
+		if (h->ae_algo->ops->add_cls_flower)
+			return h->ae_algo->ops->add_cls_flower(h, flow, tc);
+		break;
+	case FLOW_CLS_DESTROY:
+		if (h->ae_algo->ops->del_cls_flower)
+			return h->ae_algo->ops->del_cls_flower(h, flow);
+		break;
+	default:
+		break;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static int hns3_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
+				  void *cb_priv)
+{
+	struct hns3_nic_priv *priv = cb_priv;
+
+	if (!tc_cls_can_offload_and_chain0(priv->netdev, type_data))
+		return -EOPNOTSUPP;
+
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return hns3_setup_tc_cls_flower(priv, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static LIST_HEAD(hns3_block_cb_list);
 
 static int hns3_nic_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			     void *type_data)
 {
-	if (type != TC_SETUP_QDISC_MQPRIO)
-		return -EOPNOTSUPP;
+	struct hns3_nic_priv *priv = netdev_priv(dev);
+	int ret;
 
-	return hns3_setup_tc(dev, type_data);
+	switch (type) {
+	case TC_SETUP_QDISC_MQPRIO:
+		ret = hns3_setup_tc(dev, type_data);
+		break;
+	case TC_SETUP_BLOCK:
+		ret = flow_block_cb_setup_simple(type_data,
+						 &hns3_block_cb_list,
+						 hns3_setup_tc_block_cb,
+						 priv, priv, true);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return ret;
 }
 
 static int hns3_vlan_rx_add_vid(struct net_device *netdev,
@@ -2184,7 +2329,7 @@ static pci_ers_result_t hns3_error_detected(struct pci_dev *pdev,
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
 	pci_ers_result_t ret;
 
-	dev_info(&pdev->dev, "PCI error detected, state(=%d)!!\n", state);
+	dev_info(&pdev->dev, "PCI error detected, state(=%u)!!\n", state);
 
 	if (state == pci_channel_io_perm_failure)
 		return PCI_ERS_RESULT_DISCONNECT;
@@ -2275,39 +2420,32 @@ static void hns3_set_default_feature(struct net_device *netdev)
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 
-	netdev->hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-		NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO |
+	netdev->hw_enc_features |= NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO |
 		NETIF_F_GRO | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GSO_GRE |
 		NETIF_F_GSO_GRE_CSUM | NETIF_F_GSO_UDP_TUNNEL |
-		NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_SCTP_CRC |
-		NETIF_F_TSO_MANGLEID | NETIF_F_FRAGLIST;
+		NETIF_F_SCTP_CRC | NETIF_F_TSO_MANGLEID | NETIF_F_FRAGLIST;
 
 	netdev->gso_partial_features |= NETIF_F_GSO_GRE_CSUM;
 
-	netdev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-		NETIF_F_HW_VLAN_CTAG_FILTER |
+	netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER |
 		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
 		NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO |
 		NETIF_F_GRO | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GSO_GRE |
 		NETIF_F_GSO_GRE_CSUM | NETIF_F_GSO_UDP_TUNNEL |
-		NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_SCTP_CRC |
-		NETIF_F_FRAGLIST;
+		NETIF_F_SCTP_CRC | NETIF_F_FRAGLIST;
 
-	netdev->vlan_features |=
-		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM |
+	netdev->vlan_features |= NETIF_F_RXCSUM |
 		NETIF_F_SG | NETIF_F_GSO | NETIF_F_GRO |
 		NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GSO_GRE |
 		NETIF_F_GSO_GRE_CSUM | NETIF_F_GSO_UDP_TUNNEL |
-		NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_SCTP_CRC |
-		NETIF_F_FRAGLIST;
+		NETIF_F_SCTP_CRC | NETIF_F_FRAGLIST;
 
-	netdev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
+	netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_TX |
+		NETIF_F_HW_VLAN_CTAG_RX |
 		NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO |
 		NETIF_F_GRO | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GSO_GRE |
 		NETIF_F_GSO_GRE_CSUM | NETIF_F_GSO_UDP_TUNNEL |
-		NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_SCTP_CRC |
-		NETIF_F_FRAGLIST;
+		NETIF_F_SCTP_CRC | NETIF_F_FRAGLIST;
 
 	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
 		netdev->hw_features |= NETIF_F_GRO_HW;
@@ -2324,6 +2462,30 @@ static void hns3_set_default_feature(struct net_device *netdev)
 		netdev->features |= NETIF_F_GSO_UDP_L4;
 		netdev->vlan_features |= NETIF_F_GSO_UDP_L4;
 		netdev->hw_enc_features |= NETIF_F_GSO_UDP_L4;
+	}
+
+	if (test_bit(HNAE3_DEV_SUPPORT_HW_TX_CSUM_B, ae_dev->caps)) {
+		netdev->hw_features |= NETIF_F_HW_CSUM;
+		netdev->features |= NETIF_F_HW_CSUM;
+		netdev->vlan_features |= NETIF_F_HW_CSUM;
+		netdev->hw_enc_features |= NETIF_F_HW_CSUM;
+	} else {
+		netdev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+		netdev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+		netdev->vlan_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+		netdev->hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+	}
+
+	if (test_bit(HNAE3_DEV_SUPPORT_UDP_TUNNEL_CSUM_B, ae_dev->caps)) {
+		netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
+		netdev->features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
+		netdev->vlan_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
+		netdev->hw_enc_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
+	}
+
+	if (test_bit(HNAE3_DEV_SUPPORT_FD_FORWARD_TC_B, ae_dev->caps)) {
+		netdev->hw_features |= NETIF_F_HW_TC;
+		netdev->features |= NETIF_F_HW_TC;
 	}
 }
 
@@ -2638,12 +2800,6 @@ static void hns3_nic_alloc_rx_buffers(struct hns3_enet_ring *ring,
 	writel(i, ring->tqp->io_base + HNS3_RING_RX_RING_HEAD_REG);
 }
 
-static bool hns3_page_is_reusable(struct page *page)
-{
-	return page_to_nid(page) == numa_mem_id() &&
-		!page_is_pfmemalloc(page);
-}
-
 static bool hns3_can_reuse_page(struct hns3_desc_cb *cb)
 {
 	return (page_count(cb->priv) - cb->pagecnt_bias) == 1;
@@ -2661,10 +2817,11 @@ static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
 	skb_add_rx_frag(skb, i, desc_cb->priv, desc_cb->page_offset + pull_len,
 			size - pull_len, truesize);
 
-	/* Avoid re-using remote pages, or the stack is still using the page
-	 * when page_offset rollback to zero, flag default unreuse
+	/* Avoid re-using remote and pfmemalloc pages, or the stack is still
+	 * using the page when page_offset rollback to zero, flag default
+	 * unreuse
 	 */
-	if (unlikely(!hns3_page_is_reusable(desc_cb->priv)) ||
+	if (!dev_page_is_reusable(desc_cb->priv) ||
 	    (!desc_cb->page_offset && !hns3_can_reuse_page(desc_cb))) {
 		__page_frag_cache_drain(desc_cb->priv, desc_cb->pagecnt_bias);
 		return;
@@ -2747,6 +2904,22 @@ static int hns3_gro_complete(struct sk_buff *skb, u32 l234info)
 	return 0;
 }
 
+static void hns3_checksum_complete(struct hns3_enet_ring *ring,
+				   struct sk_buff *skb, u32 l234info)
+{
+	u32 lo, hi;
+
+	u64_stats_update_begin(&ring->syncp);
+	ring->stats.csum_complete++;
+	u64_stats_update_end(&ring->syncp);
+	skb->ip_summed = CHECKSUM_COMPLETE;
+	lo = hnae3_get_field(l234info, HNS3_RXD_L2_CSUM_L_M,
+			     HNS3_RXD_L2_CSUM_L_S);
+	hi = hnae3_get_field(l234info, HNS3_RXD_L2_CSUM_H_M,
+			     HNS3_RXD_L2_CSUM_H_S);
+	skb->csum = csum_unfold((__force __sum16)(lo | hi << 8));
+}
+
 static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 			     u32 l234info, u32 bd_base_info, u32 ol_info)
 {
@@ -2760,6 +2933,11 @@ static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 
 	if (!(netdev->features & NETIF_F_RXCSUM))
 		return;
+
+	if (l234info & BIT(HNS3_RXD_L2_CSUM_B)) {
+		hns3_checksum_complete(ring, skb, l234info);
+		return;
+	}
 
 	/* check if hardware has done checksum */
 	if (!(bd_base_info & BIT(HNS3_RXD_L3L4P_B)))
@@ -2900,8 +3078,8 @@ static int hns3_alloc_skb(struct hns3_enet_ring *ring, unsigned int length,
 	if (length <= HNS3_RX_HEAD_SIZE) {
 		memcpy(__skb_put(skb, length), va, ALIGN(length, sizeof(long)));
 
-		/* We can reuse buffer as-is, just make sure it is local */
-		if (likely(hns3_page_is_reusable(desc_cb->priv)))
+		/* We can reuse buffer as-is, just make sure it is reusable */
+		if (dev_page_is_reusable(desc_cb->priv))
 			desc_cb->reuse_flag = 1;
 		else /* This page cannot be reused so discard it */
 			__page_frag_cache_drain(desc_cb->priv,
@@ -3333,14 +3511,14 @@ static void hns3_update_new_int_gl(struct hns3_enet_tqp_vector *tqp_vector)
 			tqp_vector->last_jiffies + msecs_to_jiffies(1000)))
 		return;
 
-	if (rx_group->coal.gl_adapt_enable) {
+	if (rx_group->coal.adapt_enable) {
 		rx_update = hns3_get_new_int_gl(rx_group);
 		if (rx_update)
 			hns3_set_vector_coalesce_rx_gl(tqp_vector,
 						       rx_group->coal.int_gl);
 	}
 
-	if (tx_group->coal.gl_adapt_enable) {
+	if (tx_group->coal.adapt_enable) {
 		tx_update = hns3_get_new_int_gl(tx_group);
 		if (tx_update)
 			hns3_set_vector_coalesce_tx_gl(tqp_vector,
@@ -3536,7 +3714,7 @@ static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 
 	for (i = 0; i < priv->vector_num; i++) {
 		tqp_vector = &priv->tqp_vector[i];
-		hns3_vector_gl_rl_init_hw(tqp_vector, priv);
+		hns3_vector_coalesce_init_hw(tqp_vector, priv);
 		tqp_vector->num_tqps = 0;
 	}
 
@@ -3594,8 +3772,6 @@ map_ring_fail:
 
 static int hns3_nic_alloc_vector_data(struct hns3_nic_priv *priv)
 {
-#define HNS3_VECTOR_PF_MAX_NUM		64
-
 	struct hnae3_handle *h = priv->ae_handle;
 	struct hns3_enet_tqp_vector *tqp_vector;
 	struct hnae3_vector_info *vector;
@@ -3608,7 +3784,6 @@ static int hns3_nic_alloc_vector_data(struct hns3_nic_priv *priv)
 	/* RSS size, cpu online and vector_num should be the same */
 	/* Should consider 2p/4p later */
 	vector_num = min_t(u16, num_online_cpus(), tqp_num);
-	vector_num = min_t(u16, vector_num, HNS3_VECTOR_PF_MAX_NUM);
 
 	vector = devm_kcalloc(&pdev->dev, vector_num, sizeof(*vector),
 			      GFP_KERNEL);
@@ -3632,7 +3807,7 @@ static int hns3_nic_alloc_vector_data(struct hns3_nic_priv *priv)
 		tqp_vector->idx = i;
 		tqp_vector->mask_addr = vector[i].io_addr;
 		tqp_vector->vector_irq = vector[i].vector;
-		hns3_vector_gl_rl_init(tqp_vector, priv);
+		hns3_vector_coalesce_init(tqp_vector, priv);
 	}
 
 out:
@@ -3864,21 +4039,20 @@ static void hns3_init_ring_hw(struct hns3_enet_ring *ring)
 static void hns3_init_tx_ring_tc(struct hns3_nic_priv *priv)
 {
 	struct hnae3_knic_private_info *kinfo = &priv->ae_handle->kinfo;
+	struct hnae3_tc_info *tc_info = &kinfo->tc_info;
 	int i;
 
 	for (i = 0; i < HNAE3_MAX_TC; i++) {
-		struct hnae3_tc_info *tc_info = &kinfo->tc_info[i];
 		int j;
 
-		if (!tc_info->enable)
+		if (!test_bit(i, &tc_info->tc_en))
 			continue;
 
-		for (j = 0; j < tc_info->tqp_count; j++) {
+		for (j = 0; j < tc_info->tqp_count[i]; j++) {
 			struct hnae3_queue *q;
 
-			q = priv->ring[tc_info->tqp_offset + j].tqp;
-			hns3_write_dev(q, HNS3_RING_TX_RING_TC_REG,
-				       tc_info->tc);
+			q = priv->ring[tc_info->tqp_offset[i] + j].tqp;
+			hns3_write_dev(q, HNS3_RING_TX_RING_TC_REG, i);
 		}
 	}
 }
@@ -3910,7 +4084,7 @@ out_when_alloc_ring_memory:
 	return -ENOMEM;
 }
 
-int hns3_uninit_all_ring(struct hns3_nic_priv *priv)
+static void hns3_uninit_all_ring(struct hns3_nic_priv *priv)
 {
 	struct hnae3_handle *h = priv->ae_handle;
 	int i;
@@ -3919,7 +4093,6 @@ int hns3_uninit_all_ring(struct hns3_nic_priv *priv)
 		hns3_fini_ring(&priv->ring[i]);
 		hns3_fini_ring(&priv->ring[i + h->kinfo.num_tqps]);
 	}
-	return 0;
 }
 
 /* Set mac addr if it is configured. or leave it to the AE driver */
@@ -4005,7 +4178,8 @@ static void hns3_info_show(struct hns3_nic_priv *priv)
 	dev_info(priv->dev, "RX buffer length: %u\n", kinfo->rx_buf_len);
 	dev_info(priv->dev, "Desc num per TX queue: %u\n", kinfo->num_tx_desc);
 	dev_info(priv->dev, "Desc num per RX queue: %u\n", kinfo->num_rx_desc);
-	dev_info(priv->dev, "Total number of enabled TCs: %u\n", kinfo->num_tc);
+	dev_info(priv->dev, "Total number of enabled TCs: %u\n",
+		 kinfo->tc_info.num_tc);
 	dev_info(priv->dev, "Max mtu size: %u\n", priv->netdev->max_mtu);
 }
 
@@ -4106,10 +4280,15 @@ static int hns3_client_init(struct hnae3_handle *handle)
 
 	hns3_dbg_init(handle);
 
-	/* MTU range: (ETH_MIN_MTU(kernel default) - 9702) */
-	netdev->max_mtu = HNS3_MAX_MTU;
+	netdev->max_mtu = HNS3_MAX_MTU(ae_dev->dev_specs.max_frm_size);
+
+	if (test_bit(HNAE3_DEV_SUPPORT_HW_TX_CSUM_B, ae_dev->caps))
+		set_bit(HNS3_NIC_STATE_HW_TX_CSUM_ENABLE, &priv->state);
 
 	set_bit(HNS3_NIC_STATE_INITED, &priv->state);
+
+	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3)
+		set_bit(HNAE3_PFLAG_LIMIT_PROMISC, &handle->supported_pflags);
 
 	if (netif_msg_drv(handle))
 		hns3_info_show(priv);
@@ -4141,7 +4320,6 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 {
 	struct net_device *netdev = handle->kinfo.netdev;
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	int ret;
 
 	if (netdev->reg_state != NETREG_UNINITIALIZED)
 		unregister_netdev(netdev);
@@ -4167,9 +4345,7 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 
 	hns3_nic_dealloc_vector_data(priv);
 
-	ret = hns3_uninit_all_ring(priv);
-	if (ret)
-		netdev_err(netdev, "uninit ring error\n");
+	hns3_uninit_all_ring(priv);
 
 	hns3_put_ring_config(priv);
 
@@ -4196,20 +4372,6 @@ static void hns3_link_status_change(struct hnae3_handle *handle, bool linkup)
 		if (netif_msg_link(handle))
 			netdev_info(netdev, "link down\n");
 	}
-}
-
-static int hns3_client_setup_tc(struct hnae3_handle *handle, u8 tc)
-{
-	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
-	struct net_device *ndev = kinfo->netdev;
-
-	if (tc > HNAE3_MAX_TC)
-		return -EINVAL;
-
-	if (!ndev)
-		return -ENODEV;
-
-	return hns3_nic_set_real_num_queue(ndev);
 }
 
 static void hns3_clear_tx_ring(struct hns3_enet_ring *ring)
@@ -4478,7 +4640,6 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 {
 	struct net_device *netdev = handle->kinfo.netdev;
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	int ret;
 
 	if (!test_and_clear_bit(HNS3_NIC_STATE_INITED, &priv->state)) {
 		netdev_warn(netdev, "already uninitialized\n");
@@ -4496,13 +4657,11 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 
 	hns3_nic_dealloc_vector_data(priv);
 
-	ret = hns3_uninit_all_ring(priv);
-	if (ret)
-		netdev_err(netdev, "uninit ring error\n");
+	hns3_uninit_all_ring(priv);
 
 	hns3_put_ring_config(priv);
 
-	return ret;
+	return 0;
 }
 
 static int hns3_reset_notify(struct hnae3_handle *handle,
@@ -4569,6 +4728,12 @@ int hns3_set_channels(struct net_device *netdev,
 
 	if (ch->rx_count || ch->tx_count)
 		return -EINVAL;
+
+	if (kinfo->tc_info.mqprio_active) {
+		dev_err(&netdev->dev,
+			"it's not allowed to set channels via ethtool when MQPRIO mode is on\n");
+		return -EINVAL;
+	}
 
 	if (new_tqp_num > hns3_get_max_available_channels(h) ||
 	    new_tqp_num < 1) {
@@ -4642,7 +4807,6 @@ static const struct hnae3_client_ops client_ops = {
 	.init_instance = hns3_client_init,
 	.uninit_instance = hns3_client_uninit,
 	.link_status_change = hns3_link_status_change,
-	.setup_tc = hns3_client_setup_tc,
 	.reset_notify = hns3_reset_notify,
 	.process_hw_error = hns3_process_hw_error,
 };

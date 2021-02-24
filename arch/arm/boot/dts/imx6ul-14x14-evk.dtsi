@@ -101,7 +101,7 @@
 		status = "okay";
 		gpio-sck = <&gpio5 11 0>;
 		gpio-mosi = <&gpio5 10 0>;
-		cs-gpios = <&gpio5 7 0>;
+		cs-gpios = <&gpio5 7 GPIO_ACTIVE_LOW>;
 		num-chipselects = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -113,6 +113,7 @@
 			reg = <0>;
 			registers-number = <1>;
 			spi-max-frequency = <100000>;
+			enable-gpios = <&gpio5 8 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -145,6 +146,41 @@
 		reg = <0x1a>;
 		wlf,shared-lrclk;
 	};
+
+	camera@3c {
+		compatible = "ovti,ov5640";
+		reg = <0x3c>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_camera_clock>;
+		clocks = <&clks IMX6UL_CLK_CSI>;
+		clock-names = "xclk";
+		powerdown-gpios = <&gpio_spi 6 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio_spi 5 GPIO_ACTIVE_LOW>;
+
+		port {
+			ov5640_to_parallel: endpoint {
+				remote-endpoint = <&parallel_from_ov5640>;
+				bus-width = <8>;
+				data-shift = <2>; /* lines 9:2 are used */
+				hsync-active = <0>;
+				vsync-active = <0>;
+				pclk-sample = <1>;
+			};
+		};
+	};
+};
+
+&csi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_csi1>;
+	status = "okay";
+
+	port {
+		parallel_from_ov5640: endpoint {
+			remote-endpoint = <&ov5640_to_parallel>;
+			bus-type = <5>; /* Parallel bus */
+		};
+	};
 };
 
 &fec1 {
@@ -169,17 +205,26 @@
 		#size-cells = <0>;
 
 		ethphy0: ethernet-phy@2 {
+			compatible = "ethernet-phy-id0022.1560";
 			reg = <2>;
 			micrel,led-mode = <1>;
 			clocks = <&clks IMX6UL_CLK_ENET_REF>;
 			clock-names = "rmii-ref";
+			reset-gpios = <&gpio_spi 1 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <10000>;
+			reset-deassert-us = <100>;
+
 		};
 
 		ethphy1: ethernet-phy@1 {
+			compatible = "ethernet-phy-id0022.1560";
 			reg = <1>;
 			micrel,led-mode = <1>;
 			clocks = <&clks IMX6UL_CLK_ENET2_REF>;
 			clock-names = "rmii-ref";
+			reset-gpios = <&gpio_spi 2 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <10000>;
+			reset-deassert-us = <100>;
 		};
 	};
 };
@@ -343,9 +388,14 @@
 &iomuxc {
 	pinctrl-names = "default";
 
-	pinctrl_csi1: csi1grp {
+	pinctrl_camera_clock: cameraclockgrp {
 		fsl,pins = <
 			MX6UL_PAD_CSI_MCLK__CSI_MCLK		0x1b088
+		>;
+	};
+
+	pinctrl_csi1: csi1grp {
+		fsl,pins = <
 			MX6UL_PAD_CSI_PIXCLK__CSI_PIXCLK	0x1b088
 			MX6UL_PAD_CSI_VSYNC__CSI_VSYNC		0x1b088
 			MX6UL_PAD_CSI_HSYNC__CSI_HSYNC		0x1b088

@@ -329,7 +329,7 @@
 	pinctrl-0 = <&i2c3_bus>;
 	pinctrl-names = "default";
 
-	mxt224-touchscreen@4a {
+	touchscreen@4a {
 		compatible = "atmel,maxtouch";
 		reg = <0x4a>;
 
@@ -348,7 +348,7 @@
 	pinctrl-0 = <&i2c5_bus>;
 	pinctrl-names = "default";
 
-	max8997_pmic@66 {
+	pmic@66 {
 		compatible = "maxim,max8997-pmic";
 		reg = <0x66>;
 
@@ -560,20 +560,6 @@
 				regulator-boot-on;
 			};
 
-			charger_reg: CHARGER {
-				regulator-name = "CHARGER";
-				regulator-min-microamp = <60000>;
-				regulator-max-microamp = <2580000>;
-				regulator-always-on;
-			};
-
-			chargercv_reg: CHARGER_CV {
-				regulator-name = "CHARGER_CV";
-				regulator-min-microvolt = <3800000>;
-				regulator-max-microvolt = <4100000>;
-				regulator-always-on;
-			};
-
 			EN32KHZ_AP {
 				regulator-name = "EN32KHZ_AP";
 				regulator-always-on;
@@ -581,6 +567,26 @@
 
 			EN32KHZ_CP {
 				regulator-name = "EN32KHZ_CP";
+				regulator-always-on;
+			};
+
+			charger_reg: CHARGER {
+				regulator-name = "CHARGER";
+				regulator-min-microamp = <200000>;
+				regulator-max-microamp = <950000>;
+			};
+
+			chargercv_reg: CHARGER_CV {
+				regulator-name = "CHARGER_CV";
+				regulator-min-microvolt = <4200000>;
+				regulator-max-microvolt = <4200000>;
+				regulator-always-on;
+			};
+
+			CHARGER_TOPOFF {
+				regulator-name = "CHARGER_TOPOFF";
+				regulator-min-microamp = <200000>;
+				regulator-max-microamp = <200000>;
 				regulator-always-on;
 			};
 		};
@@ -597,7 +603,7 @@
 	pinctrl-0 = <&i2c7_bus>;
 	pinctrl-names = "default";
 
-	ak8975@c {
+	magnetometer@c {
 		compatible = "asahi-kasei,ak8975";
 		reg = <0x0c>;
 

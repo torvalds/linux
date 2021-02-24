@@ -12,7 +12,7 @@
 long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr)
 {
 	struct cpucp_packet pkt;
-	long result;
+	u64 result;
 	int rc;
 
 	memset(&pkt, 0, sizeof(pkt));
@@ -32,10 +32,10 @@ long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr)
 		dev_err(hdev->dev,
 			"Failed to get frequency of PLL %d, error %d\n",
 			pll_index, rc);
-		result = rc;
+		return rc;
 	}
 
-	return result;
+	return (long) result;
 }
 
 void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq)
@@ -62,7 +62,7 @@ void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq)
 u64 hl_get_max_power(struct hl_device *hdev)
 {
 	struct cpucp_packet pkt;
-	long result;
+	u64 result;
 	int rc;
 
 	memset(&pkt, 0, sizeof(pkt));
@@ -75,7 +75,7 @@ u64 hl_get_max_power(struct hl_device *hdev)
 
 	if (rc) {
 		dev_err(hdev->dev, "Failed to get max power, error %d\n", rc);
-		result = rc;
+		return (u64) rc;
 	}
 
 	return result;
@@ -276,6 +276,8 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 		str = "In reset";
 	else if (hdev->disabled)
 		str = "Malfunction";
+	else if (hdev->needs_reset)
+		str = "Needs Reset";
 	else
 		str = "Operational";
 
@@ -304,7 +306,7 @@ static ssize_t max_power_show(struct device *dev, struct device_attribute *attr,
 	struct hl_device *hdev = dev_get_drvdata(dev);
 	long val;
 
-	if (hl_device_disabled_or_in_reset(hdev))
+	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
 	val = hl_get_max_power(hdev);
@@ -319,7 +321,7 @@ static ssize_t max_power_store(struct device *dev,
 	unsigned long value;
 	int rc;
 
-	if (hl_device_disabled_or_in_reset(hdev)) {
+	if (!hl_device_operational(hdev, NULL)) {
 		count = -ENODEV;
 		goto out;
 	}
@@ -347,7 +349,7 @@ static ssize_t eeprom_read_handler(struct file *filp, struct kobject *kobj,
 	char *data;
 	int rc;
 
-	if (hl_device_disabled_or_in_reset(hdev))
+	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
 	if (!max_size)

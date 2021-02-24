@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menu "Core Netfilter Configuration"
-	depends on NET && INET && NETFILTER
+	depends on INET && NETFILTER
 
 config NETFILTER_INGRESS
 	bool "Netfilter ingress support"
@@ -681,6 +681,16 @@ config NFT_FIB_NETDEV
 	  This option allows using the FIB expression from the netdev table.
 	  The lookup will be delegated to the IPv4 or IPv6 FIB depending
 	  on the protocol of the packet.
+
+config NFT_REJECT_NETDEV
+	depends on NFT_REJECT_IPV4
+	depends on NFT_REJECT_IPV6
+	tristate "Netfilter nf_tables netdev REJECT support"
+	help
+	  This option enables the REJECT support from the netdev table.
+	  The return packet generation will be delegated to the IPv4
+	  or IPv6 ICMP or TCP RST implementation depending on the
+	  protocol of the packet.
 
 endif # NF_TABLES_NETDEV
 

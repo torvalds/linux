@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0+
 
+#include <linux/dma-buf-map.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_gem_shmem_helper.h>
 
 #include "vkms_drv.h"
 
@@ -145,13 +148,14 @@ static int vkms_prepare_fb(struct drm_plane *plane,
 			   struct drm_plane_state *state)
 {
 	struct drm_gem_object *gem_obj;
+	struct dma_buf_map map;
 	int ret;
 
 	if (!state->fb)
 		return 0;
 
 	gem_obj = drm_gem_fb_get_obj(state->fb, 0);
-	ret = vkms_gem_vmap(gem_obj);
+	ret = drm_gem_shmem_vmap(gem_obj, &map);
 	if (ret)
 		DRM_ERROR("vmap failed: %d\n", ret);
 
@@ -162,12 +166,16 @@ static void vkms_cleanup_fb(struct drm_plane *plane,
 			    struct drm_plane_state *old_state)
 {
 	struct drm_gem_object *gem_obj;
+	struct drm_gem_shmem_object *shmem_obj;
+	struct dma_buf_map map;
 
 	if (!old_state->fb)
 		return;
 
 	gem_obj = drm_gem_fb_get_obj(old_state->fb, 0);
-	vkms_gem_vunmap(gem_obj);
+	shmem_obj = to_drm_gem_shmem_obj(drm_gem_fb_get_obj(old_state->fb, 0));
+	dma_buf_map_set_vaddr(&map, shmem_obj->vaddr);
+	drm_gem_shmem_vunmap(gem_obj, &map);
 }
 
 static const struct drm_plane_helper_funcs vkms_primary_helper_funcs = {

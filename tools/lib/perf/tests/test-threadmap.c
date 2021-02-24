@@ -27,5 +27,5 @@ int main(int argc, char **argv)
 	perf_thread_map__put(threads);
 
 	__T_END;
-	return 0;
+	return tests_failed == 0 ? 0 : -1;
 }

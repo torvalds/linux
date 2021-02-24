@@ -1515,8 +1515,14 @@ static bool l2cap_check_enc_key_size(struct hci_conn *hcon)
 	 * that have no key size requirements. Ensure that the link is
 	 * actually encrypted before enforcing a key size.
 	 */
+	int min_key_size = hcon->hdev->min_enc_key_size;
+
+	/* On FIPS security level, key size must be 16 bytes */
+	if (hcon->sec_level == BT_SECURITY_FIPS)
+		min_key_size = 16;
+
 	return (!test_bit(HCI_CONN_ENCRYPT, &hcon->flags) ||
-		hcon->enc_key_size >= hcon->hdev->min_enc_key_size);
+		hcon->enc_key_size >= min_key_size);
 }
 
 static void l2cap_do_start(struct l2cap_chan *chan)
@@ -3627,7 +3633,7 @@ static int l2cap_parse_conf_req(struct l2cap_chan *chan, void *data, size_t data
 			if (hint)
 				break;
 			result = L2CAP_CONF_UNKNOWN;
-			*((u8 *) ptr++) = type;
+			l2cap_add_conf_opt(&ptr, (u8)type, sizeof(u8), type, endptr - ptr);
 			break;
 		}
 	}
@@ -4513,6 +4519,7 @@ static inline int l2cap_config_rsp(struct l2cap_conn *conn,
 		}
 		goto done;
 
+	case L2CAP_CONF_UNKNOWN:
 	case L2CAP_CONF_UNACCEPT:
 		if (chan->num_conf_rsp <= L2CAP_CONF_MAX_CONF_RSP) {
 			char req[64];
@@ -8270,10 +8277,73 @@ static void l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 	mutex_unlock(&conn->chan_lock);
 }
 
+/* Append fragment into frame respecting the maximum len of rx_skb */
+static int l2cap_recv_frag(struct l2cap_conn *conn, struct sk_buff *skb,
+			   u16 len)
+{
+	if (!conn->rx_skb) {
+		/* Allocate skb for the complete frame (with header) */
+		conn->rx_skb = bt_skb_alloc(len, GFP_KERNEL);
+		if (!conn->rx_skb)
+			return -ENOMEM;
+		/* Init rx_len */
+		conn->rx_len = len;
+	}
+
+	/* Copy as much as the rx_skb can hold */
+	len = min_t(u16, len, skb->len);
+	skb_copy_from_linear_data(skb, skb_put(conn->rx_skb, len), len);
+	skb_pull(skb, len);
+	conn->rx_len -= len;
+
+	return len;
+}
+
+static int l2cap_recv_len(struct l2cap_conn *conn, struct sk_buff *skb)
+{
+	struct sk_buff *rx_skb;
+	int len;
+
+	/* Append just enough to complete the header */
+	len = l2cap_recv_frag(conn, skb, L2CAP_LEN_SIZE - conn->rx_skb->len);
+
+	/* If header could not be read just continue */
+	if (len < 0 || conn->rx_skb->len < L2CAP_LEN_SIZE)
+		return len;
+
+	rx_skb = conn->rx_skb;
+	len = get_unaligned_le16(rx_skb->data);
+
+	/* Check if rx_skb has enough space to received all fragments */
+	if (len + (L2CAP_HDR_SIZE - L2CAP_LEN_SIZE) <= skb_tailroom(rx_skb)) {
+		/* Update expected len */
+		conn->rx_len = len + (L2CAP_HDR_SIZE - L2CAP_LEN_SIZE);
+		return L2CAP_LEN_SIZE;
+	}
+
+	/* Reset conn->rx_skb since it will need to be reallocated in order to
+	 * fit all fragments.
+	 */
+	conn->rx_skb = NULL;
+
+	/* Reallocates rx_skb using the exact expected length */
+	len = l2cap_recv_frag(conn, rx_skb,
+			      len + (L2CAP_HDR_SIZE - L2CAP_LEN_SIZE));
+	kfree_skb(rx_skb);
+
+	return len;
+}
+
+static void l2cap_recv_reset(struct l2cap_conn *conn)
+{
+	kfree_skb(conn->rx_skb);
+	conn->rx_skb = NULL;
+	conn->rx_len = 0;
+}
+
 void l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
-	struct l2cap_hdr *hdr;
 	int len;
 
 	/* For AMP controller do not create l2cap conn */
@@ -8292,23 +8362,23 @@ void l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 	case ACL_START:
 	case ACL_START_NO_FLUSH:
 	case ACL_COMPLETE:
-		if (conn->rx_len) {
+		if (conn->rx_skb) {
 			BT_ERR("Unexpected start frame (len %d)", skb->len);
-			kfree_skb(conn->rx_skb);
-			conn->rx_skb = NULL;
-			conn->rx_len = 0;
+			l2cap_recv_reset(conn);
 			l2cap_conn_unreliable(conn, ECOMM);
 		}
 
-		/* Start fragment always begin with Basic L2CAP header */
-		if (skb->len < L2CAP_HDR_SIZE) {
-			BT_ERR("Frame is too short (len %d)", skb->len);
-			l2cap_conn_unreliable(conn, ECOMM);
-			goto drop;
+		/* Start fragment may not contain the L2CAP length so just
+		 * copy the initial byte when that happens and use conn->mtu as
+		 * expected length.
+		 */
+		if (skb->len < L2CAP_LEN_SIZE) {
+			if (l2cap_recv_frag(conn, skb, conn->mtu) < 0)
+				goto drop;
+			return;
 		}
 
-		hdr = (struct l2cap_hdr *) skb->data;
-		len = __le16_to_cpu(hdr->len) + L2CAP_HDR_SIZE;
+		len = get_unaligned_le16(skb->data) + L2CAP_HDR_SIZE;
 
 		if (len == skb->len) {
 			/* Complete frame received */
@@ -8325,38 +8395,43 @@ void l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 			goto drop;
 		}
 
-		/* Allocate skb for the complete frame (with header) */
-		conn->rx_skb = bt_skb_alloc(len, GFP_KERNEL);
-		if (!conn->rx_skb)
+		/* Append fragment into frame (with header) */
+		if (l2cap_recv_frag(conn, skb, len) < 0)
 			goto drop;
 
-		skb_copy_from_linear_data(skb, skb_put(conn->rx_skb, skb->len),
-					  skb->len);
-		conn->rx_len = len - skb->len;
 		break;
 
 	case ACL_CONT:
 		BT_DBG("Cont: frag len %d (expecting %d)", skb->len, conn->rx_len);
 
-		if (!conn->rx_len) {
+		if (!conn->rx_skb) {
 			BT_ERR("Unexpected continuation frame (len %d)", skb->len);
 			l2cap_conn_unreliable(conn, ECOMM);
 			goto drop;
 		}
 
+		/* Complete the L2CAP length if it has not been read */
+		if (conn->rx_skb->len < L2CAP_LEN_SIZE) {
+			if (l2cap_recv_len(conn, skb) < 0) {
+				l2cap_conn_unreliable(conn, ECOMM);
+				goto drop;
+			}
+
+			/* Header still could not be read just continue */
+			if (conn->rx_skb->len < L2CAP_LEN_SIZE)
+				return;
+		}
+
 		if (skb->len > conn->rx_len) {
 			BT_ERR("Fragment is too long (len %d, expected %d)",
 			       skb->len, conn->rx_len);
-			kfree_skb(conn->rx_skb);
-			conn->rx_skb = NULL;
-			conn->rx_len = 0;
+			l2cap_recv_reset(conn);
 			l2cap_conn_unreliable(conn, ECOMM);
 			goto drop;
 		}
 
-		skb_copy_from_linear_data(skb, skb_put(conn->rx_skb, skb->len),
-					  skb->len);
-		conn->rx_len -= skb->len;
+		/* Append fragment into frame (with header) */
+		l2cap_recv_frag(conn, skb, skb->len);
 
 		if (!conn->rx_len) {
 			/* Complete frame received. l2cap_recv_frame

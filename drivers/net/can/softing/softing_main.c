@@ -84,7 +84,7 @@ static netdev_tx_t softing_netdev_start_xmit(struct sk_buff *skb,
 	if (priv->index)
 		*ptr |= CMD_BUS2;
 	++ptr;
-	*ptr++ = cf->can_dlc;
+	*ptr++ = cf->len;
 	*ptr++ = (cf->can_id >> 0);
 	*ptr++ = (cf->can_id >> 8);
 	if (cf->can_id & CAN_EFF_FLAG) {
@@ -95,7 +95,7 @@ static netdev_tx_t softing_netdev_start_xmit(struct sk_buff *skb,
 		ptr += 1;
 	}
 	if (!(cf->can_id & CAN_RTR_FLAG))
-		memcpy(ptr, &cf->data[0], cf->can_dlc);
+		memcpy(ptr, &cf->data[0], cf->len);
 	memcpy_toio(&card->dpram[DPRAM_TX + DPRAM_TX_SIZE * fifo_wr],
 			buf, DPRAM_TX_SIZE);
 	if (++fifo_wr >= DPRAM_TX_CNT)
@@ -104,7 +104,7 @@ static netdev_tx_t softing_netdev_start_xmit(struct sk_buff *skb,
 	card->tx.last_bus = priv->index;
 	++card->tx.pending;
 	++priv->tx.pending;
-	can_put_echo_skb(skb, dev, priv->tx.echo_put);
+	can_put_echo_skb(skb, dev, priv->tx.echo_put, 0);
 	++priv->tx.echo_put;
 	if (priv->tx.echo_put >= TX_ECHO_SKB_MAX)
 		priv->tx.echo_put = 0;
@@ -167,7 +167,7 @@ static int softing_handle_1(struct softing *card)
 		iowrite8(0, &card->dpram[DPRAM_RX_LOST]);
 		/* prepare msg */
 		msg.can_id = CAN_ERR_FLAG | CAN_ERR_CRTL;
-		msg.can_dlc = CAN_ERR_DLC;
+		msg.len = CAN_ERR_DLC;
 		msg.data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
 		/*
 		 * service to all buses, we don't know which it was applicable
@@ -218,7 +218,7 @@ static int softing_handle_1(struct softing *card)
 		state = *ptr++;
 
 		msg.can_id = CAN_ERR_FLAG;
-		msg.can_dlc = CAN_ERR_DLC;
+		msg.len = CAN_ERR_DLC;
 
 		if (state & SF_MASK_BUSOFF) {
 			can_state = CAN_STATE_BUS_OFF;
@@ -261,7 +261,7 @@ static int softing_handle_1(struct softing *card)
 	} else {
 		if (cmd & CMD_RTR)
 			msg.can_id |= CAN_RTR_FLAG;
-		msg.can_dlc = get_can_dlc(*ptr++);
+		msg.len = can_cc_dlc2len(*ptr++);
 		if (cmd & CMD_XTD) {
 			msg.can_id |= CAN_EFF_FLAG;
 			msg.can_id |= le32_to_cpup((void *)ptr);
@@ -284,7 +284,7 @@ static int softing_handle_1(struct softing *card)
 			skb = priv->can.echo_skb[priv->tx.echo_get];
 			if (skb)
 				skb->tstamp = ktime;
-			can_get_echo_skb(netdev, priv->tx.echo_get);
+			can_get_echo_skb(netdev, priv->tx.echo_get, NULL);
 			++priv->tx.echo_get;
 			if (priv->tx.echo_get >= TX_ECHO_SKB_MAX)
 				priv->tx.echo_get = 0;
@@ -294,7 +294,7 @@ static int softing_handle_1(struct softing *card)
 				--card->tx.pending;
 			++netdev->stats.tx_packets;
 			if (!(msg.can_id & CAN_RTR_FLAG))
-				netdev->stats.tx_bytes += msg.can_dlc;
+				netdev->stats.tx_bytes += msg.len;
 		} else {
 			int ret;
 
@@ -302,7 +302,7 @@ static int softing_handle_1(struct softing *card)
 			if (ret == NET_RX_SUCCESS) {
 				++netdev->stats.rx_packets;
 				if (!(msg.can_id & CAN_RTR_FLAG))
-					netdev->stats.rx_bytes += msg.can_dlc;
+					netdev->stats.rx_bytes += msg.len;
 			} else {
 				++netdev->stats.rx_dropped;
 			}
@@ -382,8 +382,13 @@ static int softing_netdev_open(struct net_device *ndev)
 
 	/* check or determine and set bittime */
 	ret = open_candev(ndev);
-	if (!ret)
-		ret = softing_startstop(ndev, 1);
+	if (ret)
+		return ret;
+
+	ret = softing_startstop(ndev, 1);
+	if (ret < 0)
+		close_candev(ndev);
+
 	return ret;
 }
 

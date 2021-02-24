@@ -21,11 +21,11 @@ Description:
 		number returns the port to normal operation.
 
 		For example: To force the high-speed device attached to
-		port 4 on bus 2 to run at full speed:
+		port 4 on bus 2 to run at full speed::
 
 			echo 4 >/sys/bus/usb/devices/usb2/../companion
 
-		To return the port to high-speed operation:
+		To return the port to high-speed operation::
 
 			echo -4 >/sys/bus/usb/devices/usb2/../companion
 

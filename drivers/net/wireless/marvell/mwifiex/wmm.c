@@ -1396,6 +1396,7 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 		break;
 	case 0:
 		mwifiex_write_data_complete(adapter, skb, 0, ret);
+		break;
 	default:
 		break;
 	}

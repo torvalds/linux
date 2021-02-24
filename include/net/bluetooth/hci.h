@@ -238,6 +238,14 @@ enum {
 	 * during the hdev->setup vendor callback.
 	 */
 	HCI_QUIRK_BROKEN_ERR_DATA_REPORTING,
+
+	/*
+	 * When this quirk is set, then the hci_suspend_notifier is not
+	 * registered. This is intended for devices which drop completely
+	 * from the bus on system-suspend and which will show up as a new
+	 * HCI after resume.
+	 */
+	HCI_QUIRK_NO_SUSPEND_NOTIFIER,
 };
 
 /* HCI device flags */
@@ -1795,6 +1803,13 @@ struct hci_cp_le_set_ext_scan_rsp_data {
 struct hci_cp_le_set_adv_set_rand_addr {
 	__u8  handle;
 	bdaddr_t  bdaddr;
+} __packed;
+
+#define HCI_OP_LE_READ_TRANSMIT_POWER	0x204b
+struct hci_rp_le_read_transmit_power {
+	__u8  status;
+	__s8  min_le_tx_power;
+	__s8  max_le_tx_power;
 } __packed;
 
 #define HCI_OP_LE_READ_BUFFER_SIZE_V2	0x2060

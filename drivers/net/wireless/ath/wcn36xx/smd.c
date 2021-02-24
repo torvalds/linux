@@ -78,6 +78,7 @@ static struct wcn36xx_cfg_val wcn36xx_cfg_vals[] = {
 	WCN36XX_CFG_VAL(MAX_ASSOC_LIMIT, 10),
 	WCN36XX_CFG_VAL(ENABLE_MCC_ADAPTIVE_SCHEDULER, 0),
 	WCN36XX_CFG_VAL(ENABLE_DYNAMIC_RA_START_RATE, 133), /* MCS 5 */
+	WCN36XX_CFG_VAL(LINK_FAIL_TX_CNT, 1000),
 };
 
 static struct wcn36xx_cfg_val wcn3680_cfg_vals[] = {
@@ -162,7 +163,7 @@ static struct wcn36xx_cfg_val wcn3680_cfg_vals[] = {
 	WCN36XX_CFG_VAL(ENABLE_RTSCTS_HTVHT, 0),
 	WCN36XX_CFG_VAL(BTC_STATIC_OPP_WLAN_IDLE_WLAN_LEN, 30000),
 	WCN36XX_CFG_VAL(BTC_STATIC_OPP_WLAN_IDLE_BT_LEN, 120000),
-	WCN36XX_CFG_VAL(LINK_FAIL_TX_CNT, 200),
+	WCN36XX_CFG_VAL(LINK_FAIL_TX_CNT, 1000),
 	WCN36XX_CFG_VAL(TOGGLE_ARP_BDRATES, 0),
 	WCN36XX_CFG_VAL(OPTIMIZE_CA_EVENT, 0),
 	WCN36XX_CFG_VAL(EXT_SCAN_CONC_MODE, 0),
@@ -484,7 +485,6 @@ static void init_hal_msg(struct wcn36xx_hal_msg_header *hdr,
 
 #define PREPARE_HAL_PTT_MSG_BUF(send_buf, p_msg_body) \
 	do {							\
-		memset(send_buf, 0, p_msg_body->header.len); \
 		memcpy(send_buf, p_msg_body, p_msg_body->header.len); \
 	} while (0)
 
@@ -2175,6 +2175,7 @@ int wcn36xx_smd_exit_bmps(struct wcn36xx *wcn, struct ieee80211_vif *vif)
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_EXIT_BMPS_REQ);
 
 	msg_body.bss_index = vif_priv->bss_index;
+	msg_body.send_data_null = 1;
 
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
 
@@ -2465,7 +2466,7 @@ out:
 	return ret;
 }
 
-int wcn36xx_smd_del_ba(struct wcn36xx *wcn, u16 tid, u8 sta_index)
+int wcn36xx_smd_del_ba(struct wcn36xx *wcn, u16 tid, u8 direction, u8 sta_index)
 {
 	struct wcn36xx_hal_del_ba_req_msg msg_body;
 	int ret;
@@ -2475,7 +2476,7 @@ int wcn36xx_smd_del_ba(struct wcn36xx *wcn, u16 tid, u8 sta_index)
 
 	msg_body.sta_index = sta_index;
 	msg_body.tid = tid;
-	msg_body.direction = 0;
+	msg_body.direction = direction;
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
 
 	ret = wcn36xx_smd_send_and_wait(wcn, msg_body.header.len);
@@ -2568,7 +2569,7 @@ static int wcn36xx_smd_hw_scan_ind(struct wcn36xx *wcn, void *buf, size_t len)
 	case WCN36XX_HAL_SCAN_IND_FAILED:
 	case WCN36XX_HAL_SCAN_IND_DEQUEUED:
 		scan_info.aborted = true;
-		/* fall through */
+		fallthrough;
 	case WCN36XX_HAL_SCAN_IND_COMPLETED:
 		mutex_lock(&wcn->scan_lock);
 		wcn->scan_req = NULL;

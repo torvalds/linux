@@ -54,7 +54,7 @@ static int igt_sanitycheck(void *ignored)
 static bool assert_no_holes(const struct drm_mm *mm)
 {
 	struct drm_mm_node *hole;
-	u64 hole_start, hole_end;
+	u64 hole_start, __always_unused hole_end;
 	unsigned long count;
 
 	count = 0;

@@ -725,8 +725,8 @@
 			interrupts = <0 50 4>;
 			bus-id = <0>;
 			enable-dma = <0>;
-			clocks = <&sys_ctrl HI6220_SPI_CLK>;
-			clock-names = "apb_pclk";
+			clocks = <&sys_ctrl HI6220_SPI_CLK>, <&sys_ctrl HI6220_SPI_CLK>;
+			clock-names = "sspclk", "apb_pclk";
 			pinctrl-names = "default";
 			pinctrl-0 = <&spi0_pmx_func &spi0_cfg_func>;
 			num-cs = <1>;
@@ -872,7 +872,7 @@
 
 		thermal-zones {
 
-			cls0: cls0 {
+			cls0: cls0-thermal {
 				polling-delay = <1000>;
 				polling-delay-passive = <100>;
 				sustainable-power = <3326>;
@@ -881,13 +881,13 @@
 				thermal-sensors = <&tsensor 2>;
 
 				trips {
-					threshold: trip-point@0 {
+					threshold: trip-point0 {
 						temperature = <65000>;
 						hysteresis = <0>;
 						type = "passive";
 					};
 
-					target: trip-point@1 {
+					target: trip-point1 {
 						temperature = <75000>;
 						hysteresis = <0>;
 						type = "passive";
@@ -1053,7 +1053,7 @@
 					  "ppmmu3";
 			clocks = <&media_ctrl HI6220_G3D_CLK>,
 				 <&media_ctrl HI6220_G3D_PCLK>;
-			clock-names = "core", "bus";
+			clock-names = "bus", "core";
 			assigned-clocks = <&media_ctrl HI6220_G3D_CLK>,
 					  <&media_ctrl HI6220_G3D_PCLK>;
 			assigned-clock-rates = <500000000>, <144000000>;

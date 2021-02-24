@@ -387,48 +387,6 @@ err:
 	return vma;
 }
 
-static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
-{
-	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	struct i915_vma *vma;
-
-	if (list_empty(&obj->vma.list))
-		return;
-
-	mutex_lock(&i915->ggtt.vm.mutex);
-	spin_lock(&obj->vma.lock);
-	for_each_ggtt_vma(vma, obj) {
-		if (!drm_mm_node_allocated(&vma->node))
-			continue;
-
-		GEM_BUG_ON(vma->vm != &i915->ggtt.vm);
-		list_move_tail(&vma->vm_link, &vma->vm->bound_list);
-	}
-	spin_unlock(&obj->vma.lock);
-	mutex_unlock(&i915->ggtt.vm.mutex);
-
-	if (i915_gem_object_is_shrinkable(obj)) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&i915->mm.obj_lock, flags);
-
-		if (obj->mm.madv == I915_MADV_WILLNEED &&
-		    !atomic_read(&obj->mm.shrink_pin))
-			list_move_tail(&obj->mm.link, &i915->mm.shrink_list);
-
-		spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
-	}
-}
-
-void
-i915_gem_object_unpin_from_display_plane(struct i915_vma *vma)
-{
-	/* Bump the LRU to try and avoid premature eviction whilst flipping  */
-	i915_gem_object_bump_inactive_ggtt(vma->obj);
-
-	i915_vma_unpin(vma);
-}
-
 /**
  * Moves a single object to the CPU read, and possibly write domain.
  * @obj: object to act on
@@ -509,21 +467,6 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 
 	/*
-	 * Already in the desired write domain? Nothing for us to do!
-	 *
-	 * We apply a little bit of cunning here to catch a broader set of
-	 * no-ops. If obj->write_domain is set, we must be in the same
-	 * obj->read_domains, and only that domain. Therefore, if that
-	 * obj->write_domain matches the request read_domains, we are
-	 * already in the same read/write domain and can skip the operation,
-	 * without having to further check the requested write_domain.
-	 */
-	if (READ_ONCE(obj->write_domain) == read_domains) {
-		err = 0;
-		goto out;
-	}
-
-	/*
 	 * Try to flush the object off the GPU without holding the lock.
 	 * We will repeat the flush holding the lock in the normal manner
 	 * to catch cases where we are gazumped.
@@ -560,6 +503,19 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	if (err)
 		goto out;
 
+	/*
+	 * Already in the desired write domain? Nothing for us to do!
+	 *
+	 * We apply a little bit of cunning here to catch a broader set of
+	 * no-ops. If obj->write_domain is set, we must be in the same
+	 * obj->read_domains, and only that domain. Therefore, if that
+	 * obj->write_domain matches the request read_domains, we are
+	 * already in the same read/write domain and can skip the operation,
+	 * without having to further check the requested write_domain.
+	 */
+	if (READ_ONCE(obj->write_domain) == read_domains)
+		goto out_unpin;
+
 	err = i915_gem_object_lock_interruptible(obj, NULL);
 	if (err)
 		goto out_unpin;
@@ -570,9 +526,6 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 		err = i915_gem_object_set_to_gtt_domain(obj, write_domain);
 	else
 		err = i915_gem_object_set_to_cpu_domain(obj, write_domain);
-
-	/* And bump the LRU for this access */
-	i915_gem_object_bump_inactive_ggtt(obj);
 
 	i915_gem_object_unlock(obj);
 

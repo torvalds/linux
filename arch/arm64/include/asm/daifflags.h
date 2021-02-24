@@ -128,6 +128,9 @@ static inline void local_daif_inherit(struct pt_regs *regs)
 {
 	unsigned long flags = regs->pstate & DAIF_MASK;
 
+	if (interrupts_enabled(regs))
+		trace_hardirqs_on();
+
 	/*
 	 * We can't use local_daif_restore(regs->pstate) here as
 	 * system_has_prio_mask_debugging() won't restore the I bit if it can

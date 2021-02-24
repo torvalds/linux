@@ -33,14 +33,55 @@ properties:
         items:
           - enum:
               - fsl,imx25-pdk
+              - karo,imx25-tx25
           - const: fsl,imx25
 
-      - description: i.MX27 Product Development Kit
+      - description: i.MX25 Eukrea CPUIMX25 Boards
+        items:
+          - enum:
+              - eukrea,mbimxsd25-baseboard   # Eukrea MBIMXSD25
+          - const: eukrea,cpuimx25
+          - const: fsl,imx25
+
+      - description: i.MX25 Eukrea MBIMXSD25 Boards
+        items:
+          - enum:
+              - eukrea,mbimxsd25-baseboard-cmo-qvga
+              - eukrea,mbimxsd25-baseboard-dvi-svga
+              - eukrea,mbimxsd25-baseboard-dvi-vga
+          - const: eukrea,mbimxsd25-baseboard
+          - const: eukrea,cpuimx25
+          - const: fsl,imx25
+
+      - description: i.MX27 based Boards
         items:
           - enum:
               - armadeus,imx27-apf27      # APF27 SoM
-              - armadeus,imx27-apf27dev   # APF27 SoM on APF27Dev board
               - fsl,imx27-pdk
+          - const: fsl,imx27
+
+      - description: i.MX27 APF27 SoM Board
+        items:
+          - const: armadeus,imx27-apf27dev
+          - const: armadeus,imx27-apf27
+          - const: fsl,imx27
+
+      - description: i.MX27 Eukrea CPUIMX27 SoM Board
+        items:
+          - const: eukrea,mbimxsd27-baseboard
+          - const: eukrea,cpuimx27
+          - const: fsl,imx27
+
+      - description: i.MX27 Phytec pca100 Board
+        items:
+          - const: phytec,imx27-pca100-rdk
+          - const: phytec,imx27-pca100
+          - const: fsl,imx27
+
+      - description: i.MX27 Phytec pcm970 Board
+        items:
+          - const: phytec,imx27-pcm970
+          - const: phytec,imx27-pcm038
           - const: fsl,imx27
 
       - description: i.MX28 based Boards
@@ -88,13 +129,33 @@ properties:
               - kobo,aura
           - const: fsl,imx50
 
-      - description: i.MX51 Babbage Board
+      - description: i.MX51 based Boards
         items:
           - enum:
-              - armadeus,imx51-apf51    # APF51 SoM
-              - armadeus,imx51-apf51dev # APF51 SoM on APF51Dev board
+              - armadeus,imx51-apf51      # Armadeus Systems APF51 module
               - fsl,imx51-babbage
               - technologic,imx51-ts4800
+              - zii,imx51-scu3-esb
+              - zii,imx51-scu2-mezz
+              - zii,imx51-rdu1
+          - const: fsl,imx51
+
+      - description: i.MX51 based Armadeus Systems APF51Dev Board
+        items:
+          - const: armadeus,imx51-apf51dev
+          - const: armadeus,imx51-apf51
+          - const: fsl,imx51
+
+      - description: i.MX51 based Digi ConnectCore CC(W)-MX51 JSK Board
+        items:
+          - const: digi,connectcore-ccxmx51-jsk
+          - const: digi,connectcore-ccxmx51-som
+          - const: fsl,imx51
+
+      - description: i.MX51 based Eukrea CPUIMX51 Board
+        items:
+          - const: eukrea,mbimxsd51
+          - const: eukrea,cpuimx51
           - const: fsl,imx51
 
       - description: i.MX53 based Boards
@@ -104,36 +165,112 @@ properties:
               - fsl,imx53-ard
               - fsl,imx53-evk
               - fsl,imx53-qsb
+              - fsl,imx53-qsrb                # Freescale i.MX53 Quick Start-R Board
               - fsl,imx53-smd
+              - ge,imx53-cpuvo                # General Electric CS ONE
+              - inversepath,imx53-usbarmory   # Inverse Path USB armory
+              - karo,tx53                     # Ka-Ro electronics TX53 module
+              - kiebackpeter,imx53-ddc        # K+P imx53 DDC
+              - kiebackpeter,imx53-hsc        # K+P imx53 HSC
               - menlo,m53menlo
+              - voipac,imx53-dmm-668          # Voipac i.MX53 X53-DMM-668
+          - const: fsl,imx53
+
+      - description: i.MX53 based Aries/DENX M53EVK Board
+        items:
+          - const: aries,imx53-m53evk
+          - const: denx,imx53-m53evk
+          - const: fsl,imx53
+
+      - description: i.MX53 based TQ MBa53 Board
+        items:
+          - const: tq,mba53
+          - const: tq,tqma53
           - const: fsl,imx53
 
       - description: i.MX6Q based Boards
         items:
           - enum:
-              - armadeus,imx6q-apf6       # APF6 (Quad/Dual) SoM
-              - armadeus,imx6q-apf6dev    # APF6 (Quad/Dual) SoM on APF6Dev board
+              - auvidea,h100              # Auvidea H100
+              - boundary,imx6q-nitrogen6_max
+              - boundary,imx6q-nitrogen6_som2
+              - boundary,imx6q-nitrogen6x
+              - compulab,cm-fx6           # CompuLab CM-FX6
+              - dmo,imx6q-edmqmx6         # Data Modul eDM-QMX6 Board
+              - embest,imx6q-marsboard    # Embest MarS Board i.MX6Dual
               - emtrion,emcon-mx6         # emCON-MX6D or emCON-MX6Q SoM
               - emtrion,emcon-mx6-avari   # emCON-MX6D or emCON-MX6Q SoM on Avari Base
+              - engicam,imx6-icore        # Engicam i.CoreM6 Starter Kit
+              - engicam,imx6-icore-rqs    # Engicam i.CoreM6 RQS Starter Kit
               - fsl,imx6q-arm2
               - fsl,imx6q-sabreauto
               - fsl,imx6q-sabrelite
               - fsl,imx6q-sabresd
+              - karo,imx6q-tx6q           # Ka-Ro electronics TX6Q Modules
+              - kiebackpeter,imx6q-tpc    # K+P i.MX6 Quad TPC Board
               - kontron,imx6q-samx6i      # Kontron i.MX6 Dual/Quad SMARC Module
+              - kosagi,imx6q-novena       # Kosagi Novena Dual/Quad
+              - kvg,vicut1q               # Kverneland UT1Q board
               - logicpd,imx6q-logicpd
+              - lwn,display5              # Liebherr Display5 i.MX6 Quad Board
+              - lwn,mccmon6               # Liebherr Monitor6 i.MX6 Quad Board
+              - nutsboard,imx6q-pistachio # NutsBoard i.MX6 Quad Pistachio
+              - microsys,sbc6x            # MicroSys sbc6x board
+              - poslab,imx6q-savageboard  # Poslab SavageBoard Quad
               - prt,prti6q                # Protonic PRTI6Q board
               - prt,prtwd2                # Protonic WD2 board
+              - rex,imx6q-rex-pro         # Rex Pro i.MX6 Quad Board
+              - solidrun,cubox-i/q        # SolidRun Cubox-i Dual/Quad
+              - solidrun,hummingboard/q
+              - solidrun,hummingboard2/q
+              - tbs,imx6q-tbs2910         # TBS2910 Matrix ARM mini PC
               - technexion,imx6q-pico-dwarf   # TechNexion i.MX6Q Pico-Dwarf
               - technexion,imx6q-pico-hobbit  # TechNexion i.MX6Q Pico-Hobbit
               - technexion,imx6q-pico-nymph   # TechNexion i.MX6Q Pico-Nymph
               - technexion,imx6q-pico-pi      # TechNexion i.MX6Q Pico-Pi
               - technologic,imx6q-ts4900
               - technologic,imx6q-ts7970
-              - toradex,apalis_imx6q            # Apalis iMX6 Module
-              - toradex,apalis_imx6q-eval       # Apalis iMX6 Module on Apalis Evaluation Board
-              - toradex,apalis_imx6q-ixora      # Apalis iMX6 Module on Ixora
-              - toradex,apalis_imx6q-ixora-v1.1 # Apalis iMX6 Module on Ixora V1.1
+              - toradex,apalis_imx6q      # Apalis iMX6 Module
+              - udoo,imx6q-udoo           # Udoo i.MX6 Quad Board
+              - uniwest,imx6q-evi         # Uniwest Evi
               - variscite,dt6customboard
+              - wand,imx6q-wandboard      # Wandboard i.MX6 Quad Board
+              - zealz,imx6q-gk802         # Zealz GK802
+              - zii,imx6q-zii-rdu2        # ZII RDU2 Board
+          - const: fsl,imx6q
+
+      - description: i.MX6Q Advantech DMS-BA16 Boards
+        items:
+          - enum:
+              - advantech,imx6q-dms-ba16  # Advantech DMS-BA16
+              - ge,imx6q-b450v3           # General Electric B450v3
+              - ge,imx6q-b650v3           # General Electric B650v3
+              - ge,imx6q-b850v3           # General Electric B850v3
+          - const: advantech,imx6q-ba16
+          - const: fsl,imx6q
+
+      - description: i.MX6Q Armadeus APF6 Boards
+        items:
+          - const: armadeus,imx6q-apf6dev
+          - const: armadeus,imx6q-apf6
+          - const: fsl,imx6q
+
+      - description: i.MX6Q CompuLab Utilite Pro Board
+        items:
+          - const: compulab,utilite-pro
+          - const: compulab,cm-fx6
+          - const: fsl,imx6q
+
+      - description: i.MX6Q DFI FS700-M60-6QD Board
+        items:
+          - const: dfi,fs700-m60-6qd
+          - const: dfi,fs700e-m60
+          - const: fsl,imx6q
+
+      - description: i.MX6Q DHCOM Premium Developer Kit Board
+        items:
+          - const: dh,imx6q-dhcom-pdk2
+          - const: dh,imx6q-dhcom-som
           - const: fsl,imx6q
 
       - description: i.MX6Q Gateworks Ventana Boards
@@ -172,11 +309,33 @@ properties:
           - const: phytec,imx6q-pfla02    # PHYTEC phyFLEX-i.MX6 Quad
           - const: fsl,imx6q
 
+      - description: i.MX6Q Boards with Toradex Apalis iMX6Q/D Module
+        items:
+          - enum:
+              - toradex,apalis_imx6q-ixora  # Apalis iMX6Q/D Module on Ixora Carrier Board
+              - toradex,apalis_imx6q-eval   # Apalis iMX6Q/D Module on Apalis Evaluation Board
+          - const: toradex,apalis_imx6q
+          - const: fsl,imx6q
+
+      - description: i.MX6Q Toradex Apalis iMX6Q/D Module on Ixora Carrier Board V1.1
+        items:
+          - const: toradex,apalis_imx6q-ixora-v1.1
+          - const: toradex,apalis_imx6q-ixora
+          - const: toradex,apalis_imx6q
+          - const: fsl,imx6q
+
       - description: i.MX6QP based Boards
         items:
           - enum:
+              - boundary,imx6qp-nitrogen6_max
+              - boundary,imx6qp-nitrogen6_som2
               - fsl,imx6qp-sabreauto      # i.MX6 Quad Plus SABRE Automotive Board
               - fsl,imx6qp-sabresd        # i.MX6 Quad Plus SABRE Smart Device Board
+              - karo,imx6qp-tx6qp         # Ka-Ro electronics TX6QP-8037 Module
+              - kvg,vicutp                # Kverneland UT1P board
+              - prt,prtwd3                # Protonic WD3 board
+              - wand,imx6qp-wandboard     # Wandboard i.MX6 QuadPlus Board
+              - zii,imx6qp-zii-rdu2       # ZII RDU2+ Board
           - const: fsl,imx6qp
 
       - description: i.MX6QP PHYTEC phyBOARD-Mira
@@ -189,30 +348,62 @@ properties:
       - description: i.MX6DL based Boards
         items:
           - enum:
-              - armadeus,imx6dl-apf6      # APF6 (Solo) SoM
-              - armadeus,imx6dl-apf6dev   # APF6 (Solo) SoM on APF6Dev board
+              - abb,aristainetos-imx6dl-4     # aristainetos i.MX6 Dual Lite Board 4
+              - abb,aristainetos-imx6dl-7     # aristainetos i.MX6 Dual Lite Board 7
+              - abb,aristainetos2-imx6dl-4    # aristainetos2 i.MX6 Dual Lite Board 4
+              - abb,aristainetos2-imx6dl-7    # aristainetos2 i.MX6 Dual Lite Board 7
+              - alt,alti6p                    # Altesco I6P Board
+              - boundary,imx6dl-nit6xlite     # Boundary Devices Nitrogen6 Lite
+              - boundary,imx6dl-nitrogen6x    # Boundary Devices Nitrogen6x
+              - bticino,imx6dl-mamoj      # BTicino i.MX6DL Mamoj
               - eckelmann,imx6dl-ci4x10
               - emtrion,emcon-mx6         # emCON-MX6S or emCON-MX6DL SoM
               - emtrion,emcon-mx6-avari   # emCON-MX6S or emCON-MX6DL SoM on Avari Base
+              - engicam,imx6-icore        # Engicam i.CoreM6 Starter Kit
+              - engicam,imx6-icore-rqs    # Engicam i.CoreM6 RQS Starter Kit
               - fsl,imx6dl-sabreauto      # i.MX6 DualLite/Solo SABRE Automotive Board
+              - fsl,imx6dl-sabrelite      # i.MX6 DualLite SABRE Lite Board
               - fsl,imx6dl-sabresd        # i.MX6 DualLite SABRE Smart Device Board
+              - karo,imx6dl-tx6dl         # Ka-Ro electronics TX6U Modules
               - kontron,imx6dl-samx6i     # Kontron i.MX6 Solo SMARC Module
+              - kvg,victgo                # Kverneland TGO
+              - kvg,vicut1                # Kverneland UT1 board
+              - ply,plybas                # Plymovent BAS board
+              - ply,plym2m                # Plymovent M2M board
+              - poslab,imx6dl-savageboard # Poslab SavageBoard Dual
+              - prt,prtmvt                # Protonic MVT board
               - prt,prtrvt                # Protonic RVT board
               - prt,prtvt7                # Protonic VT7 board
+              - rex,imx6dl-rex-basic      # Rex Basic i.MX6 Dual Lite Board
+              - riot,imx6s-riotboard      # RIoTboard i.MX6S
+              - solidrun,cubox-i/dl            # SolidRun Cubox-i Solo/DualLite
+              - solidrun,hummingboard/dl
+              - solidrun,hummingboard2/dl      # SolidRun HummingBoard2 Solo/DualLite
               - technexion,imx6dl-pico-dwarf   # TechNexion i.MX6DL Pico-Dwarf
               - technexion,imx6dl-pico-hobbit  # TechNexion i.MX6DL Pico-Hobbit
               - technexion,imx6dl-pico-nymph   # TechNexion i.MX6DL Pico-Nymph
               - technexion,imx6dl-pico-pi      # TechNexion i.MX6DL Pico-Pi
               - technologic,imx6dl-ts4900
               - technologic,imx6dl-ts7970
-              - toradex,colibri_imx6dl          # Colibri iMX6 Module
-              - toradex,colibri_imx6dl-v1_1     # Colibri iMX6 Module V1.1
-              - toradex,colibri_imx6dl-eval-v3  # Colibri iMX6 Module on Colibri Evaluation Board V3
-              - toradex,colibri_imx6dl-v1_1-eval-v3 # Colibri iMX6 Module V1.1 on Colibri Evaluation Board V3
+              - udoo,imx6dl-udoo          # Udoo i.MX6 Dual-lite Board
+              - vdl,lanmcu                # Van der Laan LANMCU board
+              - wand,imx6dl-wandboard     # Wandboard i.MX6 Dual Lite Board
               - ysoft,imx6dl-yapp4-draco  # i.MX6 DualLite Y Soft IOTA Draco board
               - ysoft,imx6dl-yapp4-hydra  # i.MX6 DualLite Y Soft IOTA Hydra board
               - ysoft,imx6dl-yapp4-orion  # i.MX6 DualLite Y Soft IOTA Orion board
               - ysoft,imx6dl-yapp4-ursa   # i.MX6 Solo Y Soft IOTA Ursa board
+          - const: fsl,imx6dl
+
+      - description: i.MX6DL based Armadeus AFP6 Board
+        items:
+          - const: armadeus,imx6dl-apf6dev
+          - const: armadeus,imx6dl-apf6         # APF6 (Solo) SoM
+          - const: fsl,imx6dl
+
+      - description: i.MX6DL based DFI FS700-M60-6DL Board
+        items:
+          - const: dfi,fs700-m60-6dl
+          - const: dfi,fs700e-m60
           - const: fsl,imx6dl
 
       - description: i.MX6DL Gateworks Ventana Boards
@@ -250,12 +441,29 @@ properties:
           - const: phytec,imx6dl-pfla02   # PHYTEC phyFLEX-i.MX6 Quad
           - const: fsl,imx6dl
 
+      - description: i.MX6DL Toradex Colibri iMX6 Module on Colibri
+                     Evaluation Board V3
+        items:
+          - const: toradex,colibri_imx6dl-eval-v3
+          - const: toradex,colibri_imx6dl          # Colibri iMX6 Module
+          - const: fsl,imx6dl
+
+      - description: i.MX6DL Toradex Colibri iMX6 Module V1.1 on Colibri
+                     Evaluation Board V3
+        items:
+          - const: toradex,colibri_imx6dl-v1_1-eval-v3
+          - const: toradex,colibri_imx6dl-v1_1     # Colibri iMX6 Module V1.1
+          - const: toradex,colibri_imx6dl-eval-v3
+          - const: toradex,colibri_imx6dl          # Colibri iMX6 Module
+          - const: fsl,imx6dl
+
       - description: i.MX6SL based Boards
         items:
           - enum:
               - fsl,imx6sl-evk            # i.MX6 SoloLite EVK Board
               - kobo,tolino-shine2hd
               - kobo,tolino-shine3
+              - revotics,imx6sl-warp      # Revotics WaRP Board
           - const: fsl,imx6sl
 
       - description: i.MX6SLL based Boards
@@ -268,22 +476,49 @@ properties:
       - description: i.MX6SX based Boards
         items:
           - enum:
+              - boundary,imx6sx-nitrogen6sx
               - fsl,imx6sx-sabreauto      # i.MX6 SoloX Sabre Auto Board
               - fsl,imx6sx-sdb            # i.MX6 SoloX SDB Board
               - fsl,imx6sx-sdb-reva       # i.MX6 SoloX SDB Rev-A Board
+              - samtec,imx6sx-vining-2000 # Softing VIN|ING 2000 Board
+              - udoo,neobasic             # UDOO Neo Basic Board
+              - udoo,neoextended          # UDOO Neo Extended
+              - udoo,neofull              # UDOO Neo Full
           - const: fsl,imx6sx
 
       - description: i.MX6UL based Boards
         items:
           - enum:
-              - armadeus,imx6ul-opos6ul    # OPOS6UL (i.MX6UL) SoM
-              - armadeus,imx6ul-opos6uldev # OPOS6UL (i.MX6UL) SoM on OPOS6ULDev board
+              - engicam,imx6ul-geam       # Engicam GEAM6UL Starter Kit
+              - engicam,imx6ul-isiot      # Engicam Is.IoT MX6UL eMMC/NAND Starter kit
               - fsl,imx6ul-14x14-evk      # i.MX6 UltraLite 14x14 EVK Board
+              - karo,imx6ul-tx6ul         # Ka-Ro electronics TXUL-0010 Module
               - kontron,imx6ul-n6310-som  # Kontron N6310 SOM
               - kontron,imx6ul-n6311-som  # Kontron N6311 SOM
+              - prt,prti6g                # Protonic PRTI6G Board
               - technexion,imx6ul-pico-dwarf   # TechNexion i.MX6UL Pico-Dwarf
               - technexion,imx6ul-pico-hobbit  # TechNexion i.MX6UL Pico-Hobbit
               - technexion,imx6ul-pico-pi      # TechNexion i.MX6UL Pico-Pi
+          - const: fsl,imx6ul
+
+      - description: i.MX6UL Armadeus Systems OPOS6UL SoM Board
+        items:
+          - const: armadeus,imx6ul-opos6uldev   # OPOS6UL (i.MX6UL) SoM on OPOS6ULDev board
+          - const: armadeus,imx6ul-opos6ul      # OPOS6UL (i.MX6UL) SoM
+          - const: fsl,imx6ul
+
+      - description: i.MX6UL Digi International ConnectCore 6UL Boards
+        items:
+          - enum:
+              - digi,ccimx6ulsbcexpress   # Digi International ConnectCore 6UL SBC Express
+              - digi,ccimx6ulsbcpro       # Digi International ConnectCore 6UL SBC Pro
+          - const: digi,ccimx6ulsom
+          - const: fsl,imx6ul
+
+      - description: i.MX6UL Grinn liteBoard
+        items:
+          - const: grinn,imx6ul-liteboard
+          - const: grinn,imx6ul-litesom
           - const: fsl,imx6ul
 
       - description: i.MX6UL PHYTEC phyBOARD-Segin
@@ -317,13 +552,17 @@ properties:
       - description: i.MX6ULL based Boards
         items:
           - enum:
-              - armadeus,imx6ull-opos6ul    # OPOS6UL (i.MX6ULL) SoM
-              - armadeus,imx6ull-opos6uldev # OPOS6UL (i.MX6ULL) SoM on OPOS6ULDev board
               - fsl,imx6ull-14x14-evk     # i.MX6 UltraLiteLite 14x14 EVK Board
               - kontron,imx6ull-n6411-som # Kontron N6411 SOM
               - myir,imx6ull-mys-6ulx-eval # MYiR Tech iMX6ULL Evaluation Board
               - toradex,colibri-imx6ull-eval      # Colibri iMX6ULL Module on Colibri Eval Board
               - toradex,colibri-imx6ull-wifi-eval # Colibri iMX6ULL Wi-Fi / BT Module on Colibri Eval Board
+          - const: fsl,imx6ull
+
+      - description: i.MX6ULL Armadeus Systems OPOS6ULDev Board
+        items:
+          - const: armadeus,imx6ull-opos6uldev  # OPOS6UL (i.MX6ULL) SoM on OPOS6ULDev board
+          - const: armadeus,imx6ull-opos6ul     # OPOS6UL (i.MX6ULL) SoM
           - const: fsl,imx6ull
 
       - description: i.MX6ULL PHYTEC phyBOARD-Segin
@@ -351,17 +590,32 @@ properties:
       - description: i.MX7S based Boards
         items:
           - enum:
-              - toradex,colibri-imx7s           # Colibri iMX7 Solo Module
-              - toradex,colibri-imx7s-aster     # Colibri iMX7 Solo Module on Aster Carrier Board
-              - toradex,colibri-imx7s-eval-v3   # Colibri iMX7 Solo Module on Colibri Evaluation Board V3
-              - tq,imx7s-mba7             # i.MX7S TQ MBa7 with TQMa7S SoM
+              - element14,imx7s-warp      # Element14 Warp i.MX7 Board
+          - const: fsl,imx7s
+
+      - description: i.MX7S Boards with Toradex Colibri iMX7S Module
+        items:
+          - enum:
+              - toradex,colibri-imx7s-aster     # Module on Aster Carrier Board
+              - toradex,colibri-imx7s-eval-v3   # Module on Colibri Evaluation Board V3
+          - const: toradex,colibri-imx7s
+          - const: fsl,imx7s
+
+      - description: TQ-Systems TQMa7S SoM on MBa7x board
+        items:
+          - const: tq,imx7s-mba7
+          - const: tq,imx7s-tqma7
           - const: fsl,imx7s
 
       - description: i.MX7D based Boards
         items:
           - enum:
+              - boundary,imx7d-nitrogen7
+              - compulab,cl-som-imx7      # CompuLab CL-SOM-iMX7
               - fsl,imx7d-sdb             # i.MX7 SabreSD Board
               - fsl,imx7d-sdb-reva        # i.MX7 SabreSD Rev-A Board
+              - kam,imx7d-flex-concentrator       # Kamstrup OMNIA Flex Concentrator
+              - kam,imx7d-flex-concentrator-mfg   # Kamstrup OMNIA Flex Concentrator in manufacturing mode
               - novtech,imx7d-meerkat96   # i.MX7 Meerkat96 Board
               - technexion,imx7d-pico-dwarf   # TechNexion i.MX7D Pico-Dwarf
               - technexion,imx7d-pico-hobbit  # TechNexion i.MX7D Pico-Hobbit
@@ -376,9 +630,14 @@ properties:
                                                         #  Colibri Evaluation Board V3
               - toradex,colibri-imx7d-eval-v3           # Colibri iMX7 Dual Module on
                                                         #  Colibri Evaluation Board V3
-              - tq,imx7d-mba7             # i.MX7D TQ MBa7 with TQMa7D SoM
               - zii,imx7d-rmu2            # ZII RMU2 Board
               - zii,imx7d-rpu2            # ZII RPU2 Board
+          - const: fsl,imx7d
+
+      - description: TQ-Systems TQMa7D SoM on MBa7x board
+        items:
+          - const: tq,imx7d-mba7
+          - const: tq,imx7d-tqma7
           - const: fsl,imx7d
 
       - description:
@@ -392,6 +651,22 @@ properties:
           - const: compulab,cl-som-imx7
           - const: fsl,imx7d
 
+      - description: i.MX7D Boards with Toradex Colibri i.MX7D Module
+        items:
+          - enum:
+              - toradex,colibri-imx7d-aster   # Module on Aster Carrier Board
+              - toradex,colibri-imx7d-eval-v3 # Module on Colibri Evaluation Board V3
+          - const: toradex,colibri-imx7d
+          - const: fsl,imx7d
+
+      - description: i.MX7D Boards with Toradex Colibri i.MX7D eMMC Module
+        items:
+          - enum:
+              - toradex,colibri-imx7d-emmc-aster    # Module on Aster Carrier Board
+              - toradex,colibri-imx7d-emmc-eval-v3  # Module on Colibri Evaluation Board V3
+          - const: toradex,colibri-imx7d-emmc
+          - const: fsl,imx7d
+
       - description: i.MX7ULP based Boards
         items:
           - enum:
@@ -403,9 +678,20 @@ properties:
         items:
           - enum:
               - beacon,imx8mm-beacon-kit  # i.MX8MM Beacon Development Kit
+              - boundary,imx8mm-nitrogen8mm  # i.MX8MM Nitrogen Board
               - fsl,imx8mm-ddr4-evk       # i.MX8MM DDR4 EVK Board
               - fsl,imx8mm-evk            # i.MX8MM EVK Board
+              - gw,imx8mm-gw71xx-0x       # i.MX8MM Gateworks Development Kit
+              - gw,imx8mm-gw72xx-0x       # i.MX8MM Gateworks Development Kit
+              - gw,imx8mm-gw73xx-0x       # i.MX8MM Gateworks Development Kit
+              - kontron,imx8mm-n801x-som  # i.MX8MM Kontron SL (N801X) SOM
               - variscite,var-som-mx8mm   # i.MX8MM Variscite VAR-SOM-MX8MM module
+          - const: fsl,imx8mm
+
+      - description: Kontron BL i.MX8MM (N801X S) Board
+        items:
+          - const: kontron,imx8mm-n801x-s
+          - const: kontron,imx8mm-n801x-som
           - const: fsl,imx8mm
 
       - description: Variscite VAR-SOM-MX8MM based boards
@@ -417,6 +703,7 @@ properties:
       - description: i.MX8MN based Boards
         items:
           - enum:
+              - beacon,imx8mn-beacon-kit  # i.MX8MN Beacon Development Kit
               - fsl,imx8mn-ddr4-evk       # i.MX8MN DDR4 EVK Board
               - fsl,imx8mn-evk            # i.MX8MN LPDDR4 EVK Board
           - const: fsl,imx8mn
@@ -431,6 +718,12 @@ properties:
         items:
           - enum:
               - fsl,imx8mp-evk            # i.MX8MP EVK Board
+          - const: fsl,imx8mp
+
+      - description: PHYTEC phyCORE-i.MX8MP SoM based boards
+        items:
+          - const: phytec,imx8mp-phyboard-pollux-rdk # phyBOARD-Pollux RDK
+          - const: phytec,imx8mp-phycore-som         # phyCORE-i.MX8MP SoM
           - const: fsl,imx8mp
 
       - description: i.MX8MQ based Boards
@@ -450,6 +743,7 @@ properties:
           - enum:
               - purism,librem5r2          # Purism Librem5 phone "Chestnut"
               - purism,librem5r3          # Purism Librem5 phone "Dogwood"
+              - purism,librem5r4          # Purism Librem5 phone "Evergreen"
           - const: purism,librem5
           - const: fsl,imx8mq
 
@@ -491,10 +785,26 @@ properties:
               - fsl,vf600
               - fsl,vf610
               - fsl,vf610m4
-              - toradex,vf500-colibri_vf50              # Colibri VF50 Module
-              - toradex,vf500-colibri_vf50-on-eval      # Colibri VF50 Module on Colibri Evaluation Board
-              - toradex,vf610-colibri_vf61              # Colibri VF61 Module
-              - toradex,vf610-colibri_vf61-on-eval      # Colibri VF61 Module on Colibri Evaluation Board
+
+      - description: Toradex Colibri VF50 Module on Colibri Evaluation Board
+        items:
+          - const: toradex,vf500-colibri_vf50-on-eval
+          - const: toradex,vf500-colibri_vf50
+          - const: fsl,vf500
+
+      - description: VF610 based Boards
+        items:
+          - enum:
+              - lwn,bk4                   # Liebherr BK4 controller
+              - phytec,vf610-cosmic       # PHYTEC Cosmic/Cosmic+ Board
+              - fsl,vf610-twr             # VF610 Tower Board
+          - const: fsl,vf610
+
+      - description: Toradex Colibri VF61 Module on Colibri Evaluation Board
+        items:
+          - const: toradex,vf610-colibri_vf61-on-eval
+          - const: toradex,vf610-colibri_vf61
+          - const: fsl,vf610
 
       - description: ZII's VF610 based Boards
         items:
@@ -515,6 +825,7 @@ properties:
               - ebs-systart,oxalis
               - fsl,ls1012a-rdb
               - fsl,ls1012a-frdm
+              - fsl,ls1012a-frwy
               - fsl,ls1012a-qds
           - const: fsl,ls1012a
 
@@ -543,10 +854,12 @@ properties:
           Kontron SMARC-sAL28 board on the SMARC Eval Carrier 2.0
         items:
           - enum:
+              - kontron,sl28-var1-ads2
               - kontron,sl28-var2-ads2
               - kontron,sl28-var3-ads2
               - kontron,sl28-var4-ads2
           - enum:
+              - kontron,sl28-var1
               - kontron,sl28-var2
               - kontron,sl28-var3
               - kontron,sl28-var4
@@ -557,6 +870,7 @@ properties:
           Kontron SMARC-sAL28 board (on a generic/undefined carrier)
         items:
           - enum:
+              - kontron,sl28-var1
               - kontron,sl28-var2
               - kontron,sl28-var3
               - kontron,sl28-var4
@@ -613,6 +927,15 @@ properties:
           - enum:
               - fsl,lx2160a-qds
               - fsl,lx2160a-rdb
+              - fsl,lx2162a-qds
+          - const: fsl,lx2160a
+
+      - description: SolidRun LX2160A based Boards
+        items:
+          - enum:
+              - solidrun,clearfog-cx
+              - solidrun,honeycomb
+          - const: solidrun,lx2160a-cex7
           - const: fsl,lx2160a
 
       - description: S32V234 based Boards

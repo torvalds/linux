@@ -223,6 +223,8 @@ enum regulator_type {
  * @name: Identifying name for the regulator.
  * @supply_name: Identifying the regulator supply
  * @of_match: Name used to identify regulator in DT.
+ * @of_match_full_name: A flag to indicate that the of_match string, if
+ *			present, should be matched against the node full_name.
  * @regulators_node: Name of node containing regulator definitions in DT.
  * @of_parse_cb: Optional callback called only if of_match is present.
  *               Will be called for each regulator parsed from DT, during
@@ -314,6 +316,7 @@ struct regulator_desc {
 	const char *name;
 	const char *supply_name;
 	const char *of_match;
+	bool of_match_full_name;
 	const char *regulators_node;
 	int (*of_parse_cb)(struct device_node *,
 			    const struct regulator_desc *,

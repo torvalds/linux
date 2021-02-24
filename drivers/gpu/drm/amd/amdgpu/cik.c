@@ -1337,9 +1337,7 @@ cik_asic_reset_method(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_BONAIRE:
 	case CHIP_HAWAII:
-		/* disable baco reset until it works */
-		/* smu7_asic_get_baco_capability(adev, &baco_reset); */
-		baco_reset = false;
+		baco_reset = cik_asic_supports_baco(adev);
 		break;
 	default:
 		baco_reset = false;

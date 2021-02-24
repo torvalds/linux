@@ -75,12 +75,12 @@
 	leds {
 		compatible = "gpio-leds";
 
-		blue {
+		led-0 {
 			label = "cubieboard2:blue:usr";
 			gpios = <&pio 7 21 GPIO_ACTIVE_HIGH>;
 		};
 
-		green {
+		led-1 {
 			label = "cubieboard2:green:usr";
 			gpios = <&pio 7 20 GPIO_ACTIVE_HIGH>;
 		};

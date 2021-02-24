@@ -128,13 +128,13 @@ static int do_xprt_debugfs(struct rpc_clnt *clnt, struct rpc_xprt *xprt, void *n
 		return 0;
 	len = snprintf(name, sizeof(name), "../../rpc_xprt/%s",
 		       xprt->debugfs->d_name.name);
-	if (len > sizeof(name))
+	if (len >= sizeof(name))
 		return -1;
 	if (*nump == 0)
 		strcpy(link, "xprt");
 	else {
 		len = snprintf(link, sizeof(link), "xprt%d", *nump);
-		if (len > sizeof(link))
+		if (len >= sizeof(link))
 			return -1;
 	}
 	debugfs_create_symlink(link, clnt->cl_debugfs, name);

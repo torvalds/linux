@@ -29,17 +29,18 @@ int mt76x2_mcu_set_channel(struct mt76x02_dev *dev, u8 channel, u8 bw,
 		.idx = channel,
 		.scan = scan,
 		.bw = bw,
-		.chainmask = cpu_to_le16(dev->chainmask),
+		.chainmask = cpu_to_le16(dev->mphy.chainmask),
 	};
 
 	/* first set the channel without the extension channel info */
-	mt76_mcu_send_msg(dev, CMD_SWITCH_CHANNEL_OP, &msg, sizeof(msg), true);
+	mt76_mcu_send_msg(&dev->mt76, CMD_SWITCH_CHANNEL_OP, &msg,
+			  sizeof(msg), true);
 
 	usleep_range(5000, 10000);
 
 	msg.ext_chan = 0xe0 + bw_index;
-	return mt76_mcu_send_msg(dev, CMD_SWITCH_CHANNEL_OP, &msg, sizeof(msg),
-				 true);
+	return mt76_mcu_send_msg(&dev->mt76, CMD_SWITCH_CHANNEL_OP, &msg,
+				 sizeof(msg), true);
 }
 EXPORT_SYMBOL_GPL(mt76x2_mcu_set_channel);
 
@@ -66,7 +67,8 @@ int mt76x2_mcu_load_cr(struct mt76x02_dev *dev, u8 type, u8 temp_level,
 	msg.cfg = cpu_to_le32(val);
 
 	/* first set the channel without the extension channel info */
-	return mt76_mcu_send_msg(dev, CMD_LOAD_CR, &msg, sizeof(msg), true);
+	return mt76_mcu_send_msg(&dev->mt76, CMD_LOAD_CR, &msg, sizeof(msg),
+				 true);
 }
 EXPORT_SYMBOL_GPL(mt76x2_mcu_load_cr);
 
@@ -84,8 +86,8 @@ int mt76x2_mcu_init_gain(struct mt76x02_dev *dev, u8 channel, u32 gain,
 	if (force)
 		msg.channel |= cpu_to_le32(BIT(31));
 
-	return mt76_mcu_send_msg(dev, CMD_INIT_GAIN_OP, &msg, sizeof(msg),
-				 true);
+	return mt76_mcu_send_msg(&dev->mt76, CMD_INIT_GAIN_OP, &msg,
+				 sizeof(msg), true);
 }
 EXPORT_SYMBOL_GPL(mt76x2_mcu_init_gain);
 
@@ -100,7 +102,7 @@ int mt76x2_mcu_tssi_comp(struct mt76x02_dev *dev,
 		.data = *tssi_data,
 	};
 
-	return mt76_mcu_send_msg(dev, CMD_CALIBRATION_OP, &msg, sizeof(msg),
-				 true);
+	return mt76_mcu_send_msg(&dev->mt76, CMD_CALIBRATION_OP, &msg,
+				 sizeof(msg), true);
 }
 EXPORT_SYMBOL_GPL(mt76x2_mcu_tssi_comp);

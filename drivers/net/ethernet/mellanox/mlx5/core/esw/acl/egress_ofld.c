@@ -150,7 +150,7 @@ static void esw_acl_egress_ofld_groups_destroy(struct mlx5_vport *vport)
 
 static bool esw_acl_egress_needed(const struct mlx5_eswitch *esw, u16 vport_num)
 {
-	return mlx5_eswitch_is_vf_vport(esw, vport_num);
+	return mlx5_eswitch_is_vf_vport(esw, vport_num) || mlx5_esw_is_sf_vport(esw, vport_num);
 }
 
 int esw_acl_egress_ofld_setup(struct mlx5_eswitch *esw, struct mlx5_vport *vport)
@@ -173,7 +173,7 @@ int esw_acl_egress_ofld_setup(struct mlx5_eswitch *esw, struct mlx5_vport *vport
 		table_size++;
 	vport->egress.acl = esw_acl_table_create(esw, vport->vport,
 						 MLX5_FLOW_NAMESPACE_ESW_EGRESS, table_size);
-	if (IS_ERR_OR_NULL(vport->egress.acl)) {
+	if (IS_ERR(vport->egress.acl)) {
 		err = PTR_ERR(vport->egress.acl);
 		vport->egress.acl = NULL;
 		return err;

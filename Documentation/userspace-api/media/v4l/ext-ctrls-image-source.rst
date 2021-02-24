@@ -58,3 +58,17 @@ Image Source Control IDs
     The unit cell consists of the whole area of the pixel, sensitive and
     non-sensitive.
     This control is required for automatic calibration of sensors/cameras.
+
+.. c:type:: v4l2_area
+
+.. flat-table:: struct v4l2_area
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __u32
+      - ``width``
+      - Width of the area.
+    * - __u32
+      - ``height``
+      - Height of the area.

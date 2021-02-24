@@ -95,6 +95,7 @@
 
 #include <linux/module.h>
 #include <linux/mtd/nand.h>
+#include <linux/slab.h>
 
 /**
  * nand_ecc_init_ctx - Init the ECC engine context
@@ -104,7 +105,7 @@
  */
 int nand_ecc_init_ctx(struct nand_device *nand)
 {
-	if (!nand->ecc.engine->ops->init_ctx)
+	if (!nand->ecc.engine || !nand->ecc.engine->ops->init_ctx)
 		return 0;
 
 	return nand->ecc.engine->ops->init_ctx(nand);
@@ -117,7 +118,7 @@ EXPORT_SYMBOL(nand_ecc_init_ctx);
  */
 void nand_ecc_cleanup_ctx(struct nand_device *nand)
 {
-	if (nand->ecc.engine->ops->cleanup_ctx)
+	if (nand->ecc.engine && nand->ecc.engine->ops->cleanup_ctx)
 		nand->ecc.engine->ops->cleanup_ctx(nand);
 }
 EXPORT_SYMBOL(nand_ecc_cleanup_ctx);
@@ -130,7 +131,7 @@ EXPORT_SYMBOL(nand_ecc_cleanup_ctx);
 int nand_ecc_prepare_io_req(struct nand_device *nand,
 			    struct nand_page_io_req *req)
 {
-	if (!nand->ecc.engine->ops->prepare_io_req)
+	if (!nand->ecc.engine || !nand->ecc.engine->ops->prepare_io_req)
 		return 0;
 
 	return nand->ecc.engine->ops->prepare_io_req(nand, req);
@@ -145,7 +146,7 @@ EXPORT_SYMBOL(nand_ecc_prepare_io_req);
 int nand_ecc_finish_io_req(struct nand_device *nand,
 			   struct nand_page_io_req *req)
 {
-	if (!nand->ecc.engine->ops->finish_io_req)
+	if (!nand->ecc.engine || !nand->ecc.engine->ops->finish_io_req)
 		return 0;
 
 	return nand->ecc.engine->ops->finish_io_req(nand, req);
@@ -478,6 +479,137 @@ bool nand_ecc_is_strong_enough(struct nand_device *nand)
 	return corr >= ds_corr && conf->strength >= reqs->strength;
 }
 EXPORT_SYMBOL(nand_ecc_is_strong_enough);
+
+/* ECC engine driver internal helpers */
+int nand_ecc_init_req_tweaking(struct nand_ecc_req_tweak_ctx *ctx,
+			       struct nand_device *nand)
+{
+	unsigned int total_buffer_size;
+
+	ctx->nand = nand;
+
+	/* Let the user decide the exact length of each buffer */
+	if (!ctx->page_buffer_size)
+		ctx->page_buffer_size = nanddev_page_size(nand);
+	if (!ctx->oob_buffer_size)
+		ctx->oob_buffer_size = nanddev_per_page_oobsize(nand);
+
+	total_buffer_size = ctx->page_buffer_size + ctx->oob_buffer_size;
+
+	ctx->spare_databuf = kzalloc(total_buffer_size, GFP_KERNEL);
+	if (!ctx->spare_databuf)
+		return -ENOMEM;
+
+	ctx->spare_oobbuf = ctx->spare_databuf + ctx->page_buffer_size;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nand_ecc_init_req_tweaking);
+
+void nand_ecc_cleanup_req_tweaking(struct nand_ecc_req_tweak_ctx *ctx)
+{
+	kfree(ctx->spare_databuf);
+}
+EXPORT_SYMBOL_GPL(nand_ecc_cleanup_req_tweaking);
+
+/*
+ * Ensure data and OOB area is fully read/written otherwise the correction might
+ * not work as expected.
+ */
+void nand_ecc_tweak_req(struct nand_ecc_req_tweak_ctx *ctx,
+			struct nand_page_io_req *req)
+{
+	struct nand_device *nand = ctx->nand;
+	struct nand_page_io_req *orig, *tweak;
+
+	/* Save the original request */
+	ctx->orig_req = *req;
+	ctx->bounce_data = false;
+	ctx->bounce_oob = false;
+	orig = &ctx->orig_req;
+	tweak = req;
+
+	/* Ensure the request covers the entire page */
+	if (orig->datalen < nanddev_page_size(nand)) {
+		ctx->bounce_data = true;
+		tweak->dataoffs = 0;
+		tweak->datalen = nanddev_page_size(nand);
+		tweak->databuf.in = ctx->spare_databuf;
+		memset(tweak->databuf.in, 0xFF, ctx->page_buffer_size);
+	}
+
+	if (orig->ooblen < nanddev_per_page_oobsize(nand)) {
+		ctx->bounce_oob = true;
+		tweak->ooboffs = 0;
+		tweak->ooblen = nanddev_per_page_oobsize(nand);
+		tweak->oobbuf.in = ctx->spare_oobbuf;
+		memset(tweak->oobbuf.in, 0xFF, ctx->oob_buffer_size);
+	}
+
+	/* Copy the data that must be writen in the bounce buffers, if needed */
+	if (orig->type == NAND_PAGE_WRITE) {
+		if (ctx->bounce_data)
+			memcpy((void *)tweak->databuf.out + orig->dataoffs,
+			       orig->databuf.out, orig->datalen);
+
+		if (ctx->bounce_oob)
+			memcpy((void *)tweak->oobbuf.out + orig->ooboffs,
+			       orig->oobbuf.out, orig->ooblen);
+	}
+}
+EXPORT_SYMBOL_GPL(nand_ecc_tweak_req);
+
+void nand_ecc_restore_req(struct nand_ecc_req_tweak_ctx *ctx,
+			  struct nand_page_io_req *req)
+{
+	struct nand_page_io_req *orig, *tweak;
+
+	orig = &ctx->orig_req;
+	tweak = req;
+
+	/* Restore the data read from the bounce buffers, if needed */
+	if (orig->type == NAND_PAGE_READ) {
+		if (ctx->bounce_data)
+			memcpy(orig->databuf.in,
+			       tweak->databuf.in + orig->dataoffs,
+			       orig->datalen);
+
+		if (ctx->bounce_oob)
+			memcpy(orig->oobbuf.in,
+			       tweak->oobbuf.in + orig->ooboffs,
+			       orig->ooblen);
+	}
+
+	/* Ensure the original request is restored */
+	*req = *orig;
+}
+EXPORT_SYMBOL_GPL(nand_ecc_restore_req);
+
+struct nand_ecc_engine *nand_ecc_get_sw_engine(struct nand_device *nand)
+{
+	unsigned int algo = nand->ecc.user_conf.algo;
+
+	if (algo == NAND_ECC_ALGO_UNKNOWN)
+		algo = nand->ecc.defaults.algo;
+
+	switch (algo) {
+	case NAND_ECC_ALGO_HAMMING:
+		return nand_ecc_sw_hamming_get_engine();
+	case NAND_ECC_ALGO_BCH:
+		return nand_ecc_sw_bch_get_engine();
+	default:
+		break;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(nand_ecc_get_sw_engine);
+
+struct nand_ecc_engine *nand_ecc_get_on_die_hw_engine(struct nand_device *nand)
+{
+	return nand->ecc.ondie_engine;
+}
+EXPORT_SYMBOL(nand_ecc_get_on_die_hw_engine);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Miquel Raynal <miquel.raynal@bootlin.com>");

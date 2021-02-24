@@ -1269,9 +1269,6 @@ ssize_t rdma_query_gid_table(struct ib_device *device,
 	unsigned long flags;
 
 	rdma_for_each_port(device, port_num) {
-		if (!rdma_ib_or_roce(device, port_num))
-			continue;
-
 		table = rdma_gid_table(device, port_num);
 		read_lock_irqsave(&table->rwlock, flags);
 		for (i = 0; i < table->sz; i++) {

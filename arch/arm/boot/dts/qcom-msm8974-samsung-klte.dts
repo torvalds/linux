@@ -4,6 +4,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
+#include <dt-bindings/leds/common.h>
 
 / {
 	model = "Samsung Galaxy S5";
@@ -11,6 +12,8 @@
 
 	aliases {
 		serial0 = &blsp1_uart1;
+		mmc0 = &sdhc_1; /* SDC1 eMMC slot */
+		mmc1 = &sdhc_2; /* SDC2 SD card slot */
 	};
 
 	chosen {
@@ -27,6 +30,7 @@
 					pma8084_s1: s1 {
 						regulator-min-microvolt = <675000>;
 						regulator-max-microvolt = <1050000>;
+						regulator-always-on;
 					};
 
 					pma8084_s2: s2 {
@@ -112,6 +116,7 @@
 					pma8084_l12: l12 {
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
+						regulator-always-on;
 					};
 
 					pma8084_l13: l13 {
@@ -145,7 +150,7 @@
 					};
 
 					pma8084_l19: l19 {
-						regulator-min-microvolt = <2900000>;
+						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
 					};
 
@@ -160,6 +165,9 @@
 					pma8084_l21: l21 {
 						regulator-min-microvolt = <2950000>;
 						regulator-max-microvolt = <2950000>;
+
+						regulator-allow-set-load;
+						regulator-system-load = <200000>;
 					};
 
 					pma8084_l22: l22 {
@@ -203,12 +211,115 @@
 		};
 	};
 
+	i2c-gpio-touchkey {
+		compatible = "i2c-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		sda-gpios = <&msmgpio 95 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&msmgpio 96 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c_touchkey_pins>;
+
+		touchkey@20 {
+			compatible = "cypress,tm2-touchkey";
+			reg = <0x20>;
+
+			interrupt-parent = <&pma8084_gpios>;
+			interrupts = <6 IRQ_TYPE_EDGE_FALLING>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&touchkey_pin>;
+
+			vcc-supply = <&max77826_ldo15>;
+			vdd-supply = <&pma8084_l19>;
+
+			linux,keycodes = <KEY_APPSELECT KEY_BACK>;
+		};
+	};
+
+	i2c-gpio-led {
+		compatible = "i2c-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		scl-gpios = <&msmgpio 121 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		sda-gpios = <&msmgpio 120 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c_led_gpioex_pins>;
+
+		i2c-gpio,delay-us = <2>;
+
+		gpio_expander: gpio@20 {
+			compatible = "nxp,pcal6416";
+			reg = <0x20>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			vcc-supply = <&pma8084_s4>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpioex_pin>;
+
+			reset-gpios = <&msmgpio 145 GPIO_ACTIVE_LOW>;
+		};
+
+		led-controller@30 {
+			compatible = "panasonic,an30259a";
+			reg = <0x30>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			led@1 {
+				reg = <1>;
+				function = LED_FUNCTION_STATUS;
+				color = <LED_COLOR_ID_RED>;
+			};
+
+			led@2 {
+				reg = <2>;
+				function = LED_FUNCTION_STATUS;
+				color = <LED_COLOR_ID_GREEN>;
+			};
+
+			led@3 {
+				reg = <3>;
+				function = LED_FUNCTION_STATUS;
+				color = <LED_COLOR_ID_BLUE>;
+			};
+		};
+	};
+
+	vreg_wlan: wlan-regulator {
+		compatible = "regulator-fixed";
+
+		regulator-name = "wl-reg";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&gpio_expander 8 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vreg_panel: panel-regulator {
+		compatible = "regulator-fixed";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&panel_en_pin>;
+
+		regulator-name = "panel-vddr-reg";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+
+		gpio = <&pma8084_gpios 14 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	/delete-node/ vreg-boost;
 };
 
 &soc {
 	serial@f991e000 {
-		status = "ok";
+		status = "okay";
 	};
 
 	gpio-keys {
@@ -258,10 +369,120 @@
 				bias-pull-up;
 			};
 		};
+
+		sdhc2_pin_a: sdhc2-pin-active {
+			clk-cmd-data {
+				pins = "gpio35", "gpio36", "gpio37", "gpio38",
+					"gpio39", "gpio40";
+				function = "sdc3";
+				drive-strength = <8>;
+				bias-disable;
+			};
+		};
+
+		sdhc2_cd_pin: sdhc2-cd {
+			pins = "gpio62";
+			function = "gpio";
+
+			drive-strength = <2>;
+			bias-disable;
+		};
+
+		sdhc3_pin_a: sdhc3-pin-active {
+			clk {
+				pins = "sdc2_clk";
+				drive-strength = <6>;
+				bias-disable;
+			};
+
+			cmd-data {
+				pins = "sdc2_cmd", "sdc2_data";
+				drive-strength = <6>;
+				bias-pull-up;
+			};
+		};
+
+		i2c2_pins: i2c2 {
+			mux {
+				pins = "gpio6", "gpio7";
+				function = "blsp_i2c2";
+
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+		i2c6_pins: i2c6 {
+			mux {
+				pins = "gpio29", "gpio30";
+				function = "blsp_i2c6";
+
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+		i2c12_pins: i2c12 {
+			mux {
+				pins = "gpio87", "gpio88";
+				function = "blsp_i2c12";
+
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+		i2c_touchkey_pins: i2c-touchkey {
+			mux {
+				pins = "gpio95", "gpio96";
+				function = "gpio";
+				input-enable;
+				bias-pull-up;
+			};
+		};
+
+		i2c_led_gpioex_pins: i2c-led-gpioex {
+			mux {
+				pins = "gpio120", "gpio121";
+				function = "gpio";
+				input-enable;
+				bias-pull-down;
+			};
+		};
+
+		gpioex_pin: gpioex {
+			res {
+				pins = "gpio145";
+				function = "gpio";
+
+				bias-pull-up;
+				drive-strength = <2>;
+			};
+		};
+
+		wifi_pin: wifi {
+			int {
+				pins = "gpio92";
+				function = "gpio";
+
+				input-enable;
+				bias-pull-down;
+			};
+		};
+
+		panel_te_pin: panel {
+			te {
+				pins = "gpio12";
+				function = "mdp_vsync";
+
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
 	};
 
-	sdhci@f9824900 {
-		status = "ok";
+	sdhc_1: sdhci@f9824900 {
+		status = "okay";
 
 		vmmc-supply = <&pma8084_l20>;
 		vqmmc-supply = <&pma8084_s4>;
@@ -273,8 +494,57 @@
 		pinctrl-0 = <&sdhc1_pin_a>;
 	};
 
+	sdhc_2: sdhci@f9864900 {
+		status = "okay";
+
+		max-frequency = <100000000>;
+
+		vmmc-supply = <&pma8084_l21>;
+		vqmmc-supply = <&pma8084_l13>;
+
+		bus-width = <4>;
+
+		/* cd-gpio is intentionally disabled. If enabled, an SD card
+		 * present during boot is not initialized correctly. Without
+		 * cd-gpios the driver resorts to polling, so hotplug works.
+		 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdhc2_pin_a /* &sdhc2_cd_pin */>;
+		// cd-gpios = <&msmgpio 62 GPIO_ACTIVE_LOW>;
+	};
+
+	sdhci@f98a4900 {
+		status = "okay";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		max-frequency = <100000000>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdhc3_pin_a>;
+
+		vmmc-supply = <&vreg_wlan>;
+		vqmmc-supply = <&pma8084_s4>;
+
+		bus-width = <4>;
+		non-removable;
+
+		wifi@1 {
+			reg = <1>;
+			compatible = "brcm,bcm4329-fmac";
+
+			interrupt-parent = <&msmgpio>;
+			interrupts = <92 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "host-wake";
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&wlan_sleep_clk_pin &wifi_pin>;
+		};
+	};
+
 	usb@f9a55000 {
-		status = "ok";
+		status = "okay";
 
 		phys = <&usb_hs1_phy>;
 		phy-select = <&tcsr 0xb000 0>;
@@ -287,7 +557,7 @@
 
 		ulpi {
 			phy@a {
-				status = "ok";
+				status = "okay";
 
 				v1p8-supply = <&pma8084_l6>;
 				v3p3-supply = <&pma8084_l24>;
@@ -298,14 +568,38 @@
 		};
 	};
 
-	pinctrl@fd510000 {
-		i2c6_pins: i2c6 {
-			mux {
-				pins = "gpio29", "gpio30";
-				function = "blsp_i2c6";
+	i2c@f9924000 {
+		status = "okay";
 
-				drive-strength = <2>;
-				bias-disable;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c2_pins>;
+
+		touchscreen@20 {
+			compatible = "syna,rmi4-i2c";
+			reg = <0x20>;
+
+			interrupt-parent = <&pma8084_gpios>;
+			interrupts = <8 IRQ_TYPE_EDGE_FALLING>;
+
+			vdd-supply = <&max77826_ldo13>;
+			vio-supply = <&pma8084_lvs2>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&touch_pin>;
+
+			syna,startup-delay-ms = <100>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			rmi4-f01@1 {
+				reg = <0x1>;
+				syna,nosleep-mode = <1>;
+			};
+
+			rmi4-f12@12 {
+				reg = <0x12>;
+				syna,sensor-type = <1>;
 			};
 		};
 	};
@@ -408,6 +702,85 @@
 			};
 		};
 	};
+
+	i2c@f9968000 {
+		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c12_pins>;
+
+		fuelgauge@36 {
+			compatible = "maxim,max17048";
+			reg = <0x36>;
+
+			maxim,double-soc;
+			maxim,rcomp = /bits/ 8 <0x56>;
+
+			interrupt-parent = <&pma8084_gpios>;
+			interrupts = <21 IRQ_TYPE_EDGE_FALLING>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&fuelgauge_pin>;
+		};
+	};
+
+	adreno@fdb00000 {
+		status = "ok";
+	};
+
+	mdss@fd900000 {
+		status = "ok";
+
+		mdp@fd900000 {
+			status = "ok";
+		};
+
+		dsi@fd922800 {
+			status = "ok";
+
+			vdda-supply = <&pma8084_l2>;
+			vdd-supply = <&pma8084_l22>;
+			vddio-supply = <&pma8084_l12>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ports {
+				port@1 {
+					endpoint {
+						remote-endpoint = <&panel_in>;
+						data-lanes = <0 1 2 3>;
+					};
+				};
+			};
+
+			panel: panel@0 {
+				reg = <0>;
+				compatible = "samsung,s6e3fa2";
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&panel_te_pin &panel_rst_pin>;
+
+				iovdd-supply = <&pma8084_lvs4>;
+				vddr-supply = <&vreg_panel>;
+
+				reset-gpios = <&pma8084_gpios 17 GPIO_ACTIVE_LOW>;
+				te-gpios = <&msmgpio 12 GPIO_ACTIVE_HIGH>;
+
+				port {
+					panel_in: endpoint {
+						remote-endpoint = <&dsi0_out>;
+					};
+				};
+			};
+		};
+
+		dsi-phy@fd922a00 {
+			status = "ok";
+
+			vddio-supply = <&pma8084_l12>;
+		};
+	};
 };
 
 &spmi_bus {
@@ -418,6 +791,56 @@
 				function = "normal";
 
 				bias-pull-up;
+				power-source = <PMA8084_GPIO_S4>;
+			};
+
+			touchkey_pin: touchkey-int-pin {
+				pins = "gpio6";
+				function = "normal";
+				bias-disable;
+				input-enable;
+				power-source = <PMA8084_GPIO_S4>;
+			};
+
+			touch_pin: touchscreen-int-pin {
+				pins = "gpio8";
+				function = "normal";
+				bias-disable;
+				input-enable;
+				power-source = <PMA8084_GPIO_S4>;
+			};
+
+			panel_en_pin: panel-en-pin {
+				pins = "gpio14";
+				function = "normal";
+				bias-pull-up;
+				power-source = <PMA8084_GPIO_S4>;
+				qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
+			};
+
+			wlan_sleep_clk_pin: wlan-sleep-clk-pin {
+				pins = "gpio16";
+				function = "func2";
+
+				output-high;
+				power-source = <PMA8084_GPIO_S4>;
+				qcom,drive-strength = <PMIC_GPIO_STRENGTH_HIGH>;
+			};
+
+			panel_rst_pin: panel-rst-pin {
+				pins = "gpio17";
+				function = "normal";
+				bias-disable;
+				power-source = <PMA8084_GPIO_S4>;
+				qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
+			};
+
+
+			fuelgauge_pin: fuelgauge-int-pin {
+				pins = "gpio21";
+				function = "normal";
+				bias-disable;
+				input-enable;
 				power-source = <PMA8084_GPIO_S4>;
 			};
 		};

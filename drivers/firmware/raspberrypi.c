@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Defines interfaces for interacting wtih the Raspberry Pi firmware's
+ * Defines interfaces for interacting with the Raspberry Pi firmware's
  * property channel.
  *
  * Copyright © 2015 Broadcom

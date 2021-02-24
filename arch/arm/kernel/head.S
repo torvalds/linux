@@ -103,10 +103,8 @@ ENTRY(stext)
 #endif
 
 #ifndef CONFIG_XIP_KERNEL
-	adr	r3, 2f
-	ldmia	r3, {r4, r8}
-	sub	r4, r3, r4			@ (PHYS_OFFSET - PAGE_OFFSET)
-	add	r8, r8, r4			@ PHYS_OFFSET
+	adr_l	r8, _text			@ __pa(_text)
+	sub	r8, r8, #TEXT_OFFSET		@ PHYS_OFFSET
 #else
 	ldr	r8, =PLAT_PHYS_OFFSET		@ always constant in this case
 #endif
@@ -158,10 +156,6 @@ ENTRY(stext)
 1:	b	__enable_mmu
 ENDPROC(stext)
 	.ltorg
-#ifndef CONFIG_XIP_KERNEL
-2:	.long	.
-	.long	PAGE_OFFSET
-#endif
 
 /*
  * Setup the initial page tables.  We only setup the barest
@@ -224,11 +218,8 @@ __create_page_tables:
 	 * Create identity mapping to cater for __enable_mmu.
 	 * This identity mapping will be removed by paging_init().
 	 */
-	adr	r0, __turn_mmu_on_loc
-	ldmia	r0, {r3, r5, r6}
-	sub	r0, r0, r3			@ virt->phys offset
-	add	r5, r5, r0			@ phys __turn_mmu_on
-	add	r6, r6, r0			@ phys __turn_mmu_on_end
+	adr_l	r5, __turn_mmu_on		@ _pa(__turn_mmu_on)
+	adr_l	r6, __turn_mmu_on_end		@ _pa(__turn_mmu_on_end)
 	mov	r5, r5, lsr #SECTION_SHIFT
 	mov	r6, r6, lsr #SECTION_SHIFT
 
@@ -274,11 +265,10 @@ __create_page_tables:
 	 * We map 2 sections in case the ATAGs/DTB crosses a section boundary.
 	 */
 	mov	r0, r2, lsr #SECTION_SHIFT
-	movs	r0, r0, lsl #SECTION_SHIFT
-	subne	r3, r0, r8
-	addne	r3, r3, #PAGE_OFFSET
-	addne	r3, r4, r3, lsr #(SECTION_SHIFT - PMD_ORDER)
-	orrne	r6, r7, r0
+	cmp	r2, #0
+	ldrne	r3, =FDT_FIXED_BASE >> (SECTION_SHIFT - PMD_ORDER)
+	addne	r3, r3, r4
+	orrne	r6, r7, r0, lsl #SECTION_SHIFT
 	strne	r6, [r3], #1 << PMD_ORDER
 	addne	r6, r6, #1 << SECTION_SHIFT
 	strne	r6, [r3]
@@ -351,11 +341,6 @@ __create_page_tables:
 	ret	lr
 ENDPROC(__create_page_tables)
 	.ltorg
-	.align
-__turn_mmu_on_loc:
-	.long	.
-	.long	__turn_mmu_on
-	.long	__turn_mmu_on_end
 
 #if defined(CONFIG_SMP)
 	.text
@@ -391,10 +376,8 @@ ENTRY(secondary_startup)
 	/*
 	 * Use the page tables supplied from  __cpu_up.
 	 */
-	adr	r4, __secondary_data
-	ldmia	r4, {r5, r7, r12}		@ address to jump to after
-	sub	lr, r4, r5			@ mmu has been enabled
-	add	r3, r7, lr
+	adr_l	r3, secondary_data
+	mov_l	r12, __secondary_switched
 	ldrd	r4, r5, [r3, #0]		@ get secondary_data.pgdir
 ARM_BE8(eor	r4, r4, r5)			@ Swap r5 and r4 in BE:
 ARM_BE8(eor	r5, r4, r5)			@ it can be done in 3 steps
@@ -409,22 +392,13 @@ ARM_BE8(eor	r4, r4, r5)			@ without using a temp reg.
 ENDPROC(secondary_startup)
 ENDPROC(secondary_startup_arm)
 
-	/*
-	 * r6  = &secondary_data
-	 */
 ENTRY(__secondary_switched)
-	ldr	sp, [r7, #12]			@ get secondary_data.stack
+	ldr_l	r7, secondary_data + 12		@ get secondary_data.stack
+	mov	sp, r7
 	mov	fp, #0
 	b	secondary_start_kernel
 ENDPROC(__secondary_switched)
 
-	.align
-
-	.type	__secondary_data, %object
-__secondary_data:
-	.long	.
-	.long	secondary_data
-	.long	__secondary_switched
 #endif /* defined(CONFIG_SMP) */
 
 
@@ -539,18 +513,10 @@ ARM_BE8(rev	r0, r0)			@ byteswap if big endian
 	retne	lr
 
 __fixup_smp_on_up:
-	adr	r0, 1f
-	ldmia	r0, {r3 - r5}
-	sub	r3, r0, r3
-	add	r4, r4, r3
-	add	r5, r5, r3
+	adr_l	r4, __smpalt_begin
+	adr_l	r5, __smpalt_end
 	b	__do_fixup_smp_on_up
 ENDPROC(__fixup_smp)
-
-	.align
-1:	.word	.
-	.word	__smpalt_begin
-	.word	__smpalt_end
 
 	.pushsection .data
 	.align	2
@@ -565,14 +531,15 @@ smp_on_up:
 __do_fixup_smp_on_up:
 	cmp	r4, r5
 	reths	lr
-	ldmia	r4!, {r0, r6}
- ARM(	str	r6, [r0, r3]	)
- THUMB(	add	r0, r0, r3	)
+	ldmia	r4, {r0, r6}
+ ARM(	str	r6, [r0, r4]	)
+ THUMB(	add	r0, r0, r4	)
+	add	r4, r4, #8
 #ifdef __ARMEB__
  THUMB(	mov	r6, r6, ror #16	)	@ Convert word order for big-endian.
 #endif
  THUMB(	strh	r6, [r0], #2	)	@ For Thumb-2, store as two halfwords
- THUMB(	mov	r6, r6, lsr #16	)	@ to be robust against misaligned r3.
+ THUMB(	mov	r6, r6, lsr #16	)	@ to be robust against misaligned r0.
  THUMB(	strh	r6, [r0]	)
 	b	__do_fixup_smp_on_up
 ENDPROC(__do_fixup_smp_on_up)
@@ -581,151 +548,8 @@ ENTRY(fixup_smp)
 	stmfd	sp!, {r4 - r6, lr}
 	mov	r4, r0
 	add	r5, r0, r1
-	mov	r3, #0
 	bl	__do_fixup_smp_on_up
 	ldmfd	sp!, {r4 - r6, pc}
 ENDPROC(fixup_smp)
-
-#ifdef __ARMEB__
-#define LOW_OFFSET	0x4
-#define HIGH_OFFSET	0x0
-#else
-#define LOW_OFFSET	0x0
-#define HIGH_OFFSET	0x4
-#endif
-
-#ifdef CONFIG_ARM_PATCH_PHYS_VIRT
-
-/* __fixup_pv_table - patch the stub instructions with the delta between
- * PHYS_OFFSET and PAGE_OFFSET, which is assumed to be 16MiB aligned and
- * can be expressed by an immediate shifter operand. The stub instruction
- * has a form of '(add|sub) rd, rn, #imm'.
- */
-	__HEAD
-__fixup_pv_table:
-	adr	r0, 1f
-	ldmia	r0, {r3-r7}
-	mvn	ip, #0
-	subs	r3, r0, r3	@ PHYS_OFFSET - PAGE_OFFSET
-	add	r4, r4, r3	@ adjust table start address
-	add	r5, r5, r3	@ adjust table end address
-	add	r6, r6, r3	@ adjust __pv_phys_pfn_offset address
-	add	r7, r7, r3	@ adjust __pv_offset address
-	mov	r0, r8, lsr #PAGE_SHIFT	@ convert to PFN
-	str	r0, [r6]	@ save computed PHYS_OFFSET to __pv_phys_pfn_offset
-	strcc	ip, [r7, #HIGH_OFFSET]	@ save to __pv_offset high bits
-	mov	r6, r3, lsr #24	@ constant for add/sub instructions
-	teq	r3, r6, lsl #24 @ must be 16MiB aligned
-THUMB(	it	ne		@ cross section branch )
-	bne	__error
-	str	r3, [r7, #LOW_OFFSET]	@ save to __pv_offset low bits
-	b	__fixup_a_pv_table
-ENDPROC(__fixup_pv_table)
-
-	.align
-1:	.long	.
-	.long	__pv_table_begin
-	.long	__pv_table_end
-2:	.long	__pv_phys_pfn_offset
-	.long	__pv_offset
-
-	.text
-__fixup_a_pv_table:
-	adr	r0, 3f
-	ldr	r6, [r0]
-	add	r6, r6, r3
-	ldr	r0, [r6, #HIGH_OFFSET]	@ pv_offset high word
-	ldr	r6, [r6, #LOW_OFFSET]	@ pv_offset low word
-	mov	r6, r6, lsr #24
-	cmn	r0, #1
-#ifdef CONFIG_THUMB2_KERNEL
-	moveq	r0, #0x200000	@ set bit 21, mov to mvn instruction
-	lsls	r6, #24
-	beq	2f
-	clz	r7, r6
-	lsr	r6, #24
-	lsl	r6, r7
-	bic	r6, #0x0080
-	lsrs	r7, #1
-	orrcs	r6, #0x0080
-	orr	r6, r6, r7, lsl #12
-	orr	r6, #0x4000
-	b	2f
-1:	add     r7, r3
-	ldrh	ip, [r7, #2]
-ARM_BE8(rev16	ip, ip)
-	tst	ip, #0x4000
-	and	ip, #0x8f00
-	orrne	ip, r6	@ mask in offset bits 31-24
-	orreq	ip, r0	@ mask in offset bits 7-0
-ARM_BE8(rev16	ip, ip)
-	strh	ip, [r7, #2]
-	bne	2f
-	ldrh	ip, [r7]
-ARM_BE8(rev16	ip, ip)
-	bic	ip, #0x20
-	orr	ip, ip, r0, lsr #16
-ARM_BE8(rev16	ip, ip)
-	strh	ip, [r7]
-2:	cmp	r4, r5
-	ldrcc	r7, [r4], #4	@ use branch for delay slot
-	bcc	1b
-	bx	lr
-#else
-#ifdef CONFIG_CPU_ENDIAN_BE8
-	moveq	r0, #0x00004000	@ set bit 22, mov to mvn instruction
-#else
-	moveq	r0, #0x400000	@ set bit 22, mov to mvn instruction
-#endif
-	b	2f
-1:	ldr	ip, [r7, r3]
-#ifdef CONFIG_CPU_ENDIAN_BE8
-	@ in BE8, we load data in BE, but instructions still in LE
-	bic	ip, ip, #0xff000000
-	tst	ip, #0x000f0000	@ check the rotation field
-	orrne	ip, ip, r6, lsl #24 @ mask in offset bits 31-24
-	biceq	ip, ip, #0x00004000 @ clear bit 22
-	orreq	ip, ip, r0      @ mask in offset bits 7-0
-#else
-	bic	ip, ip, #0x000000ff
-	tst	ip, #0xf00	@ check the rotation field
-	orrne	ip, ip, r6	@ mask in offset bits 31-24
-	biceq	ip, ip, #0x400000	@ clear bit 22
-	orreq	ip, ip, r0	@ mask in offset bits 7-0
-#endif
-	str	ip, [r7, r3]
-2:	cmp	r4, r5
-	ldrcc	r7, [r4], #4	@ use branch for delay slot
-	bcc	1b
-	ret	lr
-#endif
-ENDPROC(__fixup_a_pv_table)
-
-	.align
-3:	.long __pv_offset
-
-ENTRY(fixup_pv_table)
-	stmfd	sp!, {r4 - r7, lr}
-	mov	r3, #0			@ no offset
-	mov	r4, r0			@ r0 = table start
-	add	r5, r0, r1		@ r1 = table size
-	bl	__fixup_a_pv_table
-	ldmfd	sp!, {r4 - r7, pc}
-ENDPROC(fixup_pv_table)
-
-	.data
-	.align	2
-	.globl	__pv_phys_pfn_offset
-	.type	__pv_phys_pfn_offset, %object
-__pv_phys_pfn_offset:
-	.word	0
-	.size	__pv_phys_pfn_offset, . -__pv_phys_pfn_offset
-
-	.globl	__pv_offset
-	.type	__pv_offset, %object
-__pv_offset:
-	.quad	0
-	.size	__pv_offset, . -__pv_offset
-#endif
 
 #include "head-common.S"

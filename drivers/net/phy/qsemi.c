@@ -75,6 +75,10 @@ static int qs6612_ack_interrupt(struct phy_device *phydev)
 {
 	int err;
 
+	/* The Interrupt Source register is not self-clearing, bits 4 and 5 are
+	 * cleared when MII_BMSR is read and bits 1 and 3 are cleared when
+	 * MII_EXPANSION is read
+	 */
 	err = phy_read(phydev, MII_QS6612_ISR);
 
 	if (err < 0)
@@ -96,14 +100,46 @@ static int qs6612_ack_interrupt(struct phy_device *phydev)
 static int qs6612_config_intr(struct phy_device *phydev)
 {
 	int err;
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		/* clear any interrupts before enabling them */
+		err = qs6612_ack_interrupt(phydev);
+		if (err)
+			return err;
+
 		err = phy_write(phydev, MII_QS6612_IMR,
 				MII_QS6612_IMR_INIT);
-	else
+	} else {
 		err = phy_write(phydev, MII_QS6612_IMR, 0);
+		if (err)
+			return err;
+
+		/* clear any leftover interrupts */
+		err = qs6612_ack_interrupt(phydev);
+	}
 
 	return err;
 
+}
+
+static irqreturn_t qs6612_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, MII_QS6612_ISR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & MII_QS6612_IMR_INIT))
+		return IRQ_NONE;
+
+	/* the interrupt source register is not self-clearing */
+	qs6612_ack_interrupt(phydev);
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static struct phy_driver qs6612_driver[] = { {
@@ -112,8 +148,8 @@ static struct phy_driver qs6612_driver[] = { {
 	.phy_id_mask	= 0xfffffff0,
 	/* PHY_BASIC_FEATURES */
 	.config_init	= qs6612_config_init,
-	.ack_interrupt	= qs6612_ack_interrupt,
 	.config_intr	= qs6612_config_intr,
+	.handle_interrupt = qs6612_handle_interrupt,
 } };
 
 module_phy_driver(qs6612_driver);

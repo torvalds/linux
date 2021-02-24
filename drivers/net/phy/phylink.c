@@ -306,6 +306,10 @@ static int phylink_parse_mode(struct phylink *pl, struct fwnode_handle *fwnode)
 			phylink_set(pl->supported, 2500baseX_Full);
 			break;
 
+		case PHY_INTERFACE_MODE_5GBASER:
+			phylink_set(pl->supported, 5000baseT_Full);
+			break;
+
 		case PHY_INTERFACE_MODE_USXGMII:
 		case PHY_INTERFACE_MODE_10GKR:
 		case PHY_INTERFACE_MODE_10GBASER:
@@ -1649,7 +1653,7 @@ int phylink_ethtool_set_pauseparam(struct phylink *pl,
 EXPORT_SYMBOL_GPL(phylink_ethtool_set_pauseparam);
 
 /**
- * phylink_ethtool_get_eee_err() - read the energy efficient ethernet error
+ * phylink_get_eee_err() - read the energy efficient ethernet error
  *   counter
  * @pl: a pointer to a &struct phylink returned from phylink_create().
  *
@@ -2515,9 +2519,10 @@ int phylink_mii_c22_pcs_config(struct mdio_device *pcs, unsigned int mode,
 
 	changed = ret > 0;
 
+	/* Ensure ISOLATE bit is disabled */
 	bmcr = mode == MLO_AN_INBAND ? BMCR_ANENABLE : 0;
 	ret = mdiobus_modify(pcs->bus, pcs->addr, MII_BMCR,
-			     BMCR_ANENABLE, bmcr);
+			     BMCR_ANENABLE | BMCR_ISOLATE, bmcr);
 	if (ret < 0)
 		return ret;
 

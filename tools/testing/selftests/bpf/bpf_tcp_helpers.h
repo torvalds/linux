@@ -56,6 +56,7 @@ struct tcp_sock {
 	__u32	rcv_nxt;
 	__u32	snd_nxt;
 	__u32	snd_una;
+	__u32	window_clamp;
 	__u8	ecn_flags;
 	__u32	delivered;
 	__u32	delivered_ce;
@@ -176,6 +177,7 @@ struct tcp_congestion_ops {
 	 * after all the ca_state processing. (optional)
 	 */
 	void (*cong_control)(struct sock *sk, const struct rate_sample *rs);
+	void *owner;
 };
 
 #define min(a, b) ((a) < (b) ? (a) : (b))

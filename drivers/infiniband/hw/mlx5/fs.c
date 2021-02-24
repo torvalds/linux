@@ -2035,11 +2035,9 @@ static int flow_matcher_cleanup(struct ib_uobject *uobject,
 				struct uverbs_attr_bundle *attrs)
 {
 	struct mlx5_ib_flow_matcher *obj = uobject->object;
-	int ret;
 
-	ret = ib_destroy_usecnt(&obj->usecnt, why, uobject);
-	if (ret)
-		return ret;
+	if (atomic_read(&obj->usecnt))
+		return -EBUSY;
 
 	kfree(obj);
 	return 0;

@@ -1,7 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-.. _v4l2-meta-fmt-params-rkisp1:
-.. _v4l2-meta-fmt-stat-rkisp1:
+.. _v4l2-meta-fmt-rk-isp1-params:
+
+.. _v4l2-meta-fmt-rk-isp1-stat-3a:
 
 *****************************************************************************
 V4L2_META_FMT_RK_ISP1_PARAMS ('rk1p'), V4L2_META_FMT_RK_ISP1_STAT_3A ('rk1s')
@@ -46,4 +47,4 @@ important tuning tools using software control loop.
 rkisp1 uAPI data types
 ======================
 
-.. kernel-doc:: drivers/staging/media/rkisp1/uapi/rkisp1-config.h
+.. kernel-doc:: include/uapi/linux/rkisp1-config.h

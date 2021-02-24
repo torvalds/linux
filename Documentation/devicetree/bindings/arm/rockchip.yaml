@@ -70,6 +70,24 @@ properties:
           - const: elgin,rv1108-r1
           - const: rockchip,rv1108
 
+      - description: Engicam PX30.Core C.TOUCH 2.0
+        items:
+          - const: engicam,px30-core-ctouch2
+          - const: engicam,px30-core
+          - const: rockchip,px30
+
+      - description: Engicam PX30.Core C.TOUCH 2.0 10.1" Open Frame
+        items:
+          - const: engicam,px30-core-ctouch2-of10
+          - const: engicam,px30-core
+          - const: rockchip,px30
+
+      - description: Engicam PX30.Core EDIMM2.2 Starter Kit
+        items:
+          - const: engicam,px30-core-edimm2.2
+          - const: engicam,px30-core
+          - const: rockchip,px30
+
       - description: Firefly Firefly-RK3288
         items:
           - enum:
@@ -381,6 +399,11 @@ properties:
               - khadas,edge-v
           - const: rockchip,rk3399
 
+      - description: Kobol Helios64
+        items:
+          - const: kobol,helios64
+          - const: rockchip,rk3399
+
       - description: Mecer Xtreme Mini S6
         items:
           - const: mecer,xms6
@@ -443,6 +466,11 @@ properties:
               - radxa,rockpi4c
           - const: radxa,rockpi4
           - const: rockchip,rk3399
+
+      - description: Radxa ROCK Pi E
+        items:
+          - const: radxa,rockpi-e
+          - const: rockchip,rk3328
 
       - description: Radxa ROCK Pi N8
         items:

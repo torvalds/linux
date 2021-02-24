@@ -28,6 +28,8 @@ void curve25519_arch(u8 out[CURVE25519_KEY_SIZE],
 void curve25519_base_arch(u8 pub[CURVE25519_KEY_SIZE],
 			  const u8 secret[CURVE25519_KEY_SIZE]);
 
+bool curve25519_selftest(void);
+
 static inline
 bool __must_check curve25519(u8 mypublic[CURVE25519_KEY_SIZE],
 			     const u8 secret[CURVE25519_KEY_SIZE],

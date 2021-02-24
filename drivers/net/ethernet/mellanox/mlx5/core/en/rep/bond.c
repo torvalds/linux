@@ -187,7 +187,7 @@ static bool mlx5e_rep_is_lag_netdev(struct net_device *netdev)
 	struct mlx5e_priv *priv;
 
 	/* A given netdev is not a representor or not a slave of LAG configuration */
-	if (!mlx5e_eswitch_rep(netdev) || !bond_slave_get_rtnl(netdev))
+	if (!mlx5e_eswitch_rep(netdev) || !netif_is_lag_port(netdev))
 		return false;
 
 	priv = netdev_priv(netdev);

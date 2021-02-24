@@ -8,7 +8,6 @@ FEATURE-DUMP.libbpf
 fixdep
 test_dev_cgroup
 /test_progs*
-test_tcpbpf_user
 test_verifier_log
 feature
 test_sock
@@ -18,7 +17,6 @@ test_sockmap
 test_lirc_mode2_user
 get_cgroup_id_user
 test_skb_cgroup_id_user
-test_socket_cookie
 test_cgroup_storage
 test_flow_dissector
 flow_dissector_load
@@ -27,7 +25,6 @@ test_tcpnotify_user
 test_libbpf
 test_tcp_check_syncookie_user
 test_sysctl
-test_current_pid_tgid_new_ns
 xdping
 test_cpp
 *.skel.h
@@ -36,3 +33,5 @@ test_cpp
 /tools
 /runqslower
 /bench
+*.ko
+xdpxceiver

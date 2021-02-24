@@ -57,12 +57,55 @@ to enable them. ::
 They can be enabled individually. The full list of the parameters: ::
 
 	make CC=clang LD=ld.lld AR=llvm-ar NM=llvm-nm STRIP=llvm-strip \
-	  OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump OBJSIZE=llvm-size \
-	  READELF=llvm-readelf HOSTCC=clang HOSTCXX=clang++ HOSTAR=llvm-ar \
-	  HOSTLD=ld.lld
+	  OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf \
+	  HOSTCC=clang HOSTCXX=clang++ HOSTAR=llvm-ar HOSTLD=ld.lld
 
 Currently, the integrated assembler is disabled by default. You can pass
 ``LLVM_IAS=1`` to enable it.
+
+Supported Architectures
+-----------------------
+
+LLVM does not target all of the architectures that Linux supports and
+just because a target is supported in LLVM does not mean that the kernel
+will build or work without any issues. Below is a general summary of
+architectures that currently work with ``CC=clang`` or ``LLVM=1``. Level
+of support corresponds to "S" values in the MAINTAINERS files. If an
+architecture is not present, it either means that LLVM does not target
+it or there are known issues. Using the latest stable version of LLVM or
+even the development tree will generally yield the best results.
+An architecture's ``defconfig`` is generally expected to work well,
+certain configurations may have problems that have not been uncovered
+yet. Bug reports are always welcome at the issue tracker below!
+
+.. list-table::
+   :widths: 10 10 10
+   :header-rows: 1
+
+   * - Architecture
+     - Level of support
+     - ``make`` command
+   * - arm
+     - Supported
+     - ``LLVM=1``
+   * - arm64
+     - Supported
+     - ``LLVM=1``
+   * - mips
+     - Maintained
+     - ``CC=clang``
+   * - powerpc
+     - Maintained
+     - ``CC=clang``
+   * - riscv
+     - Maintained
+     - ``CC=clang``
+   * - s390
+     - Maintained
+     - ``CC=clang``
+   * - x86
+     - Supported
+     - ``LLVM=1``
 
 Getting Help
 ------------

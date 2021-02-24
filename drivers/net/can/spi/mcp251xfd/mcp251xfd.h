@@ -305,7 +305,7 @@
 #define MCP251XFD_OBJ_FLAGS_BRS BIT(6)
 #define MCP251XFD_OBJ_FLAGS_RTR BIT(5)
 #define MCP251XFD_OBJ_FLAGS_IDE BIT(4)
-#define MCP251XFD_OBJ_FLAGS_DLC GENMASK(3, 0)
+#define MCP251XFD_OBJ_FLAGS_DLC_MASK GENMASK(3, 0)
 
 #define MCP251XFD_REG_FRAME_EFF_SID_MASK GENMASK(28, 18)
 #define MCP251XFD_REG_FRAME_EFF_EID_MASK GENMASK(17, 0)
@@ -368,6 +368,7 @@
  * FIFO setup: tef: 8*12 bytes = 96 bytes, tx: 8*16 bytes = 128 bytes
  * FIFO setup: tef: 4*12 bytes = 48 bytes, tx: 4*72 bytes = 288 bytes
  */
+#define MCP251XFD_RX_OBJ_NUM_MAX 32
 #define MCP251XFD_TX_OBJ_NUM_CAN 8
 #define MCP251XFD_TX_OBJ_NUM_CANFD 4
 
@@ -458,14 +459,6 @@ struct mcp251xfd_hw_rx_obj_canfd {
 	u8 data[sizeof_field(struct canfd_frame, data)];
 };
 
-struct mcp251xfd_tef_ring {
-	unsigned int head;
-	unsigned int tail;
-
-	/* u8 obj_num equals tx_ring->obj_num */
-	/* u8 obj_size equals sizeof(struct mcp251xfd_hw_tef_obj) */
-};
-
 struct __packed mcp251xfd_buf_cmd {
 	__be16 cmd;
 };
@@ -505,6 +498,17 @@ struct mcp251xfd_tx_obj {
 	union mcp251xfd_tx_obj_load_buf buf;
 };
 
+struct mcp251xfd_tef_ring {
+	unsigned int head;
+	unsigned int tail;
+
+	/* u8 obj_num equals tx_ring->obj_num */
+	/* u8 obj_size equals sizeof(struct mcp251xfd_hw_tef_obj) */
+
+	union mcp251xfd_write_reg_buf uinc_buf;
+	struct spi_transfer uinc_xfer[MCP251XFD_TX_OBJ_NUM_MAX];
+};
+
 struct mcp251xfd_tx_ring {
 	unsigned int head;
 	unsigned int tail;
@@ -527,6 +531,8 @@ struct mcp251xfd_rx_ring {
 	u8 obj_num;
 	u8 obj_size;
 
+	union mcp251xfd_write_reg_buf uinc_buf;
+	struct spi_transfer uinc_xfer[MCP251XFD_RX_OBJ_NUM_MAX];
 	struct mcp251xfd_hw_rx_obj_canfd obj[];
 };
 
@@ -580,7 +586,7 @@ struct mcp251xfd_priv {
 	struct spi_device *spi;
 	u32 spi_max_speed_hz_orig;
 
-	struct mcp251xfd_tef_ring tef;
+	struct mcp251xfd_tef_ring tef[1];
 	struct mcp251xfd_tx_ring tx[1];
 	struct mcp251xfd_rx_ring *rx[1];
 
@@ -741,17 +747,17 @@ mcp251xfd_get_rx_obj_addr(const struct mcp251xfd_rx_ring *ring, u8 n)
 
 static inline u8 mcp251xfd_get_tef_head(const struct mcp251xfd_priv *priv)
 {
-	return priv->tef.head & (priv->tx->obj_num - 1);
+	return priv->tef->head & (priv->tx->obj_num - 1);
 }
 
 static inline u8 mcp251xfd_get_tef_tail(const struct mcp251xfd_priv *priv)
 {
-	return priv->tef.tail & (priv->tx->obj_num - 1);
+	return priv->tef->tail & (priv->tx->obj_num - 1);
 }
 
 static inline u8 mcp251xfd_get_tef_len(const struct mcp251xfd_priv *priv)
 {
-	return priv->tef.head - priv->tef.tail;
+	return priv->tef->head - priv->tef->tail;
 }
 
 static inline u8 mcp251xfd_get_tef_linear_len(const struct mcp251xfd_priv *priv)

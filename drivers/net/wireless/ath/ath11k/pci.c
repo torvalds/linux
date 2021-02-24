@@ -126,6 +126,7 @@ static inline void ath11k_pci_select_window(struct ath11k_pci *ab_pci, u32 offse
 	if (window != ab_pci->register_window) {
 		iowrite32(WINDOW_ENABLE_BIT | window,
 			  ab->mem + WINDOW_REG_ADDRESS);
+		ioread32(ab->mem + WINDOW_REG_ADDRESS);
 		ab_pci->register_window = window;
 	}
 }
@@ -239,15 +240,137 @@ static void ath11k_pci_clear_dbg_registers(struct ath11k_base *ab)
 	ath11k_dbg(ab, ATH11K_DBG_PCI, "soc reset cause:%d\n", val);
 }
 
+static int ath11k_pci_set_link_reg(struct ath11k_base *ab,
+				   u32 offset, u32 value, u32 mask)
+{
+	u32 v;
+	int i;
+
+	v = ath11k_pci_read32(ab, offset);
+	if ((v & mask) == value)
+		return 0;
+
+	for (i = 0; i < 10; i++) {
+		ath11k_pci_write32(ab, offset, (v & ~mask) | value);
+
+		v = ath11k_pci_read32(ab, offset);
+		if ((v & mask) == value)
+			return 0;
+
+		mdelay(2);
+	}
+
+	ath11k_warn(ab, "failed to set pcie link register 0x%08x: 0x%08x != 0x%08x\n",
+		    offset, v & mask, value);
+
+	return -ETIMEDOUT;
+}
+
+static int ath11k_pci_fix_l1ss(struct ath11k_base *ab)
+{
+	int ret;
+
+	ret = ath11k_pci_set_link_reg(ab,
+				      PCIE_QSERDES_COM_SYSCLK_EN_SEL_REG,
+				      PCIE_QSERDES_COM_SYSCLK_EN_SEL_VAL,
+				      PCIE_QSERDES_COM_SYSCLK_EN_SEL_MSK);
+	if (ret) {
+		ath11k_warn(ab, "failed to set sysclk: %d\n", ret);
+		return ret;
+	}
+
+	ret = ath11k_pci_set_link_reg(ab,
+				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG1_REG,
+				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG1_VAL,
+				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG_MSK);
+	if (ret) {
+		ath11k_warn(ab, "failed to set dtct config1 error: %d\n", ret);
+		return ret;
+	}
+
+	ret = ath11k_pci_set_link_reg(ab,
+				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG2_REG,
+				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG2_VAL,
+				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG_MSK);
+	if (ret) {
+		ath11k_warn(ab, "failed to set dtct config2: %d\n", ret);
+		return ret;
+	}
+
+	ret = ath11k_pci_set_link_reg(ab,
+				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG4_REG,
+				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG4_VAL,
+				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG_MSK);
+	if (ret) {
+		ath11k_warn(ab, "failed to set dtct config4: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void ath11k_pci_enable_ltssm(struct ath11k_base *ab)
+{
+	u32 val;
+	int i;
+
+	val = ath11k_pci_read32(ab, PCIE_PCIE_PARF_LTSSM);
+
+	/* PCIE link seems very unstable after the Hot Reset*/
+	for (i = 0; val != PARM_LTSSM_VALUE && i < 5; i++) {
+		if (val == 0xffffffff)
+			mdelay(5);
+
+		ath11k_pci_write32(ab, PCIE_PCIE_PARF_LTSSM, PARM_LTSSM_VALUE);
+		val = ath11k_pci_read32(ab, PCIE_PCIE_PARF_LTSSM);
+	}
+
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "pci ltssm 0x%x\n", val);
+
+	val = ath11k_pci_read32(ab, GCC_GCC_PCIE_HOT_RST);
+	val |= GCC_GCC_PCIE_HOT_RST_VAL;
+	ath11k_pci_write32(ab, GCC_GCC_PCIE_HOT_RST, val);
+	val = ath11k_pci_read32(ab, GCC_GCC_PCIE_HOT_RST);
+
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "pci pcie_hot_rst 0x%x\n", val);
+
+	mdelay(5);
+}
+
+static void ath11k_pci_clear_all_intrs(struct ath11k_base *ab)
+{
+	/* This is a WAR for PCIE Hotreset.
+	 * When target receive Hotreset, but will set the interrupt.
+	 * So when download SBL again, SBL will open Interrupt and
+	 * receive it, and crash immediately.
+	 */
+	ath11k_pci_write32(ab, PCIE_PCIE_INT_ALL_CLEAR, PCIE_INT_CLEAR_ALL);
+}
+
+static void ath11k_pci_set_wlaon_pwr_ctrl(struct ath11k_base *ab)
+{
+	u32 val;
+
+	val = ath11k_pci_read32(ab, WLAON_QFPROM_PWR_CTRL_REG);
+	val &= ~QFPROM_PWR_CTRL_VDD4BLOW_MASK;
+	ath11k_pci_write32(ab, WLAON_QFPROM_PWR_CTRL_REG, val);
+}
+
 static void ath11k_pci_force_wake(struct ath11k_base *ab)
 {
 	ath11k_pci_write32(ab, PCIE_SOC_WAKE_PCIE_LOCAL_REG, 1);
 	mdelay(5);
 }
 
-static void ath11k_pci_sw_reset(struct ath11k_base *ab)
+static void ath11k_pci_sw_reset(struct ath11k_base *ab, bool power_on)
 {
-	ath11k_pci_soc_global_reset(ab);
+	if (power_on) {
+		ath11k_pci_enable_ltssm(ab);
+		ath11k_pci_clear_all_intrs(ab);
+		ath11k_pci_set_wlaon_pwr_ctrl(ab);
+		ath11k_pci_fix_l1ss(ab);
+	}
+
 	ath11k_mhi_clear_vector(ab);
 	ath11k_pci_soc_global_reset(ab);
 	ath11k_mhi_set_mhictrl_reset(ab);
@@ -264,13 +387,18 @@ int ath11k_pci_get_msi_irq(struct device *dev, unsigned int vector)
 static void ath11k_pci_get_msi_address(struct ath11k_base *ab, u32 *msi_addr_lo,
 				       u32 *msi_addr_hi)
 {
+	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 	struct pci_dev *pci_dev = to_pci_dev(ab->dev);
 
 	pci_read_config_dword(pci_dev, pci_dev->msi_cap + PCI_MSI_ADDRESS_LO,
 			      msi_addr_lo);
 
-	pci_read_config_dword(pci_dev, pci_dev->msi_cap + PCI_MSI_ADDRESS_HI,
-			      msi_addr_hi);
+	if (test_bit(ATH11K_PCI_FLAG_IS_MSI_64, &ab_pci->flags)) {
+		pci_read_config_dword(pci_dev, pci_dev->msi_cap + PCI_MSI_ADDRESS_HI,
+				      msi_addr_hi);
+	} else {
+		*msi_addr_hi = 0;
+	}
 }
 
 int ath11k_pci_get_user_msi_assignment(struct ath11k_pci *ab_pci, char *user_name,
@@ -380,9 +508,9 @@ static void ath11k_pci_sync_ce_irqs(struct ath11k_base *ab)
 	}
 }
 
-static void ath11k_pci_ce_tasklet(unsigned long data)
+static void ath11k_pci_ce_tasklet(struct tasklet_struct *t)
 {
-	struct ath11k_ce_pipe *ce_pipe = (struct ath11k_ce_pipe *)data;
+	struct ath11k_ce_pipe *ce_pipe = from_tasklet(ce_pipe, t, intr_tq);
 
 	ath11k_ce_per_engine_service(ce_pipe->ab, ce_pipe->pipe_num);
 
@@ -581,8 +709,7 @@ static int ath11k_pci_config_irq(struct ath11k_base *ab)
 
 		irq_idx = ATH11K_PCI_IRQ_CE0_OFFSET + i;
 
-		tasklet_init(&ce_pipe->intr_tq, ath11k_pci_ce_tasklet,
-			     (unsigned long)ce_pipe);
+		tasklet_setup(&ce_pipe->intr_tq, ath11k_pci_ce_tasklet);
 
 		ret = request_irq(irq, ath11k_pci_ce_interrupt_handler,
 				  IRQF_SHARED, irq_name[irq_idx],
@@ -659,6 +786,8 @@ static int ath11k_pci_enable_msi(struct ath11k_pci *ab_pci)
 	}
 
 	ab_pci->msi_ep_base_data = msi_desc->msg.data;
+	if (msi_desc->msi_attrib.is_64)
+		set_bit(ATH11K_PCI_FLAG_IS_MSI_64, &ab_pci->flags);
 
 	ath11k_dbg(ab, ATH11K_DBG_PCI, "msi base data is %d\n", ab_pci->msi_ep_base_data);
 
@@ -757,6 +886,32 @@ static void ath11k_pci_free_region(struct ath11k_pci *ab_pci)
 		pci_disable_device(pci_dev);
 }
 
+static void ath11k_pci_aspm_disable(struct ath11k_pci *ab_pci)
+{
+	struct ath11k_base *ab = ab_pci->ab;
+
+	pcie_capability_read_word(ab_pci->pdev, PCI_EXP_LNKCTL,
+				  &ab_pci->link_ctl);
+
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "pci link_ctl 0x%04x L0s %d L1 %d\n",
+		   ab_pci->link_ctl,
+		   u16_get_bits(ab_pci->link_ctl, PCI_EXP_LNKCTL_ASPM_L0S),
+		   u16_get_bits(ab_pci->link_ctl, PCI_EXP_LNKCTL_ASPM_L1));
+
+	/* disable L0s and L1 */
+	pcie_capability_write_word(ab_pci->pdev, PCI_EXP_LNKCTL,
+				   ab_pci->link_ctl & ~PCI_EXP_LNKCTL_ASPMC);
+
+	set_bit(ATH11K_PCI_ASPM_RESTORE, &ab_pci->flags);
+}
+
+static void ath11k_pci_aspm_restore(struct ath11k_pci *ab_pci)
+{
+	if (test_and_clear_bit(ATH11K_PCI_ASPM_RESTORE, &ab_pci->flags))
+		pcie_capability_write_word(ab_pci->pdev, PCI_EXP_LNKCTL,
+					   ab_pci->link_ctl);
+}
+
 static int ath11k_pci_power_up(struct ath11k_base *ab)
 {
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
@@ -764,7 +919,12 @@ static int ath11k_pci_power_up(struct ath11k_base *ab)
 
 	ab_pci->register_window = 0;
 	clear_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags);
-	ath11k_pci_sw_reset(ab_pci->ab);
+	ath11k_pci_sw_reset(ab_pci->ab, true);
+
+	/* Disable ASPM during firmware download due to problems switching
+	 * to AMSS state.
+	 */
+	ath11k_pci_aspm_disable(ab_pci);
 
 	ret = ath11k_mhi_start(ab_pci);
 	if (ret) {
@@ -779,10 +939,31 @@ static void ath11k_pci_power_down(struct ath11k_base *ab)
 {
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 
+	/* restore aspm in case firmware bootup fails */
+	ath11k_pci_aspm_restore(ab_pci);
+
+	ath11k_pci_force_wake(ab_pci->ab);
 	ath11k_mhi_stop(ab_pci);
 	clear_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags);
-	ath11k_pci_force_wake(ab_pci->ab);
-	ath11k_pci_sw_reset(ab_pci->ab);
+	ath11k_pci_sw_reset(ab_pci->ab, false);
+}
+
+static int ath11k_pci_hif_suspend(struct ath11k_base *ab)
+{
+	struct ath11k_pci *ar_pci = ath11k_pci_priv(ab);
+
+	ath11k_mhi_suspend(ar_pci);
+
+	return 0;
+}
+
+static int ath11k_pci_hif_resume(struct ath11k_base *ab)
+{
+	struct ath11k_pci *ar_pci = ath11k_pci_priv(ab);
+
+	ath11k_mhi_resume(ar_pci);
+
+	return 0;
 }
 
 static void ath11k_pci_kill_tasklets(struct ath11k_base *ab)
@@ -799,11 +980,16 @@ static void ath11k_pci_kill_tasklets(struct ath11k_base *ab)
 	}
 }
 
-static void ath11k_pci_stop(struct ath11k_base *ab)
+static void ath11k_pci_ce_irq_disable_sync(struct ath11k_base *ab)
 {
 	ath11k_pci_ce_irqs_disable(ab);
 	ath11k_pci_sync_ce_irqs(ab);
 	ath11k_pci_kill_tasklets(ab);
+}
+
+static void ath11k_pci_stop(struct ath11k_base *ab)
+{
+	ath11k_pci_ce_irq_disable_sync(ab);
 	ath11k_ce_cleanup_pipes(ab);
 }
 
@@ -813,10 +999,22 @@ static int ath11k_pci_start(struct ath11k_base *ab)
 
 	set_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags);
 
+	ath11k_pci_aspm_restore(ab_pci);
+
 	ath11k_pci_ce_irqs_enable(ab);
 	ath11k_ce_rx_post_buf(ab);
 
 	return 0;
+}
+
+static void ath11k_pci_hif_ce_irq_enable(struct ath11k_base *ab)
+{
+	ath11k_pci_ce_irqs_enable(ab);
+}
+
+static void ath11k_pci_hif_ce_irq_disable(struct ath11k_base *ab)
+{
+	ath11k_pci_ce_irq_disable_sync(ab);
 }
 
 static int ath11k_pci_map_service_to_pipe(struct ath11k_base *ab, u16 service_id,
@@ -869,11 +1067,15 @@ static const struct ath11k_hif_ops ath11k_pci_hif_ops = {
 	.write32 = ath11k_pci_write32,
 	.power_down = ath11k_pci_power_down,
 	.power_up = ath11k_pci_power_up,
+	.suspend = ath11k_pci_hif_suspend,
+	.resume = ath11k_pci_hif_resume,
 	.irq_enable = ath11k_pci_ext_irq_enable,
 	.irq_disable = ath11k_pci_ext_irq_disable,
 	.get_msi_address =  ath11k_pci_get_msi_address,
 	.get_user_msi_vector = ath11k_get_user_msi_assignment,
 	.map_service_to_pipe = ath11k_pci_map_service_to_pipe,
+	.ce_irq_enable = ath11k_pci_hif_ce_irq_enable,
+	.ce_irq_disable = ath11k_pci_hif_ce_irq_disable,
 };
 
 static int ath11k_pci_probe(struct pci_dev *pdev,
@@ -883,8 +1085,6 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 	struct ath11k_pci *ab_pci;
 	u32 soc_hw_version, soc_hw_version_major, soc_hw_version_minor;
 	int ret;
-
-	dev_warn(&pdev->dev, "WARNING: ath11k PCI support is experimental!\n");
 
 	ab = ath11k_core_alloc(&pdev->dev, sizeof(*ab_pci), ATH11K_BUS_PCI,
 			       &ath11k_pci_bus_params);
@@ -1008,10 +1208,18 @@ static void ath11k_pci_remove(struct pci_dev *pdev)
 	struct ath11k_base *ab = pci_get_drvdata(pdev);
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 
+	if (test_bit(ATH11K_FLAG_QMI_FAIL, &ab->dev_flags)) {
+		ath11k_pci_power_down(ab);
+		ath11k_debugfs_soc_destroy(ab);
+		ath11k_qmi_deinit_service(ab);
+		goto qmi_fail;
+	}
+
 	set_bit(ATH11K_FLAG_UNREGISTERING, &ab->dev_flags);
 
 	ath11k_core_deinit(ab);
 
+qmi_fail:
 	ath11k_mhi_unregister(ab_pci);
 
 	ath11k_pci_free_irq(ab);
@@ -1030,12 +1238,43 @@ static void ath11k_pci_shutdown(struct pci_dev *pdev)
 	ath11k_pci_power_down(ab);
 }
 
+static __maybe_unused int ath11k_pci_pm_suspend(struct device *dev)
+{
+	struct ath11k_base *ab = dev_get_drvdata(dev);
+	int ret;
+
+	ret = ath11k_core_suspend(ab);
+	if (ret)
+		ath11k_warn(ab, "failed to suspend core: %d\n", ret);
+
+	return ret;
+}
+
+static __maybe_unused int ath11k_pci_pm_resume(struct device *dev)
+{
+	struct ath11k_base *ab = dev_get_drvdata(dev);
+	int ret;
+
+	ret = ath11k_core_resume(ab);
+	if (ret)
+		ath11k_warn(ab, "failed to resume core: %d\n", ret);
+
+	return ret;
+}
+
+static SIMPLE_DEV_PM_OPS(ath11k_pci_pm_ops,
+			 ath11k_pci_pm_suspend,
+			 ath11k_pci_pm_resume);
+
 static struct pci_driver ath11k_pci_driver = {
 	.name = "ath11k_pci",
 	.id_table = ath11k_pci_id_table,
 	.probe = ath11k_pci_probe,
 	.remove = ath11k_pci_remove,
 	.shutdown = ath11k_pci_shutdown,
+#ifdef CONFIG_PM
+	.driver.pm = &ath11k_pci_pm_ops,
+#endif
 };
 
 static int ath11k_pci_init(void)
@@ -1060,3 +1299,8 @@ module_exit(ath11k_pci_exit);
 
 MODULE_DESCRIPTION("Driver support for Qualcomm Technologies 802.11ax WLAN PCIe devices");
 MODULE_LICENSE("Dual BSD/GPL");
+
+/* QCA639x 2.0 firmware files */
+MODULE_FIRMWARE(ATH11K_FW_DIR "/QCA6390/hw2.0/" ATH11K_BOARD_API2_FILE);
+MODULE_FIRMWARE(ATH11K_FW_DIR "/QCA6390/hw2.0/" ATH11K_AMSS_FILE);
+MODULE_FIRMWARE(ATH11K_FW_DIR "/QCA6390/hw2.0/" ATH11K_M3_FILE);

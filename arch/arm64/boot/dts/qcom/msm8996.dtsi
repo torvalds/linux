@@ -750,6 +750,8 @@
 				ranges = <0x01000000 0x0 0x0c200000 0x0c200000 0x0 0x100000>,
 					<0x02000000 0x0 0x0c300000 0x0c300000 0x0 0xd00000>;
 
+				device_type = "pci";
+
 				interrupts = <GIC_SPI 405 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-names = "msi";
 				#interrupt-cells = <1>;
@@ -801,6 +803,8 @@
 				#size-cells = <2>;
 				ranges = <0x01000000 0x0 0x0d200000 0x0d200000 0x0 0x100000>,
 					<0x02000000 0x0 0x0d300000 0x0d300000 0x0 0xd00000>;
+
+				device_type = "pci";
 
 				interrupts = <GIC_SPI 413 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-names = "msi";
@@ -1990,7 +1994,7 @@
 			};
 		};
 
-		slimbam: dma@9184000 {
+		slimbam: dma-controller@9184000 {
 			compatible = "qcom,bam-v1.7.0";
 			qcom,controlled-remotely;
 			reg = <0x09184000 0x32000>;

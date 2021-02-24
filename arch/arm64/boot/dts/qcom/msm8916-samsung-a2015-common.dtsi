@@ -78,6 +78,9 @@
 		sda-gpios = <&msmgpio 105 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
 		scl-gpios = <&msmgpio 106 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
 
+		pinctrl-names = "default";
+		pinctrl-0 = <&muic_i2c_default>;
+
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -103,6 +106,9 @@
 		interrupt-parent = <&msmgpio>;
 		interrupts = <115 IRQ_TYPE_EDGE_RISING>;
 
+		vdd-supply = <&pm8916_l17>;
+		vddio-supply = <&pm8916_l5>;
+
 		pinctrl-names = "default";
 		pinctrl-0 = <&accel_int_default>;
 	};
@@ -110,6 +116,9 @@
 	magnetometer@12 {
 		compatible = "bosch,bmc150_magn";
 		reg = <0x12>;
+
+		vdd-supply = <&pm8916_l17>;
+		vddio-supply = <&pm8916_l5>;
 	};
 };
 
@@ -121,6 +130,10 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&mdss_default>;
 	pinctrl-1 = <&mdss_sleep>;
+};
+
+&mdss {
+	status = "okay";
 };
 
 &pm8916_resin {
@@ -164,11 +177,6 @@
 	vdd_l4_l5_l6-supply = <&pm8916_s4>;
 	vdd_l7-supply = <&pm8916_s4>;
 
-	s1 {
-		regulator-min-microvolt = <500000>;
-		regulator-max-microvolt = <1300000>;
-	};
-
 	s3 {
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <1300000>;
@@ -187,11 +195,6 @@
 	l2 {
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <1200000>;
-	};
-
-	l3 {
-		regulator-min-microvolt = <500000>;
-		regulator-max-microvolt = <1287500>;
 	};
 
 	l4 {
@@ -312,6 +315,14 @@
 			drive-strength = <2>;
 			bias-pull-down;
 		};
+	};
+
+	muic_i2c_default: muic-i2c-default {
+		pins = "gpio105", "gpio106";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
 	};
 
 	muic_int_default: muic-int-default {

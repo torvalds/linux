@@ -183,7 +183,6 @@ static struct i2c_driver max8688_driver = {
 		   .name = "max8688",
 		   },
 	.probe_new = max8688_probe,
-	.remove = pmbus_do_remove,
 	.id_table = max8688_id,
 };
 

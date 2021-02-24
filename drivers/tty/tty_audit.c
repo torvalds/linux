@@ -81,7 +81,7 @@ static void tty_audit_log(const char *description, dev_t dev,
 	}
 }
 
-/**
+/*
  *	tty_audit_buf_push	-	Push buffered data out
  *
  *	Generate an audit message from the contents of @buf, which is owned by
@@ -120,7 +120,7 @@ void tty_audit_exit(void)
 	tty_audit_buf_free(buf);
 }
 
-/**
+/*
  *	tty_audit_fork	-	Copy TTY audit state for a new task
  *
  *	Set up TTY audit state in @sig from current.  @sig needs no locking.
@@ -130,7 +130,7 @@ void tty_audit_fork(struct signal_struct *sig)
 	sig->audit_tty = current->signal->audit_tty;
 }
 
-/**
+/*
  *	tty_audit_tiocsti	-	Log TIOCSTI
  */
 void tty_audit_tiocsti(struct tty_struct *tty, char ch)
@@ -145,7 +145,7 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
 		tty_audit_log("ioctl=TIOCSTI", dev, &ch, 1);
 }
 
-/**
+/*
  *	tty_audit_push	-	Flush current's pending audit data
  *
  *	Returns 0 if success, -EPERM if tty audit is disabled
@@ -166,7 +166,7 @@ int tty_audit_push(void)
 	return 0;
 }
 
-/**
+/*
  *	tty_audit_buf_get	-	Get an audit buffer.
  *
  *	Get an audit buffer, allocate it if necessary.  Return %NULL
@@ -193,7 +193,7 @@ static struct tty_audit_buf *tty_audit_buf_get(void)
 	return tty_audit_buf_ref();
 }
 
-/**
+/*
  *	tty_audit_add_data	-	Add data for TTY auditing.
  *
  *	Audit @data of @size from @tty, if necessary.

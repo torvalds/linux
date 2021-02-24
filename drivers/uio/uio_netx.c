@@ -53,12 +53,12 @@ static int netx_pci_probe(struct pci_dev *dev,
 	struct uio_info *info;
 	int bar;
 
-	info = kzalloc(sizeof(struct uio_info), GFP_KERNEL);
+	info = devm_kzalloc(&dev->dev, sizeof(struct uio_info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
 	if (pci_enable_device(dev))
-		goto out_free;
+		return -ENODEV;
 
 	if (pci_request_regions(dev, "netx"))
 		goto out_disable;
@@ -112,8 +112,6 @@ out_release:
 	pci_release_regions(dev);
 out_disable:
 	pci_disable_device(dev);
-out_free:
-	kfree(info);
 	return -ENODEV;
 }
 
@@ -127,8 +125,6 @@ static void netx_pci_remove(struct pci_dev *dev)
 	pci_release_regions(dev);
 	pci_disable_device(dev);
 	iounmap(info->mem[0].internal_addr);
-
-	kfree(info);
 }
 
 static struct pci_device_id netx_pci_ids[] = {

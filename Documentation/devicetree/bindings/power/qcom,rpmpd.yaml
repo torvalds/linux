@@ -16,12 +16,17 @@ description:
 properties:
   compatible:
     enum:
+      - qcom,msm8916-rpmpd
+      - qcom,msm8939-rpmpd
       - qcom,msm8976-rpmpd
+      - qcom,msm8994-rpmpd
       - qcom,msm8996-rpmpd
       - qcom,msm8998-rpmpd
       - qcom,qcs404-rpmpd
+      - qcom,sdm660-rpmpd
       - qcom,sc7180-rpmhpd
       - qcom,sdm845-rpmhpd
+      - qcom,sdx55-rpmhpd
       - qcom,sm8150-rpmhpd
       - qcom,sm8250-rpmhpd
 

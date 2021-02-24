@@ -99,7 +99,7 @@
 				#dma-channels = <16>;
 			};
 
-			wdog: wdog@10002000 {
+			wdog: watchdog@10002000 {
 				compatible = "fsl,imx27-wdt", "fsl,imx21-wdt";
 				reg = <0x10002000 0x1000>;
 				interrupts = <27>;

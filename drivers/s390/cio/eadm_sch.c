@@ -306,16 +306,6 @@ static void eadm_subchannel_shutdown(struct subchannel *sch)
 	eadm_quiesce(sch);
 }
 
-static int eadm_subchannel_freeze(struct subchannel *sch)
-{
-	return cio_disable_subchannel(sch);
-}
-
-static int eadm_subchannel_restore(struct subchannel *sch)
-{
-	return cio_enable_subchannel(sch, (u32)(unsigned long)sch);
-}
-
 /**
  * eadm_subchannel_sch_event - process subchannel event
  * @sch: subchannel
@@ -369,9 +359,6 @@ static struct css_driver eadm_subchannel_driver = {
 	.remove = eadm_subchannel_remove,
 	.shutdown = eadm_subchannel_shutdown,
 	.sch_event = eadm_subchannel_sch_event,
-	.freeze = eadm_subchannel_freeze,
-	.thaw = eadm_subchannel_restore,
-	.restore = eadm_subchannel_restore,
 };
 
 static int __init eadm_sch_init(void)

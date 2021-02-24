@@ -506,7 +506,6 @@ static int tsi148_slave_set(struct vme_slave_resource *image, int enabled,
 	default:
 		dev_err(tsi148_bridge->parent, "Invalid address space\n");
 		return -EINVAL;
-		break;
 	}
 
 	/* Convert 64-bit variables to 2x 32-bit variables */
@@ -995,7 +994,6 @@ static int tsi148_master_set(struct vme_master_resource *image, int enabled,
 		dev_err(tsi148_bridge->parent, "Invalid address space\n");
 		retval = -EINVAL;
 		goto err_aspace;
-		break;
 	}
 
 	temp_ctl &= ~(3<<4);
@@ -1503,7 +1501,6 @@ static int tsi148_dma_set_vme_src_attributes(struct device *dev, __be32 *attr,
 	default:
 		dev_err(dev, "Invalid address space\n");
 		return -EINVAL;
-		break;
 	}
 
 	if (cycle & VME_SUPER)
@@ -1603,7 +1600,6 @@ static int tsi148_dma_set_vme_dest_attributes(struct device *dev, __be32 *attr,
 	default:
 		dev_err(dev, "Invalid address space\n");
 		return -EINVAL;
-		break;
 	}
 
 	if (cycle & VME_SUPER)
@@ -1701,7 +1697,6 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 		dev_err(tsi148_bridge->parent, "Invalid source type\n");
 		retval = -EINVAL;
 		goto err_source;
-		break;
 	}
 
 	/* Assume last link - this will be over-written by adding another */
@@ -1738,7 +1733,6 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 		dev_err(tsi148_bridge->parent, "Invalid destination type\n");
 		retval = -EINVAL;
 		goto err_dest;
-		break;
 	}
 
 	/* Fill out count */
@@ -1964,7 +1958,6 @@ static int tsi148_lm_set(struct vme_lm_resource *lm, unsigned long long lm_base,
 		mutex_unlock(&lm->mtx);
 		dev_err(tsi148_bridge->parent, "Invalid address space\n");
 		return -EINVAL;
-		break;
 	}
 
 	if (cycle & VME_SUPER)
@@ -2162,7 +2155,7 @@ static void *tsi148_alloc_consistent(struct device *parent, size_t size,
 	/* Find pci_dev container of dev */
 	pdev = to_pci_dev(parent);
 
-	return pci_alloc_consistent(pdev, size, dma);
+	return dma_alloc_coherent(&pdev->dev, size, dma, GFP_KERNEL);
 }
 
 static void tsi148_free_consistent(struct device *parent, size_t size,
@@ -2173,7 +2166,7 @@ static void tsi148_free_consistent(struct device *parent, size_t size,
 	/* Find pci_dev container of dev */
 	pdev = to_pci_dev(parent);
 
-	pci_free_consistent(pdev, size, vaddr, dma);
+	dma_free_coherent(&pdev->dev, size, vaddr, dma);
 }
 
 /*
@@ -2199,8 +2192,9 @@ static int tsi148_crcsr_init(struct vme_bridge *tsi148_bridge,
 	bridge = tsi148_bridge->driver_priv;
 
 	/* Allocate mem for CR/CSR image */
-	bridge->crcsr_kernel = pci_zalloc_consistent(pdev, VME_CRCSR_BUF_SIZE,
-						     &bridge->crcsr_bus);
+	bridge->crcsr_kernel = dma_alloc_coherent(&pdev->dev,
+						  VME_CRCSR_BUF_SIZE,
+						  &bridge->crcsr_bus, GFP_KERNEL);
 	if (!bridge->crcsr_kernel) {
 		dev_err(tsi148_bridge->parent, "Failed to allocate memory for "
 			"CR/CSR image\n");
@@ -2268,8 +2262,8 @@ static void tsi148_crcsr_exit(struct vme_bridge *tsi148_bridge,
 	iowrite32be(0, bridge->base + TSI148_LCSR_CROU);
 	iowrite32be(0, bridge->base + TSI148_LCSR_CROL);
 
-	pci_free_consistent(pdev, VME_CRCSR_BUF_SIZE, bridge->crcsr_kernel,
-		bridge->crcsr_bus);
+	dma_free_coherent(&pdev->dev, VME_CRCSR_BUF_SIZE,
+			  bridge->crcsr_kernel, bridge->crcsr_bus);
 }
 
 static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)

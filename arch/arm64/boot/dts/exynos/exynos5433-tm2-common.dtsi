@@ -92,9 +92,8 @@
 		i2c-gpio,delay-us = <2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "okay";
 
-		max98504: max98504@31 {
+		max98504: amplifier@31 {
 			compatible = "maxim,max98504";
 			reg = <0x31>;
 			maxim,rx-path = <1>;
@@ -386,10 +385,10 @@
 	status = "okay";
 	clock-frequency = <2500000>;
 
-	s2mps13-pmic@66 {
+	pmic@66 {
 		compatible = "samsung,s2mps13-pmic";
 		interrupt-parent = <&gpa0>;
-		interrupts = <7 IRQ_TYPE_NONE>;
+		interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0x66>;
 		samsung,s2mps11-wrstbi-ground;
 
@@ -794,7 +793,7 @@
 		compatible = "samsung,s3fwrn5-i2c";
 		reg = <0x27>;
 		interrupt-parent = <&gpa1>;
-		interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <3 IRQ_TYPE_EDGE_RISING>;
 		en-gpios = <&gpf1 4 GPIO_ACTIVE_HIGH>;
 		wake-gpios = <&gpj0 2 GPIO_ACTIVE_HIGH>;
 	};
@@ -817,7 +816,7 @@
 	status = "okay";
 	clock-frequency = <1000000>;
 
-	sii8620@39 {
+	bridge@39 {
 		reg = <0x39>;
 		compatible = "sil,sii8620";
 		cvcc10-supply = <&ldo36_reg>;
@@ -852,7 +851,7 @@
 &hsi2c_8 {
 	status = "okay";
 
-	max77843@66 {
+	pmic@66 {
 		compatible = "maxim,max77843";
 		interrupt-parent = <&gpa1>;
 		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
@@ -861,7 +860,7 @@
 		muic: max77843-muic {
 			compatible = "maxim,max77843-muic";
 
-			musb_con: musb_connector {
+			musb_con: musb-connector {
 				compatible = "samsung,usb-connector-11pin",
 					     "usb-b-connector";
 				label = "micro-USB";
@@ -969,6 +968,25 @@
 	bus-width = <4>;
 };
 
+&pcie {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_bus &pcie_wlanen>;
+	vdd10-supply = <&ldo6_reg>;
+	vdd18-supply = <&ldo7_reg>;
+	assigned-clocks = <&cmu_fsys CLK_MOUT_SCLK_PCIE_100_USER>,
+			  <&cmu_top CLK_MOUT_SCLK_PCIE_100>;
+	assigned-clock-parents = <&cmu_top CLK_SCLK_PCIE_100_FSYS>,
+				 <&cmu_top CLK_MOUT_BUS_PLL_USER>;
+	assigned-clock-rates = <0>, <100000000>;
+	interrupt-map-mask = <0 0 0 0>;
+	interrupt-map = <0 0 0 0 &gic GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&pcie_phy {
+	status = "okay";
+};
+
 &ppmu_d0_general {
 	status = "okay";
 	events {
@@ -1065,7 +1083,7 @@
 		PIN(INPUT, gpf5-7, DOWN, FAST_SR1);
 	};
 
-	te_irq: te_irq {
+	te_irq: te-irq {
 		samsung,pins = "gpf1-3";
 		samsung,pin-function = <0xf>;
 	};
@@ -1085,8 +1103,11 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&initial_ese>;
 
+	pcie_wlanen: pcie-wlanen {
+		PIN(INPUT, gpj2-0, UP, FAST_SR4);
+	};
+
 	initial_ese: initial-state {
-		PIN(INPUT, gpj2-0, DOWN, FAST_SR1);
 		PIN(INPUT, gpj2-1, DOWN, FAST_SR1);
 		PIN(INPUT, gpj2-2, DOWN, FAST_SR1);
 	};
@@ -1231,7 +1252,7 @@
 	cs-gpios = <&gpd6 3 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
-	wm5110: wm5110-codec@0 {
+	wm5110: audio-codec@0 {
 		compatible = "wlf,wm5110";
 		reg = <0x0>;
 		spi-max-frequency = <20000000>;

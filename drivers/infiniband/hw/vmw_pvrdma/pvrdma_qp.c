@@ -209,7 +209,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 		dev_warn(&dev->pdev->dev,
 			 "invalid create queuepair flags %#x\n",
 			 init_attr->create_flags);
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-EOPNOTSUPP);
 	}
 
 	if (init_attr->qp_type != IB_QPT_RC &&
@@ -543,6 +543,9 @@ int pvrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	struct pvrdma_cmd_modify_qp *cmd = &req.modify_qp;
 	enum ib_qp_state cur_state, next_state;
 	int ret;
+
+	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
+		return -EOPNOTSUPP;
 
 	/* Sanity checking. Should need lock here */
 	mutex_lock(&qp->mutex);

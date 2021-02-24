@@ -157,10 +157,19 @@
 		syscon: system-control@1c00000 {
 			compatible = "allwinner,sun8i-v3s-system-control",
 				     "allwinner,sun8i-h3-system-control";
-			reg = <0x01c00000 0x1000>;
+			reg = <0x01c00000 0xd0>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
+		};
+
+		nmi_intc: interrupt-controller@1c000d0 {
+			compatible = "allwinner,sun8i-v3s-nmi",
+				     "allwinner,sun9i-a80-nmi";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			reg = <0x01c000d0 0x0c>;
+			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		tcon0: lcd-controller@1c0c000 {
@@ -329,6 +338,12 @@
 			#interrupt-cells = <3>;
 
 			/omit-if-no-ref/
+			csi0_mclk_pin: csi0-mclk-pin {
+				pins = "PE20";
+				function = "csi_mipi";
+			};
+
+			/omit-if-no-ref/
 			csi1_8bit_pins: csi1-8bit-pins {
 				pins = "PE0", "PE2", "PE3", "PE8", "PE9",
 				       "PE10", "PE11", "PE12", "PE13", "PE14",
@@ -345,6 +360,12 @@
 			i2c0_pins: i2c0-pins {
 				pins = "PB6", "PB7";
 				function = "i2c0";
+			};
+
+			/omit-if-no-ref/
+			i2c1_pb_pins: i2c1-pb-pins {
+				pins = "PB8", "PB9";
+				function = "i2c1";
 			};
 
 			/omit-if-no-ref/
@@ -539,7 +560,7 @@
 		gic: interrupt-controller@1c81000 {
 			compatible = "arm,gic-400";
 			reg = <0x01c81000 0x1000>,
-			      <0x01c82000 0x1000>,
+			      <0x01c82000 0x2000>,
 			      <0x01c84000 0x2000>,
 			      <0x01c86000 0x2000>;
 			interrupt-controller;

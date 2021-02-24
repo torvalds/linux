@@ -280,7 +280,44 @@ static ssize_t tagging_show(struct device *d, struct device_attribute *attr,
 	return sprintf(buf, "%s\n",
 		       dsa_tag_protocol_to_str(cpu_dp->tag_ops));
 }
-static DEVICE_ATTR_RO(tagging);
+
+static ssize_t tagging_store(struct device *d, struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	const struct dsa_device_ops *new_tag_ops, *old_tag_ops;
+	struct net_device *dev = to_net_dev(d);
+	struct dsa_port *cpu_dp = dev->dsa_ptr;
+	int err;
+
+	old_tag_ops = cpu_dp->tag_ops;
+	new_tag_ops = dsa_find_tagger_by_name(buf);
+	/* Bad tagger name, or module is not loaded? */
+	if (IS_ERR(new_tag_ops))
+		return PTR_ERR(new_tag_ops);
+
+	if (new_tag_ops == old_tag_ops)
+		/* Drop the temporarily held duplicate reference, since
+		 * the DSA switch tree uses this tagger.
+		 */
+		goto out;
+
+	err = dsa_tree_change_tag_proto(cpu_dp->ds->dst, dev, new_tag_ops,
+					old_tag_ops);
+	if (err) {
+		/* On failure the old tagger is restored, so we don't need the
+		 * driver for the new one.
+		 */
+		dsa_tag_driver_put(new_tag_ops);
+		return err;
+	}
+
+	/* On success we no longer need the module for the old tagging protocol
+	 */
+out:
+	dsa_tag_driver_put(old_tag_ops);
+	return count;
+}
+static DEVICE_ATTR_RW(tagging);
 
 static struct attribute *dsa_slave_attrs[] = {
 	&dev_attr_tagging.attr,
@@ -308,14 +345,25 @@ static struct lock_class_key dsa_master_addr_list_lock_key;
 
 int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 {
+	int mtu = ETH_DATA_LEN + cpu_dp->tag_ops->overhead;
+	struct dsa_switch *ds = cpu_dp->ds;
+	struct device_link *consumer_link;
 	int ret;
 
+	/* The DSA master must use SET_NETDEV_DEV for this to work. */
+	consumer_link = device_link_add(ds->dev, dev->dev.parent,
+					DL_FLAG_AUTOREMOVE_CONSUMER);
+	if (!consumer_link)
+		netdev_err(dev,
+			   "Failed to create a device link to DSA switch %s\n",
+			   dev_name(ds->dev));
+
 	rtnl_lock();
-	ret = dev_set_mtu(dev, ETH_DATA_LEN + cpu_dp->tag_ops->overhead);
+	ret = dev_set_mtu(dev, mtu);
 	rtnl_unlock();
 	if (ret)
-		netdev_warn(dev, "error %d setting MTU to include DSA overhead\n",
-			    ret);
+		netdev_warn(dev, "error %d setting MTU to %d to include DSA overhead\n",
+			    ret, mtu);
 
 	/* If we use a tagging format that doesn't have an ethertype
 	 * field, make sure that all packets from this point on get

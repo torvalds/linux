@@ -387,7 +387,6 @@ struct i40iw_sc_qp {
 	u8 *q2_buf;
 	u64 qp_compl_ctx;
 	u16 qs_handle;
-	u16 push_idx;
 	u8 sq_tph_val;
 	u8 rq_tph_val;
 	u8 qp_state;
@@ -493,16 +492,16 @@ struct i40iw_sc_dev {
 	struct i40iw_sc_aeq *aeq;
 	struct i40iw_sc_ceq *ceq[I40IW_CEQ_MAX_COUNT];
 	struct i40iw_sc_cq *ccq;
-	struct i40iw_cqp_ops *cqp_ops;
-	struct i40iw_ccq_ops *ccq_ops;
-	struct i40iw_ceq_ops *ceq_ops;
-	struct i40iw_aeq_ops *aeq_ops;
-	struct i40iw_pd_ops *iw_pd_ops;
-	struct i40iw_priv_qp_ops *iw_priv_qp_ops;
-	struct i40iw_priv_cq_ops *iw_priv_cq_ops;
-	struct i40iw_mr_ops *mr_ops;
-	struct i40iw_cqp_misc_ops *cqp_misc_ops;
-	struct i40iw_hmc_ops *hmc_ops;
+	const struct i40iw_cqp_ops *cqp_ops;
+	const struct i40iw_ccq_ops *ccq_ops;
+	const struct i40iw_ceq_ops *ceq_ops;
+	const struct i40iw_aeq_ops *aeq_ops;
+	const struct i40iw_pd_ops *iw_pd_ops;
+	const struct i40iw_priv_qp_ops *iw_priv_qp_ops;
+	const struct i40iw_priv_cq_ops *iw_priv_cq_ops;
+	const struct i40iw_mr_ops *mr_ops;
+	const struct i40iw_cqp_misc_ops *cqp_misc_ops;
+	const struct i40iw_hmc_ops *hmc_ops;
 	struct i40iw_vchnl_if vchnl_if;
 	const struct i40iw_vf_cqp_ops *iw_vf_cqp_ops;
 
@@ -749,8 +748,6 @@ struct i40iw_qp_host_ctx_info {
 	struct i40iwarp_offload_info *iwarp_info;
 	u32 send_cq_num;
 	u32 rcv_cq_num;
-	u16 push_idx;
-	bool push_mode_en;
 	bool tcp_info_valid;
 	bool iwarp_info_valid;
 	bool err_rq_idx_valid;
@@ -937,12 +934,6 @@ struct i40iw_local_mac_ipaddr_entry_info {
 	u8 entry_idx;
 };
 
-struct i40iw_cqp_manage_push_page_info {
-	u32 push_idx;
-	u16 qs_handle;
-	u8 free_page;
-};
-
 struct i40iw_qp_flush_info {
 	u16 sq_minor_code;
 	u16 sq_major_code;
@@ -1114,9 +1105,6 @@ struct i40iw_mr_ops {
 };
 
 struct i40iw_cqp_misc_ops {
-	enum i40iw_status_code (*manage_push_page)(struct i40iw_sc_cqp *,
-						   struct i40iw_cqp_manage_push_page_info *,
-						   u64, bool);
 	enum i40iw_status_code (*manage_hmc_pm_func_table)(struct i40iw_sc_cqp *,
 							   u64, u8, bool, bool);
 	enum i40iw_status_code (*set_hmc_resource_profile)(struct i40iw_sc_cqp *,
@@ -1252,12 +1240,6 @@ struct cqp_info {
 			struct i40iw_manage_vf_pble_info info;
 			u64 scratch;
 		} manage_vf_pble_bp;
-
-		struct {
-			struct i40iw_sc_cqp *cqp;
-			struct i40iw_cqp_manage_push_page_info info;
-			u64 scratch;
-		} manage_push_page;
 
 		struct {
 			struct i40iw_sc_dev *dev;

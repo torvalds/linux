@@ -3,8 +3,9 @@
 # Amlogic Secure Monitor driver
 #
 config MESON_SM
-	bool
-	default ARCH_MESON
+	tristate "Amlogic Secure Monitor driver"
+	depends on ARCH_MESON || COMPILE_TEST
+	default y
 	depends on ARM64_4K_PAGES
 	help
 	  Say y here to enable the Amlogic secure monitor driver

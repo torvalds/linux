@@ -59,7 +59,7 @@ void amdgpu_vf_error_trans_all(struct amdgpu_device *adev)
 		return;
 	}
 /*
- 	TODO: Enable these code when pv2vf_info is merged
+	TODO: Enable these code when pv2vf_info is merged
 	AMDGPU_FW_VRAM_PF2VF_READ (adev, feature_flags, &pf2vf_flags);
 	if (!(pf2vf_flags & AMDGIM_FEATURE_ERROR_LOG_COLLECT)) {
 		return;

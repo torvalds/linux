@@ -368,6 +368,8 @@ static void print_prog_header_json(struct bpf_prog_info *info)
 		jsonw_uint_field(json_wtr, "run_time_ns", info->run_time_ns);
 		jsonw_uint_field(json_wtr, "run_cnt", info->run_cnt);
 	}
+	if (info->recursion_misses)
+		jsonw_uint_field(json_wtr, "recursion_misses", info->recursion_misses);
 }
 
 static void print_prog_json(struct bpf_prog_info *info, int fd)
@@ -446,6 +448,8 @@ static void print_prog_header_plain(struct bpf_prog_info *info)
 	if (info->run_time_ns)
 		printf(" run_time_ns %lld run_cnt %lld",
 		       info->run_time_ns, info->run_cnt);
+	if (info->recursion_misses)
+		printf(" recursion_misses %lld", info->recursion_misses);
 	printf("\n");
 }
 
@@ -940,7 +944,7 @@ static int parse_attach_detach_args(int argc, char **argv, int *progfd,
 	}
 
 	if (*attach_type == BPF_FLOW_DISSECTOR) {
-		*mapfd = -1;
+		*mapfd = 0;
 		return 0;
 	}
 
@@ -1717,6 +1721,34 @@ struct profile_metric {
 		.ratio_desc = "LLC misses per million insns",
 		.ratio_mul = 1e6,
 	},
+	{
+		.name = "itlb_misses",
+		.attr = {
+			.type = PERF_TYPE_HW_CACHE,
+			.config =
+				PERF_COUNT_HW_CACHE_ITLB |
+				(PERF_COUNT_HW_CACHE_OP_READ << 8) |
+				(PERF_COUNT_HW_CACHE_RESULT_MISS << 16),
+			.exclude_user = 1
+		},
+		.ratio_metric = 2,
+		.ratio_desc = "itlb misses per million insns",
+		.ratio_mul = 1e6,
+	},
+	{
+		.name = "dtlb_misses",
+		.attr = {
+			.type = PERF_TYPE_HW_CACHE,
+			.config =
+				PERF_COUNT_HW_CACHE_DTLB |
+				(PERF_COUNT_HW_CACHE_OP_READ << 8) |
+				(PERF_COUNT_HW_CACHE_RESULT_MISS << 16),
+			.exclude_user = 1
+		},
+		.ratio_metric = 2,
+		.ratio_desc = "dtlb misses per million insns",
+		.ratio_mul = 1e6,
+	},
 };
 
 static __u64 profile_total_count;
@@ -2109,7 +2141,7 @@ static int do_help(int argc, char **argv)
 		"                 struct_ops | fentry | fexit | freplace | sk_lookup }\n"
 		"       ATTACH_TYPE := { msg_verdict | stream_verdict | stream_parser |\n"
 		"                        flow_dissector }\n"
-		"       METRIC := { cycles | instructions | l1d_loads | llc_misses }\n"
+		"       METRIC := { cycles | instructions | l1d_loads | llc_misses | itlb_misses | dtlb_misses }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, argv[-2]);

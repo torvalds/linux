@@ -129,7 +129,7 @@
 
 		opp-1600000000 {
 			opp-hz = /bits/ 64 <1600000000>;
-			opp-microvolt = <900000>;
+			opp-microvolt = <950000>;
 			opp-supported-hw = <0xc>, <0x7>;
 			clock-latency-ns = <150000>;
 			opp-suspend;
@@ -194,16 +194,16 @@
 	pmu {
 		compatible = "arm,armv8-pmuv3";
 		interrupts = <GIC_PPI 7
-			     (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_HIGH)>;
+			     (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 		interrupt-affinity = <&A53_0>, <&A53_1>, <&A53_2>, <&A53_3>;
 	};
 
 	timer {
 		compatible = "arm,armv8-timer";
-		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>, /* Physical Secure */
-			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>, /* Physical Non-Secure */
-			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>, /* Virtual */
-			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>; /* Hypervisor */
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>, /* Physical Secure */
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>, /* Physical Non-Secure */
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>, /* Virtual */
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>; /* Hypervisor */
 		clock-frequency = <8000000>;
 		arm,no-tick-in-suspend;
 	};
@@ -257,10 +257,12 @@
 	};
 
 	soc@0 {
-		compatible = "simple-bus";
+		compatible = "fsl,imx8mm-soc", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x0 0x3e000000>;
+		nvmem-cells = <&imx8mm_uid>;
+		nvmem-cell-names = "soc_unique_id";
 
 		aips1: bus@30000000 {
 			compatible = "fsl,aips-bus", "simple-bus";
@@ -335,6 +337,49 @@
 					 <&clk IMX8MM_CLK_DUMMY>, <&clk IMX8MM_CLK_DUMMY>;
 				clock-names = "bus", "mclk1", "mclk2", "mclk3";
 				dmas = <&sdma2 10 2 0>, <&sdma2 11 2 0>;
+				dma-names = "rx", "tx";
+				status = "disabled";
+			};
+
+			micfil: audio-controller@30080000 {
+				compatible = "fsl,imx8mm-micfil";
+				reg = <0x30080000 0x10000>;
+				interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MM_CLK_PDM_IPG>,
+					 <&clk IMX8MM_CLK_PDM_ROOT>,
+					 <&clk IMX8MM_AUDIO_PLL1_OUT>,
+					 <&clk IMX8MM_AUDIO_PLL2_OUT>,
+					 <&clk IMX8MM_CLK_EXT3>;
+				clock-names = "ipg_clk", "ipg_clk_app",
+					      "pll8k", "pll11k", "clkext3";
+				dmas = <&sdma2 24 25 0x80000000>;
+				dma-names = "rx";
+				status = "disabled";
+			};
+
+			spdif1: spdif@30090000 {
+				compatible = "fsl,imx35-spdif";
+				reg = <0x30090000 0x10000>;
+				interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MM_CLK_AUDIO_AHB>, /* core */
+					 <&clk IMX8MM_CLK_24M>, /* rxtx0 */
+					 <&clk IMX8MM_CLK_SPDIF1>, /* rxtx1 */
+					 <&clk IMX8MM_CLK_DUMMY>, /* rxtx2 */
+					 <&clk IMX8MM_CLK_DUMMY>, /* rxtx3 */
+					 <&clk IMX8MM_CLK_DUMMY>, /* rxtx4 */
+					 <&clk IMX8MM_CLK_AUDIO_AHB>, /* rxtx5 */
+					 <&clk IMX8MM_CLK_DUMMY>, /* rxtx6 */
+					 <&clk IMX8MM_CLK_DUMMY>, /* rxtx7 */
+					 <&clk IMX8MM_CLK_DUMMY>; /* spba */
+				clock-names = "core", "rxtx0",
+					      "rxtx1", "rxtx2",
+					      "rxtx3", "rxtx4",
+					      "rxtx5", "rxtx6",
+					      "rxtx7", "spba";
+				dmas = <&sdma2 28 18 0>, <&sdma2 29 18 0>;
 				dma-names = "rx", "tx";
 				status = "disabled";
 			};
@@ -475,8 +520,16 @@
 				#address-cells = <1>;
 				#size-cells = <1>;
 
+				imx8mm_uid: unique-id@410 {
+					reg = <0x4 0x8>;
+				};
+
 				cpu_speed_grade: speed-grade@10 {
 					reg = <0x10 4>;
+				};
+
+				fec_mac_address: mac-address@90 {
+					reg = <0x90 6>;
 				};
 			};
 
@@ -866,13 +919,18 @@
 				assigned-clocks = <&clk IMX8MM_CLK_ENET_AXI>,
 						  <&clk IMX8MM_CLK_ENET_TIMER>,
 						  <&clk IMX8MM_CLK_ENET_REF>,
-						  <&clk IMX8MM_CLK_ENET_TIMER>;
+						  <&clk IMX8MM_CLK_ENET_PHY_REF>;
 				assigned-clock-parents = <&clk IMX8MM_SYS_PLL1_266M>,
 							 <&clk IMX8MM_SYS_PLL2_100M>,
-							 <&clk IMX8MM_SYS_PLL2_125M>;
-				assigned-clock-rates = <0>, <0>, <125000000>, <100000000>;
+							 <&clk IMX8MM_SYS_PLL2_125M>,
+							 <&clk IMX8MM_SYS_PLL2_50M>;
+				assigned-clock-rates = <0>, <100000000>, <125000000>, <0>;
 				fsl,num-tx-queues = <3>;
 				fsl,num-rx-queues = <3>;
+				nvmem-cells = <&fec_mac_address>;
+				nvmem-cell-names = "mac-address";
+				nvmem_macaddr_swap;
+				fsl,stop-mode = <&gpr 0x10 3>;
 				status = "disabled";
 			};
 

@@ -185,84 +185,57 @@ out:
 /*
  * XDR decode functions
  */
-static int nfsaclsvc_decode_voidarg(struct svc_rqst *rqstp, __be32 *p)
-{
-	return 1;
-}
 
 static int nfsaclsvc_decode_getaclargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd3_getaclargs *argp = rqstp->rq_argp;
 
-	p = nfs2svc_decode_fh(p, &argp->fh);
-	if (!p)
+	if (!svcxdr_decode_fhandle(xdr, &argp->fh))
 		return 0;
-	argp->mask = ntohl(*p); p++;
+	if (xdr_stream_decode_u32(xdr, &argp->mask) < 0)
+		return 0;
 
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
-
 
 static int nfsaclsvc_decode_setaclargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd3_setaclargs *argp = rqstp->rq_argp;
-	struct kvec *head = rqstp->rq_arg.head;
-	unsigned int base;
-	int n;
 
-	p = nfs2svc_decode_fh(p, &argp->fh);
-	if (!p)
+	if (!svcxdr_decode_fhandle(xdr, &argp->fh))
 		return 0;
-	argp->mask = ntohl(*p++);
-	if (argp->mask & ~NFS_ACL_MASK ||
-	    !xdr_argsize_check(rqstp, p))
+	if (xdr_stream_decode_u32(xdr, &argp->mask) < 0)
+		return 0;
+	if (argp->mask & ~NFS_ACL_MASK)
+		return 0;
+	if (!nfs_stream_decode_acl(xdr, NULL, (argp->mask & NFS_ACL) ?
+				   &argp->acl_access : NULL))
+		return 0;
+	if (!nfs_stream_decode_acl(xdr, NULL, (argp->mask & NFS_DFACL) ?
+				   &argp->acl_default : NULL))
 		return 0;
 
-	base = (char *)p - (char *)head->iov_base;
-	n = nfsacl_decode(&rqstp->rq_arg, base, NULL,
-			  (argp->mask & NFS_ACL) ?
-			  &argp->acl_access : NULL);
-	if (n > 0)
-		n = nfsacl_decode(&rqstp->rq_arg, base + n, NULL,
-				  (argp->mask & NFS_DFACL) ?
-				  &argp->acl_default : NULL);
-	return (n > 0);
-}
-
-static int nfsaclsvc_decode_fhandleargs(struct svc_rqst *rqstp, __be32 *p)
-{
-	struct nfsd_fhandle *argp = rqstp->rq_argp;
-
-	p = nfs2svc_decode_fh(p, &argp->fh);
-	if (!p)
-		return 0;
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
 
 static int nfsaclsvc_decode_accessargs(struct svc_rqst *rqstp, __be32 *p)
 {
-	struct nfsd3_accessargs *argp = rqstp->rq_argp;
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
+	struct nfsd3_accessargs *args = rqstp->rq_argp;
 
-	p = nfs2svc_decode_fh(p, &argp->fh);
-	if (!p)
+	if (!svcxdr_decode_fhandle(xdr, &args->fh))
 		return 0;
-	argp->access = ntohl(*p++);
+	if (xdr_stream_decode_u32(xdr, &args->access) < 0)
+		return 0;
 
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
 
 /*
  * XDR encode functions
  */
-
-/*
- * There must be an encoding function for void results so svc_process
- * will work properly.
- */
-static int nfsaclsvc_encode_voidres(struct svc_rqst *rqstp, __be32 *p)
-{
-	return xdr_ressize_check(rqstp, p);
-}
 
 /* GETACL */
 static int nfsaclsvc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p)
@@ -378,12 +351,13 @@ struct nfsd3_voidargs { int dummy; };
 static const struct svc_procedure nfsd_acl_procedures2[5] = {
 	[ACLPROC2_NULL] = {
 		.pc_func = nfsacld_proc_null,
-		.pc_decode = nfsaclsvc_decode_voidarg,
-		.pc_encode = nfsaclsvc_encode_voidres,
-		.pc_argsize = sizeof(struct nfsd3_voidargs),
-		.pc_ressize = sizeof(struct nfsd3_voidargs),
+		.pc_decode = nfssvc_decode_voidarg,
+		.pc_encode = nfssvc_encode_voidres,
+		.pc_argsize = sizeof(struct nfsd_voidargs),
+		.pc_ressize = sizeof(struct nfsd_voidres),
 		.pc_cachetype = RC_NOCACHE,
 		.pc_xdrressize = ST,
+		.pc_name = "NULL",
 	},
 	[ACLPROC2_GETACL] = {
 		.pc_func = nfsacld_proc_getacl,
@@ -394,6 +368,7 @@ static const struct svc_procedure nfsd_acl_procedures2[5] = {
 		.pc_ressize = sizeof(struct nfsd3_getaclres),
 		.pc_cachetype = RC_NOCACHE,
 		.pc_xdrressize = ST+1+2*(1+ACL),
+		.pc_name = "GETACL",
 	},
 	[ACLPROC2_SETACL] = {
 		.pc_func = nfsacld_proc_setacl,
@@ -404,16 +379,18 @@ static const struct svc_procedure nfsd_acl_procedures2[5] = {
 		.pc_ressize = sizeof(struct nfsd_attrstat),
 		.pc_cachetype = RC_NOCACHE,
 		.pc_xdrressize = ST+AT,
+		.pc_name = "SETACL",
 	},
 	[ACLPROC2_GETATTR] = {
 		.pc_func = nfsacld_proc_getattr,
-		.pc_decode = nfsaclsvc_decode_fhandleargs,
+		.pc_decode = nfssvc_decode_fhandleargs,
 		.pc_encode = nfsaclsvc_encode_attrstatres,
 		.pc_release = nfsaclsvc_release_attrstat,
 		.pc_argsize = sizeof(struct nfsd_fhandle),
 		.pc_ressize = sizeof(struct nfsd_attrstat),
 		.pc_cachetype = RC_NOCACHE,
 		.pc_xdrressize = ST+AT,
+		.pc_name = "GETATTR",
 	},
 	[ACLPROC2_ACCESS] = {
 		.pc_func = nfsacld_proc_access,
@@ -424,6 +401,7 @@ static const struct svc_procedure nfsd_acl_procedures2[5] = {
 		.pc_ressize = sizeof(struct nfsd3_accessres),
 		.pc_cachetype = RC_NOCACHE,
 		.pc_xdrressize = ST+AT+1,
+		.pc_name = "SETATTR",
 	},
 };
 

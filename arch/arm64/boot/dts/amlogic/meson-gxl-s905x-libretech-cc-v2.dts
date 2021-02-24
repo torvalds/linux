@@ -84,7 +84,6 @@
 		regulator-always-on;
 	};
 
-
 	vcck: regulator-vcck {
 		compatible = "regulator-fixed";
 		regulator-name = "VCCK";
@@ -124,7 +123,6 @@
 		regulator-always-on;
 	};
 
-
 	vddio_card: regulator-vddio-card {
 		compatible = "regulator-gpio";
 		regulator-name = "VDDIO_CARD";
@@ -161,7 +159,7 @@
 
 	sound {
 		compatible = "amlogic,gx-sound-card";
-		model = "GXL-LIBRETECH-S905X-CC-V2";
+		model = "LIBRETECH-CC-V2";
 		assigned-clocks = <&clkc CLKID_MPLL0>,
 				  <&clkc CLKID_MPLL1>,
 				  <&clkc CLKID_MPLL2>;
@@ -195,7 +193,6 @@
 	};
 };
 
-
 &aiu {
 	status = "okay";
 };
@@ -206,7 +203,6 @@
 	pinctrl-names = "default";
 	hdmi-phandle = <&hdmi_tx>;
 };
-
 
 &ethmac {
 	status = "okay";

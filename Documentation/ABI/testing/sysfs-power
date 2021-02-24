@@ -47,14 +47,18 @@ Description:
 		suspend-to-disk mechanism.  Reading from this file returns
 		the name of the method by which the system will be put to
 		sleep on the next suspend.  There are four methods supported:
+
 		'firmware' - means that the memory image will be saved to disk
 		by some firmware, in which case we also assume that the
 		firmware will handle the system suspend.
+
 		'platform' - the memory image will be saved by the kernel and
 		the system will be put to sleep by the platform driver (e.g.
 		ACPI or other PM registers).
+
 		'shutdown' - the memory image will be saved by the kernel and
 		the system will be powered off.
+
 		'reboot' - the memory image will be saved by the kernel and
 		the system will be rebooted.
 
@@ -74,12 +78,12 @@ Description:
 		The suspend-to-disk method may be chosen by writing to this
 		file one of the accepted strings:
 
-		'firmware'
-		'platform'
-		'shutdown'
-		'reboot'
-		'testproc'
-		'test'
+		- 'firmware'
+		- 'platform'
+		- 'shutdown'
+		- 'reboot'
+		- 'testproc'
+		- 'test'
 
 		It will only change to 'firmware' or 'platform' if the system
 		supports that.
@@ -114,9 +118,9 @@ Description:
 		string representing a nonzero integer into it.
 
 		To use this debugging feature you should attempt to suspend
-		the machine, then reboot it and run
+		the machine, then reboot it and run::
 
-		dmesg -s 1000000 | grep 'hash matches'
+		  dmesg -s 1000000 | grep 'hash matches'
 
 		If you do not get any matches (or they appear to be false
 		positives), it is possible that the last PM event point
@@ -244,6 +248,7 @@ Description:
 		wakeup sources created with the help of /sys/power/wake_lock.
 		When a string is written to /sys/power/wake_unlock, it will be
 		assumed to represent the name of a wakeup source to deactivate.
+
 		If a wakeup source object of that name exists and is active at
 		the moment, it will be deactivated.
 

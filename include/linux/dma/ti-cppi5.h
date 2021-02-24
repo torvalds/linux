@@ -47,7 +47,7 @@ struct cppi5_host_desc_t {
 	u32 buf_info1;
 	u32 org_buf_len;
 	u64 org_buf_ptr;
-	u32 epib[0];
+	u32 epib[];
 } __packed;
 
 #define CPPI5_DESC_MIN_ALIGN			(16U)
@@ -139,7 +139,7 @@ struct cppi5_desc_epib_t {
  */
 struct cppi5_monolithic_desc_t {
 	struct cppi5_desc_hdr_t hdr;
-	u32 epib[0];
+	u32 epib[];
 };
 
 #define CPPI5_INFO2_MDESC_DATA_OFFSET_SHIFT	(18U)

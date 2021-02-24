@@ -12,6 +12,7 @@
 #undef CONFIG_PARAVIRT_XXL
 #undef CONFIG_PARAVIRT_SPINLOCKS
 #undef CONFIG_KASAN
+#undef CONFIG_KASAN_GENERIC
 
 /* cpu_feature_enabled() cannot be used this early */
 #define USE_EARLY_PGTABLE_L5
@@ -158,5 +159,7 @@ extern struct desc_ptr boot_idt_desc;
 void boot_page_fault(void);
 void boot_stage1_vc(void);
 void boot_stage2_vc(void);
+
+unsigned long sev_verify_cbit(unsigned long cr3);
 
 #endif /* BOOT_COMPRESSED_MISC_H */

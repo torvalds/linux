@@ -165,7 +165,12 @@ static void nci_reset_req(struct nci_dev *ndev, unsigned long opt)
 
 static void nci_init_req(struct nci_dev *ndev, unsigned long opt)
 {
-	nci_send_cmd(ndev, NCI_OP_CORE_INIT_CMD, 0, NULL);
+	u8 plen = 0;
+
+	if (opt)
+		plen = sizeof(struct nci_core_init_v2_cmd);
+
+	nci_send_cmd(ndev, NCI_OP_CORE_INIT_CMD, plen, (void *)opt);
 }
 
 static void nci_init_complete_req(struct nci_dev *ndev, unsigned long opt)
@@ -497,7 +502,16 @@ static int nci_open_device(struct nci_dev *ndev)
 	}
 
 	if (!rc) {
-		rc = __nci_request(ndev, nci_init_req, 0,
+		struct nci_core_init_v2_cmd nci_init_v2_cmd = {
+			.feature1 = NCI_FEATURE_DISABLE,
+			.feature2 = NCI_FEATURE_DISABLE
+		};
+		unsigned long opt = 0;
+
+		if (ndev->nci_ver & NCI_VER_2_MASK)
+			opt = (unsigned long)&nci_init_v2_cmd;
+
+		rc = __nci_request(ndev, nci_init_req, opt,
 				   msecs_to_jiffies(NCI_INIT_TIMEOUT));
 	}
 
@@ -565,10 +579,10 @@ static int nci_close_device(struct nci_dev *ndev)
 
 	clear_bit(NCI_INIT, &ndev->flags);
 
-	del_timer_sync(&ndev->cmd_timer);
-
 	/* Flush cmd wq */
 	flush_workqueue(ndev->cmd_wq);
+
+	del_timer_sync(&ndev->cmd_timer);
 
 	/* Clear flags */
 	ndev->flags = 0;
@@ -1112,6 +1126,8 @@ static struct nfc_ops nci_nfc_ops = {
  *
  * @ops: device operations
  * @supported_protocols: NFC protocols supported by the device
+ * @tx_headroom: Reserved space at beginning of skb
+ * @tx_tailroom: Reserved space at end of skb
  */
 struct nci_dev *nci_allocate_device(struct nci_ops *ops,
 				    __u32 supported_protocols,

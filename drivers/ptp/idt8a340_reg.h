@@ -103,6 +103,7 @@
 #define SM_RESET_CMD                      0x5A
 
 #define GENERAL_STATUS                    0xc014
+#define BOOT_STATUS                       0x0000
 #define HW_REV_ID                         0x000A
 #define BOND_ID                           0x000B
 #define HW_CSR_ID                         0x000C
@@ -121,6 +122,8 @@
 #define OTP_SCSR_CONFIG_SELECT            0x0022
 
 #define STATUS                            0xc03c
+#define DPLL_SYS_STATUS                   0x0020
+#define DPLL_SYS_APLL_STATUS              0x0021
 #define USER_GPIO0_TO_7_STATUS            0x008a
 #define USER_GPIO8_TO_15_STATUS           0x008b
 
@@ -705,5 +708,13 @@
 
 /* Bit definitions for the DPLL_CTRL_COMBO_MASTER_CFG register */
 #define COMBO_MASTER_HOLD                 BIT(0)
+
+/* Bit definitions for DPLL_SYS_STATUS register */
+#define DPLL_SYS_STATE_MASK               (0xf)
+
+/* Bit definitions for SYS_APLL_STATUS register */
+#define SYS_APLL_LOSS_LOCK_LIVE_MASK       BIT(0)
+#define SYS_APLL_LOSS_LOCK_LIVE_LOCKED     0
+#define SYS_APLL_LOSS_LOCK_LIVE_UNLOCKED   1
 
 #endif

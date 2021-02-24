@@ -176,36 +176,37 @@
 		power-supply = <&reg_3v3_lcd>;
 	};
 
-	leds-brightness {
+	led-controller-1 {
 		compatible = "pwm-leds";
 
-		alarm-brightness {
+		led-1 {
+			label = "alarm-brightness";
 			pwms = <&pwm1 0 100000>;
 			max-brightness = <255>;
 		};
 	};
 
-	leds {
+	led-controller-2 {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_alarmled_pins>;
 
-		alarm1 {
+		led-2 {
 			label = "alarm:red";
 			gpios = <&gpio7 3 GPIO_ACTIVE_HIGH>;
 		};
 
-		alarm2 {
+		led-3 {
 			label = "alarm:yellow";
 			gpios = <&gpio7 7 GPIO_ACTIVE_HIGH>;
 		};
 
-		alarm3 {
+		led-4 {
 			label = "alarm:blue";
 			gpios = <&gpio7 8 GPIO_ACTIVE_HIGH>;
 		};
 
-		alarm4 {
+		led-5 {
 			label = "alarm:silenced";
 			gpios = <&gpio7 13 GPIO_ACTIVE_HIGH>;
 		};
@@ -589,7 +590,7 @@
 
 	touchscreen@4b {
 		compatible = "atmel,maxtouch";
-		reset-gpio = <&gpio5 19 GPIO_ACTIVE_HIGH>;
+		reset-gpio = <&gpio5 19 GPIO_ACTIVE_LOW>;
 		reg = <0x4b>;
 		interrupt-parent = <&gpio5>;
 		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;

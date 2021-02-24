@@ -290,6 +290,17 @@ void opp2_set_disp_pattern_generator(
 	}
 }
 
+void opp2_program_dpg_dimensions(
+		struct output_pixel_processor *opp,
+		int width, int height)
+{
+	struct dcn20_opp *oppn20 = TO_DCN20_OPP(opp);
+
+	REG_SET_2(DPG_DIMENSIONS, 0,
+		DPG_ACTIVE_WIDTH, width,
+		DPG_ACTIVE_HEIGHT, height);
+}
+
 void opp2_dpg_set_blank_color(
 		struct output_pixel_processor *opp,
 		const struct tg_color *color)
@@ -350,6 +361,7 @@ static struct opp_funcs dcn20_opp_funcs = {
 		.opp_program_stereo = opp1_program_stereo,
 		.opp_pipe_clock_control = opp1_pipe_clock_control,
 		.opp_set_disp_pattern_generator = opp2_set_disp_pattern_generator,
+		.opp_program_dpg_dimensions = opp2_program_dpg_dimensions,
 		.dpg_is_blanked = opp2_dpg_is_blanked,
 		.opp_dpg_set_blank_color = opp2_dpg_set_blank_color,
 		.opp_destroy = opp1_destroy,

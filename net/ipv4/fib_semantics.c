@@ -452,7 +452,7 @@ int ip_fib_check_default(__be32 gw, struct net_device *dev)
 	return -1;
 }
 
-static inline size_t fib_nlmsg_size(struct fib_info *fi)
+size_t fib_nlmsg_size(struct fib_info *fi)
 {
 	size_t payload = NLMSG_ALIGN(sizeof(struct rtmsg))
 			 + nla_total_size(4) /* RTA_TABLE */
@@ -521,6 +521,7 @@ void rtmsg_fib(int event, __be32 key, struct fib_alias *fa,
 	fri.type = fa->fa_type;
 	fri.offload = fa->offload;
 	fri.trap = fa->trap;
+	fri.offload_failed = fa->offload_failed;
 	err = fib_dump_info(skb, info->portid, seq, event, &fri, nlm_flags);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in fib_nlmsg_size() */
@@ -973,7 +974,7 @@ bool fib_metrics_match(struct fib_config *cfg, struct fib_info *fi)
 			char tmp[TCP_CA_NAME_MAX];
 			bool ecn_ca = false;
 
-			nla_strlcpy(tmp, nla, sizeof(tmp));
+			nla_strscpy(tmp, nla, sizeof(tmp));
 			val = tcp_ca_get_key_by_name(fi->fib_net, tmp, &ecn_ca);
 		} else {
 			if (nla_len(nla) != sizeof(u32))
@@ -1641,9 +1642,8 @@ int fib_nexthop_info(struct sk_buff *skb, const struct fib_nh_common *nhc,
 		break;
 	}
 
-	*flags |= (nhc->nhc_flags & RTNH_F_ONLINK);
-	if (nhc->nhc_flags & RTNH_F_OFFLOAD)
-		*flags |= RTNH_F_OFFLOAD;
+	*flags |= (nhc->nhc_flags &
+		   (RTNH_F_ONLINK | RTNH_F_OFFLOAD | RTNH_F_TRAP));
 
 	if (!skip_oif && nhc->nhc_dev &&
 	    nla_put_u32(skb, RTA_OIF, nhc->nhc_dev->ifindex))
@@ -1734,7 +1734,7 @@ static int fib_add_multipath(struct sk_buff *skb, struct fib_info *fi)
 #endif
 
 int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
-		  struct fib_rt_info *fri, unsigned int flags)
+		  const struct fib_rt_info *fri, unsigned int flags)
 {
 	unsigned int nhs = fib_info_num_path(fri->fi);
 	struct fib_info *fi = fri->fi;
@@ -1812,6 +1812,8 @@ offload:
 		rtm->rtm_flags |= RTM_F_OFFLOAD;
 	if (fri->trap)
 		rtm->rtm_flags |= RTM_F_TRAP;
+	if (fri->offload_failed)
+		rtm->rtm_flags |= RTM_F_OFFLOAD_FAILED;
 
 	nlmsg_end(skb, nlh);
 	return 0;

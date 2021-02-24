@@ -38,7 +38,8 @@ needs_sphinx = '1.3'
 # ones.
 extensions = ['kerneldoc', 'rstFlatTable', 'kernel_include',
               'kfigure', 'sphinx.ext.ifconfig', 'automarkup',
-              'maintainers_include', 'sphinx.ext.autosectionlabel' ]
+              'maintainers_include', 'sphinx.ext.autosectionlabel',
+              'kernel_abi', 'kernel_feat']
 
 #
 # cdomain is badly broken in Sphinx 3+.  Leaving it out generates *most*
@@ -50,7 +51,7 @@ if major >= 3:
         support for Sphinx v3.0 and above is brand new. Be prepared for
         possible issues in the generated output.
         ''')
-    if minor > 0 or patch >= 2:
+    if (major > 3) or (minor > 0 or patch >= 2):
         # Sphinx c function parser is more pedantic with regards to type
         # checking. Due to that, having macros at c:function cause problems.
         # Those needed to be scaped by using c_id_attributes[] array
@@ -111,6 +112,9 @@ if major >= 3:
 
 else:
     extensions.append('cdomain')
+    if major == 1 and minor < 7:
+        sys.stderr.write('WARNING: Sphinx 1.7 or greater will be required as of '
+                         'the 5.12 release\n')
 
 # Ensure that autosectionlabel will produce unique names
 autosectionlabel_prefix_document = True

@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2020 - Cornelis Networks, Inc.
  * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
@@ -188,7 +189,6 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 	atomic_set(&pq->n_reqs, 0);
 	init_waitqueue_head(&pq->wait);
 	atomic_set(&pq->n_locked, 0);
-	pq->mm = fd->mm;
 
 	iowait_init(&pq->busy, 0, NULL, NULL, defer_packet_queue,
 		    activate_packet_queue, NULL, NULL);
@@ -230,7 +230,7 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 
 	cq->nentries = hfi1_sdma_comp_ring_size;
 
-	ret = hfi1_mmu_rb_register(pq, pq->mm, &sdma_rb_ops, dd->pport->hfi1_wq,
+	ret = hfi1_mmu_rb_register(pq, &sdma_rb_ops, dd->pport->hfi1_wq,
 				   &pq->handler);
 	if (ret) {
 		dd_dev_err(dd, "Failed to register with MMU %d", ret);
@@ -980,13 +980,13 @@ static int pin_sdma_pages(struct user_sdma_request *req,
 
 	npages -= node->npages;
 retry:
-	if (!hfi1_can_pin_pages(pq->dd, pq->mm,
+	if (!hfi1_can_pin_pages(pq->dd, current->mm,
 				atomic_read(&pq->n_locked), npages)) {
 		cleared = sdma_cache_evict(pq, npages);
 		if (cleared >= npages)
 			goto retry;
 	}
-	pinned = hfi1_acquire_user_pages(pq->mm,
+	pinned = hfi1_acquire_user_pages(current->mm,
 					 ((unsigned long)iovec->iov.iov_base +
 					 (node->npages * PAGE_SIZE)), npages, 0,
 					 pages + node->npages);
@@ -995,7 +995,7 @@ retry:
 		return pinned;
 	}
 	if (pinned != npages) {
-		unpin_vector_pages(pq->mm, pages, node->npages, pinned);
+		unpin_vector_pages(current->mm, pages, node->npages, pinned);
 		return -EFAULT;
 	}
 	kfree(node->pages);
@@ -1008,7 +1008,8 @@ retry:
 static void unpin_sdma_pages(struct sdma_mmu_node *node)
 {
 	if (node->npages) {
-		unpin_vector_pages(node->pq->mm, node->pages, 0, node->npages);
+		unpin_vector_pages(mm_from_sdma_node(node), node->pages, 0,
+				   node->npages);
 		atomic_sub(node->npages, &node->pq->n_locked);
 	}
 }

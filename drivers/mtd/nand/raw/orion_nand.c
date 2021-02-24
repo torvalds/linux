@@ -22,6 +22,7 @@
 #include <linux/platform_data/mtd-orion_nand.h>
 
 struct orion_nand_info {
+	struct nand_controller controller;
 	struct nand_chip chip;
 	struct clk *clk;
 };
@@ -82,6 +83,20 @@ static void orion_nand_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 		buf[i++] = readb(io_base);
 }
 
+static int orion_nand_attach_chip(struct nand_chip *chip)
+{
+	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
+
+	if (chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
+
+	return 0;
+}
+
+static const struct nand_controller_ops orion_nand_ops = {
+	.attach_chip = orion_nand_attach_chip,
+};
+
 static int __init orion_nand_probe(struct platform_device *pdev)
 {
 	struct orion_nand_info *info;
@@ -100,6 +115,10 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	nc = &info->chip;
 	mtd = nand_to_mtd(nc);
+
+	nand_controller_init(&info->controller);
+	info->controller.ops = &orion_nand_ops;
+	nc->controller = &info->controller;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	io_base = devm_ioremap_resource(&pdev->dev, res);
@@ -139,8 +158,6 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	nc->legacy.IO_ADDR_R = nc->legacy.IO_ADDR_W = io_base;
 	nc->legacy.cmd_ctrl = orion_nand_cmd_ctrl;
 	nc->legacy.read_buf = orion_nand_read_buf;
-	nc->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
-	nc->ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	if (board->chip_delay)
 		nc->legacy.chip_delay = board->chip_delay;

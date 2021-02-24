@@ -70,7 +70,7 @@ over a rather long period of time, but improvements are always welcome!
 	is less readable and prevents lockdep from detecting locking issues.
 
 	Letting RCU-protected pointers "leak" out of an RCU read-side
-	critical section is every bid as bad as letting them leak out
+	critical section is every bit as bad as letting them leak out
 	from under a lock.  Unless, of course, you have arranged some
 	other means of protection, such as a lock or a reference count
 	-before- letting them out of the RCU read-side critical section.
@@ -129,9 +129,7 @@ over a rather long period of time, but improvements are always welcome!
 		accesses.  The rcu_dereference() primitive ensures that
 		the CPU picks up the pointer before it picks up the data
 		that the pointer points to.  This really is necessary
-		on Alpha CPUs.	If you don't believe me, see:
-
-			http://www.openvms.compaq.com/wizard/wiz_2637.html
+		on Alpha CPUs.
 
 		The rcu_dereference() primitive is also an excellent
 		documentation aid, letting the person reading the
@@ -214,9 +212,9 @@ over a rather long period of time, but improvements are always welcome!
 	the rest of the system.
 
 7.	As of v4.20, a given kernel implements only one RCU flavor,
-	which is RCU-sched for PREEMPT=n and RCU-preempt for PREEMPT=y.
+	which is RCU-sched for PREEMPTION=n and RCU-preempt for PREEMPTION=y.
 	If the updater uses call_rcu() or synchronize_rcu(),
-	then the corresponding readers my use rcu_read_lock() and
+	then the corresponding readers may use rcu_read_lock() and
 	rcu_read_unlock(), rcu_read_lock_bh() and rcu_read_unlock_bh(),
 	or any pair of primitives that disables and re-enables preemption,
 	for example, rcu_read_lock_sched() and rcu_read_unlock_sched().
@@ -313,6 +311,13 @@ over a rather long period of time, but improvements are always welcome!
 	can be quite helpful in reducing code bloat when common code is
 	shared between readers and updaters.  Additional primitives
 	are provided for this case, as discussed in lockdep.txt.
+
+	One exception to this rule is when data is only ever added to
+	the linked data structure, and is never removed during any
+	time that readers might be accessing that structure.  In such
+	cases, READ_ONCE() may be used in place of rcu_dereference()
+	and the read-side markers (rcu_read_lock() and rcu_read_unlock(),
+	for example) may be omitted.
 
 10.	Conversely, if you are in an RCU read-side critical section,
 	and you don't hold the appropriate update-side lock, you -must-

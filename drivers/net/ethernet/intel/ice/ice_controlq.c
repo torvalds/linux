@@ -717,8 +717,7 @@ enum ice_status ice_init_all_ctrlq(struct ice_hw *hw)
 		if (status != ICE_ERR_AQ_FW_CRITICAL)
 			break;
 
-		ice_debug(hw, ICE_DBG_AQ_MSG,
-			  "Retry Admin Queue init due to FW critical error\n");
+		ice_debug(hw, ICE_DBG_AQ_MSG, "Retry Admin Queue init due to FW critical error\n");
 		ice_shutdown_ctrlq(hw, ICE_CTL_Q_ADMIN);
 		msleep(ICE_CTL_Q_ADMIN_INIT_MSEC);
 	} while (retry++ < ICE_CTL_Q_ADMIN_INIT_TIMEOUT);
@@ -813,8 +812,7 @@ static u16 ice_clean_sq(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 	details = ICE_CTL_Q_DETAILS(*sq, ntc);
 
 	while (rd32(hw, cq->sq.head) != ntc) {
-		ice_debug(hw, ICE_DBG_AQ_MSG,
-			  "ntc %d head %d.\n", ntc, rd32(hw, cq->sq.head));
+		ice_debug(hw, ICE_DBG_AQ_MSG, "ntc %d head %d.\n", ntc, rd32(hw, cq->sq.head));
 		memset(desc, 0, sizeof(*desc));
 		memset(details, 0, sizeof(*details));
 		ntc++;
@@ -840,7 +838,7 @@ static u16 ice_clean_sq(struct ice_hw *hw, struct ice_ctl_q_info *cq)
  */
 static void ice_debug_cq(struct ice_hw *hw, void *desc, void *buf, u16 buf_len)
 {
-	struct ice_aq_desc *cq_desc = (struct ice_aq_desc *)desc;
+	struct ice_aq_desc *cq_desc = desc;
 	u16 len;
 
 	if (!IS_ENABLED(CONFIG_DYNAMIC_DEBUG) &&
@@ -852,8 +850,7 @@ static void ice_debug_cq(struct ice_hw *hw, void *desc, void *buf, u16 buf_len)
 
 	len = le16_to_cpu(cq_desc->datalen);
 
-	ice_debug(hw, ICE_DBG_AQ_DESC,
-		  "CQ CMD: opcode 0x%04X, flags 0x%04X, datalen 0x%04X, retval 0x%04X\n",
+	ice_debug(hw, ICE_DBG_AQ_DESC, "CQ CMD: opcode 0x%04X, flags 0x%04X, datalen 0x%04X, retval 0x%04X\n",
 		  le16_to_cpu(cq_desc->opcode),
 		  le16_to_cpu(cq_desc->flags),
 		  le16_to_cpu(cq_desc->datalen), le16_to_cpu(cq_desc->retval));
@@ -871,7 +868,7 @@ static void ice_debug_cq(struct ice_hw *hw, void *desc, void *buf, u16 buf_len)
 		if (buf_len < len)
 			len = buf_len;
 
-		ice_debug_array(hw, ICE_DBG_AQ_DESC_BUF, 16, 1, (u8 *)buf, len);
+		ice_debug_array(hw, ICE_DBG_AQ_DESC_BUF, 16, 1, buf, len);
 	}
 }
 
@@ -925,8 +922,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	cq->sq_last_status = ICE_AQ_RC_OK;
 
 	if (!cq->sq.count) {
-		ice_debug(hw, ICE_DBG_AQ_MSG,
-			  "Control Send queue not initialized.\n");
+		ice_debug(hw, ICE_DBG_AQ_MSG, "Control Send queue not initialized.\n");
 		status = ICE_ERR_AQ_EMPTY;
 		goto sq_send_command_error;
 	}
@@ -938,8 +934,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 
 	if (buf) {
 		if (buf_size > cq->sq_buf_size) {
-			ice_debug(hw, ICE_DBG_AQ_MSG,
-				  "Invalid buffer size for Control Send queue: %d.\n",
+			ice_debug(hw, ICE_DBG_AQ_MSG, "Invalid buffer size for Control Send queue: %d.\n",
 				  buf_size);
 			status = ICE_ERR_INVAL_SIZE;
 			goto sq_send_command_error;
@@ -952,8 +947,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 
 	val = rd32(hw, cq->sq.head);
 	if (val >= cq->num_sq_entries) {
-		ice_debug(hw, ICE_DBG_AQ_MSG,
-			  "head overrun at %d in the Control Send Queue ring\n",
+		ice_debug(hw, ICE_DBG_AQ_MSG, "head overrun at %d in the Control Send Queue ring\n",
 			  val);
 		status = ICE_ERR_AQ_EMPTY;
 		goto sq_send_command_error;
@@ -971,8 +965,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	 * called in a separate thread in case of asynchronous completions.
 	 */
 	if (ice_clean_sq(hw, cq) == 0) {
-		ice_debug(hw, ICE_DBG_AQ_MSG,
-			  "Error: Control Send Queue is full.\n");
+		ice_debug(hw, ICE_DBG_AQ_MSG, "Error: Control Send Queue is full.\n");
 		status = ICE_ERR_AQ_FULL;
 		goto sq_send_command_error;
 	}
@@ -1000,8 +993,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	}
 
 	/* Debug desc and buffer */
-	ice_debug(hw, ICE_DBG_AQ_DESC,
-		  "ATQ: Control Send queue desc and buffer:\n");
+	ice_debug(hw, ICE_DBG_AQ_DESC, "ATQ: Control Send queue desc and buffer:\n");
 
 	ice_debug_cq(hw, (void *)desc_on_ring, buf, buf_size);
 
@@ -1026,8 +1018,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 			u16 copy_size = le16_to_cpu(desc->datalen);
 
 			if (copy_size > buf_size) {
-				ice_debug(hw, ICE_DBG_AQ_MSG,
-					  "Return len %d > than buf len %d\n",
+				ice_debug(hw, ICE_DBG_AQ_MSG, "Return len %d > than buf len %d\n",
 					  copy_size, buf_size);
 				status = ICE_ERR_AQ_ERROR;
 			} else {
@@ -1036,8 +1027,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 		}
 		retval = le16_to_cpu(desc->retval);
 		if (retval) {
-			ice_debug(hw, ICE_DBG_AQ_MSG,
-				  "Control Send Queue command 0x%04X completed with error 0x%X\n",
+			ice_debug(hw, ICE_DBG_AQ_MSG, "Control Send Queue command 0x%04X completed with error 0x%X\n",
 				  le16_to_cpu(desc->opcode),
 				  retval);
 
@@ -1050,8 +1040,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 		cq->sq_last_status = (enum ice_aq_err)retval;
 	}
 
-	ice_debug(hw, ICE_DBG_AQ_MSG,
-		  "ATQ: desc and buffer writeback:\n");
+	ice_debug(hw, ICE_DBG_AQ_MSG, "ATQ: desc and buffer writeback:\n");
 
 	ice_debug_cq(hw, (void *)desc, buf, buf_size);
 
@@ -1067,8 +1056,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 			ice_debug(hw, ICE_DBG_AQ_MSG, "Critical FW error.\n");
 			status = ICE_ERR_AQ_FW_CRITICAL;
 		} else {
-			ice_debug(hw, ICE_DBG_AQ_MSG,
-				  "Control Send Queue Writeback timeout.\n");
+			ice_debug(hw, ICE_DBG_AQ_MSG, "Control Send Queue Writeback timeout.\n");
 			status = ICE_ERR_AQ_TIMEOUT;
 		}
 	}
@@ -1124,8 +1112,7 @@ ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	mutex_lock(&cq->rq_lock);
 
 	if (!cq->rq.count) {
-		ice_debug(hw, ICE_DBG_AQ_MSG,
-			  "Control Receive queue not initialized.\n");
+		ice_debug(hw, ICE_DBG_AQ_MSG, "Control Receive queue not initialized.\n");
 		ret_code = ICE_ERR_AQ_EMPTY;
 		goto clean_rq_elem_err;
 	}
@@ -1147,8 +1134,7 @@ ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	flags = le16_to_cpu(desc->flags);
 	if (flags & ICE_AQ_FLAG_ERR) {
 		ret_code = ICE_ERR_AQ_ERROR;
-		ice_debug(hw, ICE_DBG_AQ_MSG,
-			  "Control Receive Queue Event 0x%04X received with error 0x%X\n",
+		ice_debug(hw, ICE_DBG_AQ_MSG, "Control Receive Queue Event 0x%04X received with error 0x%X\n",
 			  le16_to_cpu(desc->opcode),
 			  cq->rq_last_status);
 	}

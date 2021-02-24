@@ -1,10 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# NFC sybsystem configuration
+# NFC subsystem configuration
 #
 
 menuconfig NFC
-	depends on NET
 	depends on RFKILL || !RFKILL
 	tristate "NFC subsystem support"
 	default n

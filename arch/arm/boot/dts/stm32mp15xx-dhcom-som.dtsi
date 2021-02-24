@@ -11,6 +11,7 @@
 / {
 	aliases {
 		ethernet0 = &ethernet0;
+		ethernet1 = &ksz8851;
 	};
 
 	memory@c0000000 {
@@ -68,6 +69,7 @@
 		gpio = <&gpiog 3 GPIO_ACTIVE_LOW>;
 		regulator-always-on;
 		regulator-boot-on;
+		vin-supply = <&vdd>;
 	};
 };
 
@@ -126,8 +128,44 @@
 
 		phy0: ethernet-phy@1 {
 			reg = <1>;
+			interrupt-parent = <&gpioi>;
+			interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
 		};
 	};
+};
+
+&fmc {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&fmc_pins_b>;
+	pinctrl-1 = <&fmc_sleep_pins_b>;
+	status = "okay";
+
+	ksz8851: ks8851mll@1,0 {
+		compatible = "micrel,ks8851-mll";
+		reg = <1 0x0 0x2>, <1 0x2 0x20000>;
+		interrupt-parent = <&gpioc>;
+		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+		bank-width = <2>;
+
+		/* Timing values are in nS */
+		st,fmc2-ebi-cs-mux-enable;
+		st,fmc2-ebi-cs-transaction-type = <4>;
+		st,fmc2-ebi-cs-buswidth = <16>;
+		st,fmc2-ebi-cs-address-setup-ns = <5>;
+		st,fmc2-ebi-cs-address-hold-ns = <5>;
+		st,fmc2-ebi-cs-bus-turnaround-ns = <5>;
+		st,fmc2-ebi-cs-data-setup-ns = <45>;
+		st,fmc2-ebi-cs-data-hold-ns = <1>;
+		st,fmc2-ebi-cs-write-address-setup-ns = <5>;
+		st,fmc2-ebi-cs-write-address-hold-ns = <5>;
+		st,fmc2-ebi-cs-write-bus-turnaround-ns = <5>;
+		st,fmc2-ebi-cs-write-data-setup-ns = <45>;
+		st,fmc2-ebi-cs-write-data-hold-ns = <1>;
+	};
+};
+
+&gpioc {
+	status = "okay";
 };
 
 &i2c4 {
@@ -202,6 +240,7 @@
 
 			vdda: ldo1 {
 				regulator-name = "vdda";
+				regulator-always-on;
 				regulator-min-microvolt = <2900000>;
 				regulator-max-microvolt = <2900000>;
 				interrupts = <IT_CURLIM_LDO1 0>;
@@ -347,17 +386,36 @@
 };
 
 &sdmmc1 {
-	pinctrl-names = "default", "opendrain", "sleep";
+	pinctrl-names = "default", "opendrain", "sleep", "init";
 	pinctrl-0 = <&sdmmc1_b4_pins_a &sdmmc1_dir_pins_a>;
 	pinctrl-1 = <&sdmmc1_b4_od_pins_a &sdmmc1_dir_pins_a>;
 	pinctrl-2 = <&sdmmc1_b4_sleep_pins_a &sdmmc1_dir_sleep_pins_a>;
-	broken-cd;
+	pinctrl-3 = <&sdmmc1_b4_init_pins_a &sdmmc1_dir_init_pins_a>;
+	cd-gpios = <&gpiog 1 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+	disable-wp;
 	st,sig-dir;
 	st,neg-edge;
 	st,use-ckin;
+	st,cmd-gpios = <&gpiod 2 0>;
+	st,ck-gpios = <&gpioc 12 0>;
+	st,ckin-gpios = <&gpioe 4 0>;
 	bus-width = <4>;
 	vmmc-supply = <&vdd_sd>;
 	status = "okay";
+};
+
+&sdmmc1_b4_pins_a {
+	/*
+	 * SD bus pull-up resistors:
+	 * - optional on SoMs with SD voltage translator
+	 * - mandatory on SoMs without SD voltage translator
+	 */
+	pins1 {
+		bias-pull-up;
+	};
+	pins2 {
+		bias-pull-up;
+	};
 };
 
 &sdmmc2 {

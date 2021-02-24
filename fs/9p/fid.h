@@ -15,12 +15,21 @@ static inline struct p9_fid *v9fs_parent_fid(struct dentry *dentry)
 }
 void v9fs_fid_add(struct dentry *dentry, struct p9_fid *fid);
 struct p9_fid *v9fs_writeback_fid(struct dentry *dentry);
+void v9fs_open_fid_add(struct inode *inode, struct p9_fid *fid);
 static inline struct p9_fid *clone_fid(struct p9_fid *fid)
 {
 	return IS_ERR(fid) ? fid :  p9_client_walk(fid, 0, NULL, 1);
 }
 static inline struct p9_fid *v9fs_fid_clone(struct dentry *dentry)
 {
-	return clone_fid(v9fs_fid_lookup(dentry));
+	struct p9_fid *fid, *nfid;
+
+	fid = v9fs_fid_lookup(dentry);
+	if (!fid || IS_ERR(fid))
+		return fid;
+
+	nfid = clone_fid(fid);
+	p9_client_clunk(fid);
+	return nfid;
 }
 #endif

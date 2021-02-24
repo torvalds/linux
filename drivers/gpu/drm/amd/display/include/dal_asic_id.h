@@ -195,6 +195,7 @@ enum {
 	NV_NAVI12_P_A0      = 10,
 	NV_NAVI14_M_A0      = 20,
 	NV_SIENNA_CICHLID_P_A0      = 40,
+	NV_DIMGREY_CAVEFISH_P_A0      = 60,
 	NV_UNKNOWN          = 0xFF
 };
 
@@ -202,8 +203,23 @@ enum {
 #define ASICREV_IS_NAVI12_P(eChipRev)        ((eChipRev >= NV_NAVI12_P_A0) && (eChipRev < NV_NAVI14_M_A0))
 #define ASICREV_IS_NAVI14_M(eChipRev)        ((eChipRev >= NV_NAVI14_M_A0) && (eChipRev < NV_UNKNOWN))
 #define ASICREV_IS_RENOIR(eChipRev) ((eChipRev >= RENOIR_A0) && (eChipRev < RAVEN1_F0))
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
-#define ASICREV_IS_SIENNA_CICHLID_P(eChipRev)        ((eChipRev >= NV_SIENNA_CICHLID_P_A0))
+#define ASICREV_IS_SIENNA_CICHLID_P(eChipRev)        ((eChipRev >= NV_SIENNA_CICHLID_P_A0) && (eChipRev < NV_DIMGREY_CAVEFISH_P_A0))
+#define ASICREV_IS_DIMGREY_CAVEFISH_P(eChipRev)        ((eChipRev >= NV_DIMGREY_CAVEFISH_P_A0) && (eChipRev < NV_UNKNOWN))
+#define GREEN_SARDINE_A0 0xA1
+#ifndef ASICREV_IS_GREEN_SARDINE
+#define ASICREV_IS_GREEN_SARDINE(eChipRev) ((eChipRev >= GREEN_SARDINE_A0) && (eChipRev < 0xFF))
+#endif
+#define FAMILY_VGH 144
+#define DEVICE_ID_VGH_163F 0x163F
+#define VANGOGH_A0 0x01
+#define VANGOGH_UNKNOWN 0xFF
+
+#ifndef ASICREV_IS_VANGOGH
+#define ASICREV_IS_VANGOGH(eChipRev) ((eChipRev >= VANGOGH_A0) && (eChipRev < VANGOGH_UNKNOWN))
+#endif
+#define GREEN_SARDINE_A0 0xA1
+#ifndef ASICREV_IS_GREEN_SARDINE
+#define ASICREV_IS_GREEN_SARDINE(eChipRev) ((eChipRev >= GREEN_SARDINE_A0) && (eChipRev < 0xFF))
 #endif
 
 /*

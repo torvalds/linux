@@ -34,7 +34,6 @@
 #include <linux/completion.h>
 #include <linux/of.h>
 #include <linux/property.h>
-#include <linux/input/elan-i2c-ids.h>
 #include <linux/regulator/consumer.h>
 #include <asm/unaligned.h>
 
@@ -46,18 +45,6 @@
 #define ETP_FWIDTH_REDUCE	90
 #define ETP_FINGER_WIDTH	15
 #define ETP_RETRY_COUNT		3
-
-#define ETP_MAX_FINGERS		5
-#define ETP_FINGER_DATA_LEN	5
-#define ETP_REPORT_ID		0x5D
-#define ETP_REPORT_ID2		0x60	/* High precision report */
-#define ETP_TP_REPORT_ID	0x5E
-#define ETP_REPORT_ID_OFFSET	2
-#define ETP_TOUCH_INFO_OFFSET	3
-#define ETP_FINGER_DATA_OFFSET	4
-#define ETP_HOVER_INFO_OFFSET	30
-#define ETP_MK_DATA_OFFSET	33	/* For high precision reports */
-#define ETP_MAX_REPORT_LEN	39
 
 /* The main device structure */
 struct elan_tp_data {
@@ -497,7 +484,8 @@ static int __elan_update_firmware(struct elan_tp_data *data,
 	u16 sw_checksum = 0, fw_checksum = 0;
 
 	error = data->ops->prepare_fw_update(client, data->ic_type,
-					     data->iap_version);
+					     data->iap_version,
+					     data->fw_page_size);
 	if (error)
 		return error;
 
@@ -1075,6 +1063,7 @@ static irqreturn_t elan_isr(int irq, void *dev_id)
 		elan_report_absolute(data, report, true);
 		break;
 	case ETP_TP_REPORT_ID:
+	case ETP_TP_REPORT_ID2:
 		elan_report_trackpoint(data, report);
 		break;
 	default:
@@ -1413,6 +1402,7 @@ static const struct i2c_device_id elan_id[] = {
 MODULE_DEVICE_TABLE(i2c, elan_id);
 
 #ifdef CONFIG_ACPI
+#include <linux/input/elan-i2c-ids.h>
 MODULE_DEVICE_TABLE(acpi, elan_acpi_id);
 #endif
 

@@ -10,7 +10,7 @@
 
 / {
 	model = "PineCube IP Camera";
-	compatible = "pine64,pinecube", "allwinner,sun8i-s3";
+	compatible = "pine64,pinecube", "sochip,s3", "allwinner,sun8i-v3";
 
 	aliases {
 		serial0 = &uart2;
@@ -64,9 +64,6 @@
 	status = "okay";
 
 	port {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		csi1_ep: endpoint {
 			remote-endpoint = <&ov5640_ep>;
 			bus-width = <8>;
@@ -88,13 +85,9 @@
 	status = "okay";
 
 	axp209: pmic@34 {
-		compatible = "x-powers,axp203",
-			     "x-powers,axp209";
 		reg = <0x34>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-controller;
-		#interrupt-cells = <1>;
+		interrupt-parent = <&nmi_intc>;
+		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 

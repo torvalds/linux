@@ -157,32 +157,16 @@ struct mxcmci_host {
 	enum mxcmci_type	devtype;
 };
 
-static const struct platform_device_id mxcmci_devtype[] = {
-	{
-		.name = "imx21-mmc",
-		.driver_data = IMX21_MMC,
-	}, {
-		.name = "imx31-mmc",
-		.driver_data = IMX31_MMC,
-	}, {
-		.name = "mpc512x-sdhc",
-		.driver_data = MPC512X_MMC,
-	}, {
-		/* sentinel */
-	}
-};
-MODULE_DEVICE_TABLE(platform, mxcmci_devtype);
-
 static const struct of_device_id mxcmci_of_match[] = {
 	{
 		.compatible = "fsl,imx21-mmc",
-		.data = &mxcmci_devtype[IMX21_MMC],
+		.data = (void *) IMX21_MMC,
 	}, {
 		.compatible = "fsl,imx31-mmc",
-		.data = &mxcmci_devtype[IMX31_MMC],
+		.data = (void *) IMX31_MMC,
 	}, {
 		.compatible = "fsl,mpc5121-sdhc",
-		.data = &mxcmci_devtype[MPC512X_MMC],
+		.data = (void *) MPC512X_MMC,
 	}, {
 		/* sentinel */
 	}
@@ -1001,12 +985,9 @@ static int mxcmci_probe(struct platform_device *pdev)
 	int ret = 0, irq;
 	bool dat3_card_detect = false;
 	dma_cap_mask_t mask;
-	const struct of_device_id *of_id;
 	struct imxmmc_platform_data *pdata = pdev->dev.platform_data;
 
 	pr_info("i.MX/MPC512x SDHC driver\n");
-
-	of_id = of_match_device(mxcmci_of_match, &pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
@@ -1044,12 +1025,7 @@ static int mxcmci_probe(struct platform_device *pdev)
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_seg_size = mmc->max_req_size;
 
-	if (of_id) {
-		const struct platform_device_id *id_entry = of_id->data;
-		host->devtype = id_entry->driver_data;
-	} else {
-		host->devtype = pdev->id_entry->driver_data;
-	}
+	host->devtype = (enum mxcmci_type)of_device_get_match_data(&pdev->dev);
 
 	/* adjust max_segs after devtype detection */
 	if (!is_mpc512x_mmc(host))
@@ -1241,7 +1217,6 @@ static SIMPLE_DEV_PM_OPS(mxcmci_pm_ops, mxcmci_suspend, mxcmci_resume);
 static struct platform_driver mxcmci_driver = {
 	.probe		= mxcmci_probe,
 	.remove		= mxcmci_remove,
-	.id_table	= mxcmci_devtype,
 	.driver		= {
 		.name		= DRIVER_NAME,
 		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,

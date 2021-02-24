@@ -1964,7 +1964,7 @@ pci_moxa_setup(struct serial_private *priv,
  * This list is ordered alphabetically by vendor then device.
  * Specific entries must come before more generic entries.
  */
-static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
+static struct pci_serial_quirk pci_serial_quirks[] = {
 	/*
 	* ADDI-DATA GmbH communication cards <info@addi-data.com>
 	*/

@@ -202,7 +202,7 @@ static struct i2c_driver kb3930_driver = {
 	.remove = kb3930_remove,
 	.driver = {
 		.name = "ene-kb3930",
-		.of_match_table = of_match_ptr(kb3930_dt_ids),
+		.of_match_table = kb3930_dt_ids,
 	},
 };
 module_i2c_driver(kb3930_driver);

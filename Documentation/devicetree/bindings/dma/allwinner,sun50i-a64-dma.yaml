@@ -21,6 +21,7 @@ properties:
   compatible:
     oneOf:
       - const: allwinner,sun50i-a64-dma
+      - const: allwinner,sun50i-a100-dma
       - const: allwinner,sun50i-h6-dma
       - items:
           - const: allwinner,sun8i-r40-dma
@@ -56,7 +57,9 @@ required:
 if:
   properties:
     compatible:
-      const: allwinner,sun50i-h6-dma
+      enum:
+        - allwinner,sun50i-a100-dma
+        - allwinner,sun50i-h6-dma
 
 then:
   properties:

@@ -102,6 +102,7 @@ enum rgmii_clock_delay {
 #define PHY_MCB_S6G_READ		  BIT(30)
 
 #define PHY_S6G_PLL5G_CFG0		  0x06
+#define PHY_S6G_PLL5G_CFG2		  0x08
 #define PHY_S6G_LCPLL_CFG		  0x11
 #define PHY_S6G_PLL_CFG			  0x2b
 #define PHY_S6G_COMMON_CFG		  0x2c
@@ -121,6 +122,9 @@ enum rgmii_clock_delay {
 #define PHY_S6G_PLL_FSM_CTRL_DATA_POS	  8
 #define PHY_S6G_PLL_FSM_ENA_POS		  7
 
+#define PHY_S6G_CFG2_FSM_DIS              1
+#define PHY_S6G_CFG2_FSM_CLK_BP          23
+
 #define MSCC_EXT_PAGE_ACCESS		  31
 #define MSCC_PHY_PAGE_STANDARD		  0x0000 /* Standard registers */
 #define MSCC_PHY_PAGE_EXTENDED		  0x0001 /* Extended registers */
@@ -136,6 +140,10 @@ enum rgmii_clock_delay {
 #define MSCC_PHY_PAGE_1588		  0x1588 /* PTP (1588) */
 #define MSCC_PHY_PAGE_TEST		  0x2a30 /* Test reg */
 #define MSCC_PHY_PAGE_TR		  0x52b5 /* Token ring registers */
+#define MSCC_PHY_GPIO_CONTROL_2           14
+
+#define MSCC_PHY_COMA_MODE		  0x2000 /* input(1) / output(0) */
+#define MSCC_PHY_COMA_OUTPUT		  0x1000 /* value to output */
 
 /* Extended Page 1 Registers */
 #define MSCC_PHY_CU_MEDIA_CRC_VALID_CNT	  18
@@ -335,6 +343,10 @@ enum rgmii_clock_delay {
 #define VSC8584_REVB				0x0001
 #define MSCC_DEV_REV_MASK			GENMASK(3, 0)
 
+#define MSCC_ROM_TRAP_SERDES_6G_CFG		0x1E48
+#define MSCC_RAM_TRAP_SERDES_6G_CFG		0x1E4F
+#define PATCH_VEC_ZERO_EN			0x0100
+
 struct reg_val {
 	u16	reg;
 	u32	val;
@@ -411,6 +423,22 @@ struct vsc8531_edge_rate_table {
 	u32 slowdown[8];
 };
 #endif /* CONFIG_OF_MDIO */
+
+enum csr_target {
+	MACRO_CTRL  = 0x07,
+};
+
+u32 vsc85xx_csr_read(struct phy_device *phydev,
+		     enum csr_target target, u32 reg);
+
+int vsc85xx_csr_write(struct phy_device *phydev,
+		      enum csr_target target, u32 reg, u32 val);
+
+int phy_base_write(struct phy_device *phydev, u32 regnum, u16 val);
+int phy_base_read(struct phy_device *phydev, u32 regnum);
+int phy_update_mcb_s6g(struct phy_device *phydev, u32 reg, u8 mcb);
+int phy_commit_mcb_s6g(struct phy_device *phydev, u32 reg, u8 mcb);
+int vsc8584_cmd(struct phy_device *phydev, u16 val);
 
 #if IS_ENABLED(CONFIG_MACSEC)
 int vsc8584_macsec_init(struct phy_device *phydev);

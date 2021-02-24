@@ -7,7 +7,7 @@
 
 / {
 	model = "Pine64 PinePhone Braveheart (1.1)";
-	compatible = "pine64,pinephone-1.1", "allwinner,sun50i-a64";
+	compatible = "pine64,pinephone-1.1", "pine64,pinephone", "allwinner,sun50i-a64";
 };
 
 &backlight {
@@ -27,4 +27,9 @@
 		2916 3271 3664 4096>;
 	num-interpolated-steps = <50>;
 	default-brightness-level = <400>;
+};
+
+&sgm3140 {
+	enable-gpios = <&pio 3 24 GPIO_ACTIVE_HIGH>; /* PD24 */
+	flash-gpios = <&pio 2 3 GPIO_ACTIVE_HIGH>; /* PC3 */
 };

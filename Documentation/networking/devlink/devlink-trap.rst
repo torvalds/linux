@@ -476,6 +476,15 @@ be added to the following table:
    * - ``esp_parsing``
      - ``drop``
      - Traps packets dropped due to an error in the ESP header parsing
+   * - ``blackhole_nexthop``
+     - ``drop``
+     - Traps packets that the device decided to drop in case they hit a
+       blackhole nexthop
+   * - ``dmac_filter``
+     - ``drop``
+     - Traps incoming packets that the device decided to drop because
+       the destination MAC is not configured in the MAC table and
+       the interface is not in promiscuous mode
 
 Driver-specific Packet Traps
 ============================

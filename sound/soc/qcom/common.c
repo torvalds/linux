@@ -58,7 +58,7 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 		dlc = devm_kzalloc(dev, 2 * sizeof(*dlc), GFP_KERNEL);
 		if (!dlc) {
 			ret = -ENOMEM;
-			goto err;
+			goto err_put_np;
 		}
 
 		link->cpus	= &dlc[0];
@@ -70,7 +70,7 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 		ret = of_property_read_string(np, "link-name", &link->name);
 		if (ret) {
 			dev_err(card->dev, "error getting codec dai_link name\n");
-			goto err;
+			goto err_put_np;
 		}
 
 		cpu = of_get_child_by_name(np, "cpu");
@@ -130,8 +130,10 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 		} else {
 			/* DPCM frontend */
 			dlc = devm_kzalloc(dev, sizeof(*dlc), GFP_KERNEL);
-			if (!dlc)
-				return -ENOMEM;
+			if (!dlc) {
+				ret = -ENOMEM;
+				goto err;
+			}
 
 			link->codecs	 = dlc;
 			link->num_codecs = 1;
@@ -158,10 +160,11 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 
 	return 0;
 err:
-	of_node_put(np);
 	of_node_put(cpu);
 	of_node_put(codec);
 	of_node_put(platform);
+err_put_np:
+	of_node_put(np);
 	return ret;
 }
 EXPORT_SYMBOL(qcom_snd_parse_of);

@@ -99,20 +99,20 @@ mt7615_eeprom_parse_hw_band_cap(struct mt7615_dev *dev)
 
 	if (is_mt7663(&dev->mt76)) {
 		/* dual band */
-		dev->mt76.cap.has_2ghz = true;
-		dev->mt76.cap.has_5ghz = true;
+		dev->mphy.cap.has_2ghz = true;
+		dev->mphy.cap.has_5ghz = true;
 		return;
 	}
 
 	if (is_mt7622(&dev->mt76)) {
 		/* 2GHz only */
-		dev->mt76.cap.has_2ghz = true;
+		dev->mphy.cap.has_2ghz = true;
 		return;
 	}
 
 	if (is_mt7611(&dev->mt76)) {
 		/* 5GHz only */
-		dev->mt76.cap.has_5ghz = true;
+		dev->mphy.cap.has_5ghz = true;
 		return;
 	}
 
@@ -120,17 +120,17 @@ mt7615_eeprom_parse_hw_band_cap(struct mt7615_dev *dev)
 			eeprom[MT_EE_WIFI_CONF]);
 	switch (val) {
 	case MT_EE_5GHZ:
-		dev->mt76.cap.has_5ghz = true;
+		dev->mphy.cap.has_5ghz = true;
 		break;
 	case MT_EE_2GHZ:
-		dev->mt76.cap.has_2ghz = true;
+		dev->mphy.cap.has_2ghz = true;
 		break;
 	case MT_EE_DBDC:
 		dev->dbdc_support = true;
-		/* fall through */
+		fallthrough;
 	default:
-		dev->mt76.cap.has_2ghz = true;
-		dev->mt76.cap.has_5ghz = true;
+		dev->mphy.cap.has_2ghz = true;
+		dev->mphy.cap.has_5ghz = true;
 		break;
 	}
 }
@@ -161,7 +161,7 @@ static void mt7615_eeprom_parse_hw_cap(struct mt7615_dev *dev)
 
 	dev->chainmask = BIT(tx_mask) - 1;
 	dev->mphy.antenna_mask = dev->chainmask;
-	dev->phy.chainmask = dev->chainmask;
+	dev->mphy.chainmask = dev->chainmask;
 }
 
 static int mt7663_eeprom_get_target_power_index(struct mt7615_dev *dev,
@@ -342,10 +342,10 @@ int mt7615_eeprom_init(struct mt7615_dev *dev, u32 addr)
 	}
 
 	mt7615_eeprom_parse_hw_cap(dev);
-	memcpy(dev->mt76.macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
+	memcpy(dev->mphy.macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
 	       ETH_ALEN);
 
-	mt76_eeprom_override(&dev->mt76);
+	mt76_eeprom_override(&dev->mphy);
 
 	return 0;
 }

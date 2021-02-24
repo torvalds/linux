@@ -1559,7 +1559,8 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 			if (dn_len <= 0 || dn_len > UBIFS_BLOCK_SIZE) {
 				ubifs_err(c, "bad data node (block %u, inode %lu)",
 					  blk, inode->i_ino);
-				ubifs_dump_node(c, dn);
+				ubifs_dump_node(c, dn, sz - UBIFS_INO_NODE_SZ -
+						UBIFS_TRUN_NODE_SZ);
 				goto out_free;
 			}
 

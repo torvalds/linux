@@ -4,7 +4,6 @@
 #include "hclge_main.h"
 #include "hclge_dcb.h"
 #include "hclge_tm.h"
-#include "hclge_dcb.h"
 #include "hnae3.h"
 
 #define BW_PERCENT	100
@@ -177,29 +176,6 @@ static int hclge_map_update(struct hclge_dev *hdev)
 	return hclge_rss_init_hw(hdev);
 }
 
-static int hclge_client_setup_tc(struct hclge_dev *hdev)
-{
-	struct hclge_vport *vport = hdev->vport;
-	struct hnae3_client *client;
-	struct hnae3_handle *handle;
-	int ret;
-	u32 i;
-
-	for (i = 0; i < hdev->num_vmdq_vport + 1; i++) {
-		handle = &vport[i].nic;
-		client = handle->client;
-
-		if (!client || !client->ops || !client->ops->setup_tc)
-			continue;
-
-		ret = client->ops->setup_tc(handle, hdev->tm_info.num_tc);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
 static int hclge_notify_down_uinit(struct hclge_dev *hdev)
 {
 	int ret;
@@ -255,10 +231,6 @@ static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 
 	if (map_changed) {
 		ret = hclge_map_update(hdev);
-		if (ret)
-			goto err_out;
-
-		ret = hclge_client_setup_tc(hdev);
 		if (ret)
 			goto err_out;
 
@@ -398,32 +370,130 @@ static u8 hclge_setdcbx(struct hnae3_handle *h, u8 mode)
 	return 0;
 }
 
+static int hclge_mqprio_qopt_check(struct hclge_dev *hdev,
+				   struct tc_mqprio_qopt_offload *mqprio_qopt)
+{
+	u16 queue_sum = 0;
+	int ret;
+	int i;
+
+	if (!mqprio_qopt->qopt.num_tc) {
+		mqprio_qopt->qopt.num_tc = 1;
+		return 0;
+	}
+
+	ret = hclge_dcb_common_validate(hdev, mqprio_qopt->qopt.num_tc,
+					mqprio_qopt->qopt.prio_tc_map);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < mqprio_qopt->qopt.num_tc; i++) {
+		if (!is_power_of_2(mqprio_qopt->qopt.count[i])) {
+			dev_err(&hdev->pdev->dev,
+				"qopt queue count must be power of 2\n");
+			return -EINVAL;
+		}
+
+		if (mqprio_qopt->qopt.count[i] > hdev->pf_rss_size_max) {
+			dev_err(&hdev->pdev->dev,
+				"qopt queue count should be no more than %u\n",
+				hdev->pf_rss_size_max);
+			return -EINVAL;
+		}
+
+		if (mqprio_qopt->qopt.offset[i] != queue_sum) {
+			dev_err(&hdev->pdev->dev,
+				"qopt queue offset must start from 0, and being continuous\n");
+			return -EINVAL;
+		}
+
+		if (mqprio_qopt->min_rate[i] || mqprio_qopt->max_rate[i]) {
+			dev_err(&hdev->pdev->dev,
+				"qopt tx_rate is not supported\n");
+			return -EOPNOTSUPP;
+		}
+
+		queue_sum = mqprio_qopt->qopt.offset[i];
+		queue_sum += mqprio_qopt->qopt.count[i];
+	}
+	if (hdev->vport[0].alloc_tqps < queue_sum) {
+		dev_err(&hdev->pdev->dev,
+			"qopt queue count sum should be less than %u\n",
+			hdev->vport[0].alloc_tqps);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void hclge_sync_mqprio_qopt(struct hnae3_tc_info *tc_info,
+				   struct tc_mqprio_qopt_offload *mqprio_qopt)
+{
+	int i;
+
+	memset(tc_info, 0, sizeof(*tc_info));
+	tc_info->num_tc = mqprio_qopt->qopt.num_tc;
+	memcpy(tc_info->prio_tc, mqprio_qopt->qopt.prio_tc_map,
+	       sizeof_field(struct hnae3_tc_info, prio_tc));
+	memcpy(tc_info->tqp_count, mqprio_qopt->qopt.count,
+	       sizeof_field(struct hnae3_tc_info, tqp_count));
+	memcpy(tc_info->tqp_offset, mqprio_qopt->qopt.offset,
+	       sizeof_field(struct hnae3_tc_info, tqp_offset));
+
+	for (i = 0; i < HNAE3_MAX_USER_PRIO; i++)
+		set_bit(tc_info->prio_tc[i], &tc_info->tc_en);
+}
+
+static int hclge_config_tc(struct hclge_dev *hdev,
+			   struct hnae3_tc_info *tc_info)
+{
+	int i;
+
+	hclge_tm_schd_info_update(hdev, tc_info->num_tc);
+	for (i = 0; i < HNAE3_MAX_USER_PRIO; i++)
+		hdev->tm_info.prio_tc[i] = tc_info->prio_tc[i];
+
+	return hclge_map_update(hdev);
+}
+
 /* Set up TC for hardware offloaded mqprio in channel mode */
-static int hclge_setup_tc(struct hnae3_handle *h, u8 tc, u8 *prio_tc)
+static int hclge_setup_tc(struct hnae3_handle *h,
+			  struct tc_mqprio_qopt_offload *mqprio_qopt)
 {
 	struct hclge_vport *vport = hclge_get_vport(h);
+	struct hnae3_knic_private_info *kinfo;
 	struct hclge_dev *hdev = vport->back;
+	struct hnae3_tc_info old_tc_info;
+	u8 tc = mqprio_qopt->qopt.num_tc;
 	int ret;
+
+	/* if client unregistered, it's not allowed to change
+	 * mqprio configuration, which may cause uninit ring
+	 * fail.
+	 */
+	if (!test_bit(HCLGE_STATE_NIC_REGISTERED, &hdev->state))
+		return -EBUSY;
 
 	if (hdev->flag & HCLGE_FLAG_DCB_ENABLE)
 		return -EINVAL;
 
-	ret = hclge_dcb_common_validate(hdev, tc, prio_tc);
-	if (ret)
-		return -EINVAL;
+	ret = hclge_mqprio_qopt_check(hdev, mqprio_qopt);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to check mqprio qopt params, ret = %d\n", ret);
+		return ret;
+	}
 
 	ret = hclge_notify_down_uinit(hdev);
 	if (ret)
 		return ret;
 
-	hclge_tm_schd_info_update(hdev, tc);
-	hclge_tm_prio_tc_info_update(hdev, prio_tc);
+	kinfo = &vport->nic.kinfo;
+	memcpy(&old_tc_info, &kinfo->tc_info, sizeof(old_tc_info));
+	hclge_sync_mqprio_qopt(&kinfo->tc_info, mqprio_qopt);
+	kinfo->tc_info.mqprio_active = tc > 0;
 
-	ret = hclge_tm_init_hw(hdev, false);
-	if (ret)
-		goto err_out;
-
-	ret = hclge_client_setup_tc(hdev);
+	ret = hclge_config_tc(hdev, &kinfo->tc_info);
 	if (ret)
 		goto err_out;
 
@@ -437,6 +507,12 @@ static int hclge_setup_tc(struct hnae3_handle *h, u8 tc, u8 *prio_tc)
 	return hclge_notify_init_up(hdev);
 
 err_out:
+	/* roll-back */
+	memcpy(&kinfo->tc_info, &old_tc_info, sizeof(old_tc_info));
+	if (hclge_config_tc(hdev, &kinfo->tc_info))
+		dev_err(&hdev->pdev->dev,
+			"failed to roll back tc configuration\n");
+
 	hclge_notify_init_up(hdev);
 
 	return ret;

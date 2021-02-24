@@ -242,13 +242,8 @@ static int td028ttec1_prepare(struct drm_panel *panel)
 static int td028ttec1_enable(struct drm_panel *panel)
 {
 	struct td028ttec1_panel *lcd = to_td028ttec1_device(panel);
-	int ret;
 
-	ret = jbt_ret_write_0(lcd, JBT_REG_DISPLAY_ON, NULL);
-	if (ret)
-		return ret;
-
-	return 0;
+	return jbt_ret_write_0(lcd, JBT_REG_DISPLAY_ON, NULL);
 }
 
 static int td028ttec1_disable(struct drm_panel *panel)

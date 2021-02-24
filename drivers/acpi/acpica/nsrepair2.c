@@ -4,7 +4,7 @@
  * Module Name: nsrepair2 - Repair for objects returned by specific
  *                          predefined methods
  *
- * Copyright (C) 2000 - 2020, Intel Corp.
+ * Copyright (C) 2000 - 2021, Intel Corp.
  *
  *****************************************************************************/
 
@@ -155,15 +155,17 @@ acpi_ns_complex_repairs(struct acpi_evaluate_info *info,
 	const struct acpi_repair_info *predefined;
 	acpi_status status;
 
+	ACPI_FUNCTION_TRACE(ns_complex_repairs);
+
 	/* Check if this name is in the list of repairable names */
 
 	predefined = acpi_ns_match_complex_repair(node);
 	if (!predefined) {
-		return (validate_status);
+		return_ACPI_STATUS(validate_status);
 	}
 
 	status = predefined->repair_function(info, return_object_ptr);
-	return (status);
+	return_ACPI_STATUS(status);
 }
 
 /******************************************************************************
@@ -344,17 +346,19 @@ acpi_ns_repair_CID(struct acpi_evaluate_info *info,
 	u16 original_ref_count;
 	u32 i;
 
+	ACPI_FUNCTION_TRACE(ns_repair_CID);
+
 	/* Check for _CID as a simple string */
 
 	if (return_object->common.type == ACPI_TYPE_STRING) {
 		status = acpi_ns_repair_HID(info, return_object_ptr);
-		return (status);
+		return_ACPI_STATUS(status);
 	}
 
 	/* Exit if not a Package */
 
 	if (return_object->common.type != ACPI_TYPE_PACKAGE) {
-		return (AE_OK);
+		return_ACPI_STATUS(AE_OK);
 	}
 
 	/* Examine each element of the _CID package */
@@ -366,7 +370,7 @@ acpi_ns_repair_CID(struct acpi_evaluate_info *info,
 
 		status = acpi_ns_repair_HID(info, element_ptr);
 		if (ACPI_FAILURE(status)) {
-			return (status);
+			return_ACPI_STATUS(status);
 		}
 
 		if (original_element != *element_ptr) {
@@ -380,7 +384,7 @@ acpi_ns_repair_CID(struct acpi_evaluate_info *info,
 		element_ptr++;
 	}
 
-	return (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
 
 /******************************************************************************
@@ -500,7 +504,7 @@ acpi_ns_repair_HID(struct acpi_evaluate_info *info,
 	/* We only care about string _HID objects (not integers) */
 
 	if (return_object->common.type != ACPI_TYPE_STRING) {
-		return (AE_OK);
+		return_ACPI_STATUS(AE_OK);
 	}
 
 	if (return_object->string.length == 0) {
@@ -511,14 +515,14 @@ acpi_ns_repair_HID(struct acpi_evaluate_info *info,
 		/* Return AE_OK anyway, let driver handle it */
 
 		info->return_flags |= ACPI_OBJECT_REPAIRED;
-		return (AE_OK);
+		return_ACPI_STATUS(AE_OK);
 	}
 
 	/* It is simplest to always create a new string object */
 
 	new_string = acpi_ut_create_string_object(return_object->string.length);
 	if (!new_string) {
-		return (AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
 	/*
@@ -551,7 +555,7 @@ acpi_ns_repair_HID(struct acpi_evaluate_info *info,
 
 	acpi_ut_remove_reference(return_object);
 	*return_object_ptr = new_string;
-	return (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
 
 /******************************************************************************

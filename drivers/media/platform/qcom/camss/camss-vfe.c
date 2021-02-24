@@ -205,7 +205,8 @@ static u32 vfe_src_pad_code(struct vfe_line *line, u32 sink_code,
 
 			return sink_code;
 		}
-	else if (vfe->camss->version == CAMSS_8x96)
+	else if (vfe->camss->version == CAMSS_8x96 ||
+		 vfe->camss->version == CAMSS_660)
 		switch (sink_code) {
 		case MEDIA_BUS_FMT_YUYV8_2X8:
 		{
@@ -1991,12 +1992,19 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 	vfe->isr_ops.comp_done = vfe_isr_comp_done;
 	vfe->isr_ops.wm_done = vfe_isr_wm_done;
 
-	if (camss->version == CAMSS_8x16)
+	switch (camss->version) {
+	case CAMSS_8x16:
 		vfe->ops = &vfe_ops_4_1;
-	else if (camss->version == CAMSS_8x96)
+		break;
+	case CAMSS_8x96:
 		vfe->ops = &vfe_ops_4_7;
-	else
+		break;
+	case CAMSS_660:
+		vfe->ops = &vfe_ops_4_8;
+		break;
+	default:
 		return -EINVAL;
+	}
 
 	/* Memory */
 
@@ -2095,7 +2103,8 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 				l->formats = formats_rdi_8x16;
 				l->nformats = ARRAY_SIZE(formats_rdi_8x16);
 			}
-		} else if (camss->version == CAMSS_8x96) {
+		} else if (camss->version == CAMSS_8x96 ||
+			   camss->version == CAMSS_660) {
 			if (i == VFE_LINE_PIX) {
 				l->formats = formats_pix_8x96;
 				l->nformats = ARRAY_SIZE(formats_pix_8x96);

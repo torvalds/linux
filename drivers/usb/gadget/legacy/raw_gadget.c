@@ -3,7 +3,8 @@
  * USB Raw Gadget driver.
  * See Documentation/usb/raw-gadget.rst for more details.
  *
- * Andrey Konovalov <andreyknvl@gmail.com>
+ * Copyright (c) 2020 Google, Inc.
+ * Author: Andrey Konovalov <andreyknvl@gmail.com>
  */
 
 #include <linux/compiler.h>
@@ -564,9 +565,12 @@ static int raw_ioctl_event_fetch(struct raw_dev *dev, unsigned long value)
 		return -ENODEV;
 	}
 	length = min(arg.length, event->length);
-	if (copy_to_user((void __user *)value, event, sizeof(*event) + length))
+	if (copy_to_user((void __user *)value, event, sizeof(*event) + length)) {
+		kfree(event);
 		return -EFAULT;
+	}
 
+	kfree(event);
 	return 0;
 }
 

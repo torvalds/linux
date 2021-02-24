@@ -6,6 +6,32 @@
 
 /** global debugfs **/
 
+static int
+mt7915_implicit_txbf_set(void *data, u64 val)
+{
+	struct mt7915_dev *dev = data;
+
+	if (test_bit(MT76_STATE_RUNNING, &dev->mphy.state))
+		return -EBUSY;
+
+	dev->ibf = !!val;
+
+	return mt7915_mcu_set_txbf_type(dev);
+}
+
+static int
+mt7915_implicit_txbf_get(void *data, u64 *val)
+{
+	struct mt7915_dev *dev = data;
+
+	*val = dev->ibf;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_implicit_txbf, mt7915_implicit_txbf_get,
+			 mt7915_implicit_txbf_set, "%lld\n");
+
 /* test knob of system layer 1/2 error recovery */
 static int mt7915_ser_trigger_set(void *data, u64 val)
 {
@@ -46,32 +72,6 @@ mt7915_radar_trigger(void *data, u64 val)
 
 DEFINE_DEBUGFS_ATTRIBUTE(fops_radar_trigger, NULL,
 			 mt7915_radar_trigger, "%lld\n");
-
-static int
-mt7915_dbdc_set(void *data, u64 val)
-{
-	struct mt7915_dev *dev = data;
-
-	if (val)
-		mt7915_register_ext_phy(dev);
-	else
-		mt7915_unregister_ext_phy(dev);
-
-	return 0;
-}
-
-static int
-mt7915_dbdc_get(void *data, u64 *val)
-{
-	struct mt7915_dev *dev = data;
-
-	*val = !!mt7915_ext_phy(dev);
-
-	return 0;
-}
-
-DEFINE_DEBUGFS_ATTRIBUTE(fops_dbdc, mt7915_dbdc_get,
-			 mt7915_dbdc_set, "%lld\n");
 
 static int
 mt7915_fw_debug_set(void *data, u64 val)
@@ -233,6 +233,7 @@ static const struct file_operations fops_tx_stats = {
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
+	.owner = THIS_MODULE,
 };
 
 static int mt7915_read_temperature(struct seq_file *s, void *data)
@@ -279,19 +280,23 @@ static int
 mt7915_queues_read(struct seq_file *s, void *data)
 {
 	struct mt7915_dev *dev = dev_get_drvdata(s->private);
-	static const struct {
+	struct mt76_phy *mphy_ext = dev->mt76.phy2;
+	struct mt76_queue *ext_q = mphy_ext ? mphy_ext->q_tx[MT_TXQ_BE] : NULL;
+	struct {
+		struct mt76_queue *q;
 		char *queue;
-		int id;
 	} queue_map[] = {
-		{ "WFDMA0", MT_TXQ_BE },
-		{ "MCUWM", MT_TXQ_MCU },
-		{ "MCUWA", MT_TXQ_MCU_WA },
-		{ "MCUFWQ", MT_TXQ_FWDL },
+		{ dev->mphy.q_tx[MT_TXQ_BE],	 "WFDMA0" },
+		{ ext_q,			 "WFDMA1" },
+		{ dev->mphy.q_tx[MT_TXQ_BE],	 "WFDMA0" },
+		{ dev->mt76.q_mcu[MT_MCUQ_WM],	 "MCUWM"  },
+		{ dev->mt76.q_mcu[MT_MCUQ_WA],	 "MCUWA"  },
+		{ dev->mt76.q_mcu[MT_MCUQ_FWDL], "MCUFWQ" },
 	};
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(queue_map); i++) {
-		struct mt76_queue *q = dev->mt76.q_tx[queue_map[i].id];
+		struct mt76_queue *q = queue_map[i].q;
 
 		if (!q)
 			continue;
@@ -375,8 +380,9 @@ int mt7915_init_debugfs(struct mt7915_dev *dev)
 	debugfs_create_devm_seqfile(dev->mt76.dev, "acq", dir,
 				    mt7915_queues_acq);
 	debugfs_create_file("tx_stats", 0400, dir, dev, &fops_tx_stats);
-	debugfs_create_file("dbdc", 0600, dir, dev, &fops_dbdc);
 	debugfs_create_file("fw_debug", 0600, dir, dev, &fops_fw_debug);
+	debugfs_create_file("implicit_txbf", 0600, dir, dev,
+			    &fops_implicit_txbf);
 	debugfs_create_u32("dfs_hw_pattern", 0400, dir, &dev->hw_pattern);
 	/* test knobs */
 	debugfs_create_file("radar_trigger", 0200, dir, dev,
@@ -460,6 +466,7 @@ static const struct file_operations fops_sta_stats = {
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
+	.owner = THIS_MODULE,
 };
 
 void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,

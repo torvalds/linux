@@ -201,6 +201,7 @@ static int mwifiex_ret_802_11_snmp_mib(struct mwifiex_private *priv,
 			mwifiex_dbg(priv->adapter, INFO,
 				    "info: SNMP_RESP: DTIM period=%u\n",
 				    ul_temp);
+			break;
 		default:
 			break;
 		}
@@ -1393,6 +1394,7 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_TDLS_OPER:
 		ret = mwifiex_ret_tdls_oper(priv, resp);
+		break;
 	case HostCmd_CMD_MC_POLICY:
 		break;
 	case HostCmd_CMD_CHAN_REPORT_REQUEST:

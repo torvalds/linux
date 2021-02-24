@@ -1017,7 +1017,7 @@ static int __maybe_unused iqs5xx_suspend(struct device *dev)
 
 	mutex_lock(&input->mutex);
 
-	if (input->users)
+	if (input_device_enabled(input))
 		error = iqs5xx_set_state(iqs5xx->client, IQS5XX_SUSPEND);
 
 	mutex_unlock(&input->mutex);
@@ -1036,7 +1036,7 @@ static int __maybe_unused iqs5xx_resume(struct device *dev)
 
 	mutex_lock(&input->mutex);
 
-	if (input->users)
+	if (input_device_enabled(input))
 		error = iqs5xx_set_state(iqs5xx->client, IQS5XX_RESUME);
 
 	mutex_unlock(&input->mutex);

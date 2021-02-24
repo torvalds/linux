@@ -280,7 +280,7 @@ static int ext4_getfsmap_logdev(struct super_block *sb, struct ext4_fsmap *keys,
 
 	/* Fabricate an rmap entry for the external log device. */
 	irec.fmr_physical = journal->j_blk_offset;
-	irec.fmr_length = journal->j_maxlen;
+	irec.fmr_length = journal->j_total_len;
 	irec.fmr_owner = EXT4_FMR_OWN_LOG;
 	irec.fmr_flags = 0;
 

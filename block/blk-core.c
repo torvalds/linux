@@ -18,6 +18,7 @@
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/blk-mq.h>
+#include <linux/blk-pm.h>
 #include <linux/highmem.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
@@ -424,11 +425,11 @@ EXPORT_SYMBOL(blk_cleanup_queue);
 /**
  * blk_queue_enter() - try to increase q->q_usage_counter
  * @q: request queue pointer
- * @flags: BLK_MQ_REQ_NOWAIT and/or BLK_MQ_REQ_PREEMPT
+ * @flags: BLK_MQ_REQ_NOWAIT and/or BLK_MQ_REQ_PM
  */
 int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags)
 {
-	const bool pm = flags & BLK_MQ_REQ_PREEMPT;
+	const bool pm = flags & BLK_MQ_REQ_PM;
 
 	while (true) {
 		bool success = false;
@@ -440,7 +441,8 @@ int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags)
 			 * responsible for ensuring that that counter is
 			 * globally visible before the queue is unfrozen.
 			 */
-			if (pm || !blk_queue_pm_only(q)) {
+			if ((pm && queue_rpm_status(q) != RPM_SUSPENDED) ||
+			    !blk_queue_pm_only(q)) {
 				success = true;
 			} else {
 				percpu_ref_put(&q->q_usage_counter);
@@ -465,8 +467,7 @@ int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags)
 
 		wait_event(q->mq_freeze_wq,
 			   (!q->mq_freeze_depth &&
-			    (pm || (blk_pm_request_resume(q),
-				    !blk_queue_pm_only(q)))) ||
+			    blk_pm_resume_queue(pm, q)) ||
 			   blk_queue_dying(q));
 		if (blk_queue_dying(q))
 			return -ENODEV;
@@ -475,7 +476,7 @@ int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags)
 
 static inline int bio_queue_enter(struct bio *bio)
 {
-	struct request_queue *q = bio->bi_disk->queue;
+	struct request_queue *q = bio->bi_bdev->bd_disk->queue;
 	bool nowait = bio->bi_opf & REQ_NOWAIT;
 	int ret;
 
@@ -530,7 +531,7 @@ struct request_queue *blk_alloc_queue(int node_id)
 	if (q->id < 0)
 		goto fail_q;
 
-	ret = bioset_init(&q->bio_split, BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS);
+	ret = bioset_init(&q->bio_split, BIO_POOL_SIZE, 0, 0);
 	if (ret)
 		goto fail_id;
 
@@ -630,7 +631,7 @@ struct request *blk_get_request(struct request_queue *q, unsigned int op,
 	struct request *req;
 
 	WARN_ON_ONCE(op & REQ_NOWAIT);
-	WARN_ON_ONCE(flags & ~(BLK_MQ_REQ_NOWAIT | BLK_MQ_REQ_PREEMPT));
+	WARN_ON_ONCE(flags & ~(BLK_MQ_REQ_NOWAIT | BLK_MQ_REQ_PM));
 
 	req = blk_mq_alloc_request(q, op, flags);
 	if (!IS_ERR(req) && q->mq_ops->initialize_rq_fn)
@@ -666,9 +667,9 @@ static int __init setup_fail_make_request(char *str)
 }
 __setup("fail_make_request=", setup_fail_make_request);
 
-static bool should_fail_request(struct hd_struct *part, unsigned int bytes)
+static bool should_fail_request(struct block_device *part, unsigned int bytes)
 {
-	return part->make_it_fail && should_fail(&fail_make_request, bytes);
+	return part->bd_make_it_fail && should_fail(&fail_make_request, bytes);
 }
 
 static int __init fail_make_request_debugfs(void)
@@ -683,7 +684,7 @@ late_initcall(fail_make_request_debugfs);
 
 #else /* CONFIG_FAIL_MAKE_REQUEST */
 
-static inline bool should_fail_request(struct hd_struct *part,
+static inline bool should_fail_request(struct block_device *part,
 					unsigned int bytes)
 {
 	return false;
@@ -691,11 +692,9 @@ static inline bool should_fail_request(struct hd_struct *part,
 
 #endif /* CONFIG_FAIL_MAKE_REQUEST */
 
-static inline bool bio_check_ro(struct bio *bio, struct hd_struct *part)
+static inline bool bio_check_ro(struct bio *bio)
 {
-	const int op = bio_op(bio);
-
-	if (part->policy && op_is_write(op)) {
+	if (op_is_write(bio_op(bio)) && bdev_read_only(bio->bi_bdev)) {
 		char b[BDEVNAME_SIZE];
 
 		if (op_is_flush(bio->bi_opf) && !bio_sectors(bio))
@@ -703,7 +702,7 @@ static inline bool bio_check_ro(struct bio *bio, struct hd_struct *part)
 
 		WARN_ONCE(1,
 		       "Trying to write to read-only block-device %s (partno %d)\n",
-			bio_devname(bio, b), part->partno);
+			bio_devname(bio, b), bio->bi_bdev->bd_partno);
 		/* Older lvm-tools actually trigger this */
 		return false;
 	}
@@ -713,7 +712,7 @@ static inline bool bio_check_ro(struct bio *bio, struct hd_struct *part)
 
 static noinline int should_fail_bio(struct bio *bio)
 {
-	if (should_fail_request(&bio->bi_disk->part0, bio->bi_iter.bi_size))
+	if (should_fail_request(bdev_whole(bio->bi_bdev), bio->bi_iter.bi_size))
 		return -EIO;
 	return 0;
 }
@@ -724,8 +723,9 @@ ALLOW_ERROR_INJECTION(should_fail_bio, ERRNO);
  * This may well happen - the kernel calls bread() without checking the size of
  * the device, e.g., when mounting a file system.
  */
-static inline int bio_check_eod(struct bio *bio, sector_t maxsector)
+static inline int bio_check_eod(struct bio *bio)
 {
+	sector_t maxsector = bdev_nr_sectors(bio->bi_bdev);
 	unsigned int nr_sectors = bio_sectors(bio);
 
 	if (nr_sectors && maxsector &&
@@ -740,32 +740,20 @@ static inline int bio_check_eod(struct bio *bio, sector_t maxsector)
 /*
  * Remap block n of partition p to block n+start(p) of the disk.
  */
-static inline int blk_partition_remap(struct bio *bio)
+static int blk_partition_remap(struct bio *bio)
 {
-	struct hd_struct *p;
-	int ret = -EIO;
+	struct block_device *p = bio->bi_bdev;
 
-	rcu_read_lock();
-	p = __disk_get_part(bio->bi_disk, bio->bi_partno);
-	if (unlikely(!p))
-		goto out;
 	if (unlikely(should_fail_request(p, bio->bi_iter.bi_size)))
-		goto out;
-	if (unlikely(bio_check_ro(bio, p)))
-		goto out;
-
+		return -EIO;
 	if (bio_sectors(bio)) {
-		if (bio_check_eod(bio, part_nr_sects_read(p)))
-			goto out;
-		bio->bi_iter.bi_sector += p->start_sect;
-		trace_block_bio_remap(bio->bi_disk->queue, bio, part_devt(p),
-				      bio->bi_iter.bi_sector - p->start_sect);
+		bio->bi_iter.bi_sector += p->bd_start_sect;
+		trace_block_bio_remap(bio, p->bd_dev,
+				      bio->bi_iter.bi_sector -
+				      p->bd_start_sect);
 	}
-	bio->bi_partno = 0;
-	ret = 0;
-out:
-	rcu_read_unlock();
-	return ret;
+	bio_set_flag(bio, BIO_REMAPPED);
+	return 0;
 }
 
 /*
@@ -805,7 +793,8 @@ static inline blk_status_t blk_check_zone_append(struct request_queue *q,
 
 static noinline_for_stack bool submit_bio_checks(struct bio *bio)
 {
-	struct request_queue *q = bio->bi_disk->queue;
+	struct block_device *bdev = bio->bi_bdev;
+	struct request_queue *q = bdev->bd_disk->queue;
 	blk_status_t status = BLK_STS_IOERR;
 	struct blk_plug *plug;
 
@@ -824,14 +813,12 @@ static noinline_for_stack bool submit_bio_checks(struct bio *bio)
 
 	if (should_fail_bio(bio))
 		goto end_io;
-
-	if (bio->bi_partno) {
-		if (unlikely(blk_partition_remap(bio)))
+	if (unlikely(bio_check_ro(bio)))
+		goto end_io;
+	if (!bio_flagged(bio, BIO_REMAPPED)) {
+		if (unlikely(bio_check_eod(bio)))
 			goto end_io;
-	} else {
-		if (unlikely(bio_check_ro(bio, &bio->bi_disk->part0)))
-			goto end_io;
-		if (unlikely(bio_check_eod(bio, get_capacity(bio->bi_disk))))
+		if (bdev->bd_partno && unlikely(blk_partition_remap(bio)))
 			goto end_io;
 	}
 
@@ -906,7 +893,7 @@ static noinline_for_stack bool submit_bio_checks(struct bio *bio)
 	blkcg_bio_issue_init(bio);
 
 	if (!bio_flagged(bio, BIO_TRACE_COMPLETION)) {
-		trace_block_bio_queue(q, bio);
+		trace_block_bio_queue(bio);
 		/* Now that enqueuing has been traced, we need to trace
 		 * completion as well.
 		 */
@@ -924,7 +911,7 @@ end_io:
 
 static blk_qc_t __submit_bio(struct bio *bio)
 {
-	struct gendisk *disk = bio->bi_disk;
+	struct gendisk *disk = bio->bi_bdev->bd_disk;
 	blk_qc_t ret = BLK_QC_T_NONE;
 
 	if (blk_crypto_bio_prep(&bio)) {
@@ -966,7 +953,7 @@ static blk_qc_t __submit_bio_noacct(struct bio *bio)
 	current->bio_list = bio_list_on_stack;
 
 	do {
-		struct request_queue *q = bio->bi_disk->queue;
+		struct request_queue *q = bio->bi_bdev->bd_disk->queue;
 		struct bio_list lower, same;
 
 		if (unlikely(bio_queue_enter(bio) != 0))
@@ -987,7 +974,7 @@ static blk_qc_t __submit_bio_noacct(struct bio *bio)
 		bio_list_init(&lower);
 		bio_list_init(&same);
 		while ((bio = bio_list_pop(&bio_list_on_stack[0])) != NULL)
-			if (q == bio->bi_disk->queue)
+			if (q == bio->bi_bdev->bd_disk->queue)
 				bio_list_add(&same, bio);
 			else
 				bio_list_add(&lower, bio);
@@ -1012,7 +999,7 @@ static blk_qc_t __submit_bio_noacct_mq(struct bio *bio)
 	current->bio_list = bio_list;
 
 	do {
-		struct gendisk *disk = bio->bi_disk;
+		struct gendisk *disk = bio->bi_bdev->bd_disk;
 
 		if (unlikely(bio_queue_enter(bio) != 0))
 			continue;
@@ -1055,7 +1042,7 @@ blk_qc_t submit_bio_noacct(struct bio *bio)
 		return BLK_QC_T_NONE;
 	}
 
-	if (!bio->bi_disk->fops->submit_bio)
+	if (!bio->bi_bdev->bd_disk->fops->submit_bio)
 		return __submit_bio_noacct_mq(bio);
 	return __submit_bio_noacct(bio);
 }
@@ -1067,7 +1054,7 @@ EXPORT_SYMBOL(submit_bio_noacct);
  *
  * submit_bio() is used to submit I/O requests to block devices.  It is passed a
  * fully set up &struct bio that describes the I/O that needs to be done.  The
- * bio will be send to the device described by the bi_disk and bi_partno fields.
+ * bio will be send to the device described by the bi_bdev field.
  *
  * The success/failure status of the request, along with notification of
  * completion, is delivered asynchronously through the ->bi_end_io() callback
@@ -1087,7 +1074,8 @@ blk_qc_t submit_bio(struct bio *bio)
 		unsigned int count;
 
 		if (unlikely(bio_op(bio) == REQ_OP_WRITE_SAME))
-			count = queue_logical_block_size(bio->bi_disk->queue) >> 9;
+			count = queue_logical_block_size(
+					bio->bi_bdev->bd_disk->queue) >> 9;
 		else
 			count = bio_sectors(bio);
 
@@ -1201,7 +1189,7 @@ blk_status_t blk_insert_cloned_request(struct request_queue *q, struct request *
 		return ret;
 
 	if (rq->rq_disk &&
-	    should_fail_request(&rq->rq_disk->part0, blk_rq_bytes(rq)))
+	    should_fail_request(rq->rq_disk->part0, blk_rq_bytes(rq)))
 		return BLK_STS_IOERR;
 
 	if (blk_crypto_insert_cloned_request(rq))
@@ -1260,17 +1248,18 @@ unsigned int blk_rq_err_bytes(const struct request *rq)
 }
 EXPORT_SYMBOL_GPL(blk_rq_err_bytes);
 
-static void update_io_ticks(struct hd_struct *part, unsigned long now, bool end)
+static void update_io_ticks(struct block_device *part, unsigned long now,
+		bool end)
 {
 	unsigned long stamp;
 again:
-	stamp = READ_ONCE(part->stamp);
+	stamp = READ_ONCE(part->bd_stamp);
 	if (unlikely(stamp != now)) {
-		if (likely(cmpxchg(&part->stamp, stamp, now) == stamp))
+		if (likely(cmpxchg(&part->bd_stamp, stamp, now) == stamp))
 			__part_stat_add(part, io_ticks, end ? now - stamp : 1);
 	}
-	if (part->partno) {
-		part = &part_to_disk(part)->part0;
+	if (part->bd_partno) {
+		part = bdev_whole(part);
 		goto again;
 	}
 }
@@ -1279,11 +1268,9 @@ static void blk_account_io_completion(struct request *req, unsigned int bytes)
 {
 	if (req->part && blk_do_io_stat(req)) {
 		const int sgrp = op_stat_group(req_op(req));
-		struct hd_struct *part;
 
 		part_stat_lock();
-		part = req->part;
-		part_stat_add(part, sectors[sgrp], bytes >> 9);
+		part_stat_add(req->part, sectors[sgrp], bytes >> 9);
 		part_stat_unlock();
 	}
 }
@@ -1298,17 +1285,12 @@ void blk_account_io_done(struct request *req, u64 now)
 	if (req->part && blk_do_io_stat(req) &&
 	    !(req->rq_flags & RQF_FLUSH_SEQ)) {
 		const int sgrp = op_stat_group(req_op(req));
-		struct hd_struct *part;
 
 		part_stat_lock();
-		part = req->part;
-
-		update_io_ticks(part, jiffies, true);
-		part_stat_inc(part, ios[sgrp]);
-		part_stat_add(part, nsecs[sgrp], now - req->start_time_ns);
+		update_io_ticks(req->part, jiffies, true);
+		part_stat_inc(req->part, ios[sgrp]);
+		part_stat_add(req->part, nsecs[sgrp], now - req->start_time_ns);
 		part_stat_unlock();
-
-		hd_struct_put(part);
 	}
 }
 
@@ -1317,14 +1299,18 @@ void blk_account_io_start(struct request *rq)
 	if (!blk_do_io_stat(rq))
 		return;
 
-	rq->part = disk_map_sector_rcu(rq->rq_disk, blk_rq_pos(rq));
+	/* passthrough requests can hold bios that do not have ->bi_bdev set */
+	if (rq->bio && rq->bio->bi_bdev)
+		rq->part = rq->bio->bi_bdev;
+	else
+		rq->part = rq->rq_disk->part0;
 
 	part_stat_lock();
 	update_io_ticks(rq->part, jiffies, false);
 	part_stat_unlock();
 }
 
-static unsigned long __part_start_io_acct(struct hd_struct *part,
+static unsigned long __part_start_io_acct(struct block_device *part,
 					  unsigned int sectors, unsigned int op)
 {
 	const int sgrp = op_stat_group(op);
@@ -1340,23 +1326,26 @@ static unsigned long __part_start_io_acct(struct hd_struct *part,
 	return now;
 }
 
-unsigned long part_start_io_acct(struct gendisk *disk, struct hd_struct **part,
-				 struct bio *bio)
+/**
+ * bio_start_io_acct - start I/O accounting for bio based drivers
+ * @bio:	bio to start account for
+ *
+ * Returns the start time that should be passed back to bio_end_io_acct().
+ */
+unsigned long bio_start_io_acct(struct bio *bio)
 {
-	*part = disk_map_sector_rcu(disk, bio->bi_iter.bi_sector);
-
-	return __part_start_io_acct(*part, bio_sectors(bio), bio_op(bio));
+	return __part_start_io_acct(bio->bi_bdev, bio_sectors(bio), bio_op(bio));
 }
-EXPORT_SYMBOL_GPL(part_start_io_acct);
+EXPORT_SYMBOL_GPL(bio_start_io_acct);
 
 unsigned long disk_start_io_acct(struct gendisk *disk, unsigned int sectors,
 				 unsigned int op)
 {
-	return __part_start_io_acct(&disk->part0, sectors, op);
+	return __part_start_io_acct(disk->part0, sectors, op);
 }
 EXPORT_SYMBOL(disk_start_io_acct);
 
-static void __part_end_io_acct(struct hd_struct *part, unsigned int op,
+static void __part_end_io_acct(struct block_device *part, unsigned int op,
 			       unsigned long start_time)
 {
 	const int sgrp = op_stat_group(op);
@@ -1370,18 +1359,17 @@ static void __part_end_io_acct(struct hd_struct *part, unsigned int op,
 	part_stat_unlock();
 }
 
-void part_end_io_acct(struct hd_struct *part, struct bio *bio,
-		      unsigned long start_time)
+void bio_end_io_acct_remapped(struct bio *bio, unsigned long start_time,
+		struct block_device *orig_bdev)
 {
-	__part_end_io_acct(part, bio_op(bio), start_time);
-	hd_struct_put(part);
+	__part_end_io_acct(orig_bdev, bio_op(bio), start_time);
 }
-EXPORT_SYMBOL_GPL(part_end_io_acct);
+EXPORT_SYMBOL_GPL(bio_end_io_acct_remapped);
 
 void disk_end_io_acct(struct gendisk *disk, unsigned int op,
 		      unsigned long start_time)
 {
-	__part_end_io_acct(&disk->part0, op, start_time);
+	__part_end_io_acct(disk->part0, op, start_time);
 }
 EXPORT_SYMBOL(disk_end_io_acct);
 

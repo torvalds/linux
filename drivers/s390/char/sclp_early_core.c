@@ -11,6 +11,7 @@
 #include <asm/irq.h>
 #include <asm/sections.h>
 #include <asm/mem_detect.h>
+#include <asm/facility.h>
 #include "sclp.h"
 #include "sclp_rw.h"
 
@@ -65,13 +66,13 @@ int sclp_early_cmd(sclp_cmdw_t cmd, void *sccb)
 	unsigned long flags;
 	int rc;
 
-	raw_local_irq_save(flags);
+	flags = arch_local_irq_save();
 	rc = sclp_service_call(cmd, sccb);
 	if (rc)
 		goto out;
 	sclp_early_wait_irq();
 out:
-	raw_local_irq_restore(flags);
+	arch_local_irq_restore(flags);
 	return rc;
 }
 
@@ -237,13 +238,14 @@ void sclp_early_printk(const char *str)
 int __init sclp_early_read_info(void)
 {
 	int i;
+	int length = test_facility(140) ? EXT_SCCB_READ_SCP : PAGE_SIZE;
 	struct read_info_sccb *sccb = &sclp_info_sccb;
 	sclp_cmdw_t commands[] = {SCLP_CMDW_READ_SCP_INFO_FORCED,
 				  SCLP_CMDW_READ_SCP_INFO};
 
 	for (i = 0; i < ARRAY_SIZE(commands); i++) {
-		memset(sccb, 0, sizeof(*sccb));
-		sccb->header.length = sizeof(*sccb);
+		memset(sccb, 0, length);
+		sccb->header.length = length;
 		sccb->header.function_code = 0x80;
 		sccb->header.control_mask[2] = 0x80;
 		if (sclp_early_cmd(commands[i], sccb))
@@ -258,13 +260,12 @@ int __init sclp_early_read_info(void)
 	return -EIO;
 }
 
-int __init sclp_early_get_info(struct read_info_sccb *info)
+struct read_info_sccb * __init sclp_early_get_info(void)
 {
 	if (!sclp_info_sccb_valid)
-		return -EIO;
+		return NULL;
 
-	*info = sclp_info_sccb;
-	return 0;
+	return &sclp_info_sccb;
 }
 
 int __init sclp_early_get_memsize(unsigned long *mem)

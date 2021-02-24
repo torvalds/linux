@@ -1403,15 +1403,21 @@ static void scmi_protocols_late_init(struct work_struct *work)
 				"finalized PENDING handler - key:%X\n",
 				hndl->key);
 			ret = scmi_event_handler_enable_events(hndl);
+			if (ret) {
+				dev_dbg(ni->handle->dev,
+					"purging INVALID handler - key:%X\n",
+					hndl->key);
+				scmi_put_active_handler(ni, hndl);
+			}
 		} else {
 			ret = scmi_valid_pending_handler(ni, hndl);
-		}
-		if (ret) {
-			dev_dbg(ni->handle->dev,
-				"purging PENDING handler - key:%X\n",
-				hndl->key);
-			/* this hndl can be only a pending one */
-			scmi_put_handler_unlocked(ni, hndl);
+			if (ret) {
+				dev_dbg(ni->handle->dev,
+					"purging PENDING handler - key:%X\n",
+					hndl->key);
+				/* this hndl can be only a pending one */
+				scmi_put_handler_unlocked(ni, hndl);
+			}
 		}
 	}
 	mutex_unlock(&ni->pending_mtx);
@@ -1468,15 +1474,15 @@ int scmi_notification_init(struct scmi_handle *handle)
 	ni->gid = gid;
 	ni->handle = handle;
 
-	ni->notify_wq = alloc_workqueue("scmi_notify",
-					WQ_UNBOUND | WQ_FREEZABLE | WQ_SYSFS,
-					0);
-	if (!ni->notify_wq)
-		goto err;
-
 	ni->registered_protocols = devm_kcalloc(handle->dev, SCMI_MAX_PROTO,
 						sizeof(char *), GFP_KERNEL);
 	if (!ni->registered_protocols)
+		goto err;
+
+	ni->notify_wq = alloc_workqueue(dev_name(handle->dev),
+					WQ_UNBOUND | WQ_FREEZABLE | WQ_SYSFS,
+					0);
+	if (!ni->notify_wq)
 		goto err;
 
 	mutex_init(&ni->pending_mtx);

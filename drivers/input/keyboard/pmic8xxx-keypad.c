@@ -76,17 +76,17 @@
 
 /**
  * struct pmic8xxx_kp - internal keypad data structure
- * @num_cols - number of columns of keypad
- * @num_rows - number of row of keypad
- * @input - input device pointer for keypad
- * @regmap - regmap handle
- * @key_sense_irq - key press/release irq number
- * @key_stuck_irq - key stuck notification irq number
- * @keycodes - array to hold the key codes
- * @dev - parent device pointer
- * @keystate - present key press/release state
- * @stuckstate - present state when key stuck irq
- * @ctrl_reg - control register value
+ * @num_cols: number of columns of keypad
+ * @num_rows: number of row of keypad
+ * @input: input device pointer for keypad
+ * @regmap: regmap handle
+ * @key_sense_irq: key press/release irq number
+ * @key_stuck_irq: key stuck notification irq number
+ * @keycodes: array to hold the key codes
+ * @dev: parent device pointer
+ * @keystate: present key press/release state
+ * @stuckstate: present state when key stuck irq
+ * @ctrl_reg: control register value
  */
 struct pmic8xxx_kp {
 	unsigned int num_rows;
@@ -633,7 +633,7 @@ static int pmic8xxx_kp_suspend(struct device *dev)
 	} else {
 		mutex_lock(&input_dev->mutex);
 
-		if (input_dev->users)
+		if (input_device_enabled(input_dev))
 			pmic8xxx_kp_disable(kp);
 
 		mutex_unlock(&input_dev->mutex);
@@ -653,7 +653,7 @@ static int pmic8xxx_kp_resume(struct device *dev)
 	} else {
 		mutex_lock(&input_dev->mutex);
 
-		if (input_dev->users)
+		if (input_device_enabled(input_dev))
 			pmic8xxx_kp_enable(kp);
 
 		mutex_unlock(&input_dev->mutex);

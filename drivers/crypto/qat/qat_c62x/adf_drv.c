@@ -126,10 +126,12 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &accel_pci_dev->revid);
 	pci_read_config_dword(pdev, ADF_DEVICE_FUSECTL_OFFSET,
 			      &hw_data->fuses);
+	pci_read_config_dword(pdev, ADF_C62X_SOFTSTRAP_CSR_OFFSET,
+			      &hw_data->straps);
 
 	/* Get Accelerators and Accelerators Engines masks */
-	hw_data->accel_mask = hw_data->get_accel_mask(hw_data->fuses);
-	hw_data->ae_mask = hw_data->get_ae_mask(hw_data->fuses);
+	hw_data->accel_mask = hw_data->get_accel_mask(hw_data);
+	hw_data->ae_mask = hw_data->get_ae_mask(hw_data);
 	accel_pci_dev->sku = hw_data->get_sku(hw_data);
 	/* If the device has no acceleration engines then ignore it. */
 	if (!hw_data->accel_mask || !hw_data->ae_mask ||
@@ -175,9 +177,8 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_err_disable;
 	}
 
-	/* Read accelerator capabilities mask */
-	pci_read_config_dword(pdev, ADF_DEVICE_LEGFUSE_OFFSET,
-			      &hw_data->accel_capabilities_mask);
+	/* Get accelerator capabilities mask */
+	hw_data->accel_capabilities_mask = hw_data->get_accel_cap(accel_dev);
 
 	/* Find and map all the device's BARS */
 	i = (hw_data->fuses & ADF_DEVICE_FUSECTL_MASK) ? 1 : 0;

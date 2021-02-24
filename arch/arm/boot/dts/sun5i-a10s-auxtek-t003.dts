@@ -62,7 +62,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&led_pins_t003>;
 
-		red {
+		led {
 			label = "t003-tv-dongle:red:usr";
 			gpios = <&pio 1 2 GPIO_ACTIVE_HIGH>; /* PB2 */
 			default-state = "on";

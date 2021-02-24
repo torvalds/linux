@@ -130,6 +130,7 @@ properties:
       - description: RZ/G2N (R8A774B1)
         items:
           - enum:
+              - beacon,beacon-rzg2n # Beacon EmbeddedWorks RZ/G2N Kit
               - hoperun,hihope-rzg2n # HopeRun HiHope RZ/G2N platform
           - const: renesas,r8a774b1
 
@@ -154,6 +155,7 @@ properties:
       - description: RZ/G2H (R8A774E1)
         items:
           - enum:
+              - beacon,beacon-rzg2h # Beacon EmbeddedWorks RZ/G2H Kit
               - hoperun,hihope-rzg2h # HopeRun HiHope RZ/G2H platform
           - const: renesas,r8a774e1
 
@@ -245,6 +247,7 @@ properties:
           - enum:
               - renesas,r8a7795
               - renesas,r8a7796
+              - renesas,r8a77961
               - renesas,r8a77965
 
       - description: R-Car M3-N (R8A77965)

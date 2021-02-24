@@ -28,7 +28,7 @@ vsyscall32 (x86)
 
 Determines whether the kernels maps a vDSO page into 32-bit processes;
 can be set to 1 to enable, or 0 to disable. Defaults to enabled if
-``CONFIG_COMPAT_VDSO`` is set, disabled otherwide.
+``CONFIG_COMPAT_VDSO`` is set, disabled otherwise.
 
 This controls the same setting as the ``vdso32`` kernel boot
 parameter.

@@ -84,7 +84,7 @@ enum drm_connector_status {
 };
 
 /**
- * enum drm_connector_registration_status - userspace registration status for
+ * enum drm_connector_registration_state - userspace registration status for
  * a &drm_connector
  *
  * This enum is used to track the status of initializing a connector and

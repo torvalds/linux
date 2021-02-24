@@ -74,6 +74,13 @@ int psm_init_power_state_table(struct pp_hwmgr *hwmgr)
 
 	for (i = 0; i < table_entries; i++) {
 		result = hwmgr->hwmgr_func->get_pp_table_entry(hwmgr, i, state);
+		if (result) {
+			kfree(hwmgr->request_ps);
+			kfree(hwmgr->ps);
+			hwmgr->request_ps = NULL;
+			hwmgr->ps = NULL;
+			return -EINVAL;
+		}
 
 		if (state->classification.flags & PP_StateClassificationFlag_Boot) {
 			hwmgr->boot_ps = state;

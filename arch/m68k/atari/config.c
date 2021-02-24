@@ -77,7 +77,7 @@ static void atari_heartbeat(int on);
 #endif
 
 /* atari specific timer functions (in time.c) */
-extern void atari_sched_init(irq_handler_t);
+extern void atari_sched_init(void);
 extern int atari_mste_hwclk (int, struct rtc_time *);
 extern int atari_tt_hwclk (int, struct rtc_time *);
 
@@ -205,7 +205,6 @@ void __init config_atari(void)
 	mach_get_model	 = atari_get_model;
 	mach_get_hardware_list = atari_get_hardware_list;
 	mach_reset           = atari_reset;
-	mach_max_dma_address = 0xffffff;
 #if IS_ENABLED(CONFIG_INPUT_M68K_BEEP)
 	mach_beep          = atari_mksound;
 #endif

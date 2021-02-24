@@ -239,7 +239,7 @@
 
 &soc {
 	serial@f991d000 {
-		status = "ok";
+		status = "okay";
 	};
 
 	pinctrl@fd510000 {
@@ -410,7 +410,7 @@
 	};
 
 	sdhci@f9824900 {
-		status = "ok";
+		status = "okay";
 
 		vmmc-supply = <&pm8941_l20>;
 		vqmmc-supply = <&pm8941_s3>;
@@ -423,7 +423,7 @@
 	};
 
 	sdhci@f98a4900 {
-		status = "ok";
+		status = "okay";
 
 		max-frequency = <100000000>;
 		bus-width = <4>;
@@ -471,7 +471,7 @@
 	};
 
 	serial@f9960000 {
-		status = "ok";
+		status = "okay";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&blsp2_uart10_pin_a>;
@@ -490,7 +490,7 @@
 	};
 
 	i2c@f9967000 {
-		status = "ok";
+		status = "okay";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c11_pins>;
 		clock-frequency = <355000>;
@@ -498,7 +498,7 @@
 
 		led-controller@38 {
 			compatible = "ti,lm3630a";
-			status = "ok";
+			status = "okay";
 			reg = <0x38>;
 
 			#address-cells = <1>;
@@ -514,7 +514,7 @@
 	};
 
 	i2c@f9968000 {
-		status = "ok";
+		status = "okay";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c12_pins>;
 		clock-frequency = <100000>;
@@ -551,7 +551,7 @@
 	};
 
 	i2c@f9923000 {
-		status = "ok";
+		status = "okay";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c1_pins>;
 		clock-frequency = <100000>;
@@ -566,10 +566,26 @@
 
 			usb_otg_vbus: usb-otg-vbus { };
 		};
+
+		fuelgauge: max17048@36 {
+			compatible = "maxim,max17048";
+			reg = <0x36>;
+
+			maxim,double-soc;
+			maxim,rcomp = /bits/ 8 <0x4d>;
+
+			interrupt-parent = <&msmgpio>;
+			interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&fuelgauge_pin>;
+
+			maxim,alert-low-soc-level = <2>;
+		};
 	};
 
 	i2c@f9924000 {
-		status = "ok";
+		status = "okay";
 
 		clock-frequency = <355000>;
 		qcom,src-freq = <50000000>;
@@ -604,7 +620,7 @@
 	};
 
 	i2c@f9925000 {
-		status = "ok";
+		status = "okay";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c3_pins>;
 		clock-frequency = <100000>;
@@ -622,7 +638,7 @@
 	};
 
 	usb@f9a55000 {
-		status = "ok";
+		status = "okay";
 
 		phys = <&usb_hs1_phy>;
 		phy-select = <&tcsr 0xb000 0>;
@@ -636,7 +652,7 @@
 
 		ulpi {
 			phy@a {
-				status = "ok";
+				status = "okay";
 
 				v1p8-supply = <&pm8941_l6>;
 				v3p3-supply = <&pm8941_l24>;
@@ -647,14 +663,14 @@
 	};
 
 	mdss@fd900000 {
-		status = "ok";
+		status = "okay";
 
 		mdp@fd900000 {
-			status = "ok";
+			status = "okay";
 		};
 
 		dsi@fd922800 {
-			status = "ok";
+			status = "okay";
 
 			vdda-supply = <&pm8941_l2>;
 			vdd-supply = <&pm8941_lvs3>;
@@ -688,7 +704,7 @@
 		};
 
 		dsi-phy@fd922a00 {
-			status = "ok";
+			status = "okay";
 
 			vddio-supply = <&pm8941_l12>;
 		};
@@ -703,6 +719,15 @@
 				function = "normal";
 
 				bias-pull-up;
+				power-source = <PM8941_GPIO_S3>;
+			};
+
+			fuelgauge_pin: fuelgauge-int {
+				pins = "gpio9";
+				function = "normal";
+
+				bias-disable;
+				input-enable;
 				power-source = <PM8941_GPIO_S3>;
 			};
 

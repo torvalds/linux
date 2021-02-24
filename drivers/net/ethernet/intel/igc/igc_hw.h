@@ -23,6 +23,7 @@
 #define IGC_DEV_ID_I225_K			0x3100
 #define IGC_DEV_ID_I225_K2			0x3101
 #define IGC_DEV_ID_I225_LMVP			0x5502
+#define IGC_DEV_ID_I226_K			0x5504
 #define IGC_DEV_ID_I225_IT			0x0D9F
 #define IGC_DEV_ID_I226_LM			0x125B
 #define IGC_DEV_ID_I226_V			0x125C
@@ -112,7 +113,6 @@ struct igc_nvm_operations {
 	s32 (*write)(struct igc_hw *hw, u16 offset, u16 i, u16 *data);
 	s32 (*update)(struct igc_hw *hw);
 	s32 (*validate)(struct igc_hw *hw);
-	s32 (*valid_led_default)(struct igc_hw *hw, u16 *data);
 };
 
 struct igc_phy_operations {

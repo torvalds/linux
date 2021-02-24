@@ -34,55 +34,60 @@
 /**
  * Convert dmcub psr state to dmcu psr state.
  */
-static void convert_psr_state(uint32_t *psr_state)
+static enum dc_psr_state convert_psr_state(uint32_t raw_state)
 {
-	if (*psr_state == 0)
-		*psr_state = 0;
-	else if (*psr_state == 0x10)
-		*psr_state = 1;
-	else if (*psr_state == 0x11)
-		*psr_state = 2;
-	else if (*psr_state == 0x20)
-		*psr_state = 3;
-	else if (*psr_state == 0x21)
-		*psr_state = 4;
-	else if (*psr_state == 0x30)
-		*psr_state = 5;
-	else if (*psr_state == 0x31)
-		*psr_state = 6;
-	else if (*psr_state == 0x40)
-		*psr_state = 7;
-	else if (*psr_state == 0x41)
-		*psr_state = 8;
-	else if (*psr_state == 0x42)
-		*psr_state = 9;
-	else if (*psr_state == 0x43)
-		*psr_state = 10;
-	else if (*psr_state == 0x44)
-		*psr_state = 11;
-	else if (*psr_state == 0x50)
-		*psr_state = 12;
-	else if (*psr_state == 0x51)
-		*psr_state = 13;
-	else if (*psr_state == 0x52)
-		*psr_state = 14;
-	else if (*psr_state == 0x53)
-		*psr_state = 15;
+	enum dc_psr_state state = PSR_STATE0;
+
+	if (raw_state == 0)
+		state = PSR_STATE0;
+	else if (raw_state == 0x10)
+		state = PSR_STATE1;
+	else if (raw_state == 0x11)
+		state = PSR_STATE1a;
+	else if (raw_state == 0x20)
+		state = PSR_STATE2;
+	else if (raw_state == 0x21)
+		state = PSR_STATE2a;
+	else if (raw_state == 0x30)
+		state = PSR_STATE3;
+	else if (raw_state == 0x31)
+		state = PSR_STATE3Init;
+	else if (raw_state == 0x40)
+		state = PSR_STATE4;
+	else if (raw_state == 0x41)
+		state = PSR_STATE4a;
+	else if (raw_state == 0x42)
+		state = PSR_STATE4b;
+	else if (raw_state == 0x43)
+		state = PSR_STATE4c;
+	else if (raw_state == 0x44)
+		state = PSR_STATE4d;
+	else if (raw_state == 0x50)
+		state = PSR_STATE5;
+	else if (raw_state == 0x51)
+		state = PSR_STATE5a;
+	else if (raw_state == 0x52)
+		state = PSR_STATE5b;
+	else if (raw_state == 0x53)
+		state = PSR_STATE5c;
+
+	return state;
 }
 
 /**
  * Get PSR state from firmware.
  */
-static void dmub_psr_get_state(struct dmub_psr *dmub, uint32_t *psr_state)
+static void dmub_psr_get_state(struct dmub_psr *dmub, enum dc_psr_state *state)
 {
 	struct dmub_srv *srv = dmub->ctx->dmub_srv->dmub;
+	uint32_t raw_state;
 
 	// Send gpint command and wait for ack
 	dmub_srv_send_gpint_command(srv, DMUB_GPINT__GET_PSR_STATE, 0, 30);
 
-	dmub_srv_get_gpint_response(srv, psr_state);
+	dmub_srv_get_gpint_response(srv, &raw_state);
 
-	convert_psr_state(psr_state);
+	*state = convert_psr_state(raw_state);
 }
 
 /**
@@ -123,7 +128,9 @@ static void dmub_psr_enable(struct dmub_psr *dmub, bool enable, bool wait)
 {
 	union dmub_rb_cmd cmd;
 	struct dc_context *dc = dmub->ctx;
-	uint32_t retry_count, psr_state = 0;
+	uint32_t retry_count;
+	enum dc_psr_state state = PSR_STATE0;
+
 
 	cmd.psr_enable.header.type = DMUB_CMD__PSR;
 
@@ -144,13 +151,13 @@ static void dmub_psr_enable(struct dmub_psr *dmub, bool enable, bool wait)
 	 */
 	if (wait) {
 		for (retry_count = 0; retry_count <= 1000; retry_count++) {
-			dmub_psr_get_state(dmub, &psr_state);
+			dmub_psr_get_state(dmub, &state);
 
 			if (enable) {
-				if (psr_state != 0)
+				if (state != PSR_STATE0)
 					break;
 			} else {
-				if (psr_state == 0)
+				if (state == PSR_STATE0)
 					break;
 			}
 
@@ -169,12 +176,12 @@ static void dmub_psr_enable(struct dmub_psr *dmub, bool enable, bool wait)
 static void dmub_psr_set_level(struct dmub_psr *dmub, uint16_t psr_level)
 {
 	union dmub_rb_cmd cmd;
-	uint32_t psr_state = 0;
+	enum dc_psr_state state = PSR_STATE0;
 	struct dc_context *dc = dmub->ctx;
 
-	dmub_psr_get_state(dmub, &psr_state);
+	dmub_psr_get_state(dmub, &state);
 
-	if (psr_state == 0)
+	if (state == PSR_STATE0)
 		return;
 
 	cmd.psr_set_level.header.type = DMUB_CMD__PSR;
@@ -254,6 +261,7 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 	// Misc
 	copy_settings_data->psr_level				= psr_context->psr_level.u32all;
 	copy_settings_data->smu_optimizations_en		= psr_context->allow_smu_optimizations;
+	copy_settings_data->multi_disp_optimizations_en	= psr_context->allow_multi_disp_optimizations;
 	copy_settings_data->frame_delay				= psr_context->frame_delay;
 	copy_settings_data->frame_cap_ind			= psr_context->psrFrameCaptureIndicationReq;
 	copy_settings_data->init_sdp_deadline			= psr_context->sdpTransmitLineNumDeadline;
@@ -269,11 +277,43 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 	return true;
 }
 
+/**
+ * Send command to PSR to force static ENTER and ignore all state changes until exit
+ */
+static void dmub_psr_force_static(struct dmub_psr *dmub)
+{
+	union dmub_rb_cmd cmd;
+	struct dc_context *dc = dmub->ctx;
+
+	cmd.psr_force_static.header.type = DMUB_CMD__PSR;
+	cmd.psr_force_static.header.sub_type = DMUB_CMD__PSR_FORCE_STATIC;
+	cmd.psr_enable.header.payload_bytes = 0;
+
+	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
+	dc_dmub_srv_cmd_execute(dc->dmub_srv);
+	dc_dmub_srv_wait_idle(dc->dmub_srv);
+}
+
+/**
+ * Get PSR residency from firmware.
+ */
+static void dmub_psr_get_residency(struct dmub_psr *dmub, uint32_t *residency)
+{
+	struct dmub_srv *srv = dmub->ctx->dmub_srv->dmub;
+
+	// Send gpint command and wait for ack
+	dmub_srv_send_gpint_command(srv, DMUB_GPINT__PSR_RESIDENCY, 0, 30);
+
+	dmub_srv_get_gpint_response(srv, residency);
+}
+
 static const struct dmub_psr_funcs psr_funcs = {
 	.psr_copy_settings		= dmub_psr_copy_settings,
 	.psr_enable			= dmub_psr_enable,
 	.psr_get_state			= dmub_psr_get_state,
 	.psr_set_level			= dmub_psr_set_level,
+	.psr_force_static		= dmub_psr_force_static,
+	.psr_get_residency		= dmub_psr_get_residency,
 };
 
 /**

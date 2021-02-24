@@ -138,7 +138,7 @@ static netdev_tx_t wg_xmit(struct sk_buff *skb, struct net_device *dev)
 		else if (skb->protocol == htons(ETH_P_IPV6))
 			net_dbg_ratelimited("%s: No peer has allowed IPs matching %pI6\n",
 					    dev->name, &ipv6_hdr(skb)->daddr);
-		goto err;
+		goto err_icmp;
 	}
 
 	family = READ_ONCE(peer->endpoint.addr.sa_family);
@@ -157,7 +157,7 @@ static netdev_tx_t wg_xmit(struct sk_buff *skb, struct net_device *dev)
 	} else {
 		struct sk_buff *segs = skb_gso_segment(skb, 0);
 
-		if (unlikely(IS_ERR(segs))) {
+		if (IS_ERR(segs)) {
 			ret = PTR_ERR(segs);
 			goto err_peer;
 		}
@@ -201,12 +201,13 @@ static netdev_tx_t wg_xmit(struct sk_buff *skb, struct net_device *dev)
 
 err_peer:
 	wg_peer_put(peer);
-err:
-	++dev->stats.tx_errors;
+err_icmp:
 	if (skb->protocol == htons(ETH_P_IP))
 		icmp_ndo_send(skb, ICMP_DEST_UNREACH, ICMP_HOST_UNREACH, 0);
 	else if (skb->protocol == htons(ETH_P_IPV6))
 		icmpv6_ndo_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_ADDR_UNREACH, 0);
+err:
+	++dev->stats.tx_errors;
 	kfree_skb(skb);
 	return ret;
 }
@@ -215,7 +216,7 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_open		= wg_open,
 	.ndo_stop		= wg_stop,
 	.ndo_start_xmit		= wg_xmit,
-	.ndo_get_stats64	= ip_tunnel_get_stats64
+	.ndo_get_stats64	= dev_get_tstats64
 };
 
 static void wg_destruct(struct net_device *dev)
@@ -234,8 +235,8 @@ static void wg_destruct(struct net_device *dev)
 	destroy_workqueue(wg->handshake_receive_wq);
 	destroy_workqueue(wg->handshake_send_wq);
 	destroy_workqueue(wg->packet_crypt_wq);
-	wg_packet_queue_free(&wg->decrypt_queue, true);
-	wg_packet_queue_free(&wg->encrypt_queue, true);
+	wg_packet_queue_free(&wg->decrypt_queue);
+	wg_packet_queue_free(&wg->encrypt_queue);
 	rcu_barrier(); /* Wait for all the peers to be actually freed. */
 	wg_ratelimiter_uninit();
 	memzero_explicit(&wg->static_identity, sizeof(wg->static_identity));
@@ -337,12 +338,12 @@ static int wg_newlink(struct net *src_net, struct net_device *dev,
 		goto err_destroy_handshake_send;
 
 	ret = wg_packet_queue_init(&wg->encrypt_queue, wg_packet_encrypt_worker,
-				   true, MAX_QUEUED_PACKETS);
+				   MAX_QUEUED_PACKETS);
 	if (ret < 0)
 		goto err_destroy_packet_crypt;
 
 	ret = wg_packet_queue_init(&wg->decrypt_queue, wg_packet_decrypt_worker,
-				   true, MAX_QUEUED_PACKETS);
+				   MAX_QUEUED_PACKETS);
 	if (ret < 0)
 		goto err_free_encrypt_queue;
 
@@ -367,9 +368,9 @@ static int wg_newlink(struct net *src_net, struct net_device *dev,
 err_uninit_ratelimiter:
 	wg_ratelimiter_uninit();
 err_free_decrypt_queue:
-	wg_packet_queue_free(&wg->decrypt_queue, true);
+	wg_packet_queue_free(&wg->decrypt_queue);
 err_free_encrypt_queue:
-	wg_packet_queue_free(&wg->encrypt_queue, true);
+	wg_packet_queue_free(&wg->encrypt_queue);
 err_destroy_packet_crypt:
 	destroy_workqueue(wg->packet_crypt_wq);
 err_destroy_handshake_send:

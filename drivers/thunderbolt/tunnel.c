@@ -34,9 +34,6 @@
 #define TB_DP_AUX_PATH_OUT		1
 #define TB_DP_AUX_PATH_IN		2
 
-#define TB_DMA_PATH_OUT			0
-#define TB_DMA_PATH_IN			1
-
 static const char * const tb_tunnel_names[] = { "PCI", "DP", "DMA", "USB3" };
 
 #define __TB_TUNNEL_PRINT(level, tunnel, fmt, arg...)                   \
@@ -829,11 +826,11 @@ static void tb_dma_init_path(struct tb_path *path, unsigned int isb,
  * @nhi: Host controller port
  * @dst: Destination null port which the other domain is connected to
  * @transmit_ring: NHI ring number used to send packets towards the
- *		   other domain
+ *		   other domain. Set to %0 if TX path is not needed.
  * @transmit_path: HopID used for transmitting packets
  * @receive_ring: NHI ring number used to receive packets from the
- *		  other domain
- * @reveive_path: HopID used for receiving packets
+ *		  other domain. Set to %0 if RX path is not needed.
+ * @receive_path: HopID used for receiving packets
  *
  * Return: Returns a tb_tunnel on success or NULL on failure.
  */
@@ -843,10 +840,19 @@ struct tb_tunnel *tb_tunnel_alloc_dma(struct tb *tb, struct tb_port *nhi,
 				      int receive_path)
 {
 	struct tb_tunnel *tunnel;
+	size_t npaths = 0, i = 0;
 	struct tb_path *path;
 	u32 credits;
 
-	tunnel = tb_tunnel_alloc(tb, 2, TB_TUNNEL_DMA);
+	if (receive_ring)
+		npaths++;
+	if (transmit_ring)
+		npaths++;
+
+	if (WARN_ON(!npaths))
+		return NULL;
+
+	tunnel = tb_tunnel_alloc(tb, npaths, TB_TUNNEL_DMA);
 	if (!tunnel)
 		return NULL;
 
@@ -856,22 +862,28 @@ struct tb_tunnel *tb_tunnel_alloc_dma(struct tb *tb, struct tb_port *nhi,
 
 	credits = tb_dma_credits(nhi);
 
-	path = tb_path_alloc(tb, dst, receive_path, nhi, receive_ring, 0, "DMA RX");
-	if (!path) {
-		tb_tunnel_free(tunnel);
-		return NULL;
+	if (receive_ring) {
+		path = tb_path_alloc(tb, dst, receive_path, nhi, receive_ring, 0,
+				     "DMA RX");
+		if (!path) {
+			tb_tunnel_free(tunnel);
+			return NULL;
+		}
+		tb_dma_init_path(path, TB_PATH_NONE, TB_PATH_SOURCE | TB_PATH_INTERNAL,
+				 credits);
+		tunnel->paths[i++] = path;
 	}
-	tb_dma_init_path(path, TB_PATH_NONE, TB_PATH_SOURCE | TB_PATH_INTERNAL,
-			 credits);
-	tunnel->paths[TB_DMA_PATH_IN] = path;
 
-	path = tb_path_alloc(tb, nhi, transmit_ring, dst, transmit_path, 0, "DMA TX");
-	if (!path) {
-		tb_tunnel_free(tunnel);
-		return NULL;
+	if (transmit_ring) {
+		path = tb_path_alloc(tb, nhi, transmit_ring, dst, transmit_path, 0,
+				     "DMA TX");
+		if (!path) {
+			tb_tunnel_free(tunnel);
+			return NULL;
+		}
+		tb_dma_init_path(path, TB_PATH_SOURCE, TB_PATH_ALL, credits);
+		tunnel->paths[i++] = path;
 	}
-	tb_dma_init_path(path, TB_PATH_SOURCE, TB_PATH_ALL, credits);
-	tunnel->paths[TB_DMA_PATH_OUT] = path;
 
 	return tunnel;
 }
@@ -920,12 +932,14 @@ static int tb_usb3_activate(struct tb_tunnel *tunnel, bool activate)
 static int tb_usb3_consumed_bandwidth(struct tb_tunnel *tunnel,
 		int *consumed_up, int *consumed_down)
 {
+	int pcie_enabled = tb_acpi_may_tunnel_pcie();
+
 	/*
-	 * PCIe tunneling affects the USB3 bandwidth so take that it
-	 * into account here.
+	 * PCIe tunneling, if enabled, affects the USB3 bandwidth so
+	 * take that it into account here.
 	 */
-	*consumed_up = tunnel->allocated_up * (3 + 1) / 3;
-	*consumed_down = tunnel->allocated_down * (3 + 1) / 3;
+	*consumed_up = tunnel->allocated_up * (3 + pcie_enabled) / 3;
+	*consumed_down = tunnel->allocated_down * (3 + pcie_enabled) / 3;
 	return 0;
 }
 

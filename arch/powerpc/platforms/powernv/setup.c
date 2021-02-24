@@ -98,7 +98,7 @@ static void init_fw_feat_flags(struct device_node *np)
 		security_ftr_clear(SEC_FTR_BNDS_CHK_SPEC_BAR);
 }
 
-static void pnv_setup_rfi_flush(void)
+static void pnv_setup_security_mitigations(void)
 {
 	struct device_node *np, *fw_features;
 	enum l1d_flush_type type;
@@ -122,12 +122,31 @@ static void pnv_setup_rfi_flush(void)
 			type = L1D_FLUSH_ORI;
 	}
 
+	/*
+	 * If we are non-Power9 bare metal, we don't need to flush on kernel
+	 * entry or after user access: they fix a P9 specific vulnerability.
+	 */
+	if (!pvr_version_is(PVR_POWER9)) {
+		security_ftr_clear(SEC_FTR_L1D_FLUSH_ENTRY);
+		security_ftr_clear(SEC_FTR_L1D_FLUSH_UACCESS);
+	}
+
 	enable = security_ftr_enabled(SEC_FTR_FAVOUR_SECURITY) && \
 		 (security_ftr_enabled(SEC_FTR_L1D_FLUSH_PR)   || \
 		  security_ftr_enabled(SEC_FTR_L1D_FLUSH_HV));
 
 	setup_rfi_flush(type, enable);
 	setup_count_cache_flush();
+
+	enable = security_ftr_enabled(SEC_FTR_FAVOUR_SECURITY) &&
+		 security_ftr_enabled(SEC_FTR_L1D_FLUSH_ENTRY);
+	setup_entry_flush(enable);
+
+	enable = security_ftr_enabled(SEC_FTR_FAVOUR_SECURITY) &&
+		 security_ftr_enabled(SEC_FTR_L1D_FLUSH_UACCESS);
+	setup_uaccess_flush(enable);
+
+	setup_stf_barrier();
 }
 
 static void __init pnv_check_guarded_cores(void)
@@ -156,8 +175,7 @@ static void __init pnv_setup_arch(void)
 {
 	set_arch_panic_timeout(10, ARCH_PANIC_TIMEOUT);
 
-	pnv_setup_rfi_flush();
-	setup_stf_barrier();
+	pnv_setup_security_mitigations();
 
 	/* Initialize SMP */
 	pnv_smp_init();
@@ -193,11 +211,16 @@ static void __init pnv_init(void)
 		add_preferred_console("hvc", 0, NULL);
 
 	if (!radix_enabled()) {
+		size_t size = sizeof(struct slb_entry) * mmu_slb_size;
 		int i;
 
 		/* Allocate per cpu area to save old slb contents during MCE */
-		for_each_possible_cpu(i)
-			paca_ptrs[i]->mce_faulty_slbs = memblock_alloc_node(mmu_slb_size, __alignof__(*paca_ptrs[i]->mce_faulty_slbs), cpu_to_node(i));
+		for_each_possible_cpu(i) {
+			paca_ptrs[i]->mce_faulty_slbs =
+					memblock_alloc_node(size,
+						__alignof__(struct slb_entry),
+						cpu_to_node(i));
+		}
 	}
 }
 

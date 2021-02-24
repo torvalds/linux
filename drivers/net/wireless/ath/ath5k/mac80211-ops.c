@@ -433,6 +433,7 @@ ath5k_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	case NL80211_IFTYPE_STATION:
 		if (ah->assoc)
 			rfilt |= AR5K_RX_FILTER_BEACON;
+		break;
 	default:
 		break;
 	}
@@ -521,7 +522,7 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		}
 		break;
 	case DISABLE_KEY:
-		ath_key_delete(common, key);
+		ath_key_delete(common, key->hw_key_idx);
 		break;
 	default:
 		ret = -EINVAL;

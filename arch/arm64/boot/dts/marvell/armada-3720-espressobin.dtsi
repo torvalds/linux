@@ -13,8 +13,10 @@
 / {
 	aliases {
 		ethernet0 = &eth0;
-		serial0 = &uart0;
-		serial1 = &uart1;
+		/* for dsa slave device */
+		ethernet1 = &switch0port1;
+		ethernet2 = &switch0port2;
+		ethernet3 = &switch0port3;
 	};
 
 	chosen {
@@ -39,6 +41,19 @@
 			  3300000 0x0>;
 		enable-active-high;
 	};
+
+	led2: gpio-led2 {
+		/* led2 is working only on v7 board */
+		status = "disabled";
+
+		compatible = "gpio-leds";
+
+		led2 {
+			label = "led2";
+			gpios = <&gpionb 2 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+	};
 };
 
 /* J9 */
@@ -52,8 +67,30 @@
 /* J6 */
 &sata {
 	status = "okay";
-	phys = <&comphy2 0>;
-	phy-names = "sata-phy";
+};
+
+/* U11 */
+&sdhci0 {
+	/* Main DTS file for Espressobin is without eMMC */
+	status = "disabled";
+
+	non-removable;
+	bus-width = <8>;
+	mmc-ddr-1_8v;
+	mmc-hs400-1_8v;
+	marvell,xenon-emmc;
+	marvell,xenon-tun-count = <9>;
+	marvell,pad-type = "fixed-1-8v";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc_pins>;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	mmccard: mmccard@0 {
+		compatible = "mmc-card";
+		reg = <0>;
+	};
 };
 
 /* J1 */
@@ -120,7 +157,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			port@0 {
+			switch0port0: port@0 {
 				reg = <0>;
 				label = "cpu";
 				ethernet = <&eth0>;
@@ -131,19 +168,19 @@
 				};
 			};
 
-			port@1 {
+			switch0port1: port@1 {
 				reg = <1>;
 				label = "wan";
 				phy-handle = <&switch0phy0>;
 			};
 
-			port@2 {
+			switch0port2: port@2 {
 				reg = <2>;
 				label = "lan0";
 				phy-handle = <&switch0phy1>;
 			};
 
-			port@3 {
+			switch0port3: port@3 {
 				reg = <3>;
 				label = "lan1";
 				phy-handle = <&switch0phy2>;

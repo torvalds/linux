@@ -344,6 +344,8 @@ static int __init trace_boot_init(void)
 	trace_boot_init_one_instance(tr, trace_node);
 	trace_boot_init_instances(trace_node);
 
+	disable_tracing_selftest("running boot-time tracing");
+
 	return 0;
 }
 /*

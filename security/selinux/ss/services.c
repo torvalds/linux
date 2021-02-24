@@ -596,9 +596,7 @@ void services_compute_xperms_drivers(
 					node->datum.u.xperms->driver);
 	}
 
-	/* If no ioctl commands are allowed, ignore auditallow and auditdeny */
-	if (node->key.specified & AVTAB_XPERMS_ALLOWED)
-		xperms->len = 1;
+	xperms->len = 1;
 }
 
 /*

@@ -21,6 +21,7 @@ config CFG80211
 	tristate "cfg80211 - wireless configuration API"
 	depends on RFKILL || !RFKILL
 	select FW_LOADER
+	select CRC32
 	# may need to update this when certificates are changed and are
 	# using a different algorithm, though right now they shouldn't
 	# (this is here rather than below to allow it to be a module)

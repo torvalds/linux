@@ -26,22 +26,22 @@ static const struct root_name_map root_map[] = {
 	{ BTRFS_DATA_RELOC_TREE_OBJECTID,	"DATA_RELOC_TREE"	},
 };
 
-const char *btrfs_root_name(u64 objectid, char *buf)
+const char *btrfs_root_name(const struct btrfs_key *key, char *buf)
 {
 	int i;
 
-	if (objectid == BTRFS_TREE_RELOC_OBJECTID) {
+	if (key->objectid == BTRFS_TREE_RELOC_OBJECTID) {
 		snprintf(buf, BTRFS_ROOT_NAME_BUF_LEN,
-			 "TREE_RELOC offset=%llu", objectid);
+			 "TREE_RELOC offset=%llu", key->offset);
 		return buf;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(root_map); i++) {
-		if (root_map[i].id == objectid)
+		if (root_map[i].id == key->objectid)
 			return root_map[i].name;
 	}
 
-	snprintf(buf, BTRFS_ROOT_NAME_BUF_LEN, "%llu", objectid);
+	snprintf(buf, BTRFS_ROOT_NAME_BUF_LEN, "%llu", key->objectid);
 	return buf;
 }
 
@@ -177,8 +177,7 @@ static void print_uuid_item(struct extent_buffer *l, unsigned long offset,
 		__le64 subvol_id;
 
 		read_extent_buffer(l, &subvol_id, offset, sizeof(subvol_id));
-		pr_info("\t\tsubvol_id %llu\n",
-		       (unsigned long long)le64_to_cpu(subvol_id));
+		pr_info("\t\tsubvol_id %llu\n", le64_to_cpu(subvol_id));
 		item_size -= sizeof(u64);
 		offset += sizeof(u64);
 	}
@@ -191,15 +190,8 @@ static void print_uuid_item(struct extent_buffer *l, unsigned long offset,
 static void print_eb_refs_lock(struct extent_buffer *eb)
 {
 #ifdef CONFIG_BTRFS_DEBUG
-	btrfs_info(eb->fs_info,
-"refs %u lock (w:%d r:%d bw:%d br:%d sw:%d sr:%d) lock_owner %u current %u",
-		   atomic_read(&eb->refs), eb->write_locks,
-		   atomic_read(&eb->read_locks),
-		   eb->blocking_writers,
-		   atomic_read(&eb->blocking_readers),
-		   eb->spinning_writers,
-		   atomic_read(&eb->spinning_readers),
-		   eb->lock_owner, current->pid);
+	btrfs_info(eb->fs_info, "refs %u lock_owner %u current %u",
+		   atomic_read(&eb->refs), eb->lock_owner, current->pid);
 #endif
 }
 
@@ -398,6 +390,7 @@ void btrfs_print_tree(struct extent_buffer *c, bool follow)
 
 		btrfs_node_key_to_cpu(c, &first_key, i);
 		next = read_tree_block(fs_info, btrfs_node_blockptr(c, i),
+				       btrfs_header_owner(c),
 				       btrfs_node_ptr_generation(c, i),
 				       level - 1, &first_key);
 		if (IS_ERR(next)) {

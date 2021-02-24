@@ -91,9 +91,9 @@ Date:		May 2014
 KernelVersion:	3.16
 Contact:	Bjørn Mork <bjorn@mork.no>
 Description:
-		Bit 0: 16-bit NTB supported (set to 1)
-		Bit 1: 32-bit NTB supported
-		Bits 2 – 15: reserved (reset to zero; must be ignored by host)
+		- Bit 0: 16-bit NTB supported (set to 1)
+		- Bit 1: 32-bit NTB supported
+		- Bits 2 – 15: reserved (reset to zero; must be ignored by host)
 
 What:		/sys/class/net/<iface>/cdc_ncm/dwNtbInMaxSize
 Date:		May 2014

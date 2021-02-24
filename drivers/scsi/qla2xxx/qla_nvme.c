@@ -227,7 +227,7 @@ static void qla_nvme_abort_work(struct work_struct *work)
 	       "%s called for sp=%p, hndl=%x on fcport=%p deleted=%d\n",
 	       __func__, sp, sp->handle, fcport, fcport->deleted);
 
-	if (!ha->flags.fw_started && fcport->deleted)
+	if (!ha->flags.fw_started || fcport->deleted)
 		goto out;
 
 	if (ha->flags.host_shutting_down) {
@@ -554,17 +554,15 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 
 	fcport = qla_rport->fcport;
 
-	if (!qpair || !fcport || (qpair && !qpair->fw_started) ||
-	    (fcport && fcport->deleted))
-		return -ENODEV;
-
-	vha = fcport->vha;
+	if (unlikely(!qpair || !fcport || fcport->deleted))
+		return -EBUSY;
 
 	if (!(fcport->nvme_flag & NVME_FLAG_REGISTERED))
 		return -ENODEV;
 
-	if (test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
-	    (qpair && !qpair->fw_started) || fcport->deleted)
+	vha = fcport->vha;
+
+	if (test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags))
 		return -EBUSY;
 
 	/*

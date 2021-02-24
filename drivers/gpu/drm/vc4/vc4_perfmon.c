@@ -77,7 +77,7 @@ struct vc4_perfmon *vc4_perfmon_find(struct vc4_file *vc4file, int id)
 void vc4_perfmon_open_file(struct vc4_file *vc4file)
 {
 	mutex_init(&vc4file->perfmon.lock);
-	idr_init(&vc4file->perfmon.idr);
+	idr_init_base(&vc4file->perfmon.idr, VC4_PERFMONID_MIN);
 }
 
 static int vc4_perfmon_idr_del(int id, void *elem, void *data)

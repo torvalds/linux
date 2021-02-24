@@ -95,6 +95,8 @@ enum rx_pkt_type {
 #define MT_RXD3_NORMAL_PF_MODE		BIT(29)
 #define MT_RXD3_NORMAL_PF_STS		GENMASK(31, 30)
 
+#define MT_RXV_HDR_BAND_IDX		BIT(24)
+
 /* P-RXV */
 #define MT_PRXV_TX_RATE			GENMASK(6, 0)
 #define MT_PRXV_TX_DCM			BIT(4)
@@ -128,6 +130,11 @@ enum rx_pkt_type {
 #define MT_CRXV_HE_BEAM_CHNG		BIT(13)
 #define MT_CRXV_HE_DOPPLER		BIT(16)
 
+#define MT_CRXV_SNR		GENMASK(18, 13)
+#define MT_CRXV_FOE_LO		GENMASK(31, 19)
+#define MT_CRXV_FOE_HI		GENMASK(6, 0)
+#define MT_CRXV_FOE_SHIFT	13
+
 enum tx_header_format {
 	MT_HDR_FORMAT_802_3,
 	MT_HDR_FORMAT_CMD,
@@ -160,6 +167,7 @@ enum tx_mcu_port_q_idx {
 #define MT_CT_INFO_MGMT_FRAME		BIT(2)
 #define MT_CT_INFO_NONE_CIPHER_FRAME	BIT(3)
 #define MT_CT_INFO_HSR2_TX		BIT(4)
+#define MT_CT_INFO_FROM_HOST		BIT(7)
 
 #define MT_TXD_SIZE			(8 * 4)
 
@@ -176,6 +184,7 @@ enum tx_mcu_port_q_idx {
 #define MT_TXD1_HDR_PAD			GENMASK(19, 18)
 #define MT_TXD1_HDR_FORMAT		GENMASK(17, 16)
 #define MT_TXD1_HDR_INFO		GENMASK(15, 11)
+#define MT_TXD1_ETH_802_3		BIT(15)
 #define MT_TXD1_VTA			BIT(10)
 #define MT_TXD1_WLAN_IDX		GENMASK(9, 0)
 
@@ -229,7 +238,7 @@ enum tx_mcu_port_q_idx {
 #define MT_TXD6_ANT_ID			GENMASK(7, 4)
 #define MT_TXD6_DYN_BW			BIT(3)
 #define MT_TXD6_FIXED_BW		BIT(2)
-#define MT_TXD6_BW			GENMASK(2, 0)
+#define MT_TXD6_BW			GENMASK(1, 0)
 
 #define MT_TXD7_TXD_LEN			GENMASK(31, 30)
 #define MT_TXD7_UDP_TCP_SUM		BIT(29)
@@ -246,7 +255,9 @@ enum tx_mcu_port_q_idx {
 #define MT_TX_RATE_STBC			BIT(13)
 #define MT_TX_RATE_NSS			GENMASK(12, 10)
 #define MT_TX_RATE_MODE			GENMASK(9, 6)
-#define MT_TX_RATE_IDX			GENMASK(5, 0)
+#define MT_TX_RATE_SU_EXT_TONE		BIT(5)
+#define MT_TX_RATE_DCM			BIT(4)
+#define MT_TX_RATE_IDX			GENMASK(3, 0)
 
 #define MT_TXP_MAX_BUF_NUM		6
 
@@ -254,8 +265,7 @@ struct mt7915_txp {
 	__le16 flags;
 	__le16 token;
 	u8 bss_idx;
-	u8 rept_wds_wcid;
-	u8 rsv;
+	__le16 rept_wds_wcid;
 	u8 nbuf;
 	__le32 buf[MT_TXP_MAX_BUF_NUM];
 	__le16 len[MT_TXP_MAX_BUF_NUM];

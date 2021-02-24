@@ -214,6 +214,7 @@ find_free_vf_and_create_qp_grp(struct usnic_ib_dev *us_ibdev,
 
 		}
 		usnic_uiom_free_dev_list(dev_list);
+		dev_list = NULL;
 	}
 
 	/* Try to find resources on an unused vf */
@@ -239,6 +240,8 @@ find_free_vf_and_create_qp_grp(struct usnic_ib_dev *us_ibdev,
 qp_grp_check:
 	if (IS_ERR_OR_NULL(qp_grp)) {
 		usnic_err("Failed to allocate qp_grp\n");
+		if (usnic_ib_share_vf)
+			usnic_uiom_free_dev_list(dev_list);
 		return ERR_PTR(qp_grp ? PTR_ERR(qp_grp) : -ENOMEM);
 	}
 	return qp_grp;
@@ -474,7 +477,7 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 	us_ibdev = to_usdev(pd->device);
 
 	if (init_attr->create_flags)
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	err = ib_copy_from_udata(&cmd, udata, sizeof(cmd));
 	if (err) {
@@ -557,6 +560,9 @@ int usnic_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	int status;
 	usnic_dbg("\n");
 
+	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
+		return -EOPNOTSUPP;
+
 	qp_grp = to_uqp_grp(ibqp);
 
 	mutex_lock(&qp_grp->vf->pf->usdev_lock);
@@ -581,7 +587,7 @@ int usnic_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		       struct ib_udata *udata)
 {
 	if (attr->flags)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	return 0;
 }

@@ -223,15 +223,9 @@ void flush_instruction_cache(void)
 {
 	unsigned long tmp;
 
-	if (IS_ENABLED(CONFIG_E200)) {
-		tmp = mfspr(SPRN_L1CSR0);
-		tmp |= L1CSR0_CFI | L1CSR0_CLFC;
-		mtspr(SPRN_L1CSR0, tmp);
-	} else {
-		tmp = mfspr(SPRN_L1CSR1);
-		tmp |= L1CSR1_ICFI | L1CSR1_ICLFR;
-		mtspr(SPRN_L1CSR1, tmp);
-	}
+	tmp = mfspr(SPRN_L1CSR1);
+	tmp |= L1CSR1_ICFI | L1CSR1_ICLFR;
+	mtspr(SPRN_L1CSR1, tmp);
 	isync();
 }
 

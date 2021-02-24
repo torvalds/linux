@@ -330,7 +330,6 @@ enum {
 	UFS_DEV_WRITE_BOOSTER_SUP	= BIT(8),
 };
 
-#define POWER_DESC_MAX_SIZE			0x62
 #define POWER_DESC_MAX_ACTV_ICC_LVLS		16
 
 /* Attribute  bActiveICCLevel parameter bit masks definitions */
@@ -442,6 +441,7 @@ enum ufs_dev_pwr_mode {
 	UFS_ACTIVE_PWR_MODE	= 1,
 	UFS_SLEEP_PWR_MODE	= 2,
 	UFS_POWERDOWN_PWR_MODE	= 3,
+	UFS_DEEPSLEEP_PWR_MODE	= 4,
 };
 
 #define UFS_WB_BUF_REMAIN_PERCENT(val) ((val) / 10)
@@ -512,6 +512,7 @@ struct ufs_query_res {
 struct ufs_vreg {
 	struct regulator *reg;
 	const char *name;
+	bool always_on;
 	bool enabled;
 	int min_uV;
 	int max_uV;

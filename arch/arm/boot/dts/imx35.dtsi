@@ -294,7 +294,7 @@
 				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx35.bin";
 			};
 
-			wdog: wdog@53fdc000 {
+			wdog: watchdog@53fdc000 {
 				compatible = "fsl,imx35-wdt", "fsl,imx21-wdt";
 				reg = <0x53fdc000 0x4000>;
 				clocks = <&clks 74>;

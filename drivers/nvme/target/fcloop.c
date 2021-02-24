@@ -564,6 +564,50 @@ fcloop_call_host_done(struct nvmefc_fcp_req *fcpreq,
 	fcloop_tfcp_req_put(tfcp_req);
 }
 
+static bool drop_fabric_opcode;
+#define DROP_OPCODE_MASK	0x00FF
+/* fabrics opcode will have a bit set above 1st byte */
+static int drop_opcode = -1;
+static int drop_instance;
+static int drop_amount;
+static int drop_current_cnt;
+
+/*
+ * Routine to parse io and determine if the io is to be dropped.
+ * Returns:
+ *  0 if io is not obstructed
+ *  1 if io was dropped
+ */
+static int check_for_drop(struct fcloop_fcpreq *tfcp_req)
+{
+	struct nvmefc_fcp_req *fcpreq = tfcp_req->fcpreq;
+	struct nvme_fc_cmd_iu *cmdiu = fcpreq->cmdaddr;
+	struct nvme_command *sqe = &cmdiu->sqe;
+
+	if (drop_opcode == -1)
+		return 0;
+
+	pr_info("%s: seq opcd x%02x fctype x%02x: drop F %s op x%02x "
+		"inst %d start %d amt %d\n",
+		__func__, sqe->common.opcode, sqe->fabrics.fctype,
+		drop_fabric_opcode ? "y" : "n",
+		drop_opcode, drop_current_cnt, drop_instance, drop_amount);
+
+	if ((drop_fabric_opcode &&
+	     (sqe->common.opcode != nvme_fabrics_command ||
+	      sqe->fabrics.fctype != drop_opcode)) ||
+	    (!drop_fabric_opcode && sqe->common.opcode != drop_opcode))
+		return 0;
+
+	if (++drop_current_cnt >= drop_instance) {
+		if (drop_current_cnt >= drop_instance + drop_amount)
+			drop_opcode = -1;
+		return 1;
+	}
+
+	return 0;
+}
+
 static void
 fcloop_fcp_recv_work(struct work_struct *work)
 {
@@ -590,10 +634,14 @@ fcloop_fcp_recv_work(struct work_struct *work)
 
 	if (unlikely(aborted))
 		ret = -ECANCELED;
-	else
-		ret = nvmet_fc_rcv_fcp_req(tfcp_req->tport->targetport,
+	else {
+		if (likely(!check_for_drop(tfcp_req)))
+			ret = nvmet_fc_rcv_fcp_req(tfcp_req->tport->targetport,
 				&tfcp_req->tgt_fcp_req,
 				fcpreq->cmdaddr, fcpreq->cmdlen);
+		else
+			pr_info("%s: dropped command ********\n", __func__);
+	}
 	if (ret)
 		fcloop_call_host_done(fcpreq, tfcp_req, ret);
 
@@ -1449,6 +1497,34 @@ fcloop_delete_target_port(struct device *dev, struct device_attribute *attr,
 	return ret ? ret : count;
 }
 
+static ssize_t
+fcloop_set_cmd_drop(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	unsigned int opcode;
+	int starting, amount;
+
+	if (sscanf(buf, "%x:%d:%d", &opcode, &starting, &amount) != 3)
+		return -EBADRQC;
+
+	drop_current_cnt = 0;
+	drop_fabric_opcode = (opcode & ~DROP_OPCODE_MASK) ? true : false;
+	drop_opcode = (opcode & DROP_OPCODE_MASK);
+	drop_instance = starting;
+	/* the check to drop routine uses instance + count to know when
+	 * to end. Thus, if dropping 1 instance, count should be 0.
+	 * so subtract 1 from the count.
+	 */
+	drop_amount = amount - 1;
+
+	pr_info("%s: DROP: Starting at instance %d of%s opcode x%x drop +%d "
+		"instances\n",
+		__func__, drop_instance, drop_fabric_opcode ? " fabric" : "",
+		drop_opcode, drop_amount);
+
+	return count;
+}
+
 
 static DEVICE_ATTR(add_local_port, 0200, NULL, fcloop_create_local_port);
 static DEVICE_ATTR(del_local_port, 0200, NULL, fcloop_delete_local_port);
@@ -1456,6 +1532,7 @@ static DEVICE_ATTR(add_remote_port, 0200, NULL, fcloop_create_remote_port);
 static DEVICE_ATTR(del_remote_port, 0200, NULL, fcloop_delete_remote_port);
 static DEVICE_ATTR(add_target_port, 0200, NULL, fcloop_create_target_port);
 static DEVICE_ATTR(del_target_port, 0200, NULL, fcloop_delete_target_port);
+static DEVICE_ATTR(set_cmd_drop, 0200, NULL, fcloop_set_cmd_drop);
 
 static struct attribute *fcloop_dev_attrs[] = {
 	&dev_attr_add_local_port.attr,
@@ -1464,10 +1541,11 @@ static struct attribute *fcloop_dev_attrs[] = {
 	&dev_attr_del_remote_port.attr,
 	&dev_attr_add_target_port.attr,
 	&dev_attr_del_target_port.attr,
+	&dev_attr_set_cmd_drop.attr,
 	NULL
 };
 
-static struct attribute_group fclopp_dev_attrs_group = {
+static const struct attribute_group fclopp_dev_attrs_group = {
 	.attrs		= fcloop_dev_attrs,
 };
 
@@ -1511,8 +1589,8 @@ out_destroy_class:
 
 static void __exit fcloop_exit(void)
 {
-	struct fcloop_lport *lport;
-	struct fcloop_nport *nport;
+	struct fcloop_lport *lport = NULL;
+	struct fcloop_nport *nport = NULL;
 	struct fcloop_tport *tport;
 	struct fcloop_rport *rport;
 	unsigned long flags;

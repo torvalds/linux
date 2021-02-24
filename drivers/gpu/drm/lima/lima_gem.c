@@ -182,14 +182,14 @@ static int lima_gem_pin(struct drm_gem_object *obj)
 	return drm_gem_shmem_pin(obj);
 }
 
-static void *lima_gem_vmap(struct drm_gem_object *obj)
+static int lima_gem_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 {
 	struct lima_bo *bo = to_lima_bo(obj);
 
 	if (bo->heap_size)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
-	return drm_gem_shmem_vmap(obj);
+	return drm_gem_shmem_vmap(obj, map);
 }
 
 static int lima_gem_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
@@ -225,7 +225,7 @@ struct drm_gem_object *lima_gem_create_object(struct drm_device *dev, size_t siz
 
 	mutex_init(&bo->lock);
 	INIT_LIST_HEAD(&bo->va);
-
+	bo->base.map_wc = true;
 	bo->base.base.funcs = &lima_gem_funcs;
 
 	return &bo->base.base;

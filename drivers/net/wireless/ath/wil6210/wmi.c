@@ -262,7 +262,7 @@ struct fw_map *wil_find_fw_mapping(const char *section)
 /**
  * Check address validity for WMI buffer; remap if needed
  * @wil: driver data
- * @ptr: internal (linker) fw/ucode address
+ * @ptr_: internal (linker) fw/ucode address
  * @size: if non zero, validate the block does not
  *  exceed the device memory (bar)
  *
@@ -851,9 +851,9 @@ static void wmi_evt_rx_mgmt(struct wil6210_vif *vif, int id, void *d, int len)
 	d_status = le16_to_cpu(data->info.status);
 	fc = rx_mgmt_frame->frame_control;
 
-	wil_dbg_wmi(wil, "MGMT Rx: channel %d MCS %d RSSI %d SQI %d%%\n",
-		    data->info.channel, data->info.mcs, data->info.rssi,
-		    data->info.sqi);
+	wil_dbg_wmi(wil, "MGMT Rx: channel %d MCS %s RSSI %d SQI %d%%\n",
+		    data->info.channel, WIL_EXTENDED_MCS_CHECK(data->info.mcs),
+		    data->info.rssi, data->info.sqi);
 	wil_dbg_wmi(wil, "status 0x%04x len %d fc 0x%04x\n", d_status, d_len,
 		    le16_to_cpu(fc));
 	wil_dbg_wmi(wil, "qid %d mid %d cid %d\n",
@@ -1422,8 +1422,9 @@ wmi_evt_sched_scan_result(struct wil6210_vif *vif, int id, void *d, int len)
 	else
 		signal = data->info.sqi;
 
-	wil_dbg_wmi(wil, "sched scan result: channel %d MCS %d RSSI %d\n",
-		    data->info.channel, data->info.mcs, data->info.rssi);
+	wil_dbg_wmi(wil, "sched scan result: channel %d MCS %s RSSI %d\n",
+		    data->info.channel, WIL_EXTENDED_MCS_CHECK(data->info.mcs),
+		    data->info.rssi);
 	wil_dbg_wmi(wil, "len %d qid %d mid %d cid %d\n",
 		    d_len, data->info.qid, data->info.mid, data->info.cid);
 	wil_hex_dump_wmi("PROBE ", DUMP_PREFIX_OFFSET, 16, 1, rx_mgmt_frame,

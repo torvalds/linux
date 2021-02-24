@@ -31,8 +31,7 @@ properties:
   interrupts:
     maxItems: 1
 
-  vdd-supply:
-    maxItems: 1
+  vdd-supply: true
 
   linux,keycodes:
     minItems: 1

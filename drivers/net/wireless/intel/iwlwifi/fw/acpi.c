@@ -1,72 +1,23 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2017        Intel Deutschland GmbH
- * Copyright (C) 2019 - 2020 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2017        Intel Deutschland GmbH
- * Copyright (C) 2019 - 2020 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
-
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright (C) 2017 Intel Deutschland GmbH
+ * Copyright (C) 2019-2020 Intel Corporation
+ */
 #include <linux/uuid.h>
 #include "iwl-drv.h"
 #include "iwl-debug.h"
 #include "acpi.h"
 #include "fw/runtime.h"
 
-static const guid_t intel_wifi_guid = GUID_INIT(0xF21202BF, 0x8F78, 0x4DC6,
-						0xA5, 0xB3, 0x1F, 0x73,
-						0x8E, 0x28, 0x5A, 0xDE);
+const guid_t iwl_guid = GUID_INIT(0xF21202BF, 0x8F78, 0x4DC6,
+				  0xA5, 0xB3, 0x1F, 0x73,
+				  0x8E, 0x28, 0x5A, 0xDE);
+IWL_EXPORT_SYMBOL(iwl_guid);
+
+const guid_t iwl_rfi_guid = GUID_INIT(0x7266172C, 0x220B, 0x4B29,
+				      0x81, 0x4F, 0x75, 0xE4,
+				      0xDD, 0x26, 0xB5, 0xFD);
+IWL_EXPORT_SYMBOL(iwl_rfi_guid);
 
 static int iwl_acpi_get_handle(struct device *dev, acpi_string method,
 			       acpi_handle *ret_handle)
@@ -113,17 +64,18 @@ void *iwl_acpi_get_object(struct device *dev, acpi_string method)
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_object);
 
-/**
-* Generic function for evaluating a method defined in the device specific
-* method (DSM) interface. The returned acpi object must be freed by calling
-* function.
-*/
+/*
+ * Generic function for evaluating a method defined in the device specific
+ * method (DSM) interface. The returned acpi object must be freed by calling
+ * function.
+ */
 static void *iwl_acpi_get_dsm_object(struct device *dev, int rev, int func,
-				     union acpi_object *args)
+				     union acpi_object *args,
+				     const guid_t *guid)
 {
 	union acpi_object *obj;
 
-	obj = acpi_evaluate_dsm(ACPI_HANDLE(dev), &intel_wifi_guid, rev, func,
+	obj = acpi_evaluate_dsm(ACPI_HANDLE(dev), guid, rev, func,
 				args);
 	if (!obj) {
 		IWL_DEBUG_DEV_RADIO(dev,
@@ -134,20 +86,47 @@ static void *iwl_acpi_get_dsm_object(struct device *dev, int rev, int func,
 	return obj;
 }
 
-/**
- * Evaluate a DSM with no arguments and a single u8 return value (inside a
- * buffer object), verify and return that value.
+/*
+ * Generic function to evaluate a DSM with no arguments
+ * and an integer return value,
+ * (as an integer object or inside a buffer object),
+ * verify and assign the value in the "value" parameter.
+ * return 0 in success and the appropriate errno otherwise.
  */
-int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func)
+static int iwl_acpi_get_dsm_integer(struct device *dev, int rev, int func,
+				    const guid_t *guid, u64 *value,
+				    size_t expected_size)
 {
 	union acpi_object *obj;
-	int ret;
+	int ret = 0;
 
-	obj = iwl_acpi_get_dsm_object(dev, rev, func, NULL);
-	if (IS_ERR(obj))
+	obj = iwl_acpi_get_dsm_object(dev, rev, func, NULL, guid);
+	if (IS_ERR(obj)) {
+		IWL_DEBUG_DEV_RADIO(dev,
+				    "Failed to get  DSM object. func= %d\n",
+				    func);
 		return -ENOENT;
+	}
 
-	if (obj->type != ACPI_TYPE_BUFFER) {
+	if (obj->type == ACPI_TYPE_INTEGER) {
+		*value = obj->integer.value;
+	} else if (obj->type == ACPI_TYPE_BUFFER) {
+		__le64 le_value = 0;
+
+		if (WARN_ON_ONCE(expected_size > sizeof(le_value)))
+			return -EINVAL;
+
+		/* if the buffer size doesn't match the expected size */
+		if (obj->buffer.length != expected_size)
+			IWL_DEBUG_DEV_RADIO(dev,
+					    "ACPI: DSM invalid buffer size, padding or truncating (%d)\n",
+					    obj->buffer.length);
+
+		 /* assuming LE from Intel BIOS spec */
+		memcpy(&le_value, obj->buffer.pointer,
+		       min_t(size_t, expected_size, (size_t)obj->buffer.length));
+		*value = le64_to_cpu(le_value);
+	} else {
 		IWL_DEBUG_DEV_RADIO(dev,
 				    "ACPI: DSM method did not return a valid object, type=%d\n",
 				    obj->type);
@@ -155,21 +134,32 @@ int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func)
 		goto out;
 	}
 
-	if (obj->buffer.length != sizeof(u8)) {
-		IWL_DEBUG_DEV_RADIO(dev,
-				    "ACPI: DSM method returned invalid buffer, length=%d\n",
-				    obj->buffer.length);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	ret = obj->buffer.pointer[0];
 	IWL_DEBUG_DEV_RADIO(dev,
 			    "ACPI: DSM method evaluated: func=%d, ret=%d\n",
 			    func, ret);
 out:
 	ACPI_FREE(obj);
 	return ret;
+}
+
+/*
+ * Evaluate a DSM with no arguments and a u8 return value,
+ */
+int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
+			const guid_t *guid, u8 *value)
+{
+	int ret;
+	u64 val;
+
+	ret = iwl_acpi_get_dsm_integer(dev, rev, func,
+				       guid, &val, sizeof(u8));
+
+	if (ret < 0)
+		return ret;
+
+	/* cast val (u64) to be u8 */
+	*value = (u8)val;
+	return 0;
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_dsm_u8);
 
@@ -229,8 +219,8 @@ found:
 IWL_EXPORT_SYMBOL(iwl_acpi_get_wifi_pkg);
 
 int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
-		     __le32 *black_list_array,
-		     int *black_list_size)
+		     __le32 *block_list_array,
+		     int *block_list_size)
 {
 	union acpi_object *wifi_pkg, *data;
 	int ret, tbl_rev, i;
@@ -257,7 +247,7 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 	enabled = !!wifi_pkg->package.elements[0].integer.value;
 
 	if (!enabled) {
-		*black_list_size = -1;
+		*block_list_size = -1;
 		IWL_DEBUG_RADIO(fwrt, "TAS not enabled\n");
 		ret = 0;
 		goto out_free;
@@ -271,17 +261,17 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 		ret = -EINVAL;
 		goto out_free;
 	}
-	*black_list_size = wifi_pkg->package.elements[1].integer.value;
+	*block_list_size = wifi_pkg->package.elements[1].integer.value;
 
-	IWL_DEBUG_RADIO(fwrt, "TAS array size %d\n", *black_list_size);
-	if (*black_list_size > APCI_WTAS_BLACK_LIST_MAX) {
+	IWL_DEBUG_RADIO(fwrt, "TAS array size %d\n", *block_list_size);
+	if (*block_list_size > APCI_WTAS_BLACK_LIST_MAX) {
 		IWL_DEBUG_RADIO(fwrt, "TAS invalid array size value %u\n",
-				*black_list_size);
+				*block_list_size);
 		ret = -EINVAL;
 		goto out_free;
 	}
 
-	for (i = 0; i < *black_list_size; i++) {
+	for (i = 0; i < *block_list_size; i++) {
 		u32 country;
 
 		if (wifi_pkg->package.elements[2 + i].type !=
@@ -293,8 +283,8 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 		}
 
 		country = wifi_pkg->package.elements[2 + i].integer.value;
-		black_list_array[i] = cpu_to_le32(country);
-		IWL_DEBUG_RADIO(fwrt, "TAS black list country %d\n", country);
+		block_list_array[i] = cpu_to_le32(country);
+		IWL_DEBUG_RADIO(fwrt, "TAS block list country %d\n", country);
 	}
 
 	ret = 0;
@@ -498,8 +488,13 @@ int iwl_sar_get_wrds_table(struct iwl_fw_runtime *fwrt)
 
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
 					 ACPI_WRDS_WIFI_DATA_SIZE, &tbl_rev);
-	if (IS_ERR(wifi_pkg) || tbl_rev != 0) {
+	if (IS_ERR(wifi_pkg)) {
 		ret = PTR_ERR(wifi_pkg);
+		goto out_free;
+	}
+
+	if (tbl_rev != 0) {
+		ret = -EINVAL;
 		goto out_free;
 	}
 
@@ -536,8 +531,13 @@ int iwl_sar_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
 					 ACPI_EWRD_WIFI_DATA_SIZE, &tbl_rev);
-	if (IS_ERR(wifi_pkg) || tbl_rev != 0) {
+	if (IS_ERR(wifi_pkg)) {
 		ret = PTR_ERR(wifi_pkg);
+		goto out_free;
+	}
+
+	if (tbl_rev != 0) {
+		ret = -EINVAL;
 		goto out_free;
 	}
 
@@ -596,8 +596,14 @@ int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
 
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
 					 ACPI_WGDS_WIFI_DATA_SIZE, &tbl_rev);
-	if (IS_ERR(wifi_pkg) || tbl_rev > 1) {
+
+	if (IS_ERR(wifi_pkg)) {
 		ret = PTR_ERR(wifi_pkg);
+		goto out_free;
+	}
+
+	if (tbl_rev > 1) {
+		ret = -EINVAL;
 		goto out_free;
 	}
 

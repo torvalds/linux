@@ -64,13 +64,13 @@ static int rx_err_add_rule(struct mlx5e_priv *priv,
 	if (!spec)
 		return -ENOMEM;
 
-	/* Action to copy 7 bit ipsec_syndrome to regB[0:6] */
+	/* Action to copy 7 bit ipsec_syndrome to regB[24:30] */
 	MLX5_SET(copy_action_in, action, action_type, MLX5_ACTION_TYPE_COPY);
 	MLX5_SET(copy_action_in, action, src_field, MLX5_ACTION_IN_FIELD_IPSEC_SYNDROME);
 	MLX5_SET(copy_action_in, action, src_offset, 0);
 	MLX5_SET(copy_action_in, action, length, 7);
 	MLX5_SET(copy_action_in, action, dst_field, MLX5_ACTION_IN_FIELD_METADATA_REG_B);
-	MLX5_SET(copy_action_in, action, dst_offset, 0);
+	MLX5_SET(copy_action_in, action, dst_offset, 24);
 
 	modify_hdr = mlx5_modify_header_alloc(mdev, MLX5_FLOW_NAMESPACE_KERNEL,
 					      1, action);
@@ -488,13 +488,13 @@ static int rx_add_rule(struct mlx5e_priv *priv,
 
 	setup_fte_common(attrs, ipsec_obj_id, spec, &flow_act);
 
-	/* Set 1  bit ipsec marker */
-	/* Set 24 bit ipsec_obj_id */
+	/* Set bit[31] ipsec marker */
+	/* Set bit[23-0] ipsec_obj_id */
 	MLX5_SET(set_action_in, action, action_type, MLX5_ACTION_TYPE_SET);
 	MLX5_SET(set_action_in, action, field, MLX5_ACTION_IN_FIELD_METADATA_REG_B);
-	MLX5_SET(set_action_in, action, data, (ipsec_obj_id << 1) | 0x1);
-	MLX5_SET(set_action_in, action, offset, 7);
-	MLX5_SET(set_action_in, action, length, 25);
+	MLX5_SET(set_action_in, action, data, (ipsec_obj_id | BIT(31)));
+	MLX5_SET(set_action_in, action, offset, 0);
+	MLX5_SET(set_action_in, action, length, 32);
 
 	modify_hdr = mlx5_modify_header_alloc(priv->mdev, MLX5_FLOW_NAMESPACE_KERNEL,
 					      1, action);

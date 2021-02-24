@@ -24,6 +24,7 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 		.endpoint = {
 			.seq_type	= IPA_SEQ_DMA_ONLY,
 			.config = {
+				.resource_group	= 0,
 				.dma_mode	= true,
 				.dma_endpoint	= IPA_ENDPOINT_AP_LAN_RX,
 			},
@@ -42,6 +43,7 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 		.endpoint = {
 			.seq_type	= IPA_SEQ_INVALID,
 			.config = {
+				.resource_group	= 0,
 				.aggregation	= true,
 				.status_enable	= true,
 				.rx = {
@@ -65,6 +67,7 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 			.seq_type	=
 				IPA_SEQ_PKT_PROCESS_NO_DEC_NO_UCP_DMAP,
 			.config = {
+				.resource_group	= 0,
 				.checksum	= true,
 				.qmap		= true,
 				.status_enable	= true,
@@ -88,6 +91,7 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 		.endpoint = {
 			.seq_type	= IPA_SEQ_INVALID,
 			.config = {
+				.resource_group	= 0,
 				.checksum	= true,
 				.qmap		= true,
 				.aggregation	= true,
@@ -305,6 +309,32 @@ static struct ipa_mem_data ipa_mem_data = {
 	.smem_size	= 0x00002000,
 };
 
+/* Interconnect bandwidths are in 1000 byte/second units */
+static struct ipa_interconnect_data ipa_interconnect_data[] = {
+	{
+		.name			= "memory",
+		.peak_bandwidth		= 465000,	/* 465 MBps */
+		.average_bandwidth	= 80000,	/* 80 MBps */
+	},
+	/* Average bandwidth is unused for the next two interconnects */
+	{
+		.name			= "imem",
+		.peak_bandwidth		= 68570,	/* 68.570 MBps */
+		.average_bandwidth	= 0,		/* unused */
+	},
+	{
+		.name			= "config",
+		.peak_bandwidth		= 30000,	/* 30 MBps */
+		.average_bandwidth	= 0,		/* unused */
+	},
+};
+
+static struct ipa_clock_data ipa_clock_data = {
+	.core_clock_rate	= 100 * 1000 * 1000,	/* Hz */
+	.interconnect_count	= ARRAY_SIZE(ipa_interconnect_data),
+	.interconnect_data	= ipa_interconnect_data,
+};
+
 /* Configuration data for the SC7180 SoC. */
 const struct ipa_data ipa_data_sc7180 = {
 	.version	= IPA_VERSION_4_2,
@@ -312,4 +342,5 @@ const struct ipa_data ipa_data_sc7180 = {
 	.endpoint_data	= ipa_gsi_endpoint_data,
 	.resource_data	= &ipa_resource_data,
 	.mem_data	= &ipa_mem_data,
+	.clock_data	= &ipa_clock_data,
 };

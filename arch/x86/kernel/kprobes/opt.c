@@ -272,6 +272,19 @@ static int insn_is_indirect_jump(struct insn *insn)
 	return ret;
 }
 
+static bool is_padding_int3(unsigned long addr, unsigned long eaddr)
+{
+	unsigned char ops;
+
+	for (; addr < eaddr; addr++) {
+		if (get_kernel_nofault(ops, (void *)addr) < 0 ||
+		    ops != INT3_INSN_OPCODE)
+			return false;
+	}
+
+	return true;
+}
+
 /* Decode whole function to ensure any instructions don't jump into target */
 static int can_optimize(unsigned long paddr)
 {
@@ -310,9 +323,14 @@ static int can_optimize(unsigned long paddr)
 			return 0;
 		kernel_insn_init(&insn, (void *)recovered_insn, MAX_INSN_SIZE);
 		insn_get_length(&insn);
-		/* Another subsystem puts a breakpoint */
+		/*
+		 * In the case of detecting unknown breakpoint, this could be
+		 * a padding INT3 between functions. Let's check that all the
+		 * rest of the bytes are also INT3.
+		 */
 		if (insn.opcode.bytes[0] == INT3_INSN_OPCODE)
-			return 0;
+			return is_padding_int3(addr, paddr - offset + size) ? 1 : 0;
+
 		/* Recover address */
 		insn.kaddr = (void *)addr;
 		insn.next_byte = (void *)(addr + insn.length);

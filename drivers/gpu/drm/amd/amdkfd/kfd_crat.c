@@ -141,6 +141,7 @@ static struct kfd_gpu_cache_info carrizo_cache_info[] = {
 #define renoir_cache_info carrizo_cache_info
 /* TODO - check & update Navi10 cache details */
 #define navi10_cache_info carrizo_cache_info
+#define vangogh_cache_info carrizo_cache_info
 
 static void kfd_populated_cu_info_cpu(struct kfd_topology_device *dev,
 		struct crat_subtype_computeunit *cu)
@@ -680,8 +681,13 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 	case CHIP_NAVI14:
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_DIMGREY_CAVEFISH:
 		pcache_info = navi10_cache_info;
 		num_of_cache_types = ARRAY_SIZE(navi10_cache_info);
+		break;
+	case CHIP_VANGOGH:
+		pcache_info = vangogh_cache_info;
+		num_of_cache_types = ARRAY_SIZE(vangogh_cache_info);
 		break;
 	default:
 		return -EINVAL;
@@ -774,11 +780,17 @@ int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
 	struct acpi_table_header *crat_table;
 	acpi_status status;
 	void *pcrat_image;
+	int rc = 0;
 
 	if (!crat_image)
 		return -EINVAL;
 
 	*crat_image = NULL;
+
+	if (kfd_ignore_crat()) {
+		pr_info("CRAT table disabled by module option\n");
+		return -ENODATA;
+	}
 
 	/* Fetch the CRAT table from ACPI */
 	status = acpi_get_table(CRAT_SIGNATURE, 0, &crat_table);
@@ -792,20 +804,18 @@ int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
 		return -EINVAL;
 	}
 
-	if (kfd_ignore_crat()) {
-		pr_info("CRAT table disabled by module option\n");
-		return -ENODATA;
+	pcrat_image = kvmalloc(crat_table->length, GFP_KERNEL);
+	if (!pcrat_image) {
+		rc = -ENOMEM;
+		goto out;
 	}
 
-	pcrat_image = kvmalloc(crat_table->length, GFP_KERNEL);
 	memcpy(pcrat_image, crat_table, crat_table->length);
-	if (!pcrat_image)
-		return -ENOMEM;
-
 	*crat_image = pcrat_image;
 	*size = crat_table->length;
-
-	return 0;
+out:
+	acpi_put_table(crat_table);
+	return rc;
 }
 
 /* Memory required to create Virtual CRAT.
@@ -988,6 +998,7 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 				CRAT_OEMID_LENGTH);
 		memcpy(crat_table->oem_table_id, acpi_table->oem_table_id,
 				CRAT_OEMTABLEID_LENGTH);
+		acpi_put_table(acpi_table);
 	}
 	crat_table->total_entries = 0;
 	crat_table->num_domains = 0;
@@ -1029,11 +1040,14 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 				(struct crat_subtype_iolink *)sub_type_hdr);
 		if (ret < 0)
 			return ret;
-		crat_table->length += (sub_type_hdr->length * entries);
-		crat_table->total_entries += entries;
 
-		sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
-				sub_type_hdr->length * entries);
+		if (entries) {
+			crat_table->length += (sub_type_hdr->length * entries);
+			crat_table->total_entries += entries;
+
+			sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
+					sub_type_hdr->length * entries);
+		}
 #else
 		pr_info("IO link not available for non x86 platforms\n");
 #endif

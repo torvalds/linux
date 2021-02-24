@@ -200,10 +200,21 @@ struct profile_mode_setting {
 	uint16_t mclk_activity;
 };
 
+struct smu7_mclk_latency_entries {
+	uint32_t  frequency;
+	uint32_t  latency;
+};
+
+struct smu7_mclk_latency_table {
+	uint32_t  count;
+	struct smu7_mclk_latency_entries  entries[MAX_REGULAR_DPM_NUMBER];
+};
+
 struct smu7_hwmgr {
 	struct smu7_dpm_table			dpm_table;
 	struct smu7_dpm_table			golden_dpm_table;
 	struct smu7_odn_dpm_table		odn_dpm_table;
+	struct smu7_mclk_latency_table		mclk_latency_table;
 
 	uint32_t						voting_rights_clients[8];
 	uint32_t						static_screen_threshold_unit;
@@ -239,6 +250,7 @@ struct smu7_hwmgr {
 
 	bool                           pcie_performance_request;
 	bool                           battery_state;
+	bool                           mclk_ignore_signal;
 	bool                           is_tlu_enabled;
 	bool                           disable_handshake;
 	bool                           smc_voltage_control_enabled;
@@ -324,10 +336,18 @@ struct smu7_hwmgr {
 	uint32_t                              avfs_vdroop_override_setting;
 	bool                                  apply_avfs_cks_off_voltage;
 	uint32_t                              frame_time_x2;
+	uint32_t                              last_sent_vbi_timeout;
 	uint16_t                              mem_latency_high;
 	uint16_t                              mem_latency_low;
 	uint32_t                              vr_config;
 	struct profile_mode_setting           current_profile_setting;
+
+	uint32_t                              ro_range_minimum;
+	uint32_t                              ro_range_maximum;
+
+	bool                                  disable_edc_leakage_controller;
+	AtomCtrl_HiLoLeakageOffsetTable       edc_hilo_leakage_offset_from_vbios;
+	AtomCtrl_EDCLeakgeTable               edc_leakage_table;
 };
 
 /* To convert to Q8.8 format for firmware */

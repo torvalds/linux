@@ -499,7 +499,7 @@ static int rk3328_platform_probe(struct platform_device *pdev)
 					       ARRAY_SIZE(rk3328_dai));
 }
 
-static const struct of_device_id rk3328_codec_of_match[] = {
+static const struct of_device_id rk3328_codec_of_match[] __maybe_unused = {
 		{ .compatible = "rockchip,rk3328-codec", },
 		{},
 };

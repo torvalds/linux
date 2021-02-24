@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2007-2020  B.A.T.M.A.N. contributors:
+/* Copyright (C) B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  */
@@ -42,12 +42,6 @@ enum batadv_hard_if_state {
 
 	/** @BATADV_IF_TO_BE_ACTIVATED: interface is getting activated */
 	BATADV_IF_TO_BE_ACTIVATED,
-
-	/**
-	 * @BATADV_IF_I_WANT_YOU: interface is queued up (using sysfs) for being
-	 * added as slave interface of a batman-adv soft interface
-	 */
-	BATADV_IF_I_WANT_YOU,
 };
 
 /**
@@ -73,22 +67,6 @@ enum batadv_hard_if_bcast {
 	BATADV_HARDIF_BCAST_DUPORIG,
 };
 
-/**
- * enum batadv_hard_if_cleanup - Cleanup modi for soft_iface after slave removal
- */
-enum batadv_hard_if_cleanup {
-	/**
-	 * @BATADV_IF_CLEANUP_KEEP: Don't automatically delete soft-interface
-	 */
-	BATADV_IF_CLEANUP_KEEP,
-
-	/**
-	 * @BATADV_IF_CLEANUP_AUTO: Delete soft-interface after last slave was
-	 *  removed
-	 */
-	BATADV_IF_CLEANUP_AUTO,
-};
-
 extern struct notifier_block batadv_hard_if_notifier;
 
 struct net_device *batadv_get_real_netdev(struct net_device *net_device);
@@ -98,8 +76,7 @@ struct batadv_hard_iface*
 batadv_hardif_get_by_netdev(const struct net_device *net_dev);
 int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 				   struct net *net, const char *iface_name);
-void batadv_hardif_disable_interface(struct batadv_hard_iface *hard_iface,
-				     enum batadv_hard_if_cleanup autodel);
+void batadv_hardif_disable_interface(struct batadv_hard_iface *hard_iface);
 int batadv_hardif_min_mtu(struct net_device *soft_iface);
 void batadv_update_min_mtu(struct net_device *soft_iface);
 void batadv_hardif_release(struct kref *ref);

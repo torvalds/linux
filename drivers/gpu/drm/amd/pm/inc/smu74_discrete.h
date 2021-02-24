@@ -271,7 +271,8 @@ struct SMU74_Discrete_DpmTable {
 
 	uint8_t                             VRHotLevel;
 	uint8_t                             LdoRefSel;
-	uint8_t                             Reserved1[2];
+	uint8_t                             SharedRails;
+	uint8_t                             Reserved1;
 	uint16_t                            FanStartTemperature;
 	uint16_t                            FanStopTemperature;
 	uint16_t                            MaxVoltage;

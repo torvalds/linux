@@ -114,23 +114,6 @@ void phy_print_status(struct phy_device *phydev)
 EXPORT_SYMBOL(phy_print_status);
 
 /**
- * phy_clear_interrupt - Ack the phy device's interrupt
- * @phydev: the phy_device struct
- *
- * If the @phydev driver has an ack_interrupt function, call it to
- * ack and clear the phy device's interrupt.
- *
- * Returns 0 on success or < 0 on error.
- */
-static int phy_clear_interrupt(struct phy_device *phydev)
-{
-	if (phydev->drv->ack_interrupt)
-		return phydev->drv->ack_interrupt(phydev);
-
-	return 0;
-}
-
-/**
  * phy_config_interrupt - configure the PHY device for the requested interrupts
  * @phydev: the phy_device struct
  * @interrupts: interrupt flags to configure for this @phydev
@@ -325,7 +308,7 @@ void phy_ethtool_ksettings_get(struct phy_device *phydev,
 	if (phydev->interface == PHY_INTERFACE_MODE_MOCA)
 		cmd->base.port = PORT_BNC;
 	else
-		cmd->base.port = PORT_MII;
+		cmd->base.port = phydev->port;
 	cmd->base.transceiver = phy_is_internal(phydev) ?
 				XCVR_INTERNAL : XCVR_EXTERNAL;
 	cmd->base.phy_address = phydev->mdio.addr;
@@ -489,14 +472,15 @@ void phy_queue_state_machine(struct phy_device *phydev, unsigned long jiffies)
 EXPORT_SYMBOL(phy_queue_state_machine);
 
 /**
- * phy_queue_state_machine - Trigger the state machine to run now
+ * phy_trigger_machine - Trigger the state machine to run now
  *
  * @phydev: the phy_device struct
  */
-static void phy_trigger_machine(struct phy_device *phydev)
+void phy_trigger_machine(struct phy_device *phydev)
 {
 	phy_queue_state_machine(phydev, 0);
 }
+EXPORT_SYMBOL(phy_trigger_machine);
 
 static void phy_abort_cable_test(struct phy_device *phydev)
 {
@@ -740,7 +724,7 @@ static int phy_check_link_status(struct phy_device *phydev)
 {
 	int err;
 
-	WARN_ON(!mutex_is_locked(&phydev->lock));
+	lockdep_assert_held(&phydev->lock);
 
 	/* Keep previous state if loopback is enabled because some PHYs
 	 * report that Link is Down when loopback is enabled.
@@ -924,7 +908,7 @@ void phy_stop_machine(struct phy_device *phydev)
  * Must not be called from interrupt context, or while the
  * phydev->lock is held.
  */
-static void phy_error(struct phy_device *phydev)
+void phy_error(struct phy_device *phydev)
 {
 	WARN_ON(1);
 
@@ -934,6 +918,7 @@ static void phy_error(struct phy_device *phydev)
 
 	phy_trigger_machine(phydev);
 }
+EXPORT_SYMBOL(phy_error);
 
 /**
  * phy_disable_interrupts - Disable the PHY interrupts from the PHY side
@@ -941,15 +926,8 @@ static void phy_error(struct phy_device *phydev)
  */
 int phy_disable_interrupts(struct phy_device *phydev)
 {
-	int err;
-
 	/* Disable PHY interrupts */
-	err = phy_config_interrupt(phydev, PHY_INTERRUPT_DISABLED);
-	if (err)
-		return err;
-
-	/* Clear the interrupt */
-	return phy_clear_interrupt(phydev);
+	return phy_config_interrupt(phydev, PHY_INTERRUPT_DISABLED);
 }
 
 /**
@@ -964,22 +942,7 @@ static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 	struct phy_device *phydev = phy_dat;
 	struct phy_driver *drv = phydev->drv;
 
-	if (drv->handle_interrupt)
-		return drv->handle_interrupt(phydev);
-
-	if (drv->did_interrupt && !drv->did_interrupt(phydev))
-		return IRQ_NONE;
-
-	/* reschedule state queue work to run as soon as possible */
-	phy_trigger_machine(phydev);
-
-	/* did_interrupt() may have cleared the interrupt already */
-	if (!drv->did_interrupt && phy_clear_interrupt(phydev)) {
-		phy_error(phydev);
-		return IRQ_NONE;
-	}
-
-	return IRQ_HANDLED;
+	return drv->handle_interrupt(phydev);
 }
 
 /**
@@ -988,11 +951,6 @@ static irqreturn_t phy_interrupt(int irq, void *phy_dat)
  */
 static int phy_enable_interrupts(struct phy_device *phydev)
 {
-	int err = phy_clear_interrupt(phydev);
-
-	if (err < 0)
-		return err;
-
 	return phy_config_interrupt(phydev, PHY_INTERRUPT_ENABLED);
 }
 
@@ -1187,7 +1145,7 @@ void phy_state_machine(struct work_struct *work)
 	}
 
 	/* Only re-schedule a PHY state machine change if we are polling the
-	 * PHY, if PHY_IGNORE_INTERRUPT is set, then we will be moving
+	 * PHY, if PHY_MAC_INTERRUPT is set, then we will be moving
 	 * between states from phy_mac_interrupt().
 	 *
 	 * In state PHY_HALTED the PHY gets suspended, so rescheduling the

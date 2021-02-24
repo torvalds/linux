@@ -8,7 +8,6 @@
 #include "habanalabs.h"
 #include "../include/hw_ip/mmu/mmu_general.h"
 
-#include <linux/genalloc.h>
 #include <linux/slab.h>
 
 static inline u64 get_phys_addr(struct hl_ctx *ctx, u64 shadow_addr);
@@ -29,7 +28,7 @@ static void _free_hop(struct hl_ctx *ctx, struct pgt_info *pgt_info)
 {
 	struct hl_device *hdev = ctx->hdev;
 
-	gen_pool_free(hdev->mmu_priv.mmu_pgt_pool, pgt_info->phys_addr,
+	gen_pool_free(hdev->mmu_priv.dr.mmu_pgt_pool, pgt_info->phys_addr,
 			hdev->asic_prop.mmu_hop_table_size);
 	hash_del(&pgt_info->node);
 	kfree((u64 *) (uintptr_t) pgt_info->shadow_addr);
@@ -54,7 +53,7 @@ static u64 alloc_hop(struct hl_ctx *ctx)
 	if (!pgt_info)
 		return ULLONG_MAX;
 
-	phys_addr = (u64) gen_pool_alloc(hdev->mmu_priv.mmu_pgt_pool,
+	phys_addr = (u64) gen_pool_alloc(hdev->mmu_priv.dr.mmu_pgt_pool,
 					prop->mmu_hop_table_size);
 	if (!phys_addr) {
 		dev_err(hdev->dev, "failed to allocate page\n");
@@ -75,7 +74,7 @@ static u64 alloc_hop(struct hl_ctx *ctx)
 	return shadow_addr;
 
 shadow_err:
-	gen_pool_free(hdev->mmu_priv.mmu_pgt_pool, phys_addr,
+	gen_pool_free(hdev->mmu_priv.dr.mmu_pgt_pool, phys_addr,
 			prop->mmu_hop_table_size);
 pool_add_err:
 	kfree(pgt_info);
@@ -91,7 +90,7 @@ static inline u64 get_phys_hop0_addr(struct hl_ctx *ctx)
 
 static inline u64 get_hop0_addr(struct hl_ctx *ctx)
 {
-	return (u64) (uintptr_t) ctx->hdev->mmu_priv.mmu_shadow_hop0 +
+	return (u64) (uintptr_t) ctx->hdev->mmu_priv.dr.mmu_shadow_hop0 +
 			(ctx->asid * ctx->hdev->asic_prop.mmu_hop_table_size);
 }
 
@@ -263,7 +262,7 @@ static int dram_default_mapping_init(struct hl_ctx *ctx)
 		hop2_pte_addr, hop3_pte_addr, pte_val;
 	int rc, i, j, hop3_allocated = 0;
 
-	if ((!hdev->dram_supports_virtual_memory) ||
+	if ((!prop->dram_supports_virtual_memory) ||
 			(!hdev->dram_default_page_mapping) ||
 			(ctx->asid == HL_KERNEL_ASID_ID))
 		return 0;
@@ -363,7 +362,7 @@ static void dram_default_mapping_fini(struct hl_ctx *ctx)
 		hop2_pte_addr, hop3_pte_addr;
 	int i, j;
 
-	if ((!hdev->dram_supports_virtual_memory) ||
+	if ((!prop->dram_supports_virtual_memory) ||
 			(!hdev->dram_default_page_mapping) ||
 			(ctx->asid == HL_KERNEL_ASID_ID))
 		return;
@@ -419,15 +418,15 @@ static int hl_mmu_v1_init(struct hl_device *hdev)
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int rc;
 
-	hdev->mmu_priv.mmu_pgt_pool =
+	hdev->mmu_priv.dr.mmu_pgt_pool =
 			gen_pool_create(__ffs(prop->mmu_hop_table_size), -1);
 
-	if (!hdev->mmu_priv.mmu_pgt_pool) {
+	if (!hdev->mmu_priv.dr.mmu_pgt_pool) {
 		dev_err(hdev->dev, "Failed to create page gen pool\n");
 		return -ENOMEM;
 	}
 
-	rc = gen_pool_add(hdev->mmu_priv.mmu_pgt_pool, prop->mmu_pgt_addr +
+	rc = gen_pool_add(hdev->mmu_priv.dr.mmu_pgt_pool, prop->mmu_pgt_addr +
 			prop->mmu_hop0_tables_total_size,
 			prop->mmu_pgt_size - prop->mmu_hop0_tables_total_size,
 			-1);
@@ -436,10 +435,10 @@ static int hl_mmu_v1_init(struct hl_device *hdev)
 		goto err_pool_add;
 	}
 
-	hdev->mmu_priv.mmu_shadow_hop0 = kvmalloc_array(prop->max_asid,
+	hdev->mmu_priv.dr.mmu_shadow_hop0 = kvmalloc_array(prop->max_asid,
 						prop->mmu_hop_table_size,
 						GFP_KERNEL | __GFP_ZERO);
-	if (ZERO_OR_NULL_PTR(hdev->mmu_priv.mmu_shadow_hop0)) {
+	if (ZERO_OR_NULL_PTR(hdev->mmu_priv.dr.mmu_shadow_hop0)) {
 		rc = -ENOMEM;
 		goto err_pool_add;
 	}
@@ -449,7 +448,7 @@ static int hl_mmu_v1_init(struct hl_device *hdev)
 	return 0;
 
 err_pool_add:
-	gen_pool_destroy(hdev->mmu_priv.mmu_pgt_pool);
+	gen_pool_destroy(hdev->mmu_priv.dr.mmu_pgt_pool);
 
 	return rc;
 }
@@ -468,8 +467,16 @@ static void hl_mmu_v1_fini(struct hl_device *hdev)
 {
 	/* MMU H/W fini was already done in device hw_fini() */
 
-	kvfree(hdev->mmu_priv.mmu_shadow_hop0);
-	gen_pool_destroy(hdev->mmu_priv.mmu_pgt_pool);
+	if (!ZERO_OR_NULL_PTR(hdev->mmu_priv.hr.mmu_shadow_hop0)) {
+		kvfree(hdev->mmu_priv.dr.mmu_shadow_hop0);
+		gen_pool_destroy(hdev->mmu_priv.dr.mmu_pgt_pool);
+	}
+
+	/* Make sure that if we arrive here again without init was called we
+	 * won't cause kernel panic. This can happen for example if we fail
+	 * during hard reset code at certain points
+	 */
+	hdev->mmu_priv.dr.mmu_shadow_hop0 = NULL;
 }
 
 /**
@@ -482,9 +489,7 @@ static void hl_mmu_v1_fini(struct hl_device *hdev)
  */
 static int hl_mmu_v1_ctx_init(struct hl_ctx *ctx)
 {
-	mutex_init(&ctx->mmu_lock);
 	hash_init(ctx->mmu_shadow_hash);
-
 	return dram_default_mapping_init(ctx);
 }
 
@@ -517,8 +522,6 @@ static void hl_mmu_v1_ctx_fini(struct hl_ctx *ctx)
 			pgt_info->phys_addr, ctx->asid, pgt_info->num_of_ptes);
 		_free_hop(ctx, pgt_info);
 	}
-
-	mutex_destroy(&ctx->mmu_lock);
 }
 
 static int _hl_mmu_v1_unmap(struct hl_ctx *ctx,
@@ -842,15 +845,114 @@ static void hl_mmu_v1_swap_in(struct hl_ctx *ctx)
 
 }
 
+static inline u64 get_hop_pte_addr(struct hl_ctx *ctx,
+				struct hl_mmu_properties *mmu_prop,
+				int hop_num, u64 hop_addr, u64 virt_addr)
+{
+	switch (hop_num) {
+	case 0:
+		return get_hop0_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
+	case 1:
+		return get_hop1_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
+	case 2:
+		return get_hop2_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
+	case 3:
+		return get_hop3_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
+	case 4:
+		return get_hop4_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
+	default:
+		break;
+	}
+	return U64_MAX;
+}
+
+static int hl_mmu_v1_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
+				struct hl_mmu_hop_info *hops)
+{
+	struct hl_device *hdev = ctx->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct hl_mmu_properties *mmu_prop;
+	bool is_dram_addr, is_pmmu_addr, is_pmmu_h_addr, is_huge;
+	int i, used_hops;
+
+	is_dram_addr = hl_mem_area_inside_range(virt_addr, prop->dmmu.page_size,
+						prop->dmmu.start_addr,
+						prop->dmmu.end_addr);
+	is_pmmu_addr = hl_mem_area_inside_range(virt_addr, prop->pmmu.page_size,
+						prop->pmmu.start_addr,
+						prop->pmmu.end_addr);
+	is_pmmu_h_addr = hl_mem_area_inside_range(virt_addr,
+						prop->pmmu_huge.page_size,
+						prop->pmmu_huge.start_addr,
+						prop->pmmu_huge.end_addr);
+	if (is_dram_addr) {
+		mmu_prop = &prop->dmmu;
+		is_huge = true;
+	} else if (is_pmmu_addr) {
+		mmu_prop = &prop->pmmu;
+		is_huge = false;
+	} else if (is_pmmu_h_addr) {
+		mmu_prop = &prop->pmmu_huge;
+		is_huge = true;
+	} else {
+		return -EINVAL;
+	}
+
+	used_hops = mmu_prop->num_hops;
+
+	/* huge pages use lesser hops */
+	if (is_huge)
+		used_hops--;
+
+	hops->hop_info[0].hop_addr = get_phys_hop0_addr(ctx);
+	hops->hop_info[0].hop_pte_addr =
+			get_hop_pte_addr(ctx, mmu_prop, 0,
+					hops->hop_info[0].hop_addr, virt_addr);
+	hops->hop_info[0].hop_pte_val =
+			hdev->asic_funcs->read_pte(hdev,
+						hops->hop_info[0].hop_pte_addr);
+
+	for (i = 1 ; i < used_hops ; i++) {
+		hops->hop_info[i].hop_addr =
+			get_next_hop_addr(ctx,
+					hops->hop_info[i - 1].hop_pte_val);
+		if (hops->hop_info[i].hop_addr == ULLONG_MAX)
+			return -EFAULT;
+
+		hops->hop_info[i].hop_pte_addr =
+				get_hop_pte_addr(ctx, mmu_prop, i,
+						hops->hop_info[i].hop_addr,
+						virt_addr);
+		hops->hop_info[i].hop_pte_val =
+				hdev->asic_funcs->read_pte(hdev,
+						hops->hop_info[i].hop_pte_addr);
+
+		if (!(hops->hop_info[i].hop_pte_val & PAGE_PRESENT_MASK))
+			return -EFAULT;
+
+		if (hops->hop_info[i].hop_pte_val & LAST_MASK)
+			break;
+	}
+
+	/* if passed over all hops then no last hop was found */
+	if (i == mmu_prop->num_hops)
+		return -EFAULT;
+
+	if (!(hops->hop_info[i].hop_pte_val & PAGE_PRESENT_MASK))
+		return -EFAULT;
+
+	hops->used_hops = i + 1;
+
+	return 0;
+}
+
 /*
  * hl_mmu_v1_prepare - prepare mmu  for working with mmu v1
  *
  * @hdev: pointer to the device structure
  */
-void hl_mmu_v1_set_funcs(struct hl_device *hdev)
+void hl_mmu_v1_set_funcs(struct hl_device *hdev, struct hl_mmu_funcs *mmu)
 {
-	struct hl_mmu_funcs *mmu = &hdev->mmu_func;
-
 	mmu->init = hl_mmu_v1_init;
 	mmu->fini = hl_mmu_v1_fini;
 	mmu->ctx_init = hl_mmu_v1_ctx_init;
@@ -860,4 +962,5 @@ void hl_mmu_v1_set_funcs(struct hl_device *hdev)
 	mmu->flush = flush;
 	mmu->swap_out = hl_mmu_v1_swap_out;
 	mmu->swap_in = hl_mmu_v1_swap_in;
+	mmu->get_tlb_info = hl_mmu_v1_get_tlb_info;
 }

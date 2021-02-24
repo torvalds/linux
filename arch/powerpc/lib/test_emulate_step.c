@@ -612,6 +612,273 @@ static void __init test_lxvd2x_stxvd2x(void)
 }
 #endif /* CONFIG_VSX */
 
+#ifdef CONFIG_VSX
+static void __init test_lxvp_stxvp(void)
+{
+	struct pt_regs regs;
+	union {
+		vector128 a;
+		u32 b[4];
+	} c[2];
+	u32 cached_b[8];
+	int stepped = -1;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_31)) {
+		show_result("lxvp", "SKIP (!CPU_FTR_ARCH_31)");
+		show_result("stxvp", "SKIP (!CPU_FTR_ARCH_31)");
+		return;
+	}
+
+	init_pt_regs(&regs);
+
+	/*** lxvp ***/
+
+	cached_b[0] = c[0].b[0] = 18233;
+	cached_b[1] = c[0].b[1] = 34863571;
+	cached_b[2] = c[0].b[2] = 834;
+	cached_b[3] = c[0].b[3] = 6138911;
+	cached_b[4] = c[1].b[0] = 1234;
+	cached_b[5] = c[1].b[1] = 5678;
+	cached_b[6] = c[1].b[2] = 91011;
+	cached_b[7] = c[1].b[3] = 121314;
+
+	regs.gpr[4] = (unsigned long)&c[0].a;
+
+	/*
+	 * lxvp XTp,DQ(RA)
+	 * XTp = 32xTX + 2xTp
+	 * let TX=1 Tp=1 RA=4 DQ=0
+	 */
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_LXVP(34, 4, 0)));
+
+	if (stepped == 1 && cpu_has_feature(CPU_FTR_VSX)) {
+		show_result("lxvp", "PASS");
+	} else {
+		if (!cpu_has_feature(CPU_FTR_VSX))
+			show_result("lxvp", "PASS (!CPU_FTR_VSX)");
+		else
+			show_result("lxvp", "FAIL");
+	}
+
+	/*** stxvp ***/
+
+	c[0].b[0] = 21379463;
+	c[0].b[1] = 87;
+	c[0].b[2] = 374234;
+	c[0].b[3] = 4;
+	c[1].b[0] = 90;
+	c[1].b[1] = 122;
+	c[1].b[2] = 555;
+	c[1].b[3] = 32144;
+
+	/*
+	 * stxvp XSp,DQ(RA)
+	 * XSp = 32xSX + 2xSp
+	 * let SX=1 Sp=1 RA=4 DQ=0
+	 */
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_STXVP(34, 4, 0)));
+
+	if (stepped == 1 && cached_b[0] == c[0].b[0] && cached_b[1] == c[0].b[1] &&
+	    cached_b[2] == c[0].b[2] && cached_b[3] == c[0].b[3] &&
+	    cached_b[4] == c[1].b[0] && cached_b[5] == c[1].b[1] &&
+	    cached_b[6] == c[1].b[2] && cached_b[7] == c[1].b[3] &&
+	    cpu_has_feature(CPU_FTR_VSX)) {
+		show_result("stxvp", "PASS");
+	} else {
+		if (!cpu_has_feature(CPU_FTR_VSX))
+			show_result("stxvp", "PASS (!CPU_FTR_VSX)");
+		else
+			show_result("stxvp", "FAIL");
+	}
+}
+#else
+static void __init test_lxvp_stxvp(void)
+{
+	show_result("lxvp", "SKIP (CONFIG_VSX is not set)");
+	show_result("stxvp", "SKIP (CONFIG_VSX is not set)");
+}
+#endif /* CONFIG_VSX */
+
+#ifdef CONFIG_VSX
+static void __init test_lxvpx_stxvpx(void)
+{
+	struct pt_regs regs;
+	union {
+		vector128 a;
+		u32 b[4];
+	} c[2];
+	u32 cached_b[8];
+	int stepped = -1;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_31)) {
+		show_result("lxvpx", "SKIP (!CPU_FTR_ARCH_31)");
+		show_result("stxvpx", "SKIP (!CPU_FTR_ARCH_31)");
+		return;
+	}
+
+	init_pt_regs(&regs);
+
+	/*** lxvpx ***/
+
+	cached_b[0] = c[0].b[0] = 18233;
+	cached_b[1] = c[0].b[1] = 34863571;
+	cached_b[2] = c[0].b[2] = 834;
+	cached_b[3] = c[0].b[3] = 6138911;
+	cached_b[4] = c[1].b[0] = 1234;
+	cached_b[5] = c[1].b[1] = 5678;
+	cached_b[6] = c[1].b[2] = 91011;
+	cached_b[7] = c[1].b[3] = 121314;
+
+	regs.gpr[3] = (unsigned long)&c[0].a;
+	regs.gpr[4] = 0;
+
+	/*
+	 * lxvpx XTp,RA,RB
+	 * XTp = 32xTX + 2xTp
+	 * let TX=1 Tp=1 RA=3 RB=4
+	 */
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_LXVPX(34, 3, 4)));
+
+	if (stepped == 1 && cpu_has_feature(CPU_FTR_VSX)) {
+		show_result("lxvpx", "PASS");
+	} else {
+		if (!cpu_has_feature(CPU_FTR_VSX))
+			show_result("lxvpx", "PASS (!CPU_FTR_VSX)");
+		else
+			show_result("lxvpx", "FAIL");
+	}
+
+	/*** stxvpx ***/
+
+	c[0].b[0] = 21379463;
+	c[0].b[1] = 87;
+	c[0].b[2] = 374234;
+	c[0].b[3] = 4;
+	c[1].b[0] = 90;
+	c[1].b[1] = 122;
+	c[1].b[2] = 555;
+	c[1].b[3] = 32144;
+
+	/*
+	 * stxvpx XSp,RA,RB
+	 * XSp = 32xSX + 2xSp
+	 * let SX=1 Sp=1 RA=3 RB=4
+	 */
+	stepped = emulate_step(&regs, ppc_inst(PPC_RAW_STXVPX(34, 3, 4)));
+
+	if (stepped == 1 && cached_b[0] == c[0].b[0] && cached_b[1] == c[0].b[1] &&
+	    cached_b[2] == c[0].b[2] && cached_b[3] == c[0].b[3] &&
+	    cached_b[4] == c[1].b[0] && cached_b[5] == c[1].b[1] &&
+	    cached_b[6] == c[1].b[2] && cached_b[7] == c[1].b[3] &&
+	    cpu_has_feature(CPU_FTR_VSX)) {
+		show_result("stxvpx", "PASS");
+	} else {
+		if (!cpu_has_feature(CPU_FTR_VSX))
+			show_result("stxvpx", "PASS (!CPU_FTR_VSX)");
+		else
+			show_result("stxvpx", "FAIL");
+	}
+}
+#else
+static void __init test_lxvpx_stxvpx(void)
+{
+	show_result("lxvpx", "SKIP (CONFIG_VSX is not set)");
+	show_result("stxvpx", "SKIP (CONFIG_VSX is not set)");
+}
+#endif /* CONFIG_VSX */
+
+#ifdef CONFIG_VSX
+static void __init test_plxvp_pstxvp(void)
+{
+	struct ppc_inst instr;
+	struct pt_regs regs;
+	union {
+		vector128 a;
+		u32 b[4];
+	} c[2];
+	u32 cached_b[8];
+	int stepped = -1;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_31)) {
+		show_result("plxvp", "SKIP (!CPU_FTR_ARCH_31)");
+		show_result("pstxvp", "SKIP (!CPU_FTR_ARCH_31)");
+		return;
+	}
+
+	/*** plxvp ***/
+
+	cached_b[0] = c[0].b[0] = 18233;
+	cached_b[1] = c[0].b[1] = 34863571;
+	cached_b[2] = c[0].b[2] = 834;
+	cached_b[3] = c[0].b[3] = 6138911;
+	cached_b[4] = c[1].b[0] = 1234;
+	cached_b[5] = c[1].b[1] = 5678;
+	cached_b[6] = c[1].b[2] = 91011;
+	cached_b[7] = c[1].b[3] = 121314;
+
+	init_pt_regs(&regs);
+	regs.gpr[3] = (unsigned long)&c[0].a;
+
+	/*
+	 * plxvp XTp,D(RA),R
+	 * XTp = 32xTX + 2xTp
+	 * let RA=3 R=0 D=d0||d1=0 R=0 Tp=1 TX=1
+	 */
+	instr = ppc_inst_prefix(PPC_RAW_PLXVP(34, 0, 3, 0) >> 32,
+			PPC_RAW_PLXVP(34, 0, 3, 0) & 0xffffffff);
+
+	stepped = emulate_step(&regs, instr);
+	if (stepped == 1 && cpu_has_feature(CPU_FTR_VSX)) {
+		show_result("plxvp", "PASS");
+	} else {
+		if (!cpu_has_feature(CPU_FTR_VSX))
+			show_result("plxvp", "PASS (!CPU_FTR_VSX)");
+		else
+			show_result("plxvp", "FAIL");
+	}
+
+	/*** pstxvp ***/
+
+	c[0].b[0] = 21379463;
+	c[0].b[1] = 87;
+	c[0].b[2] = 374234;
+	c[0].b[3] = 4;
+	c[1].b[0] = 90;
+	c[1].b[1] = 122;
+	c[1].b[2] = 555;
+	c[1].b[3] = 32144;
+
+	/*
+	 * pstxvp XSp,D(RA),R
+	 * XSp = 32xSX + 2xSp
+	 * let RA=3 D=d0||d1=0 R=0 Sp=1 SX=1
+	 */
+	instr = ppc_inst_prefix(PPC_RAW_PSTXVP(34, 0, 3, 0) >> 32,
+			PPC_RAW_PSTXVP(34, 0, 3, 0) & 0xffffffff);
+
+	stepped = emulate_step(&regs, instr);
+
+	if (stepped == 1 && cached_b[0] == c[0].b[0] && cached_b[1] == c[0].b[1] &&
+	    cached_b[2] == c[0].b[2] && cached_b[3] == c[0].b[3] &&
+	    cached_b[4] == c[1].b[0] && cached_b[5] == c[1].b[1] &&
+	    cached_b[6] == c[1].b[2] && cached_b[7] == c[1].b[3] &&
+	    cpu_has_feature(CPU_FTR_VSX)) {
+		show_result("pstxvp", "PASS");
+	} else {
+		if (!cpu_has_feature(CPU_FTR_VSX))
+			show_result("pstxvp", "PASS (!CPU_FTR_VSX)");
+		else
+			show_result("pstxvp", "FAIL");
+	}
+}
+#else
+static void __init test_plxvp_pstxvp(void)
+{
+	show_result("plxvp", "SKIP (CONFIG_VSX is not set)");
+	show_result("pstxvp", "SKIP (CONFIG_VSX is not set)");
+}
+#endif /* CONFIG_VSX */
+
 static void __init run_tests_load_store(void)
 {
 	test_ld();
@@ -628,6 +895,9 @@ static void __init run_tests_load_store(void)
 	test_plfd_pstfd();
 	test_lvx_stvx();
 	test_lxvd2x_stxvd2x();
+	test_lxvp_stxvp();
+	test_lxvpx_stxvpx();
+	test_plxvp_pstxvp();
 }
 
 struct compute_test {

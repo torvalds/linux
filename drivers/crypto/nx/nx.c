@@ -10,7 +10,7 @@
 #include <crypto/internal/aead.h>
 #include <crypto/internal/hash.h>
 #include <crypto/aes.h>
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
 #include <crypto/algapi.h>
 #include <crypto/scatterwalk.h>
 #include <linux/module.h>

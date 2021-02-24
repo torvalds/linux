@@ -426,13 +426,29 @@ struct ethtool_link_usettings {
 int __ethtool_get_link_ksettings(struct net_device *dev,
 				 struct ethtool_link_ksettings *link_ksettings)
 {
+	const struct link_mode_info *link_info;
+	int err;
+
 	ASSERT_RTNL();
 
 	if (!dev->ethtool_ops->get_link_ksettings)
 		return -EOPNOTSUPP;
 
 	memset(link_ksettings, 0, sizeof(*link_ksettings));
-	return dev->ethtool_ops->get_link_ksettings(dev, link_ksettings);
+
+	link_ksettings->link_mode = -1;
+	err = dev->ethtool_ops->get_link_ksettings(dev, link_ksettings);
+	if (err)
+		return err;
+
+	if (link_ksettings->link_mode != -1) {
+		link_info = &link_mode_params[link_ksettings->link_mode];
+		link_ksettings->base.speed = link_info->speed;
+		link_ksettings->lanes = link_info->lanes;
+		link_ksettings->base.duplex = link_info->duplex;
+	}
+
+	return 0;
 }
 EXPORT_SYMBOL(__ethtool_get_link_ksettings);
 
@@ -2433,7 +2449,7 @@ static int noinline_for_stack ethtool_set_per_queue(struct net_device *dev,
 		return ethtool_set_per_queue_coalesce(dev, useraddr, &per_queue_opt);
 	default:
 		return -EOPNOTSUPP;
-	};
+	}
 }
 
 static int ethtool_phy_tunable_valid(const struct ethtool_tunable *tuna)

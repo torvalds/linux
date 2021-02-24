@@ -67,11 +67,12 @@ static inline int sys_bpf(enum bpf_cmd cmd, union bpf_attr *attr,
 
 static inline int sys_bpf_prog_load(union bpf_attr *attr, unsigned int size)
 {
+	int retries = 5;
 	int fd;
 
 	do {
 		fd = sys_bpf(BPF_PROG_LOAD, attr, size);
-	} while (fd < 0 && errno == EAGAIN);
+	} while (fd < 0 && errno == EAGAIN && retries-- > 0);
 
 	return fd;
 }
@@ -214,59 +215,55 @@ alloc_zero_tailing_info(const void *orecord, __u32 cnt,
 	return info;
 }
 
-int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
-			   char *log_buf, size_t log_buf_sz)
+int libbpf__bpf_prog_load(const struct bpf_prog_load_params *load_attr)
 {
 	void *finfo = NULL, *linfo = NULL;
 	union bpf_attr attr;
-	__u32 log_level;
 	int fd;
 
-	if (!load_attr || !log_buf != !log_buf_sz)
+	if (!load_attr->log_buf != !load_attr->log_buf_sz)
 		return -EINVAL;
 
-	log_level = load_attr->log_level;
-	if (log_level > (4 | 2 | 1) || (log_level && !log_buf))
+	if (load_attr->log_level > (4 | 2 | 1) || (load_attr->log_level && !load_attr->log_buf))
 		return -EINVAL;
 
 	memset(&attr, 0, sizeof(attr));
 	attr.prog_type = load_attr->prog_type;
 	attr.expected_attach_type = load_attr->expected_attach_type;
-	if (attr.prog_type == BPF_PROG_TYPE_STRUCT_OPS ||
-	    attr.prog_type == BPF_PROG_TYPE_LSM) {
-		attr.attach_btf_id = load_attr->attach_btf_id;
-	} else if (attr.prog_type == BPF_PROG_TYPE_TRACING ||
-		   attr.prog_type == BPF_PROG_TYPE_EXT) {
-		attr.attach_btf_id = load_attr->attach_btf_id;
+
+	if (load_attr->attach_prog_fd)
 		attr.attach_prog_fd = load_attr->attach_prog_fd;
-	} else {
-		attr.prog_ifindex = load_attr->prog_ifindex;
-		attr.kern_version = load_attr->kern_version;
-	}
-	attr.insn_cnt = (__u32)load_attr->insns_cnt;
+	else
+		attr.attach_btf_obj_fd = load_attr->attach_btf_obj_fd;
+	attr.attach_btf_id = load_attr->attach_btf_id;
+
+	attr.prog_ifindex = load_attr->prog_ifindex;
+	attr.kern_version = load_attr->kern_version;
+
+	attr.insn_cnt = (__u32)load_attr->insn_cnt;
 	attr.insns = ptr_to_u64(load_attr->insns);
 	attr.license = ptr_to_u64(load_attr->license);
 
-	attr.log_level = log_level;
-	if (log_level) {
-		attr.log_buf = ptr_to_u64(log_buf);
-		attr.log_size = log_buf_sz;
-	} else {
-		attr.log_buf = ptr_to_u64(NULL);
-		attr.log_size = 0;
+	attr.log_level = load_attr->log_level;
+	if (attr.log_level) {
+		attr.log_buf = ptr_to_u64(load_attr->log_buf);
+		attr.log_size = load_attr->log_buf_sz;
 	}
 
 	attr.prog_btf_fd = load_attr->prog_btf_fd;
+	attr.prog_flags = load_attr->prog_flags;
+
 	attr.func_info_rec_size = load_attr->func_info_rec_size;
 	attr.func_info_cnt = load_attr->func_info_cnt;
 	attr.func_info = ptr_to_u64(load_attr->func_info);
+
 	attr.line_info_rec_size = load_attr->line_info_rec_size;
 	attr.line_info_cnt = load_attr->line_info_cnt;
 	attr.line_info = ptr_to_u64(load_attr->line_info);
+
 	if (load_attr->name)
 		memcpy(attr.prog_name, load_attr->name,
-		       min(strlen(load_attr->name), BPF_OBJ_NAME_LEN - 1));
-	attr.prog_flags = load_attr->prog_flags;
+		       min(strlen(load_attr->name), (size_t)BPF_OBJ_NAME_LEN - 1));
 
 	fd = sys_bpf_prog_load(&attr, sizeof(attr));
 	if (fd >= 0)
@@ -306,24 +303,67 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 		}
 
 		fd = sys_bpf_prog_load(&attr, sizeof(attr));
-
 		if (fd >= 0)
 			goto done;
 	}
 
-	if (log_level || !log_buf)
+	if (load_attr->log_level || !load_attr->log_buf)
 		goto done;
 
 	/* Try again with log */
-	attr.log_buf = ptr_to_u64(log_buf);
-	attr.log_size = log_buf_sz;
+	attr.log_buf = ptr_to_u64(load_attr->log_buf);
+	attr.log_size = load_attr->log_buf_sz;
 	attr.log_level = 1;
-	log_buf[0] = 0;
+	load_attr->log_buf[0] = 0;
+
 	fd = sys_bpf_prog_load(&attr, sizeof(attr));
 done:
 	free(finfo);
 	free(linfo);
 	return fd;
+}
+
+int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
+			   char *log_buf, size_t log_buf_sz)
+{
+	struct bpf_prog_load_params p = {};
+
+	if (!load_attr || !log_buf != !log_buf_sz)
+		return -EINVAL;
+
+	p.prog_type = load_attr->prog_type;
+	p.expected_attach_type = load_attr->expected_attach_type;
+	switch (p.prog_type) {
+	case BPF_PROG_TYPE_STRUCT_OPS:
+	case BPF_PROG_TYPE_LSM:
+		p.attach_btf_id = load_attr->attach_btf_id;
+		break;
+	case BPF_PROG_TYPE_TRACING:
+	case BPF_PROG_TYPE_EXT:
+		p.attach_btf_id = load_attr->attach_btf_id;
+		p.attach_prog_fd = load_attr->attach_prog_fd;
+		break;
+	default:
+		p.prog_ifindex = load_attr->prog_ifindex;
+		p.kern_version = load_attr->kern_version;
+	}
+	p.insn_cnt = load_attr->insns_cnt;
+	p.insns = load_attr->insns;
+	p.license = load_attr->license;
+	p.log_level = load_attr->log_level;
+	p.log_buf = log_buf;
+	p.log_buf_sz = log_buf_sz;
+	p.prog_btf_fd = load_attr->prog_btf_fd;
+	p.func_info_rec_size = load_attr->func_info_rec_size;
+	p.func_info_cnt = load_attr->func_info_cnt;
+	p.func_info = load_attr->func_info;
+	p.line_info_rec_size = load_attr->line_info_rec_size;
+	p.line_info_cnt = load_attr->line_info_cnt;
+	p.line_info = load_attr->line_info;
+	p.name = load_attr->name;
+	p.prog_flags = load_attr->prog_flags;
+
+	return libbpf__bpf_prog_load(&p);
 }
 
 int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,

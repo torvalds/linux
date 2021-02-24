@@ -116,9 +116,8 @@ static int gve_alloc_stats_report(struct gve_priv *priv)
 		       priv->tx_cfg.num_queues;
 	rx_stats_num = (GVE_RX_STATS_REPORT_NUM + NIC_RX_STATS_REPORT_NUM) *
 		       priv->rx_cfg.num_queues;
-	priv->stats_report_len = sizeof(struct gve_stats_report) +
-				 (tx_stats_num + rx_stats_num) *
-				 sizeof(struct stats);
+	priv->stats_report_len = struct_size(priv->stats_report, stats,
+					     tx_stats_num + rx_stats_num);
 	priv->stats_report =
 		dma_alloc_coherent(&priv->pdev->dev, priv->stats_report_len,
 				   &priv->stats_report_bus, GFP_KERNEL);
@@ -678,6 +677,10 @@ static int gve_alloc_qpls(struct gve_priv *priv)
 	int i, j;
 	int err;
 
+	/* Raw addressing means no QPLs */
+	if (priv->raw_addressing)
+		return 0;
+
 	priv->qpls = kvzalloc(num_qpls * sizeof(*priv->qpls), GFP_KERNEL);
 	if (!priv->qpls)
 		return -ENOMEM;
@@ -690,7 +693,7 @@ static int gve_alloc_qpls(struct gve_priv *priv)
 	}
 	for (; i < num_qpls; i++) {
 		err = gve_alloc_queue_page_list(priv, i,
-						priv->rx_pages_per_qpl);
+						priv->rx_data_slot_cnt);
 		if (err)
 			goto free_qpls;
 	}
@@ -717,6 +720,10 @@ static void gve_free_qpls(struct gve_priv *priv)
 {
 	int num_qpls = gve_num_tx_qpls(priv) + gve_num_rx_qpls(priv);
 	int i;
+
+	/* Raw addressing means no QPLs */
+	if (priv->raw_addressing)
+		return;
 
 	kvfree(priv->qpl_cfg.qpl_id_map);
 
@@ -1078,6 +1085,7 @@ static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 	if (skip_describe_device)
 		goto setup_device;
 
+	priv->raw_addressing = false;
 	/* Get the initial information we need from the device */
 	err = gve_adminq_describe_device(priv);
 	if (err) {

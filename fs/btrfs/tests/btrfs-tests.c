@@ -55,8 +55,14 @@ struct inode *btrfs_new_test_inode(void)
 	struct inode *inode;
 
 	inode = new_inode(test_mnt->mnt_sb);
-	if (inode)
-		inode_init_owner(inode, NULL, S_IFREG);
+	if (!inode)
+		return NULL;
+
+	inode->i_mode = S_IFREG;
+	BTRFS_I(inode)->location.type = BTRFS_INODE_ITEM_KEY;
+	BTRFS_I(inode)->location.objectid = BTRFS_FIRST_FREE_OBJECTID;
+	BTRFS_I(inode)->location.offset = 0;
+	inode_init_owner(inode, NULL, S_IFREG);
 
 	return inode;
 }
@@ -134,6 +140,7 @@ struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 nodesize, u32 sectorsize)
 
 	fs_info->nodesize = nodesize;
 	fs_info->sectorsize = sectorsize;
+	fs_info->sectorsize_bits = ilog2(sectorsize);
 	set_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state);
 
 	test_mnt->mnt_sb->s_fs_info = fs_info;
@@ -224,7 +231,7 @@ btrfs_alloc_dummy_block_group(struct btrfs_fs_info *fs_info,
 	INIT_LIST_HEAD(&cache->list);
 	INIT_LIST_HEAD(&cache->cluster_list);
 	INIT_LIST_HEAD(&cache->bg_list);
-	btrfs_init_free_space_ctl(cache);
+	btrfs_init_free_space_ctl(cache, cache->free_space_ctl);
 	mutex_init(&cache->free_space_lock);
 
 	return cache;

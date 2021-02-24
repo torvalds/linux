@@ -1448,6 +1448,7 @@ retry_next:
 				break;
 			}
 			scsi_rescan_device(&device->sdev_gendev);
+			break;
 
 		default:
 			break;

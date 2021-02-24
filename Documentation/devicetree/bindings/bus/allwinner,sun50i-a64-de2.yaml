@@ -34,7 +34,7 @@ properties:
     description:
       The SRAM that needs to be claimed to access the display engine
       bus.
-    $ref: /schemas/types.yaml#definitions/phandle-array
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     maxItems: 1
 
   ranges: true

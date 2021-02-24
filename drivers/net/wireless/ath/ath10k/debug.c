@@ -583,7 +583,7 @@ static ssize_t ath10k_write_simulate_fw_crash(struct file *file,
 		ret = ath10k_debug_fw_assert(ar);
 	} else if (!strcmp(buf, "hw-restart")) {
 		ath10k_info(ar, "user requested hw restart\n");
-		queue_work(ar->workqueue, &ar->restart_work);
+		ath10k_core_start_recovery(ar);
 		ret = 0;
 	} else {
 		ret = -EINVAL;
@@ -1764,7 +1764,7 @@ static ssize_t ath10k_write_simulate_radar(struct file *file,
 	struct ath10k *ar = file->private_data;
 	struct ath10k_vif *arvif;
 
-	/* Just check for for the first vif alone, as all the vifs will be
+	/* Just check for the first vif alone, as all the vifs will be
 	 * sharing the same channel and if the channel is disabled, all the
 	 * vifs will share the same 'is_started' state.
 	 */
@@ -2005,7 +2005,7 @@ static ssize_t ath10k_write_btcoex(struct file *file,
 		}
 	} else {
 		ath10k_info(ar, "restarting firmware due to btcoex change");
-		queue_work(ar->workqueue, &ar->restart_work);
+		ath10k_core_start_recovery(ar);
 	}
 
 	if (val)
@@ -2136,7 +2136,7 @@ static ssize_t ath10k_write_peer_stats(struct file *file,
 
 	ath10k_info(ar, "restarting firmware due to Peer stats change");
 
-	queue_work(ar->workqueue, &ar->restart_work);
+	ath10k_core_start_recovery(ar);
 	ret = count;
 
 exit:

@@ -113,26 +113,16 @@ static bool __rtrs_srv_change_state(struct rtrs_srv_sess *sess,
 	return changed;
 }
 
-static bool rtrs_srv_change_state_get_old(struct rtrs_srv_sess *sess,
-					   enum rtrs_srv_state new_state,
-					   enum rtrs_srv_state *old_state)
+static bool rtrs_srv_change_state(struct rtrs_srv_sess *sess,
+				   enum rtrs_srv_state new_state)
 {
 	bool changed;
 
 	spin_lock_irq(&sess->state_lock);
-	*old_state = sess->state;
 	changed = __rtrs_srv_change_state(sess, new_state);
 	spin_unlock_irq(&sess->state_lock);
 
 	return changed;
-}
-
-static bool rtrs_srv_change_state(struct rtrs_srv_sess *sess,
-				   enum rtrs_srv_state new_state)
-{
-	enum rtrs_srv_state old_state;
-
-	return rtrs_srv_change_state_get_old(sess, new_state, &old_state);
 }
 
 static void free_id(struct rtrs_srv_op *id)
@@ -471,10 +461,7 @@ static int send_io_resp_imm(struct rtrs_srv_con *con, struct rtrs_srv_op *id,
 
 void close_sess(struct rtrs_srv_sess *sess)
 {
-	enum rtrs_srv_state old_state;
-
-	if (rtrs_srv_change_state_get_old(sess, RTRS_SRV_CLOSING,
-					   &old_state))
+	if (rtrs_srv_change_state(sess, RTRS_SRV_CLOSING))
 		queue_work(rtrs_wq, &sess->close_work);
 	WARN_ON(sess->state != RTRS_SRV_CLOSING);
 }
@@ -577,8 +564,7 @@ static void unmap_cont_bufs(struct rtrs_srv_sess *sess)
 		struct rtrs_srv_mr *srv_mr;
 
 		srv_mr = &sess->mrs[i];
-		rtrs_iu_free(srv_mr->iu, DMA_TO_DEVICE,
-			      sess->s.dev->ib_dev, 1);
+		rtrs_iu_free(srv_mr->iu, sess->s.dev->ib_dev, 1);
 		ib_dereg_mr(srv_mr->mr);
 		ib_dma_unmap_sg(sess->s.dev->ib_dev, srv_mr->sgt.sgl,
 				srv_mr->sgt.nents, DMA_BIDIRECTIONAL);
@@ -682,8 +668,7 @@ err:
 			sgt = &srv_mr->sgt;
 			mr = srv_mr->mr;
 free_iu:
-			rtrs_iu_free(srv_mr->iu, DMA_TO_DEVICE,
-				      sess->s.dev->ib_dev, 1);
+			rtrs_iu_free(srv_mr->iu, sess->s.dev->ib_dev, 1);
 dereg_mr:
 			ib_dereg_mr(mr);
 unmap_sg:
@@ -735,7 +720,7 @@ static void rtrs_srv_info_rsp_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct rtrs_iu *iu;
 
 	iu = container_of(wc->wr_cqe, struct rtrs_iu, cqe);
-	rtrs_iu_free(iu, DMA_TO_DEVICE, sess->s.dev->ib_dev, 1);
+	rtrs_iu_free(iu, sess->s.dev->ib_dev, 1);
 
 	if (unlikely(wc->status != IB_WC_SUCCESS)) {
 		rtrs_err(s, "Sess info response send failed: %s\n",
@@ -861,7 +846,7 @@ static int process_info_req(struct rtrs_srv_con *con,
 	if (unlikely(err)) {
 		rtrs_err(s, "rtrs_iu_post_send(), err: %d\n", err);
 iu_free:
-		rtrs_iu_free(tx_iu, DMA_TO_DEVICE, sess->s.dev->ib_dev, 1);
+		rtrs_iu_free(tx_iu, sess->s.dev->ib_dev, 1);
 	}
 rwr_free:
 	kfree(rwr);
@@ -906,7 +891,7 @@ static void rtrs_srv_info_req_done(struct ib_cq *cq, struct ib_wc *wc)
 		goto close;
 
 out:
-	rtrs_iu_free(iu, DMA_FROM_DEVICE, sess->s.dev->ib_dev, 1);
+	rtrs_iu_free(iu, sess->s.dev->ib_dev, 1);
 	return;
 close:
 	close_sess(sess);
@@ -929,7 +914,7 @@ static int post_recv_info_req(struct rtrs_srv_con *con)
 	err = rtrs_iu_post_recv(&con->c, rx_iu);
 	if (unlikely(err)) {
 		rtrs_err(s, "rtrs_iu_post_recv(), err: %d\n", err);
-		rtrs_iu_free(rx_iu, DMA_FROM_DEVICE, sess->s.dev->ib_dev, 1);
+		rtrs_iu_free(rx_iu, sess->s.dev->ib_dev, 1);
 		return err;
 	}
 
@@ -1328,51 +1313,6 @@ static void rtrs_srv_dev_release(struct device *dev)
 	kfree(srv);
 }
 
-static struct rtrs_srv *__alloc_srv(struct rtrs_srv_ctx *ctx,
-				     const uuid_t *paths_uuid)
-{
-	struct rtrs_srv *srv;
-	int i;
-
-	srv = kzalloc(sizeof(*srv), GFP_KERNEL);
-	if  (!srv)
-		return NULL;
-
-	refcount_set(&srv->refcount, 1);
-	INIT_LIST_HEAD(&srv->paths_list);
-	mutex_init(&srv->paths_mutex);
-	mutex_init(&srv->paths_ev_mutex);
-	uuid_copy(&srv->paths_uuid, paths_uuid);
-	srv->queue_depth = sess_queue_depth;
-	srv->ctx = ctx;
-	device_initialize(&srv->dev);
-	srv->dev.release = rtrs_srv_dev_release;
-
-	srv->chunks = kcalloc(srv->queue_depth, sizeof(*srv->chunks),
-			      GFP_KERNEL);
-	if (!srv->chunks)
-		goto err_free_srv;
-
-	for (i = 0; i < srv->queue_depth; i++) {
-		srv->chunks[i] = mempool_alloc(chunk_pool, GFP_KERNEL);
-		if (!srv->chunks[i])
-			goto err_free_chunks;
-	}
-	list_add(&srv->ctx_list, &ctx->srv_list);
-
-	return srv;
-
-err_free_chunks:
-	while (i--)
-		mempool_free(srv->chunks[i], chunk_pool);
-	kfree(srv->chunks);
-
-err_free_srv:
-	kfree(srv);
-
-	return NULL;
-}
-
 static void free_srv(struct rtrs_srv *srv)
 {
 	int i;
@@ -1387,32 +1327,61 @@ static void free_srv(struct rtrs_srv *srv)
 	put_device(&srv->dev);
 }
 
-static inline struct rtrs_srv *__find_srv_and_get(struct rtrs_srv_ctx *ctx,
-						   const uuid_t *paths_uuid)
-{
-	struct rtrs_srv *srv;
-
-	list_for_each_entry(srv, &ctx->srv_list, ctx_list) {
-		if (uuid_equal(&srv->paths_uuid, paths_uuid) &&
-		    refcount_inc_not_zero(&srv->refcount))
-			return srv;
-	}
-
-	return NULL;
-}
-
 static struct rtrs_srv *get_or_create_srv(struct rtrs_srv_ctx *ctx,
 					   const uuid_t *paths_uuid)
 {
 	struct rtrs_srv *srv;
+	int i;
 
 	mutex_lock(&ctx->srv_mutex);
-	srv = __find_srv_and_get(ctx, paths_uuid);
-	if (!srv)
-		srv = __alloc_srv(ctx, paths_uuid);
+	list_for_each_entry(srv, &ctx->srv_list, ctx_list) {
+		if (uuid_equal(&srv->paths_uuid, paths_uuid) &&
+		    refcount_inc_not_zero(&srv->refcount)) {
+			mutex_unlock(&ctx->srv_mutex);
+			return srv;
+		}
+	}
+
+	/* need to allocate a new srv */
+	srv = kzalloc(sizeof(*srv), GFP_KERNEL);
+	if  (!srv) {
+		mutex_unlock(&ctx->srv_mutex);
+		return NULL;
+	}
+
+	INIT_LIST_HEAD(&srv->paths_list);
+	mutex_init(&srv->paths_mutex);
+	mutex_init(&srv->paths_ev_mutex);
+	uuid_copy(&srv->paths_uuid, paths_uuid);
+	srv->queue_depth = sess_queue_depth;
+	srv->ctx = ctx;
+	device_initialize(&srv->dev);
+	srv->dev.release = rtrs_srv_dev_release;
+	list_add(&srv->ctx_list, &ctx->srv_list);
 	mutex_unlock(&ctx->srv_mutex);
 
+	srv->chunks = kcalloc(srv->queue_depth, sizeof(*srv->chunks),
+			      GFP_KERNEL);
+	if (!srv->chunks)
+		goto err_free_srv;
+
+	for (i = 0; i < srv->queue_depth; i++) {
+		srv->chunks[i] = mempool_alloc(chunk_pool, GFP_KERNEL);
+		if (!srv->chunks[i])
+			goto err_free_chunks;
+	}
+	refcount_set(&srv->refcount, 1);
+
 	return srv;
+
+err_free_chunks:
+	while (i--)
+		mempool_free(srv->chunks[i], chunk_pool);
+	kfree(srv->chunks);
+
+err_free_srv:
+	kfree(srv);
+	return NULL;
 }
 
 static void put_srv(struct rtrs_srv *srv)
@@ -1813,7 +1782,11 @@ static int rtrs_rdma_connect(struct rdma_cm_id *cm_id,
 	}
 	recon_cnt = le16_to_cpu(msg->recon_cnt);
 	srv = get_or_create_srv(ctx, &msg->paths_uuid);
-	if (!srv) {
+	/*
+	 * "refcount == 0" happens if a previous thread calls get_or_create_srv
+	 * allocate srv, but chunks of srv are not allocated yet.
+	 */
+	if (!srv || refcount_read(&srv->refcount) == 0) {
 		err = -ENOMEM;
 		goto reject_w_err;
 	}

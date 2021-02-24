@@ -27,7 +27,7 @@
 #include <drm/armada_drm.h>
 #include "armada_ioctlP.h"
 
-static struct drm_ioctl_desc armada_ioctls[] = {
+static const struct drm_ioctl_desc armada_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(ARMADA_GEM_CREATE, armada_gem_create_ioctl,0),
 	DRM_IOCTL_DEF_DRV(ARMADA_GEM_MMAP, armada_gem_mmap_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(ARMADA_GEM_PWRITE, armada_gem_pwrite_ioctl, 0),
@@ -35,15 +35,12 @@ static struct drm_ioctl_desc armada_ioctls[] = {
 
 DEFINE_DRM_GEM_FOPS(armada_drm_fops);
 
-static struct drm_driver armada_drm_driver = {
+static const struct drm_driver armada_drm_driver = {
 	.lastclose		= drm_fb_helper_lastclose,
-	.gem_free_object_unlocked = armada_gem_free_object,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
-	.gem_prime_export	= armada_gem_prime_export,
 	.gem_prime_import	= armada_gem_prime_import,
 	.dumb_create		= armada_gem_dumb_create,
-	.gem_vm_ops		= &armada_gem_vm_ops,
 	.major			= 1,
 	.minor			= 0,
 	.name			= "armada-drm",
@@ -51,6 +48,7 @@ static struct drm_driver armada_drm_driver = {
 	.date			= "20120730",
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.ioctls			= armada_ioctls,
+	.num_ioctls = ARRAY_SIZE(armada_ioctls),
 	.fops			= &armada_drm_fops,
 };
 
@@ -277,8 +275,6 @@ static struct platform_driver armada_drm_platform_driver = {
 static int __init armada_drm_init(void)
 {
 	int ret;
-
-	armada_drm_driver.num_ioctls = ARRAY_SIZE(armada_ioctls);
 
 	ret = platform_driver_register(&armada_lcd_platform_driver);
 	if (ret)

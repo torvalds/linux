@@ -631,8 +631,8 @@ config MMC_SPI
 
 config MMC_S3C
 	tristate "Samsung S3C SD/MMC Card Interface support"
-	depends on ARCH_S3C24XX
-	depends on S3C24XX_DMAC
+	depends on ARCH_S3C24XX || COMPILE_TEST
+	depends on S3C24XX_DMAC || COMPILE_TEST
 	help
 	  This selects a driver for the MCI interface found in
 	  Samsung's S3C2410, S3C2412, S3C2440, S3C2442 CPUs.
@@ -664,7 +664,7 @@ config MMC_S3C_PIO
 config MMC_S3C_DMA
 	bool "Use DMA transfers only"
 	help
-	  Use DMA to transfer data between memory and the hardare.
+	  Use DMA to transfer data between memory and the hardware.
 
 	  Currently, the DMA support in this driver seems to not be
 	  working properly and needs to be debugged before this
@@ -1023,6 +1023,7 @@ config MMC_BCM2835
 config MMC_MTK
 	tristate "MediaTek SD/MMC Card Interface support"
 	depends on HAS_DMA
+	depends on COMMON_CLK
 	select REGULATOR
 	select MMC_CQHCI
 	help

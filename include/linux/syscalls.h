@@ -251,6 +251,30 @@ static inline int is_syscall_trace_event(struct trace_event_call *tp_event)
 	static inline long __do_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))
 #endif /* __SYSCALL_DEFINEx */
 
+/* For split 64-bit arguments on 32-bit architectures */
+#ifdef __LITTLE_ENDIAN
+#define SC_ARG64(name) u32, name##_lo, u32, name##_hi
+#else
+#define SC_ARG64(name) u32, name##_hi, u32, name##_lo
+#endif
+#define SC_VAL64(type, name) ((type) name##_hi << 32 | name##_lo)
+
+#ifdef CONFIG_COMPAT
+#define SYSCALL32_DEFINE1 COMPAT_SYSCALL_DEFINE1
+#define SYSCALL32_DEFINE2 COMPAT_SYSCALL_DEFINE2
+#define SYSCALL32_DEFINE3 COMPAT_SYSCALL_DEFINE3
+#define SYSCALL32_DEFINE4 COMPAT_SYSCALL_DEFINE4
+#define SYSCALL32_DEFINE5 COMPAT_SYSCALL_DEFINE5
+#define SYSCALL32_DEFINE6 COMPAT_SYSCALL_DEFINE6
+#else
+#define SYSCALL32_DEFINE1 SYSCALL_DEFINE1
+#define SYSCALL32_DEFINE2 SYSCALL_DEFINE2
+#define SYSCALL32_DEFINE3 SYSCALL_DEFINE3
+#define SYSCALL32_DEFINE4 SYSCALL_DEFINE4
+#define SYSCALL32_DEFINE5 SYSCALL_DEFINE5
+#define SYSCALL32_DEFINE6 SYSCALL_DEFINE6
+#endif
+
 /*
  * Called before coming back to user-mode. Returning to user-mode with an
  * address limit different than USER_DS can allow to overwrite kernel memory.
@@ -317,7 +341,7 @@ asmlinkage long sys_io_uring_setup(u32 entries,
 				struct io_uring_params __user *p);
 asmlinkage long sys_io_uring_enter(unsigned int fd, u32 to_submit,
 				u32 min_complete, u32 flags,
-				const sigset_t __user *sig, size_t sigsz);
+				const void __user *argp, size_t argsz);
 asmlinkage long sys_io_uring_register(unsigned int fd, unsigned int op,
 				void __user *arg, unsigned int nr_args);
 
@@ -362,6 +386,11 @@ asmlinkage long sys_epoll_pwait(int epfd, struct epoll_event __user *events,
 				int maxevents, int timeout,
 				const sigset_t __user *sigmask,
 				size_t sigsetsize);
+asmlinkage long sys_epoll_pwait2(int epfd, struct epoll_event __user *events,
+				 int maxevents,
+				 const struct __kernel_timespec __user *timeout,
+				 const sigset_t __user *sigmask,
+				 size_t sigsetsize);
 
 /* fs/fcntl.c */
 asmlinkage long sys_dup(unsigned int fildes);
@@ -578,11 +607,11 @@ asmlinkage long sys_unshare(unsigned long unshare_flags);
 
 /* kernel/futex.c */
 asmlinkage long sys_futex(u32 __user *uaddr, int op, u32 val,
-			struct __kernel_timespec __user *utime, u32 __user *uaddr2,
-			u32 val3);
+			  const struct __kernel_timespec __user *utime,
+			  u32 __user *uaddr2, u32 val3);
 asmlinkage long sys_futex_time32(u32 __user *uaddr, int op, u32 val,
-			struct old_timespec32 __user *utime, u32 __user *uaddr2,
-			u32 val3);
+				 const struct old_timespec32 __user *utime,
+				 u32 __user *uaddr2, u32 val3);
 asmlinkage long sys_get_robust_list(int pid,
 				    struct robust_list_head __user * __user *head_ptr,
 				    size_t __user *len_ptr);
@@ -744,7 +773,7 @@ asmlinkage long sys_settimeofday(struct __kernel_old_timeval __user *tv,
 asmlinkage long sys_adjtimex(struct __kernel_timex __user *txc_p);
 asmlinkage long sys_adjtimex_time32(struct old_timex32 __user *txc_p);
 
-/* kernel/timer.c */
+/* kernel/sys.c */
 asmlinkage long sys_getpid(void);
 asmlinkage long sys_getppid(void);
 asmlinkage long sys_getuid(void);
@@ -1293,18 +1322,6 @@ extern long do_sys_ftruncate(unsigned int fd, loff_t length, int small);
 static inline long ksys_ftruncate(unsigned int fd, loff_t length)
 {
 	return do_sys_ftruncate(fd, length, 1);
-}
-
-extern int __close_fd(struct files_struct *files, unsigned int fd);
-
-/*
- * In contrast to sys_close(), this stub does not check whether the syscall
- * should or should not be restarted, but returns the raw error codes from
- * __close_fd().
- */
-static inline int ksys_close(unsigned int fd)
-{
-	return __close_fd(current->files, fd);
 }
 
 extern long do_sys_truncate(const char __user *pathname, loff_t length);

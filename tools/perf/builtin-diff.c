@@ -494,7 +494,7 @@ static struct evsel *evsel_match(struct evsel *evsel,
 	return NULL;
 }
 
-static void perf_evlist__collapse_resort(struct evlist *evlist)
+static void evlist__collapse_resort(struct evlist *evlist)
 {
 	struct evsel *evsel;
 
@@ -1214,7 +1214,7 @@ static int __cmd_diff(void)
 			goto out_delete;
 		}
 
-		perf_evlist__collapse_resort(d->session->evlist);
+		evlist__collapse_resort(d->session->evlist);
 
 		if (pdiff.ptime_range)
 			zfree(&pdiff.ptime_range);
@@ -1222,8 +1222,10 @@ static int __cmd_diff(void)
 		if (compute == COMPUTE_STREAM) {
 			d->evlist_streams = evlist__create_streams(
 						d->session->evlist, 5);
-			if (!d->evlist_streams)
+			if (!d->evlist_streams) {
+				ret = -ENOMEM;
 				goto out_delete;
+			}
 		}
 	}
 

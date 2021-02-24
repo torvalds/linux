@@ -709,8 +709,7 @@ ice_acquire_global_cfg_lock(struct ice_hw *hw,
 	if (!status)
 		mutex_lock(&ice_global_cfg_lock_sw);
 	else if (status == ICE_ERR_AQ_NO_WORK)
-		ice_debug(hw, ICE_DBG_PKG,
-			  "Global config lock: No work to do\n");
+		ice_debug(hw, ICE_DBG_PKG, "Global config lock: No work to do\n");
 
 	return status;
 }
@@ -909,8 +908,7 @@ ice_update_pkg(struct ice_hw *hw, struct ice_buf *bufs, u32 count)
 					   last, &offset, &info, NULL);
 
 		if (status) {
-			ice_debug(hw, ICE_DBG_PKG,
-				  "Update pkg failed: err %d off %d inf %d\n",
+			ice_debug(hw, ICE_DBG_PKG, "Update pkg failed: err %d off %d inf %d\n",
 				  status, offset, info);
 			break;
 		}
@@ -988,8 +986,7 @@ ice_dwnld_cfg_bufs(struct ice_hw *hw, struct ice_buf *bufs, u32 count)
 		/* Save AQ status from download package */
 		hw->pkg_dwnld_status = hw->adminq.sq_last_status;
 		if (status) {
-			ice_debug(hw, ICE_DBG_PKG,
-				  "Pkg download failed: err %d off %d inf %d\n",
+			ice_debug(hw, ICE_DBG_PKG, "Pkg download failed: err %d off %d inf %d\n",
 				  status, offset, info);
 
 			break;
@@ -1083,8 +1080,7 @@ ice_init_pkg_info(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr)
 			  meta_seg->pkg_ver.update, meta_seg->pkg_ver.draft,
 			  meta_seg->pkg_name);
 	} else {
-		ice_debug(hw, ICE_DBG_INIT,
-			  "Did not find metadata segment in driver package\n");
+		ice_debug(hw, ICE_DBG_INIT, "Did not find metadata segment in driver package\n");
 		return ICE_ERR_CFG;
 	}
 
@@ -1101,8 +1097,7 @@ ice_init_pkg_info(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr)
 			  seg_hdr->seg_format_ver.draft,
 			  seg_hdr->seg_id);
 	} else {
-		ice_debug(hw, ICE_DBG_INIT,
-			  "Did not find ice segment in driver package\n");
+		ice_debug(hw, ICE_DBG_INIT, "Did not find ice segment in driver package\n");
 		return ICE_ERR_CFG;
 	}
 
@@ -1318,8 +1313,7 @@ ice_chk_pkg_compat(struct ice_hw *hw, struct ice_pkg_hdr *ospkg,
 		    (*seg)->hdr.seg_format_ver.minor >
 			pkg->pkg_info[i].ver.minor) {
 			status = ICE_ERR_FW_DDP_MISMATCH;
-			ice_debug(hw, ICE_DBG_INIT,
-				  "OS package is not compatible with NVM.\n");
+			ice_debug(hw, ICE_DBG_INIT, "OS package is not compatible with NVM.\n");
 		}
 		/* done processing NVM package so break */
 		break;
@@ -1387,8 +1381,7 @@ enum ice_status ice_init_pkg(struct ice_hw *hw, u8 *buf, u32 len)
 	ice_init_pkg_hints(hw, seg);
 	status = ice_download_pkg(hw, seg);
 	if (status == ICE_ERR_AQ_NO_WORK) {
-		ice_debug(hw, ICE_DBG_INIT,
-			  "package previously loaded - no work.\n");
+		ice_debug(hw, ICE_DBG_INIT, "package previously loaded - no work.\n");
 		status = 0;
 	}
 
@@ -1532,7 +1525,7 @@ ice_pkg_buf_reserve_section(struct ice_buf_build *bld, u16 count)
 	bld->reserved_section_table_entries += count;
 
 	data_end = le16_to_cpu(buf->data_end) +
-		   (count * sizeof(buf->section_entry[0]));
+		flex_array_size(buf, section_entry, count);
 	buf->data_end = cpu_to_le16(data_end);
 
 	return 0;
@@ -2734,7 +2727,7 @@ static void ice_fill_tbl(struct ice_hw *hw, enum ice_block block_id, u32 sid)
 		case ICE_SID_XLT1_RSS:
 		case ICE_SID_XLT1_ACL:
 		case ICE_SID_XLT1_PE:
-			xlt1 = (struct ice_xlt1_section *)sect;
+			xlt1 = sect;
 			src = xlt1->value;
 			sect_len = le16_to_cpu(xlt1->count) *
 				sizeof(*hw->blk[block_id].xlt1.t);
@@ -2747,7 +2740,7 @@ static void ice_fill_tbl(struct ice_hw *hw, enum ice_block block_id, u32 sid)
 		case ICE_SID_XLT2_RSS:
 		case ICE_SID_XLT2_ACL:
 		case ICE_SID_XLT2_PE:
-			xlt2 = (struct ice_xlt2_section *)sect;
+			xlt2 = sect;
 			src = (__force u8 *)xlt2->value;
 			sect_len = le16_to_cpu(xlt2->count) *
 				sizeof(*hw->blk[block_id].xlt2.t);
@@ -2760,7 +2753,7 @@ static void ice_fill_tbl(struct ice_hw *hw, enum ice_block block_id, u32 sid)
 		case ICE_SID_PROFID_TCAM_RSS:
 		case ICE_SID_PROFID_TCAM_ACL:
 		case ICE_SID_PROFID_TCAM_PE:
-			pid = (struct ice_prof_id_section *)sect;
+			pid = sect;
 			src = (u8 *)pid->entry;
 			sect_len = le16_to_cpu(pid->count) *
 				sizeof(*hw->blk[block_id].prof.t);
@@ -2773,7 +2766,7 @@ static void ice_fill_tbl(struct ice_hw *hw, enum ice_block block_id, u32 sid)
 		case ICE_SID_PROFID_REDIR_RSS:
 		case ICE_SID_PROFID_REDIR_ACL:
 		case ICE_SID_PROFID_REDIR_PE:
-			pr = (struct ice_prof_redir_section *)sect;
+			pr = sect;
 			src = pr->redir_value;
 			sect_len = le16_to_cpu(pr->count) *
 				sizeof(*hw->blk[block_id].prof_redir.t);
@@ -2786,7 +2779,7 @@ static void ice_fill_tbl(struct ice_hw *hw, enum ice_block block_id, u32 sid)
 		case ICE_SID_FLD_VEC_RSS:
 		case ICE_SID_FLD_VEC_ACL:
 		case ICE_SID_FLD_VEC_PE:
-			es = (struct ice_sw_fv_section *)sect;
+			es = sect;
 			src = (u8 *)es->fv;
 			sect_len = (u32)(le16_to_cpu(es->count) *
 					 hw->blk[block_id].es.fvw) *
@@ -3261,8 +3254,7 @@ ice_has_prof_vsig(struct ice_hw *hw, enum ice_block blk, u16 vsig, u64 hdl)
 		if (ent->profile_cookie == hdl)
 			return true;
 
-	ice_debug(hw, ICE_DBG_INIT,
-		  "Characteristic list for VSI group %d not found.\n",
+	ice_debug(hw, ICE_DBG_INIT, "Characteristic list for VSI group %d not found.\n",
 		  vsig);
 	return false;
 }

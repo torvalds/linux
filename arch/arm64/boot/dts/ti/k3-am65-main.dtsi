@@ -119,7 +119,6 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges = <0x0 0x04e00000 0x00 0x04e00000 0x0 0x30000>;
-		status = "okay";
 
 		dmas = <&main_udmap 0xc000>, <&main_udmap 0x4000>,
 				<&main_udmap 0x4001>;
@@ -257,7 +256,7 @@
 		#size-cells = <0>;
 	};
 
-	sdhci0: sdhci@4f80000 {
+	sdhci0: mmc@4f80000 {
 		compatible = "ti,am654-sdhci-5.1";
 		reg = <0x0 0x4f80000 0x0 0x260>, <0x0 0x4f90000 0x0 0x134>;
 		power-domains = <&k3_pds 47 TI_SCI_PD_EXCLUSIVE>;
@@ -281,7 +280,7 @@
 		dma-coherent;
 	};
 
-	sdhci1: sdhci@4fa0000 {
+	sdhci1: mmc@4fa0000 {
 		compatible = "ti,am654-sdhci-5.1";
 		reg = <0x0 0x4fa0000 0x0 0x260>, <0x0 0x4fb0000 0x0 0x134>;
 		power-domains = <&k3_pds 48 TI_SCI_PD_EXCLUSIVE>;
@@ -473,6 +472,7 @@
 			interrupt-controller;
 			interrupt-parent = <&intr_main_navss>;
 			msi-controller;
+			#interrupt-cells = <0>;
 			ti,sci = <&dmsc>;
 			ti,sci-dev-id = <179>;
 			ti,interrupt-ranges = <0 0 256>;
@@ -612,7 +612,6 @@
 			reg-names = "rt", "fifos", "proxy_gcfg", "proxy_target";
 			ti,num-rings = <818>;
 			ti,sci-rm-range-gp-rings = <0x1>; /* GP ring range */
-			ti,dma-ring-reset-quirk;
 			ti,sci = <&dmsc>;
 			ti,sci-dev-id = <187>;
 			msi-parent = <&inta_main_udmass>;
@@ -770,8 +769,6 @@
 		clocks = <&k3_clks 104 0>;
 		clock-names = "fck";
 		power-domains = <&k3_pds 104 TI_SCI_PD_EXCLUSIVE>;
-
-		status = "disabled";
 	};
 
 	mcasp1: mcasp@2b10000 {
@@ -789,8 +786,6 @@
 		clocks = <&k3_clks 105 0>;
 		clock-names = "fck";
 		power-domains = <&k3_pds 105 TI_SCI_PD_EXCLUSIVE>;
-
-		status = "disabled";
 	};
 
 	mcasp2: mcasp@2b20000 {
@@ -808,8 +803,6 @@
 		clocks = <&k3_clks 106 0>;
 		clock-names = "fck";
 		power-domains = <&k3_pds 106 TI_SCI_PD_EXCLUSIVE>;
-
-		status = "disabled";
 	};
 
 	cal: cal@6f03000 {
@@ -834,7 +827,7 @@
 		};
 	};
 
-	dss: dss@04a00000 {
+	dss: dss@4a00000 {
 		compatible = "ti,am65x-dss";
 		reg =	<0x0 0x04a00000 0x0 0x1000>, /* common */
 			<0x0 0x04a02000 0x0 0x1000>, /* vidl1 */
@@ -865,7 +858,7 @@
 
 		interrupts = <GIC_SPI 166 IRQ_TYPE_EDGE_RISING>;
 
-		status = "disabled";
+		dma-coherent;
 
 		dss_ports: ports {
 			#address-cells = <1>;

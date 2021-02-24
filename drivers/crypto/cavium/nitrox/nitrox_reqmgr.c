@@ -3,6 +3,7 @@
 #include <linux/workqueue.h>
 #include <crypto/internal/skcipher.h>
 
+#include "nitrox_common.h"
 #include "nitrox_dev.h"
 #include "nitrox_req.h"
 #include "nitrox_csr.h"
@@ -448,7 +449,7 @@ int nitrox_process_se_request(struct nitrox_device *ndev,
 	sr->instr.ih.s.ssz = sr->out.sgmap_cnt;
 	sr->instr.ih.s.fsz = FDATA_SIZE + sizeof(struct gphdr);
 	sr->instr.ih.s.tlen = sr->instr.ih.s.fsz + sr->in.total_bytes;
-	sr->instr.ih.value = cpu_to_be64(sr->instr.ih.value);
+	sr->instr.ih.bev = cpu_to_be64(sr->instr.ih.value);
 
 	/* word 2 */
 	sr->instr.irh.value[0] = 0;
@@ -460,7 +461,7 @@ int nitrox_process_se_request(struct nitrox_device *ndev,
 	sr->instr.irh.s.ctxc = req->ctrl.s.ctxc;
 	sr->instr.irh.s.arg = req->ctrl.s.arg;
 	sr->instr.irh.s.opcode = req->opcode;
-	sr->instr.irh.value[0] = cpu_to_be64(sr->instr.irh.value[0]);
+	sr->instr.irh.bev[0] = cpu_to_be64(sr->instr.irh.value[0]);
 
 	/* word 3 */
 	sr->instr.irh.s.ctxp = cpu_to_be64(ctx_handle);
@@ -468,7 +469,7 @@ int nitrox_process_se_request(struct nitrox_device *ndev,
 	/* word 4 */
 	sr->instr.slc.value[0] = 0;
 	sr->instr.slc.s.ssz = sr->out.sgmap_cnt;
-	sr->instr.slc.value[0] = cpu_to_be64(sr->instr.slc.value[0]);
+	sr->instr.slc.bev[0] = cpu_to_be64(sr->instr.slc.value[0]);
 
 	/* word 5 */
 	sr->instr.slc.s.rptr = cpu_to_be64(sr->out.sgcomp_dma);

@@ -24,6 +24,6 @@
 #ifndef __GFXHUB_V1_1_H__
 #define __GFXHUB_V1_1_H__
 
-extern const struct amdgpu_gfxhub_funcs gfxhub_v1_1_funcs;
+int gfxhub_v1_1_get_xgmi_info(struct amdgpu_device *adev);
 
 #endif

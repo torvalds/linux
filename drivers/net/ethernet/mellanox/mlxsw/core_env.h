@@ -4,6 +4,9 @@
 #ifndef _MLXSW_CORE_ENV_H
 #define _MLXSW_CORE_ENV_H
 
+struct ethtool_modinfo;
+struct ethtool_eeprom;
+
 int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
 					 int off, int *temp);
 

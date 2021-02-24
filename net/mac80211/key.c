@@ -887,7 +887,7 @@ void ieee80211_reenable_keys(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_key *key;
 	struct ieee80211_sub_if_data *vlan;
 
-	ASSERT_RTNL();
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
 	mutex_lock(&sdata->local->key_mtx);
 
@@ -924,7 +924,7 @@ void ieee80211_iter_keys(struct ieee80211_hw *hw,
 	struct ieee80211_key *key, *tmp;
 	struct ieee80211_sub_if_data *sdata;
 
-	ASSERT_RTNL();
+	lockdep_assert_wiphy(hw->wiphy);
 
 	mutex_lock(&local->key_mtx);
 	if (vif) {
@@ -1300,3 +1300,52 @@ ieee80211_gtk_rekey_add(struct ieee80211_vif *vif,
 	return &key->conf;
 }
 EXPORT_SYMBOL_GPL(ieee80211_gtk_rekey_add);
+
+void ieee80211_key_mic_failure(struct ieee80211_key_conf *keyconf)
+{
+	struct ieee80211_key *key;
+
+	key = container_of(keyconf, struct ieee80211_key, conf);
+
+	switch (key->conf.cipher) {
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+		key->u.aes_cmac.icverrors++;
+		break;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		key->u.aes_gmac.icverrors++;
+		break;
+	default:
+		/* ignore the others for now, we don't keep counters now */
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(ieee80211_key_mic_failure);
+
+void ieee80211_key_replay(struct ieee80211_key_conf *keyconf)
+{
+	struct ieee80211_key *key;
+
+	key = container_of(keyconf, struct ieee80211_key, conf);
+
+	switch (key->conf.cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
+		key->u.ccmp.replays++;
+		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+		key->u.aes_cmac.replays++;
+		break;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		key->u.aes_gmac.replays++;
+		break;
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		key->u.gcmp.replays++;
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(ieee80211_key_replay);

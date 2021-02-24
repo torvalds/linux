@@ -4,7 +4,7 @@
 #
 menuconfig IP_VS
 	tristate "IP virtual server support"
-	depends on NET && INET && NETFILTER
+	depends on INET && NETFILTER
 	depends on (NF_CONNTRACK || NF_CONNTRACK=n)
 	help
 	  IP Virtual Server support will let you build a high-performance
@@ -267,6 +267,17 @@ config	IP_VS_NQ
 	  is no idle server available, the job will be sent to the server
 	  that minimize its expected delay (The Shortest Expected Delay
 	  scheduling algorithm).
+
+	  If you want to compile it in kernel, say Y. To compile it as a
+	  module, choose M here. If unsure, say N.
+
+config	IP_VS_TWOS
+	tristate "weighted random twos choice least-connection scheduling"
+	help
+	  The weighted random twos choice least-connection scheduling
+	  algorithm picks two random real servers and directs network
+	  connections to the server with the least active connections
+	  normalized by the server weight.
 
 	  If you want to compile it in kernel, say Y. To compile it as a
 	  module, choose M here. If unsure, say N.

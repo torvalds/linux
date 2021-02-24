@@ -8,7 +8,7 @@
 #include <dt-bindings/leds/leds-pca955x.h>
 
 / {
-	model = "Rainier";
+	model = "Rainier 2U";
 	compatible = "ibm,rainier-bmc", "aspeed,ast2600";
 
 	aliases {
@@ -47,9 +47,18 @@
 		#size-cells = <1>;
 		ranges;
 
-		flash_memory: region@B8000000 {
+		flash_memory: region@b8000000 {
 			no-map;
-			reg = <0xB8000000 0x04000000>; /* 64M */
+			reg = <0xb8000000 0x04000000>; /* 64M */
+		};
+
+		ramoops@bc000000 {
+			compatible = "ramoops";
+			reg = <0xbc000000 0x180000>; /* 16 * (3 * 0x8000) */
+			record-size = <0x8000>;
+			console-size = <0x8000>;
+			pmsg-size = <0x8000>;
+			max-reason = <3>; /* KMSG_DUMP_EMERG */
 		};
 
 		vga_memory: region@bf000000 {
@@ -186,6 +195,7 @@
 
 &emmc {
 	status = "okay";
+	clk-phase-mmc-hs200 = <180>, <180>;
 };
 
 &fsim0 {
@@ -258,6 +268,7 @@
 
 			cfam0_spi2: spi@40 {
 				reg = <0x40>;
+				compatible = "ibm,fsi2spi-restricted";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -274,6 +285,7 @@
 
 			cfam0_spi3: spi@60 {
 				reg = <0x60>;
+				compatible = "ibm,fsi2spi-restricted";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -370,6 +382,7 @@
 
 			cfam1_spi2: spi@40 {
 				reg = <0x40>;
+				compatible = "ibm,fsi2spi-restricted";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -386,6 +399,7 @@
 
 			cfam1_spi3: spi@60 {
 				reg = <0x60>;
+				compatible = "ibm,fsi2spi-restricted";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -480,6 +494,7 @@
 
 			cfam2_spi2: spi@40 {
 				reg = <0x40>;
+				compatible = "ibm,fsi2spi-restricted";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -496,6 +511,7 @@
 
 			cfam2_spi3: spi@60 {
 				reg = <0x60>;
+				compatible = "ibm,fsi2spi-restricted";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -564,7 +580,7 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 
-		smbus0 {
+		smbus0-hog {
 			gpio-hog;
 			gpios = <4 GPIO_ACTIVE_HIGH>;
 			output-high;
@@ -593,16 +609,6 @@
 	power-supply@69 {
 		compatible = "ibm,cffps";
 		reg = <0x69>;
-	};
-
-	power-supply@6a {
-		compatible = "ibm,cffps";
-		reg = <0x6a>;
-	};
-
-	power-supply@6b {
-		compatible = "ibm,cffps";
-		reg = <0x6b>;
 	};
 };
 
@@ -723,25 +729,25 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		fan@0 {
+		fan0: fan@0 {
 			compatible = "pmbus-fan";
 			reg = <0>;
 			tach-pulses = <2>;
 		};
 
-		fan@1 {
+		fan1: fan@1 {
 			compatible = "pmbus-fan";
 			reg = <1>;
 			tach-pulses = <2>;
 		};
 
-		fan@2 {
+		fan2: fan@2 {
 			compatible = "pmbus-fan";
 			reg = <2>;
 			tach-pulses = <2>;
 		};
 
-		fan@3 {
+		fan3: fan@3 {
 			compatible = "pmbus-fan";
 			reg = <3>;
 			tach-pulses = <2>;

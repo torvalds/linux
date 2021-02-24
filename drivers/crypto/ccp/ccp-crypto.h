@@ -19,7 +19,8 @@
 #include <crypto/aead.h>
 #include <crypto/ctr.h>
 #include <crypto/hash.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <crypto/akcipher.h>
 #include <crypto/skcipher.h>
 #include <crypto/internal/rsa.h>

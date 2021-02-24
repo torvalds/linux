@@ -208,7 +208,7 @@ static int ep93xx_keypad_resume(struct device *dev)
 
 	mutex_lock(&input_dev->mutex);
 
-	if (input_dev->users) {
+	if (input_device_enabled(input_dev)) {
 		if (!keypad->enabled) {
 			ep93xx_keypad_config(keypad);
 			clk_enable(keypad->clk);

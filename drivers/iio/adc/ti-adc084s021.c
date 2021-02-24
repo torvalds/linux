@@ -70,11 +70,10 @@ static const struct iio_chan_spec adc084s021_channels[] = {
  * @adc: The ADC SPI data.
  * @data: Buffer for converted data.
  */
-static int adc084s021_adc_conversion(struct adc084s021 *adc, void *data)
+static int adc084s021_adc_conversion(struct adc084s021 *adc, __be16 *data)
 {
 	int n_words = (adc->spi_trans.len >> 1) - 1; /* Discard first word */
 	int ret, i = 0;
-	u16 *p = data;
 
 	/* Do the transfer */
 	ret = spi_sync(adc->spi, &adc->message);
@@ -82,7 +81,7 @@ static int adc084s021_adc_conversion(struct adc084s021 *adc, void *data)
 		return ret;
 
 	for (; i < n_words; i++)
-		*(p + i) = adc->rx_buf[i + 1];
+		*(data + i) = adc->rx_buf[i + 1];
 
 	return ret;
 }
@@ -93,6 +92,7 @@ static int adc084s021_read_raw(struct iio_dev *indio_dev,
 {
 	struct adc084s021 *adc = iio_priv(indio_dev);
 	int ret;
+	__be16 be_val;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -107,13 +107,13 @@ static int adc084s021_read_raw(struct iio_dev *indio_dev,
 		}
 
 		adc->tx_buf[0] = channel->channel << 3;
-		ret = adc084s021_adc_conversion(adc, val);
+		ret = adc084s021_adc_conversion(adc, &be_val);
 		iio_device_release_direct_mode(indio_dev);
 		regulator_disable(adc->reg);
 		if (ret < 0)
 			return ret;
 
-		*val = be16_to_cpu(*val);
+		*val = be16_to_cpu(be_val);
 		*val = (*val >> channel->scan_type.shift) & 0xff;
 
 		return IIO_VAL_INT;

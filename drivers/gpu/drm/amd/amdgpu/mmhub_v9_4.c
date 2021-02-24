@@ -405,7 +405,7 @@ static void mmhub_v9_4_gart_disable(struct amdgpu_device *adev)
 
 	for (j = 0; j < MMHUB_NUM_INSTANCES; j++) {
 		/* Disable all tables */
-		for (i = 0; i < 16; i++)
+		for (i = 0; i < AMDGPU_NUM_VMID; i++)
 			WREG32_SOC15_OFFSET(MMHUB, 0,
 					    mmVML2VC0_VM_CONTEXT0_CNTL,
 					    j * MMHUB_INSTANCE_REGISTER_OFFSET +

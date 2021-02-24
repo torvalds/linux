@@ -18,6 +18,7 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_wakeirq.h>
 
 /* OMAP4 registers */
 #define OMAP4_KBD_REVISION		0x00
@@ -69,7 +70,6 @@ struct omap4_keypad {
 	struct input_dev *input;
 
 	void __iomem *base;
-	bool irq_wake_enabled;
 	unsigned int irq;
 
 	unsigned int rows;
@@ -186,12 +186,8 @@ static int omap4_keypad_open(struct input_dev *input)
 	return 0;
 }
 
-static void omap4_keypad_close(struct input_dev *input)
+static void omap4_keypad_stop(struct omap4_keypad *keypad_data)
 {
-	struct omap4_keypad *keypad_data = input_get_drvdata(input);
-
-	disable_irq(keypad_data->irq);
-
 	/* Disable interrupts and wake-up events */
 	kbd_write_irqreg(keypad_data, OMAP4_KBD_IRQENABLE,
 			 OMAP4_VAL_IRQDISABLE);
@@ -200,7 +196,15 @@ static void omap4_keypad_close(struct input_dev *input)
 	/* clear pending interrupts */
 	kbd_write_irqreg(keypad_data, OMAP4_KBD_IRQSTATUS,
 			 kbd_read_irqreg(keypad_data, OMAP4_KBD_IRQSTATUS));
+}
 
+static void omap4_keypad_close(struct input_dev *input)
+{
+	struct omap4_keypad *keypad_data;
+
+	keypad_data = input_get_drvdata(input);
+	disable_irq(keypad_data->irq);
+	omap4_keypad_stop(keypad_data);
 	enable_irq(keypad_data->irq);
 
 	pm_runtime_put_sync(input->dev.parent);
@@ -223,13 +227,37 @@ static int omap4_keypad_parse_dt(struct device *dev,
 	return 0;
 }
 
+static int omap4_keypad_check_revision(struct device *dev,
+				       struct omap4_keypad *keypad_data)
+{
+	unsigned int rev;
+
+	rev = __raw_readl(keypad_data->base + OMAP4_KBD_REVISION);
+	rev &= 0x03 << 30;
+	rev >>= 30;
+	switch (rev) {
+	case KBD_REVISION_OMAP4:
+		keypad_data->reg_offset = 0x00;
+		keypad_data->irqreg_offset = 0x00;
+		break;
+	case KBD_REVISION_OMAP5:
+		keypad_data->reg_offset = 0x10;
+		keypad_data->irqreg_offset = 0x0c;
+		break;
+	default:
+		dev_err(dev, "Keypad reports unsupported revision %d", rev);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int omap4_keypad_probe(struct platform_device *pdev)
 {
 	struct omap4_keypad *keypad_data;
 	struct input_dev *input_dev;
 	struct resource *res;
 	unsigned int max_keys;
-	int rev;
 	int irq;
 	int error;
 
@@ -269,41 +297,33 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 		goto err_release_mem;
 	}
 
+	pm_runtime_enable(&pdev->dev);
 
 	/*
 	 * Enable clocks for the keypad module so that we can read
 	 * revision register.
 	 */
-	pm_runtime_enable(&pdev->dev);
 	error = pm_runtime_get_sync(&pdev->dev);
 	if (error) {
 		dev_err(&pdev->dev, "pm_runtime_get_sync() failed\n");
-		goto err_unmap;
+		pm_runtime_put_noidle(&pdev->dev);
+	} else {
+		error = omap4_keypad_check_revision(&pdev->dev,
+						    keypad_data);
+		if (!error) {
+			/* Ensure device does not raise interrupts */
+			omap4_keypad_stop(keypad_data);
+		}
+		pm_runtime_put_sync(&pdev->dev);
 	}
-	rev = __raw_readl(keypad_data->base + OMAP4_KBD_REVISION);
-	rev &= 0x03 << 30;
-	rev >>= 30;
-	switch (rev) {
-	case KBD_REVISION_OMAP4:
-		keypad_data->reg_offset = 0x00;
-		keypad_data->irqreg_offset = 0x00;
-		break;
-	case KBD_REVISION_OMAP5:
-		keypad_data->reg_offset = 0x10;
-		keypad_data->irqreg_offset = 0x0c;
-		break;
-	default:
-		dev_err(&pdev->dev,
-			"Keypad reports unsupported revision %d", rev);
-		error = -EINVAL;
-		goto err_pm_put_sync;
-	}
+	if (error)
+		goto err_pm_disable;
 
 	/* input device allocation */
 	keypad_data->input = input_dev = input_allocate_device();
 	if (!input_dev) {
 		error = -ENOMEM;
-		goto err_pm_put_sync;
+		goto err_pm_disable;
 	}
 
 	input_dev->name = pdev->name;
@@ -349,28 +369,30 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 		goto err_free_keymap;
 	}
 
-	device_init_wakeup(&pdev->dev, true);
-	pm_runtime_put_sync(&pdev->dev);
-
 	error = input_register_device(keypad_data->input);
 	if (error < 0) {
 		dev_err(&pdev->dev, "failed to register input device\n");
-		goto err_pm_disable;
+		goto err_free_irq;
 	}
 
+	device_init_wakeup(&pdev->dev, true);
+	error = dev_pm_set_wake_irq(&pdev->dev, keypad_data->irq);
+	if (error)
+		dev_warn(&pdev->dev,
+			 "failed to set up wakeup irq: %d\n", error);
+
 	platform_set_drvdata(pdev, keypad_data);
+
 	return 0;
 
-err_pm_disable:
-	pm_runtime_disable(&pdev->dev);
+err_free_irq:
 	free_irq(keypad_data->irq, keypad_data);
 err_free_keymap:
 	kfree(keypad_data->keymap);
 err_free_input:
 	input_free_device(input_dev);
-err_pm_put_sync:
-	pm_runtime_put_sync(&pdev->dev);
-err_unmap:
+err_pm_disable:
+	pm_runtime_disable(&pdev->dev);
 	iounmap(keypad_data->base);
 err_release_mem:
 	release_mem_region(res->start, resource_size(res));
@@ -383,6 +405,8 @@ static int omap4_keypad_remove(struct platform_device *pdev)
 {
 	struct omap4_keypad *keypad_data = platform_get_drvdata(pdev);
 	struct resource *res;
+
+	dev_pm_clear_wake_irq(&pdev->dev);
 
 	free_irq(keypad_data->irq, keypad_data);
 
@@ -407,45 +431,11 @@ static const struct of_device_id omap_keypad_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, omap_keypad_dt_match);
 
-#ifdef CONFIG_PM_SLEEP
-static int omap4_keypad_suspend(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct omap4_keypad *keypad_data = platform_get_drvdata(pdev);
-	int error;
-
-	if (device_may_wakeup(&pdev->dev)) {
-		error = enable_irq_wake(keypad_data->irq);
-		if (!error)
-			keypad_data->irq_wake_enabled = true;
-	}
-
-	return 0;
-}
-
-static int omap4_keypad_resume(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct omap4_keypad *keypad_data = platform_get_drvdata(pdev);
-
-	if (device_may_wakeup(&pdev->dev) && keypad_data->irq_wake_enabled) {
-		disable_irq_wake(keypad_data->irq);
-		keypad_data->irq_wake_enabled = false;
-	}
-
-	return 0;
-}
-#endif
-
-static SIMPLE_DEV_PM_OPS(omap4_keypad_pm_ops,
-			 omap4_keypad_suspend, omap4_keypad_resume);
-
 static struct platform_driver omap4_keypad_driver = {
 	.probe		= omap4_keypad_probe,
 	.remove		= omap4_keypad_remove,
 	.driver		= {
 		.name	= "omap4-keypad",
-		.pm	= &omap4_keypad_pm_ops,
 		.of_match_table = omap_keypad_dt_match,
 	},
 };

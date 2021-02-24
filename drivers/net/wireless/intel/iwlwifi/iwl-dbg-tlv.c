@@ -1,64 +1,7 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright (C) 2018 - 2020 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright (C) 2018 - 2020 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
-
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright (C) 2018-2020 Intel Corporation
+ */
 #include <linux/firmware.h>
 #include "iwl-drv.h"
 #include "iwl-trans.h"
@@ -118,7 +61,8 @@ dbg_ver_table[IWL_DBG_TLV_TYPE_NUM] = {
 	[IWL_DBG_TLV_TYPE_TRIGGER]	= {.min_ver = 1, .max_ver = 1,},
 };
 
-static int iwl_dbg_tlv_add(struct iwl_ucode_tlv *tlv, struct list_head *list)
+static int iwl_dbg_tlv_add(const struct iwl_ucode_tlv *tlv,
+			   struct list_head *list)
 {
 	u32 len = le32_to_cpu(tlv->length);
 	struct iwl_dbg_tlv_node *node;
@@ -133,9 +77,9 @@ static int iwl_dbg_tlv_add(struct iwl_ucode_tlv *tlv, struct list_head *list)
 	return 0;
 }
 
-static bool iwl_dbg_tlv_ver_support(struct iwl_ucode_tlv *tlv)
+static bool iwl_dbg_tlv_ver_support(const struct iwl_ucode_tlv *tlv)
 {
-	struct iwl_fw_ini_header *hdr = (void *)&tlv->data[0];
+	const struct iwl_fw_ini_header *hdr = (const void *)&tlv->data[0];
 	u32 type = le32_to_cpu(tlv->type);
 	u32 tlv_idx = type - IWL_UCODE_TLV_DEBUG_BASE;
 	u32 ver = le32_to_cpu(hdr->version);
@@ -148,9 +92,9 @@ static bool iwl_dbg_tlv_ver_support(struct iwl_ucode_tlv *tlv)
 }
 
 static int iwl_dbg_tlv_alloc_debug_info(struct iwl_trans *trans,
-					struct iwl_ucode_tlv *tlv)
+					const struct iwl_ucode_tlv *tlv)
 {
-	struct iwl_fw_ini_debug_info_tlv *debug_info = (void *)tlv->data;
+	const struct iwl_fw_ini_debug_info_tlv *debug_info = (const void *)tlv->data;
 
 	if (le32_to_cpu(tlv->length) != sizeof(*debug_info))
 		return -EINVAL;
@@ -162,9 +106,9 @@ static int iwl_dbg_tlv_alloc_debug_info(struct iwl_trans *trans,
 }
 
 static int iwl_dbg_tlv_alloc_buf_alloc(struct iwl_trans *trans,
-				       struct iwl_ucode_tlv *tlv)
+				       const struct iwl_ucode_tlv *tlv)
 {
-	struct iwl_fw_ini_allocation_tlv *alloc = (void *)tlv->data;
+	const struct iwl_fw_ini_allocation_tlv *alloc = (const void *)tlv->data;
 	u32 buf_location;
 	u32 alloc_id;
 
@@ -202,9 +146,9 @@ err:
 }
 
 static int iwl_dbg_tlv_alloc_hcmd(struct iwl_trans *trans,
-				  struct iwl_ucode_tlv *tlv)
+				  const struct iwl_ucode_tlv *tlv)
 {
-	struct iwl_fw_ini_hcmd_tlv *hcmd = (void *)tlv->data;
+	const struct iwl_fw_ini_hcmd_tlv *hcmd = (const void *)tlv->data;
 	u32 tp = le32_to_cpu(hcmd->time_point);
 
 	if (le32_to_cpu(tlv->length) <= sizeof(*hcmd))
@@ -226,9 +170,9 @@ static int iwl_dbg_tlv_alloc_hcmd(struct iwl_trans *trans,
 }
 
 static int iwl_dbg_tlv_alloc_region(struct iwl_trans *trans,
-				    struct iwl_ucode_tlv *tlv)
+				    const struct iwl_ucode_tlv *tlv)
 {
-	struct iwl_fw_ini_region_tlv *reg = (void *)tlv->data;
+	const struct iwl_fw_ini_region_tlv *reg = (const void *)tlv->data;
 	struct iwl_ucode_tlv **active_reg;
 	u32 id = le32_to_cpu(reg->id);
 	u32 type = le32_to_cpu(reg->type);
@@ -236,13 +180,6 @@ static int iwl_dbg_tlv_alloc_region(struct iwl_trans *trans,
 
 	if (le32_to_cpu(tlv->length) < sizeof(*reg))
 		return -EINVAL;
-
-	/* For safe using a string from FW make sure we have a
-	 * null terminator
-	 */
-	reg->name[IWL_FW_INI_MAX_NAME - 1] = 0;
-
-	IWL_DEBUG_FW(trans, "WRT: parsing region: %s\n", reg->name);
 
 	if (id >= IWL_FW_INI_MAX_REGION_ID) {
 		IWL_ERR(trans, "WRT: Invalid region id %u\n", id);
@@ -278,9 +215,10 @@ static int iwl_dbg_tlv_alloc_region(struct iwl_trans *trans,
 }
 
 static int iwl_dbg_tlv_alloc_trigger(struct iwl_trans *trans,
-				     struct iwl_ucode_tlv *tlv)
+				     const struct iwl_ucode_tlv *tlv)
 {
-	struct iwl_fw_ini_trigger_tlv *trig = (void *)tlv->data;
+	const struct iwl_fw_ini_trigger_tlv *trig = (const void *)tlv->data;
+	struct iwl_fw_ini_trigger_tlv *dup_trig;
 	u32 tp = le32_to_cpu(trig->time_point);
 	struct iwl_ucode_tlv *dup = NULL;
 	int ret;
@@ -301,8 +239,8 @@ static int iwl_dbg_tlv_alloc_trigger(struct iwl_trans *trans,
 				GFP_KERNEL);
 		if (!dup)
 			return -ENOMEM;
-		trig = (void *)dup->data;
-		trig->occurrences = cpu_to_le32(-1);
+		dup_trig = (void *)dup->data;
+		dup_trig->occurrences = cpu_to_le32(-1);
 		tlv = dup;
 	}
 
@@ -313,7 +251,7 @@ static int iwl_dbg_tlv_alloc_trigger(struct iwl_trans *trans,
 }
 
 static int (*dbg_tlv_alloc[])(struct iwl_trans *trans,
-			      struct iwl_ucode_tlv *tlv) = {
+			      const struct iwl_ucode_tlv *tlv) = {
 	[IWL_DBG_TLV_TYPE_DEBUG_INFO]	= iwl_dbg_tlv_alloc_debug_info,
 	[IWL_DBG_TLV_TYPE_BUF_ALLOC]	= iwl_dbg_tlv_alloc_buf_alloc,
 	[IWL_DBG_TLV_TYPE_HCMD]		= iwl_dbg_tlv_alloc_hcmd,
@@ -321,10 +259,10 @@ static int (*dbg_tlv_alloc[])(struct iwl_trans *trans,
 	[IWL_DBG_TLV_TYPE_TRIGGER]	= iwl_dbg_tlv_alloc_trigger,
 };
 
-void iwl_dbg_tlv_alloc(struct iwl_trans *trans, struct iwl_ucode_tlv *tlv,
+void iwl_dbg_tlv_alloc(struct iwl_trans *trans, const struct iwl_ucode_tlv *tlv,
 		       bool ext)
 {
-	struct iwl_fw_ini_header *hdr = (void *)&tlv->data[0];
+	const struct iwl_fw_ini_header *hdr = (const void *)&tlv->data[0];
 	u32 type = le32_to_cpu(tlv->type);
 	u32 tlv_idx = type - IWL_UCODE_TLV_DEBUG_BASE;
 	u32 domain = le32_to_cpu(hdr->domain);
@@ -460,7 +398,7 @@ void iwl_dbg_tlv_free(struct iwl_trans *trans)
 static int iwl_dbg_tlv_parse_bin(struct iwl_trans *trans, const u8 *data,
 				 size_t len)
 {
-	struct iwl_ucode_tlv *tlv;
+	const struct iwl_ucode_tlv *tlv;
 	u32 tlv_len;
 
 	while (len >= sizeof(*tlv)) {
@@ -801,14 +739,14 @@ static void iwl_dbg_tlv_set_periodic_trigs(struct iwl_fw_runtime *fwrt)
 	}
 }
 
-static bool is_trig_data_contained(struct iwl_ucode_tlv *new,
-				   struct iwl_ucode_tlv *old)
+static bool is_trig_data_contained(const struct iwl_ucode_tlv *new,
+				   const struct iwl_ucode_tlv *old)
 {
-	struct iwl_fw_ini_trigger_tlv *new_trig = (void *)new->data;
-	struct iwl_fw_ini_trigger_tlv *old_trig = (void *)old->data;
-	__le32 *new_data = new_trig->data, *old_data = old_trig->data;
+	const struct iwl_fw_ini_trigger_tlv *new_trig = (const void *)new->data;
+	const struct iwl_fw_ini_trigger_tlv *old_trig = (const void *)old->data;
+	const __le32 *new_data = new_trig->data, *old_data = old_trig->data;
 	u32 new_dwords_num = iwl_tlv_array_len(new, new_trig, data);
-	u32 old_dwords_num = iwl_tlv_array_len(new, new_trig, data);
+	u32 old_dwords_num = iwl_tlv_array_len(old, old_trig, data);
 	int i, j;
 
 	for (i = 0; i < new_dwords_num; i++) {
@@ -1021,6 +959,7 @@ static void iwl_dbg_tlv_init_cfg(struct iwl_fw_runtime *fwrt)
 {
 	enum iwl_fw_ini_buffer_location *ini_dest = &fwrt->trans->dbg.ini_dest;
 	int ret, i;
+	u32 failed_alloc = 0;
 
 	if (*ini_dest != IWL_FW_INI_LOCATION_INVALID)
 		return;
@@ -1052,10 +991,43 @@ static void iwl_dbg_tlv_init_cfg(struct iwl_fw_runtime *fwrt)
 			continue;
 
 		ret = iwl_dbg_tlv_alloc_fragments(fwrt, i);
-		if (ret)
+
+		if (ret) {
 			IWL_WARN(fwrt,
 				 "WRT: Failed to allocate DRAM buffer for allocation id %d, ret=%d\n",
 				 i, ret);
+			failed_alloc |= BIT(i);
+		}
+	}
+
+	if (!failed_alloc)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(fwrt->trans->dbg.active_regions) && failed_alloc; i++) {
+		struct iwl_fw_ini_region_tlv *reg;
+		struct iwl_ucode_tlv **active_reg =
+			&fwrt->trans->dbg.active_regions[i];
+		u32 reg_type;
+
+		if (!*active_reg)
+			continue;
+
+		reg = (void *)(*active_reg)->data;
+		reg_type = le32_to_cpu(reg->type);
+
+		if (reg_type != IWL_FW_INI_REGION_DRAM_BUFFER ||
+		    !(BIT(le32_to_cpu(reg->dram_alloc_id)) & failed_alloc))
+			continue;
+
+		IWL_DEBUG_FW(fwrt,
+			     "WRT: removing allocation id %d from region id %d\n",
+			     le32_to_cpu(reg->dram_alloc_id), i);
+
+		failed_alloc &= ~le32_to_cpu(reg->dram_alloc_id);
+		fwrt->trans->dbg.unsupported_region_msk |= BIT(i);
+
+		kfree(*active_reg);
+		*active_reg = NULL;
 	}
 }
 

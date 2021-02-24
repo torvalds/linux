@@ -66,7 +66,7 @@
  * On Intel CPUs, if a SYSCALL instruction is at the highest canonical
  * address, then that syscall will enter the kernel with a
  * non-canonical return address, and SYSRET will explode dangerously.
- * We avoid this particular problem by preventing anything executable
+ * We avoid this particular problem by preventing anything
  * from being mapped at the maximum canonical address.
  *
  * On AMD CPUs in the Ryzen family, there's a nasty bug in which the
@@ -98,8 +98,10 @@
 #define STACK_TOP_MAX		TASK_SIZE_MAX
 
 /*
- * Maximum kernel image size is limited to 1 GiB, due to the fixmap living
- * in the next 1 GiB (see level2_kernel_pgt in arch/x86/kernel/head_64.S).
+ * In spite of the name, KERNEL_IMAGE_SIZE is a limit on the maximum virtual
+ * address for the kernel image, rather than the limit on the size itself.
+ * This can be at most 1 GiB, due to the fixmap living in the next 1 GiB (see
+ * level2_kernel_pgt in arch/x86/kernel/head_64.S).
  *
  * On KASLR use 1 GiB by default, leaving 1 GiB for modules once the
  * page tables are fully set up.

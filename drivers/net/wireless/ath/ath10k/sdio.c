@@ -561,7 +561,7 @@ static int ath10k_sdio_mbox_rx_alloc(struct ath10k *ar,
 				    ATH10K_HTC_MBOX_MAX_PAYLOAD_LENGTH);
 			ret = -ENOMEM;
 
-			queue_work(ar->workqueue, &ar->restart_work);
+			ath10k_core_start_recovery(ar);
 			ath10k_warn(ar, "exceeds length, start recovery\n");
 
 			goto err;
@@ -960,7 +960,7 @@ static int ath10k_sdio_mbox_read_int_status(struct ath10k *ar,
 	ret = ath10k_sdio_read(ar, MBOX_HOST_INT_STATUS_ADDRESS,
 			       irq_proc_reg, sizeof(*irq_proc_reg));
 	if (ret) {
-		queue_work(ar->workqueue, &ar->restart_work);
+		ath10k_core_start_recovery(ar);
 		ath10k_warn(ar, "read int status fail, start recovery\n");
 		goto out;
 	}
@@ -1248,7 +1248,7 @@ static int ath10k_sdio_bmi_exchange_msg(struct ath10k *ar,
 	 *        Wait for first 4 bytes to be in FIFO
 	 *        If CONSERVATIVE_BMI_READ is enabled, also wait for
 	 *        a BMI command credit, which indicates that the ENTIRE
-	 *        response is available in the the FIFO
+	 *        response is available in the FIFO
 	 *
 	 *  CASE 3: length > 128
 	 *        Wait for the first 4 bytes to be in FIFO
@@ -1859,7 +1859,7 @@ static int ath10k_sdio_hif_start(struct ath10k *ar)
 	struct ath10k_sdio *ar_sdio = ath10k_sdio_priv(ar);
 	int ret;
 
-	napi_enable(&ar->napi);
+	ath10k_core_napi_enable(ar);
 
 	/* Sleep 20 ms before HIF interrupts are disabled.
 	 * This will give target plenty of time to process the BMI done
@@ -1962,8 +1962,14 @@ static void ath10k_sdio_hif_stop(struct ath10k *ar)
 {
 	struct ath10k_sdio_bus_request *req, *tmp_req;
 	struct ath10k_sdio *ar_sdio = ath10k_sdio_priv(ar);
+	struct sk_buff *skb;
 
 	ath10k_sdio_irq_disable(ar);
+
+	cancel_work_sync(&ar_sdio->async_work_rx);
+
+	while ((skb = skb_dequeue(&ar_sdio->rx_head)))
+		dev_kfree_skb_any(skb);
 
 	cancel_work_sync(&ar_sdio->wr_async_work);
 
@@ -1986,8 +1992,7 @@ static void ath10k_sdio_hif_stop(struct ath10k *ar)
 
 	spin_unlock_bh(&ar_sdio->wr_async_lock);
 
-	napi_synchronize(&ar->napi);
-	napi_disable(&ar->napi);
+	ath10k_core_napi_sync_disable(ar);
 }
 
 #ifdef CONFIG_PM
@@ -2231,7 +2236,7 @@ static bool ath10k_sdio_is_fast_dump_supported(struct ath10k *ar)
 
 	ath10k_dbg(ar, ATH10K_DBG_SDIO, "sdio hi_option_flag2 %x\n", param);
 
-	return param & HI_OPTION_SDIO_CRASH_DUMP_ENHANCEMENT_FW;
+	return !!(param & HI_OPTION_SDIO_CRASH_DUMP_ENHANCEMENT_FW);
 }
 
 static void ath10k_sdio_dump_registers(struct ath10k *ar,
@@ -2307,8 +2312,8 @@ static int ath10k_sdio_dump_memory_section(struct ath10k *ar,
 	}
 
 	count = 0;
-
-	for (i = 0; cur_section; i++) {
+	i = 0;
+	for (; cur_section; cur_section = next_section) {
 		section_size = cur_section->end - cur_section->start;
 
 		if (section_size <= 0) {
@@ -2318,7 +2323,7 @@ static int ath10k_sdio_dump_memory_section(struct ath10k *ar,
 			break;
 		}
 
-		if ((i + 1) == mem_region->section_table.size) {
+		if (++i == mem_region->section_table.size) {
 			/* last section */
 			next_section = NULL;
 			skip_size = 0;
@@ -2361,12 +2366,6 @@ static int ath10k_sdio_dump_memory_section(struct ath10k *ar,
 		}
 
 		count += skip_size;
-
-		if (!next_section)
-			/* this was the last section */
-			break;
-
-		cur_section = next_section;
 	}
 
 	return count;
@@ -2501,7 +2500,7 @@ void ath10k_sdio_fw_crashed_dump(struct ath10k *ar)
 
 	ath10k_sdio_enable_intrs(ar);
 
-	queue_work(ar->workqueue, &ar->restart_work);
+	ath10k_core_start_recovery(ar);
 }
 
 static int ath10k_sdio_probe(struct sdio_func *func,

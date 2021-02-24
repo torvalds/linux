@@ -1058,10 +1058,11 @@ void dwc3_ep0_send_delayed_status(struct dwc3 *dwc)
 {
 	unsigned int direction = !dwc->ep0_expect_in;
 
+	dwc->delayed_status = false;
+
 	if (dwc->ep0state != EP0_STATUS_PHASE)
 		return;
 
-	dwc->delayed_status = false;
 	__dwc3_ep0_do_control_status(dwc, dwc->eps[direction]);
 }
 

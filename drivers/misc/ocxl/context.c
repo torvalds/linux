@@ -70,6 +70,7 @@ int ocxl_context_attach(struct ocxl_context *ctx, u64 amr, struct mm_struct *mm)
 {
 	int rc;
 	unsigned long pidr = 0;
+	struct pci_dev *dev;
 
 	// Locks both status & tidr
 	mutex_lock(&ctx->status_mutex);
@@ -81,8 +82,9 @@ int ocxl_context_attach(struct ocxl_context *ctx, u64 amr, struct mm_struct *mm)
 	if (mm)
 		pidr = mm->context.id;
 
+	dev = to_pci_dev(ctx->afu->fn->dev.parent);
 	rc = ocxl_link_add_pe(ctx->afu->fn->link, ctx->pasid, pidr, ctx->tidr,
-			      amr, mm, xsl_fault_error, ctx);
+			      amr, pci_dev_id(dev), mm, xsl_fault_error, ctx);
 	if (rc)
 		goto out;
 

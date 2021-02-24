@@ -101,6 +101,10 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 		if (ret)
 			break;
 
+		/* the PCI function will be scanned once function 0 appears */
+		if (!zdev->zbus->bus)
+			break;
+
 		pdev = pci_scan_single_device(zdev->zbus->bus, zdev->devfn);
 		if (!pdev)
 			break;

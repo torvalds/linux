@@ -1992,6 +1992,72 @@ void zcrypt_rng_device_remove(void)
 	mutex_unlock(&zcrypt_rng_mutex);
 }
 
+/*
+ * Wait until the zcrypt api is operational.
+ * The AP bus scan and the binding of ap devices to device drivers is
+ * an asynchronous job. This function waits until these initial jobs
+ * are done and so the zcrypt api should be ready to serve crypto
+ * requests - if there are resources available. The function uses an
+ * internal timeout of 60s. The very first caller will either wait for
+ * ap bus bindings complete or the timeout happens. This state will be
+ * remembered for further callers which will only be blocked until a
+ * decision is made (timeout or bindings complete).
+ * On timeout -ETIME is returned, on success the return value is 0.
+ */
+int zcrypt_wait_api_operational(void)
+{
+	static DEFINE_MUTEX(zcrypt_wait_api_lock);
+	static int zcrypt_wait_api_state;
+	int rc;
+
+	rc = mutex_lock_interruptible(&zcrypt_wait_api_lock);
+	if (rc)
+		return rc;
+
+	switch (zcrypt_wait_api_state) {
+	case 0:
+		/* initial state, invoke wait for the ap bus complete */
+		rc = ap_wait_init_apqn_bindings_complete(
+			msecs_to_jiffies(60 * 1000));
+		switch (rc) {
+		case 0:
+			/* ap bus bindings are complete */
+			zcrypt_wait_api_state = 1;
+			break;
+		case -EINTR:
+			/* interrupted, go back to caller */
+			break;
+		case -ETIME:
+			/* timeout */
+			ZCRYPT_DBF(DBF_WARN,
+				   "%s ap_wait_init_apqn_bindings_complete() returned with ETIME\n",
+				   __func__);
+			zcrypt_wait_api_state = -ETIME;
+			break;
+		default:
+			/* other failure */
+			ZCRYPT_DBF(DBF_DEBUG,
+				   "%s ap_wait_init_apqn_bindings_complete() failure rc=%d\n",
+				   __func__, rc);
+			break;
+		}
+		break;
+	case 1:
+		/* a previous caller already found ap bus bindings complete */
+		rc = 0;
+		break;
+	default:
+		/* a previous caller had timeout or other failure */
+		rc = zcrypt_wait_api_state;
+		break;
+	}
+
+	mutex_unlock(&zcrypt_wait_api_lock);
+
+	return rc;
+}
+EXPORT_SYMBOL(zcrypt_wait_api_operational);
+
 int __init zcrypt_debug_init(void)
 {
 	zcrypt_dbf_info = debug_register("zcrypt", 1, 1,

@@ -306,7 +306,7 @@ static int __maybe_unused ad7879_suspend(struct device *dev)
 
 	mutex_lock(&ts->input->mutex);
 
-	if (!ts->suspended && !ts->disabled && ts->input->users)
+	if (!ts->suspended && !ts->disabled && input_device_enabled(ts->input))
 		__ad7879_disable(ts);
 
 	ts->suspended = true;
@@ -322,7 +322,7 @@ static int __maybe_unused ad7879_resume(struct device *dev)
 
 	mutex_lock(&ts->input->mutex);
 
-	if (ts->suspended && !ts->disabled && ts->input->users)
+	if (ts->suspended && !ts->disabled && input_device_enabled(ts->input))
 		__ad7879_enable(ts);
 
 	ts->suspended = false;
@@ -339,7 +339,7 @@ static void ad7879_toggle(struct ad7879 *ts, bool disable)
 {
 	mutex_lock(&ts->input->mutex);
 
-	if (!ts->suspended && ts->input->users != 0) {
+	if (!ts->suspended && input_device_enabled(ts->input)) {
 
 		if (disable) {
 			if (ts->disabled)

@@ -232,7 +232,7 @@ struct ieee_param {
 			u16 capability;
 			int flags;
 			u8 tx_supp_rates[16];
-			struct rtw_ieee80211_ht_cap ht_cap;
+			struct ieee80211_ht_cap ht_cap;
 		} add_sta;
 		struct {
 			u8 reserved[2];/* for set max_num_sta */
@@ -254,7 +254,7 @@ struct sta_data {
 	u32 sta_set;
 	u8 tx_supp_rates[16];
 	u32 tx_supp_rates_len;
-	struct rtw_ieee80211_ht_cap ht_cap;
+	struct ieee80211_ht_cap ht_cap;
 	u64	rx_pkts;
 	u64	rx_bytes;
 	u64	rx_drops;
@@ -343,25 +343,10 @@ struct ieee80211_snap_hdr {
 #define WLAN_GET_SEQ_FRAG(seq) ((seq) & RTW_IEEE80211_SCTL_FRAG)
 #define WLAN_GET_SEQ_SEQ(seq)  ((seq) & RTW_IEEE80211_SCTL_SEQ)
 
-/* Authentication algorithms */
-#define WLAN_CAPABILITY_BSS (1<<0)
-#define WLAN_CAPABILITY_SHORT_SLOT (1<<10)
-
-/* 802.11b */
-#define WLAN_STATUS_ASSOC_DENIED_NOSHORT 19
-
 /* Reason codes */
 #define WLAN_REASON_ACTIVE_ROAM 65533
 #define WLAN_REASON_JOIN_WRONG_CHANNEL       65534
 #define WLAN_REASON_EXPIRATION_CHK 65535
-
-/* EIDs defined by IEEE 802.11h - END */
-#define WLAN_EID_HT_CAP 45
-#define WLAN_EID_20_40_BSS_COEXISTENCE 72
-#define WLAN_EID_20_40_BSS_INTOLERANT 73
-#define WLAN_EID_OVERLAPPING_BSS_SCAN_PARAMS 74
-#define WLAN_EID_GENERIC (WLAN_EID_VENDOR_SPECIFIC)
-#define WLAN_EID_VHT_OP_MODE_NOTIFY 199
 
 #define IEEE80211_MGMT_HDR_LEN 24
 #define IEEE80211_DATA_HDR3_LEN 24
@@ -682,85 +667,6 @@ struct ieee80211_header_data {
 #define MFIE_TYPE_RATES_EX   50
 #define MFIE_TYPE_GENERIC    221
 
-struct ieee80211_info_element_hdr {
-	u8 id;
-	u8 len;
-} __attribute__ ((packed));
-
-struct ieee80211_info_element {
-	u8 id;
-	u8 len;
-	u8 data[0];
-} __attribute__ ((packed));
-
-/*
- * These are the data types that can make up management packets
- *
-	u16 auth_algorithm;
-	u16 auth_sequence;
-	u16 beacon_interval;
-	u16 capability;
-	u8 current_ap[ETH_ALEN];
-	u16 listen_interval;
-	struct {
-		u16 association_id:14, reserved:2;
-	} __attribute__ ((packed));
-	u32 time_stamp[2];
-	u16 reason;
-	u16 status;
-*/
-
-#define IEEE80211_DEFAULT_TX_ESSID "Penguin"
-#define IEEE80211_DEFAULT_BASIC_RATE 10
-
-
-struct ieee80211_authentication {
-	struct ieee80211_header_data header;
-	u16 algorithm;
-	u16 transaction;
-	u16 status;
-	/* struct ieee80211_info_element_hdr info_element; */
-} __attribute__ ((packed));
-
-
-struct ieee80211_probe_response {
-	struct ieee80211_header_data header;
-	u32 time_stamp[2];
-	u16 beacon_interval;
-	u16 capability;
-	struct ieee80211_info_element info_element;
-} __attribute__ ((packed));
-
-struct ieee80211_probe_request {
-	struct ieee80211_header_data header;
-	/*struct ieee80211_info_element info_element;*/
-} __attribute__ ((packed));
-
-struct ieee80211_assoc_request_frame {
-	struct ieee80211_hdr_3addr header;
-	u16 capability;
-	u16 listen_interval;
-	/* u8 current_ap[ETH_ALEN]; */
-	struct ieee80211_info_element_hdr info_element;
-} __attribute__ ((packed));
-
-struct ieee80211_assoc_response_frame {
-	struct ieee80211_hdr_3addr header;
-	u16 capability;
-	u16 status;
-	u16 aid;
-} __attribute__ ((packed));
-
-struct ieee80211_txb {
-	u8 nr_frags;
-	u8 encrypted;
-	u16 reserved;
-	u16 frag_size;
-	u16 payload_size;
-	struct sk_buff *fragments[0];
-};
-
-
 /* SWEEP TABLE ENTRIES NUMBER*/
 #define MAX_SWEEP_TAB_ENTRIES		  42
 #define MAX_SWEEP_TAB_ENTRIES_PER_PACKET  7
@@ -844,9 +750,7 @@ enum ieee80211_state {
 
 #define DEFAULT_MAX_SCAN_AGE (15 * HZ)
 #define DEFAULT_FTS 2346
-#define MAC_FMT "%pM"
 #define MAC_ARG(x) (x)
-#define IP_FMT "%pI4"
 #define IP_ARG(x) (x)
 
 static inline int is_multicast_mac_addr(const u8 *addr)
@@ -895,16 +799,6 @@ enum rtw_ieee80211_category {
 	RTW_WLAN_CATEGORY_P2P = 0x7f,/* P2P action frames */
 };
 
-/* SPECTRUM_MGMT action code */
-enum rtw_ieee80211_spectrum_mgmt_actioncode {
-	RTW_WLAN_ACTION_SPCT_MSR_REQ = 0,
-	RTW_WLAN_ACTION_SPCT_MSR_RPRT = 1,
-	RTW_WLAN_ACTION_SPCT_TPC_REQ = 2,
-	RTW_WLAN_ACTION_SPCT_TPC_RPRT = 3,
-	RTW_WLAN_ACTION_SPCT_CHL_SWITCH = 4,
-	RTW_WLAN_ACTION_SPCT_EXT_CHL_SWITCH = 5,
-};
-
 enum _PUBLIC_ACTION {
 	ACT_PUBLIC_BSSCOEXIST = 0, /*  20/40 BSS Coexistence */
 	ACT_PUBLIC_DSE_ENABLE = 1,
@@ -923,25 +817,6 @@ enum _PUBLIC_ACTION {
 	ACT_PUBLIC_TDLS_DISCOVERY_RSP = 14,
 	ACT_PUBLIC_LOCATION_TRACK = 15,
 	ACT_PUBLIC_MAX
-};
-
-/* BACK action code */
-enum rtw_ieee80211_back_actioncode {
-	RTW_WLAN_ACTION_ADDBA_REQ = 0,
-	RTW_WLAN_ACTION_ADDBA_RESP = 1,
-	RTW_WLAN_ACTION_DELBA = 2,
-};
-
-/* HT features action code */
-enum rtw_ieee80211_ht_actioncode {
-	RTW_WLAN_ACTION_HT_NOTI_CHNL_WIDTH = 0,
-       RTW_WLAN_ACTION_HT_SM_PS = 1,
-       RTW_WLAN_ACTION_HT_PSMP = 2,
-       RTW_WLAN_ACTION_HT_SET_PCO_PHASE = 3,
-       RTW_WLAN_ACTION_HT_CSI = 4,
-       RTW_WLAN_ACTION_HT_NON_COMPRESS_BEAMFORMING = 5,
-       RTW_WLAN_ACTION_HT_COMPRESS_BEAMFORMING = 6,
-       RTW_WLAN_ACTION_HT_ASEL_FEEDBACK = 7,
 };
 
 /* BACK (block-ack) parties */

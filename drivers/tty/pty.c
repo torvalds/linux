@@ -45,7 +45,6 @@ static DEFINE_MUTEX(devpts_mutex);
 
 static void pty_close(struct tty_struct *tty, struct file *filp)
 {
-	BUG_ON(!tty);
 	if (tty->driver->subtype == PTY_TYPE_MASTER)
 		WARN_ON(tty->count > 1);
 	else {
@@ -67,7 +66,8 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 	wake_up_interruptible(&tty->link->read_wait);
 	wake_up_interruptible(&tty->link->write_wait);
 	if (tty->driver->subtype == PTY_TYPE_MASTER) {
-		set_bit(TTY_OTHER_CLOSED, &tty->flags);
+		struct file *f;
+
 #ifdef CONFIG_UNIX98_PTYS
 		if (tty->driver == ptm_driver) {
 			mutex_lock(&devpts_mutex);
@@ -76,7 +76,17 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 			mutex_unlock(&devpts_mutex);
 		}
 #endif
-		tty_vhangup(tty->link);
+
+		/*
+		 * This hack is required because a program can open a
+		 * pty and redirect a console to it, but if the pty is
+		 * closed and the console is not released, then the
+		 * slave side will never close.  So release the
+		 * redirect when the master closes.
+		 */
+		f = tty_release_redirect(tty->link);
+		if (f)
+			fput(f);
 	}
 }
 
@@ -699,6 +709,7 @@ static long pty_unix98_compat_ioctl(struct tty_struct *tty,
 /**
  *	ptm_unix98_lookup	-	find a pty master
  *	@driver: ptm driver
+ *	@file: unused
  *	@idx: tty index
  *
  *	Look up a pty master device. Called under the tty_mutex for now.
@@ -715,6 +726,7 @@ static struct tty_struct *ptm_unix98_lookup(struct tty_driver *driver,
 /**
  *	pts_unix98_lookup	-	find a pty slave
  *	@driver: pts driver
+ *	@file: file pointer to tty
  *	@idx: tty index
  *
  *	Look up a pty master device. Called under the tty_mutex for now.

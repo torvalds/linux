@@ -829,7 +829,6 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 	struct device_node *node = dev->of_node;
 	struct exynos5_usbdrd_phy *phy_drd;
 	struct phy_provider *phy_provider;
-	struct resource *res;
 	const struct exynos5_usbdrd_phy_drvdata *drv_data;
 	struct regmap *reg_pmu;
 	u32 pmu_offset;
@@ -843,8 +842,7 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, phy_drd);
 	phy_drd->dev = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	phy_drd->reg_phy = devm_ioremap_resource(dev, res);
+	phy_drd->reg_phy = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(phy_drd->reg_phy))
 		return PTR_ERR(phy_drd->reg_phy);
 

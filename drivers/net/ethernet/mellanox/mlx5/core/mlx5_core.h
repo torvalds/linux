@@ -42,9 +42,6 @@
 #include <linux/mlx5/fs.h>
 #include <linux/mlx5/driver.h>
 
-#define DRIVER_NAME "mlx5_core"
-#define DRIVER_VERSION "5.0-0"
-
 extern uint mlx5_core_debug_mask;
 
 #define mlx5_core_dbg(__dev, format, ...)				\
@@ -120,8 +117,14 @@ enum mlx5_semaphore_space_address {
 	MLX5_SEMAPHORE_SW_RESET         = 0x20,
 };
 
+#define MLX5_DEFAULT_PROF       2
+
 int mlx5_query_hca_caps(struct mlx5_core_dev *dev);
 int mlx5_query_board_id(struct mlx5_core_dev *dev);
+int mlx5_cmd_init(struct mlx5_core_dev *dev);
+void mlx5_cmd_cleanup(struct mlx5_core_dev *dev);
+void mlx5_cmd_set_state(struct mlx5_core_dev *dev,
+			enum mlx5_cmdif_state cmdif_state);
 int mlx5_cmd_init_hca(struct mlx5_core_dev *dev, uint32_t *sw_owner_id);
 int mlx5_cmd_teardown_hca(struct mlx5_core_dev *dev);
 int mlx5_cmd_force_teardown_hca(struct mlx5_core_dev *dev);
@@ -175,27 +178,26 @@ struct cpumask *
 mlx5_irq_get_affinity_mask(struct mlx5_irq_table *irq_table, int vecidx);
 struct cpu_rmap *mlx5_irq_get_rmap(struct mlx5_irq_table *table);
 int mlx5_irq_get_num_comp(struct mlx5_irq_table *table);
+struct mlx5_irq_table *mlx5_irq_table_get(struct mlx5_core_dev *dev);
 
 int mlx5_events_init(struct mlx5_core_dev *dev);
 void mlx5_events_cleanup(struct mlx5_core_dev *dev);
 void mlx5_events_start(struct mlx5_core_dev *dev);
 void mlx5_events_stop(struct mlx5_core_dev *dev);
 
-void mlx5_add_device(struct mlx5_interface *intf, struct mlx5_priv *priv);
-void mlx5_remove_device(struct mlx5_interface *intf, struct mlx5_priv *priv);
-void mlx5_attach_device(struct mlx5_core_dev *dev);
+int mlx5_adev_idx_alloc(void);
+void mlx5_adev_idx_free(int idx);
+void mlx5_adev_cleanup(struct mlx5_core_dev *dev);
+int mlx5_adev_init(struct mlx5_core_dev *dev);
+
+int mlx5_attach_device(struct mlx5_core_dev *dev);
 void mlx5_detach_device(struct mlx5_core_dev *dev);
-bool mlx5_device_registered(struct mlx5_core_dev *dev);
-void mlx5_register_device(struct mlx5_core_dev *dev);
+int mlx5_register_device(struct mlx5_core_dev *dev);
 void mlx5_unregister_device(struct mlx5_core_dev *dev);
-void mlx5_add_dev_by_protocol(struct mlx5_core_dev *dev, int protocol);
-void mlx5_remove_dev_by_protocol(struct mlx5_core_dev *dev, int protocol);
 struct mlx5_core_dev *mlx5_get_next_phys_dev(struct mlx5_core_dev *dev);
 void mlx5_dev_list_lock(void);
 void mlx5_dev_list_unlock(void);
 int mlx5_dev_list_trylock(void);
-
-bool mlx5_lag_intf_add(struct mlx5_interface *intf, struct mlx5_priv *priv);
 
 int mlx5_query_mtpps(struct mlx5_core_dev *dev, u32 *mtpps, u32 mtpps_size);
 int mlx5_set_mtpps(struct mlx5_core_dev *mdev, u32 *mtpps, u32 mtpps_size);
@@ -215,7 +217,7 @@ int mlx5_firmware_flash(struct mlx5_core_dev *dev, const struct firmware *fw,
 int mlx5_fw_version_query(struct mlx5_core_dev *dev,
 			  u32 *running_ver, u32 *stored_ver);
 
-void mlx5e_init(void);
+int mlx5e_init(void);
 void mlx5e_cleanup(void);
 
 static inline bool mlx5_sriov_is_enabled(struct mlx5_core_dev *dev)
@@ -235,7 +237,17 @@ static inline int mlx5_lag_is_lacp_owner(struct mlx5_core_dev *dev)
 		    MLX5_CAP_GEN(dev, lag_master);
 }
 
-void mlx5_reload_interface(struct mlx5_core_dev *mdev, int protocol);
+int mlx5_rescan_drivers_locked(struct mlx5_core_dev *dev);
+static inline int mlx5_rescan_drivers(struct mlx5_core_dev *dev)
+{
+	int ret;
+
+	mlx5_dev_list_lock();
+	ret = mlx5_rescan_drivers_locked(dev);
+	mlx5_dev_list_unlock();
+	return ret;
+}
+
 void mlx5_lag_update(struct mlx5_core_dev *dev);
 
 enum {
@@ -248,6 +260,17 @@ enum {
 u8 mlx5_get_nic_state(struct mlx5_core_dev *dev);
 void mlx5_set_nic_state(struct mlx5_core_dev *dev, u8 state);
 
+static inline bool mlx5_core_is_sf(const struct mlx5_core_dev *dev)
+{
+	return dev->coredev_type == MLX5_COREDEV_SF;
+}
+
+int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx);
+void mlx5_mdev_uninit(struct mlx5_core_dev *dev);
 void mlx5_unload_one(struct mlx5_core_dev *dev, bool cleanup);
 int mlx5_load_one(struct mlx5_core_dev *dev, bool boot);
+
+int mlx5_vport_get_other_func_cap(struct mlx5_core_dev *dev, u16 function_id, void *out);
+
+void mlx5_events_work_enqueue(struct mlx5_core_dev *dev, struct work_struct *work);
 #endif /* __MLX5_CORE_H__ */

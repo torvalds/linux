@@ -3,13 +3,13 @@
 # description: Kprobe dynamic event with arguments
 # requires: kprobe_events
 
-echo 'p:testprobe kernel_clone $stack $stack0 +0($stack)' > kprobe_events
+echo "p:testprobe $FUNCTION_FORK \$stack \$stack0 +0(\$stack)" > kprobe_events
 grep testprobe kprobe_events | grep -q 'arg1=\$stack arg2=\$stack0 arg3=+0(\$stack)'
 test -d events/kprobes/testprobe
 
 echo 1 > events/kprobes/testprobe/enable
 ( echo "forked")
-grep testprobe trace | grep 'kernel_clone' | \
+grep testprobe trace | grep "$FUNCTION_FORK" | \
   grep -q 'arg1=0x[[:xdigit:]]* arg2=0x[[:xdigit:]]* arg3=0x[[:xdigit:]]*$'
 
 echo 0 > events/kprobes/testprobe/enable

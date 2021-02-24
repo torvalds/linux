@@ -130,10 +130,8 @@ static int hl_pci_elbi_write(struct hl_device *hdev, u64 addr, u32 data)
 	if ((val & PCI_CONFIG_ELBI_STS_MASK) == PCI_CONFIG_ELBI_STS_DONE)
 		return 0;
 
-	if (val & PCI_CONFIG_ELBI_STS_ERR) {
-		dev_err(hdev->dev, "Error writing to ELBI\n");
+	if (val & PCI_CONFIG_ELBI_STS_ERR)
 		return -EIO;
-	}
 
 	if (!(val & PCI_CONFIG_ELBI_STS_MASK)) {
 		dev_err(hdev->dev, "ELBI write didn't finish in time\n");
@@ -160,8 +158,12 @@ int hl_pci_iatu_write(struct hl_device *hdev, u32 addr, u32 data)
 
 	dbi_offset = addr & 0xFFF;
 
-	rc = hl_pci_elbi_write(hdev, prop->pcie_aux_dbi_reg_addr, 0x00300000);
-	rc |= hl_pci_elbi_write(hdev, prop->pcie_dbi_base_address + dbi_offset,
+	/* Ignore result of writing to pcie_aux_dbi_reg_addr as it could fail
+	 * in case the firmware security is enabled
+	 */
+	hl_pci_elbi_write(hdev, prop->pcie_aux_dbi_reg_addr, 0x00300000);
+
+	rc = hl_pci_elbi_write(hdev, prop->pcie_dbi_base_address + dbi_offset,
 				data);
 
 	if (rc)
@@ -244,9 +246,11 @@ int hl_pci_set_inbound_region(struct hl_device *hdev, u8 region,
 
 	rc |= hl_pci_iatu_write(hdev, offset + 0x4, ctrl_reg_val);
 
-	/* Return the DBI window to the default location */
-	rc |= hl_pci_elbi_write(hdev, prop->pcie_aux_dbi_reg_addr, 0);
-	rc |= hl_pci_elbi_write(hdev, prop->pcie_aux_dbi_reg_addr + 4, 0);
+	/* Return the DBI window to the default location
+	 * Ignore result of writing to pcie_aux_dbi_reg_addr as it could fail
+	 * in case the firmware security is enabled
+	 */
+	hl_pci_elbi_write(hdev, prop->pcie_aux_dbi_reg_addr, 0);
 
 	if (rc)
 		dev_err(hdev->dev, "failed to map bar %u to 0x%08llx\n",
@@ -294,9 +298,11 @@ int hl_pci_set_outbound_region(struct hl_device *hdev,
 	/* Enable */
 	rc |= hl_pci_iatu_write(hdev, 0x004, 0x80000000);
 
-	/* Return the DBI window to the default location */
-	rc |= hl_pci_elbi_write(hdev, prop->pcie_aux_dbi_reg_addr, 0);
-	rc |= hl_pci_elbi_write(hdev, prop->pcie_aux_dbi_reg_addr + 4, 0);
+	/* Return the DBI window to the default location
+	 * Ignore result of writing to pcie_aux_dbi_reg_addr as it could fail
+	 * in case the firmware security is enabled
+	 */
+	hl_pci_elbi_write(hdev, prop->pcie_aux_dbi_reg_addr, 0);
 
 	return rc;
 }
@@ -338,17 +344,12 @@ static int hl_pci_set_dma_mask(struct hl_device *hdev)
 /**
  * hl_pci_init() - PCI initialization code.
  * @hdev: Pointer to hl_device structure.
- * @cpu_boot_status_reg: status register of the device's CPU
- * @boot_err0_reg: boot error register of the device's CPU
- * @preboot_ver_timeout: how much to wait before bailing out on reading
- *                       the preboot version
  *
  * Set DMA masks, initialize the PCI controller and map the PCI BARs.
  *
  * Return: 0 on success, non-zero for failure.
  */
-int hl_pci_init(struct hl_device *hdev, u32 cpu_boot_status_reg,
-		u32 boot_err0_reg, u32 preboot_ver_timeout)
+int hl_pci_init(struct hl_device *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
 	int rc;
@@ -377,15 +378,6 @@ int hl_pci_init(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	}
 
 	rc = hl_pci_set_dma_mask(hdev);
-	if (rc)
-		goto unmap_pci_bars;
-
-	/* Before continuing in the initialization, we need to read the preboot
-	 * version to determine whether we run with a security-enabled firmware
-	 * The check will be done in each ASIC's specific code
-	 */
-	rc = hl_fw_read_preboot_ver(hdev, cpu_boot_status_reg, boot_err0_reg,
-					preboot_ver_timeout);
 	if (rc)
 		goto unmap_pci_bars;
 

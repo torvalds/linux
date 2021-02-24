@@ -896,11 +896,6 @@ static int snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 	u64 lpar_addr, lpar_size;
 	static u64 dummy_mask;
 
-	if (WARN_ON(!firmware_has_feature(FW_FEATURE_PS3_LV1)))
-		return -ENODEV;
-	if (WARN_ON(dev->match_id != PS3_MATCH_ID_SOUND))
-		return -ENODEV;
-
 	the_card.ps3_dev = dev;
 
 	ret = ps3_open_hv_device(dev);
@@ -1049,12 +1044,10 @@ clean_open:
 }; /* snd_ps3_probe */
 
 /* called when module removal */
-static int snd_ps3_driver_remove(struct ps3_system_bus_device *dev)
+static void snd_ps3_driver_remove(struct ps3_system_bus_device *dev)
 {
 	int ret;
 	pr_info("%s:start id=%d\n", __func__,  dev->match_id);
-	if (dev->match_id != PS3_MATCH_ID_SOUND)
-		return -ENXIO;
 
 	/*
 	 * ctl and preallocate buffer will be freed in
@@ -1077,7 +1070,6 @@ static int snd_ps3_driver_remove(struct ps3_system_bus_device *dev)
 	lv1_gpu_device_unmap(2);
 	ps3_close_hv_device(dev);
 	pr_info("%s:end id=%d\n", __func__, dev->match_id);
-	return 0;
 } /* snd_ps3_remove */
 
 static struct ps3_system_bus_driver snd_ps3_bus_driver_info = {

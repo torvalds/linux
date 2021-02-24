@@ -149,7 +149,7 @@ void * __devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp, int nid
 EXPORT_SYMBOL_GPL(__devres_alloc_node);
 #else
 /**
- * devres_alloc - Allocate device resource data
+ * devres_alloc_node - Allocate device resource data
  * @release: Release function devres will be associated with
  * @size: Allocation size
  * @gfp: Allocation flags

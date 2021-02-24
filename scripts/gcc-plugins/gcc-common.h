@@ -55,47 +55,17 @@
 #include "cfgloop.h"
 #include "cgraph.h"
 #include "opts.h"
-
-#if BUILDING_GCC_VERSION == 4005
-#include <sys/mman.h>
-#endif
-
-#if BUILDING_GCC_VERSION >= 4007
 #include "tree-pretty-print.h"
 #include "gimple-pretty-print.h"
-#endif
-
-#if BUILDING_GCC_VERSION >= 4006
-/*
- * The c-family headers were moved into a subdirectory in GCC version
- * 4.7, but most plugin-building users of GCC 4.6 are using the Debian
- * or Ubuntu package, which has an out-of-tree patch to move this to the
- * same location as found in 4.7 and later:
- * https://sources.debian.net/src/gcc-4.6/4.6.3-14/debian/patches/pr45078.diff/
- */
 #include "c-family/c-common.h"
-#else
-#include "c-common.h"
-#endif
-
-#if BUILDING_GCC_VERSION <= 4008
-#include "tree-flow.h"
-#else
 #include "tree-cfgcleanup.h"
 #include "tree-ssa-operands.h"
 #include "tree-into-ssa.h"
-#endif
-
-#if BUILDING_GCC_VERSION >= 4008
 #include "is-a.h"
-#endif
-
 #include "diagnostic.h"
 #include "tree-dump.h"
 #include "tree-pass.h"
-#if BUILDING_GCC_VERSION >= 4009
 #include "pass_manager.h"
-#endif
 #include "predict.h"
 #include "ipa-utils.h"
 
@@ -103,7 +73,6 @@
 #include "stringpool.h"
 #endif
 
-#if BUILDING_GCC_VERSION >= 4009
 #include "attribs.h"
 #include "varasm.h"
 #include "stor-layout.h"
@@ -122,18 +91,13 @@
 #include "tree-eh.h"
 #include "stmt.h"
 #include "gimplify.h"
-#endif
-
 #include "gimple.h"
-
-#if BUILDING_GCC_VERSION >= 4009
 #include "tree-ssa-operands.h"
 #include "tree-phinodes.h"
 #include "tree-cfg.h"
 #include "gimple-iterator.h"
 #include "gimple-ssa.h"
 #include "ssa-iterators.h"
-#endif
 
 #if BUILDING_GCC_VERSION >= 5000
 #include "builtins.h"
@@ -142,15 +106,6 @@
 /* missing from basic_block.h... */
 void debug_dominance_info(enum cdi_direction dir);
 void debug_dominance_tree(enum cdi_direction dir, basic_block root);
-
-#if BUILDING_GCC_VERSION == 4006
-void debug_gimple_stmt(gimple);
-void debug_gimple_seq(gimple_seq);
-void print_gimple_seq(FILE *, gimple_seq, int, int);
-void print_gimple_stmt(FILE *, gimple, int, int);
-void print_gimple_expr(FILE *, gimple, int, int);
-void dump_gimple_stmt(pretty_printer *, gimple, int, int);
-#endif
 
 #ifndef __unused
 #define __unused __attribute__((__unused__))
@@ -190,372 +145,12 @@ struct register_pass_info NAME##_pass_info = {	\
 	.pos_op = POS,				\
 }
 
-#if BUILDING_GCC_VERSION == 4005
-#define FOR_EACH_LOCAL_DECL(FUN, I, D)			\
-	for (tree vars = (FUN)->local_decls, (I) = 0;	\
-		vars && ((D) = TREE_VALUE(vars));	\
-		vars = TREE_CHAIN(vars), (I)++)
-#define DECL_CHAIN(NODE) (TREE_CHAIN(DECL_MINIMAL_CHECK(NODE)))
-#define FOR_EACH_VEC_ELT(T, V, I, P) \
-	for (I = 0; VEC_iterate(T, (V), (I), (P)); ++(I))
-#define TODO_rebuild_cgraph_edges 0
-#define SCOPE_FILE_SCOPE_P(EXP) (!(EXP))
-
-#ifndef O_BINARY
-#define O_BINARY 0
-#endif
-
-typedef struct varpool_node *varpool_node_ptr;
-
-static inline bool gimple_call_builtin_p(gimple stmt, enum built_in_function code)
-{
-	tree fndecl;
-
-	if (!is_gimple_call(stmt))
-		return false;
-	fndecl = gimple_call_fndecl(stmt);
-	if (!fndecl || DECL_BUILT_IN_CLASS(fndecl) != BUILT_IN_NORMAL)
-		return false;
-	return DECL_FUNCTION_CODE(fndecl) == code;
-}
-
-static inline bool is_simple_builtin(tree decl)
-{
-	if (decl && DECL_BUILT_IN_CLASS(decl) != BUILT_IN_NORMAL)
-		return false;
-
-	switch (DECL_FUNCTION_CODE(decl)) {
-	/* Builtins that expand to constants. */
-	case BUILT_IN_CONSTANT_P:
-	case BUILT_IN_EXPECT:
-	case BUILT_IN_OBJECT_SIZE:
-	case BUILT_IN_UNREACHABLE:
-	/* Simple register moves or loads from stack. */
-	case BUILT_IN_RETURN_ADDRESS:
-	case BUILT_IN_EXTRACT_RETURN_ADDR:
-	case BUILT_IN_FROB_RETURN_ADDR:
-	case BUILT_IN_RETURN:
-	case BUILT_IN_AGGREGATE_INCOMING_ADDRESS:
-	case BUILT_IN_FRAME_ADDRESS:
-	case BUILT_IN_VA_END:
-	case BUILT_IN_STACK_SAVE:
-	case BUILT_IN_STACK_RESTORE:
-	/* Exception state returns or moves registers around. */
-	case BUILT_IN_EH_FILTER:
-	case BUILT_IN_EH_POINTER:
-	case BUILT_IN_EH_COPY_VALUES:
-	return true;
-
-	default:
-	return false;
-	}
-}
-
-static inline void add_local_decl(struct function *fun, tree d)
-{
-	gcc_assert(TREE_CODE(d) == VAR_DECL);
-	fun->local_decls = tree_cons(NULL_TREE, d, fun->local_decls);
-}
-#endif
-
-#if BUILDING_GCC_VERSION <= 4006
-#define ANY_RETURN_P(rtx) (GET_CODE(rtx) == RETURN)
-#define C_DECL_REGISTER(EXP) DECL_LANG_FLAG_4(EXP)
-#define EDGE_PRESERVE 0ULL
-#define HOST_WIDE_INT_PRINT_HEX_PURE "%" HOST_WIDE_INT_PRINT "x"
-#define flag_fat_lto_objects true
-
-#define get_random_seed(noinit) ({						\
-	unsigned HOST_WIDE_INT seed;						\
-	sscanf(get_random_seed(noinit), "%" HOST_WIDE_INT_PRINT "x", &seed);	\
-	seed * seed; })
-
-#define int_const_binop(code, arg1, arg2)	\
-	int_const_binop((code), (arg1), (arg2), 0)
-
-static inline bool gimple_clobber_p(gimple s __unused)
-{
-	return false;
-}
-
-static inline bool gimple_asm_clobbers_memory_p(const_gimple stmt)
-{
-	unsigned i;
-
-	for (i = 0; i < gimple_asm_nclobbers(stmt); i++) {
-		tree op = gimple_asm_clobber_op(stmt, i);
-
-		if (!strcmp(TREE_STRING_POINTER(TREE_VALUE(op)), "memory"))
-			return true;
-	}
-
-	return false;
-}
-
-static inline tree builtin_decl_implicit(enum built_in_function fncode)
-{
-	return implicit_built_in_decls[fncode];
-}
-
-static inline int ipa_reverse_postorder(struct cgraph_node **order)
-{
-	return cgraph_postorder(order);
-}
-
-static inline struct cgraph_node *cgraph_create_node(tree decl)
-{
-	return cgraph_node(decl);
-}
-
-static inline struct cgraph_node *cgraph_get_create_node(tree decl)
-{
-	struct cgraph_node *node = cgraph_get_node(decl);
-
-	return node ? node : cgraph_node(decl);
-}
-
-static inline bool cgraph_function_with_gimple_body_p(struct cgraph_node *node)
-{
-	return node->analyzed && !node->thunk.thunk_p && !node->alias;
-}
-
-static inline struct cgraph_node *cgraph_first_function_with_gimple_body(void)
-{
-	struct cgraph_node *node;
-
-	for (node = cgraph_nodes; node; node = node->next)
-		if (cgraph_function_with_gimple_body_p(node))
-			return node;
-	return NULL;
-}
-
-static inline struct cgraph_node *cgraph_next_function_with_gimple_body(struct cgraph_node *node)
-{
-	for (node = node->next; node; node = node->next)
-		if (cgraph_function_with_gimple_body_p(node))
-			return node;
-	return NULL;
-}
-
-static inline bool cgraph_for_node_and_aliases(cgraph_node_ptr node, bool (*callback)(cgraph_node_ptr, void *), void *data, bool include_overwritable)
-{
-	cgraph_node_ptr alias;
-
-	if (callback(node, data))
-		return true;
-
-	for (alias = node->same_body; alias; alias = alias->next) {
-		if (include_overwritable || cgraph_function_body_availability(alias) > AVAIL_OVERWRITABLE)
-			if (cgraph_for_node_and_aliases(alias, callback, data, include_overwritable))
-				return true;
-	}
-
-	return false;
-}
-
-#define FOR_EACH_FUNCTION_WITH_GIMPLE_BODY(node) \
-	for ((node) = cgraph_first_function_with_gimple_body(); (node); \
-		(node) = cgraph_next_function_with_gimple_body(node))
-
-static inline void varpool_add_new_variable(tree decl)
-{
-	varpool_finalize_decl(decl);
-}
-#endif
-
-#if BUILDING_GCC_VERSION <= 4007
-#define FOR_EACH_FUNCTION(node)	\
-	for (node = cgraph_nodes; node; node = node->next)
-#define FOR_EACH_VARIABLE(node)	\
-	for (node = varpool_nodes; node; node = node->next)
-#define PROP_loops 0
-#define NODE_SYMBOL(node) (node)
-#define NODE_DECL(node) (node)->decl
-#define INSN_LOCATION(INSN) RTL_LOCATION(INSN)
-#define vNULL NULL
-
-static inline int bb_loop_depth(const_basic_block bb)
-{
-	return bb->loop_father ? loop_depth(bb->loop_father) : 0;
-}
-
-static inline bool gimple_store_p(gimple gs)
-{
-	tree lhs = gimple_get_lhs(gs);
-
-	return lhs && !is_gimple_reg(lhs);
-}
-
-static inline void gimple_init_singleton(gimple g __unused)
-{
-}
-#endif
-
-#if BUILDING_GCC_VERSION == 4007 || BUILDING_GCC_VERSION == 4008
-static inline struct cgraph_node *cgraph_alias_target(struct cgraph_node *n)
-{
-	return cgraph_alias_aliased_node(n);
-}
-#endif
-
-#if BUILDING_GCC_VERSION <= 4008
-#define ENTRY_BLOCK_PTR_FOR_FN(FN)	ENTRY_BLOCK_PTR_FOR_FUNCTION(FN)
-#define EXIT_BLOCK_PTR_FOR_FN(FN)	EXIT_BLOCK_PTR_FOR_FUNCTION(FN)
-#define basic_block_info_for_fn(FN)	((FN)->cfg->x_basic_block_info)
-#define n_basic_blocks_for_fn(FN)	((FN)->cfg->x_n_basic_blocks)
-#define n_edges_for_fn(FN)		((FN)->cfg->x_n_edges)
-#define last_basic_block_for_fn(FN)	((FN)->cfg->x_last_basic_block)
-#define label_to_block_map_for_fn(FN)	((FN)->cfg->x_label_to_block_map)
-#define profile_status_for_fn(FN)	((FN)->cfg->x_profile_status)
-#define BASIC_BLOCK_FOR_FN(FN, N)	BASIC_BLOCK_FOR_FUNCTION((FN), (N))
-#define NODE_IMPLICIT_ALIAS(node)	(node)->same_body_alias
-#define VAR_P(NODE)			(TREE_CODE(NODE) == VAR_DECL)
-
-static inline bool tree_fits_shwi_p(const_tree t)
-{
-	if (t == NULL_TREE || TREE_CODE(t) != INTEGER_CST)
-		return false;
-
-	if (TREE_INT_CST_HIGH(t) == 0 && (HOST_WIDE_INT)TREE_INT_CST_LOW(t) >= 0)
-		return true;
-
-	if (TREE_INT_CST_HIGH(t) == -1 && (HOST_WIDE_INT)TREE_INT_CST_LOW(t) < 0 && !TYPE_UNSIGNED(TREE_TYPE(t)))
-		return true;
-
-	return false;
-}
-
-static inline bool tree_fits_uhwi_p(const_tree t)
-{
-	if (t == NULL_TREE || TREE_CODE(t) != INTEGER_CST)
-		return false;
-
-	return TREE_INT_CST_HIGH(t) == 0;
-}
-
-static inline HOST_WIDE_INT tree_to_shwi(const_tree t)
-{
-	gcc_assert(tree_fits_shwi_p(t));
-	return TREE_INT_CST_LOW(t);
-}
-
-static inline unsigned HOST_WIDE_INT tree_to_uhwi(const_tree t)
-{
-	gcc_assert(tree_fits_uhwi_p(t));
-	return TREE_INT_CST_LOW(t);
-}
-
-static inline const char *get_tree_code_name(enum tree_code code)
-{
-	gcc_assert(code < MAX_TREE_CODES);
-	return tree_code_name[code];
-}
-
-#define ipa_remove_stmt_references(cnode, stmt)
-
-typedef union gimple_statement_d gasm;
-typedef union gimple_statement_d gassign;
-typedef union gimple_statement_d gcall;
-typedef union gimple_statement_d gcond;
-typedef union gimple_statement_d gdebug;
-typedef union gimple_statement_d ggoto;
-typedef union gimple_statement_d gphi;
-typedef union gimple_statement_d greturn;
-
-static inline gasm *as_a_gasm(gimple stmt)
-{
-	return stmt;
-}
-
-static inline const gasm *as_a_const_gasm(const_gimple stmt)
-{
-	return stmt;
-}
-
-static inline gassign *as_a_gassign(gimple stmt)
-{
-	return stmt;
-}
-
-static inline const gassign *as_a_const_gassign(const_gimple stmt)
-{
-	return stmt;
-}
-
-static inline gcall *as_a_gcall(gimple stmt)
-{
-	return stmt;
-}
-
-static inline const gcall *as_a_const_gcall(const_gimple stmt)
-{
-	return stmt;
-}
-
-static inline gcond *as_a_gcond(gimple stmt)
-{
-	return stmt;
-}
-
-static inline const gcond *as_a_const_gcond(const_gimple stmt)
-{
-	return stmt;
-}
-
-static inline gdebug *as_a_gdebug(gimple stmt)
-{
-	return stmt;
-}
-
-static inline const gdebug *as_a_const_gdebug(const_gimple stmt)
-{
-	return stmt;
-}
-
-static inline ggoto *as_a_ggoto(gimple stmt)
-{
-	return stmt;
-}
-
-static inline const ggoto *as_a_const_ggoto(const_gimple stmt)
-{
-	return stmt;
-}
-
-static inline gphi *as_a_gphi(gimple stmt)
-{
-	return stmt;
-}
-
-static inline const gphi *as_a_const_gphi(const_gimple stmt)
-{
-	return stmt;
-}
-
-static inline greturn *as_a_greturn(gimple stmt)
-{
-	return stmt;
-}
-
-static inline const greturn *as_a_const_greturn(const_gimple stmt)
-{
-	return stmt;
-}
-#endif
-
-#if BUILDING_GCC_VERSION == 4008
-#define NODE_SYMBOL(node) (&(node)->symbol)
-#define NODE_DECL(node) (node)->symbol.decl
-#endif
-
-#if BUILDING_GCC_VERSION >= 4008
 #define add_referenced_var(var)
 #define mark_sym_for_renaming(var)
 #define varpool_mark_needed_node(node)
 #define create_var_ann(var)
 #define TODO_dump_func 0
 #define TODO_dump_cgraph 0
-#endif
 
 #if BUILDING_GCC_VERSION <= 4009
 #define TODO_verify_il 0
@@ -676,7 +271,6 @@ static inline const greturn *as_a_const_greturn(const_gimple stmt)
 }
 #endif
 
-#if BUILDING_GCC_VERSION >= 4009
 #define TODO_ggc_collect 0
 #define NODE_SYMBOL(node) (node)
 #define NODE_DECL(node) (node)->decl
@@ -687,7 +281,6 @@ static inline opt_pass *get_pass_for_id(int id)
 {
 	return g->get_passes()->get_pass_for_id(id);
 }
-#endif
 
 #if BUILDING_GCC_VERSION >= 5000 && BUILDING_GCC_VERSION < 6000
 /* gimple related */

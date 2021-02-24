@@ -71,11 +71,11 @@ extern const int phy_10gbit_features_array[1];
 
 /*
  * Set phydev->irq to PHY_POLL if interrupts are not supported,
- * or not desired for this PHY.  Set to PHY_IGNORE_INTERRUPT if
- * the attached driver handles the interrupt
+ * or not desired for this PHY.  Set to PHY_MAC_INTERRUPT if
+ * the attached MAC driver handles the interrupt
  */
 #define PHY_POLL		-1
-#define PHY_IGNORE_INTERRUPT	-2
+#define PHY_MAC_INTERRUPT	-2
 
 #define PHY_IS_INTERNAL		0x00000001
 #define PHY_RST_AFTER_CLK_EN	0x00000002
@@ -104,8 +104,10 @@ extern const int phy_10gbit_features_array[1];
  * @PHY_INTERFACE_MODE_MOCA: Multimedia over Coax
  * @PHY_INTERFACE_MODE_QSGMII: Quad SGMII
  * @PHY_INTERFACE_MODE_TRGMII: Turbo RGMII
+ * @PHY_INTERFACE_MODE_100BASEX: 100 BaseX
  * @PHY_INTERFACE_MODE_1000BASEX: 1000 BaseX
  * @PHY_INTERFACE_MODE_2500BASEX: 2500 BaseX
+ * @PHY_INTERFACE_MODE_5GBASER: 5G BaseR
  * @PHY_INTERFACE_MODE_RXAUI: Reduced XAUI
  * @PHY_INTERFACE_MODE_XAUI: 10 Gigabit Attachment Unit Interface
  * @PHY_INTERFACE_MODE_10GBASER: 10G BaseR
@@ -135,8 +137,10 @@ typedef enum {
 	PHY_INTERFACE_MODE_MOCA,
 	PHY_INTERFACE_MODE_QSGMII,
 	PHY_INTERFACE_MODE_TRGMII,
+	PHY_INTERFACE_MODE_100BASEX,
 	PHY_INTERFACE_MODE_1000BASEX,
 	PHY_INTERFACE_MODE_2500BASEX,
+	PHY_INTERFACE_MODE_5GBASER,
 	PHY_INTERFACE_MODE_RXAUI,
 	PHY_INTERFACE_MODE_XAUI,
 	/* 10GBASE-R, XFI, SFI - single lane 10G Serdes */
@@ -147,16 +151,8 @@ typedef enum {
 	PHY_INTERFACE_MODE_MAX,
 } phy_interface_t;
 
-/**
+/*
  * phy_supported_speeds - return all speeds currently supported by a PHY device
- * @phy: The PHY device to return supported speeds of.
- * @speeds: buffer to store supported speeds in.
- * @size: size of speeds buffer.
- *
- * Description: Returns the number of supported speeds, and fills
- * the speeds buffer with the supported speeds. If speeds buffer is
- * too small to contain all currently supported speeds, will return as
- * many speeds as can fit.
  */
 unsigned int phy_supported_speeds(struct phy_device *phy,
 				      unsigned int *speeds,
@@ -215,6 +211,8 @@ static inline const char *phy_modes(phy_interface_t interface)
 		return "1000base-x";
 	case PHY_INTERFACE_MODE_2500BASEX:
 		return "2500base-x";
+	case PHY_INTERFACE_MODE_5GBASER:
+		return "5gbase-r";
 	case PHY_INTERFACE_MODE_RXAUI:
 		return "rxaui";
 	case PHY_INTERFACE_MODE_XAUI:
@@ -225,6 +223,8 @@ static inline const char *phy_modes(phy_interface_t interface)
 		return "usxgmii";
 	case PHY_INTERFACE_MODE_10GKR:
 		return "10gbase-kr";
+	case PHY_INTERFACE_MODE_100BASEX:
+		return "100base-x";
 	default:
 		return "unknown";
 	}
@@ -492,6 +492,7 @@ struct macsec_ops;
  * @sysfs_links: Internal boolean tracking sysfs symbolic links setup/removal.
  * @loopback_enabled: Set true if this PHY has been loopbacked successfully.
  * @downshifted_rate: Set true if link speed has been downshifted.
+ * @is_on_sfp_module: Set true if PHY is located on an SFP module.
  * @state: State of the PHY for management purposes
  * @dev_flags: Device-specific flags used by the PHY driver.
  * @irq: IRQ number of the PHY's interrupt (-1 if none)
@@ -507,6 +508,7 @@ struct macsec_ops;
  *
  * @speed: Current link speed
  * @duplex: Current duplex
+ * @port: Current port
  * @pause: Current pause
  * @asym_pause: Current asymmetric pause
  * @supported: Combined MAC/PHY supported linkmodes
@@ -564,6 +566,7 @@ struct phy_device {
 	unsigned sysfs_links:1;
 	unsigned loopback_enabled:1;
 	unsigned downshifted_rate:1;
+	unsigned is_on_sfp_module:1;
 
 	unsigned autoneg:1;
 	/* The most recently read link state */
@@ -585,6 +588,7 @@ struct phy_device {
 	 */
 	int speed;
 	int duplex;
+	int port;
 	int pause;
 	int asym_pause;
 	u8 master_slave_get;
@@ -652,8 +656,11 @@ struct phy_device {
 	const struct macsec_ops *macsec_ops;
 #endif
 };
-#define to_phy_device(d) container_of(to_mdio_device(d), \
-				      struct phy_device, mdio)
+
+static inline struct phy_device *to_phy_device(const struct device *dev)
+{
+	return container_of(to_mdio_device(dev), struct phy_device, mdio);
+}
 
 /**
  * struct phy_tdr_config - Configuration of a TDR raw test
@@ -751,18 +758,12 @@ struct phy_driver {
 	/** @read_status: Determines the negotiated speed and duplex */
 	int (*read_status)(struct phy_device *phydev);
 
-	/** @ack_interrupt: Clears any pending interrupts */
-	int (*ack_interrupt)(struct phy_device *phydev);
-
-	/** @config_intr: Enables or disables interrupts */
-	int (*config_intr)(struct phy_device *phydev);
-
 	/**
-	 * @did_interrupt: Checks if the PHY generated an interrupt.
-	 * For multi-PHY devices with shared PHY interrupt pin
-	 * Set interrupt bits have to be cleared.
+	 * @config_intr: Enables or disables interrupts.
+	 * It should also clear any pending interrupts prior to enabling the
+	 * IRQs and after disabling them.
 	 */
-	int (*did_interrupt)(struct phy_device *phydev);
+	int (*config_intr)(struct phy_device *phydev);
 
 	/** @handle_interrupt: Override default interrupt handling */
 	irqreturn_t (*handle_interrupt)(struct phy_device *phydev);
@@ -1022,14 +1023,9 @@ static inline int __phy_modify_changed(struct phy_device *phydev, u32 regnum,
 					regnum, mask, set);
 }
 
-/**
+/*
  * phy_read_mmd - Convenience function for reading a register
  * from an MMD on a given PHY.
- * @phydev: The phy_device struct
- * @devad: The MMD to read from
- * @regnum: The register on the MMD to read
- *
- * Same rules as for phy_read();
  */
 int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum);
 
@@ -1064,38 +1060,21 @@ int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum);
 	__ret; \
 })
 
-/**
+/*
  * __phy_read_mmd - Convenience function for reading a register
  * from an MMD on a given PHY.
- * @phydev: The phy_device struct
- * @devad: The MMD to read from
- * @regnum: The register on the MMD to read
- *
- * Same rules as for __phy_read();
  */
 int __phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum);
 
-/**
+/*
  * phy_write_mmd - Convenience function for writing a register
  * on an MMD on a given PHY.
- * @phydev: The phy_device struct
- * @devad: The MMD to write to
- * @regnum: The register on the MMD to read
- * @val: value to write to @regnum
- *
- * Same rules as for phy_write();
  */
 int phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val);
 
-/**
+/*
  * __phy_write_mmd - Convenience function for writing a register
  * on an MMD on a given PHY.
- * @phydev: The phy_device struct
- * @devad: The MMD to write to
- * @regnum: The register on the MMD to read
- * @val: value to write to @regnum
- *
- * Same rules as for __phy_write();
  */
 int __phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val);
 
@@ -1229,11 +1208,11 @@ static inline int phy_clear_bits_mmd(struct phy_device *phydev, int devad,
  * @phydev: the phy_device struct
  *
  * NOTE: must be kept in sync with addition/removal of PHY_POLL and
- * PHY_IGNORE_INTERRUPT
+ * PHY_MAC_INTERRUPT
  */
 static inline bool phy_interrupt_is_valid(struct phy_device *phydev)
 {
-	return phydev->irq != PHY_POLL && phydev->irq != PHY_IGNORE_INTERRUPT;
+	return phydev->irq != PHY_POLL && phydev->irq != PHY_MAC_INTERRUPT;
 }
 
 /**
@@ -1317,6 +1296,15 @@ static inline void phy_txtstamp(struct phy_device *phydev, struct sk_buff *skb,
 static inline bool phy_is_internal(struct phy_device *phydev)
 {
 	return phydev->is_internal;
+}
+
+/**
+ * phy_on_sfp - Convenience function for testing if a PHY is on an SFP module
+ * @phydev: the phy_device struct
+ */
+static inline bool phy_on_sfp(struct phy_device *phydev)
+{
+	return phydev->is_on_sfp_module;
 }
 
 /**
@@ -1510,16 +1498,13 @@ int genphy_suspend(struct phy_device *phydev);
 int genphy_resume(struct phy_device *phydev);
 int genphy_loopback(struct phy_device *phydev, bool enable);
 int genphy_soft_reset(struct phy_device *phydev);
+irqreturn_t genphy_handle_interrupt_no_ack(struct phy_device *phydev);
 
 static inline int genphy_config_aneg(struct phy_device *phydev)
 {
 	return __genphy_config_aneg(phydev, false);
 }
 
-static inline int genphy_no_ack_interrupt(struct phy_device *phydev)
-{
-	return 0;
-}
 static inline int genphy_no_config_intr(struct phy_device *phydev)
 {
 	return 0;
@@ -1570,8 +1555,10 @@ void phy_drivers_unregister(struct phy_driver *drv, int n);
 int phy_driver_register(struct phy_driver *new_driver, struct module *owner);
 int phy_drivers_register(struct phy_driver *new_driver, int n,
 			 struct module *owner);
+void phy_error(struct phy_device *phydev);
 void phy_state_machine(struct work_struct *work);
 void phy_queue_state_machine(struct phy_device *phydev, unsigned long jiffies);
+void phy_trigger_machine(struct phy_device *phydev);
 void phy_mac_interrupt(struct phy_device *phydev);
 void phy_start_machine(struct phy_device *phydev);
 void phy_stop_machine(struct phy_device *phydev);

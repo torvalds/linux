@@ -137,7 +137,7 @@
 
 	lcd_backlight: lcd-backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm4 0 5000000>;
+		pwms = <&pwm4 0 5000000 0>;
 		pwm-names = "LCD_BKLT_PWM";
 
 		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
@@ -167,7 +167,7 @@
 		i2c-gpio,delay-us = <2>; /* ~100 kHz */
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "disabld";
+		status = "disabled";
 	};
 
 	i2c_cam: i2c-gpio-cam {
@@ -179,7 +179,7 @@
 		i2c-gpio,delay-us = <2>; /* ~100 kHz */
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "disabld";
+		status = "disabled";
 	};
 };
 
@@ -390,21 +390,21 @@
 
 /* I2C_GP */
 &i2c1 {
-	clock-frequency = <100000>;
+	clock-frequency = <375000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c1>;
 };
 
 /* HDMI_CTRL */
 &i2c2 {
-	clock-frequency = <100000>;
+	clock-frequency = <375000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2>;
 };
 
 /* I2C_PM */
 &i2c3 {
-	clock-frequency = <100000>;
+	clock-frequency = <375000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
@@ -551,7 +551,7 @@
 
 	pinctrl_i2c3: i2c3grp {
 		fsl,pins = <
-			MX6QDL_PAD_GPIO_3__I2C3_SCL		0x4001b8b1
+			MX6QDL_PAD_GPIO_5__I2C3_SCL		0x4001b8b1
 			MX6QDL_PAD_GPIO_16__I2C3_SDA		0x4001b8b1
 		>;
 	};

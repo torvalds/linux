@@ -1,6 +1,7 @@
  printk: console [mc-1] enabled
  random: get_random_bytes called from init_oops_id+0x35/0x40 with crng_init=0
  TAP version 14
+ 1..3
  	# Subtest: kunit-resource-test
  	1..5
  	ok 1 - kunit_resource_test_init_resources

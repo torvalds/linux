@@ -47,6 +47,7 @@ struct vhost_vdpa {
 	int minor;
 	struct eventfd_ctx *config_ctx;
 	int in_batch;
+	struct vdpa_iova_range range;
 };
 
 static DEFINE_IDA(vhost_vdpa_ida);
@@ -103,6 +104,9 @@ static void vhost_vdpa_setup_vq_irq(struct vhost_vdpa *v, u16 qid)
 	vq->call_ctx.producer.token = vq->call_ctx.ctx;
 	vq->call_ctx.producer.irq = irq;
 	ret = irq_bypass_register_producer(&vq->call_ctx.producer);
+	if (unlikely(ret))
+		dev_info(&v->dev, "vq %u, irq bypass producer (token %p) registration fails, ret =  %d\n",
+			 qid, vq->call_ctx.producer.token, ret);
 }
 
 static void vhost_vdpa_unsetup_vq_irq(struct vhost_vdpa *v, u16 qid)
@@ -241,14 +245,10 @@ static long vhost_vdpa_set_config(struct vhost_vdpa *v,
 		return -EFAULT;
 	if (vhost_vdpa_config_validate(v, &config))
 		return -EINVAL;
-	buf = kvzalloc(config.len, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
 
-	if (copy_from_user(buf, c->buf, config.len)) {
-		kvfree(buf);
-		return -EFAULT;
-	}
+	buf = vmemdup_user(c->buf, config.len);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	ops->set_config(vdpa, config.off, buf, config.len);
 
@@ -337,6 +337,18 @@ static long vhost_vdpa_set_config_call(struct vhost_vdpa *v, u32 __user *argp)
 	return 0;
 }
 
+static long vhost_vdpa_get_iova_range(struct vhost_vdpa *v, u32 __user *argp)
+{
+	struct vhost_vdpa_iova_range range = {
+		.first = v->range.first,
+		.last = v->range.last,
+	};
+
+	if (copy_to_user(argp, &range, sizeof(range)))
+		return -EFAULT;
+	return 0;
+}
+
 static long vhost_vdpa_vring_ioctl(struct vhost_vdpa *v, unsigned int cmd,
 				   void __user *argp)
 {
@@ -421,12 +433,11 @@ static long vhost_vdpa_unlocked_ioctl(struct file *filep,
 	void __user *argp = (void __user *)arg;
 	u64 __user *featurep = argp;
 	u64 features;
-	long r;
+	long r = 0;
 
 	if (cmd == VHOST_SET_BACKEND_FEATURES) {
-		r = copy_from_user(&features, featurep, sizeof(features));
-		if (r)
-			return r;
+		if (copy_from_user(&features, featurep, sizeof(features)))
+			return -EFAULT;
 		if (features & ~VHOST_VDPA_BACKEND_FEATURES)
 			return -EOPNOTSUPP;
 		vhost_set_backend_features(&v->vdev, features);
@@ -469,7 +480,11 @@ static long vhost_vdpa_unlocked_ioctl(struct file *filep,
 		break;
 	case VHOST_GET_BACKEND_FEATURES:
 		features = VHOST_VDPA_BACKEND_FEATURES;
-		r = copy_to_user(featurep, &features, sizeof(features));
+		if (copy_to_user(featurep, &features, sizeof(features)))
+			r = -EFAULT;
+		break;
+	case VHOST_VDPA_GET_IOVA_RANGE:
+		r = vhost_vdpa_get_iova_range(v, argp);
 		break;
 	default:
 		r = vhost_dev_ioctl(&v->vdev, cmd, argp);
@@ -560,6 +575,8 @@ static int vhost_vdpa_map(struct vhost_vdpa *v,
 
 	if (r)
 		vhost_iotlb_del_range(dev->iotlb, iova, iova + size - 1);
+	else
+		atomic64_add(size >> PAGE_SHIFT, &dev->mm->pinned_vm);
 
 	return r;
 }
@@ -588,31 +605,33 @@ static int vhost_vdpa_process_iotlb_update(struct vhost_vdpa *v,
 	struct vhost_dev *dev = &v->vdev;
 	struct vhost_iotlb *iotlb = dev->iotlb;
 	struct page **page_list;
-	struct vm_area_struct **vmas;
+	unsigned long list_size = PAGE_SIZE / sizeof(struct page *);
 	unsigned int gup_flags = FOLL_LONGTERM;
-	unsigned long map_pfn, last_pfn = 0;
-	unsigned long npages, lock_limit;
-	unsigned long i, nmap = 0;
+	unsigned long npages, cur_base, map_pfn, last_pfn = 0;
+	unsigned long lock_limit, sz2pin, nchunks, i;
 	u64 iova = msg->iova;
 	long pinned;
 	int ret = 0;
+
+	if (msg->iova < v->range.first ||
+	    msg->iova + msg->size - 1 > v->range.last)
+		return -EINVAL;
 
 	if (vhost_iotlb_itree_first(iotlb, msg->iova,
 				    msg->iova + msg->size - 1))
 		return -EEXIST;
 
+	/* Limit the use of memory for bookkeeping */
+	page_list = (struct page **) __get_free_page(GFP_KERNEL);
+	if (!page_list)
+		return -ENOMEM;
+
 	if (msg->perm & VHOST_ACCESS_WO)
 		gup_flags |= FOLL_WRITE;
 
 	npages = PAGE_ALIGN(msg->size + (iova & ~PAGE_MASK)) >> PAGE_SHIFT;
-	if (!npages)
-		return -EINVAL;
-
-	page_list = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
-	vmas = kvmalloc_array(npages, sizeof(struct vm_area_struct *),
-			      GFP_KERNEL);
-	if (!page_list || !vmas) {
-		ret = -ENOMEM;
+	if (!npages) {
+		ret = -EINVAL;
 		goto free;
 	}
 
@@ -624,70 +643,91 @@ static int vhost_vdpa_process_iotlb_update(struct vhost_vdpa *v,
 		goto unlock;
 	}
 
-	pinned = pin_user_pages(msg->uaddr & PAGE_MASK, npages, gup_flags,
-				page_list, vmas);
-	if (npages != pinned) {
-		if (pinned < 0) {
-			ret = pinned;
-		} else {
-			unpin_user_pages(page_list, pinned);
-			ret = -ENOMEM;
-		}
-		goto unlock;
-	}
-
+	cur_base = msg->uaddr & PAGE_MASK;
 	iova &= PAGE_MASK;
-	map_pfn = page_to_pfn(page_list[0]);
+	nchunks = 0;
 
-	/* One more iteration to avoid extra vdpa_map() call out of loop. */
-	for (i = 0; i <= npages; i++) {
-		unsigned long this_pfn;
-		u64 csize;
-
-		/* The last chunk may have no valid PFN next to it */
-		this_pfn = i < npages ? page_to_pfn(page_list[i]) : -1UL;
-
-		if (last_pfn && (this_pfn == -1UL ||
-				 this_pfn != last_pfn + 1)) {
-			/* Pin a contiguous chunk of memory */
-			csize = last_pfn - map_pfn + 1;
-			ret = vhost_vdpa_map(v, iova, csize << PAGE_SHIFT,
-					     map_pfn << PAGE_SHIFT,
-					     msg->perm);
-			if (ret) {
-				/*
-				 * Unpin the rest chunks of memory on the
-				 * flight with no corresponding vdpa_map()
-				 * calls having been made yet. On the other
-				 * hand, vdpa_unmap() in the failure path
-				 * is in charge of accounting the number of
-				 * pinned pages for its own.
-				 * This asymmetrical pattern of accounting
-				 * is for efficiency to pin all pages at
-				 * once, while there is no other callsite
-				 * of vdpa_map() than here above.
-				 */
-				unpin_user_pages(&page_list[nmap],
-						 npages - nmap);
-				goto out;
+	while (npages) {
+		sz2pin = min_t(unsigned long, npages, list_size);
+		pinned = pin_user_pages(cur_base, sz2pin,
+					gup_flags, page_list, NULL);
+		if (sz2pin != pinned) {
+			if (pinned < 0) {
+				ret = pinned;
+			} else {
+				unpin_user_pages(page_list, pinned);
+				ret = -ENOMEM;
 			}
-			atomic64_add(csize, &dev->mm->pinned_vm);
-			nmap += csize;
-			iova += csize << PAGE_SHIFT;
-			map_pfn = this_pfn;
+			goto out;
 		}
-		last_pfn = this_pfn;
+		nchunks++;
+
+		if (!last_pfn)
+			map_pfn = page_to_pfn(page_list[0]);
+
+		for (i = 0; i < pinned; i++) {
+			unsigned long this_pfn = page_to_pfn(page_list[i]);
+			u64 csize;
+
+			if (last_pfn && (this_pfn != last_pfn + 1)) {
+				/* Pin a contiguous chunk of memory */
+				csize = (last_pfn - map_pfn + 1) << PAGE_SHIFT;
+				ret = vhost_vdpa_map(v, iova, csize,
+						     map_pfn << PAGE_SHIFT,
+						     msg->perm);
+				if (ret) {
+					/*
+					 * Unpin the pages that are left unmapped
+					 * from this point on in the current
+					 * page_list. The remaining outstanding
+					 * ones which may stride across several
+					 * chunks will be covered in the common
+					 * error path subsequently.
+					 */
+					unpin_user_pages(&page_list[i],
+							 pinned - i);
+					goto out;
+				}
+
+				map_pfn = this_pfn;
+				iova += csize;
+				nchunks = 0;
+			}
+
+			last_pfn = this_pfn;
+		}
+
+		cur_base += pinned << PAGE_SHIFT;
+		npages -= pinned;
 	}
 
-	WARN_ON(nmap != npages);
+	/* Pin the rest chunk */
+	ret = vhost_vdpa_map(v, iova, (last_pfn - map_pfn + 1) << PAGE_SHIFT,
+			     map_pfn << PAGE_SHIFT, msg->perm);
 out:
-	if (ret)
+	if (ret) {
+		if (nchunks) {
+			unsigned long pfn;
+
+			/*
+			 * Unpin the outstanding pages which are yet to be
+			 * mapped but haven't due to vdpa_map() or
+			 * pin_user_pages() failure.
+			 *
+			 * Mapped pages are accounted in vdpa_map(), hence
+			 * the corresponding unpinning will be handled by
+			 * vdpa_unmap().
+			 */
+			WARN_ON(!last_pfn);
+			for (pfn = map_pfn; pfn <= last_pfn; pfn++)
+				unpin_user_page(pfn_to_page(pfn));
+		}
 		vhost_vdpa_unmap(v, msg->iova, msg->size);
+	}
 unlock:
 	mmap_read_unlock(dev->mm);
 free:
-	kvfree(vmas);
-	kvfree(page_list);
+	free_page((unsigned long)page_list);
 	return ret;
 }
 
@@ -783,6 +823,27 @@ static void vhost_vdpa_free_domain(struct vhost_vdpa *v)
 	v->domain = NULL;
 }
 
+static void vhost_vdpa_set_iova_range(struct vhost_vdpa *v)
+{
+	struct vdpa_iova_range *range = &v->range;
+	struct iommu_domain_geometry geo;
+	struct vdpa_device *vdpa = v->vdpa;
+	const struct vdpa_config_ops *ops = vdpa->config;
+
+	if (ops->get_iova_range) {
+		*range = ops->get_iova_range(vdpa);
+	} else if (v->domain &&
+		   !iommu_domain_get_attr(v->domain,
+		   DOMAIN_ATTR_GEOMETRY, &geo) &&
+		   geo.force_aperture) {
+		range->first = geo.aperture_start;
+		range->last = geo.aperture_end;
+	} else {
+		range->first = 0;
+		range->last = ULLONG_MAX;
+	}
+}
+
 static int vhost_vdpa_open(struct inode *inode, struct file *filep)
 {
 	struct vhost_vdpa *v;
@@ -822,6 +883,8 @@ static int vhost_vdpa_open(struct inode *inode, struct file *filep)
 	r = vhost_vdpa_alloc_domain(v);
 	if (r)
 		goto err_init_iotlb;
+
+	vhost_vdpa_set_iova_range(v);
 
 	filep->private_data = v;
 

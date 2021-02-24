@@ -188,7 +188,7 @@ Available follower modes are:
 	in combination with :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>`, otherwise
 	the ``EINVAL`` error code will be returned. In 'monitor all' mode all messages
 	this CEC device transmits and all messages it receives, including
-	directed messages for other CEC devices will be reported. This is
+	directed messages for other CEC devices, will be reported. This is
 	very useful for debugging, but not all devices support this. This
 	mode requires that the :ref:`CEC_CAP_MONITOR_ALL <CEC-CAP-MONITOR-ALL>` capability is set,
 	otherwise the ``EINVAL`` error code is returned. This is only allowed if

@@ -1455,7 +1455,7 @@ static struct platform_driver mv_xor_driver = {
 	.resume         = mv_xor_resume,
 	.driver		= {
 		.name	        = MV_XOR_NAME,
-		.of_match_table = of_match_ptr(mv_xor_dt_ids),
+		.of_match_table = mv_xor_dt_ids,
 	},
 };
 

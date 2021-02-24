@@ -82,6 +82,20 @@
 		enable-active-high;
 	};
 
+	reg_lcd_1v8: regulator-lcd-1v8 {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_dsien>;
+		regulator-name = "LCD_1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&reg_vdd_1v8>;
+		gpio = <&gpio1 5 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		/* Otherwise i2c3 is not functional */
+		regulator-always-on;
+	};
+
 	reg_lcd_3v4: regulator-lcd-3v4 {
 		compatible = "regulator-fixed";
 		regulator-name = "LCD_3V4";
@@ -99,18 +113,19 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
+	reg_vdd_1v8: regulator-vdd-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDD_1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&buck7_reg>;
+	};
+
 	reg_vdd_3v3: regulator-vdd-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_3V3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-	};
-
-	reg_vdd_1v8: regulator-vdd-1v8 {
-		compatible = "regulator-fixed";
-		regulator-name = "VCC_1V8";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
 	};
 
 	reg_vsys_3v4: regulator-vsys-3v4 {
@@ -250,7 +265,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pmic_5v>;
 
-	pmic-5v {
+	pmic-5v-hog {
 		gpio-hog;
 		gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
 		input;
@@ -275,7 +290,7 @@
 	pinctrl_charger_in: chargeringrp {
 		fsl,pins = <
 			/* CHRG_INT */
-			MX8MQ_IOMUXC_NAND_CE2_B_GPIO3_IO3	0x00
+			MX8MQ_IOMUXC_NAND_CE2_B_GPIO3_IO3	0x80
 			/* CHG_STATUS_B */
 			MX8MQ_IOMUXC_NAND_ALE_GPIO3_IO0		0x80
 		>;
@@ -292,6 +307,17 @@
 		fsl,pins = <
 			/* DSI_EN_3V3 */
 			MX8MQ_IOMUXC_GPIO1_IO05_GPIO1_IO5	0x83
+		>;
+	};
+
+	pinctrl_dsirst: dsirstgrp {
+		fsl,pins = <
+			/* DSI_RST */
+			MX8MQ_IOMUXC_ENET_RD3_GPIO1_IO29	0x83
+			/* DSI_TE */
+			MX8MQ_IOMUXC_ENET_RD2_GPIO1_IO28	0x83
+			/* TP_RST */
+			MX8MQ_IOMUXC_ENET_RX_CTL_GPIO1_IO24	0x83
 		>;
 	};
 
@@ -455,6 +481,13 @@
 		fsl,pins = <
 			/* TCPC_INT */
 			MX8MQ_IOMUXC_GPIO1_IO10_GPIO1_IO10	0x01C0
+		>;
+	};
+
+	pinctrl_touch: touchgrp {
+		fsl,pins = <
+			/* TP_INT */
+			MX8MQ_IOMUXC_ENET_RD1_GPIO1_IO27	0x80
 		>;
 	};
 
@@ -649,6 +682,7 @@
 				regulator-name = "buck1";
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
+				regulator-boot-on;
 				regulator-ramp-delay = <1250>;
 				rohm,dvs-run-voltage = <900000>;
 				rohm,dvs-idle-voltage = <850000>;
@@ -660,6 +694,7 @@
 				regulator-name = "buck2";
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
+				regulator-boot-on;
 				regulator-ramp-delay = <1250>;
 				rohm,dvs-run-voltage = <1000000>;
 				rohm,dvs-idle-voltage = <900000>;
@@ -670,8 +705,8 @@
 				regulator-name = "buck3";
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
+				regulator-boot-on;
 				rohm,dvs-run-voltage = <900000>;
-				regulator-always-on;
 			};
 
 			buck4_reg: BUCK4 {
@@ -685,6 +720,7 @@
 				regulator-name = "buck5";
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1350000>;
+				regulator-boot-on;
 				regulator-always-on;
 			};
 
@@ -692,6 +728,7 @@
 				regulator-name = "buck6";
 				regulator-min-microvolt = <3000000>;
 				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
 				regulator-always-on;
 			};
 
@@ -699,6 +736,7 @@
 				regulator-name = "buck7";
 				regulator-min-microvolt = <1605000>;
 				regulator-max-microvolt = <1995000>;
+				regulator-boot-on;
 				regulator-always-on;
 			};
 
@@ -706,6 +744,7 @@
 				regulator-name = "buck8";
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1400000>;
+				regulator-boot-on;
 				regulator-always-on;
 			};
 
@@ -713,6 +752,7 @@
 				regulator-name = "ldo1";
 				regulator-min-microvolt = <3000000>;
 				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
 				/* leave on for snvs power button */
 				regulator-always-on;
 			};
@@ -721,6 +761,7 @@
 				regulator-name = "ldo2";
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <900000>;
+				regulator-boot-on;
 				/* leave on for snvs power button */
 				regulator-always-on;
 			};
@@ -729,6 +770,7 @@
 				regulator-name = "ldo3";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
 				regulator-always-on;
 			};
 
@@ -736,6 +778,7 @@
 				regulator-name = "ldo4";
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
 				regulator-always-on;
 			};
 
@@ -752,6 +795,7 @@
 				regulator-name = "ldo6";
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
 				regulator-always-on;
 			};
 
@@ -760,6 +804,7 @@
 				regulator-name = "ldo7";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
 				regulator-always-on;
 			};
 		};
@@ -796,12 +841,12 @@
 		compatible = "tps65132";
 		reg = <0x3e>;
 
-		outp {
+		reg_lcd_avdd: outp {
 			regulator-name = "LCD_AVDD";
 			vin-supply = <&reg_lcd_3v4>;
 		};
 
-		outn {
+		reg_lcd_avee: outn {
 			regulator-name = "LCD_AVEE";
 			vin-supply = <&reg_lcd_3v4>;
 		};
@@ -879,10 +924,13 @@
 	touchscreen@38 {
 		compatible = "edt,edt-ft5506";
 		reg = <0x38>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_touch>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <27 IRQ_TYPE_EDGE_FALLING>;
 		touchscreen-size-x = <720>;
 		touchscreen-size-y = <1440>;
+		vcc-supply = <&reg_lcd_1v8>;
 	};
 };
 
@@ -919,6 +967,45 @@
 		ti,use-vinmin-threshold = <1>; /* enable VINDPM */
 		ti,vinmin-threshold = <3900000>; /* uV */
 		monitored-battery = <&bat>;
+		power-supplies = <&typec_pd>;
+	};
+};
+
+&lcdif {
+	status = "okay";
+};
+
+&mipi_dsi {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	lcd_panel: panel@0 {
+		compatible = "mantix,mlaf057we51-x";
+		reg = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_dsirst>;
+		avdd-supply = <&reg_lcd_avdd>;
+		avee-supply = <&reg_lcd_avee>;
+		vddi-supply = <&reg_lcd_1v8>;
+		backlight = <&backlight_dsi>;
+		reset-gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mipi_dsi_out>;
+			};
+		};
+	};
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			mipi_dsi_out: endpoint {
+				remote-endpoint = <&panel_in>;
+			};
+		};
 	};
 };
 
@@ -1072,6 +1159,8 @@
 };
 
 &usdhc1 {
+	assigned-clocks = <&clk IMX8MQ_CLK_USDHC1>;
+	assigned-clock-rates = <400000000>;
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
@@ -1084,6 +1173,8 @@
 };
 
 &usdhc2 {
+	assigned-clocks = <&clk IMX8MQ_CLK_USDHC2>;
+	assigned-clock-rates = <200000000>;
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	pinctrl-1 = <&pinctrl_usdhc2_100mhz>;

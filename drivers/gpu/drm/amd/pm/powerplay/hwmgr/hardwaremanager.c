@@ -223,11 +223,11 @@ int phm_register_irq_handlers(struct pp_hwmgr *hwmgr)
 }
 
 /**
-* Initializes the thermal controller subsystem.
-*
-* @param    pHwMgr  the address of the powerplay hardware manager.
-* @exception PP_Result_Failed if any of the paramters is NULL, otherwise the return value from the dispatcher.
-*/
+ * phm_start_thermal_controller - Initializes the thermal controller subsystem.
+ *
+ * @hwmgr:   the address of the powerplay hardware manager.
+ * Exception PP_Result_Failed if any of the paramters is NULL, otherwise the return value from the dispatcher.
+ */
 int phm_start_thermal_controller(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
@@ -371,13 +371,14 @@ int phm_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw_power_s
 
 
 /**
-* Gets Clock Info.
-*
-* @param    pHwMgr  the address of the powerplay hardware manager.
-* @param    pPowerState the address of the Power State structure.
-* @param    pClockInfo the address of PP_ClockInfo structure where the result will be returned.
-* @exception PP_Result_Failed if any of the paramters is NULL, otherwise the return value from the back-end.
-*/
+ * phm_get_clock_info
+ *
+ * @hwmgr:  the address of the powerplay hardware manager.
+ * @state: the address of the Power State structure.
+ * @pclock_info: the address of PP_ClockInfo structure where the result will be returned.
+ * @designation: PHM performance level designation
+ * Exception PP_Result_Failed if any of the paramters is NULL, otherwise the return value from the back-end.
+ */
 int phm_get_clock_info(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *state, struct pp_clock_info *pclock_info,
 			PHM_PerformanceLevelDesignation designation)
 {
@@ -514,34 +515,3 @@ int phm_set_active_display_count(struct pp_hwmgr *hwmgr, uint32_t count)
 
 	return hwmgr->hwmgr_func->set_active_display_count(hwmgr, count);
 }
-
-int phm_set_min_deep_sleep_dcefclk(struct pp_hwmgr *hwmgr, uint32_t clock)
-{
-	PHM_FUNC_CHECK(hwmgr);
-
-	if (!hwmgr->hwmgr_func->set_min_deep_sleep_dcefclk)
-		return -EINVAL;
-
-	return hwmgr->hwmgr_func->set_min_deep_sleep_dcefclk(hwmgr, clock);
-}
-
-int phm_set_hard_min_dcefclk_by_freq(struct pp_hwmgr *hwmgr, uint32_t clock)
-{
-	PHM_FUNC_CHECK(hwmgr);
-
-	if (!hwmgr->hwmgr_func->set_hard_min_dcefclk_by_freq)
-		return -EINVAL;
-
-	return hwmgr->hwmgr_func->set_hard_min_dcefclk_by_freq(hwmgr, clock);
-}
-
-int phm_set_hard_min_fclk_by_freq(struct pp_hwmgr *hwmgr, uint32_t clock)
-{
-	PHM_FUNC_CHECK(hwmgr);
-
-	if (!hwmgr->hwmgr_func->set_hard_min_fclk_by_freq)
-		return -EINVAL;
-
-	return hwmgr->hwmgr_func->set_hard_min_fclk_by_freq(hwmgr, clock);
-}
-

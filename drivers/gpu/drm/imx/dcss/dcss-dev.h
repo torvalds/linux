@@ -7,6 +7,7 @@
 #define __DCSS_PRV_H__
 
 #include <drm/drm_fourcc.h>
+#include <drm/drm_plane.h>
 #include <linux/io.h>
 #include <video/videomode.h>
 
@@ -165,6 +166,8 @@ void dcss_ss_sync_set(struct dcss_ss *ss, struct videomode *vm,
 /* SCALER */
 int dcss_scaler_init(struct dcss_dev *dcss, unsigned long scaler_base);
 void dcss_scaler_exit(struct dcss_scaler *scl);
+void dcss_scaler_set_filter(struct dcss_scaler *scl, int ch_num,
+			    enum drm_scaling_filter scaling_filter);
 void dcss_scaler_setup(struct dcss_scaler *scl, int ch_num,
 		       const struct drm_format_info *format,
 		       int src_xres, int src_yres, int dst_xres, int dst_yres,

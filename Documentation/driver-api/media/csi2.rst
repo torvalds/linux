@@ -28,10 +28,9 @@ interface elements must be present on the sub-device represents the
 CSI-2 transmitter.
 
 The V4L2_CID_LINK_FREQ control is used to tell the receiver driver the
-frequency (and not the symbol rate) of the link. The
-V4L2_CID_PIXEL_RATE is may be used by the receiver to obtain the pixel
-rate the transmitter uses. The
-:c:type:`v4l2_subdev_video_ops`->s_stream() callback provides an
+frequency (and not the symbol rate) of the link. The V4L2_CID_PIXEL_RATE
+control may be used by the receiver to obtain the pixel rate the transmitter
+uses. The :c:type:`v4l2_subdev_video_ops`->s_stream() callback provides an
 ability to start and stop the stream.
 
 The value of the V4L2_CID_PIXEL_RATE is calculated as follows::

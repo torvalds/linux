@@ -59,6 +59,8 @@ struct mlx5e_neigh_update_table {
 
 struct mlx5_tc_ct_priv;
 struct mlx5e_rep_bond;
+struct mlx5e_tc_tun_encap;
+
 struct mlx5_rep_uplink_priv {
 	/* Filters DB - instantiated by the uplink representor and shared by
 	 * the uplink's VFs
@@ -90,6 +92,9 @@ struct mlx5_rep_uplink_priv {
 
 	/* support eswitch vports bonding */
 	struct mlx5e_rep_bond *bond;
+
+	/* tc tunneling encapsulation private data */
+	struct mlx5e_tc_tun_encap *encap;
 };
 
 struct mlx5e_rep_priv {
@@ -110,7 +115,6 @@ struct mlx5e_rep_priv *mlx5e_rep_to_rep_priv(struct mlx5_eswitch_rep *rep)
 }
 
 struct mlx5e_neigh {
-	struct net_device *dev;
 	union {
 		__be32	v4;
 		struct in6_addr v6;
@@ -122,6 +126,7 @@ struct mlx5e_neigh_hash_entry {
 	struct rhash_head rhash_node;
 	struct mlx5e_neigh m_neigh;
 	struct mlx5e_priv *priv;
+	struct net_device *neigh_dev;
 
 	/* Save the neigh hash entry in a list on the representor in
 	 * addition to the hash table. In order to iterate easily over the
@@ -153,6 +158,7 @@ enum {
 	/* set when the encap entry is successfully offloaded into HW */
 	MLX5_ENCAP_ENTRY_VALID     = BIT(0),
 	MLX5_REFORMAT_DECAP        = BIT(1),
+	MLX5_ENCAP_ENTRY_NO_ROUTE  = BIT(2),
 };
 
 struct mlx5e_decap_key {
@@ -175,18 +181,18 @@ struct mlx5e_encap_entry {
 	struct mlx5e_neigh_hash_entry *nhe;
 	/* neigh hash entry list of encaps sharing the same neigh */
 	struct list_head encap_list;
-	struct mlx5e_neigh m_neigh;
 	/* a node of the eswitch encap hash table which keeping all the encap
 	 * entries
 	 */
 	struct hlist_node encap_hlist;
 	struct list_head flows;
+	struct list_head route_list;
 	struct mlx5_pkt_reformat *pkt_reformat;
 	const struct ip_tunnel_info *tun_info;
 	unsigned char h_dest[ETH_ALEN];	/* destination eth addr	*/
 
 	struct net_device *out_dev;
-	struct net_device *route_dev;
+	int route_dev_ifindex;
 	struct mlx5e_tc_tunnel *tunnel;
 	int reformat_type;
 	u8 flags;
@@ -203,8 +209,8 @@ struct mlx5e_rep_sq {
 	struct list_head	 list;
 };
 
-void mlx5e_rep_register_vport_reps(struct mlx5_core_dev *mdev);
-void mlx5e_rep_unregister_vport_reps(struct mlx5_core_dev *mdev);
+int mlx5e_rep_init(void);
+void mlx5e_rep_cleanup(void);
 int mlx5e_rep_bond_init(struct mlx5e_rep_priv *rpriv);
 void mlx5e_rep_bond_cleanup(struct mlx5e_rep_priv *rpriv);
 int mlx5e_rep_bond_enslave(struct mlx5_eswitch *esw, struct net_device *netdev,
@@ -232,6 +238,8 @@ static inline bool mlx5e_eswitch_rep(struct net_device *netdev)
 static inline bool mlx5e_is_uplink_rep(struct mlx5e_priv *priv) { return false; }
 static inline int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv) { return 0; }
 static inline void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv) {}
+static inline int mlx5e_rep_init(void) { return 0; };
+static inline void mlx5e_rep_cleanup(void) {};
 #endif
 
 static inline bool mlx5e_is_vport_rep(struct mlx5e_priv *priv)

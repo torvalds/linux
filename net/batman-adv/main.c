@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2007-2020  B.A.T.M.A.N. contributors:
+/* Copyright (C) B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  */
@@ -23,12 +23,12 @@
 #include <linux/kobject.h>
 #include <linux/kref.h>
 #include <linux/list.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/printk.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
-#include <linux/seq_file.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -44,12 +44,10 @@
 #include "bat_iv_ogm.h"
 #include "bat_v.h"
 #include "bridge_loop_avoidance.h"
-#include "debugfs.h"
 #include "distributed-arp-table.h"
 #include "gateway_client.h"
 #include "gateway_common.h"
 #include "hard-interface.h"
-#include "icmp_socket.h"
 #include "log.h"
 #include "multicast.h"
 #include "netlink.h"
@@ -113,9 +111,6 @@ static int __init batadv_init(void)
 	if (!batadv_event_workqueue)
 		goto err_create_wq;
 
-	batadv_socket_init();
-	batadv_debugfs_init();
-
 	register_netdevice_notifier(&batadv_hard_if_notifier);
 	rtnl_link_register(&batadv_link_ops);
 	batadv_netlink_register();
@@ -133,7 +128,6 @@ err_create_wq:
 
 static void __exit batadv_exit(void)
 {
-	batadv_debugfs_destroy();
 	batadv_netlink_unregister();
 	rtnl_link_unregister(&batadv_link_ops);
 	unregister_netdevice_notifier(&batadv_hard_if_notifier);
@@ -304,44 +298,6 @@ bool batadv_is_my_mac(struct batadv_priv *bat_priv, const u8 *addr)
 	rcu_read_unlock();
 	return is_my_mac;
 }
-
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
-/**
- * batadv_seq_print_text_primary_if_get() - called from debugfs table printing
- *  function that requires the primary interface
- * @seq: debugfs table seq_file struct
- *
- * Return: primary interface if found or NULL otherwise.
- */
-struct batadv_hard_iface *
-batadv_seq_print_text_primary_if_get(struct seq_file *seq)
-{
-	struct net_device *net_dev = (struct net_device *)seq->private;
-	struct batadv_priv *bat_priv = netdev_priv(net_dev);
-	struct batadv_hard_iface *primary_if;
-
-	primary_if = batadv_primary_if_get_selected(bat_priv);
-
-	if (!primary_if) {
-		seq_printf(seq,
-			   "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
-			   net_dev->name);
-		goto out;
-	}
-
-	if (primary_if->if_status == BATADV_IF_ACTIVE)
-		goto out;
-
-	seq_printf(seq,
-		   "BATMAN mesh %s disabled - primary interface not active\n",
-		   net_dev->name);
-	batadv_hardif_put(primary_if);
-	primary_if = NULL;
-
-out:
-	return primary_if;
-}
-#endif
 
 /**
  * batadv_max_header_len() - calculate maximum encapsulation overhead for a

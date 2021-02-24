@@ -27,6 +27,7 @@ enum ceph_metric_type {
 	CLIENT_METRIC_TYPE_READ_LATENCY,	\
 	CLIENT_METRIC_TYPE_WRITE_LATENCY,	\
 	CLIENT_METRIC_TYPE_METADATA_LATENCY,	\
+	CLIENT_METRIC_TYPE_DENTRY_LEASE,	\
 						\
 	CLIENT_METRIC_TYPE_MAX,			\
 }
@@ -78,6 +79,19 @@ struct ceph_metric_metadata_latency {
 	__le32 data_len; /* length of sizeof(sec + nsec) */
 	__le32 sec;
 	__le32 nsec;
+} __packed;
+
+/* metric dentry lease header */
+struct ceph_metric_dlease {
+	__le32 type;     /* ceph metric type */
+
+	__u8  ver;
+	__u8  compat;
+
+	__le32 data_len; /* length of sizeof(hit + mis + total) */
+	__le64 hit;
+	__le64 mis;
+	__le64 total;
 } __packed;
 
 struct ceph_metric_head {

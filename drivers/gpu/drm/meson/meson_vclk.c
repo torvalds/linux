@@ -131,7 +131,7 @@ enum {
 	VID_PLL_DIV_15,
 };
 
-void meson_vid_pll_set(struct meson_drm *priv, unsigned int div)
+static void meson_vid_pll_set(struct meson_drm *priv, unsigned int div)
 {
 	unsigned int shift_val = 0;
 	unsigned int shift_sel = 0;
@@ -487,9 +487,9 @@ static inline unsigned int pll_od_to_reg(unsigned int od)
 	return 0;
 }
 
-void meson_hdmi_pll_set_params(struct meson_drm *priv, unsigned int m,
-			       unsigned int frac, unsigned int od1,
-			       unsigned int od2, unsigned int od3)
+static void meson_hdmi_pll_set_params(struct meson_drm *priv, unsigned int m,
+				      unsigned int frac, unsigned int od1,
+				      unsigned int od2, unsigned int od3)
 {
 	unsigned int val;
 

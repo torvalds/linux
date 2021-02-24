@@ -102,7 +102,9 @@ applications.
 system call) are not checked if the user thread tag checking mode is
 ``PR_MTE_TCF_NONE`` or ``PR_MTE_TCF_ASYNC``. If the tag checking mode is
 ``PR_MTE_TCF_SYNC``, the kernel makes a best effort to check its user
-address accesses, however it cannot always guarantee it.
+address accesses, however it cannot always guarantee it. Kernel accesses
+to user addresses are always performed with an effective ``PSTATE.TCO``
+value of zero, regardless of the user configuration.
 
 Excluding Tags in the ``IRG``, ``ADDG`` and ``SUBG`` instructions
 -----------------------------------------------------------------

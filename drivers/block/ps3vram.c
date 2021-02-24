@@ -581,7 +581,7 @@ out:
 
 static blk_qc_t ps3vram_submit_bio(struct bio *bio)
 {
-	struct ps3_system_bus_device *dev = bio->bi_disk->private_data;
+	struct ps3_system_bus_device *dev = bio->bi_bdev->bd_disk->private_data;
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
 	int busy;
 
@@ -797,7 +797,7 @@ fail:
 	return error;
 }
 
-static int ps3vram_remove(struct ps3_system_bus_device *dev)
+static void ps3vram_remove(struct ps3_system_bus_device *dev)
 {
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
 
@@ -817,7 +817,6 @@ static int ps3vram_remove(struct ps3_system_bus_device *dev)
 	free_pages((unsigned long) priv->xdr_buf, get_order(XDR_BUF_SIZE));
 	kfree(priv);
 	ps3_system_bus_set_drvdata(dev, NULL);
-	return 0;
 }
 
 static struct ps3_system_bus_driver ps3vram = {

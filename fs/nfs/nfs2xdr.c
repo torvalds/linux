@@ -34,6 +34,7 @@
  * Declare the space requirements for NFS arguments and replies as
  * number of 32bit-words
  */
+#define NFS_pagepad_sz		(1) /* Page padding */
 #define NFS_fhandle_sz		(8)
 #define NFS_sattr_sz		(8)
 #define NFS_filename_sz		(1+(NFS2_MAXNAMLEN>>2))
@@ -56,11 +57,11 @@
 
 #define NFS_attrstat_sz		(1+NFS_fattr_sz)
 #define NFS_diropres_sz		(1+NFS_fhandle_sz+NFS_fattr_sz)
-#define NFS_readlinkres_sz	(2+1)
-#define NFS_readres_sz		(1+NFS_fattr_sz+1+1)
+#define NFS_readlinkres_sz	(2+NFS_pagepad_sz)
+#define NFS_readres_sz		(1+NFS_fattr_sz+1+NFS_pagepad_sz)
 #define NFS_writeres_sz         (NFS_attrstat_sz)
 #define NFS_stat_sz		(1)
-#define NFS_readdirres_sz	(1+1)
+#define NFS_readdirres_sz	(1+NFS_pagepad_sz)
 #define NFS_statfsres_sz	(1+NFS_info_sz)
 
 static int nfs_stat_to_errno(enum nfs_stat);
@@ -592,8 +593,8 @@ static void nfs2_xdr_enc_readlinkargs(struct rpc_rqst *req,
 	const struct nfs_readlinkargs *args = data;
 
 	encode_fhandle(xdr, args->fh);
-	rpc_prepare_reply_pages(req, args->pages, args->pgbase,
-				args->pglen, NFS_readlinkres_sz);
+	rpc_prepare_reply_pages(req, args->pages, args->pgbase, args->pglen,
+				NFS_readlinkres_sz - NFS_pagepad_sz);
 }
 
 /*
@@ -628,8 +629,8 @@ static void nfs2_xdr_enc_readargs(struct rpc_rqst *req,
 	const struct nfs_pgio_args *args = data;
 
 	encode_readargs(xdr, args);
-	rpc_prepare_reply_pages(req, args->pages, args->pgbase,
-				args->count, NFS_readres_sz);
+	rpc_prepare_reply_pages(req, args->pages, args->pgbase, args->count,
+				NFS_readres_sz - NFS_pagepad_sz);
 	req->rq_rcv_buf.flags |= XDRBUF_READ;
 }
 
@@ -786,8 +787,8 @@ static void nfs2_xdr_enc_readdirargs(struct rpc_rqst *req,
 	const struct nfs_readdirargs *args = data;
 
 	encode_readdirargs(xdr, args);
-	rpc_prepare_reply_pages(req, args->pages, 0,
-				args->count, NFS_readdirres_sz);
+	rpc_prepare_reply_pages(req, args->pages, 0, args->count,
+				NFS_readdirres_sz - NFS_pagepad_sz);
 }
 
 /*

@@ -67,6 +67,15 @@ static void bpf_iter_done_stop(struct seq_file *seq)
 	iter_priv->done_stop = true;
 }
 
+static bool bpf_iter_support_resched(struct seq_file *seq)
+{
+	struct bpf_iter_priv_data *iter_priv;
+
+	iter_priv = container_of(seq->private, struct bpf_iter_priv_data,
+				 target_private);
+	return iter_priv->tinfo->reg_info->feature & BPF_ITER_RESCHED;
+}
+
 /* maximum visited objects before bailing out */
 #define MAX_ITER_OBJECTS	1000000
 
@@ -83,6 +92,7 @@ static ssize_t bpf_seq_read(struct file *file, char __user *buf, size_t size,
 	struct seq_file *seq = file->private_data;
 	size_t n, offs, copied = 0;
 	int err = 0, num_objs = 0;
+	bool can_resched;
 	void *p;
 
 	mutex_lock(&seq->lock);
@@ -135,6 +145,7 @@ static ssize_t bpf_seq_read(struct file *file, char __user *buf, size_t size,
 		goto done;
 	}
 
+	can_resched = bpf_iter_support_resched(seq);
 	while (1) {
 		loff_t pos = seq->index;
 
@@ -180,6 +191,9 @@ static ssize_t bpf_seq_read(struct file *file, char __user *buf, size_t size,
 			}
 			break;
 		}
+
+		if (can_resched)
+			cond_resched();
 	}
 stop:
 	offs = seq->count;
@@ -273,7 +287,7 @@ int bpf_iter_reg_target(const struct bpf_iter_reg *reg_info)
 {
 	struct bpf_iter_target_info *tinfo;
 
-	tinfo = kmalloc(sizeof(*tinfo), GFP_KERNEL);
+	tinfo = kzalloc(sizeof(*tinfo), GFP_KERNEL);
 	if (!tinfo)
 		return -ENOMEM;
 

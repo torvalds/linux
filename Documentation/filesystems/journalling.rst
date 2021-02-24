@@ -136,10 +136,8 @@ Fast commits
 ~~~~~~~~~~~~
 
 JBD2 to also allows you to perform file-system specific delta commits known as
-fast commits. In order to use fast commits, you first need to call
-:c:func:`jbd2_fc_init` and tell how many blocks at the end of journal
-area should be reserved for fast commits. Along with that, you will also need
-to set following callbacks that perform correspodning work:
+fast commits. In order to use fast commits, you will need to set following
+callbacks that perform correspodning work:
 
 `journal->j_fc_cleanup_cb`: Cleanup function called after every full commit and
 fast commit.

@@ -59,9 +59,10 @@ torture_param(int, onoff_holdoff, 0, "Time after boot before CPU hotplugs (s)");
 torture_param(int, onoff_interval, 0, "Time between CPU hotplugs (s), 0=disable");
 torture_param(int, shutdown_secs, 0, "Shutdown time (ms), <= zero to disable.");
 torture_param(int, stat_interval, 60, "Number of seconds between stats printk()s.");
-torture_param(int, stutter_cpus, 5, "Number of jiffies to change CPUs under test, 0=disable");
+torture_param(int, stutter, 5, "Number of jiffies to run/halt test, 0=disable");
 torture_param(bool, use_cpus_read_lock, 0, "Use cpus_read_lock() to exclude CPU hotplug.");
 torture_param(int, verbose, 0, "Enable verbose debugging printk()s");
+torture_param(int, weight_resched, -1, "Testing weight for resched_cpu() operations.");
 torture_param(int, weight_single, -1, "Testing weight for single-CPU no-wait operations.");
 torture_param(int, weight_single_wait, -1, "Testing weight for single-CPU operations.");
 torture_param(int, weight_many, -1, "Testing weight for multi-CPU no-wait operations.");
@@ -82,6 +83,7 @@ torture_param(bool, shutdown, SCFTORT_SHUTDOWN, "Shutdown at end of torture test
 struct scf_statistics {
 	struct task_struct *task;
 	int cpu;
+	long long n_resched;
 	long long n_single;
 	long long n_single_ofl;
 	long long n_single_wait;
@@ -97,12 +99,15 @@ static struct task_struct *scf_torture_stats_task;
 static DEFINE_PER_CPU(long long, scf_invoked_count);
 
 // Data for random primitive selection
-#define SCF_PRIM_SINGLE		0
-#define SCF_PRIM_MANY		1
-#define SCF_PRIM_ALL		2
-#define SCF_NPRIMS		(2 * 3) // Need wait and no-wait versions of each.
+#define SCF_PRIM_RESCHED	0
+#define SCF_PRIM_SINGLE		1
+#define SCF_PRIM_MANY		2
+#define SCF_PRIM_ALL		3
+#define SCF_NPRIMS		7 // Need wait and no-wait versions of each,
+				  //  except for SCF_PRIM_RESCHED.
 
 static char *scf_prim_name[] = {
+	"resched_cpu",
 	"smp_call_function_single",
 	"smp_call_function_many",
 	"smp_call_function",
@@ -136,6 +141,8 @@ static char *bangstr = "";
 
 static DEFINE_TORTURE_RANDOM_PERCPU(scf_torture_rand);
 
+extern void resched_cpu(int cpu); // An alternative IPI vector.
+
 // Print torture statistics.  Caller must ensure serialization.
 static void scf_torture_stats_print(void)
 {
@@ -148,6 +155,7 @@ static void scf_torture_stats_print(void)
 	for_each_possible_cpu(cpu)
 		invoked_count += data_race(per_cpu(scf_invoked_count, cpu));
 	for (i = 0; i < nthreads; i++) {
+		scfs.n_resched += scf_stats_p[i].n_resched;
 		scfs.n_single += scf_stats_p[i].n_single;
 		scfs.n_single_ofl += scf_stats_p[i].n_single_ofl;
 		scfs.n_single_wait += scf_stats_p[i].n_single_wait;
@@ -160,8 +168,8 @@ static void scf_torture_stats_print(void)
 	if (atomic_read(&n_errs) || atomic_read(&n_mb_in_errs) ||
 	    atomic_read(&n_mb_out_errs) || atomic_read(&n_alloc_errs))
 		bangstr = "!!! ";
-	pr_alert("%s %sscf_invoked_count %s: %lld single: %lld/%lld single_ofl: %lld/%lld many: %lld/%lld all: %lld/%lld ",
-		 SCFTORT_FLAG, bangstr, isdone ? "VER" : "ver", invoked_count,
+	pr_alert("%s %sscf_invoked_count %s: %lld resched: %lld single: %lld/%lld single_ofl: %lld/%lld many: %lld/%lld all: %lld/%lld ",
+		 SCFTORT_FLAG, bangstr, isdone ? "VER" : "ver", invoked_count, scfs.n_resched,
 		 scfs.n_single, scfs.n_single_wait, scfs.n_single_ofl, scfs.n_single_wait_ofl,
 		 scfs.n_many, scfs.n_many_wait, scfs.n_all, scfs.n_all_wait);
 	torture_onoff_stats();
@@ -314,6 +322,13 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 		}
 	}
 	switch (scfsp->scfs_prim) {
+	case SCF_PRIM_RESCHED:
+		if (IS_BUILTIN(CONFIG_SCF_TORTURE_TEST)) {
+			cpu = torture_random(trsp) % nr_cpu_ids;
+			scfp->n_resched++;
+			resched_cpu(cpu);
+		}
+		break;
 	case SCF_PRIM_SINGLE:
 		cpu = torture_random(trsp) % nr_cpu_ids;
 		if (scfsp->scfs_wait)
@@ -383,6 +398,7 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 static int scftorture_invoker(void *arg)
 {
 	int cpu;
+	int curcpu;
 	DEFINE_TORTURE_RANDOM(rand);
 	struct scf_statistics *scfp = (struct scf_statistics *)arg;
 	bool was_offline = false;
@@ -397,7 +413,10 @@ static int scftorture_invoker(void *arg)
 	VERBOSE_SCFTORTOUT("scftorture_invoker %d: Waiting for all SCF torturers from cpu %d", scfp->cpu, smp_processor_id());
 
 	// Make sure that the CPU is affinitized appropriately during testing.
-	WARN_ON_ONCE(smp_processor_id() != scfp->cpu);
+	curcpu = smp_processor_id();
+	WARN_ONCE(curcpu != scfp->cpu % nr_cpu_ids,
+		  "%s: Wanted CPU %d, running on %d, nr_cpu_ids = %d\n",
+		  __func__, scfp->cpu, curcpu, nr_cpu_ids);
 
 	if (!atomic_dec_return(&n_started))
 		while (atomic_read_acquire(&n_started)) {
@@ -421,6 +440,7 @@ static int scftorture_invoker(void *arg)
 			was_offline = false;
 		}
 		cond_resched();
+		stutter_wait("scftorture_invoker");
 	} while (!torture_must_stop());
 
 	VERBOSE_SCFTORTOUT("scftorture_invoker %d ended", scfp->cpu);
@@ -433,8 +453,8 @@ static void
 scftorture_print_module_parms(const char *tag)
 {
 	pr_alert(SCFTORT_FLAG
-		 "--- %s:  verbose=%d holdoff=%d longwait=%d nthreads=%d onoff_holdoff=%d onoff_interval=%d shutdown_secs=%d stat_interval=%d stutter_cpus=%d use_cpus_read_lock=%d, weight_single=%d, weight_single_wait=%d, weight_many=%d, weight_many_wait=%d, weight_all=%d, weight_all_wait=%d\n", tag,
-		 verbose, holdoff, longwait, nthreads, onoff_holdoff, onoff_interval, shutdown, stat_interval, stutter_cpus, use_cpus_read_lock, weight_single, weight_single_wait, weight_many, weight_many_wait, weight_all, weight_all_wait);
+		 "--- %s:  verbose=%d holdoff=%d longwait=%d nthreads=%d onoff_holdoff=%d onoff_interval=%d shutdown_secs=%d stat_interval=%d stutter=%d use_cpus_read_lock=%d, weight_resched=%d, weight_single=%d, weight_single_wait=%d, weight_many=%d, weight_many_wait=%d, weight_all=%d, weight_all_wait=%d\n", tag,
+		 verbose, holdoff, longwait, nthreads, onoff_holdoff, onoff_interval, shutdown, stat_interval, stutter, use_cpus_read_lock, weight_resched, weight_single, weight_single_wait, weight_many, weight_many_wait, weight_all, weight_all_wait);
 }
 
 static void scf_cleanup_handler(void *unused)
@@ -475,6 +495,7 @@ static int __init scf_torture_init(void)
 {
 	long i;
 	int firsterr = 0;
+	unsigned long weight_resched1 = weight_resched;
 	unsigned long weight_single1 = weight_single;
 	unsigned long weight_single_wait1 = weight_single_wait;
 	unsigned long weight_many1 = weight_many;
@@ -487,9 +508,10 @@ static int __init scf_torture_init(void)
 
 	scftorture_print_module_parms("Start of test");
 
-	if (weight_single == -1 && weight_single_wait == -1 &&
+	if (weight_resched == -1 && weight_single == -1 && weight_single_wait == -1 &&
 	    weight_many == -1 && weight_many_wait == -1 &&
 	    weight_all == -1 && weight_all_wait == -1) {
+		weight_resched1 = 2 * nr_cpu_ids;
 		weight_single1 = 2 * nr_cpu_ids;
 		weight_single_wait1 = 2 * nr_cpu_ids;
 		weight_many1 = 2;
@@ -497,6 +519,8 @@ static int __init scf_torture_init(void)
 		weight_all1 = 1;
 		weight_all_wait1 = 1;
 	} else {
+		if (weight_resched == -1)
+			weight_resched1 = 0;
 		if (weight_single == -1)
 			weight_single1 = 0;
 		if (weight_single_wait == -1)
@@ -517,6 +541,10 @@ static int __init scf_torture_init(void)
 		firsterr = -EINVAL;
 		goto unwind;
 	}
+	if (IS_BUILTIN(CONFIG_SCF_TORTURE_TEST))
+		scf_sel_add(weight_resched1, SCF_PRIM_RESCHED, false);
+	else if (weight_resched1)
+		VERBOSE_SCFTORTOUT_ERRSTRING("built as module, weight_resched ignored");
 	scf_sel_add(weight_single1, SCF_PRIM_SINGLE, false);
 	scf_sel_add(weight_single_wait1, SCF_PRIM_SINGLE, true);
 	scf_sel_add(weight_many1, SCF_PRIM_MANY, false);
@@ -532,6 +560,11 @@ static int __init scf_torture_init(void)
 	}
 	if (shutdown_secs > 0) {
 		firsterr = torture_shutdown_init(shutdown_secs, scf_torture_cleanup);
+		if (firsterr)
+			goto unwind;
+	}
+	if (stutter > 0) {
+		firsterr = torture_stutter_init(stutter, stutter);
 		if (firsterr)
 			goto unwind;
 	}

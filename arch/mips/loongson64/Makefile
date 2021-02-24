@@ -11,3 +11,4 @@ obj-$(CONFIG_RS780_HPET) += hpet.o
 obj-$(CONFIG_SUSPEND) += pm.o
 obj-$(CONFIG_PCI_QUIRKS) += vbios_quirk.o
 obj-$(CONFIG_CPU_LOONGSON3_CPUCFG_EMULATION) += cpucfg-emul.o
+obj-$(CONFIG_SYSFS) += boardinfo.o

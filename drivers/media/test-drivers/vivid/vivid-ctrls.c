@@ -107,14 +107,27 @@ static int vivid_user_gen_s_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case VIVID_CID_DISCONNECT:
 		v4l2_info(&dev->v4l2_dev, "disconnect\n");
-		clear_bit(V4L2_FL_REGISTERED, &dev->vid_cap_dev.flags);
-		clear_bit(V4L2_FL_REGISTERED, &dev->vid_out_dev.flags);
-		clear_bit(V4L2_FL_REGISTERED, &dev->vbi_cap_dev.flags);
-		clear_bit(V4L2_FL_REGISTERED, &dev->vbi_out_dev.flags);
-		clear_bit(V4L2_FL_REGISTERED, &dev->sdr_cap_dev.flags);
-		clear_bit(V4L2_FL_REGISTERED, &dev->radio_rx_dev.flags);
-		clear_bit(V4L2_FL_REGISTERED, &dev->radio_tx_dev.flags);
-		clear_bit(V4L2_FL_REGISTERED, &dev->meta_cap_dev.flags);
+		dev->disconnect_error = true;
+		if (dev->has_vid_cap)
+			clear_bit(V4L2_FL_REGISTERED, &dev->vid_cap_dev.flags);
+		if (dev->has_vid_out)
+			clear_bit(V4L2_FL_REGISTERED, &dev->vid_out_dev.flags);
+		if (dev->has_vbi_cap)
+			clear_bit(V4L2_FL_REGISTERED, &dev->vbi_cap_dev.flags);
+		if (dev->has_vbi_out)
+			clear_bit(V4L2_FL_REGISTERED, &dev->vbi_out_dev.flags);
+		if (dev->has_radio_rx)
+			clear_bit(V4L2_FL_REGISTERED, &dev->radio_rx_dev.flags);
+		if (dev->has_radio_tx)
+			clear_bit(V4L2_FL_REGISTERED, &dev->radio_tx_dev.flags);
+		if (dev->has_sdr_cap)
+			clear_bit(V4L2_FL_REGISTERED, &dev->sdr_cap_dev.flags);
+		if (dev->has_meta_cap)
+			clear_bit(V4L2_FL_REGISTERED, &dev->meta_cap_dev.flags);
+		if (dev->has_meta_out)
+			clear_bit(V4L2_FL_REGISTERED, &dev->meta_out_dev.flags);
+		if (dev->has_touch_cap)
+			clear_bit(V4L2_FL_REGISTERED, &dev->touch_cap_dev.flags);
 		break;
 	case VIVID_CID_BUTTON:
 		dev->button_pressed = 30;

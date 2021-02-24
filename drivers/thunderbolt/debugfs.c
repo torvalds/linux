@@ -9,6 +9,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/pm_runtime.h>
+#include <linux/uaccess.h>
 
 #include "tb.h"
 
@@ -688,6 +689,30 @@ void tb_switch_debugfs_init(struct tb_switch *sw)
 void tb_switch_debugfs_remove(struct tb_switch *sw)
 {
 	debugfs_remove_recursive(sw->debugfs_dir);
+}
+
+/**
+ * tb_service_debugfs_init() - Add debugfs directory for service
+ * @svc: Thunderbolt service pointer
+ *
+ * Adds debugfs directory for service.
+ */
+void tb_service_debugfs_init(struct tb_service *svc)
+{
+	svc->debugfs_dir = debugfs_create_dir(dev_name(&svc->dev),
+					      tb_debugfs_root);
+}
+
+/**
+ * tb_service_debugfs_remove() - Remove service debugfs directory
+ * @svc: Thunderbolt service pointer
+ *
+ * Removes the previously created debugfs directory for @svc.
+ */
+void tb_service_debugfs_remove(struct tb_service *svc)
+{
+	debugfs_remove_recursive(svc->debugfs_dir);
+	svc->debugfs_dir = NULL;
 }
 
 void tb_debugfs_init(void)

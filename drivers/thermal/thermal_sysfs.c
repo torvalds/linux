@@ -425,7 +425,7 @@ static struct attribute *thermal_zone_dev_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group thermal_zone_attribute_group = {
+static const struct attribute_group thermal_zone_attribute_group = {
 	.attrs = thermal_zone_dev_attrs,
 };
 
@@ -434,7 +434,7 @@ static struct attribute *thermal_zone_mode_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group thermal_zone_mode_attribute_group = {
+static const struct attribute_group thermal_zone_mode_attribute_group = {
 	.attrs = thermal_zone_mode_attrs,
 };
 
@@ -468,7 +468,7 @@ static umode_t thermal_zone_passive_is_visible(struct kobject *kobj,
 	return 0;
 }
 
-static struct attribute_group thermal_zone_passive_attribute_group = {
+static const struct attribute_group thermal_zone_passive_attribute_group = {
 	.attrs = thermal_zone_passive_attrs,
 	.is_visible = thermal_zone_passive_is_visible,
 };

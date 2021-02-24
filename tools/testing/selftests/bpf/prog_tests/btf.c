@@ -914,7 +914,7 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "Member exceeds struct_size",
 },
 
-/* Test member exeeds the size of struct
+/* Test member exceeds the size of struct
  *
  * struct A {
  *     int m;
@@ -948,7 +948,7 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "Member exceeds struct_size",
 },
 
-/* Test member exeeds the size of struct
+/* Test member exceeds the size of struct
  *
  * struct A {
  *     int m;
@@ -3508,6 +3508,27 @@ static struct btf_raw_test raw_tests[] = {
 	.key_type_id = 10 /* int */,
 	.value_type_id = 3 /* arr_t */,
 	.max_entries = 4,
+},
+/*
+ * elf .rodata section size 4 and btf .rodata section vlen 0.
+ */
+{
+	.descr = "datasec: vlen == 0",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		/* .rodata section */
+		BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 0), 4),
+								 /* [2] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0.rodata"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 1,
 },
 
 }; /* struct btf_raw_test raw_tests[] */
@@ -6652,7 +6673,7 @@ static void do_test_dedup(unsigned int test_num)
 	const void *test_btf_data, *expect_btf_data;
 	const char *ret_test_next_str, *ret_expect_next_str;
 	const char *test_strs, *expect_strs;
-	const char *test_str_cur, *test_str_end;
+	const char *test_str_cur;
 	const char *expect_str_cur, *expect_str_end;
 	unsigned int raw_btf_size;
 	void *raw_btf;
@@ -6719,12 +6740,18 @@ static void do_test_dedup(unsigned int test_num)
 		goto done;
 	}
 
-	test_str_cur = test_strs;
-	test_str_end = test_strs + test_hdr->str_len;
 	expect_str_cur = expect_strs;
 	expect_str_end = expect_strs + expect_hdr->str_len;
-	while (test_str_cur < test_str_end && expect_str_cur < expect_str_end) {
+	while (expect_str_cur < expect_str_end) {
 		size_t test_len, expect_len;
+		int off;
+
+		off = btf__find_str(test_btf, expect_str_cur);
+		if (CHECK(off < 0, "exp str '%s' not found: %d\n", expect_str_cur, off)) {
+			err = -1;
+			goto done;
+		}
+		test_str_cur = btf__str_by_offset(test_btf, off);
 
 		test_len = strlen(test_str_cur);
 		expect_len = strlen(expect_str_cur);
@@ -6741,14 +6768,7 @@ static void do_test_dedup(unsigned int test_num)
 			err = -1;
 			goto done;
 		}
-		test_str_cur += test_len + 1;
 		expect_str_cur += expect_len + 1;
-	}
-	if (CHECK(test_str_cur != test_str_end,
-		  "test_str_cur:%p != test_str_end:%p",
-		  test_str_cur, test_str_end)) {
-		err = -1;
-		goto done;
 	}
 
 	test_nr_types = btf__get_nr_types(test_btf);
@@ -6775,10 +6795,21 @@ static void do_test_dedup(unsigned int test_num)
 			err = -1;
 			goto done;
 		}
-		if (CHECK(memcmp((void *)test_type,
-				 (void *)expect_type,
-				 test_size),
-			  "type #%d: contents differ", i)) {
+		if (CHECK(btf_kind(test_type) != btf_kind(expect_type),
+			  "type %d kind: exp %d != got %u\n",
+			  i, btf_kind(expect_type), btf_kind(test_type))) {
+			err = -1;
+			goto done;
+		}
+		if (CHECK(test_type->info != expect_type->info,
+			  "type %d info: exp %d != got %u\n",
+			  i, expect_type->info, test_type->info)) {
+			err = -1;
+			goto done;
+		}
+		if (CHECK(test_type->size != expect_type->size,
+			  "type %d size/type: exp %d != got %u\n",
+			  i, expect_type->size, test_type->size)) {
 			err = -1;
 			goto done;
 		}

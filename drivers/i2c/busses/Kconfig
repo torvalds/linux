@@ -675,6 +675,7 @@ config I2C_IMG
 config I2C_IMX
 	tristate "IMX I2C interface"
 	depends on ARCH_MXC || ARCH_LAYERSCAPE || COLDFIRE
+	select I2C_SLAVE
 	help
 	  Say Y here if you want to use the IIC bus controller on
 	  the Freescale i.MX/MXC, Layerscape or ColdFire processors.
@@ -733,7 +734,8 @@ config I2C_LPC2K
 
 config I2C_MLXBF
         tristate "Mellanox BlueField I2C controller"
-        depends on ARM64
+        depends on MELLANOX_PLATFORM && ARM64
+	select I2C_SLAVE
         help
           Enabling this option will add I2C SMBus support for Mellanox BlueField
           system.
@@ -1011,6 +1013,7 @@ config I2C_SIRF
 config I2C_SPRD
 	tristate "Spreadtrum I2C interface"
 	depends on I2C=y && (ARCH_SPRD || COMPILE_TEST)
+	depends on COMMON_CLK
 	help
 	  If you say yes to this option, support will be included for the
 	  Spreadtrum I2C interface.
@@ -1172,8 +1175,8 @@ config I2C_XILINX
 	  will be called xilinx_i2c.
 
 config I2C_XLR
-	tristate "Netlogic XLR and Sigma Designs I2C support"
-	depends on CPU_XLR || ARCH_TANGO || COMPILE_TEST
+	tristate "Netlogic XLR I2C support"
+	depends on CPU_XLR || COMPILE_TEST
 	help
 	  This driver enables support for the on-chip I2C interface of
 	  the Netlogic XLR/XLS MIPS processors and Sigma Designs SOCs.

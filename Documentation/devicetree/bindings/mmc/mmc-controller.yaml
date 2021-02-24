@@ -259,7 +259,6 @@ properties:
       waiting for I/O signalling and card power supply to be stable,
       regardless of whether pwrseq-simple is used. Default to 10ms if
       no available.
-    $ref: /schemas/types.yaml#/definitions/uint32
     default: 10
 
   supports-cqe:

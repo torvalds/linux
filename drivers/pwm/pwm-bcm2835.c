@@ -58,13 +58,15 @@ static void bcm2835_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 	writel(value, pc->base + PWM_CONTROL);
 }
 
-static int bcm2835_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
-			      int duty_ns, int period_ns)
+static int bcm2835_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			     const struct pwm_state *state)
 {
+
 	struct bcm2835_pwm *pc = to_bcm2835_pwm(chip);
 	unsigned long rate = clk_get_rate(pc->clk);
+	unsigned long long period;
 	unsigned long scaler;
-	u32 period;
+	u32 val;
 
 	if (!rate) {
 		dev_err(pc->dev, "failed to get clock rate\n");
@@ -72,54 +74,34 @@ static int bcm2835_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	scaler = DIV_ROUND_CLOSEST(NSEC_PER_SEC, rate);
-	period = DIV_ROUND_CLOSEST(period_ns, scaler);
+	/* set period */
+	period = DIV_ROUND_CLOSEST_ULL(state->period, scaler);
 
-	if (period < PERIOD_MIN)
+	/* dont accept a period that is too small or has been truncated */
+	if ((period < PERIOD_MIN) || (period > U32_MAX))
 		return -EINVAL;
 
-	writel(DIV_ROUND_CLOSEST(duty_ns, scaler),
-	       pc->base + DUTY(pwm->hwpwm));
 	writel(period, pc->base + PERIOD(pwm->hwpwm));
 
-	return 0;
-}
+	/* set duty cycle */
+	val = DIV_ROUND_CLOSEST_ULL(state->duty_cycle, scaler);
+	writel(val, pc->base + DUTY(pwm->hwpwm));
 
-static int bcm2835_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct bcm2835_pwm *pc = to_bcm2835_pwm(chip);
-	u32 value;
+	/* set polarity */
+	val = readl(pc->base + PWM_CONTROL);
 
-	value = readl(pc->base + PWM_CONTROL);
-	value |= PWM_ENABLE << PWM_CONTROL_SHIFT(pwm->hwpwm);
-	writel(value, pc->base + PWM_CONTROL);
-
-	return 0;
-}
-
-static void bcm2835_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct bcm2835_pwm *pc = to_bcm2835_pwm(chip);
-	u32 value;
-
-	value = readl(pc->base + PWM_CONTROL);
-	value &= ~(PWM_ENABLE << PWM_CONTROL_SHIFT(pwm->hwpwm));
-	writel(value, pc->base + PWM_CONTROL);
-}
-
-static int bcm2835_set_polarity(struct pwm_chip *chip, struct pwm_device *pwm,
-				enum pwm_polarity polarity)
-{
-	struct bcm2835_pwm *pc = to_bcm2835_pwm(chip);
-	u32 value;
-
-	value = readl(pc->base + PWM_CONTROL);
-
-	if (polarity == PWM_POLARITY_NORMAL)
-		value &= ~(PWM_POLARITY << PWM_CONTROL_SHIFT(pwm->hwpwm));
+	if (state->polarity == PWM_POLARITY_NORMAL)
+		val &= ~(PWM_POLARITY << PWM_CONTROL_SHIFT(pwm->hwpwm));
 	else
-		value |= PWM_POLARITY << PWM_CONTROL_SHIFT(pwm->hwpwm);
+		val |= PWM_POLARITY << PWM_CONTROL_SHIFT(pwm->hwpwm);
 
-	writel(value, pc->base + PWM_CONTROL);
+	/* enable/disable */
+	if (state->enabled)
+		val |= PWM_ENABLE << PWM_CONTROL_SHIFT(pwm->hwpwm);
+	else
+		val &= ~(PWM_ENABLE << PWM_CONTROL_SHIFT(pwm->hwpwm));
+
+	writel(val, pc->base + PWM_CONTROL);
 
 	return 0;
 }
@@ -127,17 +109,13 @@ static int bcm2835_set_polarity(struct pwm_chip *chip, struct pwm_device *pwm,
 static const struct pwm_ops bcm2835_pwm_ops = {
 	.request = bcm2835_pwm_request,
 	.free = bcm2835_pwm_free,
-	.config = bcm2835_pwm_config,
-	.enable = bcm2835_pwm_enable,
-	.disable = bcm2835_pwm_disable,
-	.set_polarity = bcm2835_set_polarity,
+	.apply = bcm2835_pwm_apply,
 	.owner = THIS_MODULE,
 };
 
 static int bcm2835_pwm_probe(struct platform_device *pdev)
 {
 	struct bcm2835_pwm *pc;
-	struct resource *res;
 	int ret;
 
 	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
@@ -146,8 +124,7 @@ static int bcm2835_pwm_probe(struct platform_device *pdev)
 
 	pc->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pc->base = devm_ioremap_resource(&pdev->dev, res);
+	pc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pc->base))
 		return PTR_ERR(pc->base);
 

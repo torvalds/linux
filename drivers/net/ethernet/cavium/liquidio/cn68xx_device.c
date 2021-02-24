@@ -27,7 +27,6 @@
 #include "cn66xx_device.h"
 #include "cn68xx_device.h"
 #include "cn68xx_regs.h"
-#include "cn68xx_device.h"
 
 static void lio_cn68xx_set_dpi_regs(struct octeon_device *oct)
 {

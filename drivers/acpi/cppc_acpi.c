@@ -39,6 +39,7 @@
 #include <linux/ktime.h>
 #include <linux/rwsem.h>
 #include <linux/wait.h>
+#include <linux/topology.h>
 
 #include <acpi/cppc_acpi.h>
 
@@ -232,8 +233,8 @@ static int send_pcc_cmd(int pcc_ss_id, u16 cmd)
 {
 	int ret = -EIO, i;
 	struct cppc_pcc_data *pcc_ss_data = pcc_data[pcc_ss_id];
-	struct acpi_pcct_shared_memory *generic_comm_base =
-		(struct acpi_pcct_shared_memory *)pcc_ss_data->pcc_comm_addr;
+	struct acpi_pcct_shared_memory __iomem *generic_comm_base =
+		pcc_ss_data->pcc_comm_addr;
 	unsigned int time_delta;
 
 	/*
@@ -413,109 +414,88 @@ end:
 	return result;
 }
 
+bool acpi_cpc_valid(void)
+{
+	struct cpc_desc *cpc_ptr;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		cpc_ptr = per_cpu(cpc_desc_ptr, cpu);
+		if (!cpc_ptr)
+			return false;
+	}
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(acpi_cpc_valid);
+
 /**
- * acpi_get_psd_map - Map the CPUs in a common freq domain.
- * @all_cpu_data: Ptrs to CPU specific CPPC data including PSD info.
+ * acpi_get_psd_map - Map the CPUs in the freq domain of a given cpu
+ * @cpu: Find all CPUs that share a domain with cpu.
+ * @cpu_data: Pointer to CPU specific CPPC data including PSD info.
  *
  *	Return: 0 for success or negative value for err.
  */
-int acpi_get_psd_map(struct cppc_cpudata **all_cpu_data)
+int acpi_get_psd_map(unsigned int cpu, struct cppc_cpudata *cpu_data)
 {
-	int count_target;
-	int retval = 0;
-	unsigned int i, j;
-	cpumask_var_t covered_cpus;
-	struct cppc_cpudata *pr, *match_pr;
-	struct acpi_psd_package *pdomain;
-	struct acpi_psd_package *match_pdomain;
 	struct cpc_desc *cpc_ptr, *match_cpc_ptr;
-
-	if (!zalloc_cpumask_var(&covered_cpus, GFP_KERNEL))
-		return -ENOMEM;
+	struct acpi_psd_package *match_pdomain;
+	struct acpi_psd_package *pdomain;
+	int count_target, i;
 
 	/*
 	 * Now that we have _PSD data from all CPUs, let's setup P-state
 	 * domain info.
 	 */
+	cpc_ptr = per_cpu(cpc_desc_ptr, cpu);
+	if (!cpc_ptr)
+		return -EFAULT;
+
+	pdomain = &(cpc_ptr->domain_info);
+	cpumask_set_cpu(cpu, cpu_data->shared_cpu_map);
+	if (pdomain->num_processors <= 1)
+		return 0;
+
+	/* Validate the Domain info */
+	count_target = pdomain->num_processors;
+	if (pdomain->coord_type == DOMAIN_COORD_TYPE_SW_ALL)
+		cpu_data->shared_type = CPUFREQ_SHARED_TYPE_ALL;
+	else if (pdomain->coord_type == DOMAIN_COORD_TYPE_HW_ALL)
+		cpu_data->shared_type = CPUFREQ_SHARED_TYPE_HW;
+	else if (pdomain->coord_type == DOMAIN_COORD_TYPE_SW_ANY)
+		cpu_data->shared_type = CPUFREQ_SHARED_TYPE_ANY;
+
 	for_each_possible_cpu(i) {
-		if (cpumask_test_cpu(i, covered_cpus))
+		if (i == cpu)
 			continue;
 
-		pr = all_cpu_data[i];
-		cpc_ptr = per_cpu(cpc_desc_ptr, i);
-		if (!cpc_ptr) {
-			retval = -EFAULT;
-			goto err_ret;
-		}
+		match_cpc_ptr = per_cpu(cpc_desc_ptr, i);
+		if (!match_cpc_ptr)
+			goto err_fault;
 
-		pdomain = &(cpc_ptr->domain_info);
-		cpumask_set_cpu(i, pr->shared_cpu_map);
-		cpumask_set_cpu(i, covered_cpus);
-		if (pdomain->num_processors <= 1)
+		match_pdomain = &(match_cpc_ptr->domain_info);
+		if (match_pdomain->domain != pdomain->domain)
 			continue;
 
-		/* Validate the Domain info */
-		count_target = pdomain->num_processors;
-		if (pdomain->coord_type == DOMAIN_COORD_TYPE_SW_ALL)
-			pr->shared_type = CPUFREQ_SHARED_TYPE_ALL;
-		else if (pdomain->coord_type == DOMAIN_COORD_TYPE_HW_ALL)
-			pr->shared_type = CPUFREQ_SHARED_TYPE_HW;
-		else if (pdomain->coord_type == DOMAIN_COORD_TYPE_SW_ANY)
-			pr->shared_type = CPUFREQ_SHARED_TYPE_ANY;
+		/* Here i and cpu are in the same domain */
+		if (match_pdomain->num_processors != count_target)
+			goto err_fault;
 
-		for_each_possible_cpu(j) {
-			if (i == j)
-				continue;
+		if (pdomain->coord_type != match_pdomain->coord_type)
+			goto err_fault;
 
-			match_cpc_ptr = per_cpu(cpc_desc_ptr, j);
-			if (!match_cpc_ptr) {
-				retval = -EFAULT;
-				goto err_ret;
-			}
-
-			match_pdomain = &(match_cpc_ptr->domain_info);
-			if (match_pdomain->domain != pdomain->domain)
-				continue;
-
-			/* Here i and j are in the same domain */
-			if (match_pdomain->num_processors != count_target) {
-				retval = -EFAULT;
-				goto err_ret;
-			}
-
-			if (pdomain->coord_type != match_pdomain->coord_type) {
-				retval = -EFAULT;
-				goto err_ret;
-			}
-
-			cpumask_set_cpu(j, covered_cpus);
-			cpumask_set_cpu(j, pr->shared_cpu_map);
-		}
-
-		for_each_cpu(j, pr->shared_cpu_map) {
-			if (i == j)
-				continue;
-
-			match_pr = all_cpu_data[j];
-			match_pr->shared_type = pr->shared_type;
-			cpumask_copy(match_pr->shared_cpu_map,
-				     pr->shared_cpu_map);
-		}
+		cpumask_set_cpu(i, cpu_data->shared_cpu_map);
 	}
-	goto out;
 
-err_ret:
-	for_each_possible_cpu(i) {
-		pr = all_cpu_data[i];
+	return 0;
 
-		/* Assume no coordination on any error parsing domain info */
-		cpumask_clear(pr->shared_cpu_map);
-		cpumask_set_cpu(i, pr->shared_cpu_map);
-		pr->shared_type = CPUFREQ_SHARED_TYPE_ALL;
-	}
-out:
-	free_cpumask_var(covered_cpus);
-	return retval;
+err_fault:
+	/* Assume no coordination on any error parsing domain info */
+	cpumask_clear(cpu_data->shared_cpu_map);
+	cpumask_set_cpu(cpu, cpu_data->shared_cpu_map);
+	cpu_data->shared_type = CPUFREQ_SHARED_TYPE_NONE;
+
+	return -EFAULT;
 }
 EXPORT_SYMBOL_GPL(acpi_get_psd_map);
 
@@ -688,6 +668,10 @@ static bool is_cppc_supported(int revision, int num_ent)
  *	}
  */
 
+#ifndef init_freq_invariance_cppc
+static inline void init_freq_invariance_cppc(void) { }
+#endif
+
 /**
  * acpi_cppc_processor_probe - Search for per CPU _CPC objects.
  * @pr: Ptr to acpi_processor containing this CPU's logical ID.
@@ -850,6 +834,8 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 		goto out_free;
 	}
 
+	init_freq_invariance_cppc();
+
 	kfree(output.pointer);
 	return 0;
 
@@ -948,7 +934,7 @@ int __weak cpc_write_ffh(int cpunum, struct cpc_reg *reg, u64 val)
 static int cpc_read(int cpu, struct cpc_register_resource *reg_res, u64 *val)
 {
 	int ret_val = 0;
-	void __iomem *vaddr = 0;
+	void __iomem *vaddr = NULL;
 	int pcc_ss_id = per_cpu(cpu_pcc_subspace_idx, cpu);
 	struct cpc_reg *reg = &reg_res->cpc_entry.reg;
 
@@ -993,7 +979,7 @@ static int cpc_read(int cpu, struct cpc_register_resource *reg_res, u64 *val)
 static int cpc_write(int cpu, struct cpc_register_resource *reg_res, u64 val)
 {
 	int ret_val = 0;
-	void __iomem *vaddr = 0;
+	void __iomem *vaddr = NULL;
 	int pcc_ss_id = per_cpu(cpu_pcc_subspace_idx, cpu);
 	struct cpc_reg *reg = &reg_res->cpc_entry.reg;
 

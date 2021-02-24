@@ -32,6 +32,7 @@
 enum {
 	NFSD_Root = 1,
 	NFSD_List,
+	NFSD_Export_Stats,
 	NFSD_Export_features,
 	NFSD_Fh,
 	NFSD_FO_UnlockIP,
@@ -1348,6 +1349,8 @@ static int nfsd_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	static const struct tree_descr nfsd_files[] = {
 		[NFSD_List] = {"exports", &exports_nfsd_operations, S_IRUGO},
+		/* Per-export io stats use same ops as exports file */
+		[NFSD_Export_Stats] = {"export_stats", &exports_nfsd_operations, S_IRUGO},
 		[NFSD_Export_features] = {"export_features",
 					&export_features_operations, S_IRUGO},
 		[NFSD_FO_UnlockIP] = {"unlock_ip",
@@ -1534,7 +1537,9 @@ static int __init init_nfsd(void)
 	retval = nfsd4_init_pnfs();
 	if (retval)
 		goto out_free_slabs;
-	nfsd_stat_init();	/* Statistics */
+	retval = nfsd_stat_init();	/* Statistics */
+	if (retval)
+		goto out_free_pnfs;
 	retval = nfsd_drc_slab_create();
 	if (retval)
 		goto out_free_stat;
@@ -1554,6 +1559,7 @@ out_free_lockd:
 	nfsd_drc_slab_free();
 out_free_stat:
 	nfsd_stat_shutdown();
+out_free_pnfs:
 	nfsd4_exit_pnfs();
 out_free_slabs:
 	nfsd4_free_slabs();

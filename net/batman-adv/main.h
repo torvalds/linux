@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2007-2020  B.A.T.M.A.N. contributors:
+/* Copyright (C) B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  */
@@ -13,7 +13,7 @@
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2020.4"
+#define BATADV_SOURCE_VERSION "2021.1"
 #endif
 
 /* B.A.T.M.A.N. parameters */
@@ -212,7 +212,6 @@ enum batadv_uev_type {
 #include <linux/jiffies.h>
 #include <linux/netdevice.h>
 #include <linux/percpu.h>
-#include <linux/seq_file.h>
 #include <linux/skbuff.h>
 #include <linux/types.h>
 #include <uapi/linux/batadv_packet.h>
@@ -243,8 +242,6 @@ extern struct workqueue_struct *batadv_event_workqueue;
 int batadv_mesh_init(struct net_device *soft_iface);
 void batadv_mesh_free(struct net_device *soft_iface);
 bool batadv_is_my_mac(struct batadv_priv *bat_priv, const u8 *addr);
-struct batadv_hard_iface *
-batadv_seq_print_text_primary_if_get(struct seq_file *seq);
 int batadv_max_header_len(void);
 void batadv_skb_set_priority(struct sk_buff *skb, int offset);
 int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,

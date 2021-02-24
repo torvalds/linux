@@ -605,7 +605,8 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 		panic("panic_on_warn set ...\n");
 	}
 
-	dump_stack();
+	if (!regs)
+		dump_stack();
 
 	print_irqtrace_events(current);
 

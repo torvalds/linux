@@ -4596,7 +4596,6 @@ static void sym_int_sir(struct sym_hcb *np)
 					scr_to_cpu(np->lastmsg), np->msgout[0]);
 			}
 			goto out_clrack;
-			break;
 		default:
 			goto out_reject;
 		}

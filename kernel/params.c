@@ -530,7 +530,7 @@ struct module_param_attrs
 {
 	unsigned int num;
 	struct attribute_group grp;
-	struct param_attribute attrs[0];
+	struct param_attribute attrs[];
 };
 
 #ifdef CONFIG_SYSFS
@@ -843,18 +843,16 @@ ssize_t __modver_version_show(struct module_attribute *mattr,
 	return scnprintf(buf, PAGE_SIZE, "%s\n", vattr->version);
 }
 
-extern const struct module_version_attribute *__start___modver[];
-extern const struct module_version_attribute *__stop___modver[];
+extern const struct module_version_attribute __start___modver[];
+extern const struct module_version_attribute __stop___modver[];
 
 static void __init version_sysfs_builtin(void)
 {
-	const struct module_version_attribute **p;
+	const struct module_version_attribute *vattr;
 	struct module_kobject *mk;
 	int err;
 
-	for (p = __start___modver; p < __stop___modver; p++) {
-		const struct module_version_attribute *vattr = *p;
-
+	for (vattr = __start___modver; vattr < __stop___modver; vattr++) {
 		mk = locate_module_kobject(vattr->module_name);
 		if (mk) {
 			err = sysfs_create_file(&mk->kobj, &vattr->mattr.attr);

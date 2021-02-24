@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Handle detection, reporting and mitigation of Spectre v1, v2 and v4, as
+ * Handle detection, reporting and mitigation of Spectre v1, v2, v3a and v4, as
  * detailed at:
  *
  *   https://developer.arm.com/support/arm-security-updates/speculative-processor-vulnerability
@@ -24,8 +24,10 @@
 #include <linux/prctl.h>
 #include <linux/sched/task_stack.h>
 
+#include <asm/insn.h>
 #include <asm/spectre.h>
 #include <asm/traps.h>
+#include <asm/virt.h>
 
 /*
  * We try to ensure that the mitigation state can never change as the result of
@@ -118,6 +120,7 @@ static enum mitigation_state spectre_v2_get_cpu_hw_mitigation_state(void)
 		MIDR_ALL_VERSIONS(MIDR_CORTEX_A55),
 		MIDR_ALL_VERSIONS(MIDR_BRAHMA_B53),
 		MIDR_ALL_VERSIONS(MIDR_HISI_TSV110),
+		MIDR_ALL_VERSIONS(MIDR_QCOM_KRYO_2XX_SILVER),
 		MIDR_ALL_VERSIONS(MIDR_QCOM_KRYO_3XX_SILVER),
 		MIDR_ALL_VERSIONS(MIDR_QCOM_KRYO_4XX_SILVER),
 		{ /* sentinel */ }
@@ -134,8 +137,6 @@ static enum mitigation_state spectre_v2_get_cpu_hw_mitigation_state(void)
 
 	return SPECTRE_VULNERABLE;
 }
-
-#define SMCCC_ARCH_WORKAROUND_RET_UNAFFECTED	(1)
 
 static enum mitigation_state spectre_v2_get_cpu_fw_mitigation_state(void)
 {
@@ -171,72 +172,26 @@ bool has_spectre_v2(const struct arm64_cpu_capabilities *entry, int scope)
 	return true;
 }
 
-DEFINE_PER_CPU_READ_MOSTLY(struct bp_hardening_data, bp_hardening_data);
-
 enum mitigation_state arm64_get_spectre_v2_state(void)
 {
 	return spectre_v2_state;
 }
 
-#ifdef CONFIG_KVM
-#include <asm/cacheflush.h>
-#include <asm/kvm_asm.h>
-
-atomic_t arm64_el2_vector_last_slot = ATOMIC_INIT(-1);
-
-static void __copy_hyp_vect_bpi(int slot, const char *hyp_vecs_start,
-				const char *hyp_vecs_end)
-{
-	void *dst = lm_alias(__bp_harden_hyp_vecs + slot * SZ_2K);
-	int i;
-
-	for (i = 0; i < SZ_2K; i += 0x80)
-		memcpy(dst + i, hyp_vecs_start, hyp_vecs_end - hyp_vecs_start);
-
-	__flush_icache_range((uintptr_t)dst, (uintptr_t)dst + SZ_2K);
-}
+DEFINE_PER_CPU_READ_MOSTLY(struct bp_hardening_data, bp_hardening_data);
 
 static void install_bp_hardening_cb(bp_hardening_cb_t fn)
 {
-	static DEFINE_RAW_SPINLOCK(bp_lock);
-	int cpu, slot = -1;
-	const char *hyp_vecs_start = __smccc_workaround_1_smc;
-	const char *hyp_vecs_end = __smccc_workaround_1_smc +
-				   __SMCCC_WORKAROUND_1_SMC_SZ;
+	__this_cpu_write(bp_hardening_data.fn, fn);
 
 	/*
 	 * Vinz Clortho takes the hyp_vecs start/end "keys" at
 	 * the door when we're a guest. Skip the hyp-vectors work.
 	 */
-	if (!is_hyp_mode_available()) {
-		__this_cpu_write(bp_hardening_data.fn, fn);
+	if (!is_hyp_mode_available())
 		return;
-	}
 
-	raw_spin_lock(&bp_lock);
-	for_each_possible_cpu(cpu) {
-		if (per_cpu(bp_hardening_data.fn, cpu) == fn) {
-			slot = per_cpu(bp_hardening_data.hyp_vectors_slot, cpu);
-			break;
-		}
-	}
-
-	if (slot == -1) {
-		slot = atomic_inc_return(&arm64_el2_vector_last_slot);
-		BUG_ON(slot >= BP_HARDEN_EL2_SLOTS);
-		__copy_hyp_vect_bpi(slot, hyp_vecs_start, hyp_vecs_end);
-	}
-
-	__this_cpu_write(bp_hardening_data.hyp_vectors_slot, slot);
-	__this_cpu_write(bp_hardening_data.fn, fn);
-	raw_spin_unlock(&bp_lock);
+	__this_cpu_write(bp_hardening_data.slot, HYP_VECTOR_SPECTRE_DIRECT);
 }
-#else
-static void install_bp_hardening_cb(bp_hardening_cb_t fn)
-{
-	__this_cpu_write(bp_hardening_data.fn, fn);
-}
-#endif	/* CONFIG_KVM */
 
 static void call_smc_arch_workaround_1(void)
 {
@@ -315,6 +270,33 @@ void spectre_v2_enable_mitigation(const struct arm64_cpu_capabilities *__unused)
 		state = spectre_v2_enable_fw_mitigation();
 
 	update_mitigation_state(&spectre_v2_state, state);
+}
+
+/*
+ * Spectre-v3a.
+ *
+ * Phew, there's not an awful lot to do here! We just instruct EL2 to use
+ * an indirect trampoline for the hyp vectors so that guests can't read
+ * VBAR_EL2 to defeat randomisation of the hypervisor VA layout.
+ */
+bool has_spectre_v3a(const struct arm64_cpu_capabilities *entry, int scope)
+{
+	static const struct midr_range spectre_v3a_unsafe_list[] = {
+		MIDR_ALL_VERSIONS(MIDR_CORTEX_A57),
+		MIDR_ALL_VERSIONS(MIDR_CORTEX_A72),
+		{},
+	};
+
+	WARN_ON(scope != SCOPE_LOCAL_CPU || preemptible());
+	return is_midr_in_range_list(read_cpuid_id(), spectre_v3a_unsafe_list);
+}
+
+void spectre_v3a_enable_mitigation(const struct arm64_cpu_capabilities *__unused)
+{
+	struct bp_hardening_data *data = this_cpu_ptr(&bp_hardening_data);
+
+	if (this_cpu_has_cap(ARM64_SPECTRE_V3A))
+		data->slot += HYP_VECTOR_INDIRECT;
 }
 
 /*
@@ -539,12 +521,12 @@ static enum mitigation_state spectre_v4_enable_hw_mitigation(void)
 
 	if (spectre_v4_mitigations_off()) {
 		sysreg_clear_set(sctlr_el1, 0, SCTLR_ELx_DSSBS);
-		asm volatile(SET_PSTATE_SSBS(1));
+		set_pstate_ssbs(1);
 		return SPECTRE_VULNERABLE;
 	}
 
 	/* SCTLR_EL1.DSSBS was initialised to 0 during boot */
-	asm volatile(SET_PSTATE_SSBS(0));
+	set_pstate_ssbs(0);
 	return SPECTRE_MITIGATED;
 }
 

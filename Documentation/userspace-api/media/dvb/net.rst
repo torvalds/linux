@@ -23,7 +23,7 @@ types that are present on the transport stream. This is done through
 virtual ``dvb?_?`` network interfaces, and will be controlled/routed via
 the standard ip tools (like ip, route, netstat, ifconfig, etc).
 
-Data types and and ioctl definitions are defined via ``linux/dvb/net.h``
+Data types and ioctl definitions are defined via ``linux/dvb/net.h``
 header.
 
 

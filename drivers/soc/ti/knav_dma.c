@@ -500,7 +500,7 @@ EXPORT_SYMBOL_GPL(knav_dma_open_channel);
 /**
  * knav_dma_close_channel()	- Destroy a dma channel
  *
- * channel:	dma channel handle
+ * @channel:	dma channel handle
  *
  */
 void knav_dma_close_channel(void *channel)
@@ -749,14 +749,16 @@ static int knav_dma_probe(struct platform_device *pdev)
 	pm_runtime_enable(kdev->dev);
 	ret = pm_runtime_get_sync(kdev->dev);
 	if (ret < 0) {
+		pm_runtime_put_noidle(kdev->dev);
 		dev_err(kdev->dev, "unable to enable pktdma, err %d\n", ret);
-		return ret;
+		goto err_pm_disable;
 	}
 
 	/* Initialise all packet dmas */
 	for_each_child_of_node(node, child) {
 		ret = dma_init(node, child);
 		if (ret) {
+			of_node_put(child);
 			dev_err(&pdev->dev, "init failed with %d\n", ret);
 			break;
 		}
@@ -764,13 +766,21 @@ static int knav_dma_probe(struct platform_device *pdev)
 
 	if (list_empty(&kdev->list)) {
 		dev_err(dev, "no valid dma instance\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_put_sync;
 	}
 
 	debugfs_create_file("knav_dma", S_IFREG | S_IRUGO, NULL, NULL,
 			    &knav_dma_debug_fops);
 
 	device_ready = true;
+	return ret;
+
+err_put_sync:
+	pm_runtime_put_sync(kdev->dev);
+err_pm_disable:
+	pm_runtime_disable(kdev->dev);
+
 	return ret;
 }
 

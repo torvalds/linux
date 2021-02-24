@@ -75,13 +75,8 @@ static int rb070d30_panel_unprepare(struct drm_panel *panel)
 static int rb070d30_panel_enable(struct drm_panel *panel)
 {
 	struct rb070d30_panel *ctx = panel_to_rb070d30_panel(panel);
-	int ret;
 
-	ret = mipi_dsi_dcs_exit_sleep_mode(ctx->dsi);
-	if (ret)
-		return ret;
-
-	return 0;
+	return mipi_dsi_dcs_exit_sleep_mode(ctx->dsi);
 }
 
 static int rb070d30_panel_disable(struct drm_panel *panel)

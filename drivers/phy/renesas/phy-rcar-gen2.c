@@ -339,7 +339,6 @@ static int rcar_gen2_phy_probe(struct platform_device *pdev)
 	struct rcar_gen2_phy_driver *drv;
 	struct phy_provider *provider;
 	struct device_node *np;
-	struct resource *res;
 	void __iomem *base;
 	struct clk *clk;
 	const struct rcar_gen2_phy_data *data;
@@ -357,8 +356,7 @@ static int rcar_gen2_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(clk);
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

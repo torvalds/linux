@@ -80,7 +80,9 @@ static void uvd_v3_1_ring_set_wptr(struct amdgpu_ring *ring)
  * uvd_v3_1_ring_emit_ib - execute indirect buffer
  *
  * @ring: amdgpu_ring pointer
+ * @job: iob associated with the indirect buffer
  * @ib: indirect buffer to execute
+ * @flags: flags associated with the indirect buffer
  *
  * Write ring commands to execute the indirect buffer
  */
@@ -99,7 +101,9 @@ static void uvd_v3_1_ring_emit_ib(struct amdgpu_ring *ring,
  * uvd_v3_1_ring_emit_fence - emit an fence & trap command
  *
  * @ring: amdgpu_ring pointer
- * @fence: fence to emit
+ * @addr: address
+ * @seq: sequence number
+ * @flags: fence related flags
  *
  * Write a fence and a trap command to the ring.
  */
@@ -277,15 +281,8 @@ static void uvd_v3_1_mc_resume(struct amdgpu_device *adev)
  */
 static int uvd_v3_1_fw_validate(struct amdgpu_device *adev)
 {
-	void *ptr;
-	uint32_t ucode_len, i;
-	uint32_t keysel;
-
-	ptr = adev->uvd.inst[0].cpu_addr;
-	ptr += 192 + 16;
-	memcpy(&ucode_len, ptr, 4);
-	ptr += ucode_len;
-	memcpy(&keysel, ptr, 4);
+	int i;
+	uint32_t keysel = adev->uvd.keyselect;
 
 	WREG32(mmUVD_FW_START, keysel);
 
@@ -550,6 +547,8 @@ static int uvd_v3_1_sw_init(void *handle)
 	struct amdgpu_ring *ring;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int r;
+	void *ptr;
+	uint32_t ucode_len;
 
 	/* UVD TRAP */
 	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 124, &adev->uvd.inst->irq);
@@ -570,6 +569,13 @@ static int uvd_v3_1_sw_init(void *handle)
 	r = amdgpu_uvd_resume(adev);
 	if (r)
 		return r;
+
+	/* Retrieval firmware validate key */
+	ptr = adev->uvd.inst[0].cpu_addr;
+	ptr += 192 + 16;
+	memcpy(&ucode_len, ptr, 4);
+	ptr += ucode_len;
+	memcpy(&adev->uvd.keyselect, ptr, 4);
 
 	r = amdgpu_uvd_entity_init(adev);
 
@@ -617,7 +623,7 @@ static void uvd_v3_1_enable_mgcg(struct amdgpu_device *adev,
 /**
  * uvd_v3_1_hw_init - start and test UVD block
  *
- * @adev: amdgpu_device pointer
+ * @handle: handle used to pass amdgpu_device pointer
  *
  * Initialize the hardware, boot up the VCPU and do some testing
  */
@@ -684,7 +690,7 @@ done:
 /**
  * uvd_v3_1_hw_fini - stop the hardware block
  *
- * @adev: amdgpu_device pointer
+ * @handle: handle used to pass amdgpu_device pointer
  *
  * Stop the UVD block, mark ring as not ready any more
  */

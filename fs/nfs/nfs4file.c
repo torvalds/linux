@@ -377,10 +377,10 @@ static struct file *__nfs42_ssc_open(struct vfsmount *ss_mnt,
 		goto out_stateowner;
 
 	set_bit(NFS_SRV_SSC_COPY_STATE, &ctx->state->flags);
-	set_bit(NFS_OPEN_STATE, &ctx->state->flags);
 	memcpy(&ctx->state->open_stateid.other, &stateid->other,
 	       NFS4_STATEID_OTHER_SIZE);
 	update_open_stateid(ctx->state, stateid, NULL, filep->f_mode);
+	set_bit(NFS_OPEN_STATE, &ctx->state->flags);
 
 	nfs_file_set_open_context(filep, ctx);
 	put_nfs_open_context(ctx);
@@ -420,7 +420,9 @@ static const struct nfs4_ssc_client_ops nfs4_ssc_clnt_ops_tbl = {
  */
 void nfs42_ssc_register_ops(void)
 {
+#ifdef CONFIG_NFSD_V4
 	nfs42_ssc_register(&nfs4_ssc_clnt_ops_tbl);
+#endif
 }
 
 /**
@@ -431,7 +433,9 @@ void nfs42_ssc_register_ops(void)
  */
 void nfs42_ssc_unregister_ops(void)
 {
+#ifdef CONFIG_NFSD_V4
 	nfs42_ssc_unregister(&nfs4_ssc_clnt_ops_tbl);
+#endif
 }
 #endif /* CONFIG_NFS_V4_2 */
 

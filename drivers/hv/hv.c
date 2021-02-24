@@ -244,9 +244,13 @@ int hv_synic_cleanup(unsigned int cpu)
 
 	/*
 	 * Hyper-V does not provide a way to change the connect CPU once
-	 * it is set; we must prevent the connect CPU from going offline.
+	 * it is set; we must prevent the connect CPU from going offline
+	 * while the VM is running normally. But in the panic or kexec()
+	 * path where the vmbus is already disconnected, the CPU must be
+	 * allowed to shut down.
 	 */
-	if (cpu == VMBUS_CONNECT_CPU)
+	if (cpu == VMBUS_CONNECT_CPU &&
+	    vmbus_connection.conn_state == CONNECTED)
 		return -EBUSY;
 
 	/*

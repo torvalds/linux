@@ -1356,7 +1356,7 @@ void selection_timeout_missed(unsigned long ptr)
 static u8 start_scsi(struct AdapterCtlBlk* acb, struct DeviceCtlBlk* dcb,
 		struct ScsiReqBlk* srb)
 {
-	u16 s_stat2, return_code;
+	u16 __maybe_unused s_stat2, return_code;
 	u8 s_stat, scsicommand, i, identify_message;
 	u8 *ptr;
 	dprintkdbg(DBG_0, "start_scsi: (0x%p) <%02i-%i> srb=%p\n",
@@ -2397,7 +2397,6 @@ static void data_io_transfer(struct AdapterCtlBlk *acb,
 	}
 #endif				/* DC395x_LASTPIO */
 	else {		/* xfer pad */
-		u8 data = 0, data2 = 0;
 		if (srb->sg_count) {
 			srb->adapter_status = H_OVER_UNDER_RUN;
 			srb->status |= OVER_RUN;
@@ -2412,8 +2411,8 @@ static void data_io_transfer(struct AdapterCtlBlk *acb,
 			DC395x_write8(acb, TRM_S1040_SCSI_CONFIG2,
 				      CFG2_WIDEFIFO);
 			if (io_dir & DMACMD_DIR) {
-				data = DC395x_read8(acb, TRM_S1040_SCSI_FIFO);
-				data2 = DC395x_read8(acb, TRM_S1040_SCSI_FIFO);
+				DC395x_read8(acb, TRM_S1040_SCSI_FIFO);
+				DC395x_read8(acb, TRM_S1040_SCSI_FIFO);
 			} else {
 				/* Danger, Robinson: If you find KGs
 				 * scattered over the wide disk, the driver
@@ -2427,7 +2426,7 @@ static void data_io_transfer(struct AdapterCtlBlk *acb,
 			/* Danger, Robinson: If you find a collection of Ks on your disk
 			 * something broke :-( */
 			if (io_dir & DMACMD_DIR)
-				data = DC395x_read8(acb, TRM_S1040_SCSI_FIFO);
+				DC395x_read8(acb, TRM_S1040_SCSI_FIFO);
 			else
 				DC395x_write8(acb, TRM_S1040_SCSI_FIFO, 'K');
 		}
@@ -2989,7 +2988,6 @@ static void reselect(struct AdapterCtlBlk *acb)
 	struct ScsiReqBlk *srb = NULL;
 	u16 rsel_tar_lun_id;
 	u8 id, lun;
-	u8 arblostflag = 0;
 	dprintkdbg(DBG_0, "reselect: acb=%p\n", acb);
 
 	clear_fifo(acb, "reselect");
@@ -3011,7 +3009,6 @@ static void reselect(struct AdapterCtlBlk *acb)
 				srb->cmd, dcb->target_id,
 				dcb->target_lun, rsel_tar_lun_id,
 				DC395x_read16(acb, TRM_S1040_SCSI_STATUS));
-			arblostflag = 1;
 			/*srb->state |= SRB_DISCONNECT; */
 
 			srb->state = SRB_READY;
@@ -3042,7 +3039,7 @@ static void reselect(struct AdapterCtlBlk *acb)
 			"disconnection? <%02i-%i>\n",
 			dcb->target_id, dcb->target_lun);
 
-	if (dcb->sync_mode & EN_TAG_QUEUEING /*&& !arblostflag */) {
+	if (dcb->sync_mode & EN_TAG_QUEUEING) {
 		srb = acb->tmp_srb;
 		dcb->active_srb = srb;
 	} else {
@@ -3390,11 +3387,9 @@ static void doing_srb_done(struct AdapterCtlBlk *acb, u8 did_flag,
 		struct scsi_cmnd *p;
 
 		list_for_each_entry_safe(srb, tmp, &dcb->srb_going_list, list) {
-			enum dma_data_direction dir;
 			int result;
 
 			p = srb->cmd;
-			dir = p->sc_data_direction;
 			result = MK_RES(0, did_flag, 0, 0);
 			printk("G:%p(%02i-%i) ", p,
 			       p->device->id, (u8)p->device->lun);

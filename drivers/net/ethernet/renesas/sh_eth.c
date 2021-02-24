@@ -2606,9 +2606,9 @@ static int sh_eth_close(struct net_device *ndev)
 	/* Free all the skbuffs in the Rx queue and the DMA buffer. */
 	sh_eth_ring_free(ndev);
 
-	pm_runtime_put_sync(&mdp->pdev->dev);
-
 	mdp->is_opened = 0;
+
+	pm_runtime_put(&mdp->pdev->dev);
 
 	return 0;
 }
@@ -3034,6 +3034,28 @@ static int sh_mdio_release(struct sh_eth_private *mdp)
 	return 0;
 }
 
+static int sh_mdiobb_read(struct mii_bus *bus, int phy, int reg)
+{
+	int res;
+
+	pm_runtime_get_sync(bus->parent);
+	res = mdiobb_read(bus, phy, reg);
+	pm_runtime_put(bus->parent);
+
+	return res;
+}
+
+static int sh_mdiobb_write(struct mii_bus *bus, int phy, int reg, u16 val)
+{
+	int res;
+
+	pm_runtime_get_sync(bus->parent);
+	res = mdiobb_write(bus, phy, reg, val);
+	pm_runtime_put(bus->parent);
+
+	return res;
+}
+
 /* MDIO bus init function */
 static int sh_mdio_init(struct sh_eth_private *mdp,
 			struct sh_eth_plat_data *pd)
@@ -3057,6 +3079,10 @@ static int sh_mdio_init(struct sh_eth_private *mdp,
 	mdp->mii_bus = alloc_mdio_bitbang(&bitbang->ctrl);
 	if (!mdp->mii_bus)
 		return -ENOMEM;
+
+	/* Wrap accessors with Runtime PM-aware ops */
+	mdp->mii_bus->read = sh_mdiobb_read;
+	mdp->mii_bus->write = sh_mdiobb_write;
 
 	/* Hook up MII support for ethtool */
 	mdp->mii_bus->name = "sh_mii";

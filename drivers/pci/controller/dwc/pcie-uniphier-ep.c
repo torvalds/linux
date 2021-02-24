@@ -218,35 +218,6 @@ static const struct dw_pcie_ep_ops uniphier_pcie_ep_ops = {
 	.get_features = uniphier_pcie_get_features,
 };
 
-static int uniphier_add_pcie_ep(struct uniphier_pcie_ep_priv *priv,
-				struct platform_device *pdev)
-{
-	struct dw_pcie *pci = &priv->pci;
-	struct dw_pcie_ep *ep = &pci->ep;
-	struct device *dev = &pdev->dev;
-	struct resource *res;
-	int ret;
-
-	ep->ops = &uniphier_pcie_ep_ops;
-
-	pci->dbi_base2 = devm_platform_ioremap_resource_byname(pdev, "dbi2");
-	if (IS_ERR(pci->dbi_base2))
-		return PTR_ERR(pci->dbi_base2);
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "addr_space");
-	if (!res)
-		return -EINVAL;
-
-	ep->phys_base = res->start;
-	ep->addr_size = resource_size(res);
-
-	ret = dw_pcie_ep_init(ep);
-	if (ret)
-		dev_err(dev, "Failed to initialize endpoint (%d)\n", ret);
-
-	return ret;
-}
-
 static int uniphier_pcie_ep_enable(struct uniphier_pcie_ep_priv *priv)
 {
 	int ret;
@@ -300,7 +271,6 @@ static int uniphier_pcie_ep_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct uniphier_pcie_ep_priv *priv;
-	struct resource *res;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -313,11 +283,6 @@ static int uniphier_pcie_ep_probe(struct platform_device *pdev)
 
 	priv->pci.dev = dev;
 	priv->pci.ops = &dw_pcie_ops;
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
-	priv->pci.dbi_base = devm_pci_remap_cfg_resource(dev, res);
-	if (IS_ERR(priv->pci.dbi_base))
-		return PTR_ERR(priv->pci.dbi_base);
 
 	priv->base = devm_platform_ioremap_resource_byname(pdev, "link");
 	if (IS_ERR(priv->base))
@@ -352,7 +317,8 @@ static int uniphier_pcie_ep_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return uniphier_add_pcie_ep(priv, pdev);
+	priv->pci.ep.ops = &uniphier_pcie_ep_ops;
+	return dw_pcie_ep_init(&priv->pci.ep);
 }
 
 static const struct pci_epc_features uniphier_pro5_data = {

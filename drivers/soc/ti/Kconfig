@@ -1,22 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-only
-# 64-bit ARM SoCs from TI
-if ARM64
-
-if ARCH_K3
-
-config ARCH_K3_AM6_SOC
-	bool "K3 AM6 SoC"
-	help
-	  Enable support for TI's AM6 SoC Family support
-
-config ARCH_K3_J721E_SOC
-	bool "K3 J721E SoC"
-	help
-	  Enable support for TI's J721E SoC Family support
-
-endif
-
-endif
 
 #
 # TI SOC drivers

@@ -18,6 +18,34 @@ const char *ceph_entity_type_name(int type)
 }
 EXPORT_SYMBOL(ceph_entity_type_name);
 
+const char *ceph_auth_proto_name(int proto)
+{
+	switch (proto) {
+	case CEPH_AUTH_UNKNOWN:
+		return "unknown";
+	case CEPH_AUTH_NONE:
+		return "none";
+	case CEPH_AUTH_CEPHX:
+		return "cephx";
+	default:
+		return "???";
+	}
+}
+
+const char *ceph_con_mode_name(int mode)
+{
+	switch (mode) {
+	case CEPH_CON_MODE_UNKNOWN:
+		return "unknown";
+	case CEPH_CON_MODE_CRC:
+		return "crc";
+	case CEPH_CON_MODE_SECURE:
+		return "secure";
+	default:
+		return "???";
+	}
+}
+
 const char *ceph_osd_op_name(int op)
 {
 	switch (op) {

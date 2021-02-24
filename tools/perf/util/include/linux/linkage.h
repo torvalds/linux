@@ -25,6 +25,7 @@
 
 /* SYM_L_* -- linkage of symbols */
 #define SYM_L_GLOBAL(name)			.globl name
+#define SYM_L_WEAK(name)			.weak name
 #define SYM_L_LOCAL(name)			/* nothing */
 
 #define ALIGN __ALIGN
@@ -82,6 +83,12 @@
 #ifndef SYM_FUNC_END_ALIAS
 #define SYM_FUNC_END_ALIAS(name)			\
 	SYM_END(name, SYM_T_FUNC)
+#endif
+
+/* SYM_FUNC_START_WEAK -- use for weak functions */
+#ifndef SYM_FUNC_START_WEAK
+#define SYM_FUNC_START_WEAK(name)			\
+	SYM_START(name, SYM_L_WEAK, SYM_A_ALIGN)
 #endif
 
 /*

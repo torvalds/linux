@@ -222,7 +222,4 @@ __init void initialize_cache_info(void)
 	 */
 	dcache_bsize = cur_cpu_spec->dcache_bsize;
 	icache_bsize = cur_cpu_spec->icache_bsize;
-	ucache_bsize = 0;
-	if (IS_ENABLED(CONFIG_E200))
-		ucache_bsize = icache_bsize = dcache_bsize;
 }

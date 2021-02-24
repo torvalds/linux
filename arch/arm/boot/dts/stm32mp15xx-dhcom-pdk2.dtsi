@@ -46,6 +46,16 @@
 			linux,code = <KEY_A>;
 			gpios = <&gpiof 3 GPIO_ACTIVE_LOW>;
 		};
+
+		/*
+		 * The EXTi IRQ line 0 is shared with PMIC,
+		 * so mark this as polled GPIO key.
+		 */
+		button-2 {
+			label = "TA3-GPIO-C";
+			linux,code = <KEY_C>;
+			gpios = <&gpiog 0 GPIO_ACTIVE_LOW>;
+		};
 	};
 
 	gpio-keys {
@@ -56,13 +66,6 @@
 			label = "TA2-GPIO-B";
 			linux,code = <KEY_B>;
 			gpios = <&gpiod 6 GPIO_ACTIVE_LOW>;
-			wakeup-source;
-		};
-
-		button-2 {
-			label = "TA3-GPIO-C";
-			linux,code = <KEY_C>;
-			gpios = <&gpioi 11 GPIO_ACTIVE_LOW>;
 			wakeup-source;
 		};
 
@@ -79,7 +82,7 @@
 
 		led-0 {
 			label = "green:led5";
-			gpios = <&gpiog 2 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpioc 6 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
@@ -297,12 +300,8 @@
 
 &usbphyc_port0 {
 	phy-supply = <&vdd_usb>;
-	vdda1v1-supply = <&reg11>;
-	vdda1v8-supply = <&reg18>;
 };
 
 &usbphyc_port1 {
 	phy-supply = <&vdd_usb>;
-	vdda1v1-supply = <&reg11>;
-	vdda1v8-supply = <&reg18>;
 };

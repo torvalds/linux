@@ -71,7 +71,7 @@
  *
  * A simple static executable may be built this way :
  *      $ gcc -fno-asynchronous-unwind-tables -fno-ident -s -Os -nostdlib \
- *            -static -include nolibc.h -lgcc -o hello hello.c
+ *            -static -include nolibc.h -o hello hello.c -lgcc
  *
  * A very useful calling convention table may be found here :
  *      http://man7.org/linux/man-pages/man2/syscall.2.html
@@ -81,19 +81,12 @@
  *
  */
 
-/* Some archs (at least aarch64) don't expose the regular syscalls anymore by
- * default, either because they have an "_at" replacement, or because there are
- * more modern alternatives. For now we'd rather still use them.
- */
-#define __ARCH_WANT_SYSCALL_NO_AT
-#define __ARCH_WANT_SYSCALL_NO_FLAGS
-#define __ARCH_WANT_SYSCALL_DEPRECATED
-
 #include <asm/unistd.h>
 #include <asm/ioctls.h>
 #include <asm/errno.h>
 #include <linux/fs.h>
 #include <linux/loop.h>
+#include <linux/time.h>
 
 #define NOLIBC
 
@@ -107,7 +100,7 @@ static int errno;
 #endif
 
 /* errno codes all ensure that they will not conflict with a valid pointer
- * because they all correspond to the highest addressable memry page.
+ * because they all correspond to the highest addressable memory page.
  */
 #define MAX_ERRNO 4095
 
@@ -150,24 +143,6 @@ struct pollfd {
 	int fd;
 	short int events;
 	short int revents;
-};
-
-/* for select() */
-struct timeval {
-	long    tv_sec;
-	long    tv_usec;
-};
-
-/* for pselect() */
-struct timespec {
-	long    tv_sec;
-	long    tv_nsec;
-};
-
-/* for gettimeofday() */
-struct timezone {
-	int tz_minuteswest;
-	int tz_dsttime;
 };
 
 /* for getdents64() */
@@ -231,7 +206,7 @@ struct rusage {
 #define DT_SOCK   12
 
 /* all the *at functions */
-#ifndef AT_FDWCD
+#ifndef AT_FDCWD
 #define AT_FDCWD             -100
 #endif
 
@@ -271,6 +246,8 @@ struct stat {
 #define WEXITSTATUS(status)   (((status) & 0xff00) >> 8)
 #define WIFEXITED(status)     (((status) & 0x7f) == 0)
 
+/* for SIGCHLD */
+#include <asm/signal.h>
 
 /* Below comes the architecture-specific code. For each architecture, we have
  * the syscall declarations and the _start code definition. This is the only
@@ -1469,8 +1446,10 @@ int sys_chmod(const char *path, mode_t mode)
 {
 #ifdef __NR_fchmodat
 	return my_syscall4(__NR_fchmodat, AT_FDCWD, path, mode, 0);
-#else
+#elif defined(__NR_chmod)
 	return my_syscall2(__NR_chmod, path, mode);
+#else
+#error Neither __NR_fchmodat nor __NR_chmod defined, cannot implement sys_chmod()
 #endif
 }
 
@@ -1479,8 +1458,10 @@ int sys_chown(const char *path, uid_t owner, gid_t group)
 {
 #ifdef __NR_fchownat
 	return my_syscall5(__NR_fchownat, AT_FDCWD, path, owner, group, 0);
-#else
+#elif defined(__NR_chown)
 	return my_syscall3(__NR_chown, path, owner, group);
+#else
+#error Neither __NR_fchownat nor __NR_chown defined, cannot implement sys_chown()
 #endif
 }
 
@@ -1502,10 +1483,24 @@ int sys_dup(int fd)
 	return my_syscall1(__NR_dup, fd);
 }
 
+#ifdef __NR_dup3
+static __attribute__((unused))
+int sys_dup3(int old, int new, int flags)
+{
+	return my_syscall3(__NR_dup3, old, new, flags);
+}
+#endif
+
 static __attribute__((unused))
 int sys_dup2(int old, int new)
 {
+#ifdef __NR_dup3
+	return my_syscall3(__NR_dup3, old, new, 0);
+#elif defined(__NR_dup2)
 	return my_syscall2(__NR_dup2, old, new);
+#else
+#error Neither __NR_dup3 nor __NR_dup2 defined, cannot implement sys_dup2()
+#endif
 }
 
 static __attribute__((unused))
@@ -1517,7 +1512,17 @@ int sys_execve(const char *filename, char *const argv[], char *const envp[])
 static __attribute__((unused))
 pid_t sys_fork(void)
 {
+#ifdef __NR_clone
+	/* note: some archs only have clone() and not fork(). Different archs
+	 * have a different API, but most archs have the flags on first arg and
+	 * will not use the rest with no other flag.
+	 */
+	return my_syscall5(__NR_clone, SIGCHLD, 0, 0, 0, 0);
+#elif defined(__NR_fork)
 	return my_syscall0(__NR_fork);
+#else
+#error Neither __NR_clone nor __NR_fork defined, cannot implement sys_fork()
+#endif
 }
 
 static __attribute__((unused))
@@ -1533,9 +1538,15 @@ int sys_getdents64(int fd, struct linux_dirent64 *dirp, int count)
 }
 
 static __attribute__((unused))
+pid_t sys_getpgid(pid_t pid)
+{
+	return my_syscall1(__NR_getpgid, pid);
+}
+
+static __attribute__((unused))
 pid_t sys_getpgrp(void)
 {
-	return my_syscall0(__NR_getpgrp);
+	return sys_getpgid(0);
 }
 
 static __attribute__((unused))
@@ -1567,8 +1578,10 @@ int sys_link(const char *old, const char *new)
 {
 #ifdef __NR_linkat
 	return my_syscall5(__NR_linkat, AT_FDCWD, old, AT_FDCWD, new, 0);
-#else
+#elif defined(__NR_link)
 	return my_syscall2(__NR_link, old, new);
+#else
+#error Neither __NR_linkat nor __NR_link defined, cannot implement sys_link()
 #endif
 }
 
@@ -1583,8 +1596,10 @@ int sys_mkdir(const char *path, mode_t mode)
 {
 #ifdef __NR_mkdirat
 	return my_syscall3(__NR_mkdirat, AT_FDCWD, path, mode);
-#else
+#elif defined(__NR_mkdir)
 	return my_syscall2(__NR_mkdir, path, mode);
+#else
+#error Neither __NR_mkdirat nor __NR_mkdir defined, cannot implement sys_mkdir()
 #endif
 }
 
@@ -1593,8 +1608,10 @@ long sys_mknod(const char *path, mode_t mode, dev_t dev)
 {
 #ifdef __NR_mknodat
 	return my_syscall4(__NR_mknodat, AT_FDCWD, path, mode, dev);
-#else
+#elif defined(__NR_mknod)
 	return my_syscall3(__NR_mknod, path, mode, dev);
+#else
+#error Neither __NR_mknodat nor __NR_mknod defined, cannot implement sys_mknod()
 #endif
 }
 
@@ -1610,8 +1627,10 @@ int sys_open(const char *path, int flags, mode_t mode)
 {
 #ifdef __NR_openat
 	return my_syscall4(__NR_openat, AT_FDCWD, path, flags, mode);
-#else
+#elif defined(__NR_open)
 	return my_syscall3(__NR_open, path, flags, mode);
+#else
+#error Neither __NR_openat nor __NR_open defined, cannot implement sys_open()
 #endif
 }
 
@@ -1624,7 +1643,19 @@ int sys_pivot_root(const char *new, const char *old)
 static __attribute__((unused))
 int sys_poll(struct pollfd *fds, int nfds, int timeout)
 {
+#if defined(__NR_ppoll)
+	struct timespec t;
+
+	if (timeout >= 0) {
+		t.tv_sec  = timeout / 1000;
+		t.tv_nsec = (timeout % 1000) * 1000000;
+	}
+	return my_syscall4(__NR_ppoll, fds, nfds, (timeout >= 0) ? &t : NULL, NULL);
+#elif defined(__NR_poll)
 	return my_syscall3(__NR_poll, fds, nfds, timeout);
+#else
+#error Neither __NR_ppoll nor __NR_poll defined, cannot implement sys_poll()
+#endif
 }
 
 static __attribute__((unused))
@@ -1663,11 +1694,13 @@ int sys_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeva
 		t.tv_nsec = timeout->tv_usec * 1000;
 	}
 	return my_syscall6(__NR_pselect6, nfds, rfds, wfds, efds, timeout ? &t : NULL, NULL);
-#else
+#elif defined(__NR__newselect) || defined(__NR_select)
 #ifndef __NR__newselect
 #define __NR__newselect __NR_select
 #endif
 	return my_syscall5(__NR__newselect, nfds, rfds, wfds, efds, timeout);
+#else
+#error None of __NR_select, __NR_pselect6, nor __NR__newselect defined, cannot implement sys_select()
 #endif
 }
 
@@ -1692,8 +1725,10 @@ int sys_stat(const char *path, struct stat *buf)
 #ifdef __NR_newfstatat
 	/* only solution for arm64 */
 	ret = my_syscall4(__NR_newfstatat, AT_FDCWD, path, &stat, 0);
-#else
+#elif defined(__NR_stat)
 	ret = my_syscall2(__NR_stat, path, &stat);
+#else
+#error Neither __NR_newfstatat nor __NR_stat defined, cannot implement sys_stat()
 #endif
 	buf->st_dev     = stat.st_dev;
 	buf->st_ino     = stat.st_ino;
@@ -1717,8 +1752,10 @@ int sys_symlink(const char *old, const char *new)
 {
 #ifdef __NR_symlinkat
 	return my_syscall3(__NR_symlinkat, old, AT_FDCWD, new);
-#else
+#elif defined(__NR_symlink)
 	return my_syscall2(__NR_symlink, old, new);
+#else
+#error Neither __NR_symlinkat nor __NR_symlink defined, cannot implement sys_symlink()
 #endif
 }
 
@@ -1739,8 +1776,10 @@ int sys_unlink(const char *path)
 {
 #ifdef __NR_unlinkat
 	return my_syscall3(__NR_unlinkat, AT_FDCWD, path, 0);
-#else
+#elif defined(__NR_unlink)
 	return my_syscall1(__NR_unlink, path);
+#else
+#error Neither __NR_unlinkat nor __NR_unlink defined, cannot implement sys_unlink()
 #endif
 }
 
@@ -1853,6 +1892,18 @@ int close(int fd)
 }
 
 static __attribute__((unused))
+int dup(int fd)
+{
+	int ret = sys_dup(fd);
+
+	if (ret < 0) {
+		SET_ERRNO(-ret);
+		ret = -1;
+	}
+	return ret;
+}
+
+static __attribute__((unused))
 int dup2(int old, int new)
 {
 	int ret = sys_dup2(old, new);
@@ -1863,6 +1914,20 @@ int dup2(int old, int new)
 	}
 	return ret;
 }
+
+#ifdef __NR_dup3
+static __attribute__((unused))
+int dup3(int old, int new, int flags)
+{
+	int ret = sys_dup3(old, new, flags);
+
+	if (ret < 0) {
+		SET_ERRNO(-ret);
+		ret = -1;
+	}
+	return ret;
+}
+#endif
 
 static __attribute__((unused))
 int execve(const char *filename, char *const argv[], char *const envp[])
@@ -1904,6 +1969,18 @@ static __attribute__((unused))
 int getdents64(int fd, struct linux_dirent64 *dirp, int count)
 {
 	int ret = sys_getdents64(fd, dirp, count);
+
+	if (ret < 0) {
+		SET_ERRNO(-ret);
+		ret = -1;
+	}
+	return ret;
+}
+
+static __attribute__((unused))
+pid_t getpgid(pid_t pid)
+{
+	pid_t ret = sys_getpgid(pid);
 
 	if (ret < 0) {
 		SET_ERRNO(-ret);

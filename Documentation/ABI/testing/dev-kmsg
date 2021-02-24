@@ -6,6 +6,7 @@ Description:	The /dev/kmsg character device node provides userspace access
 		to the kernel's printk buffer.
 
 		Injecting messages:
+
 		Every write() to the opened device node places a log entry in
 		the kernel's printk buffer.
 
@@ -21,6 +22,7 @@ Description:	The /dev/kmsg character device node provides userspace access
 		the messages can always be reliably determined.
 
 		Accessing the buffer:
+
 		Every read() from the opened device node receives one record
 		of the kernel's printk buffer.
 
@@ -48,6 +50,7 @@ Description:	The /dev/kmsg character device node provides userspace access
 		if needed, without limiting the interface to a single reader.
 
 		The device supports seek with the following parameters:
+
 		SEEK_SET, 0
 		  seek to the first entry in the buffer
 		SEEK_END, 0
@@ -87,18 +90,22 @@ Description:	The /dev/kmsg character device node provides userspace access
 		readable context of the message, for reliable processing in
 		userspace.
 
-		Example:
-		7,160,424069,-;pci_root PNP0A03:00: host bridge window [io  0x0000-0x0cf7] (ignored)
-		 SUBSYSTEM=acpi
-		 DEVICE=+acpi:PNP0A03:00
-		6,339,5140900,-;NET: Registered protocol family 10
-		30,340,5690716,-;udevd[80]: starting version 181
+		Example::
+
+		  7,160,424069,-;pci_root PNP0A03:00: host bridge window [io  0x0000-0x0cf7] (ignored)
+		   SUBSYSTEM=acpi
+		   DEVICE=+acpi:PNP0A03:00
+		  6,339,5140900,-;NET: Registered protocol family 10
+		  30,340,5690716,-;udevd[80]: starting version 181
 
 		The DEVICE= key uniquely identifies devices the following way:
-		  b12:8        - block dev_t
-		  c127:3       - char dev_t
-		  n8           - netdev ifindex
-		  +sound:card0 - subsystem:devname
+
+		  ============  =================
+		  b12:8         block dev_t
+		  c127:3        char dev_t
+		  n8            netdev ifindex
+		  +sound:card0  subsystem:devname
+		  ============  =================
 
 		The flags field carries '-' by default. A 'c' indicates a
 		fragment of a line. Note, that these hints about continuation

@@ -218,6 +218,7 @@ static int wkup_m3_is_available(struct wkup_m3_ipc *m3_ipc)
 /* Public functions */
 /**
  * wkup_m3_set_mem_type - Pass wkup_m3 which type of memory is in use
+ * @m3_ipc: Pointer to wkup_m3_ipc context
  * @mem_type: memory type value read directly from emif
  *
  * wkup_m3 must know what memory type is in use to properly suspend
@@ -230,6 +231,7 @@ static void wkup_m3_set_mem_type(struct wkup_m3_ipc *m3_ipc, int mem_type)
 
 /**
  * wkup_m3_set_resume_address - Pass wkup_m3 resume address
+ * @m3_ipc: Pointer to wkup_m3_ipc context
  * @addr: Physical address from which resume code should execute
  */
 static void wkup_m3_set_resume_address(struct wkup_m3_ipc *m3_ipc, void *addr)
@@ -239,6 +241,7 @@ static void wkup_m3_set_resume_address(struct wkup_m3_ipc *m3_ipc, void *addr)
 
 /**
  * wkup_m3_request_pm_status - Retrieve wkup_m3 status code after suspend
+ * @m3_ipc: Pointer to wkup_m3_ipc context
  *
  * Returns code representing the status of a low power mode transition.
  *	0 - Successful transition
@@ -260,6 +263,7 @@ static int wkup_m3_request_pm_status(struct wkup_m3_ipc *m3_ipc)
 /**
  * wkup_m3_prepare_low_power - Request preparation for transition to
  *			       low power state
+ * @m3_ipc: Pointer to wkup_m3_ipc context
  * @state: A kernel suspend state to enter, either MEM or STANDBY
  *
  * Returns 0 if preparation was successful, otherwise returns error code
@@ -315,6 +319,7 @@ static int wkup_m3_prepare_low_power(struct wkup_m3_ipc *m3_ipc, int state)
 
 /**
  * wkup_m3_finish_low_power - Return m3 to reset state
+ * @m3_ipc: Pointer to wkup_m3_ipc context
  *
  * Returns 0 if reset was successful, otherwise returns error code
  */
@@ -362,8 +367,7 @@ static const char *wkup_m3_request_wake_src(struct wkup_m3_ipc *m3_ipc)
 
 /**
  * wkup_m3_set_rtc_only - Set the rtc_only flag
- * @wkup_m3_wakeup: struct wkup_m3_wakeup_src * gets assigned the
- *                  wakeup src value
+ * @m3_ipc: Pointer to wkup_m3_ipc context
  */
 static void wkup_m3_set_rtc_only(struct wkup_m3_ipc *m3_ipc)
 {

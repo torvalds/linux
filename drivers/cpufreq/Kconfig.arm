@@ -94,7 +94,7 @@ config ARM_IMX6Q_CPUFREQ
 	tristate "Freescale i.MX6 cpufreq support"
 	depends on ARCH_MXC
 	depends on REGULATOR_ANATOP
-	select NVMEM_IMX_OCOTP
+	depends on NVMEM_IMX_OCOTP || COMPILE_TEST
 	select PM_OPP
 	help
 	  This adds cpufreq driver support for Freescale i.MX6 series SoCs.
@@ -288,11 +288,6 @@ config ARM_STI_CPUFREQ
 	  we will fall-back so safe-values contained in Device Tree.  Enable
 	  this config option if you wish to add CPUFreq support for STi based
 	  SoCs.
-
-config ARM_TANGO_CPUFREQ
-	bool
-	depends on CPUFREQ_DT && ARCH_TANGO
-	default y
 
 config ARM_TEGRA20_CPUFREQ
 	tristate "Tegra20/30 CPUFreq support"

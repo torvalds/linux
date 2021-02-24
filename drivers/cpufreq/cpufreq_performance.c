@@ -20,6 +20,7 @@ static void cpufreq_gov_performance_limits(struct cpufreq_policy *policy)
 static struct cpufreq_governor cpufreq_gov_performance = {
 	.name		= "performance",
 	.owner		= THIS_MODULE,
+	.flags		= CPUFREQ_GOV_STRICT_TARGET,
 	.limits		= cpufreq_gov_performance_limits,
 };
 

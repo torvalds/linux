@@ -219,23 +219,35 @@ struct v4l2_fwnode_connector {
  * @vep: pointer to the V4L2 fwnode data structure
  *
  * This function parses the V4L2 fwnode endpoint specific parameters from the
- * firmware. The caller is responsible for assigning @vep.bus_type to a valid
- * media bus type. The caller may also set the default configuration for the
- * endpoint --- a configuration that shall be in line with the DT binding
- * documentation. Should a device support multiple bus types, the caller may
- * call this function once the correct type is found --- with a default
- * configuration valid for that type.
+ * firmware. There are two ways to use this function, either by letting it
+ * obtain the type of the bus (by setting the @vep.bus_type field to
+ * V4L2_MBUS_UNKNOWN) or specifying the bus type explicitly to one of the &enum
+ * v4l2_mbus_type types.
  *
- * It is also allowed to set @vep.bus_type to V4L2_MBUS_UNKNOWN. USING THIS
- * FEATURE REQUIRES "bus-type" PROPERTY IN DT BINDINGS. For old drivers,
- * guessing @vep.bus_type between CSI-2 D-PHY, parallel and BT.656 busses is
- * supported. NEVER RELY ON GUESSING @vep.bus_type IN NEW DRIVERS!
+ * When @vep.bus_type is V4L2_MBUS_UNKNOWN, the function will use the "bus-type"
+ * property to determine the type when it is available. The caller is
+ * responsible for validating the contents of @vep.bus_type field after the call
+ * returns.
+ *
+ * As a deprecated functionality to support older DT bindings without "bus-type"
+ * property for devices that support multiple types, if the "bus-type" property
+ * does not exist, the function will attempt to guess the type based on the
+ * endpoint properties available. NEVER RELY ON GUESSING THE BUS TYPE IN NEW
+ * DRIVERS OR BINDINGS.
+ *
+ * It is also possible to set @vep.bus_type corresponding to an actual bus. In
+ * this case the function will only attempt to parse properties related to this
+ * bus, and it will return an error if the value of the "bus-type" property
+ * corresponds to a different bus.
+ *
+ * The caller is required to initialise all fields of @vep, either with
+ * explicitly values, or by zeroing them.
  *
  * The function does not change the V4L2 fwnode endpoint state if it fails.
  *
- * NOTE: This function does not parse properties the size of which is variable
- * without a low fixed limit. Please use v4l2_fwnode_endpoint_alloc_parse() in
- * new drivers instead.
+ * NOTE: This function does not parse "link-frequencies" property as its size is
+ * not known in advance. Please use v4l2_fwnode_endpoint_alloc_parse() if you
+ * need properties of variable size.
  *
  * Return: %0 on success or a negative error code on failure:
  *	   %-ENOMEM on memory allocation failure
@@ -261,17 +273,29 @@ void v4l2_fwnode_endpoint_free(struct v4l2_fwnode_endpoint *vep);
  * @vep: pointer to the V4L2 fwnode data structure
  *
  * This function parses the V4L2 fwnode endpoint specific parameters from the
- * firmware. The caller is responsible for assigning @vep.bus_type to a valid
- * media bus type. The caller may also set the default configuration for the
- * endpoint --- a configuration that shall be in line with the DT binding
- * documentation. Should a device support multiple bus types, the caller may
- * call this function once the correct type is found --- with a default
- * configuration valid for that type.
+ * firmware. There are two ways to use this function, either by letting it
+ * obtain the type of the bus (by setting the @vep.bus_type field to
+ * V4L2_MBUS_UNKNOWN) or specifying the bus type explicitly to one of the &enum
+ * v4l2_mbus_type types.
  *
- * It is also allowed to set @vep.bus_type to V4L2_MBUS_UNKNOWN. USING THIS
- * FEATURE REQUIRES "bus-type" PROPERTY IN DT BINDINGS. For old drivers,
- * guessing @vep.bus_type between CSI-2 D-PHY, parallel and BT.656 busses is
- * supported. NEVER RELY ON GUESSING @vep.bus_type IN NEW DRIVERS!
+ * When @vep.bus_type is V4L2_MBUS_UNKNOWN, the function will use the "bus-type"
+ * property to determine the type when it is available. The caller is
+ * responsible for validating the contents of @vep.bus_type field after the call
+ * returns.
+ *
+ * As a deprecated functionality to support older DT bindings without "bus-type"
+ * property for devices that support multiple types, if the "bus-type" property
+ * does not exist, the function will attempt to guess the type based on the
+ * endpoint properties available. NEVER RELY ON GUESSING THE BUS TYPE IN NEW
+ * DRIVERS OR BINDINGS.
+ *
+ * It is also possible to set @vep.bus_type corresponding to an actual bus. In
+ * this case the function will only attempt to parse properties related to this
+ * bus, and it will return an error if the value of the "bus-type" property
+ * corresponds to a different bus.
+ *
+ * The caller is required to initialise all fields of @vep, either with
+ * explicitly values, or by zeroing them.
  *
  * The function does not change the V4L2 fwnode endpoint state if it fails.
  *
@@ -461,60 +485,7 @@ v4l2_async_notifier_parse_fwnode_endpoints(struct device *dev,
 					   parse_endpoint_func parse_endpoint);
 
 /**
- * v4l2_async_notifier_parse_fwnode_endpoints_by_port - Parse V4L2 fwnode
- *							endpoints of a port in a
- *							device node
- * @dev: the device the endpoints of which are to be parsed
- * @notifier: notifier for @dev
- * @asd_struct_size: size of the driver's async sub-device struct, including
- *		     sizeof(struct v4l2_async_subdev). The &struct
- *		     v4l2_async_subdev shall be the first member of
- *		     the driver's async sub-device struct, i.e. both
- *		     begin at the same memory address.
- * @port: port number where endpoints are to be parsed
- * @parse_endpoint: Driver's callback function called on each V4L2 fwnode
- *		    endpoint. Optional.
- *
- * This function is just like v4l2_async_notifier_parse_fwnode_endpoints() with
- * the exception that it only parses endpoints in a given port. This is useful
- * on devices that have both sinks and sources: the async sub-devices connected
- * to sources have already been configured by another driver (on capture
- * devices). In this case the driver must know which ports to parse.
- *
- * Parse the fwnode endpoints of the @dev device on a given @port and populate
- * the async sub-devices list of the notifier. The @parse_endpoint callback
- * function is called for each endpoint with the corresponding async sub-device
- * pointer to let the caller initialize the driver-specific part of the async
- * sub-device structure.
- *
- * The notifier memory shall be zeroed before this function is called on the
- * notifier the first time.
- *
- * This function may not be called on a registered notifier and may be called on
- * a notifier only once per port.
- *
- * The &struct v4l2_fwnode_endpoint passed to the callback function
- * @parse_endpoint is released once the function is finished. If there is a need
- * to retain that configuration, the user needs to allocate memory for it.
- *
- * Any notifier populated using this function must be released with a call to
- * v4l2_async_notifier_cleanup() after it has been unregistered and the async
- * sub-devices are no longer in use, even if the function returned an error.
- *
- * Return: %0 on success, including when no async sub-devices are found
- *	   %-ENOMEM if memory allocation failed
- *	   %-EINVAL if graph or endpoint parsing failed
- *	   Other error codes as returned by @parse_endpoint
- */
-int
-v4l2_async_notifier_parse_fwnode_endpoints_by_port(struct device *dev,
-						   struct v4l2_async_notifier *notifier,
-						   size_t asd_struct_size,
-						   unsigned int port,
-						   parse_endpoint_func parse_endpoint);
-
-/**
- * v4l2_fwnode_reference_parse_sensor_common - parse common references on
+ * v4l2_async_notifier_parse_fwnode_sensor_common - parse common references on
  *					       sensors for async sub-devices
  * @dev: the device node the properties of which are parsed for references
  * @notifier: the async notifier where the async subdevs will be added

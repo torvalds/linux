@@ -604,7 +604,7 @@ Buffer Flags
 	:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl is called. Due to
 	hardware limitations, the last buffer may be empty. In this case
 	the driver will set the ``bytesused`` field to 0, regardless of
-	the format. Any Any subsequent call to the
+	the format. Any subsequent call to the
 	:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will not block anymore,
 	but return an ``EPIPE`` error code.
     * .. _`V4L2-BUF-FLAG-REQUEST-FD`:

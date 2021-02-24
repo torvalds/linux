@@ -164,29 +164,24 @@ static void zero_buffer(struct tty_struct *tty, u8 *buffer, int size)
 		memset(buffer, 0x00, size);
 }
 
-static int tty_copy_to_user(struct tty_struct *tty, void __user *to,
-			    size_t tail, size_t n)
+static void tty_copy(struct tty_struct *tty, void *to, size_t tail, size_t n)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	size_t size = N_TTY_BUF_SIZE - tail;
 	void *from = read_buf_addr(ldata, tail);
-	int uncopied;
 
 	if (n > size) {
 		tty_audit_add_data(tty, from, size);
-		uncopied = copy_to_user(to, from, size);
-		zero_buffer(tty, from, size - uncopied);
-		if (uncopied)
-			return uncopied;
+		memcpy(to, from, size);
+		zero_buffer(tty, from, size);
 		to += size;
 		n -= size;
 		from = ldata->read_buf;
 	}
 
 	tty_audit_add_data(tty, from, n);
-	uncopied = copy_to_user(to, from, n);
-	zero_buffer(tty, from, n - uncopied);
-	return uncopied;
+	memcpy(to, from, n);
+	zero_buffer(tty, from, n);
 }
 
 /**
@@ -396,6 +391,7 @@ static inline int is_utf8_continuation(unsigned char c)
 /**
  *	is_continuation		-	multibyte check
  *	@c: byte to check
+ *	@tty: terminal device
  *
  *	Returns true if the utf8 character 'c' is a multibyte continuation
  *	character and the terminal is in unicode mode.
@@ -1668,6 +1664,7 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
  *	@cp: input chars
  *	@fp: flags for each char (if NULL, all chars are TTY_NORMAL)
  *	@count: number of input chars in @cp
+ *	@flow: enable flow control
  *
  *	Called by the terminal driver when a block of characters has
  *	been received. This function must be called from soft contexts
@@ -1892,8 +1889,10 @@ static void n_tty_close(struct tty_struct *tty)
 	if (tty->link)
 		n_tty_packet_mode_flush(tty);
 
+	down_write(&tty->termios_rwsem);
 	vfree(ldata);
 	tty->disc_data = NULL;
+	up_write(&tty->termios_rwsem);
 }
 
 /**
@@ -1942,42 +1941,38 @@ static inline int input_available_p(struct tty_struct *tty, int poll)
 /**
  *	copy_from_read_buf	-	copy read data directly
  *	@tty: terminal device
- *	@b: user data
+ *	@kbp: data
  *	@nr: size of data
  *
  *	Helper function to speed up n_tty_read.  It is only called when
- *	ICANON is off; it copies characters straight from the tty queue to
- *	user space directly.  It can be profitably called twice; once to
- *	drain the space from the tail pointer to the (physical) end of the
- *	buffer, and once to drain the space from the (physical) beginning of
- *	the buffer to head pointer.
+ *	ICANON is off; it copies characters straight from the tty queue.
  *
  *	Called under the ldata->atomic_read_lock sem
+ *
+ *	Returns true if it successfully copied data, but there is still
+ *	more data to be had.
  *
  *	n_tty_read()/consumer path:
  *		caller holds non-exclusive termios_rwsem
  *		read_tail published
  */
 
-static int copy_from_read_buf(struct tty_struct *tty,
-				      unsigned char __user **b,
+static bool copy_from_read_buf(struct tty_struct *tty,
+				      unsigned char **kbp,
 				      size_t *nr)
 
 {
 	struct n_tty_data *ldata = tty->disc_data;
-	int retval;
 	size_t n;
 	bool is_eof;
 	size_t head = smp_load_acquire(&ldata->commit_head);
 	size_t tail = ldata->read_tail & (N_TTY_BUF_SIZE - 1);
 
-	retval = 0;
 	n = min(head - ldata->read_tail, N_TTY_BUF_SIZE - tail);
 	n = min(*nr, n);
 	if (n) {
 		unsigned char *from = read_buf_addr(ldata, tail);
-		retval = copy_to_user(*b, from, n);
-		n -= retval;
+		memcpy(*kbp, from, n);
 		is_eof = n == 1 && *from == EOF_CHAR(tty);
 		tty_audit_add_data(tty, from, n);
 		zero_buffer(tty, from, n);
@@ -1985,22 +1980,25 @@ static int copy_from_read_buf(struct tty_struct *tty,
 		/* Turn single EOF into zero-length read */
 		if (L_EXTPROC(tty) && ldata->icanon && is_eof &&
 		    (head == ldata->read_tail))
-			n = 0;
-		*b += n;
+			return false;
+		*kbp += n;
 		*nr -= n;
+
+		/* If we have more to copy, let the caller know */
+		return head != ldata->read_tail;
 	}
-	return retval;
+	return false;
 }
 
 /**
  *	canon_copy_from_read_buf	-	copy read data in canonical mode
  *	@tty: terminal device
- *	@b: user data
+ *	@kbp: data
  *	@nr: size of data
  *
  *	Helper function for n_tty_read.  It is only called when ICANON is on;
  *	it copies one line of input up to and including the line-delimiting
- *	character into the user-space buffer.
+ *	character into the result buffer.
  *
  *	NB: When termios is changed from non-canonical to canonical mode and
  *	the read buffer contains data, n_tty_set_termios() simulates an EOF
@@ -2015,21 +2013,22 @@ static int copy_from_read_buf(struct tty_struct *tty,
  *		read_tail published
  */
 
-static int canon_copy_from_read_buf(struct tty_struct *tty,
-				    unsigned char __user **b,
-				    size_t *nr)
+static bool canon_copy_from_read_buf(struct tty_struct *tty,
+				     unsigned char **kbp,
+				     size_t *nr)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	size_t n, size, more, c;
 	size_t eol;
-	size_t tail;
-	int ret, found = 0;
+	size_t tail, canon_head;
+	int found = 0;
 
 	/* N.B. avoid overrun if nr == 0 */
 	if (!*nr)
-		return 0;
+		return false;
 
-	n = min(*nr + 1, smp_load_acquire(&ldata->canon_head) - ldata->read_tail);
+	canon_head = smp_load_acquire(&ldata->canon_head);
+	n = min(*nr + 1, canon_head - ldata->read_tail);
 
 	tail = ldata->read_tail & (N_TTY_BUF_SIZE - 1);
 	size = min_t(size_t, tail + n, N_TTY_BUF_SIZE);
@@ -2059,10 +2058,8 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 	n_tty_trace("%s: eol:%zu found:%d n:%zu c:%zu tail:%zu more:%zu\n",
 		    __func__, eol, found, n, c, tail, more);
 
-	ret = tty_copy_to_user(tty, *b, tail, n);
-	if (ret)
-		return -EFAULT;
-	*b += n;
+	tty_copy(tty, *kbp, tail, n);
+	*kbp += n;
 	*nr -= n;
 
 	if (found)
@@ -2075,12 +2072,12 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 		else
 			ldata->push = 0;
 		tty_audit_push();
+		return false;
 	}
-	return 0;
-}
 
-extern ssize_t redirected_tty_write(struct file *, const char __user *,
-							size_t, loff_t *);
+	/* No EOL found - do a continuation retry if there is more data */
+	return ldata->read_tail != canon_head;
+}
 
 /**
  *	job_control		-	check job control
@@ -2103,7 +2100,7 @@ static int job_control(struct tty_struct *tty, struct file *file)
 	/* NOTE: not yet done after every sleep pending a thorough
 	   check of the logic of this change. -- jlc */
 	/* don't stop on /dev/console */
-	if (file->f_op->write == redirected_tty_write)
+	if (file->f_op->write_iter == redirected_tty_write)
 		return 0;
 
 	return __tty_check_change(tty, SIGTTIN);
@@ -2130,10 +2127,11 @@ static int job_control(struct tty_struct *tty, struct file *file)
  */
 
 static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
-			 unsigned char __user *buf, size_t nr)
+			  unsigned char *kbuf, size_t nr,
+			  void **cookie, unsigned long offset)
 {
 	struct n_tty_data *ldata = tty->disc_data;
-	unsigned char __user *b = buf;
+	unsigned char *kb = kbuf;
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	int c;
 	int minimum, time;
@@ -2141,6 +2139,30 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 	long timeout;
 	int packet;
 	size_t tail;
+
+	/*
+	 * Is this a continuation of a read started earler?
+	 *
+	 * If so, we still hold the atomic_read_lock and the
+	 * termios_rwsem, and can just continue to copy data.
+	 */
+	if (*cookie) {
+		if (ldata->icanon && !L_EXTPROC(tty)) {
+			if (canon_copy_from_read_buf(tty, &kb, &nr))
+				return kb - kbuf;
+		} else {
+			if (copy_from_read_buf(tty, &kb, &nr))
+				return kb - kbuf;
+		}
+
+		/* No more data - release locks and stop retries */
+		n_tty_kick_worker(tty);
+		n_tty_check_unthrottle(tty);
+		up_read(&tty->termios_rwsem);
+		mutex_unlock(&ldata->atomic_read_lock);
+		*cookie = NULL;
+		return kb - kbuf;
+	}
 
 	c = job_control(tty, file);
 	if (c < 0)
@@ -2179,17 +2201,13 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 		/* First test for status change. */
 		if (packet && tty->link->ctrl_status) {
 			unsigned char cs;
-			if (b != buf)
+			if (kb != kbuf)
 				break;
 			spin_lock_irq(&tty->link->ctrl_lock);
 			cs = tty->link->ctrl_status;
 			tty->link->ctrl_status = 0;
 			spin_unlock_irq(&tty->link->ctrl_lock);
-			if (put_user(cs, b)) {
-				retval = -EFAULT;
-				break;
-			}
-			b++;
+			*kb++ = cs;
 			nr--;
 			break;
 		}
@@ -2232,33 +2250,35 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 		}
 
 		if (ldata->icanon && !L_EXTPROC(tty)) {
-			retval = canon_copy_from_read_buf(tty, &b, &nr);
-			if (retval)
-				break;
+			if (canon_copy_from_read_buf(tty, &kb, &nr))
+				goto more_to_be_read;
 		} else {
-			int uncopied;
-
 			/* Deal with packet mode. */
-			if (packet && b == buf) {
-				if (put_user(TIOCPKT_DATA, b)) {
-					retval = -EFAULT;
-					break;
-				}
-				b++;
+			if (packet && kb == kbuf) {
+				*kb++ = TIOCPKT_DATA;
 				nr--;
 			}
 
-			uncopied = copy_from_read_buf(tty, &b, &nr);
-			uncopied += copy_from_read_buf(tty, &b, &nr);
-			if (uncopied) {
-				retval = -EFAULT;
-				break;
+			/*
+			 * Copy data, and if there is more to be had
+			 * and we have nothing more to wait for, then
+			 * let's mark us for retries.
+			 *
+			 * NOTE! We return here with both the termios_sem
+			 * and atomic_read_lock still held, the retries
+			 * will release them when done.
+			 */
+			if (copy_from_read_buf(tty, &kb, &nr) && kb - kbuf >= minimum) {
+more_to_be_read:
+				remove_wait_queue(&tty->read_wait, &wait);
+				*cookie = cookie;
+				return kb - kbuf;
 			}
 		}
 
 		n_tty_check_unthrottle(tty);
 
-		if (b - buf >= minimum)
+		if (kb - kbuf >= minimum)
 			break;
 		if (time)
 			timeout = time;
@@ -2270,8 +2290,8 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 	remove_wait_queue(&tty->read_wait, &wait);
 	mutex_unlock(&ldata->atomic_read_lock);
 
-	if (b - buf)
-		retval = b - buf;
+	if (kb - kbuf)
+		retval = kb - kbuf;
 
 	return retval;
 }
@@ -2307,7 +2327,7 @@ static ssize_t n_tty_write(struct tty_struct *tty, struct file *file,
 	ssize_t retval = 0;
 
 	/* Job control check -- must be done at start (POSIX.1 7.1.1.4). */
-	if (L_TOSTOP(tty) && file->f_op->write != redirected_tty_write) {
+	if (L_TOSTOP(tty) && file->f_op->write_iter != redirected_tty_write) {
 		retval = tty_check_change(tty);
 		if (retval)
 			return retval;

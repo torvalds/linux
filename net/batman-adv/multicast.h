@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2014-2020  B.A.T.M.A.N. contributors:
+/* Copyright (C) B.A.T.M.A.N. contributors:
  *
  * Linus Lüssing
  */
@@ -10,7 +10,6 @@
 #include "main.h"
 
 #include <linux/netlink.h>
-#include <linux/seq_file.h>
 #include <linux/skbuff.h>
 
 /**
@@ -55,8 +54,6 @@ int batadv_mcast_forw_send(struct batadv_priv *bat_priv, struct sk_buff *skb,
 			   unsigned short vid);
 
 void batadv_mcast_init(struct batadv_priv *bat_priv);
-
-int batadv_mcast_flags_seq_print_text(struct seq_file *seq, void *offset);
 
 int batadv_mcast_mesh_info_put(struct sk_buff *msg,
 			       struct batadv_priv *bat_priv);

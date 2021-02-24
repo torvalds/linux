@@ -213,7 +213,8 @@ struct fib_rt_info {
 	u8			type;
 	u8			offload:1,
 				trap:1,
-				unused:6;
+				offload_failed:1,
+				unused:5;
 };
 
 struct fib_entry_notifier_info {

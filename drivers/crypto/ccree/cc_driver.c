@@ -100,6 +100,57 @@ static const struct of_device_id arm_ccree_dev_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, arm_ccree_dev_of_match);
 
+static void init_cc_cache_params(struct cc_drvdata *drvdata)
+{
+	struct device *dev = drvdata_to_dev(drvdata);
+	u32 cache_params, ace_const, val, mask;
+
+	/* compute CC_AXIM_CACHE_PARAMS */
+	cache_params = cc_ioread(drvdata, CC_REG(AXIM_CACHE_PARAMS));
+	dev_dbg(dev, "Cache params previous: 0x%08X\n", cache_params);
+
+	/* non cached or write-back, write allocate */
+	val = drvdata->coherent ? 0xb : 0x2;
+
+	mask = CC_GENMASK(CC_AXIM_CACHE_PARAMS_AWCACHE);
+	cache_params &= ~mask;
+	cache_params |= FIELD_PREP(mask, val);
+
+	mask = CC_GENMASK(CC_AXIM_CACHE_PARAMS_AWCACHE_LAST);
+	cache_params &= ~mask;
+	cache_params |= FIELD_PREP(mask, val);
+
+	mask = CC_GENMASK(CC_AXIM_CACHE_PARAMS_ARCACHE);
+	cache_params &= ~mask;
+	cache_params |= FIELD_PREP(mask, val);
+
+	drvdata->cache_params = cache_params;
+
+	dev_dbg(dev, "Cache params current: 0x%08X\n", cache_params);
+
+	if (drvdata->hw_rev <= CC_HW_REV_710)
+		return;
+
+	/* compute CC_AXIM_ACE_CONST */
+	ace_const = cc_ioread(drvdata, CC_REG(AXIM_ACE_CONST));
+	dev_dbg(dev, "ACE-const previous: 0x%08X\n", ace_const);
+
+	/* system or outer-sharable */
+	val = drvdata->coherent ? 0x2 : 0x3;
+
+	mask = CC_GENMASK(CC_AXIM_ACE_CONST_ARDOMAIN);
+	ace_const &= ~mask;
+	ace_const |= FIELD_PREP(mask, val);
+
+	mask = CC_GENMASK(CC_AXIM_ACE_CONST_AWDOMAIN);
+	ace_const &= ~mask;
+	ace_const |= FIELD_PREP(mask, val);
+
+	dev_dbg(dev, "ACE-const current: 0x%08X\n", ace_const);
+
+	drvdata->ace_const = ace_const;
+}
+
 static u32 cc_read_idr(struct cc_drvdata *drvdata, const u32 *idr_offsets)
 {
 	int i;
@@ -218,9 +269,9 @@ bool cc_wait_for_reset_completion(struct cc_drvdata *drvdata)
 	return false;
 }
 
-int init_cc_regs(struct cc_drvdata *drvdata, bool is_probe)
+int init_cc_regs(struct cc_drvdata *drvdata)
 {
-	unsigned int val, cache_params;
+	unsigned int val;
 	struct device *dev = drvdata_to_dev(drvdata);
 
 	/* Unmask all AXI interrupt sources AXI_CFG1 register   */
@@ -245,19 +296,9 @@ int init_cc_regs(struct cc_drvdata *drvdata, bool is_probe)
 
 	cc_iowrite(drvdata, CC_REG(HOST_IMR), ~val);
 
-	cache_params = (drvdata->coherent ? CC_COHERENT_CACHE_PARAMS : 0x0);
-
-	val = cc_ioread(drvdata, CC_REG(AXIM_CACHE_PARAMS));
-
-	if (is_probe)
-		dev_dbg(dev, "Cache params previous: 0x%08X\n", val);
-
-	cc_iowrite(drvdata, CC_REG(AXIM_CACHE_PARAMS), cache_params);
-	val = cc_ioread(drvdata, CC_REG(AXIM_CACHE_PARAMS));
-
-	if (is_probe)
-		dev_dbg(dev, "Cache params current: 0x%08X (expect: 0x%08X)\n",
-			val, cache_params);
+	cc_iowrite(drvdata, CC_REG(AXIM_CACHE_PARAMS), drvdata->cache_params);
+	if (drvdata->hw_rev >= CC_HW_REV_712)
+		cc_iowrite(drvdata, CC_REG(AXIM_ACE_CONST), drvdata->ace_const);
 
 	return 0;
 }
@@ -445,7 +486,9 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	}
 	dev_dbg(dev, "Registered to IRQ: %d\n", irq);
 
-	rc = init_cc_regs(new_drvdata, true);
+	init_cc_cache_params(new_drvdata);
+
+	rc = init_cc_regs(new_drvdata);
 	if (rc) {
 		dev_err(dev, "init_cc_regs failed\n");
 		goto post_pm_err;

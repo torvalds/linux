@@ -55,8 +55,6 @@ void saa7146_dma_free(struct saa7146_dev *dev,struct videobuf_queue *q,
 	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 	DEB_EE("dev:%p, buf:%p\n", dev, buf);
 
-	BUG_ON(in_interrupt());
-
 	videobuf_waiton(q, &buf->vb, 0, 0);
 	videobuf_dma_unmap(q->dev, dma);
 	videobuf_dma_free(dma);
@@ -517,8 +515,8 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 	dev->ext_vv_data = ext_vv;
 
 	vv->d_clipping.cpu_addr =
-		pci_zalloc_consistent(dev->pci, SAA7146_CLIPPING_MEM,
-				      &vv->d_clipping.dma_handle);
+		dma_alloc_coherent(&dev->pci->dev, SAA7146_CLIPPING_MEM,
+				   &vv->d_clipping.dma_handle, GFP_KERNEL);
 	if( NULL == vv->d_clipping.cpu_addr ) {
 		ERR("out of memory. aborting.\n");
 		kfree(vv);
@@ -576,7 +574,8 @@ int saa7146_vv_release(struct saa7146_dev* dev)
 	DEB_EE("dev:%p\n", dev);
 
 	v4l2_device_unregister(&dev->v4l2_dev);
-	pci_free_consistent(dev->pci, SAA7146_CLIPPING_MEM, vv->d_clipping.cpu_addr, vv->d_clipping.dma_handle);
+	dma_free_coherent(&dev->pci->dev, SAA7146_CLIPPING_MEM,
+			  vv->d_clipping.cpu_addr, vv->d_clipping.dma_handle);
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 	kfree(vv);
 	dev->vv_data = NULL;
