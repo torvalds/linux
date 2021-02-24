@@ -738,6 +738,8 @@ struct svm_range_list {
 	struct work_struct		deferred_list_work;
 	struct list_head		deferred_range_list;
 	spinlock_t			deferred_list_lock;
+	atomic_t			evicted_ranges;
+	struct delayed_work		restore_work;
 };
 
 /* Process data */
