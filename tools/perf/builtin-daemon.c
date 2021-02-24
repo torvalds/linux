@@ -161,7 +161,7 @@ static int session_config(struct daemon *daemon, const char *var, const char *va
 	struct daemon_session *session;
 	char name[100];
 
-	if (get_session_name(var, name, sizeof(name)))
+	if (get_session_name(var, name, sizeof(name) - 1))
 		return -EINVAL;
 
 	var = strchr(var, '.');
