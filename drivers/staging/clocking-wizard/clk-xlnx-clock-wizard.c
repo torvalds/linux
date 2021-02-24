@@ -138,6 +138,7 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 	void __iomem *ctrl_reg;
 	struct clk_wzrd *clk_wzrd;
 	struct device_node *np = pdev->dev.of_node;
+	int nr_outputs;
 	unsigned long flags = 0;
 
 	clk_wzrd = devm_kzalloc(&pdev->dev, sizeof(*clk_wzrd), GFP_KERNEL);
@@ -200,6 +201,14 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_disable_clk;
 	}
+
+	ret = of_property_read_u32(np, "nr-outputs", &nr_outputs);
+	if (ret || nr_outputs > WZRD_NUM_OUTPUTS) {
+		ret = -EINVAL;
+		goto err_disable_clk;
+	}
+	if (nr_outputs == 1)
+		flags = CLK_SET_RATE_PARENT;
 
 	clk_wzrd->clks_internal[wzrd_clk_mul] = clk_register_fixed_factor
 			(&pdev->dev, clk_name,
