@@ -1031,14 +1031,6 @@ mt7921_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	return 0;
 }
 
-static void
-mt7921_sta_rc_update(struct ieee80211_hw *hw,
-		     struct ieee80211_vif *vif,
-		     struct ieee80211_sta *sta,
-		     u32 changed)
-{
-}
-
 static void mt7921_sta_statistics(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
 				  struct ieee80211_sta *sta,
@@ -1165,7 +1157,6 @@ const struct ieee80211_ops mt7921_ops = {
 	.sta_add = mt7921_sta_add,
 	.sta_remove = mt7921_sta_remove,
 	.sta_pre_rcu_remove = mt76_sta_pre_rcu_remove,
-	.sta_rc_update = mt7921_sta_rc_update,
 	.set_key = mt7921_set_key,
 	.ampdu_action = mt7921_ampdu_action,
 	.set_rts_threshold = mt7921_set_rts_threshold,
