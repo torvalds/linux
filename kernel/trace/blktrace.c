@@ -1865,7 +1865,7 @@ void blk_trace_remove_sysfs(struct device *dev)
 
 /**
  * blk_fill_rwbs - Fill the buffer rwbs by mapping op to character string.
- * @rwbs	buffer to be filled
+ * @rwbs:	buffer to be filled
  * @op:		REQ_OP_XXX for the tracepoint
  *
  * Description:
