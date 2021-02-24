@@ -271,20 +271,29 @@ static void ion_dma_buf_detatch(struct dma_buf *dmabuf,
 static struct sg_table *ion_map_dma_buf(struct dma_buf_attachment *attachment,
 					enum dma_data_direction direction)
 {
-	struct ion_dma_buf_attachment *a = attachment->priv;
 	struct sg_table *table;
+	unsigned long map_attrs;
+	int count;
+	struct ion_dma_buf_attachment *a = attachment->priv;
+	struct ion_buffer *buffer = attachment->dmabuf->priv;
 
 	table = a->table;
 
-	if (!dma_map_sg_attrs(attachment->dev,
-			      table->sgl,
-			      table->nents,
-			      direction,
-			      DMA_ATTR_SKIP_CPU_SYNC))
+	map_attrs = attachment->dma_map_attrs;
+	if (!(buffer->flags & ION_FLAG_CACHED))
+		map_attrs |= DMA_ATTR_SKIP_CPU_SYNC;
+
+	mutex_lock(&buffer->lock);
+	count = dma_map_sg_attrs(attachment->dev, table->sgl,
+				 table->nents, direction,
+				 map_attrs);
+	if (count <= 0) {
+		mutex_unlock(&buffer->lock);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	a->mapped = true;
-
+	mutex_unlock(&buffer->lock);
 	return table;
 }
 
@@ -292,15 +301,19 @@ static void ion_unmap_dma_buf(struct dma_buf_attachment *attachment,
 			      struct sg_table *table,
 			      enum dma_data_direction direction)
 {
+	unsigned long map_attrs;
+	struct ion_buffer *buffer = attachment->dmabuf->priv;
 	struct ion_dma_buf_attachment *a = attachment->priv;
 
-	a->mapped = false;
+	map_attrs = attachment->dma_map_attrs;
+	if (!(buffer->flags & ION_FLAG_CACHED))
+		map_attrs |= DMA_ATTR_SKIP_CPU_SYNC;
 
-	dma_unmap_sg_attrs(attachment->dev,
-			   table->sgl,
-			   table->nents,
-			   direction,
-			   DMA_ATTR_SKIP_CPU_SYNC);
+	mutex_lock(&buffer->lock);
+	dma_unmap_sg_attrs(attachment->dev, table->sgl, table->nents,
+			   direction, map_attrs);
+	a->mapped = false;
+	mutex_unlock(&buffer->lock);
 }
 
 static int ion_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
@@ -397,6 +410,9 @@ static int ion_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 	struct ion_dma_buf_attachment *a;
 	int ret = 0;
 
+	if (!(buffer->flags & ION_FLAG_CACHED))
+		return 0;
+
 	/*
 	 * TODO: Move this elsewhere because we don't always need a vaddr
 	 */
@@ -428,6 +444,9 @@ static int ion_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 {
 	struct ion_buffer *buffer = dmabuf->priv;
 	struct ion_dma_buf_attachment *a;
+
+	if (!(buffer->flags & ION_FLAG_CACHED))
+		return 0;
 
 	if (buffer->heap->ops->map_kernel) {
 		mutex_lock(&buffer->lock);
