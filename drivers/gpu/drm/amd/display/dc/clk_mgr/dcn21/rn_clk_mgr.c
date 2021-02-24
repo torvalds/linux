@@ -797,7 +797,18 @@ static struct wm_table lpddr4_wm_table_rn = {
 		},
 	}
 };
+static unsigned int find_socclk_for_voltage(struct dpm_clocks *clock_table, unsigned int voltage)
+{
+	int i;
 
+	for (i = 0; i < PP_SMU_NUM_SOCCLK_DPM_LEVELS; i++) {
+		if (clock_table->SocClocks[i].Vol == voltage)
+			return clock_table->SocClocks[i].Freq;
+	}
+
+	ASSERT(0);
+	return 0;
+}
 static unsigned int find_dcfclk_for_voltage(struct dpm_clocks *clock_table, unsigned int voltage)
 {
 	int i;
@@ -841,6 +852,8 @@ static void rn_clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params
 		bw_params->clk_table.entries[i].memclk_mhz = clock_table->MemClocks[j].Freq;
 		bw_params->clk_table.entries[i].voltage = clock_table->FClocks[j].Vol;
 		bw_params->clk_table.entries[i].dcfclk_mhz = find_dcfclk_for_voltage(clock_table, clock_table->FClocks[j].Vol);
+		bw_params->clk_table.entries[i].socclk_mhz = find_socclk_for_voltage(clock_table,
+									bw_params->clk_table.entries[i].voltage);
 	}
 
 	bw_params->vram_type = bios_info->memory_type;
