@@ -1,6 +1,8 @@
 FROM ubuntu:18.04
 
+ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update
+RUN apt-get install -y apt-utils
 RUN apt-get install -y software-properties-common
 RUN apt-get install -y sudo
 RUN apt-get install -y make
@@ -9,6 +11,13 @@ RUN apt-get install -y python
 RUN apt-get install -y python-pip
 RUN apt-get install -y ditaa
 RUN apt-get install -y graphviz
+RUN apt-get install -y imagemagick
+RUN apt-get install -y dvipng
+RUN apt-get install -y python3-venv
+RUN apt-get install -y fonts-noto-cjk
+RUN apt-get install -y latexmk
+RUN apt-get install -y librsvg2-bin
+RUN apt-get install -y texlive-xetex
 RUN pip install Sphinx==1.6.7 sphinx_rtd_theme hieroglyph==1.0
 # append new packages here, to minimize docker rebuild time
 RUN rm -rf /var/lib/apt/lists/*
