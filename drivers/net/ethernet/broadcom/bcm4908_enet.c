@@ -583,6 +583,8 @@ static int bcm4908_enet_poll(struct napi_struct *napi, int weight)
 
 		enet->netdev->stats.rx_packets++;
 		enet->netdev->stats.rx_bytes += len;
+
+		handled++;
 	}
 
 	if (handled < weight) {
