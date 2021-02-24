@@ -95,8 +95,6 @@
 		       16, 4, buf, __len, false);                        \
 } while (0)
 
-static bool early_suspend;
-
 int ufshcd_dump_regs(struct ufs_hba *hba, size_t offset, size_t len,
 		     const char *prefix)
 {
@@ -8978,11 +8976,6 @@ int ufshcd_system_suspend(struct ufs_hba *hba)
 	int ret = 0;
 	ktime_t start = ktime_get();
 
-	if (!hba) {
-		early_suspend = true;
-		return 0;
-	}
-
 	down(&hba->host_sem);
 
 	if (!hba->is_powered)
@@ -9034,14 +9027,6 @@ int ufshcd_system_resume(struct ufs_hba *hba)
 	int ret = 0;
 	ktime_t start = ktime_get();
 
-	if (!hba)
-		return -EINVAL;
-
-	if (unlikely(early_suspend)) {
-		early_suspend = false;
-		down(&hba->host_sem);
-	}
-
 	if (!hba->is_powered || pm_runtime_suspended(hba->dev))
 		/*
 		 * Let the runtime resume take care of resuming
@@ -9073,9 +9058,6 @@ int ufshcd_runtime_suspend(struct ufs_hba *hba)
 {
 	int ret = 0;
 	ktime_t start = ktime_get();
-
-	if (!hba)
-		return -EINVAL;
 
 	if (!hba->is_powered)
 		goto out;
@@ -9114,9 +9096,6 @@ int ufshcd_runtime_resume(struct ufs_hba *hba)
 {
 	int ret = 0;
 	ktime_t start = ktime_get();
-
-	if (!hba)
-		return -EINVAL;
 
 	if (!hba->is_powered)
 		goto out;
