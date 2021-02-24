@@ -235,6 +235,14 @@ static inline void stat(const struct kmem_cache *s, enum stat_item si)
 #endif
 }
 
+/*
+ * Tracks for which NUMA nodes we have kmem_cache_nodes allocated.
+ * Corresponds to node_state[N_NORMAL_MEMORY], but can temporarily
+ * differ during memory hotplug/hotremove operations.
+ * Protected by slab_mutex.
+ */
+static nodemask_t slab_nodes;
+
 /********************************************************************
  * 			Core slab cache functions
  *******************************************************************/
@@ -2678,7 +2686,7 @@ static void *___slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
 		 * ignore the node constraint
 		 */
 		if (unlikely(node != NUMA_NO_NODE &&
-			     !node_state(node, N_NORMAL_MEMORY)))
+			     !node_isset(node, slab_nodes)))
 			node = NUMA_NO_NODE;
 		goto new_slab;
 	}
@@ -2689,7 +2697,7 @@ redo:
 		 * same as above but node_match() being false already
 		 * implies node != NUMA_NO_NODE
 		 */
-		if (!node_state(node, N_NORMAL_MEMORY)) {
+		if (!node_isset(node, slab_nodes)) {
 			node = NUMA_NO_NODE;
 			goto redo;
 		} else {
@@ -3592,7 +3600,7 @@ static int init_kmem_cache_nodes(struct kmem_cache *s)
 {
 	int node;
 
-	for_each_node_state(node, N_NORMAL_MEMORY) {
+	for_each_node_mask(node, slab_nodes) {
 		struct kmem_cache_node *n;
 
 		if (slab_state == DOWN) {
@@ -4286,6 +4294,7 @@ static void slab_mem_offline_callback(void *arg)
 		return;
 
 	mutex_lock(&slab_mutex);
+	node_clear(offline_node, slab_nodes);
 	/*
 	 * We no longer free kmem_cache_node structures here, as it would be
 	 * racy with all get_node() users, and infeasible to protect them with
@@ -4335,6 +4344,11 @@ static int slab_mem_going_online_callback(void *arg)
 		init_kmem_cache_node(n);
 		s->node[nid] = n;
 	}
+	/*
+	 * Any cache created after this point will also have kmem_cache_node
+	 * initialized for the new node.
+	 */
+	node_set(nid, slab_nodes);
 out:
 	mutex_unlock(&slab_mutex);
 	return ret;
@@ -4415,12 +4429,20 @@ void __init kmem_cache_init(void)
 {
 	static __initdata struct kmem_cache boot_kmem_cache,
 		boot_kmem_cache_node;
+	int node;
 
 	if (debug_guardpage_minorder())
 		slub_max_order = 0;
 
 	kmem_cache_node = &boot_kmem_cache_node;
 	kmem_cache = &boot_kmem_cache;
+
+	/*
+	 * Initialize the nodemask for which we will allocate per node
+	 * structures. Here we don't need taking slab_mutex yet.
+	 */
+	for_each_node_state(node, N_NORMAL_MEMORY)
+		node_set(node, slab_nodes);
 
 	create_boot_cache(kmem_cache_node, "kmem_cache_node",
 		sizeof(struct kmem_cache_node), SLAB_HWCACHE_ALIGN, 0, 0);
