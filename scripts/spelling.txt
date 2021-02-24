@@ -566,6 +566,7 @@ estbalishment||establishment
 etsablishment||establishment
 etsbalishment||establishment
 evalution||evaluation
+exeeds||exceeds
 excecutable||executable
 exceded||exceeded
 exceds||exceeds
