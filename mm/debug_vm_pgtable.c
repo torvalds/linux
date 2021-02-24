@@ -63,6 +63,16 @@ static void __init pte_basic_tests(unsigned long pfn, pgprot_t prot)
 	pte_t pte = pfn_pte(pfn, prot);
 
 	pr_debug("Validating PTE basic\n");
+
+	/*
+	 * This test needs to be executed after the given page table entry
+	 * is created with pfn_pte() to make sure that protection_map[idx]
+	 * does not have the dirty bit enabled from the beginning. This is
+	 * important for platforms like arm64 where (!PTE_RDONLY) indicate
+	 * dirty bit being set.
+	 */
+	WARN_ON(pte_dirty(pte_wrprotect(pte)));
+
 	WARN_ON(!pte_same(pte, pte));
 	WARN_ON(!pte_young(pte_mkyoung(pte_mkold(pte))));
 	WARN_ON(!pte_dirty(pte_mkdirty(pte_mkclean(pte))));
@@ -70,6 +80,8 @@ static void __init pte_basic_tests(unsigned long pfn, pgprot_t prot)
 	WARN_ON(pte_young(pte_mkold(pte_mkyoung(pte))));
 	WARN_ON(pte_dirty(pte_mkclean(pte_mkdirty(pte))));
 	WARN_ON(pte_write(pte_wrprotect(pte_mkwrite(pte))));
+	WARN_ON(pte_dirty(pte_wrprotect(pte_mkclean(pte))));
+	WARN_ON(!pte_dirty(pte_wrprotect(pte_mkdirty(pte))));
 }
 
 static void __init pte_advanced_tests(struct mm_struct *mm,
@@ -137,6 +149,17 @@ static void __init pmd_basic_tests(unsigned long pfn, pgprot_t prot)
 		return;
 
 	pr_debug("Validating PMD basic\n");
+
+	/*
+	 * This test needs to be executed after the given page table entry
+	 * is created with pfn_pmd() to make sure that protection_map[idx]
+	 * does not have the dirty bit enabled from the beginning. This is
+	 * important for platforms like arm64 where (!PTE_RDONLY) indicate
+	 * dirty bit being set.
+	 */
+	WARN_ON(pmd_dirty(pmd_wrprotect(pmd)));
+
+
 	WARN_ON(!pmd_same(pmd, pmd));
 	WARN_ON(!pmd_young(pmd_mkyoung(pmd_mkold(pmd))));
 	WARN_ON(!pmd_dirty(pmd_mkdirty(pmd_mkclean(pmd))));
@@ -144,6 +167,8 @@ static void __init pmd_basic_tests(unsigned long pfn, pgprot_t prot)
 	WARN_ON(pmd_young(pmd_mkold(pmd_mkyoung(pmd))));
 	WARN_ON(pmd_dirty(pmd_mkclean(pmd_mkdirty(pmd))));
 	WARN_ON(pmd_write(pmd_wrprotect(pmd_mkwrite(pmd))));
+	WARN_ON(pmd_dirty(pmd_wrprotect(pmd_mkclean(pmd))));
+	WARN_ON(!pmd_dirty(pmd_wrprotect(pmd_mkdirty(pmd))));
 	/*
 	 * A huge page does not point to next level page table
 	 * entry. Hence this must qualify as pmd_bad().
@@ -257,11 +282,25 @@ static void __init pud_basic_tests(unsigned long pfn, pgprot_t prot)
 		return;
 
 	pr_debug("Validating PUD basic\n");
+
+	/*
+	 * This test needs to be executed after the given page table entry
+	 * is created with pfn_pud() to make sure that protection_map[idx]
+	 * does not have the dirty bit enabled from the beginning. This is
+	 * important for platforms like arm64 where (!PTE_RDONLY) indicate
+	 * dirty bit being set.
+	 */
+	WARN_ON(pud_dirty(pud_wrprotect(pud)));
+
 	WARN_ON(!pud_same(pud, pud));
 	WARN_ON(!pud_young(pud_mkyoung(pud_mkold(pud))));
+	WARN_ON(!pud_dirty(pud_mkdirty(pud_mkclean(pud))));
+	WARN_ON(pud_dirty(pud_mkclean(pud_mkdirty(pud))));
 	WARN_ON(!pud_write(pud_mkwrite(pud_wrprotect(pud))));
 	WARN_ON(pud_write(pud_wrprotect(pud_mkwrite(pud))));
 	WARN_ON(pud_young(pud_mkold(pud_mkyoung(pud))));
+	WARN_ON(pud_dirty(pud_wrprotect(pud_mkclean(pud))));
+	WARN_ON(!pud_dirty(pud_wrprotect(pud_mkdirty(pud))));
 
 	if (mm_pmd_folded(mm))
 		return;
