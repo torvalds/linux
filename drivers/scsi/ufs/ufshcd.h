@@ -326,10 +326,6 @@ struct ufs_pwr_mode_info {
  * @event_notify: called to notify important events
  * @fill_prdt: called after initializing the standard PRDT fields so that any
  *	       variant-specific PRDT fields can be initialized too
- * @prepare_command: called when receiving a request in the first place
- * @update_sysfs: adds vendor-specific sysfs entries
- * @send_command: adds vendor-specific work when sending a command
- * @compl_command: adds vendor-specific work when completing a command
  */
 struct ufs_hba_variant_ops {
 	const char *name;
@@ -368,11 +364,6 @@ struct ufs_hba_variant_ops {
 				enum ufs_event_type evt, void *data);
 	int	(*fill_prdt)(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
 			     unsigned int segments);
-	int	(*prepare_command)(struct ufs_hba *hba,
-				struct request *rq, struct ufshcd_lrb *lrbp);
-	int     (*update_sysfs)(struct ufs_hba *hba);
-	void	(*send_command)(struct ufs_hba *hba, struct ufshcd_lrb *lrbp);
-	void	(*compl_command)(struct ufs_hba *hba, struct ufshcd_lrb *lrbp);
 };
 
 /* clock gating state  */
@@ -1285,35 +1276,6 @@ static inline int ufshcd_vops_fill_prdt(struct ufs_hba *hba,
 		return hba->vops->fill_prdt(hba, lrbp, segments);
 
 	return 0;
-}
-
-static inline int ufshcd_vops_prepare_command(struct ufs_hba *hba,
-		struct request *rq, struct ufshcd_lrb *lrbp)
-{
-	if (hba->vops && hba->vops->prepare_command)
-		return hba->vops->prepare_command(hba, rq, lrbp);
-	return 0;
-}
-
-static inline int ufshcd_vops_update_sysfs(struct ufs_hba *hba)
-{
-	if (hba->vops && hba->vops->update_sysfs)
-		return hba->vops->update_sysfs(hba);
-	return 0;
-}
-
-static inline void ufshcd_vops_send_command(struct ufs_hba *hba,
-				struct ufshcd_lrb *lrbp)
-{
-	if (hba->vops && hba->vops->send_command)
-		hba->vops->send_command(hba, lrbp);
-}
-
-static inline void ufshcd_vops_compl_command(struct ufs_hba *hba,
-				struct ufshcd_lrb *lrbp)
-{
-	if (hba->vops && hba->vops->compl_command)
-		hba->vops->compl_command(hba, lrbp);
 }
 
 extern struct ufs_pm_lvl_states ufs_pm_lvl_states[];
