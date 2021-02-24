@@ -57,5 +57,6 @@ struct rkispp_hw_dev {
 	bool is_single;
 	bool is_fec_ext;
 	bool is_dma_contig;
+	bool is_shutdown;
 };
 #endif

@@ -55,16 +55,16 @@ struct rkisp_hw_dev {
 	struct list_head rpt_list;
 	struct rkisp_dummy_buffer dummy_buf;
 	const struct vb2_mem_ops *mem_ops;
+	u64 iq_feature;
+	bool is_feature_on;
 	bool is_dma_contig;
 	bool is_mmu;
 	bool is_idle;
 	bool is_single;
 	bool is_mi_update;
 	bool is_thunderboot;
-
-	bool is_feature_on;
-	u64 iq_feature;
 	bool is_buf_init;
+	bool is_shutdown;
 };
 
 int rkisp_register_irq(struct rkisp_hw_dev *dev);

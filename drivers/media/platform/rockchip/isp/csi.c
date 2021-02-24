@@ -590,7 +590,8 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode)
 	v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
 		 "readback frame:%d time:%d 0x%x\n",
 		 cur_frame_id, dma2frm + 1, val);
-	rkisp_write(dev, CSI2RX_CTRL0, val, true);
+	if (!hw->is_shutdown)
+		rkisp_write(dev, CSI2RX_CTRL0, val, true);
 }
 
 static void rkisp_dev_trigger_handle(struct rkisp_device *dev, u32 cmd)
@@ -606,6 +607,8 @@ static void rkisp_dev_trigger_handle(struct rkisp_device *dev, u32 cmd)
 	spin_lock_irqsave(&hw->rdbk_lock, lock_flags);
 	if (cmd == T_CMD_END)
 		hw->is_idle = true;
+	if (hw->is_shutdown)
+		hw->is_idle = false;
 	if (!hw->is_idle)
 		goto end;
 	for (i = 0; i < hw->dev_num; i++) {

@@ -717,6 +717,7 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	hw_dev->is_mi_update = false;
 	hw_dev->is_dma_contig = true;
 	hw_dev->is_buf_init = false;
+	hw_dev->is_shutdown = false;
 	hw_dev->is_mmu = is_iommu_enable(dev);
 	ret = of_reserved_mem_device_init(dev);
 	if (ret) {
@@ -746,6 +747,16 @@ static int rkisp_hw_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	mutex_destroy(&hw_dev->dev_lock);
 	return 0;
+}
+
+static void rkisp_hw_shutdown(struct platform_device *pdev)
+{
+	struct rkisp_hw_dev *hw_dev = platform_get_drvdata(pdev);
+
+	hw_dev->is_shutdown = true;
+	if (pm_runtime_active(&pdev->dev))
+		writel(0xffff, hw_dev->base_addr + CIF_IRCL);
+	dev_info(&pdev->dev, "%s\n", __func__);
 }
 
 static int __maybe_unused rkisp_runtime_suspend(struct device *dev)
@@ -793,6 +804,7 @@ static struct platform_driver rkisp_hw_drv = {
 	},
 	.probe = rkisp_hw_probe,
 	.remove = rkisp_hw_remove,
+	.shutdown = rkisp_hw_shutdown,
 };
 
 #if IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISP) && IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISPP)
