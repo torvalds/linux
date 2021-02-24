@@ -239,8 +239,8 @@ using a shell script test runner.  ``kselftest/module.sh`` is designed
 to facilitate this process.  There is also a header file provided to
 assist writing kernel modules that are for use with kselftest:
 
-- ``tools/testing/kselftest/kselftest_module.h``
-- ``tools/testing/kselftest/kselftest/module.sh``
+- ``tools/testing/selftests/kselftest_module.h``
+- ``tools/testing/selftests/kselftest/module.sh``
 
 How to use
 ----------
