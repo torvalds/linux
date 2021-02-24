@@ -532,6 +532,8 @@ int hl_mmu_va_to_pa(struct hl_ctx *ctx, u64 virt_addr, u64 *phys_addr)
 	struct hl_mmu_hop_info hops;
 	int rc;
 
+	memset(&hops, 0, sizeof(hops));
+
 	rc = hl_mmu_get_tlb_info(ctx, virt_addr, &hops);
 	if (rc)
 		return rc;

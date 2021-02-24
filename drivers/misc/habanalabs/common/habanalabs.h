@@ -969,10 +969,14 @@ struct hl_asic_funcs {
 	void (*update_eq_ci)(struct hl_device *hdev, u32 val);
 	int (*context_switch)(struct hl_device *hdev, u32 asid);
 	void (*restore_phase_topology)(struct hl_device *hdev);
-	int (*debugfs_read32)(struct hl_device *hdev, u64 addr, u32 *val);
-	int (*debugfs_write32)(struct hl_device *hdev, u64 addr, u32 val);
-	int (*debugfs_read64)(struct hl_device *hdev, u64 addr, u64 *val);
-	int (*debugfs_write64)(struct hl_device *hdev, u64 addr, u64 val);
+	int (*debugfs_read32)(struct hl_device *hdev, u64 addr,
+				bool user_address, u32 *val);
+	int (*debugfs_write32)(struct hl_device *hdev, u64 addr,
+				bool user_address, u32 val);
+	int (*debugfs_read64)(struct hl_device *hdev, u64 addr,
+				bool user_address, u64 *val);
+	int (*debugfs_write64)(struct hl_device *hdev, u64 addr,
+				bool user_address, u64 val);
 	void (*add_device_attr)(struct hl_device *hdev,
 				struct attribute_group *dev_attr_grp);
 	void (*handle_eqe)(struct hl_device *hdev,

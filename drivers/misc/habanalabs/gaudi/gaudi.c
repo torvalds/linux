@@ -5911,12 +5911,15 @@ static void gaudi_restore_phase_topology(struct hl_device *hdev)
 
 }
 
-static int gaudi_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
+static int gaudi_debugfs_read32(struct hl_device *hdev, u64 addr,
+			bool user_address, u32 *val)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct gaudi_device *gaudi = hdev->asic_specific;
-	u64 hbm_bar_addr;
+	u64 hbm_bar_addr, host_phys_end;
 	int rc = 0;
+
+	host_phys_end = HOST_PHYS_BASE + HOST_PHYS_SIZE;
 
 	if ((addr >= CFG_BASE) && (addr < CFG_BASE + CFG_SIZE)) {
 
@@ -5949,6 +5952,9 @@ static int gaudi_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
 		}
 		if (hbm_bar_addr == U64_MAX)
 			rc = -EIO;
+	} else if (addr >= HOST_PHYS_BASE && addr < host_phys_end &&
+			user_address && !iommu_present(&pci_bus_type)) {
+		*val = *(u32 *) phys_to_virt(addr - HOST_PHYS_BASE);
 	} else {
 		rc = -EFAULT;
 	}
@@ -5956,12 +5962,15 @@ static int gaudi_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
 	return rc;
 }
 
-static int gaudi_debugfs_write32(struct hl_device *hdev, u64 addr, u32 val)
+static int gaudi_debugfs_write32(struct hl_device *hdev, u64 addr,
+			bool user_address, u32 val)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct gaudi_device *gaudi = hdev->asic_specific;
-	u64 hbm_bar_addr;
+	u64 hbm_bar_addr, host_phys_end;
 	int rc = 0;
+
+	host_phys_end = HOST_PHYS_BASE + HOST_PHYS_SIZE;
 
 	if ((addr >= CFG_BASE) && (addr < CFG_BASE + CFG_SIZE)) {
 
@@ -5994,6 +6003,9 @@ static int gaudi_debugfs_write32(struct hl_device *hdev, u64 addr, u32 val)
 		}
 		if (hbm_bar_addr == U64_MAX)
 			rc = -EIO;
+	} else if (addr >= HOST_PHYS_BASE && addr < host_phys_end &&
+			user_address && !iommu_present(&pci_bus_type)) {
+		*(u32 *) phys_to_virt(addr - HOST_PHYS_BASE) = val;
 	} else {
 		rc = -EFAULT;
 	}
@@ -6001,12 +6013,15 @@ static int gaudi_debugfs_write32(struct hl_device *hdev, u64 addr, u32 val)
 	return rc;
 }
 
-static int gaudi_debugfs_read64(struct hl_device *hdev, u64 addr, u64 *val)
+static int gaudi_debugfs_read64(struct hl_device *hdev, u64 addr,
+				bool user_address, u64 *val)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct gaudi_device *gaudi = hdev->asic_specific;
-	u64 hbm_bar_addr;
+	u64 hbm_bar_addr, host_phys_end;
 	int rc = 0;
+
+	host_phys_end = HOST_PHYS_BASE + HOST_PHYS_SIZE;
 
 	if ((addr >= CFG_BASE) && (addr <= CFG_BASE + CFG_SIZE - sizeof(u64))) {
 
@@ -6043,6 +6058,9 @@ static int gaudi_debugfs_read64(struct hl_device *hdev, u64 addr, u64 *val)
 		}
 		if (hbm_bar_addr == U64_MAX)
 			rc = -EIO;
+	} else if (addr >= HOST_PHYS_BASE && addr < host_phys_end &&
+			user_address && !iommu_present(&pci_bus_type)) {
+		*val = *(u64 *) phys_to_virt(addr - HOST_PHYS_BASE);
 	} else {
 		rc = -EFAULT;
 	}
@@ -6050,12 +6068,15 @@ static int gaudi_debugfs_read64(struct hl_device *hdev, u64 addr, u64 *val)
 	return rc;
 }
 
-static int gaudi_debugfs_write64(struct hl_device *hdev, u64 addr, u64 val)
+static int gaudi_debugfs_write64(struct hl_device *hdev, u64 addr,
+				bool user_address, u64 val)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct gaudi_device *gaudi = hdev->asic_specific;
-	u64 hbm_bar_addr;
+	u64 hbm_bar_addr, host_phys_end;
 	int rc = 0;
+
+	host_phys_end = HOST_PHYS_BASE + HOST_PHYS_SIZE;
 
 	if ((addr >= CFG_BASE) && (addr <= CFG_BASE + CFG_SIZE - sizeof(u64))) {
 
@@ -6091,6 +6112,9 @@ static int gaudi_debugfs_write64(struct hl_device *hdev, u64 addr, u64 val)
 		}
 		if (hbm_bar_addr == U64_MAX)
 			rc = -EIO;
+	} else if (addr >= HOST_PHYS_BASE && addr < host_phys_end &&
+			user_address && !iommu_present(&pci_bus_type)) {
+		*(u64 *) phys_to_virt(addr - HOST_PHYS_BASE) = val;
 	} else {
 		rc = -EFAULT;
 	}

@@ -457,21 +457,58 @@ out:
 	return false;
 }
 
-static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr,
-				u64 *phys_addr)
+static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr, u32 size,
+			u64 *phys_addr)
 {
+	struct hl_vm_phys_pg_pack *phys_pg_pack;
 	struct hl_ctx *ctx = hdev->compute_ctx;
-	int rc = 0;
+	struct hl_vm_hash_node *hnode;
+	struct hl_userptr *userptr;
+	enum vm_type_t *vm_type;
+	bool valid = false;
+	u64 end_address;
+	u32 range_size;
+	int i, rc = 0;
 
 	if (!ctx) {
 		dev_err(hdev->dev, "no ctx available\n");
 		return -EINVAL;
 	}
 
+	/* Verify address is mapped */
+	mutex_lock(&ctx->mem_hash_lock);
+	hash_for_each(ctx->mem_hash, i, hnode, node) {
+		vm_type = hnode->ptr;
+
+		if (*vm_type == VM_TYPE_USERPTR) {
+			userptr = hnode->ptr;
+			range_size = userptr->size;
+		} else {
+			phys_pg_pack = hnode->ptr;
+			range_size = phys_pg_pack->total_size;
+		}
+
+		end_address = virt_addr + size;
+		if ((virt_addr >= hnode->vaddr) &&
+				(end_address <= hnode->vaddr + range_size)) {
+			valid = true;
+			break;
+		}
+	}
+	mutex_unlock(&ctx->mem_hash_lock);
+
+	if (!valid) {
+		dev_err(hdev->dev,
+			"virt addr 0x%llx is not mapped\n",
+			virt_addr);
+		return -EINVAL;
+	}
+
 	rc = hl_mmu_va_to_pa(ctx, virt_addr, phys_addr);
 	if (rc) {
-		dev_err(hdev->dev, "virt addr 0x%llx is not mapped to phys addr\n",
-				virt_addr);
+		dev_err(hdev->dev,
+			"virt addr 0x%llx is not mapped to phys addr\n",
+			virt_addr);
 		rc = -EINVAL;
 	}
 
@@ -483,10 +520,11 @@ static ssize_t hl_data_read32(struct file *f, char __user *buf,
 {
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
-	char tmp_buf[32];
 	u64 addr = entry->addr;
-	u32 val;
+	bool user_address;
+	char tmp_buf[32];
 	ssize_t rc;
+	u32 val;
 
 	if (atomic_read(&hdev->in_reset)) {
 		dev_warn_ratelimited(hdev->dev, "Can't read during reset\n");
@@ -496,13 +534,14 @@ static ssize_t hl_data_read32(struct file *f, char __user *buf,
 	if (*ppos)
 		return 0;
 
-	if (hl_is_device_va(hdev, addr)) {
-		rc = device_va_to_pa(hdev, addr, &addr);
+	user_address = hl_is_device_va(hdev, addr);
+	if (user_address) {
+		rc = device_va_to_pa(hdev, addr, sizeof(val), &addr);
 		if (rc)
 			return rc;
 	}
 
-	rc = hdev->asic_funcs->debugfs_read32(hdev, addr, &val);
+	rc = hdev->asic_funcs->debugfs_read32(hdev, addr, user_address, &val);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to read from 0x%010llx\n", addr);
 		return rc;
@@ -519,6 +558,7 @@ static ssize_t hl_data_write32(struct file *f, const char __user *buf,
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
 	u64 addr = entry->addr;
+	bool user_address;
 	u32 value;
 	ssize_t rc;
 
@@ -531,13 +571,14 @@ static ssize_t hl_data_write32(struct file *f, const char __user *buf,
 	if (rc)
 		return rc;
 
-	if (hl_is_device_va(hdev, addr)) {
-		rc = device_va_to_pa(hdev, addr, &addr);
+	user_address = hl_is_device_va(hdev, addr);
+	if (user_address) {
+		rc = device_va_to_pa(hdev, addr, sizeof(value), &addr);
 		if (rc)
 			return rc;
 	}
 
-	rc = hdev->asic_funcs->debugfs_write32(hdev, addr, value);
+	rc = hdev->asic_funcs->debugfs_write32(hdev, addr, user_address, value);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to write 0x%08x to 0x%010llx\n",
 			value, addr);
@@ -552,21 +593,23 @@ static ssize_t hl_data_read64(struct file *f, char __user *buf,
 {
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
-	char tmp_buf[32];
 	u64 addr = entry->addr;
-	u64 val;
+	bool user_address;
+	char tmp_buf[32];
 	ssize_t rc;
+	u64 val;
 
 	if (*ppos)
 		return 0;
 
-	if (hl_is_device_va(hdev, addr)) {
-		rc = device_va_to_pa(hdev, addr, &addr);
+	user_address = hl_is_device_va(hdev, addr);
+	if (user_address) {
+		rc = device_va_to_pa(hdev, addr, sizeof(val), &addr);
 		if (rc)
 			return rc;
 	}
 
-	rc = hdev->asic_funcs->debugfs_read64(hdev, addr, &val);
+	rc = hdev->asic_funcs->debugfs_read64(hdev, addr, user_address, &val);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to read from 0x%010llx\n", addr);
 		return rc;
@@ -583,6 +626,7 @@ static ssize_t hl_data_write64(struct file *f, const char __user *buf,
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
 	u64 addr = entry->addr;
+	bool user_address;
 	u64 value;
 	ssize_t rc;
 
@@ -590,13 +634,14 @@ static ssize_t hl_data_write64(struct file *f, const char __user *buf,
 	if (rc)
 		return rc;
 
-	if (hl_is_device_va(hdev, addr)) {
-		rc = device_va_to_pa(hdev, addr, &addr);
+	user_address = hl_is_device_va(hdev, addr);
+	if (user_address) {
+		rc = device_va_to_pa(hdev, addr, sizeof(value), &addr);
 		if (rc)
 			return rc;
 	}
 
-	rc = hdev->asic_funcs->debugfs_write64(hdev, addr, value);
+	rc = hdev->asic_funcs->debugfs_write64(hdev, addr, user_address, value);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to write 0x%016llx to 0x%010llx\n",
 			value, addr);
