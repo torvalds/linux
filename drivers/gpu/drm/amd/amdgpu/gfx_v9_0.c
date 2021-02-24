@@ -1522,9 +1522,10 @@ out:
 
 static bool gfx_v9_0_load_mec2_fw_bin_support(struct amdgpu_device *adev)
 {
-	if (adev->asic_type == CHIP_ARCTURUS  ||
+	if (adev->asic_type == CHIP_ALDEBARAN ||
+	    adev->asic_type == CHIP_ARCTURUS ||
 	    adev->asic_type == CHIP_RENOIR)
-	    return false;
+		return false;
 
 	return true;
 }
