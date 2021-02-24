@@ -13146,8 +13146,8 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 	/* notify opregion of the sanitized encoder state */
 	intel_opregion_notify_encoder(encoder, connector && has_active_crtc);
 
-	if (INTEL_GEN(dev_priv) >= 11)
-		icl_sanitize_encoder_pll_mapping(encoder);
+	if (HAS_DDI(dev_priv))
+		intel_ddi_sanitize_encoder_pll_mapping(encoder);
 }
 
 /* FIXME read out full plane state for all planes */

@@ -66,6 +66,6 @@ u32 ddi_signal_levels(struct intel_dp *intel_dp,
 int intel_ddi_toggle_hdcp_bits(struct intel_encoder *intel_encoder,
 			       enum transcoder cpu_transcoder,
 			       bool enable, u32 hdcp_mask);
-void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder);
+void intel_ddi_sanitize_encoder_pll_mapping(struct intel_encoder *encoder);
 
 #endif /* __INTEL_DDI_H__ */

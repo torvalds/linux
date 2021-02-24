@@ -2133,7 +2133,7 @@ static void intel_ddi_disable_clock(struct intel_encoder *encoder)
 		encoder->disable_clock(encoder);
 }
 
-void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
+void intel_ddi_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	u32 port_mask;
