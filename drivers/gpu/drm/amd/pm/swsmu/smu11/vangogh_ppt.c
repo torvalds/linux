@@ -1685,9 +1685,9 @@ static int vangogh_system_features_control(struct smu_context *smu, bool en)
 	uint32_t feature_mask[2];
 	int ret = 0;
 
-	if (adev->pm.fw_version >= 0x43f1700)
+	if (adev->pm.fw_version >= 0x43f1700 && !en)
 		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_RlcPowerNotify,
-						      en ? RLC_STATUS_NORMAL : RLC_STATUS_OFF, NULL);
+						      RLC_STATUS_OFF, NULL);
 
 	bitmap_zero(feature->enabled, feature->feature_num);
 	bitmap_zero(feature->supported, feature->feature_num);
