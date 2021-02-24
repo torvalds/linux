@@ -153,6 +153,7 @@ SYM_CODE_START_LOCAL(enter_vhe)
 	// Invalidate TLBs before enabling the MMU
 	tlbi	vmalle1
 	dsb	nsh
+	isb
 
 	// Enable the EL2 S1 MMU, as set up from EL1
 	mrs_s	x0, SYS_SCTLR_EL12
