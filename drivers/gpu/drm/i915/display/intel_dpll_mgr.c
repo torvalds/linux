@@ -176,7 +176,7 @@ void intel_prepare_shared_dpll(const struct intel_crtc_state *crtc_state)
 		return;
 
 	mutex_lock(&dev_priv->dpll.lock);
-	drm_WARN_ON(&dev_priv->drm, !pll->state.crtc_mask);
+	drm_WARN_ON(&dev_priv->drm, !pll->state.pipe_mask);
 	if (!pll->active_mask) {
 		drm_dbg(&dev_priv->drm, "setting up %s\n", pll->info->name);
 		drm_WARN_ON(&dev_priv->drm, pll->on);
@@ -198,7 +198,7 @@ void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
-	unsigned int crtc_mask = drm_crtc_mask(&crtc->base);
+	unsigned int pipe_mask = BIT(crtc->pipe);
 	unsigned int old_mask;
 
 	if (drm_WARN_ON(&dev_priv->drm, pll == NULL))
@@ -207,16 +207,16 @@ void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state)
 	mutex_lock(&dev_priv->dpll.lock);
 	old_mask = pll->active_mask;
 
-	if (drm_WARN_ON(&dev_priv->drm, !(pll->state.crtc_mask & crtc_mask)) ||
-	    drm_WARN_ON(&dev_priv->drm, pll->active_mask & crtc_mask))
+	if (drm_WARN_ON(&dev_priv->drm, !(pll->state.pipe_mask & pipe_mask)) ||
+	    drm_WARN_ON(&dev_priv->drm, pll->active_mask & pipe_mask))
 		goto out;
 
-	pll->active_mask |= crtc_mask;
+	pll->active_mask |= pipe_mask;
 
 	drm_dbg_kms(&dev_priv->drm,
-		    "enable %s (active %x, on? %d) for crtc %d\n",
+		    "enable %s (active 0x%x, on? %d) for [CRTC:%d:%s]\n",
 		    pll->info->name, pll->active_mask, pll->on,
-		    crtc->base.base.id);
+		    crtc->base.base.id, crtc->base.name);
 
 	if (old_mask) {
 		drm_WARN_ON(&dev_priv->drm, !pll->on);
@@ -244,7 +244,7 @@ void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
-	unsigned int crtc_mask = drm_crtc_mask(&crtc->base);
+	unsigned int pipe_mask = BIT(crtc->pipe);
 
 	/* PCH only available on ILK+ */
 	if (INTEL_GEN(dev_priv) < 5)
@@ -254,18 +254,20 @@ void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state)
 		return;
 
 	mutex_lock(&dev_priv->dpll.lock);
-	if (drm_WARN_ON(&dev_priv->drm, !(pll->active_mask & crtc_mask)))
+	if (drm_WARN(&dev_priv->drm, !(pll->active_mask & pipe_mask),
+		     "%s not used by [CRTC:%d:%s]\n", pll->info->name,
+		     crtc->base.base.id, crtc->base.name))
 		goto out;
 
 	drm_dbg_kms(&dev_priv->drm,
-		    "disable %s (active %x, on? %d) for crtc %d\n",
+		    "disable %s (active 0x%x, on? %d) for [CRTC:%d:%s]\n",
 		    pll->info->name, pll->active_mask, pll->on,
-		    crtc->base.base.id);
+		    crtc->base.base.id, crtc->base.name);
 
 	assert_shared_dpll_enabled(dev_priv, pll);
 	drm_WARN_ON(&dev_priv->drm, !pll->on);
 
-	pll->active_mask &= ~crtc_mask;
+	pll->active_mask &= ~pipe_mask;
 	if (pll->active_mask)
 		goto out;
 
@@ -296,7 +298,7 @@ intel_find_shared_dpll(struct intel_atomic_state *state,
 		pll = &dev_priv->dpll.shared_dplls[i];
 
 		/* Only want to check enabled timings first */
-		if (shared_dpll[i].crtc_mask == 0) {
+		if (shared_dpll[i].pipe_mask == 0) {
 			if (!unused_pll)
 				unused_pll = pll;
 			continue;
@@ -306,10 +308,10 @@ intel_find_shared_dpll(struct intel_atomic_state *state,
 			   &shared_dpll[i].hw_state,
 			   sizeof(*pll_state)) == 0) {
 			drm_dbg_kms(&dev_priv->drm,
-				    "[CRTC:%d:%s] sharing existing %s (crtc mask 0x%08x, active %x)\n",
+				    "[CRTC:%d:%s] sharing existing %s (pipe mask 0x%x, active 0x%x)\n",
 				    crtc->base.base.id, crtc->base.name,
 				    pll->info->name,
-				    shared_dpll[i].crtc_mask,
+				    shared_dpll[i].pipe_mask,
 				    pll->active_mask);
 			return pll;
 		}
@@ -338,13 +340,13 @@ intel_reference_shared_dpll(struct intel_atomic_state *state,
 
 	shared_dpll = intel_atomic_get_shared_dpll_state(&state->base);
 
-	if (shared_dpll[id].crtc_mask == 0)
+	if (shared_dpll[id].pipe_mask == 0)
 		shared_dpll[id].hw_state = *pll_state;
 
 	drm_dbg(&i915->drm, "using %s for pipe %c\n", pll->info->name,
 		pipe_name(crtc->pipe));
 
-	shared_dpll[id].crtc_mask |= 1 << crtc->pipe;
+	shared_dpll[id].pipe_mask |= BIT(crtc->pipe);
 }
 
 static void intel_unreference_shared_dpll(struct intel_atomic_state *state,
@@ -354,7 +356,7 @@ static void intel_unreference_shared_dpll(struct intel_atomic_state *state,
 	struct intel_shared_dpll_state *shared_dpll;
 
 	shared_dpll = intel_atomic_get_shared_dpll_state(&state->base);
-	shared_dpll[pll->info->id].crtc_mask &= ~(1 << crtc->pipe);
+	shared_dpll[pll->info->id].pipe_mask &= ~BIT(crtc->pipe);
 }
 
 static void intel_put_dpll(struct intel_atomic_state *state,
@@ -4597,19 +4599,19 @@ static void readout_dpll_hw_state(struct drm_i915_private *i915,
 						       POWER_DOMAIN_DPLL_DC_OFF);
 	}
 
-	pll->state.crtc_mask = 0;
+	pll->state.pipe_mask = 0;
 	for_each_intel_crtc(&i915->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 
 		if (crtc_state->hw.active && crtc_state->shared_dpll == pll)
-			pll->state.crtc_mask |= 1 << crtc->pipe;
+			pll->state.pipe_mask |= BIT(crtc->pipe);
 	}
-	pll->active_mask = pll->state.crtc_mask;
+	pll->active_mask = pll->state.pipe_mask;
 
 	drm_dbg_kms(&i915->drm,
-		    "%s hw state readout: crtc_mask 0x%08x, on %i\n",
-		    pll->info->name, pll->state.crtc_mask, pll->on);
+		    "%s hw state readout: pipe_mask 0x%x, on %i\n",
+		    pll->info->name, pll->state.pipe_mask, pll->on);
 }
 
 void intel_dpll_update_ref_clks(struct drm_i915_private *i915)

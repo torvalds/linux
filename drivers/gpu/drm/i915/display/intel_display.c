@@ -9643,7 +9643,7 @@ verify_single_dpll_state(struct drm_i915_private *dev_priv,
 			 struct intel_crtc_state *new_crtc_state)
 {
 	struct intel_dpll_hw_state dpll_hw_state;
-	unsigned int crtc_mask;
+	u8 pipe_mask;
 	bool active;
 
 	memset(&dpll_hw_state, 0, sizeof(dpll_hw_state));
@@ -9656,34 +9656,34 @@ verify_single_dpll_state(struct drm_i915_private *dev_priv,
 		I915_STATE_WARN(!pll->on && pll->active_mask,
 		     "pll in active use but not on in sw tracking\n");
 		I915_STATE_WARN(pll->on && !pll->active_mask,
-		     "pll is on but not used by any active crtc\n");
+		     "pll is on but not used by any active pipe\n");
 		I915_STATE_WARN(pll->on != active,
 		     "pll on state mismatch (expected %i, found %i)\n",
 		     pll->on, active);
 	}
 
 	if (!crtc) {
-		I915_STATE_WARN(pll->active_mask & ~pll->state.crtc_mask,
-				"more active pll users than references: %x vs %x\n",
-				pll->active_mask, pll->state.crtc_mask);
+		I915_STATE_WARN(pll->active_mask & ~pll->state.pipe_mask,
+				"more active pll users than references: 0x%x vs 0x%x\n",
+				pll->active_mask, pll->state.pipe_mask);
 
 		return;
 	}
 
-	crtc_mask = drm_crtc_mask(&crtc->base);
+	pipe_mask = BIT(crtc->pipe);
 
 	if (new_crtc_state->hw.active)
-		I915_STATE_WARN(!(pll->active_mask & crtc_mask),
-				"pll active mismatch (expected pipe %c in active mask 0x%02x)\n",
+		I915_STATE_WARN(!(pll->active_mask & pipe_mask),
+				"pll active mismatch (expected pipe %c in active mask 0x%x)\n",
 				pipe_name(crtc->pipe), pll->active_mask);
 	else
-		I915_STATE_WARN(pll->active_mask & crtc_mask,
-				"pll active mismatch (didn't expect pipe %c in active mask 0x%02x)\n",
+		I915_STATE_WARN(pll->active_mask & pipe_mask,
+				"pll active mismatch (didn't expect pipe %c in active mask 0x%x)\n",
 				pipe_name(crtc->pipe), pll->active_mask);
 
-	I915_STATE_WARN(!(pll->state.crtc_mask & crtc_mask),
-			"pll enabled crtcs mismatch (expected 0x%x in 0x%02x)\n",
-			crtc_mask, pll->state.crtc_mask);
+	I915_STATE_WARN(!(pll->state.pipe_mask & pipe_mask),
+			"pll enabled crtcs mismatch (expected 0x%x in 0x%x)\n",
+			pipe_mask, pll->state.pipe_mask);
 
 	I915_STATE_WARN(pll->on && memcmp(&pll->state.hw_state,
 					  &dpll_hw_state,
@@ -9703,15 +9703,15 @@ verify_shared_dpll_state(struct intel_crtc *crtc,
 
 	if (old_crtc_state->shared_dpll &&
 	    old_crtc_state->shared_dpll != new_crtc_state->shared_dpll) {
-		unsigned int crtc_mask = drm_crtc_mask(&crtc->base);
+		u8 pipe_mask = BIT(crtc->pipe);
 		struct intel_shared_dpll *pll = old_crtc_state->shared_dpll;
 
-		I915_STATE_WARN(pll->active_mask & crtc_mask,
-				"pll active mismatch (didn't expect pipe %c in active mask)\n",
-				pipe_name(crtc->pipe));
-		I915_STATE_WARN(pll->state.crtc_mask & crtc_mask,
-				"pll enabled crtcs mismatch (found %x in enabled mask)\n",
-				pipe_name(crtc->pipe));
+		I915_STATE_WARN(pll->active_mask & pipe_mask,
+				"pll active mismatch (didn't expect pipe %c in active mask (0x%x))\n",
+				pipe_name(crtc->pipe), pll->active_mask);
+		I915_STATE_WARN(pll->state.pipe_mask & pipe_mask,
+				"pll enabled crtcs mismatch (found %x in enabled mask (0x%x))\n",
+				pipe_name(crtc->pipe), pll->state.pipe_mask);
 	}
 }
 

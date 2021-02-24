@@ -241,9 +241,9 @@ struct intel_dpll_hw_state {
  */
 struct intel_shared_dpll_state {
 	/**
-	 * @crtc_mask: mask of CRTC using this DPLL, active or not
+	 * @pipe_mask: mask of pipes using this DPLL, active or not
 	 */
-	unsigned crtc_mask;
+	u8 pipe_mask;
 
 	/**
 	 * @hw_state: hardware configuration for the DPLL stored in
@@ -351,9 +351,9 @@ struct intel_shared_dpll {
 	struct intel_shared_dpll_state state;
 
 	/**
-	 * @active_mask: mask of active CRTCs (i.e. DPMS on) using this DPLL
+	 * @active_mask: mask of active pipes (i.e. DPMS on) using this DPLL
 	 */
-	unsigned active_mask;
+	u8 active_mask;
 
 	/**
 	 * @on: is the PLL actually active? Disabled during modeset

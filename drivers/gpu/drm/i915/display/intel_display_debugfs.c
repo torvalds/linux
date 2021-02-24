@@ -1098,8 +1098,8 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 
 		seq_printf(m, "DPLL%i: %s, id: %i\n", i, pll->info->name,
 			   pll->info->id);
-		seq_printf(m, " crtc_mask: 0x%08x, active: 0x%x, on: %s\n",
-			   pll->state.crtc_mask, pll->active_mask, yesno(pll->on));
+		seq_printf(m, " pipe_mask: 0x%x, active: 0x%x, on: %s\n",
+			   pll->state.pipe_mask, pll->active_mask, yesno(pll->on));
 		seq_printf(m, " tracked hardware state:\n");
 		seq_printf(m, " dpll:    0x%08x\n", pll->state.hw_state.dpll);
 		seq_printf(m, " dpll_md: 0x%08x\n",
