@@ -244,8 +244,8 @@ static int pru_rproc_debug_ss_get(void *data, u64 *val)
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(pru_rproc_debug_ss_fops, pru_rproc_debug_ss_get,
-			pru_rproc_debug_ss_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(pru_rproc_debug_ss_fops, pru_rproc_debug_ss_get,
+			 pru_rproc_debug_ss_set, "%llu\n");
 
 /*
  * Create PRU-specific debugfs entries
