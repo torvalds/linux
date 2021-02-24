@@ -153,6 +153,8 @@ void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
 
 		swap = &ttm_bo_glob.swap_lru[bo->priority];
 		list_move_tail(&bo->swap, swap);
+	} else {
+		list_del_init(&bo->swap);
 	}
 
 	if (bdev->driver->del_from_lru_notify)
