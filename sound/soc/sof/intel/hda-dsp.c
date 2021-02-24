@@ -678,7 +678,7 @@ static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 	if (ret < 0) {
 		dev_err(sdev->dev,
 			"error: failed to start controller after resume\n");
-		return ret;
+		goto cleanup;
 	}
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
@@ -703,6 +703,10 @@ static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 	/* enable ppcap interrupt */
 	hda_dsp_ctrl_ppcap_enable(sdev, true);
 	hda_dsp_ctrl_ppcap_int_enable(sdev, true);
+
+cleanup:
+	/* display codec can powered off after controller init */
+	hda_codec_i915_display_power(sdev, false);
 
 	return 0;
 }
