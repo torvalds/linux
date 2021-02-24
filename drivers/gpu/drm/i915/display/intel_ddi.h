@@ -30,9 +30,15 @@ void intel_ddi_fdi_post_disable(struct intel_atomic_state *state,
 				const struct drm_connector_state *old_conn_state);
 void intel_ddi_enable_clock(struct intel_encoder *encoder,
 			    const struct intel_crtc_state *crtc_state);
+void intel_ddi_get_clock(struct intel_encoder *encoder,
+			 struct intel_crtc_state *crtc_state,
+			 struct intel_shared_dpll *pll);
 void hsw_ddi_enable_clock(struct intel_encoder *encoder,
 			  const struct intel_crtc_state *crtc_state);
 void hsw_ddi_disable_clock(struct intel_encoder *encoder);
+void hsw_ddi_get_config(struct intel_encoder *encoder,
+			struct intel_crtc_state *crtc_state);
+struct intel_shared_dpll *icl_ddi_combo_get_pll(struct intel_encoder *encoder);
 void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder,
 				  const struct intel_crtc_state *crtc_state);
 void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
@@ -48,8 +54,6 @@ void intel_ddi_disable_pipe_clock(const  struct intel_crtc_state *crtc_state);
 void intel_ddi_set_dp_msa(const struct intel_crtc_state *crtc_state,
 			  const struct drm_connector_state *conn_state);
 bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector);
-void intel_ddi_get_config(struct intel_encoder *encoder,
-			  struct intel_crtc_state *pipe_config);
 void intel_ddi_set_vc_payload_alloc(const struct intel_crtc_state *crtc_state,
 				    bool state);
 void intel_ddi_compute_min_voltage_level(struct drm_i915_private *dev_priv,
