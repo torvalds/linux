@@ -32,7 +32,6 @@
 #include <linux/fs.h>
 #include <uapi/linux/wmi.h>
 
-ACPI_MODULE_NAME("wmi");
 MODULE_AUTHOR("Carlos Corbacho");
 MODULE_DESCRIPTION("ACPI-WMI Mapping Driver");
 MODULE_LICENSE("GPL");
