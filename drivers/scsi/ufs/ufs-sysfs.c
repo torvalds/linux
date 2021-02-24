@@ -9,6 +9,8 @@
 #include "ufs.h"
 #include "ufs-sysfs.h"
 
+#include <trace/hooks/ufshcd.h>
+
 static const char *ufschd_uic_link_state_to_string(
 			enum uic_link_state state)
 {
@@ -875,11 +877,7 @@ void ufs_sysfs_add_nodes(struct ufs_hba *hba)
 		return;
 	}
 
-	ret = ufshcd_vops_update_sysfs(hba);
-	if (ret)
-		dev_err(hba->dev,
-			"%s: vops sysfs groups update failed (err = %d)\n",
-			__func__, ret);
+	trace_android_vh_ufs_update_sysfs(hba);
 }
 
 void ufs_sysfs_remove_nodes(struct device *dev)
