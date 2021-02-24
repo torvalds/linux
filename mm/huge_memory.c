@@ -2755,7 +2755,8 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 			int nr = thp_nr_pages(head);
 
 			if (PageSwapBacked(head))
-				__dec_lruvec_page_state(head, NR_SHMEM_THPS);
+				__mod_lruvec_page_state(head, NR_SHMEM_THPS,
+							-nr);
 			else
 				__mod_lruvec_page_state(head, NR_FILE_THPS,
 							-nr);

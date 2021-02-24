@@ -220,7 +220,8 @@ static __always_inline bool vmstat_item_print_in_thp(enum node_stat_item item)
 		return false;
 
 	return item == NR_ANON_THPS ||
-	       item == NR_FILE_THPS;
+	       item == NR_FILE_THPS ||
+	       item == NR_SHMEM_THPS;
 }
 
 /*
