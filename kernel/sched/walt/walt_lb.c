@@ -544,6 +544,63 @@ out_unlock:
 	raw_spin_unlock_irqrestore(&walt_lb_migration_lock, flags);
 }
 
+static inline int has_pushable_tasks(struct rq *rq)
+{
+	return !plist_head_empty(&rq->rt.pushable_tasks);
+}
+
+#define WALT_RT_PULL_THRESHOLD_NS	250000
+static bool walt_balance_rt(struct rq *this_rq)
+{
+	int i, this_cpu = this_rq->cpu, src_cpu = this_cpu;
+	struct rq *src_rq;
+	struct task_struct *p;
+	struct walt_task_struct *wts;
+	bool pulled = false;
+
+	/* can't help if this has a runnable RT */
+	if (sched_rt_runnable(this_rq))
+		return false;
+
+	/* check if any CPU has a pushable RT task */
+	for_each_possible_cpu(i) {
+		struct rq *rq = cpu_rq(i);
+
+		if (!has_pushable_tasks(rq))
+			continue;
+
+		src_cpu = i;
+		break;
+	}
+
+	if (src_cpu == this_cpu)
+		return false;
+
+	src_rq = cpu_rq(src_cpu);
+	double_lock_balance(this_rq, src_rq);
+
+	/* lock is dropped, so check again */
+	if (sched_rt_runnable(this_rq))
+		goto unlock;
+
+	p = pick_highest_pushable_task(src_rq, this_cpu);
+
+	if (!p)
+		goto unlock;
+
+	wts = (struct walt_task_struct *) p->android_vendor_data1;
+	if (sched_ktime_clock() - wts->last_wake_ts < WALT_RT_PULL_THRESHOLD_NS)
+		goto unlock;
+
+	pulled = true;
+	deactivate_task(src_rq, p, 0);
+	set_task_cpu(p, this_cpu);
+	activate_task(this_rq, p, 0);
+unlock:
+	double_unlock_balance(this_rq, src_rq);
+	return pulled;
+}
+
 __read_mostly unsigned int sysctl_sched_force_lb_enable = 1;
 static bool should_help_min_cap(int this_cpu)
 {
@@ -599,14 +656,23 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 	if (!cpu_active(this_cpu))
 		return;
 
+	rq_unpin_lock(this_rq, rf);
+
+	/*
+	 * Since we drop rq lock while doing RT balance,
+	 * check if any tasks are queued on this and bail out
+	 * early.
+	 */
+	if (walt_balance_rt(this_rq) || this_rq->nr_running)
+		goto rt_pulled;
+
 	if (!READ_ONCE(this_rq->rd->overload))
-		goto out;
+		goto repin;
 
 	if (atomic_read(&this_rq->nr_iowait) && !enough_idle)
-		goto out;
+		goto repin;
 
 	help_min_cap = should_help_min_cap(this_cpu);
-	rq_unpin_lock(this_rq, rf);
 	raw_spin_unlock(&this_rq->lock);
 
 	/*
@@ -635,6 +701,7 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 
 unlock:
 	raw_spin_lock(&this_rq->lock);
+rt_pulled:
 	if (this_rq->cfs.h_nr_running && !*pulled_task)
 		*pulled_task = 1;
 
@@ -646,9 +713,9 @@ unlock:
 	if (*pulled_task)
 		this_rq->idle_stamp = 0;
 
+repin:
 	rq_repin_lock(this_rq, rf);
 
-out:
 	trace_walt_newidle_balance(this_cpu, busy_cpu, *pulled_task,
 				   help_min_cap, enough_idle);
 }
@@ -758,70 +825,6 @@ static void walt_can_migrate_task(void *unused, struct task_struct *p,
 	*can_migrate = 0;
 }
 
-static inline int rt_overloaded(struct rq *rq)
-{
-	return atomic_read(&rq->rd->rto_count);
-}
-
-static inline int has_pushable_tasks(struct rq *rq)
-{
-	return !plist_head_empty(&rq->rt.pushable_tasks);
-}
-
-#define WALT_RT_PULL_THRESHOLD_NS	250000
-static void walt_balance_rt(void *unused, struct rq *this_rq,
-			    struct task_struct *prev, int *done)
-{
-	int i, this_cpu = this_rq->cpu, src_cpu = this_cpu;
-	struct rq *src_rq;
-	struct task_struct *p;
-	struct walt_task_struct *wts;
-
-	/* Let RT push/pull handle the overloaded scenario */
-	if (rt_overloaded(this_rq))
-		return;
-
-	/* can't help if this has a runnable RT */
-	if (sched_rt_runnable(this_rq))
-		return;
-
-	/* check if any CPU has a pushable RT task */
-	for_each_possible_cpu(i) {
-		struct rq *rq = cpu_rq(i);
-
-		if (!has_pushable_tasks(rq))
-			continue;
-
-		src_cpu = i;
-		break;
-	}
-
-	if (src_cpu == this_cpu)
-		return;
-
-	src_rq = cpu_rq(src_cpu);
-	double_lock_balance(this_rq, src_rq);
-
-	/* lock is dropped, so check again */
-	if (sched_rt_runnable(this_rq))
-		goto unlock;
-
-	p = pick_highest_pushable_task(src_rq, this_cpu);
-
-	if (!p)
-		goto unlock;
-
-	wts = (struct walt_task_struct *) p->android_vendor_data1;
-	if (sched_ktime_clock() - wts->last_wake_ts < WALT_RT_PULL_THRESHOLD_NS)
-		goto unlock;
-
-	deactivate_task(src_rq, p, 0);
-	set_task_cpu(p, this_cpu);
-	activate_task(this_rq, p, 0);
-unlock:
-	double_unlock_balance(this_rq, src_rq);
-}
-
 void walt_lb_init(void)
 {
 	walt_lb_rotate_work_init();
@@ -832,5 +835,4 @@ void walt_lb_init(void)
 	register_trace_android_rvh_find_busiest_queue(walt_find_busiest_queue, NULL);
 	register_trace_android_rvh_sched_newidle_balance(walt_newidle_balance, NULL);
 	register_trace_android_vh_scheduler_tick(walt_lb_tick, NULL);
-	register_trace_android_rvh_sched_balance_rt(walt_balance_rt, NULL);
 }
