@@ -5821,6 +5821,17 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 		return ERR_PTR(-EINVAL);
 	}
 
+#if BITS_PER_LONG == 32
+	if (start >= MAX_LFS_FILESIZE) {
+		btrfs_err_rl(fs_info,
+		"extent buffer %llu is beyond 32bit page cache limit", start);
+		btrfs_err_32bit_limit(fs_info);
+		return ERR_PTR(-EOVERFLOW);
+	}
+	if (start >= BTRFS_32BIT_EARLY_WARN_THRESHOLD)
+		btrfs_warn_32bit_limit(fs_info);
+#endif
+
 	if (fs_info->sectorsize < PAGE_SIZE &&
 	    offset_in_page(start) + len > PAGE_SIZE) {
 		btrfs_err(fs_info,
