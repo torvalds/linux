@@ -2024,7 +2024,7 @@ static void __io_req_task_submit(struct io_kiocb *req)
 
 	/* ctx stays valid until unlock, even if we drop all ours ctx->refs */
 	mutex_lock(&ctx->uring_lock);
-	if (!ctx->sqo_dead && !(current->flags & PF_EXITING))
+	if (!ctx->sqo_dead && !(current->flags & PF_EXITING) && !current->in_execve)
 		__io_queue_sqe(req);
 	else
 		__io_req_task_cancel(req, -EFAULT);
@@ -8821,7 +8821,7 @@ void __io_uring_files_cancel(struct files_struct *files)
 	if (files) {
 		io_uring_remove_task_files(tctx);
 		if (tctx->io_wq) {
-			io_wq_destroy(tctx->io_wq);
+			io_wq_put(tctx->io_wq);
 			tctx->io_wq = NULL;
 		}
 	}
