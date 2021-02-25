@@ -279,7 +279,22 @@ set_freq:
 
 static int core_get_v1(struct venus_core *core)
 {
-	return core_clks_get(core);
+	int ret;
+
+	ret = core_clks_get(core);
+	if (ret)
+		return ret;
+
+	core->opp_table = dev_pm_opp_set_clkname(core->dev, "core");
+	if (IS_ERR(core->opp_table))
+		return PTR_ERR(core->opp_table);
+
+	return 0;
+}
+
+static void core_put_v1(struct venus_core *core)
+{
+	dev_pm_opp_put_clkname(core->opp_table);
 }
 
 static int core_power_v1(struct venus_core *core, int on)
@@ -296,6 +311,7 @@ static int core_power_v1(struct venus_core *core, int on)
 
 static const struct venus_pm_ops pm_ops_v1 = {
 	.core_get = core_get_v1,
+	.core_put = core_put_v1,
 	.core_power = core_power_v1,
 	.load_scale = load_scale_v1,
 };
@@ -368,6 +384,7 @@ static int venc_power_v3(struct device *dev, int on)
 
 static const struct venus_pm_ops pm_ops_v3 = {
 	.core_get = core_get_v1,
+	.core_put = core_put_v1,
 	.core_power = core_power_v1,
 	.vdec_get = vdec_get_v3,
 	.vdec_power = vdec_power_v3,
