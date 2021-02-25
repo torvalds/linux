@@ -2329,7 +2329,8 @@ static u32 mlx5e_get_direct_rqn(struct mlx5e_priv *priv, int ix,
 }
 
 static void mlx5e_redirect_rqts(struct mlx5e_priv *priv,
-				struct mlx5e_redirect_rqt_param rrp)
+				struct mlx5e_redirect_rqt_param rrp,
+				struct mlx5e_redirect_rqt_param *ptp_rrp)
 {
 	u32 rqtn;
 	int ix;
@@ -2355,11 +2356,17 @@ static void mlx5e_redirect_rqts(struct mlx5e_priv *priv,
 		rqtn = priv->direct_tir[ix].rqt.rqtn;
 		mlx5e_redirect_rqt(priv, rqtn, 1, direct_rrp);
 	}
+	if (ptp_rrp) {
+		rqtn = priv->ptp_tir.rqt.rqtn;
+		mlx5e_redirect_rqt(priv, rqtn, 1, *ptp_rrp);
+	}
 }
 
 static void mlx5e_redirect_rqts_to_channels(struct mlx5e_priv *priv,
 					    struct mlx5e_channels *chs)
 {
+	bool rx_ptp_support = priv->profile->rx_ptp_support;
+	struct mlx5e_redirect_rqt_param *ptp_rrp_p = NULL;
 	struct mlx5e_redirect_rqt_param rrp = {
 		.is_rss        = true,
 		{
@@ -2369,12 +2376,22 @@ static void mlx5e_redirect_rqts_to_channels(struct mlx5e_priv *priv,
 			}
 		},
 	};
+	struct mlx5e_redirect_rqt_param ptp_rrp;
 
-	mlx5e_redirect_rqts(priv, rrp);
+	if (rx_ptp_support) {
+		u32 ptp_rqn;
+
+		ptp_rrp.is_rss = false;
+		ptp_rrp.rqn = mlx5e_ptp_get_rqn(priv->channels.ptp, &ptp_rqn) ?
+			      priv->drop_rq.rqn : ptp_rqn;
+		ptp_rrp_p = &ptp_rrp;
+	}
+	mlx5e_redirect_rqts(priv, rrp, ptp_rrp_p);
 }
 
 static void mlx5e_redirect_rqts_to_drop(struct mlx5e_priv *priv)
 {
+	bool rx_ptp_support = priv->profile->rx_ptp_support;
 	struct mlx5e_redirect_rqt_param drop_rrp = {
 		.is_rss = false,
 		{
@@ -2382,7 +2399,7 @@ static void mlx5e_redirect_rqts_to_drop(struct mlx5e_priv *priv)
 		},
 	};
 
-	mlx5e_redirect_rqts(priv, drop_rrp);
+	mlx5e_redirect_rqts(priv, drop_rrp, rx_ptp_support ? &drop_rrp : NULL);
 }
 
 static const struct mlx5e_tirc_config tirc_default_config[MLX5E_NUM_INDIR_TIRS] = {
@@ -4944,10 +4961,18 @@ static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
 	if (unlikely(err))
 		goto err_destroy_xsk_rqts;
 
+	err = mlx5e_create_direct_rqts(priv, &priv->ptp_tir, 1);
+	if (err)
+		goto err_destroy_xsk_tirs;
+
+	err = mlx5e_create_direct_tirs(priv, &priv->ptp_tir, 1);
+	if (err)
+		goto err_destroy_ptp_rqt;
+
 	err = mlx5e_create_flow_steering(priv);
 	if (err) {
 		mlx5_core_warn(mdev, "create flow steering failed, %d\n", err);
-		goto err_destroy_xsk_tirs;
+		goto err_destroy_ptp_direct_tir;
 	}
 
 	err = mlx5e_tc_nic_init(priv);
@@ -4968,6 +4993,10 @@ err_tc_nic_cleanup:
 	mlx5e_tc_nic_cleanup(priv);
 err_destroy_flow_steering:
 	mlx5e_destroy_flow_steering(priv);
+err_destroy_ptp_direct_tir:
+	mlx5e_destroy_direct_tirs(priv, &priv->ptp_tir, 1);
+err_destroy_ptp_rqt:
+	mlx5e_destroy_direct_rqts(priv, &priv->ptp_tir, 1);
 err_destroy_xsk_tirs:
 	mlx5e_destroy_direct_tirs(priv, priv->xsk_tir, max_nch);
 err_destroy_xsk_rqts:
@@ -4994,6 +5023,8 @@ static void mlx5e_cleanup_nic_rx(struct mlx5e_priv *priv)
 	mlx5e_accel_cleanup_rx(priv);
 	mlx5e_tc_nic_cleanup(priv);
 	mlx5e_destroy_flow_steering(priv);
+	mlx5e_destroy_direct_tirs(priv, &priv->ptp_tir, 1);
+	mlx5e_destroy_direct_rqts(priv, &priv->ptp_tir, 1);
 	mlx5e_destroy_direct_tirs(priv, priv->xsk_tir, max_nch);
 	mlx5e_destroy_direct_rqts(priv, priv->xsk_tir, max_nch);
 	mlx5e_destroy_direct_tirs(priv, priv->direct_tir, max_nch);
@@ -5106,6 +5137,7 @@ static const struct mlx5e_profile mlx5e_nic_profile = {
 	.rq_groups	   = MLX5E_NUM_RQ_GROUPS(XSK),
 	.stats_grps	   = mlx5e_nic_stats_grps,
 	.stats_grps_num	   = mlx5e_nic_stats_grps_num,
+	.rx_ptp_support    = true,
 };
 
 /* mlx5e generic netdev management API (move to en_common.c) */

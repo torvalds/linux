@@ -663,3 +663,12 @@ void mlx5e_ptp_deactivate_channel(struct mlx5e_ptp *c)
 
 	napi_disable(&c->napi);
 }
+
+int mlx5e_ptp_get_rqn(struct mlx5e_ptp *c, u32 *rqn)
+{
+	if (!c || !test_bit(MLX5E_PTP_STATE_RX, c->state))
+		return -EINVAL;
+
+	*rqn = c->rq.rqn;
+	return 0;
+}
