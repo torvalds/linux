@@ -190,12 +190,8 @@ static void nvmet_execute_admin_connect(struct nvmet_req *req)
 
 	status = nvmet_alloc_ctrl(d->subsysnqn, d->hostnqn, req,
 				  le32_to_cpu(c->kato), &ctrl);
-	if (status) {
-		if (status == (NVME_SC_INVALID_FIELD | NVME_SC_DNR))
-			req->error_loc =
-				offsetof(struct nvme_common_command, opcode);
+	if (status)
 		goto out;
-	}
 
 	ctrl->pi_support = ctrl->port->pi_enable && ctrl->subsys->pi_support;
 
