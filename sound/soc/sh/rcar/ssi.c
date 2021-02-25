@@ -24,23 +24,23 @@
 /*
  * SSICR
  */
-#define	FORCE		(1 << 31)	/* Fixed */
-#define	DMEN		(1 << 28)	/* DMA Enable */
-#define	UIEN		(1 << 27)	/* Underflow Interrupt Enable */
-#define	OIEN		(1 << 26)	/* Overflow Interrupt Enable */
-#define	IIEN		(1 << 25)	/* Idle Mode Interrupt Enable */
-#define	DIEN		(1 << 24)	/* Data Interrupt Enable */
-#define	CHNL_4		(1 << 22)	/* Channels */
-#define	CHNL_6		(2 << 22)	/* Channels */
-#define	CHNL_8		(3 << 22)	/* Channels */
-#define DWL_MASK	(7 << 19)	/* Data Word Length mask */
-#define	DWL_8		(0 << 19)	/* Data Word Length */
-#define	DWL_16		(1 << 19)	/* Data Word Length */
-#define	DWL_18		(2 << 19)	/* Data Word Length */
-#define	DWL_20		(3 << 19)	/* Data Word Length */
-#define	DWL_22		(4 << 19)	/* Data Word Length */
-#define	DWL_24		(5 << 19)	/* Data Word Length */
-#define	DWL_32		(6 << 19)	/* Data Word Length */
+#define	FORCE		(1u << 31)	/* Fixed */
+#define	DMEN		(1u << 28)	/* DMA Enable */
+#define	UIEN		(1u << 27)	/* Underflow Interrupt Enable */
+#define	OIEN		(1u << 26)	/* Overflow Interrupt Enable */
+#define	IIEN		(1u << 25)	/* Idle Mode Interrupt Enable */
+#define	DIEN		(1u << 24)	/* Data Interrupt Enable */
+#define	CHNL_4		(1u << 22)	/* Channels */
+#define	CHNL_6		(2u << 22)	/* Channels */
+#define	CHNL_8		(3u << 22)	/* Channels */
+#define DWL_MASK	(7u << 19)	/* Data Word Length mask */
+#define	DWL_8		(0u << 19)	/* Data Word Length */
+#define	DWL_16		(1u << 19)	/* Data Word Length */
+#define	DWL_18		(2u << 19)	/* Data Word Length */
+#define	DWL_20		(3u << 19)	/* Data Word Length */
+#define	DWL_22		(4u << 19)	/* Data Word Length */
+#define	DWL_24		(5u << 19)	/* Data Word Length */
+#define	DWL_32		(6u << 19)	/* Data Word Length */
 
 /*
  * System word length
@@ -167,7 +167,6 @@ static void rsnd_ssi_status_check(struct rsnd_mod *mod,
 
 static u32 rsnd_ssi_multi_secondaries(struct rsnd_dai_stream *io)
 {
-	struct rsnd_mod *mod;
 	enum rsnd_mod_type types[] = {
 		RSND_MOD_SSIM1,
 		RSND_MOD_SSIM2,
@@ -177,7 +176,8 @@ static u32 rsnd_ssi_multi_secondaries(struct rsnd_dai_stream *io)
 
 	mask = 0;
 	for (i = 0; i < ARRAY_SIZE(types); i++) {
-		mod = rsnd_io_to_mod(io, types[i]);
+		struct rsnd_mod *mod = rsnd_io_to_mod(io, types[i]);
+
 		if (!mod)
 			continue;
 
@@ -533,7 +533,6 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int is_tdm, is_tdm_split;
 	int id = rsnd_mod_id(mod);
-	int i;
 	u32 sys_int_enable = 0;
 
 	is_tdm		= rsnd_runtime_is_tdm(io);
@@ -561,6 +560,8 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 
 	/* disable busif buffer over/under run interrupt. */
 	if (is_tdm || is_tdm_split) {
+		int i;
+
 		switch (id) {
 		case 0:
 		case 1:
@@ -1210,7 +1211,6 @@ void rsnd_parse_connect_ssi(struct rsnd_dai *rdai,
 	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
 	struct device_node *node;
 	struct device_node *np;
-	struct rsnd_mod *mod;
 	int i;
 
 	node = rsnd_ssi_of_node(priv);
@@ -1219,7 +1219,8 @@ void rsnd_parse_connect_ssi(struct rsnd_dai *rdai,
 
 	i = 0;
 	for_each_child_of_node(node, np) {
-		mod = rsnd_ssi_mod_get(priv, i);
+		struct rsnd_mod *mod = rsnd_ssi_mod_get(priv, i);
+
 		if (np == playback)
 			rsnd_ssi_connect(mod, &rdai->playback);
 		if (np == capture)
