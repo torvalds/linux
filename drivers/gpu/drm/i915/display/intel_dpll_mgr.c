@@ -4612,12 +4612,15 @@ static void readout_dpll_hw_state(struct drm_i915_private *i915,
 		    pll->info->name, pll->state.crtc_mask, pll->on);
 }
 
+void intel_dpll_update_ref_clks(struct drm_i915_private *i915)
+{
+	if (i915->dpll.mgr && i915->dpll.mgr->update_ref_clks)
+		i915->dpll.mgr->update_ref_clks(i915);
+}
+
 void intel_dpll_readout_hw_state(struct drm_i915_private *i915)
 {
 	int i;
-
-	if (i915->dpll.mgr && i915->dpll.mgr->update_ref_clks)
-		i915->dpll.mgr->update_ref_clks(i915);
 
 	for (i = 0; i < i915->dpll.num_shared_dpll; i++)
 		readout_dpll_hw_state(i915, &i915->dpll.shared_dplls[i]);

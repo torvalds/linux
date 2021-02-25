@@ -12909,6 +12909,7 @@ int intel_modeset_init_nogem(struct drm_i915_private *i915)
 
 	intel_update_czclk(i915);
 	intel_modeset_init_hw(i915);
+	intel_dpll_update_ref_clks(i915);
 
 	intel_hdcp_component_init(i915);
 
@@ -13445,8 +13446,6 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 
 	readout_plane_state(dev_priv);
 
-	intel_dpll_readout_hw_state(dev_priv);
-
 	for_each_intel_encoder(dev, encoder) {
 		pipe = 0;
 
@@ -13480,6 +13479,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			    enableddisabled(encoder->base.crtc),
 			    pipe_name(pipe));
 	}
+
+	intel_dpll_readout_hw_state(dev_priv);
 
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
