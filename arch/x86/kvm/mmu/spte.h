@@ -8,15 +8,11 @@
 #define PT_FIRST_AVAIL_BITS_SHIFT 10
 #define PT64_SECOND_AVAIL_BITS_SHIFT 54
 
-/*
- * The mask used to denote special SPTEs, which can be either MMIO SPTEs or
- * Access Tracking SPTEs.
- */
+/* The mask used to denote Access Tracking SPTEs.  Note, val=3 is available. */
 #define SPTE_SPECIAL_MASK (3ULL << 52)
 #define SPTE_AD_ENABLED_MASK (0ULL << 52)
 #define SPTE_AD_DISABLED_MASK (1ULL << 52)
 #define SPTE_AD_WRPROT_ONLY_MASK (2ULL << 52)
-#define SPTE_MMIO_MASK (3ULL << 52)
 
 #ifdef CONFIG_DYNAMIC_PHYSICAL_MASK
 #define PT64_BASE_ADDR_MASK (physical_mask & ~(u64)(PAGE_SIZE-1))
@@ -98,6 +94,7 @@ extern u64 __read_mostly shadow_user_mask;
 extern u64 __read_mostly shadow_accessed_mask;
 extern u64 __read_mostly shadow_dirty_mask;
 extern u64 __read_mostly shadow_mmio_value;
+extern u64 __read_mostly shadow_mmio_mask;
 extern u64 __read_mostly shadow_mmio_access_mask;
 extern u64 __read_mostly shadow_present_mask;
 extern u64 __read_mostly shadow_me_mask;
@@ -167,7 +164,8 @@ extern u8 __read_mostly shadow_phys_bits;
 
 static inline bool is_mmio_spte(u64 spte)
 {
-	return (spte & SPTE_SPECIAL_MASK) == SPTE_MMIO_MASK;
+	return (spte & shadow_mmio_mask) == shadow_mmio_value &&
+	       likely(shadow_mmio_value);
 }
 
 static inline bool sp_ad_disabled(struct kvm_mmu_page *sp)

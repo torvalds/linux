@@ -5770,7 +5770,7 @@ static void kvm_set_mmio_spte_mask(void)
 	else
 		mask = 0;
 
-	kvm_mmu_set_mmio_spte_mask(mask, ACC_WRITE_MASK | ACC_USER_MASK);
+	kvm_mmu_set_mmio_spte_mask(mask, mask, ACC_WRITE_MASK | ACC_USER_MASK);
 }
 
 static bool get_nx_auto_mode(void)
