@@ -1346,10 +1346,8 @@ retry:
 		/* record completion code */
 		unsigned char cc = *(resp + 2);
 
-		if ((cc == IPMI_DEVICE_IN_FW_UPDATE_ERR
-		    || cc == IPMI_DEVICE_IN_INIT_ERR
-		    || cc == IPMI_NOT_IN_MY_STATE_ERR)
-		    && ++retry_count <= GET_DEVICE_ID_MAX_RETRY) {
+		if (cc != IPMI_CC_NO_ERROR &&
+		    ++retry_count <= GET_DEVICE_ID_MAX_RETRY) {
 			dev_warn(smi_info->io.dev,
 			    "BMC returned 0x%2.2x, retry get bmc device id\n",
 			    cc);

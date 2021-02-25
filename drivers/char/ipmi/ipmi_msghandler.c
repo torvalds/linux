@@ -2447,10 +2447,8 @@ retry:
 	wait_event(intf->waitq, bmc->dyn_id_set != 2);
 
 	if (!bmc->dyn_id_set) {
-		if ((bmc->cc == IPMI_DEVICE_IN_FW_UPDATE_ERR
-		     || bmc->cc ==  IPMI_DEVICE_IN_INIT_ERR
-		     || bmc->cc ==  IPMI_NOT_IN_MY_STATE_ERR)
-		     && ++retry_count <= GET_DEVICE_ID_MAX_RETRY) {
+		if (bmc->cc != IPMI_CC_NO_ERROR &&
+		    ++retry_count <= GET_DEVICE_ID_MAX_RETRY) {
 			msleep(500);
 			dev_warn(intf->si_dev,
 			    "BMC returned 0x%2.2x, retry get bmc device id\n",
