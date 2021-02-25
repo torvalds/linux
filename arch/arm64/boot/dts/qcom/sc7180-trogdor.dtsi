@@ -22,9 +22,11 @@
 			thermal-sensors = <&pm6150_adc_tm 1>;
 
 			trips {
-				temperature = <125000>;
-				hysteresis = <1000>;
-				type = "critical";
+				charger-crit {
+					temperature = <125000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
 			};
 		};
 	};
