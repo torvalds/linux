@@ -1464,6 +1464,7 @@
 				<200000000>;
 		rockchip,advanced-rates = <500000000>, <0>, <400000000>,
 				<400000000>;
+		rockchip,default-max-load = <2088960>;
 		resets =  <&cru SRST_HEVC>;
 		reset-names = "video_core";
 
