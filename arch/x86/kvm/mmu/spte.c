@@ -42,7 +42,7 @@ static u64 generation_mmio_spte_mask(u64 gen)
 	u64 mask;
 
 	WARN_ON(gen & ~MMIO_SPTE_GEN_MASK);
-	BUILD_BUG_ON((MMIO_SPTE_GEN_HIGH_MASK | MMIO_SPTE_GEN_LOW_MASK) & SPTE_SPECIAL_MASK);
+	BUILD_BUG_ON((MMIO_SPTE_GEN_HIGH_MASK | MMIO_SPTE_GEN_LOW_MASK) & SPTE_TDP_AD_MASK);
 
 	mask = (gen << MMIO_SPTE_GEN_LOW_SHIFT) & MMIO_SPTE_GEN_LOW_MASK;
 	mask |= (gen << MMIO_SPTE_GEN_HIGH_SHIFT) & MMIO_SPTE_GEN_HIGH_MASK;
@@ -96,9 +96,16 @@ int make_spte(struct kvm_vcpu *vcpu, unsigned int pte_access, int level,
 	int ret = 0;
 
 	if (ad_disabled)
-		spte |= SPTE_AD_DISABLED_MASK;
+		spte |= SPTE_TDP_AD_DISABLED_MASK;
 	else if (kvm_vcpu_ad_need_write_protect(vcpu))
-		spte |= SPTE_AD_WRPROT_ONLY_MASK;
+		spte |= SPTE_TDP_AD_WRPROT_ONLY_MASK;
+
+	/*
+	 * Bits 62:52 of PAE SPTEs are reserved.  WARN if said bits are set
+	 * if PAE paging may be employed (shadow paging or any 32-bit KVM).
+	 */
+	WARN_ON_ONCE((!tdp_enabled || !IS_ENABLED(CONFIG_X86_64)) &&
+		     (spte & SPTE_TDP_AD_MASK));
 
 	/*
 	 * For the EPT case, shadow_present_mask is 0 if hardware
@@ -180,7 +187,7 @@ u64 make_nonleaf_spte(u64 *child_pt, bool ad_disabled)
 	       shadow_user_mask | shadow_x_mask | shadow_me_mask;
 
 	if (ad_disabled)
-		spte |= SPTE_AD_DISABLED_MASK;
+		spte |= SPTE_TDP_AD_DISABLED_MASK;
 	else
 		spte |= shadow_accessed_mask;
 
@@ -288,7 +295,7 @@ void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
 {
 	BUG_ON(!dirty_mask != !accessed_mask);
 	BUG_ON(!accessed_mask && !acc_track_mask);
-	BUG_ON(acc_track_mask & SPTE_SPECIAL_MASK);
+	BUG_ON(acc_track_mask & SPTE_TDP_AD_MASK);
 
 	shadow_user_mask = user_mask;
 	shadow_accessed_mask = accessed_mask;

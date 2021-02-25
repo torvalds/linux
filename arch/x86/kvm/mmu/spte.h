@@ -8,11 +8,24 @@
 #define PT_FIRST_AVAIL_BITS_SHIFT 10
 #define PT64_SECOND_AVAIL_BITS_SHIFT 54
 
-/* The mask used to denote Access Tracking SPTEs.  Note, val=3 is available. */
-#define SPTE_SPECIAL_MASK (3ULL << 52)
-#define SPTE_AD_ENABLED_MASK (0ULL << 52)
-#define SPTE_AD_DISABLED_MASK (1ULL << 52)
-#define SPTE_AD_WRPROT_ONLY_MASK (2ULL << 52)
+/*
+ * TDP SPTES (more specifically, EPT SPTEs) may not have A/D bits, and may also
+ * be restricted to using write-protection (for L2 when CPU dirty logging, i.e.
+ * PML, is enabled).  Use bits 52 and 53 to hold the type of A/D tracking that
+ * is must be employed for a given TDP SPTE.
+ *
+ * Note, the "enabled" mask must be '0', as bits 62:52 are _reserved_ for PAE
+ * paging, including NPT PAE.  This scheme works because legacy shadow paging
+ * is guaranteed to have A/D bits and write-protection is forced only for
+ * TDP with CPU dirty logging (PML).  If NPT ever gains PML-like support, it
+ * must be restricted to 64-bit KVM.
+ */
+#define SPTE_TDP_AD_SHIFT		52
+#define SPTE_TDP_AD_MASK		(3ULL << SPTE_TDP_AD_SHIFT)
+#define SPTE_TDP_AD_ENABLED_MASK	(0ULL << SPTE_TDP_AD_SHIFT)
+#define SPTE_TDP_AD_DISABLED_MASK	(1ULL << SPTE_TDP_AD_SHIFT)
+#define SPTE_TDP_AD_WRPROT_ONLY_MASK	(2ULL << SPTE_TDP_AD_SHIFT)
+static_assert(SPTE_TDP_AD_ENABLED_MASK == 0);
 
 #ifdef CONFIG_DYNAMIC_PHYSICAL_MASK
 #define PT64_BASE_ADDR_MASK (physical_mask & ~(u64)(PAGE_SIZE-1))
@@ -100,7 +113,7 @@ extern u64 __read_mostly shadow_present_mask;
 extern u64 __read_mostly shadow_me_mask;
 
 /*
- * SPTEs used by MMUs without A/D bits are marked with SPTE_AD_DISABLED_MASK;
+ * SPTEs in MMUs without A/D bits are marked with SPTE_TDP_AD_DISABLED_MASK;
  * shadow_acc_track_mask is the set of bits to be cleared in non-accessed
  * pages.
  */
@@ -176,13 +189,18 @@ static inline bool sp_ad_disabled(struct kvm_mmu_page *sp)
 static inline bool spte_ad_enabled(u64 spte)
 {
 	MMU_WARN_ON(is_mmio_spte(spte));
-	return (spte & SPTE_SPECIAL_MASK) != SPTE_AD_DISABLED_MASK;
+	return (spte & SPTE_TDP_AD_MASK) != SPTE_TDP_AD_DISABLED_MASK;
 }
 
 static inline bool spte_ad_need_write_protect(u64 spte)
 {
 	MMU_WARN_ON(is_mmio_spte(spte));
-	return (spte & SPTE_SPECIAL_MASK) != SPTE_AD_ENABLED_MASK;
+	/*
+	 * This is benign for non-TDP SPTEs as SPTE_TDP_AD_ENABLED_MASK is '0',
+	 * and non-TDP SPTEs will never set these bits.  Optimize for 64-bit
+	 * TDP and do the A/D type check unconditionally.
+	 */
+	return (spte & SPTE_TDP_AD_MASK) != SPTE_TDP_AD_ENABLED_MASK;
 }
 
 static inline u64 spte_shadow_accessed_mask(u64 spte)
