@@ -2189,7 +2189,9 @@ early_param("no_hash_pointers", no_hash_pointers_enable);
  *       Implements a "recursive vsnprintf".
  *       Do not use this feature without some mechanism to verify the
  *       correctness of the format string and va_list arguments.
- * - 'K' For a kernel pointer that should be hidden from unprivileged users
+ * - 'K' For a kernel pointer that should be hidden from unprivileged users.
+ *       Use only for procfs, sysfs and similar files, not printk(); please
+ *       read the documentation (path below) first.
  * - 'NF' For a netdev_features_t
  * - 'h[CDN]' For a variable-length buffer, it prints it as a hex string with
  *            a certain separator (' ' by default):
@@ -2228,7 +2230,8 @@ early_param("no_hash_pointers", no_hash_pointers_enable);
  *		Without an option prints the full name of the node
  *		f full name
  *		P node name, including a possible unit address
- * - 'x' For printing the address. Equivalent to "%lx".
+ * - 'x' For printing the address unmodified. Equivalent to "%lx".
+ *       Please read the documentation (path below) before using!
  * - '[ku]s' For a BPF/tracing related format specifier, e.g. used out of
  *           bpf_trace_printk() where [ku] prefix specifies either kernel (k)
  *           or user (u) memory to probe, and:
