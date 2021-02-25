@@ -118,6 +118,8 @@ config NET_DSA_TAG_OCELOT
 
 config NET_DSA_TAG_OCELOT_8021Q
 	tristate "Tag driver for Ocelot family of switches, using VLAN"
+	depends on MSCC_OCELOT_SWITCH_LIB || \
+	          (MSCC_OCELOT_SWITCH_LIB=n && COMPILE_TEST)
 	select NET_DSA_TAG_8021Q
 	help
 	  Say Y or M if you want to enable support for tagging frames with a
