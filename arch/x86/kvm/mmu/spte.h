@@ -6,7 +6,6 @@
 #include "mmu_internal.h"
 
 #define PT_FIRST_AVAIL_BITS_SHIFT 10
-#define PT64_SECOND_AVAIL_BITS_SHIFT 54
 
 /*
  * TDP SPTES (more specifically, EPT SPTEs) may not have A/D bits, and may also
@@ -134,11 +133,14 @@ extern u64 __read_mostly shadow_nonpresent_or_rsvd_mask;
  * The mask/shift to use for saving the original R/X bits when marking the PTE
  * as not-present for access tracking purposes. We do not save the W bit as the
  * PTEs being access tracked also need to be dirty tracked, so the W bit will be
- * restored only when a write is attempted to the page.
+ * restored only when a write is attempted to the page.  This mask obviously
+ * must not overlap the A/D type mask.
  */
 #define SHADOW_ACC_TRACK_SAVED_BITS_MASK (PT64_EPT_READABLE_MASK | \
 					  PT64_EPT_EXECUTABLE_MASK)
-#define SHADOW_ACC_TRACK_SAVED_BITS_SHIFT PT64_SECOND_AVAIL_BITS_SHIFT
+#define SHADOW_ACC_TRACK_SAVED_BITS_SHIFT 54
+static_assert(!(SPTE_TDP_AD_MASK & (SHADOW_ACC_TRACK_SAVED_BITS_MASK <<
+				    SHADOW_ACC_TRACK_SAVED_BITS_SHIFT)));
 
 /*
  * If a thread running without exclusive control of the MMU lock must perform a
