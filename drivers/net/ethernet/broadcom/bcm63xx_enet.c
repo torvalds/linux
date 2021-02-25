@@ -1192,7 +1192,6 @@ static int bcm_enet_stop(struct net_device *dev)
 	kdev = &priv->pdev->dev;
 
 	netif_stop_queue(dev);
-	netdev_reset_queue(dev);
 	napi_disable(&priv->napi);
 	if (priv->has_phy)
 		phy_stop(dev->phydev);
@@ -1230,6 +1229,9 @@ static int bcm_enet_stop(struct net_device *dev)
 	/* release phy */
 	if (priv->has_phy)
 		phy_disconnect(dev->phydev);
+
+	/* reset BQL after forced tx reclaim to prevent kernel panic */
+	netdev_reset_queue(dev);
 
 	return 0;
 }
@@ -2343,7 +2345,6 @@ static int bcm_enetsw_stop(struct net_device *dev)
 
 	del_timer_sync(&priv->swphy_poll);
 	netif_stop_queue(dev);
-	netdev_reset_queue(dev);
 	napi_disable(&priv->napi);
 	del_timer_sync(&priv->rx_timeout);
 
@@ -2370,6 +2371,9 @@ static int bcm_enetsw_stop(struct net_device *dev)
 	if (priv->irq_tx != -1)
 		free_irq(priv->irq_tx, dev);
 	free_irq(priv->irq_rx, dev);
+
+	/* reset BQL after forced tx reclaim to prevent kernel panic */
+	netdev_reset_queue(dev);
 
 	return 0;
 }
