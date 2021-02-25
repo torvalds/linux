@@ -16,6 +16,9 @@
 void syscall_loop(char *p, unsigned long iterations,
 		  unsigned long zero_size);
 
+void syscall_loop_uaccess(char *p, unsigned long iterations,
+			  unsigned long zero_size);
+
 void set_dscr(unsigned long val);
 
 #endif /* _SELFTESTS_POWERPC_SECURITY_FLUSH_UTILS_H */
