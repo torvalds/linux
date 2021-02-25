@@ -41,7 +41,7 @@ TRACE_EVENT(mm_lru_insertion,
 	TP_fast_assign(
 		__entry->page	= page;
 		__entry->pfn	= page_to_pfn(page);
-		__entry->lru	= page_lru(page);
+		__entry->lru	= folio_lru_list(page_folio(page));
 		__entry->flags	= trace_pagemap_flags(page);
 	),
 

@@ -95,6 +95,7 @@ More Memory Management Functions
 .. kernel-doc:: mm/mempolicy.c
 .. kernel-doc:: include/linux/mm_types.h
    :internal:
+.. kernel-doc:: include/linux/mm_inline.h
 .. kernel-doc:: include/linux/page-flags.h
 .. kernel-doc:: include/linux/mm.h
    :internal:
