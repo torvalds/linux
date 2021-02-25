@@ -155,6 +155,8 @@ struct dc_caps {
 	uint32_t max_links;
 	uint32_t max_audios;
 	uint32_t max_slave_planes;
+	uint32_t max_slave_yuv_planes;
+	uint32_t max_slave_rgb_planes;
 	uint32_t max_planes;
 	uint32_t max_downscale_ratio;
 	uint32_t i2c_speed_in_khz;
