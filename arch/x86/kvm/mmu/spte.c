@@ -21,6 +21,8 @@
 static bool __read_mostly enable_mmio_caching = true;
 module_param_named(mmio_caching, enable_mmio_caching, bool, 0444);
 
+u64 __read_mostly shadow_host_writable_mask;
+u64 __read_mostly shadow_mmu_writable_mask;
 u64 __read_mostly shadow_nx_mask;
 u64 __read_mostly shadow_x_mask; /* mutual exclusive with nx_mask */
 u64 __read_mostly shadow_user_mask;
@@ -137,7 +139,7 @@ int make_spte(struct kvm_vcpu *vcpu, unsigned int pte_access, int level,
 			kvm_is_mmio_pfn(pfn));
 
 	if (host_writable)
-		spte |= SPTE_HOST_WRITEABLE;
+		spte |= shadow_host_writable_mask;
 	else
 		pte_access &= ~ACC_WRITE_MASK;
 
@@ -147,7 +149,7 @@ int make_spte(struct kvm_vcpu *vcpu, unsigned int pte_access, int level,
 	spte |= (u64)pfn << PAGE_SHIFT;
 
 	if (pte_access & ACC_WRITE_MASK) {
-		spte |= PT_WRITABLE_MASK | SPTE_MMU_WRITEABLE;
+		spte |= PT_WRITABLE_MASK | shadow_mmu_writable_mask;
 
 		/*
 		 * Optimization: for pte sync, if spte was writable the hash
@@ -163,7 +165,7 @@ int make_spte(struct kvm_vcpu *vcpu, unsigned int pte_access, int level,
 				 __func__, gfn);
 			ret |= SET_SPTE_WRITE_PROTECTED_PT;
 			pte_access &= ~ACC_WRITE_MASK;
-			spte &= ~(PT_WRITABLE_MASK | SPTE_MMU_WRITEABLE);
+			spte &= ~(PT_WRITABLE_MASK | shadow_mmu_writable_mask);
 		}
 	}
 
@@ -202,7 +204,7 @@ u64 kvm_mmu_changed_pte_notifier_make_spte(u64 old_spte, kvm_pfn_t new_pfn)
 	new_spte |= (u64)new_pfn << PAGE_SHIFT;
 
 	new_spte &= ~PT_WRITABLE_MASK;
-	new_spte &= ~SPTE_HOST_WRITEABLE;
+	new_spte &= ~shadow_host_writable_mask;
 
 	new_spte = mark_spte_for_access_track(new_spte);
 
@@ -341,6 +343,9 @@ void kvm_mmu_reset_all_pte_masks(void)
 	shadow_present_mask	= PT_PRESENT_MASK;
 	shadow_acc_track_mask	= 0;
 	shadow_me_mask		= sme_me_mask;
+
+	shadow_host_writable_mask = DEFAULT_SPTE_HOST_WRITEABLE;
+	shadow_mmu_writable_mask  = DEFAULT_SPTE_MMU_WRITEABLE;
 
 	/*
 	 * Set a reserved PA bit in MMIO SPTEs to generate page faults with

@@ -5,8 +5,6 @@
 
 #include "mmu_internal.h"
 
-#define PT_FIRST_AVAIL_BITS_SHIFT 10
-
 /*
  * TDP SPTES (more specifically, EPT SPTEs) may not have A/D bits, and may also
  * be restricted to using write-protection (for L2 when CPU dirty logging, i.e.
@@ -59,9 +57,8 @@ static_assert(SPTE_TDP_AD_ENABLED_MASK == 0);
 	(((address) >> PT64_LEVEL_SHIFT(level)) & ((1 << PT64_LEVEL_BITS) - 1))
 #define SHADOW_PT_INDEX(addr, level) PT64_INDEX(addr, level)
 
-
-#define SPTE_HOST_WRITEABLE	(1ULL << PT_FIRST_AVAIL_BITS_SHIFT)
-#define SPTE_MMU_WRITEABLE	(1ULL << (PT_FIRST_AVAIL_BITS_SHIFT + 1))
+#define DEFAULT_SPTE_HOST_WRITEABLE	BIT_ULL(10)
+#define DEFAULT_SPTE_MMU_WRITEABLE	BIT_ULL(11)
 
 /*
  * Due to limited space in PTEs, the MMIO generation is a 20 bit subset of
@@ -100,6 +97,8 @@ static_assert(MMIO_SPTE_GEN_LOW_BITS == 9 && MMIO_SPTE_GEN_HIGH_BITS == 11);
 
 #define MMIO_SPTE_GEN_MASK		GENMASK_ULL(MMIO_SPTE_GEN_LOW_BITS + MMIO_SPTE_GEN_HIGH_BITS - 1, 0)
 
+extern u64 __read_mostly shadow_host_writable_mask;
+extern u64 __read_mostly shadow_mmu_writable_mask;
 extern u64 __read_mostly shadow_nx_mask;
 extern u64 __read_mostly shadow_x_mask; /* mutual exclusive with nx_mask */
 extern u64 __read_mostly shadow_user_mask;
@@ -264,8 +263,8 @@ static inline bool is_dirty_spte(u64 spte)
 
 static inline bool spte_can_locklessly_be_made_writable(u64 spte)
 {
-	return (spte & (SPTE_HOST_WRITEABLE | SPTE_MMU_WRITEABLE)) ==
-		(SPTE_HOST_WRITEABLE | SPTE_MMU_WRITEABLE);
+	return (spte & shadow_host_writable_mask) &&
+	       (spte & shadow_mmu_writable_mask);
 }
 
 static inline u64 get_mmio_spte_generation(u64 spte)

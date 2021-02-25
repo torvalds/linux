@@ -44,18 +44,18 @@ following two cases:
 2. Write-Protection: The SPTE is present and the fault is caused by
    write-protect. That means we just need to change the W bit of the spte.
 
-What we use to avoid all the race is the SPTE_HOST_WRITEABLE bit and
-SPTE_MMU_WRITEABLE bit on the spte:
+What we use to avoid all the race is the Host-writable bit and MMU-writable bit
+on the spte:
 
-- SPTE_HOST_WRITEABLE means the gfn is writable on host.
-- SPTE_MMU_WRITEABLE means the gfn is writable on mmu. The bit is set when
-  the gfn is writable on guest mmu and it is not write-protected by shadow
-  page write-protection.
+- Host-writable means the gfn is writable in the host kernel page tables and in
+  its KVM memslot.
+- MMU-writable means the gfn is writable in the guest's mmu and it is not
+  write-protected by shadow page write-protection.
 
 On fast page fault path, we will use cmpxchg to atomically set the spte W
-bit if spte.SPTE_HOST_WRITEABLE = 1 and spte.SPTE_WRITE_PROTECT = 1, to
-restore the saved R/X bits if for an access-traced spte, or both. This is
-safe because whenever changing these bits can be detected by cmpxchg.
+bit if spte.HOST_WRITEABLE = 1 and spte.WRITE_PROTECT = 1, to restore the saved
+R/X bits if for an access-traced spte, or both. This is safe because whenever
+changing these bits can be detected by cmpxchg.
 
 But we need carefully check these cases:
 
