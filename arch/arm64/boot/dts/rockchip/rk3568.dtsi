@@ -2049,6 +2049,12 @@
 			     <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "sys", "pmc", "msg", "legacy", "err";
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 7>;
+		interrupt-map = <0 0 0 1 &pcie2x1_intc 0>,
+				<0 0 0 2 &pcie2x1_intc 1>,
+				<0 0 0 3 &pcie2x1_intc 2>,
+				<0 0 0 4 &pcie2x1_intc 3>;
 		linux,pci-domain = <0>;
 		num-ib-windows = <6>;
 		num-ob-windows = <2>;
@@ -2067,6 +2073,14 @@
 		resets = <&cru SRST_PCIE20_POWERUP>;
 		reset-names = "pipe";
 		status = "disabled";
+
+		pcie2x1_intc: legacy-interrupt-controller {
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 72 IRQ_TYPE_EDGE_RISING>;
+		};
 	};
 
 	pcie3x1: pcie@fe270000 {
@@ -2086,6 +2100,12 @@
 			     <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "sys", "pmc", "msg", "legacy", "err";
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 7>;
+		interrupt-map = <0 0 0 1 &pcie3x1_intc 0>,
+				<0 0 0 2 &pcie3x1_intc 1>,
+				<0 0 0 3 &pcie3x1_intc 2>,
+				<0 0 0 4 &pcie3x1_intc 3>;
 		linux,pci-domain = <1>;
 		num-ib-windows = <6>;
 		num-ob-windows = <2>;
@@ -2105,6 +2125,14 @@
 		reset-names = "pipe";
 		/* rockchip,bifurcation; lane1 when using 1+1 */
 		status = "disabled";
+
+		pcie3x1_intc: legacy-interrupt-controller {
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 157 IRQ_TYPE_EDGE_RISING>;
+		};
 	};
 
 	pcie3x2: pcie@fe280000 {
@@ -2124,6 +2152,12 @@
 			     <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "sys", "pmc", "msg", "legacy", "err";
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 7>;
+		interrupt-map = <0 0 0 1 &pcie3x2_intc 0>,
+				<0 0 0 2 &pcie3x2_intc 1>,
+				<0 0 0 3 &pcie3x2_intc 2>,
+				<0 0 0 4 &pcie3x2_intc 3>;
 		linux,pci-domain = <2>;
 		num-ib-windows = <6>;
 		num-ob-windows = <2>;
@@ -2143,6 +2177,14 @@
 		reset-names = "pipe";
 		/* rockchip,bifurcation; lane0 when using 1+1 */
 		status = "disabled";
+
+		pcie3x2_intc: legacy-interrupt-controller {
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 162 IRQ_TYPE_EDGE_RISING>;
+		};
 	};
 
 	gmac0: ethernet@fe2a0000 {
