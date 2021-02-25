@@ -96,6 +96,7 @@ config SPARC64
 	select ARCH_HAS_PTE_SPECIAL
 	select PCI_DOMAINS if PCI
 	select ARCH_HAS_GIGANTIC_PAGE
+	select HAVE_SOFTIRQ_ON_OWN_STACK
 
 config ARCH_PROC_KCORE_TEXT
 	def_bool y
