@@ -103,6 +103,15 @@ properties:
       Only eMMC HS400 mode need to take care of this property.
     default: 0
 
+  pinctrl-names:
+    minItems: 1
+    maxItems: 4
+    items:
+      - const: default
+      - const: state_100mhz
+      - const: state_200mhz
+      - const: sleep
+
 required:
   - compatible
   - reg
