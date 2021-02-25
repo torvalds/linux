@@ -944,6 +944,10 @@ bool interrupt_is_wanted(struct kfd_dev *dev,
 /* amdkfd Apertures */
 int kfd_init_apertures(struct kfd_process *process);
 
+void kfd_process_set_trap_handler(struct qcm_process_device *qpd,
+				  uint64_t tba_addr,
+				  uint64_t tma_addr);
+
 /* Queue Context Management */
 int init_queue(struct queue **q, const struct queue_properties *properties);
 void uninit_queue(struct queue *q);
