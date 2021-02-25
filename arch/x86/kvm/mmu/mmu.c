@@ -236,17 +236,6 @@ static unsigned get_mmio_spte_access(u64 spte)
 	return spte & shadow_mmio_access_mask;
 }
 
-static bool set_mmio_spte(struct kvm_vcpu *vcpu, u64 *sptep, gfn_t gfn,
-			  kvm_pfn_t pfn, unsigned int access)
-{
-	if (unlikely(is_noslot_pfn(pfn))) {
-		mark_mmio_spte(vcpu, sptep, gfn, access);
-		return true;
-	}
-
-	return false;
-}
-
 static bool check_mmio_spte(struct kvm_vcpu *vcpu, u64 spte)
 {
 	u64 kvm_gen, spte_gen, gen;
@@ -2563,9 +2552,6 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	struct kvm_mmu_page *sp;
 	int ret;
 
-	if (set_mmio_spte(vcpu, sptep, gfn, pfn, pte_access))
-		return 0;
-
 	sp = sptep_to_sp(sptep);
 
 	ret = make_spte(vcpu, pte_access, level, gfn, pfn, *sptep, speculative,
@@ -2594,6 +2580,11 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 
 	pgprintk("%s: spte %llx write_fault %d gfn %llx\n", __func__,
 		 *sptep, write_fault, gfn);
+
+	if (unlikely(is_noslot_pfn(pfn))) {
+		mark_mmio_spte(vcpu, sptep, gfn, pte_access);
+		return RET_PF_EMULATE;
+	}
 
 	if (is_shadow_present_pte(*sptep)) {
 		/*
@@ -2627,9 +2618,6 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	if (set_spte_ret & SET_SPTE_NEED_REMOTE_TLB_FLUSH || flush)
 		kvm_flush_remote_tlbs_with_address(vcpu->kvm, gfn,
 				KVM_PAGES_PER_HPAGE(level));
-
-	if (unlikely(is_mmio_spte(*sptep)))
-		ret = RET_PF_EMULATE;
 
 	/*
 	 * The fault is fully spurious if and only if the new SPTE and old SPTE
