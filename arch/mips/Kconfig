@@ -92,6 +92,7 @@ config MIPS
 	select SET_FS
 	select SYSCTL_EXCEPTION_TRACE
 	select VIRT_TO_BUS
+	select ARCH_HAS_ELFCORE_COMPAT
 
 config MIPS_FIXUP_BIGPHYS_ADDR
 	bool
@@ -2182,7 +2183,7 @@ endchoice
 config KVM_GUEST
 	bool "KVM Guest Kernel"
 	depends on CPU_MIPS32_R2
-	depends on BROKEN_ON_SMP
+	depends on !64BIT && BROKEN_ON_SMP
 	help
 	  Select this option if building a guest kernel for KVM (Trap & Emulate)
 	  mode.
@@ -3299,11 +3300,6 @@ config MIPS32_N32
 	  cases.
 
 	  If unsure, say N.
-
-config BINFMT_ELF32
-	bool
-	default y if MIPS32_O32 || MIPS32_N32
-	select ELFCORE
 
 menu "Power management options"
 

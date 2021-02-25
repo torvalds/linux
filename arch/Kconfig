@@ -1111,6 +1111,9 @@ config ARCH_SPLIT_ARG64
 	   If a 32-bit architecture requires 64-bit arguments to be split into
 	   pairs of 32-bit arguments, select this option.
 
+config ARCH_HAS_ELFCORE_COMPAT
+	bool
+
 source "kernel/gcov/Kconfig"
 
 source "scripts/gcc-plugins/Kconfig"

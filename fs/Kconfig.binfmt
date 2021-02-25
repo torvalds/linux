@@ -29,7 +29,7 @@ config BINFMT_ELF
 	  latest version).
 
 config COMPAT_BINFMT_ELF
-	bool
+	def_bool y
 	depends on COMPAT && BINFMT_ELF
 	select ELFCORE
 

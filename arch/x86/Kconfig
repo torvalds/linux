@@ -32,6 +32,7 @@ config X86_64
 	select MODULES_USE_ELF_RELA
 	select NEED_DMA_MAP_STATE
 	select SWIOTLB
+	select ARCH_HAS_ELFCORE_COMPAT
 
 config FORCE_DYNAMIC_FTRACE
 	def_bool y
@@ -2860,7 +2861,6 @@ config IA32_EMULATION
 	depends on X86_64
 	select ARCH_WANT_OLD_COMPAT_IPC
 	select BINFMT_ELF
-	select COMPAT_BINFMT_ELF
 	select COMPAT_OLD_SIGACTION
 	help
 	  Include code to run legacy 32-bit programs under a
