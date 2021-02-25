@@ -10,16 +10,7 @@
  *
  * We create two sets of source and destination buffers, one in regular memory,
  * the other cache-inhibited (by default we use /dev/fb0 for this, but an
- * alterative path for cache-inhibited memory may be provided).
- *
- * One way to get cache-inhibited memory is to use the "mem" kernel parameter
- * to limit the kernel to less memory than actually exists.  Addresses above
- * the limit may still be accessed but will be treated as cache-inhibited. For
- * example, if there is actually 4GB of memory and the parameter "mem=3GB" is
- * used, memory from address 0xC0000000 onwards is treated as cache-inhibited.
- * To access this region /dev/mem is used. The kernel should be configured
- * without CONFIG_STRICT_DEVMEM. In this case use:
- *         ./alignment_handler /dev/mem 0xc0000000
+ * alterative path for cache-inhibited memory may be provided, e.g. memtrace).
  *
  * We initialise the source buffers, then use whichever set of load/store
  * instructions is under test to copy bytes from the source buffers to the
