@@ -201,6 +201,19 @@ static void mlx5_rl_table_free(struct mlx5_core_dev *dev, struct mlx5_rl_table *
 	kfree(table->rl_entry);
 }
 
+static void mlx5_rl_entry_get(struct mlx5_rl_entry *entry)
+{
+	entry->refcount++;
+}
+
+static void
+mlx5_rl_entry_put(struct mlx5_core_dev *dev, struct mlx5_rl_entry *entry)
+{
+	entry->refcount--;
+	if (!entry->refcount)
+		mlx5_set_pp_rate_limit_cmd(dev, entry, false);
+}
+
 int mlx5_rl_add_rate_raw(struct mlx5_core_dev *dev, void *rl_in, u16 uid,
 			 bool dedicated_entry, u16 *index)
 {
@@ -228,13 +241,10 @@ int mlx5_rl_add_rate_raw(struct mlx5_core_dev *dev, void *rl_in, u16 uid,
 		err = -ENOSPC;
 		goto out;
 	}
-	if (entry->refcount) {
-		/* rate already configured */
-		entry->refcount++;
-	} else {
+	if (!entry->refcount) {
+		/* new rate limit */
 		memcpy(entry->rl_raw, rl_in, sizeof(entry->rl_raw));
 		entry->uid = uid;
-		/* new rate limit */
 		err = mlx5_set_pp_rate_limit_cmd(dev, entry, true);
 		if (err) {
 			mlx5_core_err(
@@ -248,9 +258,9 @@ int mlx5_rl_add_rate_raw(struct mlx5_core_dev *dev, void *rl_in, u16 uid,
 			goto out;
 		}
 
-		entry->refcount = 1;
 		entry->dedicated = dedicated_entry;
 	}
+	mlx5_rl_entry_get(entry);
 	*index = entry->index;
 
 out:
@@ -266,10 +276,7 @@ void mlx5_rl_remove_rate_raw(struct mlx5_core_dev *dev, u16 index)
 
 	mutex_lock(&table->rl_lock);
 	entry = &table->rl_entry[index - 1];
-	entry->refcount--;
-	if (!entry->refcount)
-		/* need to remove rate */
-		mlx5_set_pp_rate_limit_cmd(dev, entry, false);
+	mlx5_rl_entry_put(dev, entry);
 	mutex_unlock(&table->rl_lock);
 }
 EXPORT_SYMBOL(mlx5_rl_remove_rate_raw);
@@ -317,12 +324,7 @@ void mlx5_rl_remove_rate(struct mlx5_core_dev *dev, struct mlx5_rate_limit *rl)
 			       rl->rate, rl->max_burst_sz, rl->typical_pkt_sz);
 		goto out;
 	}
-
-	entry->refcount--;
-	if (!entry->refcount)
-		/* need to remove rate */
-		mlx5_set_pp_rate_limit_cmd(dev, entry, false);
-
+	mlx5_rl_entry_put(dev, entry);
 out:
 	mutex_unlock(&table->rl_lock);
 }
