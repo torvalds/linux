@@ -473,3 +473,4 @@ u64 fscrypt_limit_io_blocks(const struct inode *inode, u64 lblk, u64 nr_blocks)
 
 	return min_t(u64, nr_blocks, (u64)U32_MAX + 1 - dun);
 }
+EXPORT_SYMBOL_GPL(fscrypt_limit_io_blocks);
