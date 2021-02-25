@@ -123,6 +123,9 @@
 #define PCI_GLI_9755_PLLSSC        0x68
 #define   PCI_GLI_9755_PLLSSC_PPM    GENMASK(15, 0)
 
+#define PCI_GLI_9755_SerDes  0x70
+#define PCI_GLI_9755_SCP_DIS   BIT(19)
+
 #define GLI_MAX_TUNING_LOOP 40
 
 /* Genesys Logic chipset */
@@ -546,6 +549,11 @@ static void gl9755_hw_setting(struct sdhci_pci_slot *slot)
 	value &= ~PCI_GLI_9755_LFCLK;
 	value &= ~PCI_GLI_9755_DMACLK;
 	pci_write_config_dword(pdev, PCI_GLI_9755_PECONF, value);
+
+	/* enable short circuit protection */
+	pci_read_config_dword(pdev, PCI_GLI_9755_SerDes, &value);
+	value &= ~PCI_GLI_9755_SCP_DIS;
+	pci_write_config_dword(pdev, PCI_GLI_9755_SerDes, value);
 
 	gl9755_wt_off(pdev);
 }
