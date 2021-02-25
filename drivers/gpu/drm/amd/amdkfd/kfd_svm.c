@@ -1997,6 +1997,65 @@ svm_range_from_addr(struct svm_range_list *svms, unsigned long addr,
 	return NULL;
 }
 
+int
+svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
+			uint64_t addr)
+{
+	int r = 0;
+	struct mm_struct *mm = NULL;
+	struct svm_range *prange;
+	struct svm_range_list *svms;
+	struct kfd_process *p;
+
+	p = kfd_lookup_process_by_pasid(pasid);
+	if (!p) {
+		pr_debug("kfd process not founded pasid 0x%x\n", pasid);
+		return -ESRCH;
+	}
+	if (!p->xnack_enabled) {
+		pr_debug("XNACK not enabled for pasid 0x%x\n", pasid);
+		return -EFAULT;
+	}
+	svms = &p->svms;
+
+	pr_debug("restoring svms 0x%p fault address 0x%llx\n", svms, addr);
+
+	mm = get_task_mm(p->lead_thread);
+	if (!mm) {
+		pr_debug("svms 0x%p failed to get mm\n", svms);
+		r = -ESRCH;
+		goto out;
+	}
+
+	mmap_read_lock(mm);
+	mutex_lock(&svms->lock);
+	prange = svm_range_from_addr(svms, addr, NULL);
+
+	if (!prange) {
+		pr_debug("failed to find prange svms 0x%p address [0x%llx]\n",
+			 svms, addr);
+		r = -EFAULT;
+		goto out_unlock_svms;
+	}
+
+	mutex_lock(&prange->migrate_mutex);
+
+	r = svm_range_validate_and_map(mm, prange, MAX_GPU_INSTANCE, false, false);
+	if (r)
+		pr_debug("failed %d to map svms 0x%p [0x%lx 0x%lx] to gpu\n", r,
+			 svms, prange->start, prange->last);
+
+	mutex_unlock(&prange->migrate_mutex);
+out_unlock_svms:
+	mutex_unlock(&svms->lock);
+	mmap_read_unlock(mm);
+	mmput(mm);
+out:
+	kfd_unref_process(p);
+
+	return r;
+}
+
 void svm_range_list_fini(struct kfd_process *p)
 {
 	struct svm_range *prange;
