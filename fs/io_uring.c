@@ -339,6 +339,7 @@ struct io_ring_ctx {
 		unsigned int		eventfd_async: 1;
 		unsigned int		restricted: 1;
 		unsigned int		sqo_dead: 1;
+		unsigned int		sqo_exec: 1;
 
 		/*
 		 * Ring buffer of indices into array of io_uring_sqe, which is
@@ -6796,6 +6797,10 @@ static int io_sq_thread(void *data)
 	complete_all(&sqd->completion);
 	mutex_lock(&sqd->lock);
 	sqd->thread = NULL;
+	list_for_each_entry(ctx, &sqd->ctx_list, sqd_list) {
+		ctx->sqo_exec = 1;
+		io_ring_set_wakeup_flag(ctx);
+	}
 	mutex_unlock(&sqd->lock);
 
 	complete(&sqd->exited);
@@ -7838,6 +7843,25 @@ void __io_uring_free(struct task_struct *tsk)
 	percpu_counter_destroy(&tctx->inflight);
 	kfree(tctx);
 	tsk->io_uring = NULL;
+}
+
+static int io_sq_thread_fork(struct io_sq_data *sqd, struct io_ring_ctx *ctx)
+{
+	int ret;
+
+	clear_bit(IO_SQ_THREAD_SHOULD_STOP, &sqd->state);
+	reinit_completion(&sqd->completion);
+	ctx->sqo_dead = ctx->sqo_exec = 0;
+	sqd->task_pid = current->pid;
+	current->flags |= PF_IO_WORKER;
+	ret = io_wq_fork_thread(io_sq_thread, sqd);
+	current->flags &= ~PF_IO_WORKER;
+	if (ret < 0) {
+		sqd->thread = NULL;
+		return ret;
+	}
+	wait_for_completion(&sqd->completion);
+	return io_uring_alloc_task_context(sqd->thread, ctx);
 }
 
 static int io_sq_offload_create(struct io_ring_ctx *ctx,
@@ -9128,6 +9152,12 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
 		io_cqring_overflow_flush(ctx, false, NULL, NULL);
 
+		if (unlikely(ctx->sqo_exec)) {
+			ret = io_sq_thread_fork(ctx->sq_data, ctx);
+			if (ret)
+				goto out;
+			ctx->sqo_exec = 0;
+		}
 		ret = -EOWNERDEAD;
 		if (unlikely(ctx->sqo_dead))
 			goto out;
@@ -9229,8 +9259,11 @@ static void __io_uring_show_fdinfo(struct io_ring_ctx *ctx, struct seq_file *m)
 	 */
 	has_lock = mutex_trylock(&ctx->uring_lock);
 
-	if (has_lock && (ctx->flags & IORING_SETUP_SQPOLL))
+	if (has_lock && (ctx->flags & IORING_SETUP_SQPOLL)) {
 		sq = ctx->sq_data;
+		if (!sq->thread)
+			sq = NULL;
+	}
 
 	seq_printf(m, "SqThread:\t%d\n", sq ? task_pid_nr(sq->thread) : -1);
 	seq_printf(m, "SqThreadCpu:\t%d\n", sq ? task_cpu(sq->thread) : -1);
