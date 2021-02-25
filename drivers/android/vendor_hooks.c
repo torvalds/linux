@@ -41,6 +41,7 @@
 #include <trace/hooks/cgroup.h>
 #include <trace/hooks/sys.h>
 #include <trace/hooks/traps.h>
+#include <trace/hooks/avc.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -183,3 +184,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rwsem_wake_finish);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_do_undefinstr);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_bad_mode);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_arm64_serror_panic);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_selinux_avc_insert);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_selinux_avc_node_delete);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_selinux_avc_node_replace);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_selinux_avc_lookup);
