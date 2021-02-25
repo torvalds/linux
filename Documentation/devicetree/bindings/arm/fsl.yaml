@@ -690,7 +690,9 @@ properties:
 
       - description: Engicam i.Core MX8M Mini SoM based boards
         items:
-          - const: engicam,icore-mx8mm-ctouch2     # i.MX8MM Engicam i.Core MX8M Mini C.TOUCH 2.0
+          - enum:
+              - engicam,icore-mx8mm-ctouch2        # i.MX8MM Engicam i.Core MX8M Mini C.TOUCH 2.0
+              - engicam,icore-mx8mm-edimm2.2       # i.MX8MM Engicam i.Core MX8M Mini EDIMM2.2 Starter Kit
           - const: engicam,icore-mx8mm             # i.MX8MM Engicam i.Core MX8M Mini SoM
           - const: fsl,imx8mm
 
