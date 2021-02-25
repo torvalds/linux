@@ -4594,8 +4594,10 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 	}
 	arg = off / 8;
 	args = (const struct btf_param *)(t + 1);
-	/* if (t == NULL) Fall back to default BPF prog with 5 u64 arguments */
-	nr_args = t ? btf_type_vlen(t) : 5;
+	/* if (t == NULL) Fall back to default BPF prog with
+	 * MAX_BPF_FUNC_REG_ARGS u64 arguments.
+	 */
+	nr_args = t ? btf_type_vlen(t) : MAX_BPF_FUNC_REG_ARGS;
 	if (prog->aux->attach_btf_trace) {
 		/* skip first 'void *__data' argument in btf_trace_##name typedef */
 		args++;
@@ -4651,7 +4653,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		}
 	} else {
 		if (!t)
-			/* Default prog with 5 args */
+			/* Default prog with MAX_BPF_FUNC_REG_ARGS args */
 			return true;
 		t = btf_type_by_id(btf, args[arg].type);
 	}
@@ -5102,12 +5104,12 @@ int btf_distill_func_proto(struct bpf_verifier_log *log,
 
 	if (!func) {
 		/* BTF function prototype doesn't match the verifier types.
-		 * Fall back to 5 u64 args.
+		 * Fall back to MAX_BPF_FUNC_REG_ARGS u64 args.
 		 */
-		for (i = 0; i < 5; i++)
+		for (i = 0; i < MAX_BPF_FUNC_REG_ARGS; i++)
 			m->arg_size[i] = 8;
 		m->ret_size = 8;
-		m->nr_args = 5;
+		m->nr_args = MAX_BPF_FUNC_REG_ARGS;
 		return 0;
 	}
 	args = (const struct btf_param *)(func + 1);
@@ -5330,8 +5332,9 @@ int btf_check_func_arg_match(struct bpf_verifier_env *env, int subprog,
 	}
 	args = (const struct btf_param *)(t + 1);
 	nargs = btf_type_vlen(t);
-	if (nargs > 5) {
-		bpf_log(log, "Function %s has %d > 5 args\n", tname, nargs);
+	if (nargs > MAX_BPF_FUNC_REG_ARGS) {
+		bpf_log(log, "Function %s has %d > %d args\n", tname, nargs,
+			MAX_BPF_FUNC_REG_ARGS);
 		goto out;
 	}
 
@@ -5460,9 +5463,9 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
 	}
 	args = (const struct btf_param *)(t + 1);
 	nargs = btf_type_vlen(t);
-	if (nargs > 5) {
-		bpf_log(log, "Global function %s() with %d > 5 args. Buggy compiler.\n",
-			tname, nargs);
+	if (nargs > MAX_BPF_FUNC_REG_ARGS) {
+		bpf_log(log, "Global function %s() with %d > %d args. Buggy compiler.\n",
+			tname, nargs, MAX_BPF_FUNC_REG_ARGS);
 		return -EINVAL;
 	}
 	/* check that function returns int */
