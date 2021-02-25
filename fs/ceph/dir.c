@@ -677,6 +677,8 @@ int ceph_handle_snapdir(struct ceph_mds_request *req,
 	    strcmp(dentry->d_name.name,
 		   fsc->mount_options->snapdir_name) == 0) {
 		struct inode *inode = ceph_get_snapdir(parent);
+		if (IS_ERR(inode))
+			return PTR_ERR(inode);
 		dout("ENOENT on snapdir %p '%pd', linking to snapdir %p\n",
 		     dentry, dentry, inode);
 		BUG_ON(!d_unhashed(dentry));

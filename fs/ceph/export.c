@@ -248,9 +248,10 @@ static struct dentry *__snapfh_to_dentry(struct super_block *sb,
 			ihold(inode);
 		} else {
 			/* mds does not support lookup snapped inode */
-			err = -EOPNOTSUPP;
-			inode = NULL;
+			inode = ERR_PTR(-EOPNOTSUPP);
 		}
+	} else {
+		inode = ERR_PTR(-ESTALE);
 	}
 	ceph_mdsc_put_request(req);
 
@@ -261,8 +262,8 @@ static struct dentry *__snapfh_to_dentry(struct super_block *sb,
 		dout("snapfh_to_dentry %llx.%llx parent %llx hash %x err=%d",
 		      vino.ino, vino.snap, sfh->parent_ino, sfh->hash, err);
 	}
-	if (!inode)
-		return ERR_PTR(-ESTALE);
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
 	/* see comments in ceph_get_parent() */
 	return unlinked ? d_obtain_root(inode) : d_obtain_alias(inode);
 }
