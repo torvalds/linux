@@ -89,6 +89,9 @@
 #define RKVDEC_REG_RLC_BASE		0x010
 #define RKVDEC_REG_RLC_BASE_INDEX	(4)
 
+#define RKVDEC_RGE_YSTRDE_INDEX		(8)
+#define RKVDEC_GET_YSTRDE(x)		(((x) & 0x1fffff) << 4)
+
 #define RKVDEC_REG_PPS_BASE		0x0a0
 #define RKVDEC_REG_PPS_BASE_INDEX	(42)
 
@@ -143,6 +146,8 @@ struct rkvdec_task {
 	struct mpp_request w_reqs[MPP_MAX_MSG_NUM];
 	u32 r_req_cnt;
 	struct mpp_request r_reqs[MPP_MAX_MSG_NUM];
+	/* ystride info */
+	u32 pixels;
 };
 
 struct rkvdec_dev {
@@ -155,6 +160,7 @@ struct rkvdec_dev {
 	struct mpp_clk_info core_clk_info;
 	struct mpp_clk_info cabac_clk_info;
 	struct mpp_clk_info hevc_cabac_clk_info;
+	u32 default_max_load;
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *procfs;
 #endif
@@ -825,6 +831,10 @@ static void *rkvdec_alloc_task(struct mpp_session *session,
 	task->link_mode = RKVDEC_MODE_ONEFRAME;
 	task->clk_mode = CLK_MODE_NORMAL;
 
+	/* get resolution info */
+	task->pixels = RKVDEC_GET_YSTRDE(task->reg[RKVDEC_RGE_YSTRDE_INDEX]);
+	mpp_debug(DEBUG_TASK_INFO, "ystride=%d\n", task->pixels);
+
 	mpp_debug_leave();
 
 	return mpp_task;
@@ -1200,6 +1210,9 @@ static int rkvdec_init(struct mpp_dev *mpp)
 	mpp_set_clk_info_rate_hz(&dec->cabac_clk_info, CLK_MODE_DEFAULT, 200 * MHZ);
 	mpp_set_clk_info_rate_hz(&dec->hevc_cabac_clk_info, CLK_MODE_DEFAULT, 300 * MHZ);
 
+	/* Get normal max workload from dtsi */
+	of_property_read_u32(mpp->dev->of_node,
+			     "rockchip,default-max-load", &dec->default_max_load);
 	/* Get reset control from dtsi */
 	dec->rst_a = mpp_reset_control_get(mpp, RST_TYPE_A, "video_a");
 	if (!dec->rst_a)
@@ -1422,6 +1435,42 @@ static int rkvdec_clk_off(struct mpp_dev *mpp)
 	return 0;
 }
 
+static int rkvdec_get_freq(struct mpp_dev *mpp,
+			   struct mpp_task *mpp_task)
+{
+	u32 task_cnt;
+	u32 workload;
+	struct mpp_task *loop = NULL, *n;
+	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
+	struct rkvdec_task *task = to_rkvdec_task(mpp_task);
+
+	/* if not set max load, consider not have advanced mode */
+	if (!dec->default_max_load || !task->pixels)
+		return 0;
+
+	task_cnt = 1;
+	workload = task->pixels;
+	/* calc workload in pending list */
+	mutex_lock(&mpp->queue->pending_lock);
+	list_for_each_entry_safe(loop, n,
+				 &mpp->queue->pending_list,
+				 queue_link) {
+		struct rkvdec_task *loop_task = to_rkvdec_task(loop);
+
+		task_cnt++;
+		workload += loop_task->pixels;
+	}
+	mutex_unlock(&mpp->queue->pending_lock);
+
+	if (workload > dec->default_max_load)
+		task->clk_mode = CLK_MODE_ADVANCED;
+
+	mpp_debug(DEBUG_TASK_INFO, "pending task %d, workload %d, clk_mode=%d\n",
+		  task_cnt, workload, task->clk_mode);
+
+	return 0;
+}
+
 static int rkvdec_3328_get_freq(struct mpp_dev *mpp,
 				struct mpp_task *mpp_task)
 {
@@ -1431,21 +1480,10 @@ static int rkvdec_3328_get_freq(struct mpp_dev *mpp,
 
 	fmt = RKVDEC_GET_FORMAT(task->reg[RKVDEC_REG_SYS_CTRL_INDEX]);
 	ddr_align_en = task->reg[RKVDEC_REG_INT_EN_INDEX] & RKVDEC_WR_DDR_ALIGN_EN;
-	if (fmt == RKVDEC_FMT_H264D || ddr_align_en)
+	if (fmt == RKVDEC_FMT_H264D && ddr_align_en)
 		task->clk_mode = CLK_MODE_ADVANCED;
-
-	return 0;
-}
-
-static int rkvdec_3368_get_freq(struct mpp_dev *mpp,
-				struct mpp_task *mpp_task)
-{
-	u32 width;
-	struct rkvdec_task *task = to_rkvdec_task(mpp_task);
-
-	width = RKVDEC_GET_WIDTH(task->reg[RKVDEC_RGE_WIDTH_INDEX]);
-	if (width > 2560)
-		task->clk_mode = CLK_MODE_ADVANCED;
+	else
+		rkvdec_get_freq(mpp, mpp_task);
 
 	return 0;
 }
@@ -1618,6 +1656,7 @@ static struct mpp_hw_ops rkvdec_v1_hw_ops = {
 	.init = rkvdec_init,
 	.clk_on = rkvdec_clk_on,
 	.clk_off = rkvdec_clk_off,
+	.get_freq = rkvdec_get_freq,
 	.set_freq = rkvdec_set_freq,
 	.reduce_freq = rkvdec_reduce_freq,
 	.reset = rkvdec_reset,
@@ -1627,6 +1666,7 @@ static struct mpp_hw_ops rkvdec_px30_hw_ops = {
 	.init = rkvdec_px30_init,
 	.clk_on = rkvdec_clk_on,
 	.clk_off = rkvdec_clk_off,
+	.get_freq = rkvdec_get_freq,
 	.set_freq = rkvdec_set_freq,
 	.reduce_freq = rkvdec_reduce_freq,
 	.reset = rkvdec_reset,
@@ -1637,6 +1677,7 @@ static struct mpp_hw_ops rkvdec_3399_hw_ops = {
 	.init = rkvdec_init,
 	.clk_on = rkvdec_clk_on,
 	.clk_off = rkvdec_clk_off,
+	.get_freq = rkvdec_get_freq,
 	.set_freq = rkvdec_set_freq,
 	.reduce_freq = rkvdec_reduce_freq,
 	.reset = rkvdec_reset,
@@ -1646,7 +1687,7 @@ static struct mpp_hw_ops rkvdec_3368_hw_ops = {
 	.init = rkvdec_init,
 	.clk_on = rkvdec_clk_on,
 	.clk_off = rkvdec_clk_off,
-	.get_freq = rkvdec_3368_get_freq,
+	.get_freq = rkvdec_get_freq,
 	.set_freq = rkvdec_3368_set_freq,
 	.reduce_freq = rkvdec_reduce_freq,
 	.reset = rkvdec_reset,
