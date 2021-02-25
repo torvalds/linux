@@ -741,27 +741,42 @@ TRACE_EVENT(walt_nohz_balance_kick,
 
 TRACE_EVENT(walt_newidle_balance,
 
-	TP_PROTO(int this_cpu, int busy_cpu, int pulled),
+	TP_PROTO(int this_cpu, int busy_cpu, int pulled, bool help_min_cap, bool enough_idle),
 
-	TP_ARGS(this_cpu, busy_cpu, pulled),
+	TP_ARGS(this_cpu, busy_cpu, pulled, help_min_cap, enough_idle),
 
 	TP_STRUCT__entry(
-		__field(int, this_cpu)
+		__field(int, cpu)
 		__field(int, busy_cpu)
 		__field(int, pulled)
-		__field(unsigned int, this_nr_running)
+		__field(unsigned int, nr_running)
+		__field(unsigned int, rt_nr_running)
+		__field(int, nr_iowait)
+		__field(bool, help_min_cap)
+		__field(u64, avg_idle)
+		__field(bool, enough_idle)
+		__field(int, overload)
 	),
 
 	TP_fast_assign(
-		__entry->this_cpu		= this_cpu;
-		__entry->busy_cpu		= busy_cpu;
-		__entry->pulled			= pulled;
-		__entry->this_nr_running	= cpu_rq(this_cpu)->nr_running;
+		__entry->cpu		= this_cpu;
+		__entry->busy_cpu	= busy_cpu;
+		__entry->pulled		= pulled;
+		__entry->nr_running	= cpu_rq(this_cpu)->nr_running;
+		__entry->rt_nr_running	= cpu_rq(this_cpu)->rt.rt_nr_running;
+		__entry->nr_iowait	= atomic_read(&(cpu_rq(this_cpu)->nr_iowait));
+		__entry->help_min_cap	= help_min_cap;
+		__entry->avg_idle	= cpu_rq(this_cpu)->avg_idle;
+		__entry->enough_idle	= enough_idle;
+		__entry->overload	= cpu_rq(this_cpu)->rd->overload;
 	),
 
-	TP_printk("this_cpu=%d busy_cpu=%d pulled=%d this_nr_running=%u\n",
-			__entry->this_cpu, __entry->busy_cpu, __entry->pulled,
-			__entry->this_nr_running)
+	TP_printk("cpu=%d busy_cpu=%d pulled=%d nr_running=%u rt_nr_running=%u nr_iowait=%d help_min_cap=%d avg_idle=%llu enough_idle=%d overload=%d\n",
+			__entry->cpu, __entry->busy_cpu, __entry->pulled,
+			__entry->nr_running, __entry->rt_nr_running,
+			__entry->nr_iowait, __entry->help_min_cap,
+			__entry->avg_idle, __entry->enough_idle,
+			__entry->overload)
 );
 
 TRACE_EVENT(walt_lb_cpu_util,

@@ -572,9 +572,9 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 	struct walt_rq *wrq = (struct walt_rq *) this_rq->android_vendor_data1;
 	int order_index;
 	int cluster = 0;
-	int busy_cpu;
+	int busy_cpu = -1;
 	bool enough_idle = (this_rq->avg_idle > NEWIDLE_BALANCE_THRESHOLD);
-	bool help_min_cap;
+	bool help_min_cap = false;
 
 	if (static_branch_unlikely(&walt_disabled))
 		return;
@@ -600,10 +600,10 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 		return;
 
 	if (!READ_ONCE(this_rq->rd->overload))
-		return;
+		goto out;
 
 	if (atomic_read(&this_rq->nr_iowait) && !enough_idle)
-		return;
+		goto out;
 
 	help_min_cap = should_help_min_cap(this_cpu);
 	rq_unpin_lock(this_rq, rf);
@@ -629,11 +629,11 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 
 	/* sanity checks before attempting the pull */
 	if (busy_cpu == -1 || this_rq->nr_running > 0 || (busy_cpu == this_cpu))
-		goto out;
+		goto unlock;
 
 	*pulled_task = walt_lb_pull_tasks(this_cpu, busy_cpu);
 
-out:
+unlock:
 	raw_spin_lock(&this_rq->lock);
 	if (this_rq->cfs.h_nr_running && !*pulled_task)
 		*pulled_task = 1;
@@ -648,7 +648,9 @@ out:
 
 	rq_repin_lock(this_rq, rf);
 
-	trace_walt_newidle_balance(this_cpu, busy_cpu, *pulled_task);
+out:
+	trace_walt_newidle_balance(this_cpu, busy_cpu, *pulled_task,
+				   help_min_cap, enough_idle);
 }
 
 static void walt_find_busiest_queue(void *unused, int dst_cpu,
