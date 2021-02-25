@@ -27,6 +27,27 @@ static int fsverity_require_signatures;
 static struct key *fsverity_keyring;
 
 /**
+ * fsverity_verify_signature() - check a verity file's signature
+ * @vi: the file's fsverity_info
+ * @signature: the file's built-in signature
+ * @sig_size: size of signature in bytes, or 0 if no signature
+ *
+ * If the file includes a signature of its fs-verity file digest, verify it
+ * against the certificates in the fs-verity keyring.
+ *
+ * Return: 0 on success (signature valid or not required); -errno on failure
+ */
+int fsverity_verify_signature(const struct fsverity_info *vi,
+			      const u8 *signature, size_t sig_size)
+{
+	unsigned int digest_algorithm =
+		vi->tree_params.hash_alg - fsverity_hash_algs;
+
+	return __fsverity_verify_signature(vi->inode, signature, sig_size,
+					   vi->file_digest, digest_algorithm);
+}
+
+/**
  * __fsverity_verify_signature() - check a verity file's signature
  * @inode: the file's inode
  * @signature: the file's signature
@@ -40,7 +61,7 @@ static struct key *fsverity_keyring;
  * Return: 0 on success (signature valid or not required); -errno on failure
  */
 int __fsverity_verify_signature(const struct inode *inode, const u8 *signature,
-				u32 sig_size, const u8 *file_digest,
+				size_t sig_size, const u8 *file_digest,
 				unsigned int digest_algorithm)
 {
 	struct fsverity_formatted_digest *d;
@@ -69,8 +90,7 @@ int __fsverity_verify_signature(const struct inode *inode, const u8 *signature,
 	memcpy(d->digest, file_digest, hash_alg->digest_size);
 
 	err = verify_pkcs7_signature(d, sizeof(*d) + hash_alg->digest_size,
-				     signature, sig_size,
-				     fsverity_keyring,
+				     signature, sig_size, fsverity_keyring,
 				     VERIFYING_UNSPECIFIED_SIGNATURE,
 				     NULL, NULL);
 	kfree(d);
@@ -94,34 +114,6 @@ int __fsverity_verify_signature(const struct inode *inode, const u8 *signature,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__fsverity_verify_signature);
-
-/**
- * fsverity_verify_signature() - check a verity file's signature
- * @vi: the file's fsverity_info
- * @desc: the file's fsverity_descriptor
- * @desc_size: size of @desc
- *
- * If the file's fs-verity descriptor includes a signature of the file digest,
- * verify it against the certificates in the fs-verity keyring.
- *
- * Return: 0 on success (signature valid or not required); -errno on failure
- */
-int fsverity_verify_signature(const struct fsverity_info *vi,
-			      const struct fsverity_descriptor *desc,
-			      size_t desc_size)
-{
-	const struct inode *inode = vi->inode;
-	const struct fsverity_hash_alg *hash_alg = vi->tree_params.hash_alg;
-	const u32 sig_size = le32_to_cpu(desc->sig_size);
-
-	if (sig_size > desc_size - sizeof(*desc)) {
-		fsverity_err(inode, "Signature overflows verity descriptor");
-		return -EBADMSG;
-	}
-
-	return __fsverity_verify_signature(inode, desc->signature, sig_size,
-				vi->file_digest, hash_alg - fsverity_hash_algs);
-}
 
 #ifdef CONFIG_SYSCTL
 static struct ctl_table_header *fsverity_sysctl_header;
