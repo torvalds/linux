@@ -127,11 +127,6 @@ static inline unsigned long totalhigh_pages(void)
 	return (unsigned long)atomic_long_read(&_totalhigh_pages);
 }
 
-static inline void totalhigh_pages_inc(void)
-{
-	atomic_long_inc(&_totalhigh_pages);
-}
-
 static inline void totalhigh_pages_add(long count)
 {
 	atomic_long_add(count, &_totalhigh_pages);

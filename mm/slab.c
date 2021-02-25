@@ -272,7 +272,7 @@ static void kmem_cache_node_init(struct kmem_cache_node *parent)
 #define	STATS_DEC_ACTIVE(x)	((x)->num_active--)
 #define	STATS_INC_ALLOCED(x)	((x)->num_allocations++)
 #define	STATS_INC_GROWN(x)	((x)->grown++)
-#define	STATS_ADD_REAPED(x,y)	((x)->reaped += (y))
+#define	STATS_ADD_REAPED(x, y)	((x)->reaped += (y))
 #define	STATS_SET_HIGH(x)						\
 	do {								\
 		if ((x)->num_active > (x)->high_mark)			\
@@ -296,7 +296,7 @@ static void kmem_cache_node_init(struct kmem_cache_node *parent)
 #define	STATS_DEC_ACTIVE(x)	do { } while (0)
 #define	STATS_INC_ALLOCED(x)	do { } while (0)
 #define	STATS_INC_GROWN(x)	do { } while (0)
-#define	STATS_ADD_REAPED(x,y)	do { (void)(y); } while (0)
+#define	STATS_ADD_REAPED(x, y)	do { (void)(y); } while (0)
 #define	STATS_SET_HIGH(x)	do { } while (0)
 #define	STATS_INC_ERR(x)	do { } while (0)
 #define	STATS_INC_NODEALLOCS(x)	do { } while (0)
@@ -332,7 +332,7 @@ static int obj_offset(struct kmem_cache *cachep)
 static unsigned long long *dbg_redzone1(struct kmem_cache *cachep, void *objp)
 {
 	BUG_ON(!(cachep->flags & SLAB_RED_ZONE));
-	return (unsigned long long*) (objp + obj_offset(cachep) -
+	return (unsigned long long *) (objp + obj_offset(cachep) -
 				      sizeof(unsigned long long));
 }
 
@@ -580,7 +580,7 @@ static int transfer_objects(struct array_cache *to,
 	if (!nr)
 		return 0;
 
-	memcpy(to->entry + to->avail, from->entry + from->avail -nr,
+	memcpy(to->entry + to->avail, from->entry + from->avail - nr,
 			sizeof(void *) *nr);
 
 	from->avail -= nr;
@@ -1379,7 +1379,7 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
 		return NULL;
 	}
 
-	account_slab_page(page, cachep->gfporder, cachep);
+	account_slab_page(page, cachep->gfporder, cachep, flags);
 	__SetPageSlab(page);
 	/* Record if ALLOC_NO_WATERMARKS was set when allocating the slab */
 	if (sk_memalloc_socks() && page_is_pfmemalloc(page))
@@ -1790,8 +1790,7 @@ static int __ref setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
 }
 
 slab_flags_t kmem_cache_flags(unsigned int object_size,
-	slab_flags_t flags, const char *name,
-	void (*ctor)(void *))
+	slab_flags_t flags, const char *name)
 {
 	return flags;
 }
@@ -2738,7 +2737,7 @@ static void *cache_free_debugcheck(struct kmem_cache *cachep, void *objp,
 
 #else
 #define kfree_debugcheck(x) do { } while(0)
-#define cache_free_debugcheck(x,objp,z) (objp)
+#define cache_free_debugcheck(x, objp, z) (objp)
 #endif
 
 static inline void fixup_objfreelist_debug(struct kmem_cache *cachep,
@@ -3025,7 +3024,7 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
 	return objp;
 }
 #else
-#define cache_alloc_debugcheck_after(a,b,objp,d) (objp)
+#define cache_alloc_debugcheck_after(a, b, objp, d) (objp)
 #endif
 
 static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
@@ -3421,7 +3420,7 @@ static __always_inline void __cache_free(struct kmem_cache *cachep, void *objp,
 		memset(objp, 0, cachep->object_size);
 
 	/* Put the object into the quarantine, don't touch it for now. */
-	if (kasan_slab_free(cachep, objp, _RET_IP_))
+	if (kasan_slab_free(cachep, objp))
 		return;
 
 	/* Use KCSAN to help debug racy use-after-free. */
@@ -3717,7 +3716,7 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 	__cache_free(cachep, objp, _RET_IP_);
 	local_irq_restore(flags);
 
-	trace_kmem_cache_free(_RET_IP_, objp);
+	trace_kmem_cache_free(_RET_IP_, objp, cachep->name);
 }
 EXPORT_SYMBOL(kmem_cache_free);
 

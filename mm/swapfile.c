@@ -1157,13 +1157,13 @@ static struct swap_info_struct *__swap_info_get(swp_entry_t entry)
 	return p;
 
 bad_offset:
-	pr_err("swap_info_get: %s%08lx\n", Bad_offset, entry.val);
+	pr_err("%s: %s%08lx\n", __func__, Bad_offset, entry.val);
 	goto out;
 bad_device:
-	pr_err("swap_info_get: %s%08lx\n", Unused_file, entry.val);
+	pr_err("%s: %s%08lx\n", __func__, Unused_file, entry.val);
 	goto out;
 bad_nofile:
-	pr_err("swap_info_get: %s%08lx\n", Bad_file, entry.val);
+	pr_err("%s: %s%08lx\n", __func__, Bad_file, entry.val);
 out:
 	return NULL;
 }
@@ -1180,7 +1180,7 @@ static struct swap_info_struct *_swap_info_get(swp_entry_t entry)
 	return p;
 
 bad_free:
-	pr_err("swap_info_get: %s%08lx\n", Unused_offset, entry.val);
+	pr_err("%s: %s%08lx\n", __func__, Unused_offset, entry.val);
 out:
 	return NULL;
 }
