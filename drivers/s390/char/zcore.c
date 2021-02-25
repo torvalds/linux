@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/debugfs.h>
+#include <linux/reboot.h>
 
 #include <asm/asm-offsets.h>
 #include <asm/ipl.h>
@@ -238,6 +239,28 @@ static int __init zcore_reipl_init(void)
 	return 0;
 }
 
+static int zcore_reboot_and_on_panic_handler(struct notifier_block *self,
+					     unsigned long	   event,
+					     void		   *data)
+{
+	if (hsa_available)
+		release_hsa();
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block zcore_reboot_notifier = {
+	.notifier_call	= zcore_reboot_and_on_panic_handler,
+	/* we need to be notified before reipl and kdump */
+	.priority	= INT_MAX,
+};
+
+static struct notifier_block zcore_on_panic_notifier = {
+	.notifier_call	= zcore_reboot_and_on_panic_handler,
+	/* we need to be notified before reipl and kdump */
+	.priority	= INT_MAX,
+};
+
 static int __init zcore_init(void)
 {
 	unsigned char arch;
@@ -297,6 +320,9 @@ static int __init zcore_init(void)
 						NULL, &zcore_reipl_fops);
 	zcore_hsa_file = debugfs_create_file("hsa", S_IRUSR|S_IWUSR, zcore_dir,
 					     NULL, &zcore_hsa_fops);
+
+	register_reboot_notifier(&zcore_reboot_notifier);
+	atomic_notifier_chain_register(&panic_notifier_list, &zcore_on_panic_notifier);
 
 	return 0;
 fail:
