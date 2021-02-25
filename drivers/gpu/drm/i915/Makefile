@@ -298,7 +298,7 @@ obj-$(CONFIG_DRM_I915_GVT_KVMGT) += gvt/kvmgt.o
 no-header-test := \
 	display/intel_vbt_defs.h
 
-extra-$(CONFIG_DRM_I915_WERROR) += \
+always-$(CONFIG_DRM_I915_WERROR) += \
 	$(patsubst %.h,%.hdrtest, $(filter-out $(no-header-test), \
 		$(shell cd $(srctree)/$(src) && find * -name '*.h')))
 

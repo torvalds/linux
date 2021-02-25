@@ -85,9 +85,3 @@ define archhelp
   echo '  install	- Install compressed kernel image'
   echo '* unwcheck	- Check vmlinux for invalid unwind info'
 endef
-
-archprepare: make_nr_irqs_h
-PHONY += make_nr_irqs_h
-
-make_nr_irqs_h:
-	$(Q)$(MAKE) $(build)=arch/ia64/kernel include/generated/nr-irqs.h
