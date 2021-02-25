@@ -653,10 +653,12 @@ static int smu_late_init(void *handle)
 		return ret;
 	}
 
-	ret = smu_set_default_od_settings(smu);
-	if (ret) {
-		dev_err(adev->dev, "Failed to setup default OD settings!\n");
-		return ret;
+	if (!amdgpu_sriov_vf(adev) || smu->od_enabled) {
+		ret = smu_set_default_od_settings(smu);
+		if (ret) {
+			dev_err(adev->dev, "Failed to setup default OD settings!\n");
+			return ret;
+		}
 	}
 
 	ret = smu_populate_umd_state_clk(smu);
