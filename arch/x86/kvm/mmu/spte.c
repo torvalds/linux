@@ -245,8 +245,19 @@ u64 mark_spte_for_access_track(u64 spte)
 void kvm_mmu_set_mmio_spte_mask(u64 mmio_value, u64 access_mask)
 {
 	BUG_ON((u64)(unsigned)access_mask != access_mask);
-	WARN_ON(mmio_value & (shadow_nonpresent_or_rsvd_mask << SHADOW_NONPRESENT_OR_RSVD_MASK_LEN));
 	WARN_ON(mmio_value & shadow_nonpresent_or_rsvd_lower_gfn_mask);
+
+	/*
+	 * Disable MMIO caching if the MMIO value collides with the bits that
+	 * are used to hold the relocated GFN when the L1TF mitigation is
+	 * enabled.  This should never fire as there is no known hardware that
+	 * can trigger this condition, e.g. SME/SEV CPUs that require a custom
+	 * MMIO value are not susceptible to L1TF.
+	 */
+	if (WARN_ON(mmio_value & (shadow_nonpresent_or_rsvd_mask <<
+				  SHADOW_NONPRESENT_OR_RSVD_MASK_LEN)))
+		mmio_value = 0;
+
 	shadow_mmio_value = mmio_value | SPTE_MMIO_MASK;
 	shadow_mmio_access_mask = access_mask;
 }
