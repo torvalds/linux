@@ -270,16 +270,18 @@ runtime:
 disconnect:
 		switch (dwc->current_dr_role) {
 		case DWC3_GCTL_PRTCAP_HOST:
-			/*
-			 * We set device mode to disable otg-vbus supply and
-			 * enable vbus detect for inno USB2PHY.
-			 */
-			phy_set_mode(dwc->usb2_generic_phy,
-				     PHY_MODE_USB_DEVICE);
-			phy_set_mode(dwc->usb3_generic_phy,
-				     PHY_MODE_USB_DEVICE);
-			phy_power_off(dwc->usb3_generic_phy);
-			dwc3_host_exit(dwc);
+			if (dwc->drd_connected) {
+				/*
+				 * Set device mode to disable otg-vbus supply
+				 * and enable vbus detect for inno USB2PHY.
+				 */
+				phy_set_mode(dwc->usb2_generic_phy,
+					     PHY_MODE_USB_DEVICE);
+				phy_set_mode(dwc->usb3_generic_phy,
+					     PHY_MODE_USB_DEVICE);
+				phy_power_off(dwc->usb3_generic_phy);
+				dwc3_host_exit(dwc);
+			}
 			break;
 		case DWC3_GCTL_PRTCAP_DEVICE:
 			break;
@@ -291,8 +293,8 @@ disconnect:
 		}
 
 		/*
-		 * We should set drd_connected true before runtime_suspend to
-		 * enable reset assert.
+		 * We should set drd_connected to false before
+		 * runtime_suspend to enable reset assert.
 		 */
 		dwc->drd_connected = false;
 		pm_runtime_put_sync_suspend(dwc->dev);
