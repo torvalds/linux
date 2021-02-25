@@ -864,10 +864,9 @@ static inline u16 nvmet_io_cmd_check_access(struct nvmet_req *req)
 
 static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 {
-	struct nvme_command *cmd = req->cmd;
 	u16 ret;
 
-	ret = nvmet_check_ctrl_status(req, cmd);
+	ret = nvmet_check_ctrl_status(req);
 	if (unlikely(ret))
 		return ret;
 
@@ -1220,17 +1219,17 @@ out:
 	return status;
 }
 
-u16 nvmet_check_ctrl_status(struct nvmet_req *req, struct nvme_command *cmd)
+u16 nvmet_check_ctrl_status(struct nvmet_req *req)
 {
 	if (unlikely(!(req->sq->ctrl->cc & NVME_CC_ENABLE))) {
 		pr_err("got cmd %d while CC.EN == 0 on qid = %d\n",
-		       cmd->common.opcode, req->sq->qid);
+		       req->cmd->common.opcode, req->sq->qid);
 		return NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
 	}
 
 	if (unlikely(!(req->sq->ctrl->csts & NVME_CSTS_RDY))) {
 		pr_err("got cmd %d while CSTS.RDY == 0 on qid = %d\n",
-		       cmd->common.opcode, req->sq->qid);
+		       req->cmd->common.opcode, req->sq->qid);
 		return NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
 	}
 	return 0;

@@ -431,7 +431,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 u16 nvmet_ctrl_find_get(const char *subsysnqn, const char *hostnqn, u16 cntlid,
 		struct nvmet_req *req, struct nvmet_ctrl **ret);
 void nvmet_ctrl_put(struct nvmet_ctrl *ctrl);
-u16 nvmet_check_ctrl_status(struct nvmet_req *req, struct nvme_command *cmd);
+u16 nvmet_check_ctrl_status(struct nvmet_req *req);
 
 struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 		enum nvme_subsys_type type);
