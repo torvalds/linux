@@ -1182,7 +1182,7 @@ static void rkcif_assign_new_buffer_pingpong(struct rkcif_stream *stream,
 		} else {
 			if (stream->frame_phase == CIF_CSI_FRAME0_READY)
 				stream->curr_buf = NULL;
-			if (stream->frame_phase == CIF_CSI_FRAME1_READY)
+			else if (stream->frame_phase == CIF_CSI_FRAME1_READY)
 				stream->next_buf = NULL;
 			buffer = NULL;
 		}
@@ -4082,15 +4082,19 @@ static void rkcif_update_stream(struct rkcif_device *cif_dev,
 	struct vb2_v4l2_buffer *vb_done = NULL;
 	unsigned long lock_flags = 0;
 
+	if (stream->frame_phase == (CIF_CSI_FRAME0_READY | CIF_CSI_FRAME1_READY))
+		v4l2_err(&cif_dev->v4l2_dev, "stream[%d], frm0/frm1 end simultaneously,frm id:%d\n",
+			 stream->id, stream->frame_idx);
+
 	spin_lock(&stream->fps_lock);
-	if (stream->frame_phase & CIF_CSI_FRAME1_READY) {
-		if (stream->next_buf)
-			active_buf = stream->next_buf;
-		stream->fps_stats.frm1_timestamp = ktime_get_ns();
-	} else if (stream->frame_phase & CIF_CSI_FRAME0_READY) {
+	if (stream->frame_phase & CIF_CSI_FRAME0_READY) {
 		if (stream->curr_buf)
 			active_buf = stream->curr_buf;
 		stream->fps_stats.frm0_timestamp = ktime_get_ns();
+	} else if (stream->frame_phase & CIF_CSI_FRAME1_READY) {
+		if (stream->next_buf)
+			active_buf = stream->next_buf;
+		stream->fps_stats.frm1_timestamp = ktime_get_ns();
 	}
 	spin_unlock(&stream->fps_lock);
 
