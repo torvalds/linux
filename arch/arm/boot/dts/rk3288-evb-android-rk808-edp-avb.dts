@@ -15,6 +15,13 @@
 	};
 };
 
+&hevc {
+	status = "okay";
+	clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core", "clk_cabac";
+	rockchip,normal-rates = <300000000>, <0>, <200000000>, <200000000>;
+	rockchip,advanced-rates = <600000000>, <0>, <500000000>, <500000000>;
+};
+
 &io_domains {
 	status = "okay";
 
