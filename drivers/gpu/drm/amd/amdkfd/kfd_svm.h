@@ -56,6 +56,7 @@ struct svm_work_list_item {
  * struct svm_range - shared virtual memory range
  *
  * @svms:       list of svm ranges, structure defined in kfd_process
+ * @migrate_mutex: to serialize range migration, validation and mapping update
  * @start:      range start address in pages
  * @last:       range last address in pages
  * @it_node:    node [start, last] stored in interval tree, start, last are page
@@ -92,6 +93,7 @@ struct svm_work_list_item {
  */
 struct svm_range {
 	struct svm_range_list		*svms;
+	struct mutex			migrate_mutex;
 	unsigned long			start;
 	unsigned long			last;
 	struct interval_tree_node	it_node;
@@ -120,6 +122,7 @@ struct svm_range {
 	struct list_head		child_list;
 	DECLARE_BITMAP(bitmap_access, MAX_GPU_INSTANCE);
 	DECLARE_BITMAP(bitmap_aip, MAX_GPU_INSTANCE);
+	bool				validated_once;
 };
 
 static inline void svm_range_lock(struct svm_range *prange)
@@ -144,5 +147,9 @@ struct amdgpu_device *svm_range_get_adev_by_id(struct svm_range *prange,
 int svm_range_vram_node_new(struct amdgpu_device *adev,
 			    struct svm_range *prange, bool clear);
 void svm_range_vram_node_free(struct svm_range *prange);
+void svm_range_dma_unmap(struct device *dev, dma_addr_t *dma_addr,
+			 unsigned long offset, unsigned long npages);
+void svm_range_free_dma_mappings(struct svm_range *prange);
+void svm_range_prefault(struct svm_range *prange, struct mm_struct *mm);
 
 #endif /* KFD_SVM_H_ */
