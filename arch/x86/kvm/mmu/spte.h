@@ -211,6 +211,11 @@ static inline bool is_mmio_spte(u64 spte)
 	       likely(shadow_mmio_value);
 }
 
+static inline bool is_shadow_present_pte(u64 pte)
+{
+	return !!(pte & SPTE_MMU_PRESENT_MASK);
+}
+
 static inline bool sp_ad_disabled(struct kvm_mmu_page *sp)
 {
 	return sp->role.ad_disabled;
@@ -218,13 +223,13 @@ static inline bool sp_ad_disabled(struct kvm_mmu_page *sp)
 
 static inline bool spte_ad_enabled(u64 spte)
 {
-	MMU_WARN_ON(is_mmio_spte(spte));
+	MMU_WARN_ON(!is_shadow_present_pte(spte));
 	return (spte & SPTE_TDP_AD_MASK) != SPTE_TDP_AD_DISABLED_MASK;
 }
 
 static inline bool spte_ad_need_write_protect(u64 spte)
 {
-	MMU_WARN_ON(is_mmio_spte(spte));
+	MMU_WARN_ON(!is_shadow_present_pte(spte));
 	/*
 	 * This is benign for non-TDP SPTEs as SPTE_TDP_AD_ENABLED_MASK is '0',
 	 * and non-TDP SPTEs will never set these bits.  Optimize for 64-bit
@@ -235,24 +240,19 @@ static inline bool spte_ad_need_write_protect(u64 spte)
 
 static inline u64 spte_shadow_accessed_mask(u64 spte)
 {
-	MMU_WARN_ON(is_mmio_spte(spte));
+	MMU_WARN_ON(!is_shadow_present_pte(spte));
 	return spte_ad_enabled(spte) ? shadow_accessed_mask : 0;
 }
 
 static inline u64 spte_shadow_dirty_mask(u64 spte)
 {
-	MMU_WARN_ON(is_mmio_spte(spte));
+	MMU_WARN_ON(!is_shadow_present_pte(spte));
 	return spte_ad_enabled(spte) ? shadow_dirty_mask : 0;
 }
 
 static inline bool is_access_track_spte(u64 spte)
 {
 	return !spte_ad_enabled(spte) && (spte & shadow_acc_track_mask) == 0;
-}
-
-static inline bool is_shadow_present_pte(u64 pte)
-{
-	return !!(pte & SPTE_MMU_PRESENT_MASK);
 }
 
 static inline bool is_large_pte(u64 pte)
