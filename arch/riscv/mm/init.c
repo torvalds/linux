@@ -128,8 +128,9 @@ void __init setup_bootmem(void)
 	if (max_mapped_addr == (dram_end - 1))
 		memblock_set_current_limit(max_mapped_addr - 4096);
 
-	max_pfn = PFN_DOWN(dram_end);
-	max_low_pfn = max_pfn;
+	min_low_pfn = PFN_UP(memblock_start_of_DRAM());
+	max_low_pfn = max_pfn = PFN_DOWN(dram_end);
+
 	dma32_phys_limit = min(4UL * SZ_1G, (unsigned long)PFN_PHYS(max_low_pfn));
 	set_max_mapnr(max_low_pfn - ARCH_PFN_OFFSET);
 
@@ -593,6 +594,7 @@ void __init paging_init(void)
 
 void __init misc_mem_init(void)
 {
+	early_memtest(min_low_pfn << PAGE_SHIFT, max_low_pfn << PAGE_SHIFT);
 	arch_numa_init();
 	sparse_init();
 	zone_sizes_init();
