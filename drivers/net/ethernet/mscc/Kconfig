@@ -13,6 +13,7 @@ if NET_VENDOR_MICROSEMI
 
 # Users should depend on NET_SWITCHDEV, HAS_IOMEM
 config MSCC_OCELOT_SWITCH_LIB
+	select NET_DEVLINK
 	select REGMAP_MMIO
 	select PACKING
 	select PHYLIB
