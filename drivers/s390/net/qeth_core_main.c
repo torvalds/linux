@@ -825,7 +825,8 @@ static bool qeth_next_hop_is_local_v4(struct qeth_card *card,
 		return false;
 
 	rcu_read_lock();
-	next_hop = qeth_next_hop_v4_rcu(skb, qeth_dst_check_rcu(skb, 4));
+	next_hop = qeth_next_hop_v4_rcu(skb,
+					qeth_dst_check_rcu(skb, htons(ETH_P_IP)));
 	key = ipv4_addr_hash(next_hop);
 
 	hash_for_each_possible_rcu(card->local_addrs4, tmp, hnode, key) {
@@ -851,7 +852,8 @@ static bool qeth_next_hop_is_local_v6(struct qeth_card *card,
 		return false;
 
 	rcu_read_lock();
-	next_hop = qeth_next_hop_v6_rcu(skb, qeth_dst_check_rcu(skb, 6));
+	next_hop = qeth_next_hop_v6_rcu(skb,
+					qeth_dst_check_rcu(skb, htons(ETH_P_IPV6)));
 	key = ipv6_addr_hash(next_hop);
 
 	hash_for_each_possible_rcu(card->local_addrs6, tmp, hnode, key) {
@@ -1407,10 +1409,12 @@ static void qeth_notify_skbs(struct qeth_qdio_out_q *q,
 	struct sk_buff *skb;
 
 	skb_queue_walk(&buf->skb_list, skb) {
+		struct sock *sk = skb->sk;
+
 		QETH_CARD_TEXT_(q->card, 5, "skbn%d", notification);
 		QETH_CARD_TEXT_(q->card, 5, "%lx", (long) skb);
-		if (skb->sk && skb->sk->sk_family == PF_IUCV)
-			iucv_sk(skb->sk)->sk_txnotify(skb, notification);
+		if (sk && sk->sk_family == PF_IUCV)
+			iucv_sk(sk)->sk_txnotify(sk, notification);
 	}
 }
 
@@ -3690,24 +3694,27 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 	rc = do_QDIO(CARD_DDEV(queue->card), qdio_flags,
 		     queue->queue_no, index, count);
 
-	/* Fake the TX completion interrupt: */
-	if (IS_IQD(card)) {
-		unsigned int frames = READ_ONCE(queue->max_coalesced_frames);
-		unsigned int usecs = READ_ONCE(queue->coalesce_usecs);
-
-		if (frames && queue->coalesced_frames >= frames) {
-			napi_schedule(&queue->napi);
-			queue->coalesced_frames = 0;
-			QETH_TXQ_STAT_INC(queue, coal_frames);
-		} else if (usecs) {
-			qeth_tx_arm_timer(queue, usecs);
-		}
-	}
-
-	if (rc) {
+	switch (rc) {
+	case 0:
+	case -ENOBUFS:
 		/* ignore temporary SIGA errors without busy condition */
-		if (rc == -ENOBUFS)
-			return;
+
+		/* Fake the TX completion interrupt: */
+		if (IS_IQD(card)) {
+			unsigned int frames = READ_ONCE(queue->max_coalesced_frames);
+			unsigned int usecs = READ_ONCE(queue->coalesce_usecs);
+
+			if (frames && queue->coalesced_frames >= frames) {
+				napi_schedule(&queue->napi);
+				queue->coalesced_frames = 0;
+				QETH_TXQ_STAT_INC(queue, coal_frames);
+			} else if (usecs) {
+				qeth_tx_arm_timer(queue, usecs);
+			}
+		}
+
+		break;
+	default:
 		QETH_CARD_TEXT(queue->card, 2, "flushbuf");
 		QETH_CARD_TEXT_(queue->card, 2, " q%d", queue->queue_no);
 		QETH_CARD_TEXT_(queue->card, 2, " idx%d", index);
@@ -3717,7 +3724,6 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 		/* this must not happen under normal circumstances. if it
 		 * happens something is really wrong -> recover */
 		qeth_schedule_recovery(queue->card);
-		return;
 	}
 }
 
@@ -3896,11 +3902,11 @@ int qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb)
 	switch (card->qdio.do_prio_queueing) {
 	case QETH_PRIO_Q_ING_TOS:
 	case QETH_PRIO_Q_ING_PREC:
-		switch (qeth_get_ip_version(skb)) {
-		case 4:
+		switch (vlan_get_protocol(skb)) {
+		case htons(ETH_P_IP):
 			tos = ipv4_get_dsfield(ip_hdr(skb));
 			break;
-		case 6:
+		case htons(ETH_P_IPV6):
 			tos = ipv6_get_dsfield(ipv6_hdr(skb));
 			break;
 		default:
@@ -4365,10 +4371,10 @@ static void qeth_fill_tso_ext(struct qeth_hdr_tso *hdr,
 }
 
 int qeth_xmit(struct qeth_card *card, struct sk_buff *skb,
-	      struct qeth_qdio_out_q *queue, int ipv,
+	      struct qeth_qdio_out_q *queue, __be16 proto,
 	      void (*fill_header)(struct qeth_qdio_out_q *queue,
 				  struct qeth_hdr *hdr, struct sk_buff *skb,
-				  int ipv, unsigned int data_len))
+				  __be16 proto, unsigned int data_len))
 {
 	unsigned int proto_len, hw_hdr_len;
 	unsigned int frame_len = skb->len;
@@ -4401,7 +4407,7 @@ int qeth_xmit(struct qeth_card *card, struct sk_buff *skb,
 		data_offset = push_len + proto_len;
 	}
 	memset(hdr, 0, hw_hdr_len);
-	fill_header(queue, hdr, skb, ipv, frame_len);
+	fill_header(queue, hdr, skb, proto, frame_len);
 	if (is_tso)
 		qeth_fill_tso_ext((struct qeth_hdr_tso *) hdr,
 				  frame_len - proto_len, skb, proto_len);
@@ -6068,14 +6074,15 @@ int qeth_poll(struct napi_struct *napi, int budget)
 EXPORT_SYMBOL_GPL(qeth_poll);
 
 static void qeth_iqd_tx_complete(struct qeth_qdio_out_q *queue,
-				 unsigned int bidx, bool error, int budget)
+				 unsigned int bidx, unsigned int qdio_error,
+				 int budget)
 {
 	struct qeth_qdio_out_buffer *buffer = queue->bufs[bidx];
 	u8 sflags = buffer->buffer->element[15].sflags;
 	struct qeth_card *card = queue->card;
+	bool error = !!qdio_error;
 
-	if (queue->bufstates && (queue->bufstates[bidx].flags &
-				 QDIO_OUTBUF_STATE_FLAG_PENDING)) {
+	if (qdio_error == QDIO_ERROR_SLSB_PENDING) {
 		WARN_ON_ONCE(card->options.cq != QETH_CQ_ENABLED);
 
 		QETH_CARD_TEXT_(card, 5, "pel%u", bidx);
@@ -6349,9 +6356,11 @@ static int qeth_register_dbf_views(void)
 
 static DEFINE_MUTEX(qeth_mod_mutex);	/* for synchronized module loading */
 
-int qeth_core_load_discipline(struct qeth_card *card,
-		enum qeth_discipline_id discipline)
+int qeth_setup_discipline(struct qeth_card *card,
+			  enum qeth_discipline_id discipline)
 {
+	int rc;
+
 	mutex_lock(&qeth_mod_mutex);
 	switch (discipline) {
 	case QETH_DISCIPLINE_LAYER3:
@@ -6373,12 +6382,25 @@ int qeth_core_load_discipline(struct qeth_card *card,
 		return -EINVAL;
 	}
 
+	rc = card->discipline->setup(card->gdev);
+	if (rc) {
+		if (discipline == QETH_DISCIPLINE_LAYER2)
+			symbol_put(qeth_l2_discipline);
+		else
+			symbol_put(qeth_l3_discipline);
+		card->discipline = NULL;
+
+		return rc;
+	}
+
 	card->options.layer = discipline;
 	return 0;
 }
 
-void qeth_core_free_discipline(struct qeth_card *card)
+void qeth_remove_discipline(struct qeth_card *card)
 {
+	card->discipline->remove(card->gdev);
+
 	if (IS_LAYER2(card))
 		symbol_put(qeth_l2_discipline);
 	else
@@ -6586,23 +6608,18 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 	default:
 		card->info.layer_enforced = true;
 		/* It's so early that we don't need the discipline_mutex yet. */
-		rc = qeth_core_load_discipline(card, enforced_disc);
+		rc = qeth_setup_discipline(card, enforced_disc);
 		if (rc)
-			goto err_load;
+			goto err_setup_disc;
 
 		gdev->dev.type = IS_OSN(card) ? &qeth_osn_devtype :
 						card->discipline->devtype;
-		rc = card->discipline->setup(card->gdev);
-		if (rc)
-			goto err_disc;
 		break;
 	}
 
 	return 0;
 
-err_disc:
-	qeth_core_free_discipline(card);
-err_load:
+err_setup_disc:
 err_chp_desc:
 	free_netdev(card->dev);
 err_card:
@@ -6619,10 +6636,8 @@ static void qeth_core_remove_device(struct ccwgroup_device *gdev)
 	QETH_CARD_TEXT(card, 2, "removedv");
 
 	mutex_lock(&card->discipline_mutex);
-	if (card->discipline) {
-		card->discipline->remove(gdev);
-		qeth_core_free_discipline(card);
-	}
+	if (card->discipline)
+		qeth_remove_discipline(card);
 	mutex_unlock(&card->discipline_mutex);
 
 	qeth_free_qdio_queues(card);
@@ -6642,14 +6657,9 @@ static int qeth_core_set_online(struct ccwgroup_device *gdev)
 	if (!card->discipline) {
 		def_discipline = IS_IQD(card) ? QETH_DISCIPLINE_LAYER3 :
 						QETH_DISCIPLINE_LAYER2;
-		rc = qeth_core_load_discipline(card, def_discipline);
+		rc = qeth_setup_discipline(card, def_discipline);
 		if (rc)
 			goto err;
-		rc = card->discipline->setup(card->gdev);
-		if (rc) {
-			qeth_core_free_discipline(card);
-			goto err;
-		}
 	}
 
 	rc = qeth_set_online(card, card->discipline);

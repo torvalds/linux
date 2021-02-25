@@ -220,9 +220,6 @@ struct cudbg_mps_tcam {
 	u8 reserved[2];
 };
 
-#define CUDBG_VPD_PF_SIZE 0x800
-#define CUDBG_SCFG_VER_ADDR 0x06
-#define CUDBG_SCFG_VER_LEN 4
 #define CUDBG_VPD_VER_ADDR 0x18c7
 #define CUDBG_VPD_VER_LEN 2
 

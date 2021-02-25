@@ -82,6 +82,15 @@ inline u16 errno_to_nvme_status(struct nvmet_req *req, int errno)
 	return status;
 }
 
+u16 nvmet_report_invalid_opcode(struct nvmet_req *req)
+{
+	pr_debug("unhandled cmd %d on qid %d\n", req->cmd->common.opcode,
+		 req->sq->qid);
+
+	req->error_loc = offsetof(struct nvme_common_command, opcode);
+	return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
+}
+
 static struct nvmet_subsys *nvmet_find_get_subsys(struct nvmet_port *port,
 		const char *subsysnqn);
 
@@ -417,15 +426,18 @@ void nvmet_stop_keep_alive_timer(struct nvmet_ctrl *ctrl)
 	cancel_delayed_work_sync(&ctrl->ka_work);
 }
 
-struct nvmet_ns *nvmet_find_namespace(struct nvmet_ctrl *ctrl, __le32 nsid)
+u16 nvmet_req_find_ns(struct nvmet_req *req)
 {
-	struct nvmet_ns *ns;
+	u32 nsid = le32_to_cpu(req->cmd->common.nsid);
 
-	ns = xa_load(&ctrl->subsys->namespaces, le32_to_cpu(nsid));
-	if (ns)
-		percpu_ref_get(&ns->ref);
+	req->ns = xa_load(&nvmet_req_subsys(req)->namespaces, nsid);
+	if (unlikely(!req->ns)) {
+		req->error_loc = offsetof(struct nvme_common_command, nsid);
+		return NVME_SC_INVALID_NS | NVME_SC_DNR;
+	}
 
-	return ns;
+	percpu_ref_get(&req->ns->ref);
+	return NVME_SC_SUCCESS;
 }
 
 static void nvmet_destroy_namespace(struct percpu_ref *ref)
@@ -862,11 +874,10 @@ static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 	if (nvmet_req_passthru_ctrl(req))
 		return nvmet_parse_passthru_io_cmd(req);
 
-	req->ns = nvmet_find_namespace(req->sq->ctrl, cmd->rw.nsid);
-	if (unlikely(!req->ns)) {
-		req->error_loc = offsetof(struct nvme_common_command, nsid);
-		return NVME_SC_INVALID_NS | NVME_SC_DNR;
-	}
+	ret = nvmet_req_find_ns(req);
+	if (unlikely(ret))
+		return ret;
+
 	ret = nvmet_check_ana_state(req->port, req->ns);
 	if (unlikely(ret)) {
 		req->error_loc = offsetof(struct nvme_common_command, nsid);
@@ -880,8 +891,8 @@ static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 
 	if (req->ns->file)
 		return nvmet_file_parse_io_cmd(req);
-	else
-		return nvmet_bdev_parse_io_cmd(req);
+
+	return nvmet_bdev_parse_io_cmd(req);
 }
 
 bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,

@@ -23,22 +23,8 @@
 
 #define __sme_page_pa(x) __sme_set(page_to_pfn(x) << PAGE_SHIFT)
 
-static const struct svm_host_save_msrs {
-	u32 index;		/* Index of the MSR */
-	bool sev_es_restored;	/* True if MSR is restored on SEV-ES VMEXIT */
-} host_save_user_msrs[] = {
-#ifdef CONFIG_X86_64
-	{ .index = MSR_STAR,			.sev_es_restored = true },
-	{ .index = MSR_LSTAR,			.sev_es_restored = true },
-	{ .index = MSR_CSTAR,			.sev_es_restored = true },
-	{ .index = MSR_SYSCALL_MASK,		.sev_es_restored = true },
-	{ .index = MSR_KERNEL_GS_BASE,		.sev_es_restored = true },
-	{ .index = MSR_FS_BASE,			.sev_es_restored = true },
-#endif
-	{ .index = MSR_IA32_SYSENTER_CS,	.sev_es_restored = true },
-	{ .index = MSR_IA32_SYSENTER_ESP,	.sev_es_restored = true },
-	{ .index = MSR_IA32_SYSENTER_EIP,	.sev_es_restored = true },
-	{ .index = MSR_TSC_AUX,			.sev_es_restored = false },
+static const u32 host_save_user_msrs[] = {
+	MSR_TSC_AUX,
 };
 #define NR_HOST_SAVE_USER_MSRS ARRAY_SIZE(host_save_user_msrs)
 
@@ -130,12 +116,6 @@ struct vcpu_svm {
 	u64 next_rip;
 
 	u64 host_user_msrs[NR_HOST_SAVE_USER_MSRS];
-	struct {
-		u16 fs;
-		u16 gs;
-		u16 ldt;
-		u64 gs_base;
-	} host;
 
 	u64 spec_ctrl;
 	/*
@@ -192,6 +172,8 @@ struct vcpu_svm {
 	u64 ghcb_sa_len;
 	bool ghcb_sa_sync;
 	bool ghcb_sa_free;
+
+	bool guest_state_loaded;
 };
 
 struct svm_cpu_data {
@@ -587,9 +569,8 @@ int sev_handle_vmgexit(struct vcpu_svm *svm);
 int sev_es_string_io(struct vcpu_svm *svm, int size, unsigned int port, int in);
 void sev_es_init_vmcb(struct vcpu_svm *svm);
 void sev_es_create_vcpu(struct vcpu_svm *svm);
-void sev_es_vcpu_load(struct vcpu_svm *svm, int cpu);
-void sev_es_vcpu_put(struct vcpu_svm *svm);
 void sev_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector);
+void sev_es_prepare_guest_switch(struct vcpu_svm *svm, unsigned int cpu);
 
 /* vmenter.S */
 

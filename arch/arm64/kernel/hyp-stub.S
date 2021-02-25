@@ -8,9 +8,9 @@
 
 #include <linux/init.h>
 #include <linux/linkage.h>
-#include <linux/irqchip/arm-gic-v3.h>
 
 #include <asm/assembler.h>
+#include <asm/el2_setup.h>
 #include <asm/kvm_arm.h>
 #include <asm/kvm_asm.h>
 #include <asm/ptrace.h>
@@ -47,9 +47,12 @@ SYM_CODE_END(__hyp_stub_vectors)
 
 SYM_CODE_START_LOCAL(el1_sync)
 	cmp	x0, #HVC_SET_VECTORS
-	b.ne	2f
+	b.ne	1f
 	msr	vbar_el2, x1
 	b	9f
+
+1:	cmp	x0, #HVC_VHE_RESTART
+	b.eq	mutate_to_vhe
 
 2:	cmp	x0, #HVC_SOFT_RESTART
 	b.ne	3f
@@ -70,6 +73,88 @@ SYM_CODE_START_LOCAL(el1_sync)
 	eret
 SYM_CODE_END(el1_sync)
 
+// nVHE? No way! Give me the real thing!
+SYM_CODE_START_LOCAL(mutate_to_vhe)
+	// Be prepared to fail
+	mov_q	x0, HVC_STUB_ERR
+
+	// Sanity check: MMU *must* be off
+	mrs	x1, sctlr_el2
+	tbnz	x1, #0, 1f
+
+	// Needs to be VHE capable, obviously
+	mrs	x1, id_aa64mmfr1_el1
+	ubfx	x1, x1, #ID_AA64MMFR1_VHE_SHIFT, #4
+	cbz	x1, 1f
+
+	// Check whether VHE is disabled from the command line
+	adr_l	x1, id_aa64mmfr1_override
+	ldr	x2, [x1, FTR_OVR_VAL_OFFSET]
+	ldr	x1, [x1, FTR_OVR_MASK_OFFSET]
+	ubfx	x2, x2, #ID_AA64MMFR1_VHE_SHIFT, #4
+	ubfx	x1, x1, #ID_AA64MMFR1_VHE_SHIFT, #4
+	cmp	x1, xzr
+	and	x2, x2, x1
+	csinv	x2, x2, xzr, ne
+	cbz	x2, 1f
+
+	// Engage the VHE magic!
+	mov_q	x0, HCR_HOST_VHE_FLAGS
+	msr	hcr_el2, x0
+	isb
+
+	// Use the EL1 allocated stack, per-cpu offset
+	mrs	x0, sp_el1
+	mov	sp, x0
+	mrs	x0, tpidr_el1
+	msr	tpidr_el2, x0
+
+	// FP configuration, vectors
+	mrs_s	x0, SYS_CPACR_EL12
+	msr	cpacr_el1, x0
+	mrs_s	x0, SYS_VBAR_EL12
+	msr	vbar_el1, x0
+
+	// Use EL2 translations for SPE and disable access from EL1
+	mrs	x0, mdcr_el2
+	bic	x0, x0, #(MDCR_EL2_E2PB_MASK << MDCR_EL2_E2PB_SHIFT)
+	msr	mdcr_el2, x0
+
+	// Transfer the MM state from EL1 to EL2
+	mrs_s	x0, SYS_TCR_EL12
+	msr	tcr_el1, x0
+	mrs_s	x0, SYS_TTBR0_EL12
+	msr	ttbr0_el1, x0
+	mrs_s	x0, SYS_TTBR1_EL12
+	msr	ttbr1_el1, x0
+	mrs_s	x0, SYS_MAIR_EL12
+	msr	mair_el1, x0
+	isb
+
+	// Invalidate TLBs before enabling the MMU
+	tlbi	vmalle1
+	dsb	nsh
+
+	// Enable the EL2 S1 MMU, as set up from EL1
+	mrs_s	x0, SYS_SCTLR_EL12
+	set_sctlr_el1	x0
+
+	// Disable the EL1 S1 MMU for a good measure
+	mov_q	x0, INIT_SCTLR_EL1_MMU_OFF
+	msr_s	SYS_SCTLR_EL12, x0
+
+	// Hack the exception return to stay at EL2
+	mrs	x0, spsr_el1
+	and	x0, x0, #~PSR_MODE_MASK
+	mov	x1, #PSR_MODE_EL2h
+	orr	x0, x0, x1
+	msr	spsr_el1, x0
+
+	mov	x0, xzr
+
+1:	eret
+SYM_CODE_END(mutate_to_vhe)
+
 .macro invalid_vector	label
 SYM_CODE_START_LOCAL(\label)
 	b \label
@@ -84,6 +169,8 @@ SYM_CODE_END(\label)
 	invalid_vector	el1_irq_invalid
 	invalid_vector	el1_fiq_invalid
 	invalid_vector	el1_error_invalid
+
+	.popsection
 
 /*
  * __hyp_set_vectors: Call this after boot to set the initial hypervisor
@@ -118,3 +205,27 @@ SYM_FUNC_START(__hyp_reset_vectors)
 	hvc	#0
 	ret
 SYM_FUNC_END(__hyp_reset_vectors)
+
+/*
+ * Entry point to switch to VHE if deemed capable
+ */
+SYM_FUNC_START(switch_to_vhe)
+#ifdef CONFIG_ARM64_VHE
+	// Need to have booted at EL2
+	adr_l	x1, __boot_cpu_mode
+	ldr	w0, [x1]
+	cmp	w0, #BOOT_CPU_MODE_EL2
+	b.ne	1f
+
+	// and still be at EL1
+	mrs	x0, CurrentEL
+	cmp	x0, #CurrentEL_EL1
+	b.ne	1f
+
+	// Turn the world upside down
+	mov	x0, #HVC_VHE_RESTART
+	hvc	#0
+1:
+#endif
+	ret
+SYM_FUNC_END(switch_to_vhe)

@@ -546,9 +546,19 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
 #define OSC_SB_OSLPI_SUPPORT			0x00000100
 #define OSC_SB_CPC_DIVERSE_HIGH_SUPPORT		0x00001000
 #define OSC_SB_GENERIC_INITIATOR_SUPPORT	0x00002000
+#define OSC_SB_NATIVE_USB4_SUPPORT		0x00040000
 
 extern bool osc_sb_apei_support_acked;
 extern bool osc_pc_lpi_support_confirmed;
+extern bool osc_sb_native_usb4_support_confirmed;
+
+/* USB4 Capabilities */
+#define OSC_USB_USB3_TUNNELING			0x00000001
+#define OSC_USB_DP_TUNNELING			0x00000002
+#define OSC_USB_PCIE_TUNNELING			0x00000004
+#define OSC_USB_XDOMAIN				0x00000008
+
+extern u32 osc_sb_native_usb4_control;
 
 /* PCI Host Bridge _OSC: Capabilities DWORD 2: Support Field */
 #define OSC_PCI_EXT_CONFIG_SUPPORT		0x00000001
@@ -1114,14 +1124,6 @@ acpi_data_add_props(struct acpi_device_data *data, const guid_t *guid,
 
 int acpi_node_prop_get(const struct fwnode_handle *fwnode, const char *propname,
 		       void **valptr);
-int acpi_dev_prop_read_single(struct acpi_device *adev,
-			      const char *propname, enum dev_prop_type proptype,
-			      void *val);
-int acpi_node_prop_read(const struct fwnode_handle *fwnode,
-			const char *propname, enum dev_prop_type proptype,
-			void *val, size_t nval);
-int acpi_dev_prop_read(const struct acpi_device *adev, const char *propname,
-		       enum dev_prop_type proptype, void *val, size_t nval);
 
 struct fwnode_handle *acpi_get_next_subnode(const struct fwnode_handle *fwnode,
 					    struct fwnode_handle *child);
@@ -1219,30 +1221,6 @@ acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 static inline int acpi_node_prop_get(const struct fwnode_handle *fwnode,
 				     const char *propname,
 				     void **valptr)
-{
-	return -ENXIO;
-}
-
-static inline int acpi_dev_prop_read_single(const struct acpi_device *adev,
-					    const char *propname,
-					    enum dev_prop_type proptype,
-					    void *val)
-{
-	return -ENXIO;
-}
-
-static inline int acpi_node_prop_read(const struct fwnode_handle *fwnode,
-				      const char *propname,
-				      enum dev_prop_type proptype,
-				      void *val, size_t nval)
-{
-	return -ENXIO;
-}
-
-static inline int acpi_dev_prop_read(const struct acpi_device *adev,
-				     const char *propname,
-				     enum dev_prop_type proptype,
-				     void *val, size_t nval)
 {
 	return -ENXIO;
 }

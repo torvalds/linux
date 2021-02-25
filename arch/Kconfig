@@ -33,38 +33,6 @@ config HOTPLUG_SMT
 config GENERIC_ENTRY
        bool
 
-config OPROFILE
-	tristate "OProfile system profiling"
-	depends on PROFILING
-	depends on HAVE_OPROFILE
-	select RING_BUFFER
-	select RING_BUFFER_ALLOW_SWAP
-	help
-	  OProfile is a profiling system capable of profiling the
-	  whole system, include the kernel, kernel modules, libraries,
-	  and applications.
-
-	  If unsure, say N.
-
-config OPROFILE_EVENT_MULTIPLEX
-	bool "OProfile multiplexing support (EXPERIMENTAL)"
-	default n
-	depends on OPROFILE && X86
-	help
-	  The number of hardware counters is limited. The multiplexing
-	  feature enables OProfile to gather more events than counters
-	  are provided by the hardware. This is realized by switching
-	  between events at a user specified time interval.
-
-	  If unsure, say N.
-
-config HAVE_OPROFILE
-	bool
-
-config OPROFILE_NMI_TIMER
-	def_bool y
-	depends on PERF_EVENTS && HAVE_PERF_EVENTS_NMI && !PPC64
-
 config KPROBES
 	bool "Kprobes"
 	depends on MODULES
@@ -326,6 +294,10 @@ config ARCH_32BIT_OFF_T
 	  is the requirement for modern ABIs. Some existing architectures
 	  still support 32-bit off_t. This option is enabled for all such
 	  architectures explicitly.
+
+# Selected by 64 bit architectures which have a 32 bit f_tinode in struct ustat
+config ARCH_32BIT_USTAT_F_TINODE
+	bool
 
 config HAVE_ASM_MODVERSIONS
 	bool
@@ -1090,6 +1062,15 @@ config HAVE_STATIC_CALL_INLINE
 	bool
 	depends on HAVE_STATIC_CALL
 
+config HAVE_PREEMPT_DYNAMIC
+	bool
+	depends on HAVE_STATIC_CALL
+	depends on GENERIC_ENTRY
+	help
+	   Select this if the architecture support boot time preempt setting
+	   on top of static calls. It is strongly advised to support inline
+	   static call to avoid any overhead.
+
 config ARCH_WANT_LD_ORPHAN_WARN
 	bool
 	help
@@ -1110,6 +1091,9 @@ config ARCH_SPLIT_ARG64
 	help
 	   If a 32-bit architecture requires 64-bit arguments to be split into
 	   pairs of 32-bit arguments, select this option.
+
+config ARCH_HAS_ELFCORE_COMPAT
+	bool
 
 source "kernel/gcov/Kconfig"
 

@@ -7,9 +7,7 @@ C CoRR+poonceonce+Once
  * reads from the same variable are ordered.
  *)
 
-{
-	int x;
-}
+{}
 
 P0(int *x)
 {

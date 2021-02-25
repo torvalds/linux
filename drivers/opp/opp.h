@@ -26,7 +26,7 @@ struct regulator;
 /* Lock to allow exclusive modification to the device and opp lists */
 extern struct mutex opp_table_lock;
 
-extern struct list_head opp_tables;
+extern struct list_head opp_tables, lazy_opp_tables;
 
 /*
  * Internal data structure organization with the OPP layer library is as
@@ -135,6 +135,7 @@ enum opp_table_access {
  * @clock_latency_ns_max: Max clock latency in nanoseconds.
  * @parsed_static_opps: Count of devices for which OPPs are initialized from DT.
  * @shared_opp: OPP is shared between multiple devices.
+ * @current_opp: Currently configured OPP for the table.
  * @suspend_opp: Pointer to OPP to be used during device suspend.
  * @genpd_virt_dev_lock: Mutex protecting the genpd virtual device pointers.
  * @genpd_virt_devs: List of virtual devices for multiple genpd support.
@@ -155,6 +156,7 @@ enum opp_table_access {
  * @genpd_performance_state: Device's power domain support performance state.
  * @is_genpd: Marks if the OPP table belongs to a genpd.
  * @set_opp: Platform specific set_opp callback
+ * @sod_supplies: Set opp data supplies
  * @set_opp_data: Data to be passed to set_opp callback
  * @dentry:	debugfs dentry pointer of the real device directory (not links).
  * @dentry_name: Name of the real dentry.
@@ -166,7 +168,7 @@ enum opp_table_access {
  * meant for book keeping and private to OPP library.
  */
 struct opp_table {
-	struct list_head node;
+	struct list_head node, lazy;
 
 	struct blocking_notifier_head head;
 	struct list_head dev_list;
@@ -182,6 +184,7 @@ struct opp_table {
 
 	unsigned int parsed_static_opps;
 	enum opp_table_access shared_opp;
+	struct dev_pm_opp *current_opp;
 	struct dev_pm_opp *suspend_opp;
 
 	struct mutex genpd_virt_dev_lock;
@@ -202,6 +205,7 @@ struct opp_table {
 	bool is_genpd;
 
 	int (*set_opp)(struct dev_pm_set_opp_data *data);
+	struct dev_pm_opp_supply *sod_supplies;
 	struct dev_pm_set_opp_data *set_opp_data;
 
 #ifdef CONFIG_DEBUG_FS
@@ -223,9 +227,14 @@ int _opp_compare_key(struct dev_pm_opp *opp1, struct dev_pm_opp *opp2);
 int _opp_add(struct device *dev, struct dev_pm_opp *new_opp, struct opp_table *opp_table, bool rate_not_available);
 int _opp_add_v1(struct opp_table *opp_table, struct device *dev, unsigned long freq, long u_volt, bool dynamic);
 void _dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask, int last_cpu);
-struct opp_table *_add_opp_table(struct device *dev);
-struct opp_table *_add_opp_table_indexed(struct device *dev, int index);
+struct opp_table *_add_opp_table_indexed(struct device *dev, int index, bool getclk);
 void _put_opp_list_kref(struct opp_table *opp_table);
+void _required_opps_available(struct dev_pm_opp *opp, int count);
+
+static inline bool lazy_linking_pending(struct opp_table *opp_table)
+{
+	return unlikely(!list_empty(&opp_table->lazy));
+}
 
 #ifdef CONFIG_OF
 void _of_init_opp_table(struct opp_table *opp_table, struct device *dev, int index);

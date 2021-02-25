@@ -487,11 +487,6 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 		    !q->ops->buf_out_validate))
 		return -EINVAL;
 
-	if (b->request_fd < 0) {
-		dprintk(q, 1, "%s: request_fd < 0\n", opname);
-		return -EINVAL;
-	}
-
 	req = media_request_get_by_fd(mdev, b->request_fd);
 	if (IS_ERR(req)) {
 		dprintk(q, 1, "%s: invalid request_fd\n", opname);

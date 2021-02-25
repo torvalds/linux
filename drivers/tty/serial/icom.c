@@ -118,7 +118,7 @@ MODULE_DEVICE_TABLE(pci, icom_pci_table);
 static LIST_HEAD(icom_adapter_head);
 
 /* spinlock for adapter initialization and changing adapter operations */
-static spinlock_t icom_lock;
+static DEFINE_SPINLOCK(icom_lock);
 
 #ifdef ICOM_TRACE
 static inline void trace(struct icom_port *icom_port, char *trace_pt,
@@ -1615,8 +1615,6 @@ static struct pci_driver icom_pci_driver = {
 static int __init icom_init(void)
 {
 	int ret;
-
-	spin_lock_init(&icom_lock);
 
 	ret = uart_register_driver(&icom_uart_driver);
 	if (ret)

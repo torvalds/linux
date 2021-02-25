@@ -277,6 +277,8 @@ void hsr_handle_sup_frame(struct hsr_frame_info *frame)
 		skb = frame->skb_hsr;
 	else if (frame->skb_prp)
 		skb = frame->skb_prp;
+	else if (frame->skb_std)
+		skb = frame->skb_std;
 	if (!skb)
 		return;
 

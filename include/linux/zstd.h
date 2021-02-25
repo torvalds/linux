@@ -791,11 +791,11 @@ size_t ZSTD_DStreamOutSize(void);
 /* for static allocation */
 #define ZSTD_FRAMEHEADERSIZE_MAX 18
 #define ZSTD_FRAMEHEADERSIZE_MIN  6
-static const size_t ZSTD_frameHeaderSize_prefix = 5;
-static const size_t ZSTD_frameHeaderSize_min = ZSTD_FRAMEHEADERSIZE_MIN;
-static const size_t ZSTD_frameHeaderSize_max = ZSTD_FRAMEHEADERSIZE_MAX;
+#define ZSTD_frameHeaderSize_prefix 5
+#define ZSTD_frameHeaderSize_min ZSTD_FRAMEHEADERSIZE_MIN
+#define ZSTD_frameHeaderSize_max ZSTD_FRAMEHEADERSIZE_MAX
 /* magic number + skippable frame length */
-static const size_t ZSTD_skippableHeaderSize = 8;
+#define ZSTD_skippableHeaderSize 8
 
 
 /*-*************************************

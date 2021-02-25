@@ -467,7 +467,7 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 			}
 		}
 
-		blk_execute_rq(drive->queue, info->disk, rq, 0);
+		blk_execute_rq(info->disk, rq, 0);
 		error = scsi_req(rq)->result ? -EIO : 0;
 
 		if (buffer)

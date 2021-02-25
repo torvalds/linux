@@ -205,5 +205,8 @@ int idxd_register_dma_channel(struct idxd_wq *wq)
 
 void idxd_unregister_dma_channel(struct idxd_wq *wq)
 {
-	dma_async_device_channel_unregister(&wq->idxd->dma_dev, &wq->dma_chan);
+	struct dma_chan *chan = &wq->dma_chan;
+
+	dma_async_device_channel_unregister(&wq->idxd->dma_dev, chan);
+	list_del(&chan->device_node);
 }

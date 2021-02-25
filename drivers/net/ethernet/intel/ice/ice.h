@@ -39,6 +39,7 @@
 #include <net/devlink.h>
 #include <net/ipv6.h>
 #include <net/xdp_sock.h>
+#include <net/xdp_sock_drv.h>
 #include <net/geneve.h>
 #include <net/gre.h>
 #include <net/udp_tunnel.h>
@@ -55,6 +56,7 @@
 #include "ice_fdir.h"
 #include "ice_xsk.h"
 #include "ice_arfs.h"
+#include "ice_lag.h"
 
 #define ICE_BAR0		0
 #define ICE_REQ_DESC_MULTIPLE	32
@@ -166,7 +168,7 @@ struct ice_tc_cfg {
 struct ice_res_tracker {
 	u16 num_entries;
 	u16 end;
-	u16 list[1];
+	u16 list[];
 };
 
 struct ice_qs_cfg {
@@ -326,9 +328,11 @@ struct ice_vsi {
 	struct ice_ring **xdp_rings;	 /* XDP ring array */
 	u16 num_xdp_txq;		 /* Used XDP queues */
 	u8 xdp_mapping_mode;		 /* ICE_MAP_MODE_[CONTIG|SCATTER] */
-	struct xsk_buff_pool **xsk_pools;
-	u16 num_xsk_pools_used;
-	u16 num_xsk_pools;
+
+	/* setup back reference, to which aggregator node this VSI
+	 * corresponds to
+	 */
+	struct ice_agg_node *agg_node;
 } ____cacheline_internodealigned_in_smp;
 
 /* struct that defines an interrupt vector */
@@ -375,6 +379,13 @@ enum ice_pf_flags {
 	ICE_FLAG_MDD_AUTO_RESET_VF,
 	ICE_FLAG_LINK_LENIENT_MODE_ENA,
 	ICE_PF_FLAGS_NBITS		/* must be last */
+};
+
+struct ice_agg_node {
+	u32 agg_id;
+#define ICE_MAX_VSIS_IN_AGG_NODE	64
+	u32 num_vsis;
+	u8 valid;
 };
 
 struct ice_pf {
@@ -455,6 +466,15 @@ struct ice_pf {
 	__le64 nvm_phy_type_lo; /* NVM PHY type low */
 	__le64 nvm_phy_type_hi; /* NVM PHY type high */
 	struct ice_link_default_override_tlv link_dflt_override;
+	struct ice_lag *lag; /* Link Aggregation information */
+
+#define ICE_INVALID_AGG_NODE_ID		0
+#define ICE_PF_AGG_NODE_ID_START	1
+#define ICE_MAX_PF_AGG_NODES		32
+	struct ice_agg_node pf_agg_node[ICE_MAX_PF_AGG_NODES];
+#define ICE_VF_AGG_NODE_ID_START	65
+#define ICE_MAX_VF_AGG_NODES		32
+	struct ice_agg_node vf_agg_node[ICE_MAX_VF_AGG_NODES];
 };
 
 struct ice_netdev_priv {
@@ -517,17 +537,15 @@ static inline void ice_set_ring_xdp(struct ice_ring *ring)
  */
 static inline struct xsk_buff_pool *ice_xsk_pool(struct ice_ring *ring)
 {
-	struct xsk_buff_pool **pools = ring->vsi->xsk_pools;
 	u16 qid = ring->q_index;
 
 	if (ice_ring_is_xdp(ring))
 		qid -= ring->vsi->num_xdp_txq;
 
-	if (qid >= ring->vsi->num_xsk_pools || !pools || !pools[qid] ||
-	    !ice_is_xdp_ena_vsi(ring->vsi))
+	if (!ice_is_xdp_ena_vsi(ring->vsi))
 		return NULL;
 
-	return pools[qid];
+	return xsk_get_pool_from_qid(ring->vsi->netdev, qid);
 }
 
 /**
@@ -557,11 +575,31 @@ static inline struct ice_vsi *ice_get_ctrl_vsi(struct ice_pf *pf)
 	return pf->vsi[pf->ctrl_vsi_idx];
 }
 
+/**
+ * ice_set_sriov_cap - enable SRIOV in PF flags
+ * @pf: PF struct
+ */
+static inline void ice_set_sriov_cap(struct ice_pf *pf)
+{
+	if (pf->hw.func_caps.common_cap.sr_iov_1_1)
+		set_bit(ICE_FLAG_SRIOV_CAPABLE, pf->flags);
+}
+
+/**
+ * ice_clear_sriov_cap - disable SRIOV in PF flags
+ * @pf: PF struct
+ */
+static inline void ice_clear_sriov_cap(struct ice_pf *pf)
+{
+	clear_bit(ICE_FLAG_SRIOV_CAPABLE, pf->flags);
+}
+
 #define ICE_FD_STAT_CTR_BLOCK_COUNT	256
 #define ICE_FD_STAT_PF_IDX(base_idx) \
 			((base_idx) * ICE_FD_STAT_CTR_BLOCK_COUNT)
 #define ICE_FD_SB_STAT_IDX(base_idx) ICE_FD_STAT_PF_IDX(base_idx)
 
+bool netif_is_ice(struct net_device *dev);
 int ice_vsi_setup_tx_rings(struct ice_vsi *vsi);
 int ice_vsi_setup_rx_rings(struct ice_vsi *vsi);
 int ice_vsi_open_ctrl(struct ice_vsi *vsi);

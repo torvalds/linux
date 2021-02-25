@@ -258,32 +258,28 @@ struct ipa_mem_data {
 	u32 smem_size;
 };
 
-/** enum ipa_interconnect_id - IPA interconnect identifier */
-enum ipa_interconnect_id {
-	IPA_INTERCONNECT_MEMORY,
-	IPA_INTERCONNECT_IMEM,
-	IPA_INTERCONNECT_CONFIG,
-	IPA_INTERCONNECT_COUNT,		/* Last; not an interconnect */
-};
-
 /**
- * struct ipa_interconnect_data - description of IPA interconnect rates
- * @peak_rate:		Peak interconnect bandwidth (in 1000 byte/sec units)
- * @average_rate:	Average interconnect bandwidth (in 1000 byte/sec units)
+ * struct ipa_interconnect_data - description of IPA interconnect bandwidths
+ * @name:		Interconnect name (matches interconnect-name in DT)
+ * @peak_bandwidth:	Peak interconnect bandwidth (in 1000 byte/sec units)
+ * @average_bandwidth:	Average interconnect bandwidth (in 1000 byte/sec units)
  */
 struct ipa_interconnect_data {
-	u32 peak_rate;
-	u32 average_rate;
+	const char *name;
+	u32 peak_bandwidth;
+	u32 average_bandwidth;
 };
 
 /**
  * struct ipa_clock_data - description of IPA clock and interconnect rates
  * @core_clock_rate:	Core clock rate (Hz)
- * @interconnect:	Array of interconnect bandwidth parameters
+ * @interconnect_count:	Number of entries in the interconnect_data array
+ * @interconnect_data:	IPA interconnect configuration data
  */
 struct ipa_clock_data {
 	u32 core_clock_rate;
-	struct ipa_interconnect_data interconnect[IPA_INTERCONNECT_COUNT];
+	u32 interconnect_count;		/* # entries in interconnect_data[] */
+	const struct ipa_interconnect_data *interconnect_data;
 };
 
 /**

@@ -798,14 +798,13 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 
 void __init initialize_ivt(const void *iva)
 {
-	extern u32 os_hpmc_size;
 	extern const u32 os_hpmc[];
 
 	int i;
 	u32 check = 0;
 	u32 *ivap;
 	u32 *hpmcp;
-	u32 length, instr;
+	u32 instr;
 
 	if (strcmp((const char *)iva, "cows can fly"))
 		panic("IVT invalid");
@@ -836,18 +835,14 @@ void __init initialize_ivt(const void *iva)
 
 	/* Setup IVA and compute checksum for HPMC handler */
 	ivap[6] = (u32)__pa(os_hpmc);
-	length = os_hpmc_size;
-	ivap[7] = length;
 
 	hpmcp = (u32 *)os_hpmc;
-
-	for (i=0; i<length/4; i++)
-	    check += *hpmcp++;
 
 	for (i=0; i<8; i++)
 	    check += ivap[i];
 
 	ivap[5] = -check;
+	pr_debug("initialize_ivt: IVA[6] = 0x%08x\n", ivap[6]);
 }
 	
 

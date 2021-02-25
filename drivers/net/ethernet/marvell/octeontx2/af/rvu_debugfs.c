@@ -19,6 +19,7 @@
 #include "rvu_reg.h"
 #include "rvu.h"
 #include "cgx.h"
+#include "lmac_common.h"
 #include "npc.h"
 
 #define DEBUGFS_DIR_NAME "octeontx2"
@@ -107,6 +108,89 @@ static char *cgx_tx_stats_fields[] = {
 	[CGX_STAT15]	= "Packets sent to the multicast DMAC",
 	[CGX_STAT16]	= "Transmit underflow and were truncated",
 	[CGX_STAT17]	= "Control/PAUSE packets sent",
+};
+
+static char *rpm_rx_stats_fields[] = {
+	"Octets of received packets",
+	"Octets of received packets with out error",
+	"Received packets with alignment errors",
+	"Control/PAUSE packets received",
+	"Packets received with Frame too long Errors",
+	"Packets received with a1nrange length Errors",
+	"Received packets",
+	"Packets received with FrameCheckSequenceErrors",
+	"Packets received with VLAN header",
+	"Error packets",
+	"Packets received with unicast DMAC",
+	"Packets received with multicast DMAC",
+	"Packets received with broadcast DMAC",
+	"Dropped packets",
+	"Total frames received on interface",
+	"Packets received with an octet count < 64",
+	"Packets received with an octet count == 64",
+	"Packets received with an octet count of 65â127",
+	"Packets received with an octet count of 128-255",
+	"Packets received with an octet count of 256-511",
+	"Packets received with an octet count of 512-1023",
+	"Packets received with an octet count of 1024-1518",
+	"Packets received with an octet count of > 1518",
+	"Oversized Packets",
+	"Jabber Packets",
+	"Fragmented Packets",
+	"CBFC(class based flow control) pause frames received for class 0",
+	"CBFC pause frames received for class 1",
+	"CBFC pause frames received for class 2",
+	"CBFC pause frames received for class 3",
+	"CBFC pause frames received for class 4",
+	"CBFC pause frames received for class 5",
+	"CBFC pause frames received for class 6",
+	"CBFC pause frames received for class 7",
+	"CBFC pause frames received for class 8",
+	"CBFC pause frames received for class 9",
+	"CBFC pause frames received for class 10",
+	"CBFC pause frames received for class 11",
+	"CBFC pause frames received for class 12",
+	"CBFC pause frames received for class 13",
+	"CBFC pause frames received for class 14",
+	"CBFC pause frames received for class 15",
+	"MAC control packets received",
+};
+
+static char *rpm_tx_stats_fields[] = {
+	"Total octets sent on the interface",
+	"Total octets transmitted OK",
+	"Control/Pause frames sent",
+	"Total frames transmitted OK",
+	"Total frames sent with VLAN header",
+	"Error Packets",
+	"Packets sent to unicast DMAC",
+	"Packets sent to the multicast DMAC",
+	"Packets sent to a broadcast DMAC",
+	"Packets sent with an octet count == 64",
+	"Packets sent with an octet count of 65â127",
+	"Packets sent with an octet count of 128-255",
+	"Packets sent with an octet count of 256-511",
+	"Packets sent with an octet count of 512-1023",
+	"Packets sent with an octet count of 1024-1518",
+	"Packets sent with an octet count of > 1518",
+	"CBFC(class based flow control) pause frames transmitted for class 0",
+	"CBFC pause frames transmitted for class 1",
+	"CBFC pause frames transmitted for class 2",
+	"CBFC pause frames transmitted for class 3",
+	"CBFC pause frames transmitted for class 4",
+	"CBFC pause frames transmitted for class 5",
+	"CBFC pause frames transmitted for class 6",
+	"CBFC pause frames transmitted for class 7",
+	"CBFC pause frames transmitted for class 8",
+	"CBFC pause frames transmitted for class 9",
+	"CBFC pause frames transmitted for class 10",
+	"CBFC pause frames transmitted for class 11",
+	"CBFC pause frames transmitted for class 12",
+	"CBFC pause frames transmitted for class 13",
+	"CBFC pause frames transmitted for class 14",
+	"CBFC pause frames transmitted for class 15",
+	"MAC control packets sent",
+	"Total frames sent on the interface"
 };
 
 enum cpt_eng_type {
@@ -234,6 +318,8 @@ static int rvu_dbg_rvu_pf_cgx_map_display(struct seq_file *filp, void *unused)
 {
 	struct rvu *rvu = filp->private;
 	struct pci_dev *pdev = NULL;
+	struct mac_ops *mac_ops;
+	int rvu_def_cgx_id = 0;
 	char cgx[10], lmac[10];
 	struct rvu_pfvf *pfvf;
 	int pf, domain, blkid;
@@ -241,7 +327,9 @@ static int rvu_dbg_rvu_pf_cgx_map_display(struct seq_file *filp, void *unused)
 	u16 pcifunc;
 
 	domain = 2;
-	seq_puts(filp, "PCI dev\t\tRVU PF Func\tNIX block\tCGX\tLMAC\n");
+	mac_ops = get_mac_ops(rvu_cgx_pdata(rvu_def_cgx_id, rvu));
+	seq_printf(filp, "PCI dev\t\tRVU PF Func\tNIX block\t%s\tLMAC\n",
+		   mac_ops->name);
 	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
 		if (!is_pf_cgxmapped(rvu, pf))
 			continue;
@@ -262,7 +350,7 @@ static int rvu_dbg_rvu_pf_cgx_map_display(struct seq_file *filp, void *unused)
 
 		rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id,
 				    &lmac_id);
-		sprintf(cgx, "CGX%d", cgx_id);
+		sprintf(cgx, "%s%d", mac_ops->name, cgx_id);
 		sprintf(lmac, "LMAC%d", lmac_id);
 		seq_printf(filp, "%s\t0x%x\t\tNIX%d\t\t%s\t%s\n",
 			   dev_name(&pdev->dev), pcifunc, blkid, cgx, lmac);
@@ -449,6 +537,7 @@ RVU_DEBUG_SEQ_FOPS(npa_qsize, npa_qsize_display, npa_qsize_write);
 static void print_npa_aura_ctx(struct seq_file *m, struct npa_aq_enq_rsp *rsp)
 {
 	struct npa_aura_s *aura = &rsp->aura;
+	struct rvu *rvu = m->private;
 
 	seq_printf(m, "W0: Pool addr\t\t%llx\n", aura->pool_addr);
 
@@ -468,6 +557,9 @@ static void print_npa_aura_ctx(struct seq_file *m, struct npa_aq_enq_rsp *rsp)
 
 	seq_printf(m, "W3: limit\t\t%llu\nW3: bp\t\t\t%d\nW3: fc_ena\t\t%d\n",
 		   (u64)aura->limit, aura->bp, aura->fc_ena);
+
+	if (!is_rvu_otx2(rvu))
+		seq_printf(m, "W3: fc_be\t\t%d\n", aura->fc_be);
 	seq_printf(m, "W3: fc_up_crossing\t%d\nW3: fc_stype\t\t%d\n",
 		   aura->fc_up_crossing, aura->fc_stype);
 	seq_printf(m, "W3: fc_hyst_bits\t%d\n", aura->fc_hyst_bits);
@@ -485,12 +577,15 @@ static void print_npa_aura_ctx(struct seq_file *m, struct npa_aq_enq_rsp *rsp)
 	seq_printf(m, "W5: err_qint_idx \t%d\n", aura->err_qint_idx);
 
 	seq_printf(m, "W6: thresh\t\t%llu\n", (u64)aura->thresh);
+	if (!is_rvu_otx2(rvu))
+		seq_printf(m, "W6: fc_msh_dst\t\t%d\n", aura->fc_msh_dst);
 }
 
 /* Dumps given NPA Pool's context */
 static void print_npa_pool_ctx(struct seq_file *m, struct npa_aq_enq_rsp *rsp)
 {
 	struct npa_pool_s *pool = &rsp->pool;
+	struct rvu *rvu = m->private;
 
 	seq_printf(m, "W0: Stack base\t\t%llx\n", pool->stack_base);
 
@@ -512,6 +607,8 @@ static void print_npa_pool_ctx(struct seq_file *m, struct npa_aq_enq_rsp *rsp)
 		   pool->avg_con, pool->fc_ena, pool->fc_stype);
 	seq_printf(m, "W4: fc_hyst_bits\t%d\nW4: fc_up_crossing\t%d\n",
 		   pool->fc_hyst_bits, pool->fc_up_crossing);
+	if (!is_rvu_otx2(rvu))
+		seq_printf(m, "W4: fc_be\t\t%d\n", pool->fc_be);
 	seq_printf(m, "W4: update_time\t\t%d\n", pool->update_time);
 
 	seq_printf(m, "W5: fc_addr\t\t%llx\n", pool->fc_addr);
@@ -525,8 +622,10 @@ static void print_npa_pool_ctx(struct seq_file *m, struct npa_aq_enq_rsp *rsp)
 	seq_printf(m, "W8: thresh_int\t\t%d\n", pool->thresh_int);
 	seq_printf(m, "W8: thresh_int_ena\t%d\nW8: thresh_up\t\t%d\n",
 		   pool->thresh_int_ena, pool->thresh_up);
-	seq_printf(m, "W8: thresh_qint_idx\t%d\nW8: err_qint_idx\t\t%d\n",
+	seq_printf(m, "W8: thresh_qint_idx\t%d\nW8: err_qint_idx\t%d\n",
 		   pool->thresh_qint_idx, pool->err_qint_idx);
+	if (!is_rvu_otx2(rvu))
+		seq_printf(m, "W8: fc_msh_dst\t\t%d\n", pool->fc_msh_dst);
 }
 
 /* Reads aura/pool's ctx from admin queue */
@@ -910,11 +1009,78 @@ static int rvu_dbg_nix_ndc_tx_hits_miss_display(struct seq_file *filp,
 
 RVU_DEBUG_SEQ_FOPS(nix_ndc_tx_hits_miss, nix_ndc_tx_hits_miss_display, NULL);
 
+static void print_nix_cn10k_sq_ctx(struct seq_file *m,
+				   struct nix_cn10k_sq_ctx_s *sq_ctx)
+{
+	seq_printf(m, "W0: ena \t\t\t%d\nW0: qint_idx \t\t\t%d\n",
+		   sq_ctx->ena, sq_ctx->qint_idx);
+	seq_printf(m, "W0: substream \t\t\t0x%03x\nW0: sdp_mcast \t\t\t%d\n",
+		   sq_ctx->substream, sq_ctx->sdp_mcast);
+	seq_printf(m, "W0: cq \t\t\t\t%d\nW0: sqe_way_mask \t\t%d\n\n",
+		   sq_ctx->cq, sq_ctx->sqe_way_mask);
+
+	seq_printf(m, "W1: smq \t\t\t%d\nW1: cq_ena \t\t\t%d\nW1: xoff\t\t\t%d\n",
+		   sq_ctx->smq, sq_ctx->cq_ena, sq_ctx->xoff);
+	seq_printf(m, "W1: sso_ena \t\t\t%d\nW1: smq_rr_weight\t\t%d\n",
+		   sq_ctx->sso_ena, sq_ctx->smq_rr_weight);
+	seq_printf(m, "W1: default_chan\t\t%d\nW1: sqb_count\t\t\t%d\n\n",
+		   sq_ctx->default_chan, sq_ctx->sqb_count);
+
+	seq_printf(m, "W2: smq_rr_count_lb \t\t%d\n", sq_ctx->smq_rr_count_lb);
+	seq_printf(m, "W2: smq_rr_count_ub \t\t%d\n", sq_ctx->smq_rr_count_ub);
+	seq_printf(m, "W2: sqb_aura \t\t\t%d\nW2: sq_int \t\t\t%d\n",
+		   sq_ctx->sqb_aura, sq_ctx->sq_int);
+	seq_printf(m, "W2: sq_int_ena \t\t\t%d\nW2: sqe_stype \t\t\t%d\n",
+		   sq_ctx->sq_int_ena, sq_ctx->sqe_stype);
+
+	seq_printf(m, "W3: max_sqe_size\t\t%d\nW3: cq_limit\t\t\t%d\n",
+		   sq_ctx->max_sqe_size, sq_ctx->cq_limit);
+	seq_printf(m, "W3: lmt_dis \t\t\t%d\nW3: mnq_dis \t\t\t%d\n",
+		   sq_ctx->mnq_dis, sq_ctx->lmt_dis);
+	seq_printf(m, "W3: smq_next_sq\t\t\t%d\nW3: smq_lso_segnum\t\t%d\n",
+		   sq_ctx->smq_next_sq, sq_ctx->smq_lso_segnum);
+	seq_printf(m, "W3: tail_offset \t\t%d\nW3: smenq_offset\t\t%d\n",
+		   sq_ctx->tail_offset, sq_ctx->smenq_offset);
+	seq_printf(m, "W3: head_offset\t\t\t%d\nW3: smenq_next_sqb_vld\t\t%d\n\n",
+		   sq_ctx->head_offset, sq_ctx->smenq_next_sqb_vld);
+
+	seq_printf(m, "W4: next_sqb \t\t\t%llx\n\n", sq_ctx->next_sqb);
+	seq_printf(m, "W5: tail_sqb \t\t\t%llx\n\n", sq_ctx->tail_sqb);
+	seq_printf(m, "W6: smenq_sqb \t\t\t%llx\n\n", sq_ctx->smenq_sqb);
+	seq_printf(m, "W7: smenq_next_sqb \t\t%llx\n\n",
+		   sq_ctx->smenq_next_sqb);
+
+	seq_printf(m, "W8: head_sqb\t\t\t%llx\n\n", sq_ctx->head_sqb);
+
+	seq_printf(m, "W9: vfi_lso_total\t\t%d\n", sq_ctx->vfi_lso_total);
+	seq_printf(m, "W9: vfi_lso_sizem1\t\t%d\nW9: vfi_lso_sb\t\t\t%d\n",
+		   sq_ctx->vfi_lso_sizem1, sq_ctx->vfi_lso_sb);
+	seq_printf(m, "W9: vfi_lso_mps\t\t\t%d\nW9: vfi_lso_vlan0_ins_ena\t%d\n",
+		   sq_ctx->vfi_lso_mps, sq_ctx->vfi_lso_vlan0_ins_ena);
+	seq_printf(m, "W9: vfi_lso_vlan1_ins_ena\t%d\nW9: vfi_lso_vld \t\t%d\n\n",
+		   sq_ctx->vfi_lso_vld, sq_ctx->vfi_lso_vlan1_ins_ena);
+
+	seq_printf(m, "W10: scm_lso_rem \t\t%llu\n\n",
+		   (u64)sq_ctx->scm_lso_rem);
+	seq_printf(m, "W11: octs \t\t\t%llu\n\n", (u64)sq_ctx->octs);
+	seq_printf(m, "W12: pkts \t\t\t%llu\n\n", (u64)sq_ctx->pkts);
+	seq_printf(m, "W14: dropped_octs \t\t%llu\n\n",
+		   (u64)sq_ctx->dropped_octs);
+	seq_printf(m, "W15: dropped_pkts \t\t%llu\n\n",
+		   (u64)sq_ctx->dropped_pkts);
+}
+
 /* Dumps given nix_sq's context */
 static void print_nix_sq_ctx(struct seq_file *m, struct nix_aq_enq_rsp *rsp)
 {
 	struct nix_sq_ctx_s *sq_ctx = &rsp->sq;
+	struct nix_hw *nix_hw = m->private;
+	struct rvu *rvu = nix_hw->rvu;
 
+	if (!is_rvu_otx2(rvu)) {
+		print_nix_cn10k_sq_ctx(m, (struct nix_cn10k_sq_ctx_s *)sq_ctx);
+		return;
+	}
 	seq_printf(m, "W0: sqe_way_mask \t\t%d\nW0: cq \t\t\t\t%d\n",
 		   sq_ctx->sqe_way_mask, sq_ctx->cq);
 	seq_printf(m, "W0: sdp_mcast \t\t\t%d\nW0: substream \t\t\t0x%03x\n",
@@ -974,10 +1140,94 @@ static void print_nix_sq_ctx(struct seq_file *m, struct nix_aq_enq_rsp *rsp)
 		   (u64)sq_ctx->dropped_pkts);
 }
 
+static void print_nix_cn10k_rq_ctx(struct seq_file *m,
+				   struct nix_cn10k_rq_ctx_s *rq_ctx)
+{
+	seq_printf(m, "W0: ena \t\t\t%d\nW0: sso_ena \t\t\t%d\n",
+		   rq_ctx->ena, rq_ctx->sso_ena);
+	seq_printf(m, "W0: ipsech_ena \t\t\t%d\nW0: ena_wqwd \t\t\t%d\n",
+		   rq_ctx->ipsech_ena, rq_ctx->ena_wqwd);
+	seq_printf(m, "W0: cq \t\t\t\t%d\nW0: lenerr_dis \t\t\t%d\n",
+		   rq_ctx->cq, rq_ctx->lenerr_dis);
+	seq_printf(m, "W0: csum_il4_dis \t\t%d\nW0: csum_ol4_dis \t\t%d\n",
+		   rq_ctx->csum_il4_dis, rq_ctx->csum_ol4_dis);
+	seq_printf(m, "W0: len_il4_dis \t\t%d\nW0: len_il3_dis \t\t%d\n",
+		   rq_ctx->len_il4_dis, rq_ctx->len_il3_dis);
+	seq_printf(m, "W0: len_ol4_dis \t\t%d\nW0: len_ol3_dis \t\t%d\n",
+		   rq_ctx->len_ol4_dis, rq_ctx->len_ol3_dis);
+	seq_printf(m, "W0: wqe_aura \t\t\t%d\n\n", rq_ctx->wqe_aura);
+
+	seq_printf(m, "W1: spb_aura \t\t\t%d\nW1: lpb_aura \t\t\t%d\n",
+		   rq_ctx->spb_aura, rq_ctx->lpb_aura);
+	seq_printf(m, "W1: spb_aura \t\t\t%d\n", rq_ctx->spb_aura);
+	seq_printf(m, "W1: sso_grp \t\t\t%d\nW1: sso_tt \t\t\t%d\n",
+		   rq_ctx->sso_grp, rq_ctx->sso_tt);
+	seq_printf(m, "W1: pb_caching \t\t\t%d\nW1: wqe_caching \t\t%d\n",
+		   rq_ctx->pb_caching, rq_ctx->wqe_caching);
+	seq_printf(m, "W1: xqe_drop_ena \t\t%d\nW1: spb_drop_ena \t\t%d\n",
+		   rq_ctx->xqe_drop_ena, rq_ctx->spb_drop_ena);
+	seq_printf(m, "W1: lpb_drop_ena \t\t%d\nW1: pb_stashing \t\t%d\n",
+		   rq_ctx->lpb_drop_ena, rq_ctx->pb_stashing);
+	seq_printf(m, "W1: ipsecd_drop_ena \t\t%d\nW1: chi_ena \t\t\t%d\n\n",
+		   rq_ctx->ipsecd_drop_ena, rq_ctx->chi_ena);
+
+	seq_printf(m, "W2: band_prof_id \t\t%d\n", rq_ctx->band_prof_id);
+	seq_printf(m, "W2: policer_ena \t\t%d\n", rq_ctx->policer_ena);
+	seq_printf(m, "W2: spb_sizem1 \t\t\t%d\n", rq_ctx->spb_sizem1);
+	seq_printf(m, "W2: wqe_skip \t\t\t%d\nW2: sqb_ena \t\t\t%d\n",
+		   rq_ctx->wqe_skip, rq_ctx->spb_ena);
+	seq_printf(m, "W2: lpb_size1 \t\t\t%d\nW2: first_skip \t\t\t%d\n",
+		   rq_ctx->lpb_sizem1, rq_ctx->first_skip);
+	seq_printf(m, "W2: later_skip\t\t\t%d\nW2: xqe_imm_size\t\t%d\n",
+		   rq_ctx->later_skip, rq_ctx->xqe_imm_size);
+	seq_printf(m, "W2: xqe_imm_copy \t\t%d\nW2: xqe_hdr_split \t\t%d\n\n",
+		   rq_ctx->xqe_imm_copy, rq_ctx->xqe_hdr_split);
+
+	seq_printf(m, "W3: xqe_drop \t\t\t%d\nW3: xqe_pass \t\t\t%d\n",
+		   rq_ctx->xqe_drop, rq_ctx->xqe_pass);
+	seq_printf(m, "W3: wqe_pool_drop \t\t%d\nW3: wqe_pool_pass \t\t%d\n",
+		   rq_ctx->wqe_pool_drop, rq_ctx->wqe_pool_pass);
+	seq_printf(m, "W3: spb_pool_drop \t\t%d\nW3: spb_pool_pass \t\t%d\n",
+		   rq_ctx->spb_pool_drop, rq_ctx->spb_pool_pass);
+	seq_printf(m, "W3: spb_aura_drop \t\t%d\nW3: spb_aura_pass \t\t%d\n\n",
+		   rq_ctx->spb_aura_pass, rq_ctx->spb_aura_drop);
+
+	seq_printf(m, "W4: lpb_aura_drop \t\t%d\nW3: lpb_aura_pass \t\t%d\n",
+		   rq_ctx->lpb_aura_pass, rq_ctx->lpb_aura_drop);
+	seq_printf(m, "W4: lpb_pool_drop \t\t%d\nW3: lpb_pool_pass \t\t%d\n",
+		   rq_ctx->lpb_pool_drop, rq_ctx->lpb_pool_pass);
+	seq_printf(m, "W4: rq_int \t\t\t%d\nW4: rq_int_ena\t\t\t%d\n",
+		   rq_ctx->rq_int, rq_ctx->rq_int_ena);
+	seq_printf(m, "W4: qint_idx \t\t\t%d\n\n", rq_ctx->qint_idx);
+
+	seq_printf(m, "W5: ltag \t\t\t%d\nW5: good_utag \t\t\t%d\n",
+		   rq_ctx->ltag, rq_ctx->good_utag);
+	seq_printf(m, "W5: bad_utag \t\t\t%d\nW5: flow_tagw \t\t\t%d\n",
+		   rq_ctx->bad_utag, rq_ctx->flow_tagw);
+	seq_printf(m, "W5: ipsec_vwqe \t\t\t%d\nW5: vwqe_ena \t\t\t%d\n",
+		   rq_ctx->ipsec_vwqe, rq_ctx->vwqe_ena);
+	seq_printf(m, "W5: vwqe_wait \t\t\t%d\nW5: max_vsize_exp\t\t%d\n",
+		   rq_ctx->vwqe_wait, rq_ctx->max_vsize_exp);
+	seq_printf(m, "W5: vwqe_skip \t\t\t%d\n\n", rq_ctx->vwqe_skip);
+
+	seq_printf(m, "W6: octs \t\t\t%llu\n\n", (u64)rq_ctx->octs);
+	seq_printf(m, "W7: pkts \t\t\t%llu\n\n", (u64)rq_ctx->pkts);
+	seq_printf(m, "W8: drop_octs \t\t\t%llu\n\n", (u64)rq_ctx->drop_octs);
+	seq_printf(m, "W9: drop_pkts \t\t\t%llu\n\n", (u64)rq_ctx->drop_pkts);
+	seq_printf(m, "W10: re_pkts \t\t\t%llu\n", (u64)rq_ctx->re_pkts);
+}
+
 /* Dumps given nix_rq's context */
 static void print_nix_rq_ctx(struct seq_file *m, struct nix_aq_enq_rsp *rsp)
 {
 	struct nix_rq_ctx_s *rq_ctx = &rsp->rq;
+	struct nix_hw *nix_hw = m->private;
+	struct rvu *rvu = nix_hw->rvu;
+
+	if (!is_rvu_otx2(rvu)) {
+		print_nix_cn10k_rq_ctx(m, (struct nix_cn10k_rq_ctx_s *)rq_ctx);
+		return;
+	}
 
 	seq_printf(m, "W0: wqe_aura \t\t\t%d\nW0: substream \t\t\t0x%03x\n",
 		   rq_ctx->wqe_aura, rq_ctx->substream);
@@ -1439,6 +1689,7 @@ static void rvu_dbg_npa_init(struct rvu *rvu)
 static int cgx_print_stats(struct seq_file *s, int lmac_id)
 {
 	struct cgx_link_user_info linfo;
+	struct mac_ops *mac_ops;
 	void *cgxd = s->private;
 	u64 ucast, mcast, bcast;
 	int stat = 0, err = 0;
@@ -1450,6 +1701,11 @@ static int cgx_print_stats(struct seq_file *s, int lmac_id)
 	if (!rvu)
 		return -ENODEV;
 
+	mac_ops = get_mac_ops(cgxd);
+
+	if (!mac_ops)
+		return 0;
+
 	/* Link status */
 	seq_puts(s, "\n=======Link Status======\n\n");
 	err = cgx_get_link_info(cgxd, lmac_id, &linfo);
@@ -1459,7 +1715,8 @@ static int cgx_print_stats(struct seq_file *s, int lmac_id)
 		   linfo.link_up ? "UP" : "DOWN", linfo.speed);
 
 	/* Rx stats */
-	seq_puts(s, "\n=======NIX RX_STATS(CGX port level)======\n\n");
+	seq_printf(s, "\n=======NIX RX_STATS(%s port level)======\n\n",
+		   mac_ops->name);
 	ucast = PRINT_CGX_CUML_NIXRX_STATUS(RX_UCAST, "rx_ucast_frames");
 	if (err)
 		return err;
@@ -1481,7 +1738,8 @@ static int cgx_print_stats(struct seq_file *s, int lmac_id)
 		return err;
 
 	/* Tx stats */
-	seq_puts(s, "\n=======NIX TX_STATS(CGX port level)======\n\n");
+	seq_printf(s, "\n=======NIX TX_STATS(%s port level)======\n\n",
+		   mac_ops->name);
 	ucast = PRINT_CGX_CUML_NIXTX_STATUS(TX_UCAST, "tx_ucast_frames");
 	if (err)
 		return err;
@@ -1500,24 +1758,35 @@ static int cgx_print_stats(struct seq_file *s, int lmac_id)
 		return err;
 
 	/* Rx stats */
-	seq_puts(s, "\n=======CGX RX_STATS======\n\n");
-	while (stat < CGX_RX_STATS_COUNT) {
-		err = cgx_get_rx_stats(cgxd, lmac_id, stat, &rx_stat);
+	seq_printf(s, "\n=======%s RX_STATS======\n\n", mac_ops->name);
+	while (stat < mac_ops->rx_stats_cnt) {
+		err = mac_ops->mac_get_rx_stats(cgxd, lmac_id, stat, &rx_stat);
 		if (err)
 			return err;
-		seq_printf(s, "%s: %llu\n", cgx_rx_stats_fields[stat], rx_stat);
+		if (is_rvu_otx2(rvu))
+			seq_printf(s, "%s: %llu\n", cgx_rx_stats_fields[stat],
+				   rx_stat);
+		else
+			seq_printf(s, "%s: %llu\n", rpm_rx_stats_fields[stat],
+				   rx_stat);
 		stat++;
 	}
 
 	/* Tx stats */
 	stat = 0;
-	seq_puts(s, "\n=======CGX TX_STATS======\n\n");
-	while (stat < CGX_TX_STATS_COUNT) {
-		err = cgx_get_tx_stats(cgxd, lmac_id, stat, &tx_stat);
+	seq_printf(s, "\n=======%s TX_STATS======\n\n", mac_ops->name);
+	while (stat < mac_ops->tx_stats_cnt) {
+		err = mac_ops->mac_get_tx_stats(cgxd, lmac_id, stat, &tx_stat);
 		if (err)
 			return err;
-		seq_printf(s, "%s: %llu\n", cgx_tx_stats_fields[stat], tx_stat);
-		stat++;
+
+	if (is_rvu_otx2(rvu))
+		seq_printf(s, "%s: %llu\n", cgx_tx_stats_fields[stat],
+			   tx_stat);
+	else
+		seq_printf(s, "%s: %llu\n", rpm_tx_stats_fields[stat],
+			   tx_stat);
+	stat++;
 	}
 
 	return err;
@@ -1547,21 +1816,34 @@ RVU_DEBUG_SEQ_FOPS(cgx_stat, cgx_stat_display, NULL);
 
 static void rvu_dbg_cgx_init(struct rvu *rvu)
 {
+	struct mac_ops *mac_ops;
+	unsigned long lmac_bmap;
+	int rvu_def_cgx_id = 0;
 	int i, lmac_id;
 	char dname[20];
 	void *cgx;
 
-	rvu->rvu_dbg.cgx_root = debugfs_create_dir("cgx", rvu->rvu_dbg.root);
+	if (!cgx_get_cgxcnt_max())
+		return;
+
+	mac_ops = get_mac_ops(rvu_cgx_pdata(rvu_def_cgx_id, rvu));
+	if (!mac_ops)
+		return;
+
+	rvu->rvu_dbg.cgx_root = debugfs_create_dir(mac_ops->name,
+						   rvu->rvu_dbg.root);
 
 	for (i = 0; i < cgx_get_cgxcnt_max(); i++) {
 		cgx = rvu_cgx_pdata(i, rvu);
 		if (!cgx)
 			continue;
+		lmac_bmap = cgx_get_lmac_bmap(cgx);
 		/* cgx debugfs dir */
-		sprintf(dname, "cgx%d", i);
+		sprintf(dname, "%s%d", mac_ops->name, i);
 		rvu->rvu_dbg.cgx = debugfs_create_dir(dname,
 						      rvu->rvu_dbg.cgx_root);
-		for (lmac_id = 0; lmac_id < cgx_get_lmac_cnt(cgx); lmac_id++) {
+
+		for_each_set_bit(lmac_id, &lmac_bmap, MAX_LMAC_PER_CGX) {
 			/* lmac debugfs dir */
 			sprintf(dname, "lmac%d", lmac_id);
 			rvu->rvu_dbg.lmac =
@@ -1757,6 +2039,7 @@ static void rvu_dbg_npc_mcam_show_flows(struct seq_file *s,
 			seq_printf(s, "mask 0x%x\n", ntohs(rule->mask.dport));
 			break;
 		default:
+			seq_puts(s, "\n");
 			break;
 		}
 	}
@@ -1785,7 +2068,7 @@ static void rvu_dbg_npc_mcam_show_action(struct seq_file *s,
 			break;
 		default:
 			break;
-		};
+		}
 	} else {
 		switch (rule->rx_action.op) {
 		case NIX_RX_ACTIONOP_DROP:
@@ -1806,7 +2089,7 @@ static void rvu_dbg_npc_mcam_show_action(struct seq_file *s,
 			break;
 		default:
 			break;
-		};
+		}
 	}
 }
 
@@ -1903,19 +2186,15 @@ static void rvu_dbg_npc_init(struct rvu *rvu)
 			    &rvu_dbg_npc_rx_miss_act_fops);
 }
 
-/* CPT debugfs APIs */
 static int cpt_eng_sts_display(struct seq_file *filp, u8 eng_type)
 {
-	struct rvu *rvu = filp->private;
+	struct cpt_ctx *ctx = filp->private;
 	u64 busy_sts = 0, free_sts = 0;
 	u32 e_min = 0, e_max = 0, e, i;
 	u16 max_ses, max_ies, max_aes;
-	int blkaddr;
+	struct rvu *rvu = ctx->rvu;
+	int blkaddr = ctx->blkaddr;
 	u64 reg;
-
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, 0);
-	if (blkaddr < 0)
-		return -ENODEV;
 
 	reg = rvu_read64(rvu, blkaddr, CPT_AF_CONSTANTS1);
 	max_ses = reg & 0xffff;
@@ -1976,15 +2255,12 @@ RVU_DEBUG_SEQ_FOPS(cpt_ie_sts, cpt_ie_sts_display, NULL);
 
 static int rvu_dbg_cpt_engines_info_display(struct seq_file *filp, void *unused)
 {
-	struct rvu *rvu = filp->private;
+	struct cpt_ctx *ctx = filp->private;
 	u16 max_ses, max_ies, max_aes;
+	struct rvu *rvu = ctx->rvu;
+	int blkaddr = ctx->blkaddr;
 	u32 e_max, e;
-	int blkaddr;
 	u64 reg;
-
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, 0);
-	if (blkaddr < 0)
-		return -ENODEV;
 
 	reg = rvu_read64(rvu, blkaddr, CPT_AF_CONSTANTS1);
 	max_ses = reg & 0xffff;
@@ -2013,17 +2289,15 @@ RVU_DEBUG_SEQ_FOPS(cpt_engines_info, cpt_engines_info_display, NULL);
 
 static int rvu_dbg_cpt_lfs_info_display(struct seq_file *filp, void *unused)
 {
-	struct rvu *rvu = filp->private;
-	struct rvu_hwinfo *hw = rvu->hw;
+	struct cpt_ctx *ctx = filp->private;
+	int blkaddr = ctx->blkaddr;
+	struct rvu *rvu = ctx->rvu;
 	struct rvu_block *block;
-	int blkaddr;
+	struct rvu_hwinfo *hw;
 	u64 reg;
 	u32 lf;
 
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, 0);
-	if (blkaddr < 0)
-		return -ENODEV;
-
+	hw = rvu->hw;
 	block = &hw->block[blkaddr];
 	if (!block->lf.bmap)
 		return -ENODEV;
@@ -2048,13 +2322,10 @@ RVU_DEBUG_SEQ_FOPS(cpt_lfs_info, cpt_lfs_info_display, NULL);
 
 static int rvu_dbg_cpt_err_info_display(struct seq_file *filp, void *unused)
 {
-	struct rvu *rvu = filp->private;
+	struct cpt_ctx *ctx = filp->private;
+	struct rvu *rvu = ctx->rvu;
+	int blkaddr = ctx->blkaddr;
 	u64 reg0, reg1;
-	int blkaddr;
-
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, 0);
-	if (blkaddr < 0)
-		return -ENODEV;
 
 	reg0 = rvu_read64(rvu, blkaddr, CPT_AF_FLTX_INT(0));
 	reg1 = rvu_read64(rvu, blkaddr, CPT_AF_FLTX_INT(1));
@@ -2078,14 +2349,10 @@ RVU_DEBUG_SEQ_FOPS(cpt_err_info, cpt_err_info_display, NULL);
 
 static int rvu_dbg_cpt_pc_display(struct seq_file *filp, void *unused)
 {
-	struct rvu *rvu;
-	int blkaddr;
+	struct cpt_ctx *ctx = filp->private;
+	struct rvu *rvu = ctx->rvu;
+	int blkaddr = ctx->blkaddr;
 	u64 reg;
-
-	rvu = filp->private;
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, 0);
-	if (blkaddr < 0)
-		return -ENODEV;
 
 	reg = rvu_read64(rvu, blkaddr, CPT_AF_INST_REQ_PC);
 	seq_printf(filp, "CPT instruction requests   %llu\n", reg);
@@ -2107,45 +2374,76 @@ static int rvu_dbg_cpt_pc_display(struct seq_file *filp, void *unused)
 
 RVU_DEBUG_SEQ_FOPS(cpt_pc, cpt_pc_display, NULL);
 
-static void rvu_dbg_cpt_init(struct rvu *rvu)
+static void rvu_dbg_cpt_init(struct rvu *rvu, int blkaddr)
 {
-	if (!is_block_implemented(rvu->hw, BLKADDR_CPT0))
+	struct cpt_ctx *ctx;
+
+	if (!is_block_implemented(rvu->hw, blkaddr))
 		return;
 
-	rvu->rvu_dbg.cpt = debugfs_create_dir("cpt", rvu->rvu_dbg.root);
+	if (blkaddr == BLKADDR_CPT0) {
+		rvu->rvu_dbg.cpt = debugfs_create_dir("cpt", rvu->rvu_dbg.root);
+		ctx = &rvu->rvu_dbg.cpt_ctx[0];
+		ctx->blkaddr = BLKADDR_CPT0;
+		ctx->rvu = rvu;
+	} else {
+		rvu->rvu_dbg.cpt = debugfs_create_dir("cpt1",
+						      rvu->rvu_dbg.root);
+		ctx = &rvu->rvu_dbg.cpt_ctx[1];
+		ctx->blkaddr = BLKADDR_CPT1;
+		ctx->rvu = rvu;
+	}
 
-	debugfs_create_file("cpt_pc", 0600, rvu->rvu_dbg.cpt, rvu,
+	debugfs_create_file("cpt_pc", 0600, rvu->rvu_dbg.cpt, ctx,
 			    &rvu_dbg_cpt_pc_fops);
-	debugfs_create_file("cpt_ae_sts", 0600, rvu->rvu_dbg.cpt, rvu,
+	debugfs_create_file("cpt_ae_sts", 0600, rvu->rvu_dbg.cpt, ctx,
 			    &rvu_dbg_cpt_ae_sts_fops);
-	debugfs_create_file("cpt_se_sts", 0600, rvu->rvu_dbg.cpt, rvu,
+	debugfs_create_file("cpt_se_sts", 0600, rvu->rvu_dbg.cpt, ctx,
 			    &rvu_dbg_cpt_se_sts_fops);
-	debugfs_create_file("cpt_ie_sts", 0600, rvu->rvu_dbg.cpt, rvu,
+	debugfs_create_file("cpt_ie_sts", 0600, rvu->rvu_dbg.cpt, ctx,
 			    &rvu_dbg_cpt_ie_sts_fops);
-	debugfs_create_file("cpt_engines_info", 0600, rvu->rvu_dbg.cpt, rvu,
+	debugfs_create_file("cpt_engines_info", 0600, rvu->rvu_dbg.cpt, ctx,
 			    &rvu_dbg_cpt_engines_info_fops);
-	debugfs_create_file("cpt_lfs_info", 0600, rvu->rvu_dbg.cpt, rvu,
+	debugfs_create_file("cpt_lfs_info", 0600, rvu->rvu_dbg.cpt, ctx,
 			    &rvu_dbg_cpt_lfs_info_fops);
-	debugfs_create_file("cpt_err_info", 0600, rvu->rvu_dbg.cpt, rvu,
+	debugfs_create_file("cpt_err_info", 0600, rvu->rvu_dbg.cpt, ctx,
 			    &rvu_dbg_cpt_err_info_fops);
+}
+
+static const char *rvu_get_dbg_dir_name(struct rvu *rvu)
+{
+	if (!is_rvu_otx2(rvu))
+		return "cn10k";
+	else
+		return "octeontx2";
 }
 
 void rvu_dbg_init(struct rvu *rvu)
 {
-	rvu->rvu_dbg.root = debugfs_create_dir(DEBUGFS_DIR_NAME, NULL);
+	rvu->rvu_dbg.root = debugfs_create_dir(rvu_get_dbg_dir_name(rvu), NULL);
 
 	debugfs_create_file("rsrc_alloc", 0444, rvu->rvu_dbg.root, rvu,
 			    &rvu_dbg_rsrc_status_fops);
-	debugfs_create_file("rvu_pf_cgx_map", 0444, rvu->rvu_dbg.root, rvu,
-			    &rvu_dbg_rvu_pf_cgx_map_fops);
 
+	if (!cgx_get_cgxcnt_max())
+		goto create;
+
+	if (is_rvu_otx2(rvu))
+		debugfs_create_file("rvu_pf_cgx_map", 0444, rvu->rvu_dbg.root,
+				    rvu, &rvu_dbg_rvu_pf_cgx_map_fops);
+	else
+		debugfs_create_file("rvu_pf_rpm_map", 0444, rvu->rvu_dbg.root,
+				    rvu, &rvu_dbg_rvu_pf_cgx_map_fops);
+
+create:
 	rvu_dbg_npa_init(rvu);
 	rvu_dbg_nix_init(rvu, BLKADDR_NIX0);
 
 	rvu_dbg_nix_init(rvu, BLKADDR_NIX1);
 	rvu_dbg_cgx_init(rvu);
 	rvu_dbg_npc_init(rvu);
-	rvu_dbg_cpt_init(rvu);
+	rvu_dbg_cpt_init(rvu, BLKADDR_CPT0);
+	rvu_dbg_cpt_init(rvu, BLKADDR_CPT1);
 }
 
 void rvu_dbg_exit(struct rvu *rvu)

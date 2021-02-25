@@ -223,12 +223,10 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 		txq->read_ptr = iwl_txq_inc_wrap(trans, txq->read_ptr);
 
 		if (txq->read_ptr == txq->write_ptr) {
-			unsigned long flags;
-
-			spin_lock_irqsave(&trans_pcie->reg_lock, flags);
+			spin_lock(&trans_pcie->reg_lock);
 			if (txq_id == trans->txqs.cmd.q_id)
 				iwl_pcie_clear_cmd_in_flight(trans);
-			spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
+			spin_unlock(&trans_pcie->reg_lock);
 		}
 	}
 
@@ -394,13 +392,12 @@ void iwl_trans_pcie_tx_reset(struct iwl_trans *trans)
 static void iwl_pcie_tx_stop_fh(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	unsigned long flags;
 	int ch, ret;
 	u32 mask = 0;
 
-	spin_lock(&trans_pcie->irq_lock);
+	spin_lock_bh(&trans_pcie->irq_lock);
 
-	if (!iwl_trans_grab_nic_access(trans, &flags))
+	if (!iwl_trans_grab_nic_access(trans))
 		goto out;
 
 	/* Stop each Tx DMA channel */
@@ -416,10 +413,10 @@ static void iwl_pcie_tx_stop_fh(struct iwl_trans *trans)
 			"Failing on timeout while stopping DMA channel %d [0x%08x]\n",
 			ch, iwl_read32(trans, FH_TSSR_TX_STATUS_REG));
 
-	iwl_trans_release_nic_access(trans, &flags);
+	iwl_trans_release_nic_access(trans);
 
 out:
-	spin_unlock(&trans_pcie->irq_lock);
+	spin_unlock_bh(&trans_pcie->irq_lock);
 }
 
 /*
@@ -576,7 +573,7 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 		alloc = true;
 	}
 
-	spin_lock(&trans_pcie->irq_lock);
+	spin_lock_bh(&trans_pcie->irq_lock);
 
 	/* Turn off all Tx DMA fifos */
 	iwl_scd_deactivate_fifos(trans);
@@ -585,7 +582,7 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 	iwl_write_direct32(trans, FH_KW_MEM_ADDR_REG,
 			   trans_pcie->kw.dma >> 4);
 
-	spin_unlock(&trans_pcie->irq_lock);
+	spin_unlock_bh(&trans_pcie->irq_lock);
 
 	/* Alloc and init all Tx queues, including the command queue (#4/#9) */
 	for (txq_id = 0; txq_id < trans->trans_cfg->base_params->num_of_queues;
@@ -679,7 +676,6 @@ static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq = trans->txqs.txq[txq_id];
-	unsigned long flags;
 	int nfreed = 0;
 	u16 r;
 
@@ -710,9 +706,10 @@ static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 	}
 
 	if (txq->read_ptr == txq->write_ptr) {
-		spin_lock_irqsave(&trans_pcie->reg_lock, flags);
+		/* BHs are also disabled due to txq->lock */
+		spin_lock(&trans_pcie->reg_lock);
 		iwl_pcie_clear_cmd_in_flight(trans);
-		spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
+		spin_unlock(&trans_pcie->reg_lock);
 	}
 
 	iwl_txq_progress(txq);
@@ -914,14 +911,13 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id,
  * failed. On success, it returns the index (>= 0) of command in the
  * command queue.
  */
-static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
-				 struct iwl_host_cmd *cmd)
+int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
+			  struct iwl_host_cmd *cmd)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq = trans->txqs.txq[trans->txqs.cmd.q_id];
 	struct iwl_device_cmd *out_cmd;
 	struct iwl_cmd_meta *out_meta;
-	unsigned long flags;
 	void *dup_buf = NULL;
 	dma_addr_t phys_addr;
 	int idx;
@@ -1164,20 +1160,19 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	if (txq->read_ptr == txq->write_ptr && txq->wd_timeout)
 		mod_timer(&txq->stuck_timer, jiffies + txq->wd_timeout);
 
-	spin_lock_irqsave(&trans_pcie->reg_lock, flags);
+	spin_lock(&trans_pcie->reg_lock);
 	ret = iwl_pcie_set_cmd_in_flight(trans, cmd);
 	if (ret < 0) {
 		idx = ret;
-		spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
-		goto out;
+		goto unlock_reg;
 	}
 
 	/* Increment and update queue's write index */
 	txq->write_ptr = iwl_txq_inc_wrap(trans, txq->write_ptr);
 	iwl_pcie_txq_inc_wr_ptr(trans, txq);
 
-	spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
-
+ unlock_reg:
+	spin_unlock(&trans_pcie->reg_lock);
  out:
 	spin_unlock_bh(&txq->lock);
  free_dup_buf:
@@ -1249,148 +1244,12 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
 			       iwl_get_cmd_string(trans, cmd_id));
-		wake_up(&trans_pcie->wait_command_queue);
+		wake_up(&trans->wait_command_queue);
 	}
 
 	meta->flags = 0;
 
 	spin_unlock_bh(&txq->lock);
-}
-
-#define HOST_COMPLETE_TIMEOUT	(2 * HZ)
-
-static int iwl_pcie_send_hcmd_async(struct iwl_trans *trans,
-				    struct iwl_host_cmd *cmd)
-{
-	int ret;
-
-	/* An asynchronous command can not expect an SKB to be set. */
-	if (WARN_ON(cmd->flags & CMD_WANT_SKB))
-		return -EINVAL;
-
-	ret = iwl_pcie_enqueue_hcmd(trans, cmd);
-	if (ret < 0) {
-		IWL_ERR(trans,
-			"Error sending %s: enqueue_hcmd failed: %d\n",
-			iwl_get_cmd_string(trans, cmd->id), ret);
-		return ret;
-	}
-	return 0;
-}
-
-static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
-				   struct iwl_host_cmd *cmd)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_txq *txq = trans->txqs.txq[trans->txqs.cmd.q_id];
-	int cmd_idx;
-	int ret;
-
-	IWL_DEBUG_INFO(trans, "Attempting to send sync command %s\n",
-		       iwl_get_cmd_string(trans, cmd->id));
-
-	if (WARN(test_and_set_bit(STATUS_SYNC_HCMD_ACTIVE,
-				  &trans->status),
-		 "Command %s: a command is already active!\n",
-		 iwl_get_cmd_string(trans, cmd->id)))
-		return -EIO;
-
-	IWL_DEBUG_INFO(trans, "Setting HCMD_ACTIVE for command %s\n",
-		       iwl_get_cmd_string(trans, cmd->id));
-
-	cmd_idx = iwl_pcie_enqueue_hcmd(trans, cmd);
-	if (cmd_idx < 0) {
-		ret = cmd_idx;
-		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
-		IWL_ERR(trans,
-			"Error sending %s: enqueue_hcmd failed: %d\n",
-			iwl_get_cmd_string(trans, cmd->id), ret);
-		return ret;
-	}
-
-	ret = wait_event_timeout(trans_pcie->wait_command_queue,
-				 !test_bit(STATUS_SYNC_HCMD_ACTIVE,
-					   &trans->status),
-				 HOST_COMPLETE_TIMEOUT);
-	if (!ret) {
-		IWL_ERR(trans, "Error sending %s: time out after %dms.\n",
-			iwl_get_cmd_string(trans, cmd->id),
-			jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
-
-		IWL_ERR(trans, "Current CMD queue read_ptr %d write_ptr %d\n",
-			txq->read_ptr, txq->write_ptr);
-
-		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
-		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
-			       iwl_get_cmd_string(trans, cmd->id));
-		ret = -ETIMEDOUT;
-
-		iwl_trans_pcie_sync_nmi(trans);
-		goto cancel;
-	}
-
-	if (test_bit(STATUS_FW_ERROR, &trans->status)) {
-		iwl_trans_pcie_dump_regs(trans);
-		IWL_ERR(trans, "FW error in SYNC CMD %s\n",
-			iwl_get_cmd_string(trans, cmd->id));
-		dump_stack();
-		ret = -EIO;
-		goto cancel;
-	}
-
-	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
-	    test_bit(STATUS_RFKILL_OPMODE, &trans->status)) {
-		IWL_DEBUG_RF_KILL(trans, "RFKILL in SYNC CMD... no rsp\n");
-		ret = -ERFKILL;
-		goto cancel;
-	}
-
-	if ((cmd->flags & CMD_WANT_SKB) && !cmd->resp_pkt) {
-		IWL_ERR(trans, "Error: Response NULL in '%s'\n",
-			iwl_get_cmd_string(trans, cmd->id));
-		ret = -EIO;
-		goto cancel;
-	}
-
-	return 0;
-
-cancel:
-	if (cmd->flags & CMD_WANT_SKB) {
-		/*
-		 * Cancel the CMD_WANT_SKB flag for the cmd in the
-		 * TX cmd queue. Otherwise in case the cmd comes
-		 * in later, it will possibly set an invalid
-		 * address (cmd->meta.source).
-		 */
-		txq->entries[cmd_idx].meta.flags &= ~CMD_WANT_SKB;
-	}
-
-	if (cmd->resp_pkt) {
-		iwl_free_resp(cmd);
-		cmd->resp_pkt = NULL;
-	}
-
-	return ret;
-}
-
-int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
-{
-	/* Make sure the NIC is still alive in the bus */
-	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
-		return -ENODEV;
-
-	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
-	    test_bit(STATUS_RFKILL_OPMODE, &trans->status)) {
-		IWL_DEBUG_RF_KILL(trans, "Dropping CMD 0x%x: RF KILL\n",
-				  cmd->id);
-		return -ERFKILL;
-	}
-
-	if (cmd->flags & CMD_ASYNC)
-		return iwl_pcie_send_hcmd_async(trans, cmd);
-
-	/* We still can fail on RFKILL that can be asserted while we wait */
-	return iwl_pcie_send_hcmd_sync(trans, cmd);
 }
 
 static int iwl_fill_data_tbs(struct iwl_trans *trans, struct sk_buff *skb,

@@ -85,11 +85,6 @@
 			  1800000 1>;
 	};
 
-	iio-hwmon {
-		compatible = "iio-hwmon";
-		io-channels = <&saradc 8>;
-	};
-
 	rtc32k_xtal: rtc32k-xtal-clk {
 		/* X3 in the schematics */
 		compatible = "fixed-clock";

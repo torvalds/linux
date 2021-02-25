@@ -13,6 +13,7 @@
 #include <linux/netdevice.h>
 #include <linux/list.h>
 #include <linux/if_vlan.h>
+#include <linux/if_hsr.h>
 
 /* Time constants as specified in the HSR specification (IEC-62439-3 2010)
  * Table 8.
@@ -169,13 +170,6 @@ struct hsr_port {
 	struct net_device	*dev;
 	struct hsr_priv		*hsr;
 	enum hsr_port_type	type;
-};
-
-/* used by driver internally to differentiate various protocols */
-enum hsr_version {
-	HSR_V0 = 0,
-	HSR_V1,
-	PRP_V1,
 };
 
 struct hsr_frame_info;
