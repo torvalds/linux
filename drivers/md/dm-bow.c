@@ -446,7 +446,6 @@ static int prepare_log(struct bow_context *bc)
 	ret = split_range(bc, &free_br, &bi_iter);
 	if (ret)
 		return ret;
-	free_br->type = SECTOR0_CURRENT;
 
 	/* Copy data */
 	ret = copy_data(bc, first_br, free_br, NULL);
@@ -454,6 +453,8 @@ static int prepare_log(struct bow_context *bc)
 		return ret;
 
 	bc->log_sector->sector0 = free_br->sector;
+
+	set_type(bc, &free_br, SECTOR0_CURRENT);
 
 	/* Find free sector to back up original sector zero */
 	free_br = find_free_range(bc);
