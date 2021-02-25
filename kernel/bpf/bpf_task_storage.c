@@ -20,6 +20,31 @@
 
 DEFINE_BPF_STORAGE_CACHE(task_cache);
 
+DEFINE_PER_CPU(int, bpf_task_storage_busy);
+
+static void bpf_task_storage_lock(void)
+{
+	migrate_disable();
+	__this_cpu_inc(bpf_task_storage_busy);
+}
+
+static void bpf_task_storage_unlock(void)
+{
+	__this_cpu_dec(bpf_task_storage_busy);
+	migrate_enable();
+}
+
+static bool bpf_task_storage_trylock(void)
+{
+	migrate_disable();
+	if (unlikely(__this_cpu_inc_return(bpf_task_storage_busy) != 1)) {
+		__this_cpu_dec(bpf_task_storage_busy);
+		migrate_enable();
+		return false;
+	}
+	return true;
+}
+
 static struct bpf_local_storage __rcu **task_storage_ptr(void *owner)
 {
 	struct task_struct *task = owner;
@@ -67,6 +92,7 @@ void bpf_task_storage_free(struct task_struct *task)
 	 * when unlinking elem from the local_storage->list and
 	 * the map's bucket->list.
 	 */
+	bpf_task_storage_lock();
 	raw_spin_lock_irqsave(&local_storage->lock, flags);
 	hlist_for_each_entry_safe(selem, n, &local_storage->list, snode) {
 		/* Always unlink from map before unlinking from
@@ -77,6 +103,7 @@ void bpf_task_storage_free(struct task_struct *task)
 			local_storage, selem, false);
 	}
 	raw_spin_unlock_irqrestore(&local_storage->lock, flags);
+	bpf_task_storage_unlock();
 	rcu_read_unlock();
 
 	/* free_task_storage should always be true as long as
@@ -109,7 +136,9 @@ static void *bpf_pid_task_storage_lookup_elem(struct bpf_map *map, void *key)
 		goto out;
 	}
 
+	bpf_task_storage_lock();
 	sdata = task_storage_lookup(task, map, true);
+	bpf_task_storage_unlock();
 	put_pid(pid);
 	return sdata ? sdata->data : NULL;
 out:
@@ -141,8 +170,10 @@ static int bpf_pid_task_storage_update_elem(struct bpf_map *map, void *key,
 		goto out;
 	}
 
+	bpf_task_storage_lock();
 	sdata = bpf_local_storage_update(
 		task, (struct bpf_local_storage_map *)map, value, map_flags);
+	bpf_task_storage_unlock();
 
 	err = PTR_ERR_OR_ZERO(sdata);
 out:
@@ -185,7 +216,9 @@ static int bpf_pid_task_storage_delete_elem(struct bpf_map *map, void *key)
 		goto out;
 	}
 
+	bpf_task_storage_lock();
 	err = task_storage_delete(task, map);
+	bpf_task_storage_unlock();
 out:
 	put_pid(pid);
 	return err;
@@ -202,34 +235,44 @@ BPF_CALL_4(bpf_task_storage_get, struct bpf_map *, map, struct task_struct *,
 	if (!task)
 		return (unsigned long)NULL;
 
+	if (!bpf_task_storage_trylock())
+		return (unsigned long)NULL;
+
 	sdata = task_storage_lookup(task, map, true);
 	if (sdata)
-		return (unsigned long)sdata->data;
+		goto unlock;
 
 	/* only allocate new storage, when the task is refcounted */
 	if (refcount_read(&task->usage) &&
-	    (flags & BPF_LOCAL_STORAGE_GET_F_CREATE)) {
+	    (flags & BPF_LOCAL_STORAGE_GET_F_CREATE))
 		sdata = bpf_local_storage_update(
 			task, (struct bpf_local_storage_map *)map, value,
 			BPF_NOEXIST);
-		return IS_ERR(sdata) ? (unsigned long)NULL :
-					     (unsigned long)sdata->data;
-	}
 
-	return (unsigned long)NULL;
+unlock:
+	bpf_task_storage_unlock();
+	return IS_ERR_OR_NULL(sdata) ? (unsigned long)NULL :
+		(unsigned long)sdata->data;
 }
 
 BPF_CALL_2(bpf_task_storage_delete, struct bpf_map *, map, struct task_struct *,
 	   task)
 {
+	int ret;
+
 	if (!task)
 		return -EINVAL;
+
+	if (!bpf_task_storage_trylock())
+		return -EBUSY;
 
 	/* This helper must only be called from places where the lifetime of the task
 	 * is guaranteed. Either by being refcounted or by being protected
 	 * by an RCU read-side critical section.
 	 */
-	return task_storage_delete(task, map);
+	ret = task_storage_delete(task, map);
+	bpf_task_storage_unlock();
+	return ret;
 }
 
 static int notsupp_get_next_key(struct bpf_map *map, void *key, void *next_key)
@@ -255,7 +298,7 @@ static void task_storage_map_free(struct bpf_map *map)
 
 	smap = (struct bpf_local_storage_map *)map;
 	bpf_local_storage_cache_idx_free(&task_cache, smap->cache_idx);
-	bpf_local_storage_map_free(smap);
+	bpf_local_storage_map_free(smap, &bpf_task_storage_busy);
 }
 
 static int task_storage_map_btf_id;
