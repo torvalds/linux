@@ -14,6 +14,9 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/irqchip/chained_irq.h>
+#include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/list.h>
@@ -80,6 +83,9 @@ struct reset_bulk_data	{
 
 #define PCIE_CAP_LINK_CONTROL2_LINK_STATUS	0xa0
 
+#define PCIE_CLIENT_INTR_STATUS_LEGACY	0x08
+#define PCIE_CLIENT_INTR_MASK_LEGACY	0x1c
+#define UNMASK_ALL_LEGACY_INT		0xffff0000
 #define PCIE_CLIENT_INTR_MASK		0x24
 #define PCIE_CLIENT_GENERAL_DEBUG	0x104
 #define PCIE_CLIENT_HOT_RESET_CTRL	0x180
@@ -133,6 +139,7 @@ struct rk_pcie {
 	bool				is_signal_test;
 	bool				bifurcation;
 	struct regulator		*vpcie3v3;
+	struct irq_domain		*irq_domain;
 };
 
 struct rk_pcie_of_data {
@@ -1104,6 +1111,67 @@ static void rk_pcie_fast_link_setup(struct rk_pcie *rk_pcie)
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_HOT_RESET_CTRL, val);
 }
 
+static int rk_pcie_intx_map(struct irq_domain *domain, unsigned int irq,
+			    irq_hw_number_t hwirq)
+{
+	irq_set_chip_and_handler(irq, &dummy_irq_chip, handle_simple_irq);
+	irq_set_chip_data(irq, domain->host_data);
+
+	return 0;
+}
+
+static const struct irq_domain_ops intx_domain_ops = {
+	.map = rk_pcie_intx_map,
+};
+
+static void rk_pcie_legacy_int_handler(struct irq_desc *desc)
+{
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct rk_pcie *rockchip = irq_desc_get_handler_data(desc);
+	struct device *dev = rockchip->pci->dev;
+	u32 reg;
+	u32 hwirq;
+	u32 virq;
+
+	chained_irq_enter(chip, desc);
+
+	reg = rk_pcie_readl_apb(rockchip, PCIE_CLIENT_INTR_STATUS_LEGACY);
+	reg = reg & 0xf;
+
+	while (reg) {
+		hwirq = ffs(reg) - 1;
+		reg &= ~BIT(hwirq);
+
+		virq = irq_find_mapping(rockchip->irq_domain, hwirq);
+		if (virq)
+			generic_handle_irq(virq);
+		else
+			dev_err(dev, "unexpected IRQ, INT%d\n", hwirq);
+	}
+
+	chained_irq_exit(chip, desc);
+}
+
+static int rk_pcie_init_irq_domain(struct rk_pcie *rockchip)
+{
+	struct device *dev = rockchip->pci->dev;
+	struct device_node *intc = of_get_next_child(dev->of_node, NULL);
+
+	if (!intc) {
+		dev_err(dev, "missing child interrupt-controller node\n");
+		return -EINVAL;
+	}
+
+	rockchip->irq_domain = irq_domain_add_linear(intc, PCI_NUM_INTX,
+						     &intx_domain_ops, rockchip);
+	if (!rockchip->irq_domain) {
+		dev_err(dev, "failed to get a INTx IRQ domain\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int rk_pcie_really_probe(void *p)
 {
 	struct platform_device *pdev = p;
@@ -1117,6 +1185,7 @@ static int rk_pcie_really_probe(void *p)
 	struct device_node *np = pdev->dev.of_node;
 	struct platform_driver *drv = to_platform_driver(dev->driver);
 	u32 val;
+	int irq;
 
 	match = of_match_device(rk_pcie_of_match, dev);
 	if (!match)
@@ -1206,6 +1275,21 @@ static int rk_pcie_really_probe(void *p)
 		rk_pcie_fast_link_setup(rk_pcie);
 	}
 
+	/* Legacy interrupt is optional */
+	ret = rk_pcie_init_irq_domain(rk_pcie);
+	if (!ret) {
+		irq = platform_get_irq_byname(pdev, "legacy");
+		if (irq >= 0) {
+			irq_set_chained_handler_and_data(irq, rk_pcie_legacy_int_handler,
+							 rk_pcie);
+			/* Unmask all legacy interrupt from INTA~INTD  */
+			rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK_LEGACY,
+					   UNMASK_ALL_LEGACY_INT);
+		}
+
+		dev_info(dev, "missing legacy IRQ resource\n");
+	}
+
 	/* Set PCIe mode */
 	rk_pcie_set_mode(rk_pcie);
 
@@ -1238,7 +1322,7 @@ static int rk_pcie_really_probe(void *p)
 		return 0;
 
 	if (ret)
-		goto deinit_clk;
+		goto remove_irq_domain;
 
 	if (rk_pcie->dma_obj) {
 		rk_pcie->dma_obj->start_dma_func = rk_pcie_start_dma_dwc;
@@ -1249,7 +1333,7 @@ static int rk_pcie_really_probe(void *p)
 		/* hold link reset grant after link-up */
 		ret = rk_pcie_reset_grant_ctrl(rk_pcie, false);
 		if (ret)
-			goto deinit_clk;
+			goto remove_irq_domain;
 	}
 
 	dw_pcie_dbi_ro_wr_dis(pci);
@@ -1259,6 +1343,9 @@ static int rk_pcie_really_probe(void *p)
 
 	return 0;
 
+remove_irq_domain:
+	if (rk_pcie->irq_domain)
+		irq_domain_remove(rk_pcie->irq_domain);
 deinit_clk:
 	rk_pcie_clk_deinit(rk_pcie);
 disable_vpcie3v3:
