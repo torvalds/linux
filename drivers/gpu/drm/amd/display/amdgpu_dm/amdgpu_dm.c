@@ -10033,7 +10033,7 @@ static bool parse_edid_cea(struct amdgpu_dm_connector *aconnector,
 	return false;
 }
 
-static bool parse_hdmi_amd_vsdb(struct amdgpu_dm_connector *aconnector,
+static int parse_hdmi_amd_vsdb(struct amdgpu_dm_connector *aconnector,
 		struct edid *edid, struct amdgpu_hdmi_vsdb_info *vsdb_info)
 {
 	uint8_t *edid_ext = NULL;
@@ -10043,7 +10043,7 @@ static bool parse_hdmi_amd_vsdb(struct amdgpu_dm_connector *aconnector,
 	/*----- drm_find_cea_extension() -----*/
 	/* No EDID or EDID extensions */
 	if (edid == NULL || edid->extensions == 0)
-		return false;
+		return -ENODEV;
 
 	/* Find CEA extension */
 	for (i = 0; i < edid->extensions; i++) {
@@ -10053,14 +10053,15 @@ static bool parse_hdmi_amd_vsdb(struct amdgpu_dm_connector *aconnector,
 	}
 
 	if (i == edid->extensions)
-		return false;
+		return -ENODEV;
 
 	/*----- cea_db_offsets() -----*/
 	if (edid_ext[0] != CEA_EXT)
-		return false;
+		return -ENODEV;
 
 	valid_vsdb_found = parse_edid_cea(aconnector, edid_ext, EDID_LENGTH, vsdb_info);
-	return valid_vsdb_found;
+
+	return valid_vsdb_found ? i : -ENODEV;
 }
 
 void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
@@ -10078,7 +10079,6 @@ void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	bool freesync_capable = false;
 	struct amdgpu_hdmi_vsdb_info vsdb_info = {0};
-	bool hdmi_valid_vsdb_found = false;
 
 	if (!connector->state) {
 		DRM_ERROR("%s - Connector has no state", __func__);
@@ -10154,8 +10154,8 @@ void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
 			}
 		}
 	} else if (edid && amdgpu_dm_connector->dc_sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A) {
-		hdmi_valid_vsdb_found = parse_hdmi_amd_vsdb(amdgpu_dm_connector, edid, &vsdb_info);
-		if (hdmi_valid_vsdb_found && vsdb_info.freesync_supported) {
+		i = parse_hdmi_amd_vsdb(amdgpu_dm_connector, edid, &vsdb_info);
+		if (i >= 0 && vsdb_info.freesync_supported) {
 			timing  = &edid->detailed_timings[i];
 			data    = &timing->data.other_data;
 
