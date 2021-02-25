@@ -94,7 +94,7 @@ int make_spte(struct kvm_vcpu *vcpu, unsigned int pte_access, int level,
 		     bool can_unsync, bool host_writable, bool ad_disabled,
 		     u64 *new_spte)
 {
-	u64 spte = 0;
+	u64 spte = SPTE_MMU_PRESENT_MASK;
 	int ret = 0;
 
 	if (ad_disabled)
@@ -183,10 +183,10 @@ out:
 
 u64 make_nonleaf_spte(u64 *child_pt, bool ad_disabled)
 {
-	u64 spte;
+	u64 spte = SPTE_MMU_PRESENT_MASK;
 
-	spte = __pa(child_pt) | shadow_present_mask | PT_WRITABLE_MASK |
-	       shadow_user_mask | shadow_x_mask | shadow_me_mask;
+	spte |= __pa(child_pt) | shadow_present_mask | PT_WRITABLE_MASK |
+		shadow_user_mask | shadow_x_mask | shadow_me_mask;
 
 	if (ad_disabled)
 		spte |= SPTE_TDP_AD_DISABLED_MASK;
