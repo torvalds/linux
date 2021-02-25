@@ -8,6 +8,7 @@
 #include <test_progs.h>
 #include "task_local_storage.skel.h"
 #include "task_local_storage_exit_creds.skel.h"
+#include "task_ls_recursion.skel.h"
 
 static void test_sys_enter_exit(void)
 {
@@ -60,10 +61,32 @@ out:
 	task_local_storage_exit_creds__destroy(skel);
 }
 
+static void test_recursion(void)
+{
+	struct task_ls_recursion *skel;
+	int err;
+
+	skel = task_ls_recursion__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel_open_and_load"))
+		return;
+
+	err = task_ls_recursion__attach(skel);
+	if (!ASSERT_OK(err, "skel_attach"))
+		goto out;
+
+	/* trigger sys_enter, make sure it does not cause deadlock */
+	syscall(SYS_gettid);
+
+out:
+	task_ls_recursion__destroy(skel);
+}
+
 void test_task_local_storage(void)
 {
 	if (test__start_subtest("sys_enter_exit"))
 		test_sys_enter_exit();
 	if (test__start_subtest("exit_creds"))
 		test_exit_creds();
+	if (test__start_subtest("recursion"))
+		test_recursion();
 }
