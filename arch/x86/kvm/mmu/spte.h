@@ -57,8 +57,39 @@ static_assert(SPTE_TDP_AD_ENABLED_MASK == 0);
 	(((address) >> PT64_LEVEL_SHIFT(level)) & ((1 << PT64_LEVEL_BITS) - 1))
 #define SHADOW_PT_INDEX(addr, level) PT64_INDEX(addr, level)
 
-#define DEFAULT_SPTE_HOST_WRITEABLE	BIT_ULL(10)
-#define DEFAULT_SPTE_MMU_WRITEABLE	BIT_ULL(11)
+/* Bits 9 and 10 are ignored by all non-EPT PTEs. */
+#define DEFAULT_SPTE_HOST_WRITEABLE	BIT_ULL(9)
+#define DEFAULT_SPTE_MMU_WRITEABLE	BIT_ULL(10)
+
+/*
+ * The mask/shift to use for saving the original R/X bits when marking the PTE
+ * as not-present for access tracking purposes. We do not save the W bit as the
+ * PTEs being access tracked also need to be dirty tracked, so the W bit will be
+ * restored only when a write is attempted to the page.  This mask obviously
+ * must not overlap the A/D type mask.
+ */
+#define SHADOW_ACC_TRACK_SAVED_BITS_MASK (PT64_EPT_READABLE_MASK | \
+					  PT64_EPT_EXECUTABLE_MASK)
+#define SHADOW_ACC_TRACK_SAVED_BITS_SHIFT 54
+#define SHADOW_ACC_TRACK_SAVED_MASK	(SHADOW_ACC_TRACK_SAVED_BITS_MASK << \
+					 SHADOW_ACC_TRACK_SAVED_BITS_SHIFT)
+static_assert(!(SPTE_TDP_AD_MASK & SHADOW_ACC_TRACK_SAVED_MASK));
+
+/*
+ * Low ignored bits are at a premium for EPT, use high ignored bits, taking care
+ * to not overlap the A/D type mask or the saved access bits of access-tracked
+ * SPTEs when A/D bits are disabled.
+ */
+#define EPT_SPTE_HOST_WRITABLE		BIT_ULL(57)
+#define EPT_SPTE_MMU_WRITABLE		BIT_ULL(58)
+
+static_assert(!(EPT_SPTE_HOST_WRITABLE & SPTE_TDP_AD_MASK));
+static_assert(!(EPT_SPTE_MMU_WRITABLE & SPTE_TDP_AD_MASK));
+static_assert(!(EPT_SPTE_HOST_WRITABLE & SHADOW_ACC_TRACK_SAVED_MASK));
+static_assert(!(EPT_SPTE_MMU_WRITABLE & SHADOW_ACC_TRACK_SAVED_MASK));
+
+/* Defined only to keep the above static asserts readable. */
+#undef SHADOW_ACC_TRACK_SAVED_MASK
 
 /*
  * Due to limited space in PTEs, the MMIO generation is a 20 bit subset of
@@ -127,19 +158,6 @@ extern u64 __read_mostly shadow_nonpresent_or_rsvd_mask;
  * The number of high-order 1 bits to use in the mask above.
  */
 #define SHADOW_NONPRESENT_OR_RSVD_MASK_LEN 5
-
-/*
- * The mask/shift to use for saving the original R/X bits when marking the PTE
- * as not-present for access tracking purposes. We do not save the W bit as the
- * PTEs being access tracked also need to be dirty tracked, so the W bit will be
- * restored only when a write is attempted to the page.  This mask obviously
- * must not overlap the A/D type mask.
- */
-#define SHADOW_ACC_TRACK_SAVED_BITS_MASK (PT64_EPT_READABLE_MASK | \
-					  PT64_EPT_EXECUTABLE_MASK)
-#define SHADOW_ACC_TRACK_SAVED_BITS_SHIFT 54
-static_assert(!(SPTE_TDP_AD_MASK & (SHADOW_ACC_TRACK_SAVED_BITS_MASK <<
-				    SHADOW_ACC_TRACK_SAVED_BITS_SHIFT)));
 
 /*
  * If a thread running without exclusive control of the MMU lock must perform a
