@@ -366,9 +366,9 @@
 			interrupts = <GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x5b010000 0x10000>;
 			clocks = <&conn_lpcg IMX_CONN_LPCG_SDHC0_IPG_CLK>,
-				 <&conn_lpcg IMX_CONN_LPCG_SDHC0_PER_CLK>,
-				 <&conn_lpcg IMX_CONN_LPCG_SDHC0_HCLK>;
-			clock-names = "ipg", "per", "ahb";
+				 <&conn_lpcg IMX_CONN_LPCG_SDHC0_HCLK>,
+				 <&conn_lpcg IMX_CONN_LPCG_SDHC0_PER_CLK>;
+			clock-names = "ipg", "ahb", "per";
 			power-domains = <&pd IMX_SC_R_SDHC_0>;
 			status = "disabled";
 		};
@@ -378,9 +378,9 @@
 			interrupts = <GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x5b020000 0x10000>;
 			clocks = <&conn_lpcg IMX_CONN_LPCG_SDHC1_IPG_CLK>,
-				 <&conn_lpcg IMX_CONN_LPCG_SDHC1_PER_CLK>,
-				 <&conn_lpcg IMX_CONN_LPCG_SDHC1_HCLK>;
-			clock-names = "ipg", "per", "ahb";
+				 <&conn_lpcg IMX_CONN_LPCG_SDHC1_HCLK>,
+				 <&conn_lpcg IMX_CONN_LPCG_SDHC1_PER_CLK>;
+			clock-names = "ipg", "ahb", "per";
 			power-domains = <&pd IMX_SC_R_SDHC_1>;
 			fsl,tuning-start-tap = <20>;
 			fsl,tuning-step= <2>;
@@ -392,9 +392,9 @@
 			interrupts = <GIC_SPI 234 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x5b030000 0x10000>;
 			clocks = <&conn_lpcg IMX_CONN_LPCG_SDHC2_IPG_CLK>,
-				 <&conn_lpcg IMX_CONN_LPCG_SDHC2_PER_CLK>,
-				 <&conn_lpcg IMX_CONN_LPCG_SDHC2_HCLK>;
-			clock-names = "ipg", "per", "ahb";
+				 <&conn_lpcg IMX_CONN_LPCG_SDHC2_HCLK>,
+				 <&conn_lpcg IMX_CONN_LPCG_SDHC2_PER_CLK>;
+			clock-names = "ipg", "ahb", "per";
 			power-domains = <&pd IMX_SC_R_SDHC_2>;
 			status = "disabled";
 		};
