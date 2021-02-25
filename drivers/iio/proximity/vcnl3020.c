@@ -40,6 +40,17 @@
 #define VCNL_ON_DEMAND_TIMEOUT_US	100000
 #define VCNL_POLL_US			20000
 
+static const int vcnl3020_prox_sampling_frequency[][2] = {
+	{1, 950000},
+	{3, 906250},
+	{7, 812500},
+	{16, 625000},
+	{31, 250000},
+	{62, 500000},
+	{125, 0},
+	{250, 0},
+};
+
 /**
  * struct vcnl3020_data - vcnl3020 specific data.
  * @regmap:	device register map.
@@ -165,10 +176,51 @@ err_unlock:
 	return rc;
 }
 
+static int vcnl3020_read_proxy_samp_freq(struct vcnl3020_data *data, int *val,
+					 int *val2)
+{
+	int rc;
+	unsigned int prox_rate;
+
+	rc = regmap_read(data->regmap, VCNL_PROXIMITY_RATE, &prox_rate);
+	if (rc)
+		return rc;
+
+	if (prox_rate >= ARRAY_SIZE(vcnl3020_prox_sampling_frequency))
+		return -EINVAL;
+
+	*val = vcnl3020_prox_sampling_frequency[prox_rate][0];
+	*val2 = vcnl3020_prox_sampling_frequency[prox_rate][1];
+
+	return 0;
+}
+
+static int vcnl3020_write_proxy_samp_freq(struct vcnl3020_data *data, int val,
+					  int val2)
+{
+	unsigned int i;
+	int index = -1;
+
+	for (i = 0; i < ARRAY_SIZE(vcnl3020_prox_sampling_frequency); i++) {
+		if (val == vcnl3020_prox_sampling_frequency[i][0] &&
+		    val2 == vcnl3020_prox_sampling_frequency[i][1]) {
+			index = i;
+			break;
+		}
+	}
+
+	if (index < 0)
+		return -EINVAL;
+
+	return regmap_write(data->regmap, VCNL_PROXIMITY_RATE, index);
+}
+
 static const struct iio_chan_spec vcnl3020_channels[] = {
 	{
 		.type = IIO_PROXIMITY,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+				      BIT(IIO_CHAN_INFO_SAMP_FREQ),
+		.info_mask_separate_available = BIT(IIO_CHAN_INFO_SAMP_FREQ),
 	},
 };
 
@@ -185,6 +237,47 @@ static int vcnl3020_read_raw(struct iio_dev *indio_dev,
 		if (rc)
 			return rc;
 		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		rc = vcnl3020_read_proxy_samp_freq(data, val, val2);
+		if (rc < 0)
+			return rc;
+		return IIO_VAL_INT_PLUS_MICRO;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int vcnl3020_write_raw(struct iio_dev *indio_dev,
+			      struct iio_chan_spec const *chan,
+			      int val, int val2, long mask)
+{
+	int rc;
+	struct vcnl3020_data *data = iio_priv(indio_dev);
+
+	switch (mask) {
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		rc = iio_device_claim_direct_mode(indio_dev);
+		if (rc)
+			return rc;
+		rc = vcnl3020_write_proxy_samp_freq(data, val, val2);
+		iio_device_release_direct_mode(indio_dev);
+		return rc;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int vcnl3020_read_avail(struct iio_dev *indio_dev,
+			       struct iio_chan_spec const *chan,
+			       const int **vals, int *type, int *length,
+			       long mask)
+{
+	switch (mask) {
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		*vals = (int *)vcnl3020_prox_sampling_frequency;
+		*type = IIO_VAL_INT_PLUS_MICRO;
+		*length = 2 * ARRAY_SIZE(vcnl3020_prox_sampling_frequency);
+		return IIO_AVAIL_LIST;
 	default:
 		return -EINVAL;
 	}
@@ -192,6 +285,8 @@ static int vcnl3020_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info vcnl3020_info = {
 	.read_raw = vcnl3020_read_raw,
+	.write_raw = vcnl3020_write_raw,
+	.read_avail = vcnl3020_read_avail,
 };
 
 static const struct regmap_config vcnl3020_regmap_config = {
