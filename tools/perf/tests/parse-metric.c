@@ -98,7 +98,7 @@ static u64 find_value(const char *name, struct value *values)
 		if (!strcmp(name, v->event))
 			return v->val;
 		v++;
-	};
+	}
 	return 0;
 }
 
