@@ -252,5 +252,6 @@ struct lp87565 {
 	u8 rev;
 	u8 dev_type;
 	struct regmap *regmap;
+	struct gpio_desc *reset_gpio;
 };
 #endif /* __LINUX_MFD_LP87565_H */
