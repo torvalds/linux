@@ -4690,6 +4690,7 @@ ext4_mb_free_metadata(handle_t *handle, struct ext4_buddy *e4b,
 				ext4_group_first_block_no(sb, group) +
 				EXT4_C2B(sbi, cluster),
 				"Block already on to-be-freed list");
+			kmem_cache_free(ext4_free_data_cachep, new_entry);
 			return 0;
 		}
 	}

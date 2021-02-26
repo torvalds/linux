@@ -239,10 +239,12 @@ static int _omap_device_notifier_call(struct notifier_block *nb,
 		break;
 	case BUS_NOTIFY_BIND_DRIVER:
 		od = to_omap_device(pdev);
-		if (od && (od->_state == OMAP_DEVICE_STATE_ENABLED) &&
-		    pm_runtime_status_suspended(dev)) {
+		if (od) {
 			od->_driver_status = BUS_NOTIFY_BIND_DRIVER;
-			pm_runtime_set_active(dev);
+			if (od->_state == OMAP_DEVICE_STATE_ENABLED &&
+			    pm_runtime_status_suspended(dev)) {
+				pm_runtime_set_active(dev);
+			}
 		}
 		break;
 	case BUS_NOTIFY_ADD_DEVICE:

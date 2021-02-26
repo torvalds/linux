@@ -14,6 +14,8 @@
 #include <xen/interface/memory.h>
 #include <xen/interface/hvm/start_info.h>
 
+#include "xen-ops.h"
+
 /*
  * PVH variables.
  *
@@ -79,6 +81,8 @@ static void __init init_pvh_bootparams(void)
 	pvh_bootparams.hdr.type_of_loader = (9 << 4) | 0; /* Xen loader */
 
 	x86_init.acpi.get_root_pointer = pvh_get_root_pointer;
+
+	xen_efi_init(&pvh_bootparams);
 }
 
 /*

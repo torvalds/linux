@@ -242,8 +242,10 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags)
 		}
 
 		masterv = br_vlan_get_master(br, v->vid);
-		if (!masterv)
+		if (!masterv) {
+			err = -ENOMEM;
 			goto out_filt;
+		}
 		v->brvlan = masterv;
 		v->stats = masterv->stats;
 	} else {

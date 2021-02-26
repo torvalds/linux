@@ -7,15 +7,12 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <lz4.h>
-#include <poll.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <unistd.h>
-#include <zstd.h>
 
 #include <sys/mount.h>
 #include <sys/stat.h>
@@ -32,45 +29,9 @@
 
 #define TEST_FAILURE 1
 #define TEST_SUCCESS 0
+#define INCFS_MAX_MTREE_LEVELS 8
 
 #define INCFS_ROOT_INODE 0
-
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define le16_to_cpu(x)          (x)
-#define le32_to_cpu(x)          (x)
-#define le64_to_cpu(x)          (x)
-#else
-#error Big endian not supported!
-#endif
-
-struct {
-	int file;
-	int test;
-	bool verbose;
-} options;
-
-#define TESTCOND(condition)						\
-	do {								\
-		if (!(condition)) {					\
-			ksft_print_msg("%s failed %d\n",		\
-				       __func__, __LINE__);		\
-			goto out;					\
-		} else if (options.verbose)				\
-			ksft_print_msg("%s succeeded %d\n",		\
-				       __func__, __LINE__);		\
-	} while (false)
-
-#define TEST(statement, condition)					\
-	do {								\
-		statement;						\
-		TESTCOND(condition);					\
-	} while (false)
-
-#define TESTEQUAL(statement, res)					\
-	TESTCOND((statement) == (res))
-
-#define TESTNE(statement, res)					\
-	TESTCOND((statement) != (res))
 
 struct hash_block {
 	char data[INCFS_DATA_FILE_BLOCK_SIZE];
@@ -142,13 +103,6 @@ struct test_files_set get_test_files_set(void)
 		  .size = 900 * INCFS_DATA_FILE_BLOCK_SIZE + 7 },
 		{ .index = 10, .name = "file_big", .size = 500 * 1024 * 1024 }
 	};
-
-	if (options.file)
-		return (struct test_files_set) {
-			.files = files + options.file - 1,
-			.files_count = 1,
-		};
-
 	return (struct test_files_set){ .files = files,
 					.files_count = ARRAY_SIZE(files) };
 }
@@ -252,17 +206,6 @@ static char *get_index_filename(const char *mnt_dir, incfs_uuid_t id)
 	return strdup(path);
 }
 
-static char *get_incomplete_filename(const char *mnt_dir, incfs_uuid_t id)
-{
-	char path[FILENAME_MAX];
-	char str_id[1 + 2 * sizeof(id)];
-
-	bin2hex(str_id, id.bytes, sizeof(id.bytes));
-	snprintf(path, ARRAY_SIZE(path), "%s/.incomplete/%s", mnt_dir, str_id);
-
-	return strdup(path);
-}
-
 int open_file_by_id(const char *mnt_dir, incfs_uuid_t id, bool use_ioctl)
 {
 	char *path = get_index_filename(mnt_dir, id);
@@ -285,7 +228,8 @@ int open_file_by_id(const char *mnt_dir, incfs_uuid_t id, bool use_ioctl)
 		goto out;
 	}
 
-	if (ioctl(fd, INCFS_IOC_PERMIT_FILL, &permit_fill) != -1) {
+	if (ioctl(fd, INCFS_IOC_PERMIT_FILL, &permit_fill) != -1 ||
+	    errno != EPERM) {
 		print_error(
 			"Successfully called PERMIT_FILL on non pending_read file");
 		return -errno;
@@ -304,7 +248,7 @@ out:
 	return fd;
 }
 
-int get_file_attr(const char *mnt_dir, incfs_uuid_t id, char *value, int size)
+int get_file_attr(char *mnt_dir, incfs_uuid_t id, char *value, int size)
 {
 	char *path = get_index_filename(mnt_dir, id);
 	int res;
@@ -322,13 +266,7 @@ static bool same_id(incfs_uuid_t *id1, incfs_uuid_t *id2)
 	return !memcmp(id1->bytes, id2->bytes, sizeof(id1->bytes));
 }
 
-ssize_t ZSTD_compress_default(char *data, char *comp_data, size_t data_size,
-					size_t comp_size)
-{
-	return ZSTD_compress(comp_data, comp_size, data, data_size, 1);
-}
-
-static int emit_test_blocks(const char *mnt_dir, struct test_file *file,
+static int emit_test_blocks(char *mnt_dir, struct test_file *file,
 			int blocks[], int count)
 {
 	uint8_t data[INCFS_DATA_FILE_BLOCK_SIZE];
@@ -352,8 +290,7 @@ static int emit_test_blocks(const char *mnt_dir, struct test_file *file,
 
 	for (i = 0; i < block_count; i++) {
 		int block_index = blocks[i];
-		bool compress_zstd = (file->index + block_index) % 4 == 2;
-		bool compress_lz4 = (file->index + block_index) % 4 == 0;
+		bool compress = (file->index + block_index) % 2 == 0;
 		int seed = get_file_block_seed(file->index, block_index);
 		off_t block_offset =
 			((off_t)block_index) * INCFS_DATA_FILE_BLOCK_SIZE;
@@ -370,10 +307,10 @@ static int emit_test_blocks(const char *mnt_dir, struct test_file *file,
 			block_size = file->size - block_offset;
 
 		rnd_buf(data, block_size, seed);
-		if (compress_lz4) {
-			size_t comp_size = LZ4_compress_default((char *)data,
-					(char *)comp_data, block_size,
-					ARRAY_SIZE(comp_data));
+		if (compress) {
+			size_t comp_size = LZ4_compress_default(
+				(char *)data, (char *)comp_data, block_size,
+				ARRAY_SIZE(comp_data));
 
 			if (comp_size <= 0) {
 				error = -EBADMSG;
@@ -386,22 +323,6 @@ static int emit_test_blocks(const char *mnt_dir, struct test_file *file,
 			memcpy(current_data, comp_data, comp_size);
 			block_size = comp_size;
 			block_buf[i].compression = COMPRESSION_LZ4;
-		} else if (compress_zstd) {
-			size_t comp_size = ZSTD_compress(comp_data,
-					ARRAY_SIZE(comp_data), data, block_size,
-					1);
-
-			if (comp_size <= 0) {
-				error = -EBADMSG;
-				break;
-			}
-			if (current_data + comp_size > data_end) {
-				error = -ENOMEM;
-				break;
-			}
-			memcpy(current_data, comp_data, comp_size);
-			block_size = comp_size;
-			block_buf[i].compression = COMPRESSION_ZSTD;
 		} else {
 			if (current_data + block_size > data_end) {
 				error = -ENOMEM;
@@ -455,7 +376,7 @@ out:
 	return (error < 0) ? error : blocks_written;
 }
 
-static int emit_test_block(const char *mnt_dir, struct test_file *file,
+static int emit_test_block(char *mnt_dir, struct test_file *file,
 				int block_index)
 {
 	int res = emit_test_blocks(mnt_dir, file, &block_index, 1);
@@ -485,7 +406,7 @@ static void shuffle(int array[], int count, unsigned int seed)
 	}
 }
 
-static int emit_test_file_data(const char *mount_dir, struct test_file *file)
+static int emit_test_file_data(char *mount_dir, struct test_file *file)
 {
 	int i;
 	int block_cnt = 1 + (file->size - 1) / INCFS_DATA_FILE_BLOCK_SIZE;
@@ -518,7 +439,7 @@ out:
 	return result;
 }
 
-static loff_t read_whole_file(const char *filename)
+static loff_t read_whole_file(char *filename)
 {
 	int fd = -1;
 	loff_t result;
@@ -584,7 +505,7 @@ cleanup:
 	return result;
 }
 
-static char *create_backing_dir(const char *mount_dir)
+static char *create_backing_dir(char *mount_dir)
 {
 	struct stat st;
 	char backing_dir_name[255];
@@ -620,7 +541,7 @@ static char *create_backing_dir(const char *mount_dir)
 	return strdup(backing_dir_name);
 }
 
-static int validate_test_file_content_with_seed(const char *mount_dir,
+static int validate_test_file_content_with_seed(char *mount_dir,
 						struct test_file *file,
 						unsigned int shuffle_seed)
 {
@@ -682,13 +603,12 @@ failure:
 	return error;
 }
 
-static int validate_test_file_content(const char *mount_dir,
-				      struct test_file *file)
+static int validate_test_file_content(char *mount_dir, struct test_file *file)
 {
 	return validate_test_file_content_with_seed(mount_dir, file, 0);
 }
 
-static int data_producer(const char *mount_dir, struct test_files_set *test_set)
+static int data_producer(char *mount_dir, struct test_files_set *test_set)
 {
 	int ret = 0;
 	int timeout_ms = 1000;
@@ -700,55 +620,6 @@ static int data_producer(const char *mount_dir, struct test_files_set *test_set)
 		return -errno;
 
 	while ((ret = wait_for_pending_reads(fd, timeout_ms, prs, prs_size)) >
-	       0) {
-		int read_count = ret;
-		int i;
-
-		for (i = 0; i < read_count; i++) {
-			int j = 0;
-			struct test_file *file = NULL;
-
-			for (j = 0; j < test_set->files_count; j++) {
-				bool same = same_id(&(test_set->files[j].id),
-					&(prs[i].file_id));
-
-				if (same) {
-					file = &test_set->files[j];
-					break;
-				}
-			}
-			if (!file) {
-				ksft_print_msg(
-					"Unknown file in pending reads.\n");
-				break;
-			}
-
-			ret = emit_test_block(mount_dir, file,
-				prs[i].block_index);
-			if (ret < 0) {
-				ksft_print_msg("Emitting test data error: %s\n",
-						strerror(-ret));
-				break;
-			}
-		}
-	}
-	close(fd);
-	return ret;
-}
-
-static int data_producer2(const char *mount_dir,
-			  struct test_files_set *test_set)
-{
-	int ret = 0;
-	int timeout_ms = 1000;
-	struct incfs_pending_read_info2 prs[100] = {};
-	int prs_size = ARRAY_SIZE(prs);
-	int fd = open_commands_file(mount_dir);
-
-	if (fd < 0)
-		return -errno;
-
-	while ((ret = wait_for_pending_reads2(fd, timeout_ms, prs, prs_size)) >
 	       0) {
 		int read_count = ret;
 		int i;
@@ -932,7 +803,7 @@ failure:
 	return err;
 }
 
-static int cant_touch_index_test(const char *mount_dir)
+static int cant_touch_index_test(char *mount_dir)
 {
 	char *file_name = "test_file";
 	int file_size = 123;
@@ -963,12 +834,6 @@ static int cant_touch_index_test(const char *mount_dir)
 	err = mkdir(subdir, 0777);
 	if (err == 0 || errno != EBUSY) {
 		print_error("Shouldn't be able to crate subdir in index\n");
-		goto failure;
-	}
-
-	err = rmdir(index_path);
-	if (err == 0 || errno != EBUSY) {
-		print_error(".index directory should not be removed\n");
 		goto failure;
 	}
 
@@ -1006,12 +871,6 @@ static int cant_touch_index_test(const char *mount_dir)
 		goto failure;
 	}
 
-	err = rename(index_path, dst_name);
-	if (err == 0 || errno != EBUSY) {
-		print_error("Shouldn't rename .index directory\n");
-		goto failure;
-	}
-
 	close(cmd_fd);
 	free(subdir);
 	free(index_path);
@@ -1034,8 +893,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static bool iterate_directory(const char *dir_to_iterate, bool root,
-			      int file_count)
+static bool iterate_directory(char *dir_to_iterate, bool root, int file_count)
 {
 	struct expected_name {
 		const char *name;
@@ -1044,9 +902,7 @@ static bool iterate_directory(const char *dir_to_iterate, bool root,
 	} names[] = {
 		{INCFS_LOG_FILENAME, true, false},
 		{INCFS_PENDING_READS_FILENAME, true, false},
-		{INCFS_BLOCKS_WRITTEN_FILENAME, true, false},
 		{".index", true, false},
-		{".incomplete", true, false},
 		{"..", false, false},
 		{".", false, false},
 	};
@@ -1142,7 +998,7 @@ failure:
 	return pass;
 }
 
-static int basic_file_ops_test(const char *mount_dir)
+static int basic_file_ops_test(char *mount_dir)
 {
 	struct test_files_set test = get_test_files_set();
 	const int file_num = test.files_count;
@@ -1308,7 +1164,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int dynamic_files_and_data_test(const char *mount_dir)
+static int dynamic_files_and_data_test(char *mount_dir)
 {
 	struct test_files_set test = get_test_files_set();
 	const int file_num = test.files_count;
@@ -1414,7 +1270,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int concurrent_reads_and_writes_test(const char *mount_dir)
+static int concurrent_reads_and_writes_test(char *mount_dir)
 {
 	struct test_files_set test = get_test_files_set();
 	const int file_num = test.files_count;
@@ -1536,7 +1392,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int work_after_remount_test(const char *mount_dir)
+static int work_after_remount_test(char *mount_dir)
 {
 	struct test_files_set test = get_test_files_set();
 	const int file_num = test.files_count;
@@ -1686,7 +1542,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int attribute_test(const char *mount_dir)
+static int attribute_test(char *mount_dir)
 {
 	char file_attr[] = "metadata123123";
 	char attr_buf[INCFS_MAX_FILE_ATTR_SIZE] = {};
@@ -1769,7 +1625,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int child_procs_waiting_for_data_test(const char *mount_dir)
+static int child_procs_waiting_for_data_test(char *mount_dir)
 {
 	struct test_files_set test = get_test_files_set();
 	const int file_num = test.files_count;
@@ -1861,7 +1717,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int multiple_providers_test(const char *mount_dir)
+static int multiple_providers_test(char *mount_dir)
 {
 	struct test_files_set test = get_test_files_set();
 	const int file_num = test.files_count;
@@ -1877,8 +1733,7 @@ static int multiple_providers_test(const char *mount_dir)
 		goto failure;
 
 	/* Mount FS and release the backing file.  (10s wait time) */
-	if (mount_fs_opt(mount_dir, backing_dir,
-			 "read_timeout_ms=10000,report_uid", false) != 0)
+	if (mount_fs(mount_dir, backing_dir, 10000) != 0)
 		goto failure;
 
 	cmd_fd = open_commands_file(mount_dir);
@@ -1905,7 +1760,7 @@ static int multiple_providers_test(const char *mount_dir)
 			 * pending reads.
 			 */
 
-			ret = data_producer2(mount_dir, &test);
+			ret = data_producer(mount_dir, &test);
 			exit(-ret);
 		} else if (producer_pid > 0) {
 			producer_pids[i] = producer_pid;
@@ -1957,7 +1812,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int hash_tree_test(const char *mount_dir)
+static int hash_tree_test(char *mount_dir)
 {
 	char *backing_dir;
 	struct test_files_set test = get_test_files_set();
@@ -2079,233 +1934,300 @@ failure:
 
 enum expected_log { FULL_LOG, NO_LOG, PARTIAL_LOG };
 
-static int validate_logs(const char *mount_dir, int log_fd,
-			 struct test_file *file,
-			 enum expected_log expected_log,
-			 bool report_uid, bool expect_data)
+static int validate_logs(char *mount_dir, int log_fd, struct test_file *file,
+			 enum expected_log expected_log)
 {
-	int result = TEST_FAILURE;
 	uint8_t data[INCFS_DATA_FILE_BLOCK_SIZE];
 	struct incfs_pending_read_info prs[2048] = {};
-	struct incfs_pending_read_info2 prs2[2048] = {};
-	struct incfs_pending_read_info *previous_record = NULL;
 	int prs_size = ARRAY_SIZE(prs);
-	int block_count = 1 + (file->size - 1) / INCFS_DATA_FILE_BLOCK_SIZE;
-	int expected_read_count, read_count, block_index, read_index;
-	char *filename = NULL;
-	int fd = -1;
+	int block_cnt = 1 + (file->size - 1) / INCFS_DATA_FILE_BLOCK_SIZE;
+	int expected_read_block_cnt;
+	int res;
+	int read_count;
+	int i, j;
+	char *filename = concat_file_name(mount_dir, file->name);
+	int fd;
 
-	TEST(filename = concat_file_name(mount_dir, file->name), filename);
-	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
+	fd = open(filename, O_RDONLY | O_CLOEXEC);
+	free(filename);
+	if (fd <= 0)
+		return TEST_FAILURE;
 
-	if (block_count > prs_size)
-		block_count = prs_size;
-	expected_read_count = block_count;
+	if (block_cnt > prs_size)
+		block_cnt = prs_size;
+	expected_read_block_cnt = block_cnt;
 
-	for (block_index = 0; block_index < block_count; block_index++) {
-		int result = pread(fd, data, sizeof(data),
-			    INCFS_DATA_FILE_BLOCK_SIZE * block_index);
+	for (i = 0; i < block_cnt; i++) {
+		res = pread(fd, data, sizeof(data),
+			    INCFS_DATA_FILE_BLOCK_SIZE * i);
 
 		/* Make some read logs of type SAME_FILE_NEXT_BLOCK */
-		if (block_index % 100 == 10)
+		if (i % 10 == 0)
 			usleep(20000);
 
 		/* Skip some blocks to make logs of type SAME_FILE */
-		if (block_index % 10 == 5) {
-			++block_index;
-			--expected_read_count;
+		if (i % 10 == 5) {
+			++i;
+			--expected_read_block_cnt;
 		}
 
-		if (expect_data)
-			TESTCOND(result > 0);
-
-		if (!expect_data)
-			TESTEQUAL(result, -1);
+		if (res <= 0)
+			goto failure;
 	}
 
-	if (report_uid)
-		read_count = wait_for_pending_reads2(log_fd,
-				expected_log == NO_LOG ? 10 : 0,
-				prs2, prs_size);
-	else
-		read_count = wait_for_pending_reads(log_fd,
-				expected_log == NO_LOG ? 10 : 0,
-				prs, prs_size);
-
-	if (expected_log == NO_LOG)
-		TESTEQUAL(read_count, 0);
-
-	if (expected_log == PARTIAL_LOG)
-		TESTCOND(read_count > 0 &&
-			 read_count <= expected_read_count);
-
-	if (expected_log == FULL_LOG)
-		TESTEQUAL(read_count, expected_read_count);
-
-	/* If read less than expected, advance block_index appropriately */
-	for (block_index = 0, read_index = 0;
-	     read_index < expected_read_count - read_count;
-	     block_index++, read_index++)
-		if (block_index % 10 == 5)
-			++block_index;
-
-	for (read_index = 0; read_index < read_count;
-	     block_index++, read_index++) {
-		struct incfs_pending_read_info *record = report_uid ?
-			(struct incfs_pending_read_info *) &prs2[read_index] :
-			&prs[read_index];
-
-		TESTCOND(same_id(&record->file_id, &file->id));
-		TESTEQUAL(record->block_index, block_index);
-		TESTNE(record->timestamp_us, 0);
-		if (previous_record)
-			TESTEQUAL(record->serial_number,
-				  previous_record->serial_number + 1);
-
-		previous_record = record;
-		if (block_index % 10 == 5)
-			++block_index;
+	read_count = wait_for_pending_reads(
+		log_fd, expected_log == NO_LOG ? 10 : 0, prs, prs_size);
+	if (expected_log == NO_LOG) {
+		if (read_count == 0)
+			goto success;
+		if (read_count < 0)
+			ksft_print_msg("Error reading logged reads %s.\n",
+				       strerror(-read_count));
+		else
+			ksft_print_msg("Somehow read empty logs.\n");
+		goto failure;
 	}
 
-	result = TEST_SUCCESS;
-out:
+	if (read_count < 0) {
+		ksft_print_msg("Error reading logged reads %s.\n",
+			       strerror(-read_count));
+		goto failure;
+	}
+
+	i = 0;
+	if (expected_log == PARTIAL_LOG) {
+		if (read_count == 0) {
+			ksft_print_msg("No logs %s.\n", file->name);
+			goto failure;
+		}
+
+		for (i = 0, j = 0; j < expected_read_block_cnt - read_count;
+		     i++, j++)
+			if (i % 10 == 5)
+				++i;
+
+	} else if (read_count != expected_read_block_cnt) {
+		ksft_print_msg("Bad log read count %s %d %d.\n", file->name,
+			       read_count, expected_read_block_cnt);
+		goto failure;
+	}
+
+	for (j = 0; j < read_count; i++, j++) {
+		struct incfs_pending_read_info *read = &prs[j];
+
+		if (!same_id(&read->file_id, &file->id)) {
+			ksft_print_msg("Bad log read ino %s\n", file->name);
+			goto failure;
+		}
+
+		if (read->block_index != i) {
+			ksft_print_msg("Bad log read ino %s %d %d.\n",
+				       file->name, read->block_index, i);
+			goto failure;
+		}
+
+		if (j != 0) {
+			unsigned long psn = prs[j - 1].serial_number;
+
+			if (read->serial_number != psn + 1) {
+				ksft_print_msg("Bad log read sn %s %d %d.\n",
+					       file->name, read->serial_number,
+					       psn);
+				goto failure;
+			}
+		}
+
+		if (read->timestamp_us == 0) {
+			ksft_print_msg("Bad log read timestamp %s.\n",
+				       file->name);
+			goto failure;
+		}
+
+		if (i % 10 == 5)
+			++i;
+	}
+
+success:
 	close(fd);
-	free(filename);
-	return result;
+	return TEST_SUCCESS;
+
+failure:
+	close(fd);
+	return TEST_FAILURE;
 }
 
-static int read_log_test(const char *mount_dir)
+static int read_log_test(char *mount_dir)
 {
-	int result = TEST_FAILURE;
 	struct test_files_set test = get_test_files_set();
 	const int file_num = test.files_count;
 	int i = 0;
-	int cmd_fd = -1, log_fd = -1;
-	char *backing_dir = NULL;
+	int cmd_fd = -1, log_fd = -1, drop_caches = -1;
+	char *backing_dir;
 
-	/* Create files */
-	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
-	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir,
-			       "readahead=0,report_uid,read_timeout_ms=0",
-				 false), 0);
-	TEST(cmd_fd = open_commands_file(mount_dir), cmd_fd != -1);
+	backing_dir = create_backing_dir(mount_dir);
+	if (!backing_dir)
+		goto failure;
+
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0", false) != 0)
+		goto failure;
+
+	cmd_fd = open_commands_file(mount_dir);
+	if (cmd_fd < 0)
+		goto failure;
+
+	log_fd = open_log_file(mount_dir);
+	if (log_fd < 0)
+		ksft_print_msg("Can't open log file.\n");
+
+	/* Write data. */
 	for (i = 0; i < file_num; i++) {
 		struct test_file *file = &test.files[i];
 
-		TESTEQUAL(emit_file(cmd_fd, NULL, file->name, &file->id,
-				    file->size, NULL), 0);
+		if (emit_file(cmd_fd, NULL, file->name, &file->id,
+				     file->size, NULL))
+			goto failure;
+
+		if (emit_test_file_data(mount_dir, file))
+			goto failure;
 	}
-	close(cmd_fd);
-	cmd_fd = -1;
 
-	/* Validate logs */
-	TEST(log_fd = open_log_file(mount_dir), log_fd != -1);
-	for (i = 0; i < file_num; i++)
-		TESTEQUAL(validate_logs(mount_dir, log_fd, &test.files[i],
-					FULL_LOG, true, false), 0);
-
-	/* Unmount and mount again without report_uid */
-	close(log_fd);
-	log_fd = -1;
-	TESTEQUAL(umount(mount_dir), 0);
-	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir,
-			       "readahead=0,read_timeout_ms=0", false), 0);
-
-	TEST(log_fd = open_log_file(mount_dir), log_fd != -1);
-	for (i = 0; i < file_num; i++)
-		TESTEQUAL(validate_logs(mount_dir, log_fd, &test.files[i],
-					FULL_LOG, false, false), 0);
-
-	/* No read log to make sure poll doesn't crash */
-	close(log_fd);
-	log_fd = -1;
-	TESTEQUAL(umount(mount_dir), 0);
-	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir,
-			       "readahead=0,rlog_pages=0,read_timeout_ms=0",
-			       false), 0);
-
-	TEST(log_fd = open_log_file(mount_dir), log_fd != -1);
-	for (i = 0; i < file_num; i++)
-		TESTEQUAL(validate_logs(mount_dir, log_fd, &test.files[i],
-					NO_LOG, false, false), 0);
-
-	/* Remount and check that logs start working again */
-	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir,
-			       "readahead=0,rlog_pages=1,read_timeout_ms=0",
-			       true), 0);
-	for (i = 0; i < file_num; i++)
-		TESTEQUAL(validate_logs(mount_dir, log_fd, &test.files[i],
-					PARTIAL_LOG, false, false), 0);
-
-	/* Remount and check that logs continue working */
-	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir,
-			       "readahead=0,rlog_pages=4,read_timeout_ms=0",
-			       true), 0);
-	for (i = 0; i < file_num; i++)
-		TESTEQUAL(validate_logs(mount_dir, log_fd, &test.files[i],
-					FULL_LOG, false, false), 0);
-
-	/* Check logs work with data */
+	/* Validate data */
 	for (i = 0; i < file_num; i++) {
-		TESTEQUAL(emit_test_file_data(mount_dir, &test.files[i]), 0);
-		TESTEQUAL(validate_logs(mount_dir, log_fd, &test.files[i],
-					FULL_LOG, false, true), 0);
+		struct test_file *file = &test.files[i];
+
+		if (validate_logs(mount_dir, log_fd, file, FULL_LOG))
+			goto failure;
+	}
+
+	/* Unmount and mount again, to see that logs work after remount. */
+	close(cmd_fd);
+	close(log_fd);
+	cmd_fd = -1;
+	if (umount(mount_dir) != 0) {
+		print_error("Can't unmout FS");
+		goto failure;
+	}
+
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0", false) != 0)
+		goto failure;
+
+	cmd_fd = open_commands_file(mount_dir);
+	if (cmd_fd < 0)
+		goto failure;
+
+	log_fd = open_log_file(mount_dir);
+	if (log_fd < 0)
+		ksft_print_msg("Can't open log file.\n");
+
+	/* Validate data again */
+	for (i = 0; i < file_num; i++) {
+		struct test_file *file = &test.files[i];
+
+		if (validate_logs(mount_dir, log_fd, file, FULL_LOG))
+			goto failure;
+	}
+
+	/*
+	 * Unmount and mount again with no read log to make sure poll
+	 * doesn't crash
+	 */
+	close(cmd_fd);
+	close(log_fd);
+	if (umount(mount_dir) != 0) {
+		print_error("Can't unmout FS");
+		goto failure;
+	}
+
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0,rlog_pages=0",
+			 false) != 0)
+		goto failure;
+
+	log_fd = open_log_file(mount_dir);
+	if (log_fd < 0)
+		ksft_print_msg("Can't open log file.\n");
+
+	/* Validate data again - note should fail this time */
+	for (i = 0; i < file_num; i++) {
+		struct test_file *file = &test.files[i];
+
+		if (validate_logs(mount_dir, log_fd, file, NO_LOG))
+			goto failure;
+	}
+
+	/*
+	 * Remount and check that logs start working again
+	 */
+	drop_caches = open("/proc/sys/vm/drop_caches", O_WRONLY | O_CLOEXEC);
+	if (drop_caches == -1)
+		goto failure;
+	i = write(drop_caches, "3", 1);
+	close(drop_caches);
+	if (i != 1)
+		goto failure;
+
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0,rlog_pages=1",
+			 true) != 0)
+		goto failure;
+
+	/* Validate data again */
+	for (i = 0; i < file_num; i++) {
+		struct test_file *file = &test.files[i];
+
+		if (validate_logs(mount_dir, log_fd, file, PARTIAL_LOG))
+			goto failure;
+	}
+
+	/*
+	 * Remount and check that logs start working again
+	 */
+	drop_caches = open("/proc/sys/vm/drop_caches", O_WRONLY | O_CLOEXEC);
+	if (drop_caches == -1)
+		goto failure;
+	i = write(drop_caches, "3", 1);
+	close(drop_caches);
+	if (i != 1)
+		goto failure;
+
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0,rlog_pages=4",
+			 true) != 0)
+		goto failure;
+
+	/* Validate data again */
+	for (i = 0; i < file_num; i++) {
+		struct test_file *file = &test.files[i];
+
+		if (validate_logs(mount_dir, log_fd, file, FULL_LOG))
+			goto failure;
 	}
 
 	/* Final unmount */
 	close(log_fd);
-	log_fd = -1;
-	TESTEQUAL(umount(mount_dir), 0);
+	free(backing_dir);
+	if (umount(mount_dir) != 0) {
+		print_error("Can't unmout FS");
+		goto failure;
+	}
 
-	result = TEST_SUCCESS;
-out:
+	return TEST_SUCCESS;
+
+failure:
 	close(cmd_fd);
 	close(log_fd);
 	free(backing_dir);
 	umount(mount_dir);
-	return result;
+	return TEST_FAILURE;
 }
 
-static int emit_partial_test_file_data(const char *mount_dir,
-				       struct test_file *file)
+static int emit_partial_test_file_data(char *mount_dir, struct test_file *file)
 {
 	int i, j;
 	int block_cnt = 1 + (file->size - 1) / INCFS_DATA_FILE_BLOCK_SIZE;
 	int *block_indexes = NULL;
 	int result = 0;
 	int blocks_written = 0;
-	int bw_fd = -1;
-	char buffer[20];
-	struct pollfd pollfd;
-	long blocks_written_total, blocks_written_new_total;
 
 	if (file->size == 0)
 		return 0;
-
-	bw_fd = open_blocks_written_file(mount_dir);
-	if (bw_fd == -1)
-		return -errno;
-
-	result = read(bw_fd, buffer, sizeof(buffer));
-	if (result <= 0) {
-		result = -EIO;
-		goto out;
-	}
-
-	buffer[result] = 0;
-	blocks_written_total = atol(buffer);
-	result = 0;
-
-	pollfd = (struct pollfd) {
-		.fd = bw_fd,
-		.events = POLLIN,
-	};
-
-	result = poll(&pollfd, 1, 0);
-	if (result) {
-		result = -EIO;
-		goto out;
-	}
 
 	/* Emit 2 blocks, skip 2 blocks etc*/
 	block_indexes = calloc(block_cnt, sizeof(*block_indexes));
@@ -2326,29 +2248,9 @@ static int emit_partial_test_file_data(const char *mount_dir,
 			result = -EIO;
 			goto out;
 		}
-
-		result = poll(&pollfd, 1, 0);
-		if (result != 1 || pollfd.revents != POLLIN) {
-			result = -EIO;
-			goto out;
-		}
-
-		result = read(bw_fd, buffer, sizeof(buffer));
-		buffer[result] = 0;
-		blocks_written_new_total = atol(buffer);
-
-		if (blocks_written_new_total - blocks_written_total
-		    != blocks_written) {
-			result = -EIO;
-			goto out;
-		}
-
-		blocks_written_total = blocks_written_new_total;
-		result = 0;
 	}
 out:
 	free(block_indexes);
-	close(bw_fd);
 	return result;
 }
 
@@ -2482,7 +2384,7 @@ out:
 	return error;
 }
 
-static int get_blocks_test(const char *mount_dir)
+static int get_blocks_test(char *mount_dir)
 {
 	char *backing_dir;
 	int cmd_fd = -1;
@@ -2539,8 +2441,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int emit_partial_test_file_hash(const char *mount_dir,
-				       struct test_file *file)
+static int emit_partial_test_file_hash(char *mount_dir, struct test_file *file)
 {
 	int err;
 	int fd;
@@ -2552,6 +2453,9 @@ static int emit_partial_test_file_hash(const char *mount_dir,
 	uint8_t data[INCFS_DATA_FILE_BLOCK_SIZE];
 
 	if (file->size <= 4096 / 32 * 4096)
+		return 0;
+
+	if (fill_blocks.count == 0)
 		return 0;
 
 	if (!fill_block_array)
@@ -2655,7 +2559,7 @@ out:
 	return error;
 }
 
-static int get_hash_blocks_test(const char *mount_dir)
+static int get_hash_blocks_test(char *mount_dir)
 {
 	char *backing_dir;
 	int cmd_fd = -1;
@@ -2705,7 +2609,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int large_file_test(const char *mount_dir)
+static int large_file(char *mount_dir)
 {
 	char *backing_dir;
 	int cmd_fd = -1;
@@ -2720,7 +2624,7 @@ static int large_file_test(const char *mount_dir)
 		.fill_blocks = ptr_to_u64(block_buf),
 	};
 	incfs_uuid_t id;
-	int fd = -1;
+	int fd;
 
 	backing_dir = create_backing_dir(mount_dir);
 	if (!backing_dir)
@@ -2761,713 +2665,6 @@ static int large_file_test(const char *mount_dir)
 failure:
 	close(fd);
 	close(cmd_fd);
-	umount(mount_dir);
-	free(backing_dir);
-	return result;
-}
-
-static int validate_mapped_file(const char *orig_name, const char *name,
-				size_t size, size_t offset)
-{
-	struct stat st;
-	int orig_fd = -1, fd = -1;
-	size_t block;
-	int result = TEST_FAILURE;
-
-	if (stat(name, &st)) {
-		ksft_print_msg("Failed to stat %s with error %s\n",
-			       name, strerror(errno));
-		goto failure;
-	}
-
-	if (size != st.st_size) {
-		ksft_print_msg("Mismatched file sizes for file %s - expected %llu, got %llu\n",
-				   name, size, st.st_size);
-		goto failure;
-	}
-
-	fd = open(name, O_RDONLY | O_CLOEXEC);
-	if (fd == -1) {
-		ksft_print_msg("Failed to open %s with error %s\n", name,
-			       strerror(errno));
-		goto failure;
-	}
-
-	orig_fd = open(orig_name, O_RDONLY | O_CLOEXEC);
-	if (orig_fd == -1) {
-		ksft_print_msg("Failed to open %s with error %s\n", orig_name,
-			       strerror(errno));
-		goto failure;
-	}
-
-	for (block = 0; block < size; block += INCFS_DATA_FILE_BLOCK_SIZE) {
-		uint8_t orig_data[INCFS_DATA_FILE_BLOCK_SIZE];
-		uint8_t data[INCFS_DATA_FILE_BLOCK_SIZE];
-		ssize_t orig_read, mapped_read;
-
-		orig_read = pread(orig_fd, orig_data,
-				 INCFS_DATA_FILE_BLOCK_SIZE, block + offset);
-		mapped_read = pread(fd, data, INCFS_DATA_FILE_BLOCK_SIZE,
-				    block);
-
-		if (orig_read < mapped_read ||
-		    mapped_read != min(size - block,
-				       INCFS_DATA_FILE_BLOCK_SIZE)) {
-			ksft_print_msg("Failed to read enough data: %llu %llu %llu %lld %lld\n",
-				       block, size, offset, orig_read,
-				       mapped_read);
-			goto failure;
-		}
-
-		if (memcmp(orig_data, data, mapped_read)) {
-			ksft_print_msg("Data doesn't match: %llu %llu %llu %lld %lld\n",
-				       block, size, offset, orig_read,
-				       mapped_read);
-			goto failure;
-		}
-	}
-
-	result = TEST_SUCCESS;
-
-failure:
-	close(orig_fd);
-	close(fd);
-	return result;
-}
-
-static int mapped_file_test(const char *mount_dir)
-{
-	char *backing_dir;
-	int result = TEST_FAILURE;
-	int cmd_fd = -1;
-	int i;
-	struct test_files_set test = get_test_files_set();
-	const int file_num = test.files_count;
-
-	backing_dir = create_backing_dir(mount_dir);
-	if (!backing_dir)
-		goto failure;
-
-	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0", false) != 0)
-		goto failure;
-
-	cmd_fd = open_commands_file(mount_dir);
-	if (cmd_fd < 0)
-		goto failure;
-
-	for (i = 0; i < file_num; ++i) {
-		struct test_file *file = &test.files[i];
-		size_t blocks = file->size / INCFS_DATA_FILE_BLOCK_SIZE;
-		size_t mapped_offset = blocks / 4 *
-			INCFS_DATA_FILE_BLOCK_SIZE;
-		size_t mapped_size = file->size / 4 * 3 - mapped_offset;
-		struct incfs_create_mapped_file_args mfa;
-		char mapped_file_name[FILENAME_MAX];
-		char orig_file_path[PATH_MAX];
-		char mapped_file_path[PATH_MAX];
-
-		if (emit_file(cmd_fd, NULL, file->name, &file->id, file->size,
-					NULL) < 0)
-			goto failure;
-
-		if (emit_test_file_data(mount_dir, file))
-			goto failure;
-
-		if (snprintf(mapped_file_name, ARRAY_SIZE(mapped_file_name),
-					"%s.mapped", file->name) < 0)
-			goto failure;
-
-		mfa = (struct incfs_create_mapped_file_args) {
-			.size = mapped_size,
-			.mode = 0664,
-			.file_name = ptr_to_u64(mapped_file_name),
-			.source_file_id = file->id,
-			.source_offset = mapped_offset,
-		};
-
-		result = ioctl(cmd_fd, INCFS_IOC_CREATE_MAPPED_FILE, &mfa);
-		if (result) {
-			ksft_print_msg(
-				"Failed to create mapped file with error %d\n",
-				result);
-			goto failure;
-		}
-
-		result = snprintf(orig_file_path,
-				  ARRAY_SIZE(orig_file_path), "%s/%s",
-				  mount_dir, file->name);
-
-		if (result < 0 || result >= ARRAY_SIZE(mapped_file_path)) {
-			result = TEST_FAILURE;
-			goto failure;
-		}
-
-		result = snprintf(mapped_file_path,
-				  ARRAY_SIZE(mapped_file_path), "%s/%s",
-				  mount_dir, mapped_file_name);
-
-		if (result < 0 || result >= ARRAY_SIZE(mapped_file_path)) {
-			result = TEST_FAILURE;
-			goto failure;
-		}
-
-		result = validate_mapped_file(orig_file_path, mapped_file_path,
-					      mapped_size, mapped_offset);
-		if (result)
-			goto failure;
-	}
-
-failure:
-	close(cmd_fd);
-	umount(mount_dir);
-	free(backing_dir);
-	return result;
-}
-
-static const char v1_file[] = {
-	/* Header */
-	/* 0x00: Magic number */
-	0x49, 0x4e, 0x43, 0x46, 0x53, 0x00, 0x00, 0x00,
-	/* 0x08: Version */
-	0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	/* 0x10: Header size */
-	0x38, 0x00,
-	/* 0x12: Block size */
-	0x00, 0x10,
-	/* 0x14: Flags */
-	0x00, 0x00, 0x00, 0x00,
-	/* 0x18: First md offset */
-	0x46, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	/* 0x20: File size */
-	0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	/* 0x28: UUID */
-	0x8c, 0x7d, 0xd9, 0x22, 0xad, 0x47, 0x49, 0x4f,
-	0xc0, 0x2c, 0x38, 0x8e, 0x12, 0xc0, 0x0e, 0xac,
-
-	/* 0x38: Attribute */
-	0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61,
-	0x31, 0x32, 0x33, 0x31, 0x32, 0x33,
-
-	/* Attribute md record */
-	/* 0x46: Type */
-	0x02,
-	/* 0x47: Size */
-	0x25, 0x00,
-	/* 0x49: CRC */
-	0x9a, 0xef, 0xef, 0x72,
-	/* 0x4d: Next md offset */
-	0x75, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	/* 0x55: Prev md offset */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	/* 0x5d: fa_offset */
-	0x38, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	/* 0x65: fa_size */
-	0x0e, 0x00,
-	/* 0x67: fa_crc */
-	0xfb, 0x5e, 0x72, 0x89,
-
-	/* Blockmap table */
-	/* 0x6b: First 10-byte entry */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-
-	/* Blockmap md record */
-	/* 0x75: Type */
-	0x01,
-	/* 0x76: Size */
-	0x23, 0x00,
-	/* 0x78: CRC */
-	0x74, 0x45, 0xd3, 0xb9,
-	/* 0x7c: Next md offset */
-	0x00, 0x00, 0x00, 0x00,	0x00, 0x00, 0x00, 0x00,
-	/* 0x84: Prev md offset */
-	0x46, 0x00, 0x00, 0x00,	0x00, 0x00, 0x00, 0x00,
-	/* 0x8c: blockmap offset */
-	0x6b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	/* 0x94: blockmap count */
-	0x01, 0x00, 0x00, 0x00,
-};
-
-static int compatibility_test(const char *mount_dir)
-{
-	static const char *name = "file";
-	int result = TEST_FAILURE;
-	char *backing_dir = NULL;
-	char *filename = NULL;
-	int fd = -1;
-	uint64_t size = 0x0c;
-
-	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
-	TEST(filename = concat_file_name(backing_dir, name), filename);
-	TEST(fd = open(filename, O_CREAT | O_WRONLY | O_CLOEXEC), fd != -1);
-	TESTEQUAL(write(fd, v1_file, sizeof(v1_file)), sizeof(v1_file));
-	TESTEQUAL(fsetxattr(fd, INCFS_XATTR_SIZE_NAME, &size, sizeof(size), 0),
-		  0);
-	TESTEQUAL(mount_fs(mount_dir, backing_dir, 50), 0);
-	free(filename);
-	TEST(filename = concat_file_name(mount_dir, name), filename);
-	close(fd);
-	TEST(fd = open(filename, O_RDONLY), fd != -1);
-
-	result = TEST_SUCCESS;
-out:
-	close(fd);
-	umount(mount_dir);
-	free(backing_dir);
-	free(filename);
-	return result;
-}
-
-static int zero_blocks_written_count(int fd, uint32_t data_blocks_written,
-				     uint32_t hash_blocks_written)
-{
-	int test_result = TEST_FAILURE;
-	uint64_t offset;
-	uint8_t type;
-	uint32_t bw;
-
-	/* Get first md record */
-	TESTEQUAL(pread(fd, &offset, sizeof(offset), 24), sizeof(offset));
-
-	/* Find status md record */
-	for (;;) {
-		TESTNE(offset, 0);
-		TESTEQUAL(pread(fd, &type, sizeof(type), le64_to_cpu(offset)),
-			  sizeof(type));
-		if (type == 4)
-			break;
-		TESTEQUAL(pread(fd, &offset, sizeof(offset),
-				le64_to_cpu(offset) + 7),
-			  sizeof(offset));
-	}
-
-	/* Read blocks_written */
-	offset = le64_to_cpu(offset);
-	TESTEQUAL(pread(fd, &bw, sizeof(bw), offset + 23), sizeof(bw));
-	TESTEQUAL(le32_to_cpu(bw), data_blocks_written);
-	TESTEQUAL(pread(fd, &bw, sizeof(bw), offset + 27), sizeof(bw));
-	TESTEQUAL(le32_to_cpu(bw), hash_blocks_written);
-
-	/* Write out zero */
-	bw = 0;
-	TESTEQUAL(pwrite(fd, &bw, sizeof(bw), offset + 23), sizeof(bw));
-	TESTEQUAL(pwrite(fd, &bw, sizeof(bw), offset + 27), sizeof(bw));
-
-	test_result = TEST_SUCCESS;
-out:
-	return test_result;
-}
-
-static int validate_block_count(const char *mount_dir, const char *backing_dir,
-				struct test_file *file,
-				int total_data_blocks, int filled_data_blocks,
-				int total_hash_blocks, int filled_hash_blocks)
-{
-	char *filename = NULL;
-	char *backing_filename = NULL;
-	int fd = -1;
-	struct incfs_get_block_count_args bca = {};
-	int test_result = TEST_FAILURE;
-	struct incfs_filled_range ranges[128];
-	struct incfs_get_filled_blocks_args fba = {
-		.range_buffer = ptr_to_u64(ranges),
-		.range_buffer_size = sizeof(ranges),
-	};
-	int cmd_fd = -1;
-	struct incfs_permit_fill permit_fill;
-
-	TEST(filename = concat_file_name(mount_dir, file->name), filename);
-	TEST(backing_filename = concat_file_name(backing_dir, file->name),
-	     backing_filename);
-	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
-
-	TESTEQUAL(ioctl(fd, INCFS_IOC_GET_BLOCK_COUNT, &bca), 0);
-	TESTEQUAL(bca.total_data_blocks_out, total_data_blocks);
-	TESTEQUAL(bca.filled_data_blocks_out, filled_data_blocks);
-	TESTEQUAL(bca.total_hash_blocks_out, total_hash_blocks);
-	TESTEQUAL(bca.filled_hash_blocks_out, filled_hash_blocks);
-
-	close(fd);
-	TESTEQUAL(umount(mount_dir), 0);
-	TEST(fd = open(backing_filename, O_RDWR | O_CLOEXEC), fd != -1);
-	TESTEQUAL(zero_blocks_written_count(fd, filled_data_blocks,
-					    filled_hash_blocks),
-		  TEST_SUCCESS);
-	close(fd);
-	fd = -1;
-	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir, "readahead=0", false),
-		  0);
-	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
-
-	TESTEQUAL(ioctl(fd, INCFS_IOC_GET_BLOCK_COUNT, &bca), 0);
-	TESTEQUAL(bca.total_data_blocks_out, total_data_blocks);
-	TESTEQUAL(bca.filled_data_blocks_out, 0);
-	TESTEQUAL(bca.total_hash_blocks_out, total_hash_blocks);
-	TESTEQUAL(bca.filled_hash_blocks_out, 0);
-
-	TEST(cmd_fd = open_commands_file(mount_dir), cmd_fd != -1);
-	permit_fill.file_descriptor = fd;
-	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_PERMIT_FILL, &permit_fill), 0);
-	do {
-		ioctl(fd, INCFS_IOC_GET_FILLED_BLOCKS, &fba);
-		fba.start_index = fba.index_out + 1;
-	} while (fba.index_out < fba.total_blocks_out);
-
-	TESTEQUAL(ioctl(fd, INCFS_IOC_GET_BLOCK_COUNT, &bca), 0);
-	TESTEQUAL(bca.total_data_blocks_out, total_data_blocks);
-	TESTEQUAL(bca.filled_data_blocks_out, filled_data_blocks);
-	TESTEQUAL(bca.total_hash_blocks_out, total_hash_blocks);
-	TESTEQUAL(bca.filled_hash_blocks_out, filled_hash_blocks);
-
-	test_result = TEST_SUCCESS;
-out:
-	close(cmd_fd);
-	close(fd);
-	free(filename);
-	free(backing_filename);
-	return test_result;
-}
-
-
-
-static int validate_data_block_count(const char *mount_dir,
-				     const char *backing_dir,
-				     struct test_file *file)
-{
-	const int total_data_blocks = 1 + (file->size - 1) /
-						INCFS_DATA_FILE_BLOCK_SIZE;
-	const int filled_data_blocks = (total_data_blocks + 1) / 2;
-
-	int test_result = TEST_FAILURE;
-	char *filename = NULL;
-	char *incomplete_filename = NULL;
-	struct stat stat_buf_incomplete, stat_buf_file;
-	int fd = -1;
-	struct incfs_get_block_count_args bca = {};
-	int i;
-
-	TEST(filename = concat_file_name(mount_dir, file->name), filename);
-	TEST(incomplete_filename = get_incomplete_filename(mount_dir, file->id),
-	     incomplete_filename);
-
-	TESTEQUAL(stat(filename, &stat_buf_file), 0);
-	TESTEQUAL(stat(incomplete_filename, &stat_buf_incomplete), 0);
-	TESTEQUAL(stat_buf_file.st_ino, stat_buf_incomplete.st_ino);
-	TESTEQUAL(stat_buf_file.st_nlink, 3);
-
-	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
-	TESTEQUAL(ioctl(fd, INCFS_IOC_GET_BLOCK_COUNT, &bca), 0);
-	TESTEQUAL(bca.total_data_blocks_out, total_data_blocks);
-	TESTEQUAL(bca.filled_data_blocks_out, 0);
-	TESTEQUAL(bca.total_hash_blocks_out, 0);
-	TESTEQUAL(bca.filled_hash_blocks_out, 0);
-
-	for (i = 0; i < total_data_blocks; i += 2)
-		TESTEQUAL(emit_test_block(mount_dir, file, i), 0);
-
-	TESTEQUAL(ioctl(fd, INCFS_IOC_GET_BLOCK_COUNT, &bca), 0);
-	TESTEQUAL(bca.total_data_blocks_out, total_data_blocks);
-	TESTEQUAL(bca.filled_data_blocks_out, filled_data_blocks);
-	TESTEQUAL(bca.total_hash_blocks_out, 0);
-	TESTEQUAL(bca.filled_hash_blocks_out, 0);
-	close(fd);
-	fd = -1;
-
-	TESTEQUAL(validate_block_count(mount_dir, backing_dir, file,
-				       total_data_blocks, filled_data_blocks,
-				       0, 0),
-		  0);
-
-	for (i = 1; i < total_data_blocks; i += 2)
-		TESTEQUAL(emit_test_block(mount_dir, file, i), 0);
-
-	TESTEQUAL(stat(incomplete_filename, &stat_buf_incomplete), -1);
-	TESTEQUAL(errno, ENOENT);
-
-	test_result = TEST_SUCCESS;
-out:
-	close(fd);
-	free(incomplete_filename);
-	free(filename);
-	return test_result;
-}
-
-static int data_block_count_test(const char *mount_dir)
-{
-	int result = TEST_FAILURE;
-	char *backing_dir;
-	int cmd_fd = -1;
-	int i;
-	struct test_files_set test = get_test_files_set();
-
-	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
-	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir, "readahead=0", false),
-		  0);
-
-	for (i = 0; i < test.files_count; ++i) {
-		struct test_file *file = &test.files[i];
-
-		TEST(cmd_fd = open_commands_file(mount_dir), cmd_fd != -1);
-		TESTEQUAL(emit_file(cmd_fd, NULL, file->name, &file->id,
-				    file->size,	NULL),
-			  0);
-		close(cmd_fd);
-		cmd_fd = -1;
-
-		TESTEQUAL(validate_data_block_count(mount_dir, backing_dir,
-						    file),
-			  0);
-	}
-
-	result = TEST_SUCCESS;
-out:
-	close(cmd_fd);
-	umount(mount_dir);
-	free(backing_dir);
-	return result;
-}
-
-static int validate_hash_block_count(const char *mount_dir,
-				     const char *backing_dir,
-				     struct test_file *file)
-{
-	const int digest_size = SHA256_DIGEST_SIZE;
-	const int hash_per_block = INCFS_DATA_FILE_BLOCK_SIZE / digest_size;
-	const int total_data_blocks = 1 + (file->size - 1) /
-					INCFS_DATA_FILE_BLOCK_SIZE;
-
-	int result = TEST_FAILURE;
-	int hash_layer = total_data_blocks;
-	int total_hash_blocks = 0;
-	int filled_hash_blocks;
-	char *filename = NULL;
-	int fd = -1;
-	struct incfs_get_block_count_args bca = {};
-
-	while (hash_layer > 1) {
-		hash_layer = (hash_layer + hash_per_block - 1) / hash_per_block;
-		total_hash_blocks += hash_layer;
-	}
-	filled_hash_blocks = total_hash_blocks > 1 ? 1 : 0;
-
-	TEST(filename = concat_file_name(mount_dir, file->name), filename);
-	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
-
-	TESTEQUAL(ioctl(fd, INCFS_IOC_GET_BLOCK_COUNT, &bca), 0);
-	TESTEQUAL(bca.total_data_blocks_out, total_data_blocks);
-	TESTEQUAL(bca.filled_data_blocks_out, 0);
-	TESTEQUAL(bca.total_hash_blocks_out, total_hash_blocks);
-	TESTEQUAL(bca.filled_hash_blocks_out, 0);
-
-	TESTEQUAL(emit_partial_test_file_hash(mount_dir, file), 0);
-
-	TESTEQUAL(ioctl(fd, INCFS_IOC_GET_BLOCK_COUNT, &bca), 0);
-	TESTEQUAL(bca.total_data_blocks_out, total_data_blocks);
-	TESTEQUAL(bca.filled_data_blocks_out, 0);
-	TESTEQUAL(bca.total_hash_blocks_out, total_hash_blocks);
-	TESTEQUAL(bca.filled_hash_blocks_out, filled_hash_blocks);
-	close(fd);
-	fd = -1;
-
-	if (filled_hash_blocks)
-		TESTEQUAL(validate_block_count(mount_dir, backing_dir, file,
-				       total_data_blocks, 0,
-				       total_hash_blocks, filled_hash_blocks),
-		  0);
-
-	result = TEST_SUCCESS;
-out:
-	close(fd);
-	free(filename);
-	return result;
-}
-
-static int hash_block_count_test(const char *mount_dir)
-{
-	int result = TEST_FAILURE;
-	char *backing_dir;
-	int cmd_fd = -1;
-	int i;
-	struct test_files_set test = get_test_files_set();
-
-	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
-	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir, "readahead=0", false),
-		  0);
-
-	for (i = 0; i < test.files_count; i++) {
-		struct test_file *file = &test.files[i];
-
-		TEST(cmd_fd = open_commands_file(mount_dir), cmd_fd != -1);
-		TESTEQUAL(crypto_emit_file(cmd_fd, NULL, file->name, &file->id,
-				     file->size, file->root_hash,
-				     file->sig.add_data),
-			  0);
-		close(cmd_fd);
-		cmd_fd = -1;
-
-		TESTEQUAL(validate_hash_block_count(mount_dir, backing_dir,
-						    &test.files[i]),
-			  0);
-	}
-
-	result = TEST_SUCCESS;
-out:
-	close(cmd_fd);
-	umount(mount_dir);
-	free(backing_dir);
-	return result;
-}
-
-static int is_close(struct timespec *start, int expected_ms)
-{
-	const int allowed_variance = 100;
-	int result = TEST_FAILURE;
-	struct timespec finish;
-	int diff;
-
-	TESTEQUAL(clock_gettime(CLOCK_MONOTONIC, &finish), 0);
-	diff = (finish.tv_sec - start->tv_sec) * 1000 +
-		(finish.tv_nsec - start->tv_nsec) / 1000000;
-
-	TESTCOND(diff >= expected_ms - allowed_variance);
-	TESTCOND(diff <= expected_ms + allowed_variance);
-	result = TEST_SUCCESS;
-out:
-	return result;
-}
-
-static int per_uid_read_timeouts_test(const char *mount_dir)
-{
-	struct test_file file = {
-		.name = "file",
-		.size = 16 * INCFS_DATA_FILE_BLOCK_SIZE
-	};
-
-	int result = TEST_FAILURE;
-	char *backing_dir = NULL;
-	int pid;
-	int cmd_fd = -1;
-	char *filename = NULL;
-	int fd = -1;
-	struct timespec start;
-	char buffer[4096];
-	struct incfs_per_uid_read_timeouts purt_get[1];
-	struct incfs_get_read_timeouts_args grt = {
-		ptr_to_u64(purt_get),
-		sizeof(purt_get)
-	};
-	struct incfs_per_uid_read_timeouts purt_set[] = {
-		{
-			.uid = 0,
-			.min_time_ms = 1000,
-			.min_pending_time_ms = 2000,
-			.max_pending_time_ms = 3000,
-		},
-	};
-	struct incfs_set_read_timeouts_args srt = {
-		ptr_to_u64(purt_set),
-		sizeof(purt_set)
-	};
-	int status;
-
-	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
-	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir,
-			       "read_timeout_ms=1000,readahead=0", false), 0);
-
-	TEST(cmd_fd = open_commands_file(mount_dir), cmd_fd != -1);
-	TESTEQUAL(emit_file(cmd_fd, NULL, file.name, &file.id, file.size,
-			    NULL), 0);
-
-	TEST(filename = concat_file_name(mount_dir, file.name), filename);
-	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
-	TESTEQUAL(fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC), 0);
-
-	/* Default mount options read failure is 1000 */
-	TESTEQUAL(clock_gettime(CLOCK_MONOTONIC, &start), 0);
-	TESTEQUAL(pread(fd, buffer, sizeof(buffer), 0), -1);
-	TESTEQUAL(is_close(&start, 1000), 0);
-
-	grt.timeouts_array_size = 0;
-	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_GET_READ_TIMEOUTS, &grt), 0);
-	TESTEQUAL(grt.timeouts_array_size_out, 0);
-
-	/* Set it to 3000 */
-	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_SET_READ_TIMEOUTS, &srt), 0);
-	TESTEQUAL(clock_gettime(CLOCK_MONOTONIC, &start), 0);
-	TESTEQUAL(pread(fd, buffer, sizeof(buffer), 0), -1);
-	TESTEQUAL(is_close(&start, 3000), 0);
-	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_GET_READ_TIMEOUTS, &grt), -1);
-	TESTEQUAL(errno, E2BIG);
-	TESTEQUAL(grt.timeouts_array_size_out, sizeof(purt_get));
-	grt.timeouts_array_size = sizeof(purt_get);
-	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_GET_READ_TIMEOUTS, &grt), 0);
-	TESTEQUAL(grt.timeouts_array_size_out, sizeof(purt_get));
-	TESTEQUAL(purt_get[0].uid, purt_set[0].uid);
-	TESTEQUAL(purt_get[0].min_time_ms, purt_set[0].min_time_ms);
-	TESTEQUAL(purt_get[0].min_pending_time_ms,
-		  purt_set[0].min_pending_time_ms);
-	TESTEQUAL(purt_get[0].max_pending_time_ms,
-		  purt_set[0].max_pending_time_ms);
-
-	/* Still 1000 in UID 2 */
-	TESTEQUAL(clock_gettime(CLOCK_MONOTONIC, &start), 0);
-	TEST(pid = fork(), pid != -1);
-	if (pid == 0) {
-		TESTEQUAL(setuid(2), 0);
-		TESTEQUAL(pread(fd, buffer, sizeof(buffer), 0), -1);
-		exit(0);
-	}
-	TESTNE(wait(&status), -1);
-	TESTEQUAL(WEXITSTATUS(status), 0);
-	TESTEQUAL(is_close(&start, 1000), 0);
-
-	/* Set it to default */
-	purt_set[0].max_pending_time_ms = UINT32_MAX;
-	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_SET_READ_TIMEOUTS, &srt), 0);
-	TESTEQUAL(clock_gettime(CLOCK_MONOTONIC, &start), 0);
-	TESTEQUAL(pread(fd, buffer, sizeof(buffer), 0), -1);
-	TESTEQUAL(is_close(&start, 1000), 0);
-
-	/* Test min read time */
-	TESTEQUAL(emit_test_block(mount_dir, &file, 0), 0);
-	TESTEQUAL(clock_gettime(CLOCK_MONOTONIC, &start), 0);
-	TESTEQUAL(pread(fd, buffer, sizeof(buffer), 0), sizeof(buffer));
-	TESTEQUAL(is_close(&start, 1000), 0);
-
-	/* Test min pending time */
-	purt_set[0].uid = 2;
-	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_SET_READ_TIMEOUTS, &srt), 0);
-	TESTEQUAL(clock_gettime(CLOCK_MONOTONIC, &start), 0);
-	TEST(pid = fork(), pid != -1);
-	if (pid == 0) {
-		TESTEQUAL(setuid(2), 0);
-		TESTEQUAL(pread(fd, buffer, sizeof(buffer), sizeof(buffer)),
-			  sizeof(buffer));
-		exit(0);
-	}
-	sleep(1);
-	TESTEQUAL(emit_test_block(mount_dir, &file, 1), 0);
-	TESTNE(wait(&status), -1);
-	TESTEQUAL(WEXITSTATUS(status), 0);
-	TESTEQUAL(is_close(&start, 2000), 0);
-
-	/* Clear timeouts */
-	srt.timeouts_array_size = 0;
-	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_SET_READ_TIMEOUTS, &srt), 0);
-	grt.timeouts_array_size = 0;
-	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_GET_READ_TIMEOUTS, &grt), 0);
-	TESTEQUAL(grt.timeouts_array_size_out, 0);
-
-	result = TEST_SUCCESS;
-out:
-	close(fd);
-
-	if (pid == 0)
-		exit(result);
-
-	free(filename);
-	close(cmd_fd);
-	umount(backing_dir);
-	free(backing_dir);
 	return result;
 }
 
@@ -3494,53 +2691,12 @@ static char *setup_mount_dir()
 	return mount_dir;
 }
 
-int parse_options(int argc, char *const *argv)
-{
-	signed char c;
-
-	while ((c = getopt(argc, argv, "f:t:v")) != -1)
-		switch (c) {
-		case 'f':
-			options.file = strtol(optarg, NULL, 10);
-			break;
-
-		case 't':
-			options.test = strtol(optarg, NULL, 10);
-			break;
-
-		case 'v':
-			options.verbose = true;
-			break;
-
-		default:
-			return -EINVAL;
-		}
-
-	return 0;
-}
-
-struct test_case {
-	int (*pfunc)(const char *dir);
-	const char *name;
-};
-
-void run_one_test(const char *mount_dir, struct test_case *test_case)
-{
-	ksft_print_msg("Running %s\n", test_case->name);
-	if (test_case->pfunc(mount_dir) == TEST_SUCCESS)
-		ksft_test_result_pass("%s\n", test_case->name);
-	else
-		ksft_test_result_fail("%s\n", test_case->name);
-}
-
 int main(int argc, char *argv[])
 {
 	char *mount_dir = NULL;
+	int fails = 0;
 	int i;
 	int fd, count;
-
-	if (parse_options(argc, argv))
-		ksft_exit_fail_msg("Bad options\n");
 
 	// Seed randomness pool for testing on QEMU
 	// NOTE - this abuses the concept of randomness - do *not* ever do this
@@ -3565,7 +2721,10 @@ int main(int argc, char *argv[])
 	{                                                                      \
 		test, #test                                                    \
 	}
-	struct test_case cases[] = {
+	struct {
+		int (*pfunc)(char *dir);
+		const char *name;
+	} cases[] = {
 		MAKE_TEST(basic_file_ops_test),
 		MAKE_TEST(cant_touch_index_test),
 		MAKE_TEST(dynamic_files_and_data_test),
@@ -3578,25 +2737,29 @@ int main(int argc, char *argv[])
 		MAKE_TEST(read_log_test),
 		MAKE_TEST(get_blocks_test),
 		MAKE_TEST(get_hash_blocks_test),
-		MAKE_TEST(large_file_test),
-		MAKE_TEST(mapped_file_test),
-		MAKE_TEST(compatibility_test),
-		MAKE_TEST(data_block_count_test),
-		MAKE_TEST(hash_block_count_test),
-		MAKE_TEST(per_uid_read_timeouts_test),
+		MAKE_TEST(large_file),
 	};
 #undef MAKE_TEST
 
-	if (options.test) {
-		if (options.test <= 0 || options.test > ARRAY_SIZE(cases))
-			ksft_exit_fail_msg("Invalid test\n");
+	/* Bring back for kernel 5.x */
+	/* ksft_set_plan(ARRAY_SIZE(cases)); */
 
-		run_one_test(mount_dir, &cases[options.test - 1]);
-	} else
-		for (i = 0; i < ARRAY_SIZE(cases); ++i)
-			run_one_test(mount_dir, &cases[i]);
+	for (i = 0; i < ARRAY_SIZE(cases); ++i) {
+		ksft_print_msg("Running %s\n", cases[i].name);
+		if (cases[i].pfunc(mount_dir) == TEST_SUCCESS)
+			ksft_test_result_pass("%s\n", cases[i].name);
+		else {
+			ksft_test_result_fail("%s\n", cases[i].name);
+			fails++;
+		}
+	}
 
 	umount2(mount_dir, MNT_FORCE);
 	rmdir(mount_dir);
-	return !ksft_get_fail_cnt() ? ksft_exit_pass() : ksft_exit_fail();
+
+	if (fails > 0)
+		ksft_exit_fail();
+	else
+		ksft_exit_pass();
+	return 0;
 }

@@ -7192,7 +7192,7 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 	int error = 0, i;
 	void *sense = NULL;
 	dma_addr_t sense_handle;
-	unsigned long *sense_ptr;
+	void *sense_ptr;
 	u32 opcode = 0;
 
 	memset(kbuff_arr, 0, sizeof(kbuff_arr));
@@ -7309,6 +7309,13 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 	}
 
 	if (ioc->sense_len) {
+		/* make sure the pointer is part of the frame */
+		if (ioc->sense_off >
+		    (sizeof(union megasas_frame) - sizeof(__le64))) {
+			error = -EINVAL;
+			goto out;
+		}
+
 		sense = dma_alloc_coherent(&instance->pdev->dev, ioc->sense_len,
 					     &sense_handle, GFP_KERNEL);
 		if (!sense) {
@@ -7316,12 +7323,9 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 			goto out;
 		}
 
-		sense_ptr =
-		(unsigned long *) ((unsigned long)cmd->frame + ioc->sense_off);
-		if (instance->consistent_mask_64bit)
-			*sense_ptr = cpu_to_le64(sense_handle);
-		else
-			*sense_ptr = cpu_to_le32(sense_handle);
+		/* always store 64 bits regardless of addressing */
+		sense_ptr = (void *)cmd->frame + ioc->sense_off;
+		put_unaligned_le64(sense_handle, sense_ptr);
 	}
 
 	/*

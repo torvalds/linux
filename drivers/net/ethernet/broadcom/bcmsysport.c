@@ -2507,6 +2507,7 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	/* HW supported features, none enabled by default */
 	dev->hw_features |= NETIF_F_RXCSUM | NETIF_F_HIGHDMA |
 				NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+	dev->max_mtu = UMAC_MAX_MTU_SIZE;
 
 	/* Request the WOL interrupt and advertise suspend if available */
 	priv->wol_irq_disabled = 1;

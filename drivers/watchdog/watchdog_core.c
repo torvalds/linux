@@ -246,15 +246,19 @@ static int __watchdog_register_device(struct watchdog_device *wdd)
 	}
 
 	if (test_bit(WDOG_STOP_ON_REBOOT, &wdd->status)) {
-		wdd->reboot_nb.notifier_call = watchdog_reboot_notifier;
+		if (!wdd->ops->stop)
+			pr_warn("watchdog%d: stop_on_reboot not supported\n", wdd->id);
+		else {
+			wdd->reboot_nb.notifier_call = watchdog_reboot_notifier;
 
-		ret = register_reboot_notifier(&wdd->reboot_nb);
-		if (ret) {
-			pr_err("watchdog%d: Cannot register reboot notifier (%d)\n",
-			       wdd->id, ret);
-			watchdog_dev_unregister(wdd);
-			ida_simple_remove(&watchdog_ida, id);
-			return ret;
+			ret = register_reboot_notifier(&wdd->reboot_nb);
+			if (ret) {
+				pr_err("watchdog%d: Cannot register reboot notifier (%d)\n",
+					wdd->id, ret);
+				watchdog_dev_unregister(wdd);
+				ida_simple_remove(&watchdog_ida, id);
+				return ret;
+			}
 		}
 	}
 

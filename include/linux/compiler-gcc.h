@@ -12,26 +12,13 @@
 
 #if GCC_VERSION < 40600
 # error Sorry, your compiler is too old - please upgrade it.
-#endif
-
-/* Optimization barrier */
-
-/* The "volatile" is due to gcc bugs */
-#define barrier() __asm__ __volatile__("": : :"memory")
+#elif defined(CONFIG_ARM64) && GCC_VERSION < 50100
 /*
- * This version is i.e. to prevent dead stores elimination on @ptr
- * where gcc and llvm may behave differently when otherwise using
- * normal barrier(): while gcc behavior gets along with a normal
- * barrier(), llvm needs an explicit input variable to be assumed
- * clobbered. The issue is as follows: while the inline asm might
- * access any memory it wants, the compiler could have fit all of
- * @ptr into memory registers instead, and since @ptr never escaped
- * from that, it proved that the inline asm wasn't touching any of
- * it. This version works well with both compilers, i.e. we're telling
- * the compiler that the inline asm absolutely may see the contents
- * of @ptr. See also: https://llvm.org/bugs/show_bug.cgi?id=15495
+ * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=63293
+ * https://lore.kernel.org/r/20210107111841.GN1551@shell.armlinux.org.uk
  */
-#define barrier_data(ptr) __asm__ __volatile__("": :"r"(ptr) :"memory")
+# error Sorry, your version of GCC is too old - please use 5.1 or newer.
+#endif
 
 /*
  * This macro obfuscates arithmetic on a variable address so that gcc
