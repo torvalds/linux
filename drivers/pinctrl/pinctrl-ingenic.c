@@ -2485,8 +2485,10 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 	for_each_child_of_node(dev->of_node, node) {
 		if (of_match_node(ingenic_gpio_of_match, node)) {
 			err = ingenic_gpio_probe(jzpc, node);
-			if (err)
+			if (err) {
+				of_node_put(node);
 				return err;
+			}
 		}
 	}
 
