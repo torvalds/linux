@@ -545,35 +545,11 @@ static void xr_close(struct usb_serial_port *port)
 
 static int xr_probe(struct usb_serial *serial, const struct usb_device_id *id)
 {
-	struct usb_driver *driver = serial->type->usb_driver;
-	struct usb_interface *control_interface;
-	int ret;
-
 	/* Don't bind to control interface */
 	if (serial->interface->cur_altsetting->desc.bInterfaceNumber == 0)
 		return -ENODEV;
 
-	/* But claim the control interface during data interface probe */
-	control_interface = usb_ifnum_to_if(serial->dev, 0);
-	if (!control_interface)
-		return -ENODEV;
-
-	ret = usb_driver_claim_interface(driver, control_interface, NULL);
-	if (ret) {
-		dev_err(&serial->interface->dev, "Failed to claim control interface\n");
-		return ret;
-	}
-
 	return 0;
-}
-
-static void xr_disconnect(struct usb_serial *serial)
-{
-	struct usb_driver *driver = serial->type->usb_driver;
-	struct usb_interface *control_interface;
-
-	control_interface = usb_ifnum_to_if(serial->dev, 0);
-	usb_driver_release_interface(driver, control_interface);
 }
 
 static const struct usb_device_id id_table[] = {
@@ -590,7 +566,6 @@ static struct usb_serial_driver xr_device = {
 	.id_table		= id_table,
 	.num_ports		= 1,
 	.probe			= xr_probe,
-	.disconnect		= xr_disconnect,
 	.open			= xr_open,
 	.close			= xr_close,
 	.break_ctl		= xr_break_ctl,
