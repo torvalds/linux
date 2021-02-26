@@ -126,7 +126,7 @@ static struct i2c_driver i2c_hid_acpi_driver = {
 		.name	= "i2c_hid_acpi",
 		.pm	= &i2c_hid_core_pm,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.acpi_match_table = ACPI_PTR(i2c_hid_acpi_match),
+		.acpi_match_table = i2c_hid_acpi_match,
 	},
 
 	.probe_new	= i2c_hid_acpi_probe,
