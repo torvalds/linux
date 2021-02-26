@@ -507,6 +507,30 @@ our $signature_tags = qr{(?xi:
 	Cc:
 )};
 
+our $tracing_logging_tags = qr{(?xi:
+	[=-]*> |
+	<[=-]* |
+	\[ |
+	\] |
+	start |
+	called |
+	entered |
+	entry |
+	enter |
+	in |
+	inside |
+	here |
+	begin |
+	exit |
+	end |
+	done |
+	leave |
+	completed |
+	out |
+	return |
+	[\.\!:\s]*
+)};
+
 sub edit_distance_min {
 	my (@arr) = @_;
 	my $len = scalar @arr;
@@ -5970,6 +5994,17 @@ sub process {
 		    length(get_quoted_string($line, $rawline)) != (length($context_function) + 2)) {
 			WARN("EMBEDDED_FUNCTION_NAME",
 			     "Prefer using '\"%s...\", __func__' to using '$context_function', this function's name, in a string\n" . $herecurr);
+		}
+
+# check for unnecessary function tracing like uses
+# This does not use $logFunctions because there are many instances like
+# 'dprintk(FOO, "%s()\n", __func__);' which do not match $logFunctions
+		if ($rawline =~ /^\+.*\([^"]*"$tracing_logging_tags{0,3}%s(?:\s*\(\s*\)\s*)?$tracing_logging_tags{0,3}(?:\\n)?"\s*,\s*__func__\s*\)\s*;/) {
+			if (WARN("TRACING_LOGGING",
+				 "Unnecessary ftrace-like logging - prefer using ftrace\n" . $herecurr) &&
+			    $fix) {
+                                fix_delete_line($fixlinenr, $rawline);
+			}
 		}
 
 # check for spaces before a quoted newline
