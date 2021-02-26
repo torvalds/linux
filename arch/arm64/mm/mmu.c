@@ -1465,7 +1465,13 @@ int arch_add_memory(int nid, u64 start, u64 size,
 	int ret, flags = 0;
 
 	VM_BUG_ON(!mhp_range_allowed(start, size, true));
-	if (rodata_full || debug_pagealloc_enabled())
+
+	/*
+	 * KFENCE requires linear map to be mapped at page granularity, so that
+	 * it is possible to protect/unprotect single pages in the KFENCE pool.
+	 */
+	if (rodata_full || debug_pagealloc_enabled() ||
+	    IS_ENABLED(CONFIG_KFENCE))
 		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
 
 	__create_pgd_mapping(swapper_pg_dir, start, __phys_to_virt(start),
