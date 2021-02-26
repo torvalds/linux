@@ -343,8 +343,10 @@ static int scmi_regulator_probe(struct scmi_device *sdev)
 	for_each_child_of_node(np, child) {
 		ret = process_scmi_regulator_of_node(sdev, child, rinfo);
 		/* abort on any mem issue */
-		if (ret == -ENOMEM)
+		if (ret == -ENOMEM) {
+			of_node_put(child);
 			return ret;
+		}
 	}
 
 	/*
