@@ -9890,6 +9890,9 @@ static int bnxt_reinit_after_abort(struct bnxt *bp)
 	if (test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
 		return -EBUSY;
 
+	if (bp->dev->reg_state == NETREG_UNREGISTERED)
+		return -ENODEV;
+
 	rc = bnxt_fw_init_one(bp);
 	if (!rc) {
 		bnxt_clear_int_mode(bp);
