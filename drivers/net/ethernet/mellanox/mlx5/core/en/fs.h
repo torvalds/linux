@@ -200,31 +200,7 @@ static inline int mlx5e_ethtool_get_rxnfc(struct net_device *dev,
 #endif /* CONFIG_MLX5_EN_RXNFC */
 
 #ifdef CONFIG_MLX5_EN_ARFS
-#define ARFS_HASH_SHIFT BITS_PER_BYTE
-#define ARFS_HASH_SIZE BIT(BITS_PER_BYTE)
-
-struct arfs_table {
-	struct mlx5e_flow_table  ft;
-	struct mlx5_flow_handle	 *default_rule;
-	struct hlist_head	 rules_hash[ARFS_HASH_SIZE];
-};
-
-enum  arfs_type {
-	ARFS_IPV4_TCP,
-	ARFS_IPV6_TCP,
-	ARFS_IPV4_UDP,
-	ARFS_IPV6_UDP,
-	ARFS_NUM_TYPES,
-};
-
-struct mlx5e_arfs_tables {
-	struct arfs_table arfs_tables[ARFS_NUM_TYPES];
-	/* Protect aRFS rules list */
-	spinlock_t                     arfs_lock;
-	struct list_head               rules;
-	int                            last_filter_id;
-	struct workqueue_struct        *wq;
-};
+struct mlx5e_arfs_tables;
 
 int mlx5e_arfs_create_tables(struct mlx5e_priv *priv);
 void mlx5e_arfs_destroy_tables(struct mlx5e_priv *priv);
@@ -260,7 +236,7 @@ struct mlx5e_flow_steering {
 	struct mlx5e_ttc_table          ttc;
 	struct mlx5e_ttc_table          inner_ttc;
 #ifdef CONFIG_MLX5_EN_ARFS
-	struct mlx5e_arfs_tables        arfs;
+	struct mlx5e_arfs_tables       *arfs;
 #endif
 #ifdef CONFIG_MLX5_EN_TLS
 	struct mlx5e_accel_fs_tcp      *accel_tcp;
