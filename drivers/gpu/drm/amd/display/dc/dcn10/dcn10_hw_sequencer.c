@@ -1893,16 +1893,21 @@ uint64_t reduceSizeAndFraction(
 	num = *numerator;
 	denom = *denominator;
 	for (i = 0; i < count; i++) {
+		uint32_t num_reminder, denom_reminder;
+		uint64_t num_result, denom_result;
 		if (checkUint32Bounary &&
 			num <= max_int32 && denom <= max_int32) {
 			ret = true;
 			break;
 		}
-		while (num % prime_numbers[i] == 0 &&
-			   denom % prime_numbers[i] == 0) {
-			num = div_u64(num, prime_numbers[i]);
-			denom = div_u64(denom, prime_numbers[i]);
-		}
+		do {
+			num_result = div_u64_rem(num, prime_numbers[i], &num_reminder);
+			denom_result = div_u64_rem(denom, prime_numbers[i], &denom_reminder);
+			if (num_reminder == 0 && denom_reminder == 0) {
+				num = num_result;
+				denom = denom_result;
+			}
+		} while (num_reminder == 0 && denom_reminder == 0);
 	}
 	*numerator = num;
 	*denominator = denom;
