@@ -4758,6 +4758,18 @@ skl_plane_wm_level(const struct skl_pipe_wm *pipe_wm,
 	return &wm->wm[level];
 }
 
+static const struct skl_wm_level *
+skl_plane_trans_wm(const struct skl_pipe_wm *pipe_wm,
+		   enum plane_id plane_id)
+{
+	const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
+
+	if (pipe_wm->use_sagv_wm)
+		return &wm->sagv.trans_wm;
+
+	return &wm->trans_wm;
+}
+
 static int
 skl_allocate_plane_ddb(struct intel_atomic_state *state,
 		       struct intel_crtc *crtc)
@@ -4967,6 +4979,9 @@ skl_allocate_plane_ddb(struct intel_atomic_state *state,
 
 		if (wm->sagv.wm0.plane_res_b >= total[plane_id])
 			memset(&wm->sagv.wm0, 0, sizeof(wm->sagv.wm0));
+
+		if (wm->sagv.trans_wm.plane_res_b >= total[plane_id])
+			memset(&wm->sagv.trans_wm, 0, sizeof(wm->sagv.trans_wm));
 	}
 
 	return 0;
@@ -5325,12 +5340,11 @@ static void tgl_compute_sagv_wm(const struct intel_crtc_state *crtc_state,
 			     sagv_wm);
 }
 
-static void skl_compute_transition_wm(const struct intel_crtc_state *crtc_state,
-				      const struct skl_wm_params *wp,
-				      struct skl_plane_wm *wm)
+static void skl_compute_transition_wm(struct drm_i915_private *dev_priv,
+				      struct skl_wm_level *trans_wm,
+				      const struct skl_wm_level *wm0,
+				      const struct skl_wm_params *wp)
 {
-	struct drm_device *dev = crtc_state->uapi.crtc->dev;
-	const struct drm_i915_private *dev_priv = to_i915(dev);
 	u16 trans_min, trans_amount, trans_y_tile_min;
 	u16 wm0_sel_res_b, trans_offset_b, res_blocks;
 
@@ -5368,7 +5382,7 @@ static void skl_compute_transition_wm(const struct intel_crtc_state *crtc_state,
 	 * Result Blocks is Result Blocks minus 1 and it should work for the
 	 * current platforms.
 	 */
-	wm0_sel_res_b = wm->wm[0].plane_res_b - 1;
+	wm0_sel_res_b = wm0->plane_res_b - 1;
 
 	if (wp->y_tiled) {
 		trans_y_tile_min =
@@ -5384,8 +5398,8 @@ static void skl_compute_transition_wm(const struct intel_crtc_state *crtc_state,
 	 * computing the DDB we'll come back and disable it if that
 	 * assumption turns out to be false.
 	 */
-	wm->trans_wm.plane_res_b = res_blocks + 1;
-	wm->trans_wm.plane_en = true;
+	trans_wm->plane_res_b = res_blocks + 1;
+	trans_wm->plane_en = true;
 }
 
 static int skl_build_plane_wm_single(struct intel_crtc_state *crtc_state,
@@ -5405,10 +5419,15 @@ static int skl_build_plane_wm_single(struct intel_crtc_state *crtc_state,
 
 	skl_compute_wm_levels(crtc_state, &wm_params, wm->wm);
 
-	if (INTEL_GEN(dev_priv) >= 12)
+	skl_compute_transition_wm(dev_priv, &wm->trans_wm,
+				  &wm->wm[0], &wm_params);
+
+	if (INTEL_GEN(dev_priv) >= 12) {
 		tgl_compute_sagv_wm(crtc_state, &wm_params, wm);
 
-	skl_compute_transition_wm(crtc_state, &wm_params, wm);
+		skl_compute_transition_wm(dev_priv, &wm->sagv.trans_wm,
+					  &wm->sagv.wm0, &wm_params);
+	}
 
 	return 0;
 }
@@ -5584,7 +5603,7 @@ void skl_write_plane_wm(struct intel_plane *plane,
 				   skl_plane_wm_level(pipe_wm, plane_id, level));
 
 	skl_write_wm_level(dev_priv, PLANE_WM_TRANS(pipe, plane_id),
-			   &wm->trans_wm);
+			   skl_plane_trans_wm(pipe_wm, plane_id));
 
 	if (INTEL_GEN(dev_priv) >= 11) {
 		skl_ddb_entry_write(dev_priv,
@@ -5609,7 +5628,6 @@ void skl_write_cursor_wm(struct intel_plane *plane,
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
 	const struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
-	const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
 	const struct skl_ddb_entry *ddb =
 		&crtc_state->wm.skl.plane_ddb_y[plane_id];
 
@@ -5617,7 +5635,8 @@ void skl_write_cursor_wm(struct intel_plane *plane,
 		skl_write_wm_level(dev_priv, CUR_WM(pipe, level),
 				   skl_plane_wm_level(pipe_wm, plane_id, level));
 
-	skl_write_wm_level(dev_priv, CUR_WM_TRANS(pipe), &wm->trans_wm);
+	skl_write_wm_level(dev_priv, CUR_WM_TRANS(pipe),
+			   skl_plane_trans_wm(pipe_wm, plane_id));
 
 	skl_ddb_entry_write(dev_priv, CUR_BUF_CFG(pipe), ddb);
 }
@@ -5648,7 +5667,8 @@ static bool skl_plane_wm_equals(struct drm_i915_private *dev_priv,
 	}
 
 	return skl_wm_level_equals(&wm1->trans_wm, &wm2->trans_wm) &&
-		skl_wm_level_equals(&wm1->sagv.wm0, &wm2->sagv.wm0);
+		skl_wm_level_equals(&wm1->sagv.wm0, &wm2->sagv.wm0) &&
+		skl_wm_level_equals(&wm1->sagv.trans_wm, &wm2->sagv.trans_wm);
 }
 
 static bool skl_ddb_entries_overlap(const struct skl_ddb_entry *a,
@@ -5878,8 +5898,8 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 				continue;
 
 			drm_dbg_kms(&dev_priv->drm,
-				    "[PLANE:%d:%s]   level %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm,%cswm"
-				    " -> %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm,%cswm\n",
+				    "[PLANE:%d:%s]   level %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm,%cswm,%cstwm"
+				    " -> %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm,%cswm,%cstwm\n",
 				    plane->base.base.id, plane->base.name,
 				    enast(old_wm->wm[0].plane_en), enast(old_wm->wm[1].plane_en),
 				    enast(old_wm->wm[2].plane_en), enast(old_wm->wm[3].plane_en),
@@ -5887,16 +5907,18 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 				    enast(old_wm->wm[6].plane_en), enast(old_wm->wm[7].plane_en),
 				    enast(old_wm->trans_wm.plane_en),
 				    enast(old_wm->sagv.wm0.plane_en),
+				    enast(old_wm->sagv.trans_wm.plane_en),
 				    enast(new_wm->wm[0].plane_en), enast(new_wm->wm[1].plane_en),
 				    enast(new_wm->wm[2].plane_en), enast(new_wm->wm[3].plane_en),
 				    enast(new_wm->wm[4].plane_en), enast(new_wm->wm[5].plane_en),
 				    enast(new_wm->wm[6].plane_en), enast(new_wm->wm[7].plane_en),
 				    enast(new_wm->trans_wm.plane_en),
-				    enast(new_wm->sagv.wm0.plane_en));
+				    enast(new_wm->sagv.wm0.plane_en),
+				    enast(new_wm->sagv.trans_wm.plane_en));
 
 			drm_dbg_kms(&dev_priv->drm,
-				    "[PLANE:%d:%s]   lines %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d"
-				      " -> %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d\n",
+				    "[PLANE:%d:%s]   lines %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%4d"
+				      " -> %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%4d\n",
 				    plane->base.base.id, plane->base.name,
 				    enast(old_wm->wm[0].ignore_lines), old_wm->wm[0].plane_res_l,
 				    enast(old_wm->wm[1].ignore_lines), old_wm->wm[1].plane_res_l,
@@ -5908,7 +5930,7 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 				    enast(old_wm->wm[7].ignore_lines), old_wm->wm[7].plane_res_l,
 				    enast(old_wm->trans_wm.ignore_lines), old_wm->trans_wm.plane_res_l,
 				    enast(old_wm->sagv.wm0.ignore_lines), old_wm->sagv.wm0.plane_res_l,
-
+				    enast(old_wm->sagv.trans_wm.ignore_lines), old_wm->sagv.trans_wm.plane_res_l,
 				    enast(new_wm->wm[0].ignore_lines), new_wm->wm[0].plane_res_l,
 				    enast(new_wm->wm[1].ignore_lines), new_wm->wm[1].plane_res_l,
 				    enast(new_wm->wm[2].ignore_lines), new_wm->wm[2].plane_res_l,
@@ -5918,11 +5940,12 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 				    enast(new_wm->wm[6].ignore_lines), new_wm->wm[6].plane_res_l,
 				    enast(new_wm->wm[7].ignore_lines), new_wm->wm[7].plane_res_l,
 				    enast(new_wm->trans_wm.ignore_lines), new_wm->trans_wm.plane_res_l,
-				    enast(new_wm->sagv.wm0.ignore_lines), new_wm->sagv.wm0.plane_res_l);
+				    enast(new_wm->sagv.wm0.ignore_lines), new_wm->sagv.wm0.plane_res_l,
+				    enast(new_wm->sagv.trans_wm.ignore_lines), new_wm->sagv.trans_wm.plane_res_l);
 
 			drm_dbg_kms(&dev_priv->drm,
-				    "[PLANE:%d:%s]  blocks %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d"
-				    " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
+				    "[PLANE:%d:%s]  blocks %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d"
+				    " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d\n",
 				    plane->base.base.id, plane->base.name,
 				    old_wm->wm[0].plane_res_b, old_wm->wm[1].plane_res_b,
 				    old_wm->wm[2].plane_res_b, old_wm->wm[3].plane_res_b,
@@ -5930,16 +5953,18 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 				    old_wm->wm[6].plane_res_b, old_wm->wm[7].plane_res_b,
 				    old_wm->trans_wm.plane_res_b,
 				    old_wm->sagv.wm0.plane_res_b,
+				    old_wm->sagv.trans_wm.plane_res_b,
 				    new_wm->wm[0].plane_res_b, new_wm->wm[1].plane_res_b,
 				    new_wm->wm[2].plane_res_b, new_wm->wm[3].plane_res_b,
 				    new_wm->wm[4].plane_res_b, new_wm->wm[5].plane_res_b,
 				    new_wm->wm[6].plane_res_b, new_wm->wm[7].plane_res_b,
 				    new_wm->trans_wm.plane_res_b,
-				    new_wm->sagv.wm0.plane_res_b);
+				    new_wm->sagv.wm0.plane_res_b,
+				    new_wm->sagv.trans_wm.plane_res_b);
 
 			drm_dbg_kms(&dev_priv->drm,
-				    "[PLANE:%d:%s] min_ddb %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d"
-				    " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
+				    "[PLANE:%d:%s] min_ddb %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d"
+				    " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d\n",
 				    plane->base.base.id, plane->base.name,
 				    old_wm->wm[0].min_ddb_alloc, old_wm->wm[1].min_ddb_alloc,
 				    old_wm->wm[2].min_ddb_alloc, old_wm->wm[3].min_ddb_alloc,
@@ -5947,12 +5972,14 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 				    old_wm->wm[6].min_ddb_alloc, old_wm->wm[7].min_ddb_alloc,
 				    old_wm->trans_wm.min_ddb_alloc,
 				    old_wm->sagv.wm0.min_ddb_alloc,
+				    old_wm->sagv.trans_wm.min_ddb_alloc,
 				    new_wm->wm[0].min_ddb_alloc, new_wm->wm[1].min_ddb_alloc,
 				    new_wm->wm[2].min_ddb_alloc, new_wm->wm[3].min_ddb_alloc,
 				    new_wm->wm[4].min_ddb_alloc, new_wm->wm[5].min_ddb_alloc,
 				    new_wm->wm[6].min_ddb_alloc, new_wm->wm[7].min_ddb_alloc,
 				    new_wm->trans_wm.min_ddb_alloc,
-				    new_wm->sagv.wm0.min_ddb_alloc);
+				    new_wm->sagv.wm0.min_ddb_alloc,
+				    new_wm->sagv.trans_wm.min_ddb_alloc);
 		}
 	}
 }
@@ -5961,8 +5988,6 @@ static bool skl_plane_selected_wm_equals(struct intel_plane *plane,
 					 const struct skl_pipe_wm *old_pipe_wm,
 					 const struct skl_pipe_wm *new_pipe_wm)
 {
-	const struct skl_plane_wm *old_wm = &old_pipe_wm->planes[plane->id];
-	const struct skl_plane_wm *new_wm = &new_pipe_wm->planes[plane->id];
 	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 	int level, max_level = ilk_wm_max_level(i915);
 
@@ -5977,7 +6002,8 @@ static bool skl_plane_selected_wm_equals(struct intel_plane *plane,
 			return false;
 	}
 
-	return skl_wm_level_equals(&old_wm->trans_wm, &new_wm->trans_wm);
+	return skl_wm_level_equals(skl_plane_trans_wm(old_pipe_wm, plane->id),
+				   skl_plane_trans_wm(new_pipe_wm, plane->id));
 }
 
 /*
@@ -6188,15 +6214,17 @@ void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
 			skl_wm_level_from_reg_val(val, &wm->wm[level]);
 		}
 
-		if (INTEL_GEN(dev_priv) >= 12)
-			wm->sagv.wm0 = wm->wm[0];
-
 		if (plane_id != PLANE_CURSOR)
 			val = intel_uncore_read(&dev_priv->uncore, PLANE_WM_TRANS(pipe, plane_id));
 		else
 			val = intel_uncore_read(&dev_priv->uncore, CUR_WM_TRANS(pipe));
 
 		skl_wm_level_from_reg_val(val, &wm->trans_wm);
+
+		if (INTEL_GEN(dev_priv) >= 12) {
+			wm->sagv.wm0 = wm->wm[0];
+			wm->sagv.trans_wm = wm->trans_wm;
+		}
 	}
 }
 

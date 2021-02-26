@@ -9472,7 +9472,9 @@ static void verify_wm_state(struct intel_crtc *crtc,
 		}
 
 		if (!skl_wm_level_equals(&hw_plane_wm->trans_wm,
-					 &sw_plane_wm->trans_wm)) {
+					 &sw_plane_wm->trans_wm) &&
+		    !skl_wm_level_equals(&hw_plane_wm->trans_wm,
+					 &sw_plane_wm->sagv.trans_wm)) {
 			drm_err(&dev_priv->drm,
 				"mismatch in trans WM pipe %c cursor (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
 				pipe_name(pipe),
