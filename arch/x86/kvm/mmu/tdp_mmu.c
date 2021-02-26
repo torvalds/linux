@@ -1042,9 +1042,13 @@ static int set_tdp_spte(struct kvm *kvm, struct kvm_memory_slot *slot,
 		if (!is_shadow_present_pte(iter.old_spte))
 			break;
 
+		/*
+		 * Note, when changing a read-only SPTE, it's not strictly
+		 * necessary to zero the SPTE before setting the new PFN, but
+		 * doing so preserves the invariant that the PFN of a present
+		 * leaf SPTE can never change.  See __handle_changed_spte().
+		 */
 		tdp_mmu_set_spte(kvm, &iter, 0);
-
-		kvm_flush_remote_tlbs_with_address(kvm, iter.gfn, 1);
 
 		if (!pte_write(*ptep)) {
 			new_spte = kvm_mmu_changed_pte_notifier_make_spte(
