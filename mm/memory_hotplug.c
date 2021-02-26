@@ -67,17 +67,17 @@ void put_online_mems(void)
 bool movable_node_enabled = false;
 
 #ifndef CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE
-int memhp_default_online_type = MMOP_OFFLINE;
+int mhp_default_online_type = MMOP_OFFLINE;
 #else
-int memhp_default_online_type = MMOP_ONLINE;
+int mhp_default_online_type = MMOP_ONLINE;
 #endif
 
 static int __init setup_memhp_default_state(char *str)
 {
-	const int online_type = memhp_online_type_from_str(str);
+	const int online_type = mhp_online_type_from_str(str);
 
 	if (online_type >= 0)
-		memhp_default_online_type = online_type;
+		mhp_default_online_type = online_type;
 
 	return 1;
 }
@@ -1076,7 +1076,7 @@ static int check_hotplug_memory_range(u64 start, u64 size)
 
 static int online_memory_block(struct memory_block *mem, void *arg)
 {
-	mem->online_type = memhp_default_online_type;
+	mem->online_type = mhp_default_online_type;
 	return device_online(&mem->dev);
 }
 
@@ -1157,7 +1157,7 @@ int __ref add_memory_resource(int nid, struct resource *res, mhp_t mhp_flags)
 		merge_system_ram_resource(res);
 
 	/* online pages if requested */
-	if (memhp_default_online_type != MMOP_OFFLINE)
+	if (mhp_default_online_type != MMOP_OFFLINE)
 		walk_memory_blocks(start, size, NULL, online_memory_block);
 
 	return ret;

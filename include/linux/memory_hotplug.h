@@ -116,10 +116,10 @@ extern int arch_add_memory(int nid, u64 start, u64 size,
 			   struct mhp_params *params);
 extern u64 max_mem_size;
 
-extern int memhp_online_type_from_str(const char *str);
+extern int mhp_online_type_from_str(const char *str);
 
 /* Default online_type (MMOP_*) when new memory blocks are added. */
-extern int memhp_default_online_type;
+extern int mhp_default_online_type;
 /* If movable_node boot option specified */
 extern bool movable_node_enabled;
 static inline bool movable_node_is_enabled(void)
