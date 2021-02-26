@@ -74,8 +74,7 @@ static void i2c_hid_acpi_shutdown_tail(struct i2chid_ops *ops)
 	acpi_device_set_power(ihid_acpi->adev, ACPI_STATE_D3_COLD);
 }
 
-static int i2c_hid_acpi_probe(struct i2c_client *client,
-			      const struct i2c_device_id *dev_id)
+static int i2c_hid_acpi_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct i2c_hid_acpi *ihid_acpi;
@@ -127,7 +126,7 @@ static struct i2c_driver i2c_hid_acpi_driver = {
 		.acpi_match_table = ACPI_PTR(i2c_hid_acpi_match),
 	},
 
-	.probe		= i2c_hid_acpi_probe,
+	.probe_new	= i2c_hid_acpi_probe,
 	.remove		= i2c_hid_core_remove,
 	.shutdown	= i2c_hid_core_shutdown,
 };
