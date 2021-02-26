@@ -1513,7 +1513,11 @@ static gfp_t limit_gfp_mask(gfp_t huge_gfp, gfp_t limit_gfp)
 {
 	gfp_t allowflags = __GFP_IO | __GFP_FS | __GFP_RECLAIM;
 	gfp_t denyflags = __GFP_NOWARN | __GFP_NORETRY;
-	gfp_t result = huge_gfp & ~allowflags;
+	gfp_t zoneflags = limit_gfp & GFP_ZONEMASK;
+	gfp_t result = huge_gfp & ~(allowflags | GFP_ZONEMASK);
+
+	/* Allow allocations only from the originally specified zones. */
+	result |= zoneflags;
 
 	/*
 	 * Minimize the result gfp by taking the union with the deny flags,
