@@ -521,6 +521,11 @@ const u32 *mlx5_esw_query_functions(struct mlx5_core_dev *dev);
 #define esw_debug(dev, format, ...)				\
 	mlx5_core_dbg_mask(dev, MLX5_DEBUG_ESWITCH_MASK, format, ##__VA_ARGS__)
 
+static inline bool mlx5_esw_allowed(const struct mlx5_eswitch *esw)
+{
+	return esw && MLX5_ESWITCH_MANAGER(esw->dev);
+}
+
 /* The returned number is valid only when the dev is eswitch manager. */
 static inline u16 mlx5_eswitch_manager_vport(struct mlx5_core_dev *dev)
 {
