@@ -38,6 +38,7 @@ import sys
 import subprocess
 
 allowed_warnings = set([
+    "vfs.c:1259", # fs/incfs/vfs.c:1259:10: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
     "pseudo_files.c:715", # fs/incfs/pseudo_files.c:715:10: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
     "km_apphint.c:230", # drivers/staging/imgtec/rogue/km_apphint.c:230:48: warning: division 'sizeof (void *) / sizeof (void)' does not compute the number of array elements [-Wsizeof-pointer-div]
     "file.c:3010", # fs/f2fs/file.c:3010:12: warning: 'f2fs_ioctl_check_project' defined but not used
