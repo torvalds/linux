@@ -293,28 +293,12 @@ static int __init zcore_init(void)
 		goto fail;
 
 	zcore_dir = debugfs_create_dir("zcore" , NULL);
-	if (!zcore_dir) {
-		rc = -ENOMEM;
-		goto fail;
-	}
 	zcore_reipl_file = debugfs_create_file("reipl", S_IRUSR, zcore_dir,
 						NULL, &zcore_reipl_fops);
-	if (!zcore_reipl_file) {
-		rc = -ENOMEM;
-		goto fail_dir;
-	}
 	zcore_hsa_file = debugfs_create_file("hsa", S_IRUSR|S_IWUSR, zcore_dir,
 					     NULL, &zcore_hsa_fops);
-	if (!zcore_hsa_file) {
-		rc = -ENOMEM;
-		goto fail_reipl_file;
-	}
-	return 0;
 
-fail_reipl_file:
-	debugfs_remove(zcore_reipl_file);
-fail_dir:
-	debugfs_remove(zcore_dir);
+	return 0;
 fail:
 	diag308(DIAG308_REL_HSA, NULL);
 	return rc;
