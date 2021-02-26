@@ -1980,6 +1980,8 @@ static void vmstat_shepherd(struct work_struct *w)
 
 		if (!delayed_work_pending(dw) && need_update(cpu))
 			queue_delayed_work_on(cpu, mm_percpu_wq, dw, 0);
+
+		cond_resched();
 	}
 	put_online_cpus();
 
