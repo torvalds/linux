@@ -157,6 +157,7 @@ enum intel_vgpu_edid {
 	GVT_EDID_NUM,
 };
 
+#define GVT_DEFAULT_REFRESH_RATE 60
 struct intel_vgpu_port {
 	/* per display EDID information */
 	struct intel_vgpu_edid_data *edid;
@@ -164,6 +165,8 @@ struct intel_vgpu_port {
 	struct intel_vgpu_dpcd_data *dpcd;
 	int type;
 	enum intel_vgpu_edid id;
+	/* x1000 to get accurate 59.94, 24.976, 29.94, etc. in timing std. */
+	u32 vrefresh_k;
 };
 
 static inline char *vgpu_edid_str(enum intel_vgpu_edid id)

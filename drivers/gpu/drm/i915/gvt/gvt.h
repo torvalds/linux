@@ -133,6 +133,7 @@ struct intel_vgpu_display {
 	struct intel_vgpu_i2c_edid i2c_edid;
 	struct intel_vgpu_port ports[I915_MAX_PORTS];
 	struct intel_vgpu_sbi sbi;
+	enum port port_num;
 };
 
 struct vgpu_sched_ctl {
