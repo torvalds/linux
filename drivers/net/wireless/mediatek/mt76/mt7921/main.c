@@ -173,22 +173,31 @@ static int mt7921_start(struct ieee80211_hw *hw)
 {
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	int err;
 
 	mt7921_mutex_acquire(dev);
 
-	mt76_connac_mcu_set_mac_enable(&dev->mt76, 0, true, false);
-	mt76_connac_mcu_set_channel_domain(phy->mt76);
+	err = mt76_connac_mcu_set_mac_enable(&dev->mt76, 0, true, false);
+	if (err)
+		goto out;
 
-	mt7921_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
+	err = mt76_connac_mcu_set_channel_domain(phy->mt76);
+	if (err)
+		goto out;
+
+	err = mt7921_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
+	if (err)
+		goto out;
+
 	mt7921_mac_reset_counters(phy);
 	set_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 
 	ieee80211_queue_delayed_work(hw, &phy->mt76->mac_work,
 				     MT7921_WATCHDOG_TIME);
-
+out:
 	mt7921_mutex_release(dev);
 
-	return 0;
+	return err;
 }
 
 static void mt7921_stop(struct ieee80211_hw *hw)
