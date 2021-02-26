@@ -146,7 +146,7 @@ static bool report_matches(const struct expect_report *r)
 		break;
 	}
 
-	cur += scnprintf(cur, end - cur, " 0x" PTR_FMT, (void *)r->addr);
+	cur += scnprintf(cur, end - cur, " 0x%p", (void *)r->addr);
 
 	spin_lock_irqsave(&observed.lock, flags);
 	if (!report_available())
