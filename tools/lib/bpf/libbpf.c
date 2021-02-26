@@ -574,6 +574,11 @@ static bool insn_is_subprog_call(const struct bpf_insn *insn)
 	       insn->off == 0;
 }
 
+static bool is_ldimm64(struct bpf_insn *insn)
+{
+	return insn->code == (BPF_LD | BPF_IMM | BPF_DW);
+}
+
 static int
 bpf_object__init_prog(struct bpf_object *obj, struct bpf_program *prog,
 		      const char *name, size_t sec_idx, const char *sec_name,
@@ -3395,7 +3400,7 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 		return 0;
 	}
 
-	if (insn->code != (BPF_LD | BPF_IMM | BPF_DW)) {
+	if (!is_ldimm64(insn)) {
 		pr_warn("prog '%s': invalid relo against '%s' for insns[%d].code 0x%x\n",
 			prog->name, sym_name, insn_idx, insn->code);
 		return -LIBBPF_ERRNO__RELOC;
@@ -5564,11 +5569,6 @@ static void bpf_core_poison_insn(struct bpf_program *prog, int relo_idx,
 	 * invalid func unknown#195896080
 	 */
 	insn->imm = 195896080; /* => 0xbad2310 => "bad relo" */
-}
-
-static bool is_ldimm64(struct bpf_insn *insn)
-{
-	return insn->code == (BPF_LD | BPF_IMM | BPF_DW);
 }
 
 static int insn_bpf_size_to_bytes(struct bpf_insn *insn)
