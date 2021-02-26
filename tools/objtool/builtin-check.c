@@ -42,17 +42,21 @@ const struct option check_options[] = {
 	OPT_END(),
 };
 
+int cmd_parse_options(int argc, const char **argv, const char * const usage[])
+{
+	argc = parse_options(argc, argv, check_options, usage, 0);
+	if (argc != 1)
+		usage_with_options(usage, check_options);
+	return argc;
+}
+
 int cmd_check(int argc, const char **argv)
 {
 	const char *objname;
 	struct objtool_file *file;
 	int ret;
 
-	argc = parse_options(argc, argv, check_options, check_usage, 0);
-
-	if (argc != 1)
-		usage_with_options(check_usage, check_options);
-
+	argc = cmd_parse_options(argc, argv, check_usage);
 	objname = argv[0];
 
 	file = objtool_open_read(objname);
