@@ -4,6 +4,7 @@
   add_cpu
   add_device_randomness
   add_memory
+  add_memory_subsection
   add_taint
   add_timer
   add_timer_on
@@ -1821,6 +1822,7 @@
   release_sock
   remap_pfn_range
   remove_cpu
+  remove_memory_subsection
   remove_proc_entry
   remove_wait_queue
   report_iommu_fault
