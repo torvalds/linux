@@ -33,6 +33,12 @@ properties:
         items:
           - const: ti,j7200
 
+      - description: K3 AM642 SoC
+        items:
+          - enum:
+              - ti,am642-evm
+          - const: ti,am642
+
 additionalProperties: true
 
 ...
