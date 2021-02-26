@@ -26,7 +26,7 @@
 #include <asm/timex.h>
 #include <asm/debug.h>
 
-#include <asm/perf_cpum_cf_diag.h>
+#include <asm/hwctrset.h>
 
 #define	CF_DIAG_CTRSET_DEF		0xfeef	/* Counter set header mark */
 						/* interval in seconds */
