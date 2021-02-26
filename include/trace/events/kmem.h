@@ -144,17 +144,17 @@ TRACE_EVENT(kmem_cache_free,
 	TP_STRUCT__entry(
 		__field(	unsigned long,	call_site	)
 		__field(	const void *,	ptr		)
-		__field(	const char *,	name		)
+		__string(	name,	name	)
 	),
 
 	TP_fast_assign(
 		__entry->call_site	= call_site;
 		__entry->ptr		= ptr;
-		__entry->name		= name;
+		__assign_str(name, name);
 	),
 
 	TP_printk("call_site=%pS ptr=%p name=%s",
-		  (void *)__entry->call_site, __entry->ptr, __entry->name)
+		  (void *)__entry->call_site, __entry->ptr, __get_str(name))
 );
 
 TRACE_EVENT(mm_page_free,
