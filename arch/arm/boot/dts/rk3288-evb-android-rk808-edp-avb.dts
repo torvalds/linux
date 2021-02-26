@@ -142,6 +142,10 @@
 	};
 };
 
+&route_hdmi {
+	status = "okay";
+};
+
 &vopb {
 	assigned-clocks = <&cru DCLK_VOP0>;
 	assigned-clock-parents = <&cru PLL_GPLL>;
