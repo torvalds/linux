@@ -18,7 +18,8 @@
 #include <objtool/builtin.h>
 #include <objtool/objtool.h>
 
-bool no_fp, no_unreachable, retpoline, module, backtrace, uaccess, stats, validate_dup, vmlinux, mcount, noinstr;
+bool no_fp, no_unreachable, retpoline, module, backtrace, uaccess, stats,
+     validate_dup, vmlinux, mcount, noinstr, backup;
 
 static const char * const check_usage[] = {
 	"objtool check [<options>] file.o",
@@ -37,6 +38,7 @@ const struct option check_options[] = {
 	OPT_BOOLEAN('n', "noinstr", &noinstr, "noinstr validation for vmlinux.o"),
 	OPT_BOOLEAN('l', "vmlinux", &vmlinux, "vmlinux.o validation"),
 	OPT_BOOLEAN('M', "mcount", &mcount, "generate __mcount_loc"),
+	OPT_BOOLEAN('B', "backup", &backup, "create .orig files before modification"),
 	OPT_END(),
 };
 
