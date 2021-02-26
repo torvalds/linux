@@ -2098,7 +2098,7 @@ If the program returns 0, the attempt fails with -EPERM, otherwise
 it succeeds.
 
 An example of BPF_CGROUP_DEVICE program may be found in the kernel
-source tree in the tools/testing/selftests/bpf/dev_cgroup.c file.
+source tree in the tools/testing/selftests/bpf/progs/dev_cgroup.c file.
 
 
 RDMA
