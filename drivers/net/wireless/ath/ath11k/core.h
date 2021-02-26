@@ -34,6 +34,7 @@
 #define ATH11K_PRB_RSP_DROP_THRESHOLD ((ATH11K_TX_MGMT_TARGET_MAX_SUPPORT_WMI * 3) / 4)
 
 #define ATH11K_INVALID_HW_MAC_ID	0xFF
+#define ATH11K_CONNECTION_LOSS_HZ	(3 * HZ)
 
 extern unsigned int ath11k_frame_mode;
 
@@ -235,6 +236,7 @@ struct ath11k_vif {
 	u32 aid;
 	u8 bssid[ETH_ALEN];
 	struct cfg80211_bitrate_mask bitrate_mask;
+	struct delayed_work connection_loss_work;
 	int num_legacy_stations;
 	int rtscts_prot_mode;
 	int txpower;
