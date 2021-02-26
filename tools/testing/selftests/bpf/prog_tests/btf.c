@@ -6411,11 +6411,12 @@ const struct btf_dedup_test dedup_tests[] = {
 			/* int[16] */
 			BTF_TYPE_ARRAY_ENC(1, 1, 16),					/* [2] */
 			/* struct s { */
-			BTF_STRUCT_ENC(NAME_NTH(2), 4, 84),				/* [3] */
+			BTF_STRUCT_ENC(NAME_NTH(2), 5, 88),				/* [3] */
 				BTF_MEMBER_ENC(NAME_NTH(3), 4, 0),	/* struct s *next;	*/
 				BTF_MEMBER_ENC(NAME_NTH(4), 5, 64),	/* const int *a;	*/
 				BTF_MEMBER_ENC(NAME_NTH(5), 2, 128),	/* int b[16];		*/
 				BTF_MEMBER_ENC(NAME_NTH(6), 1, 640),	/* int c;		*/
+				BTF_MEMBER_ENC(NAME_NTH(8), 13, 672),	/* float d;		*/
 			/* ptr -> [3] struct s */
 			BTF_PTR_ENC(3),							/* [4] */
 			/* ptr -> [6] const int */
@@ -6426,39 +6427,43 @@ const struct btf_dedup_test dedup_tests[] = {
 			/* full copy of the above */
 			BTF_TYPE_INT_ENC(NAME_NTH(1), BTF_INT_SIGNED, 0, 32, 4),	/* [7] */
 			BTF_TYPE_ARRAY_ENC(7, 7, 16),					/* [8] */
-			BTF_STRUCT_ENC(NAME_NTH(2), 4, 84),				/* [9] */
+			BTF_STRUCT_ENC(NAME_NTH(2), 5, 88),				/* [9] */
 				BTF_MEMBER_ENC(NAME_NTH(3), 10, 0),
 				BTF_MEMBER_ENC(NAME_NTH(4), 11, 64),
 				BTF_MEMBER_ENC(NAME_NTH(5), 8, 128),
 				BTF_MEMBER_ENC(NAME_NTH(6), 7, 640),
+				BTF_MEMBER_ENC(NAME_NTH(8), 13, 672),
 			BTF_PTR_ENC(9),							/* [10] */
 			BTF_PTR_ENC(12),						/* [11] */
 			BTF_CONST_ENC(7),						/* [12] */
+			BTF_TYPE_FLOAT_ENC(NAME_NTH(7), 4),				/* [13] */
 			BTF_END_RAW,
 		},
-		BTF_STR_SEC("\0int\0s\0next\0a\0b\0c\0"),
+		BTF_STR_SEC("\0int\0s\0next\0a\0b\0c\0float\0d"),
 	},
 	.expect = {
 		.raw_types = {
 			/* int */
-			BTF_TYPE_INT_ENC(NAME_NTH(4), BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+			BTF_TYPE_INT_ENC(NAME_NTH(5), BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
 			/* int[16] */
 			BTF_TYPE_ARRAY_ENC(1, 1, 16),					/* [2] */
 			/* struct s { */
-			BTF_STRUCT_ENC(NAME_NTH(6), 4, 84),				/* [3] */
-				BTF_MEMBER_ENC(NAME_NTH(5), 4, 0),	/* struct s *next;	*/
+			BTF_STRUCT_ENC(NAME_NTH(8), 5, 88),				/* [3] */
+				BTF_MEMBER_ENC(NAME_NTH(7), 4, 0),	/* struct s *next;	*/
 				BTF_MEMBER_ENC(NAME_NTH(1), 5, 64),	/* const int *a;	*/
 				BTF_MEMBER_ENC(NAME_NTH(2), 2, 128),	/* int b[16];		*/
 				BTF_MEMBER_ENC(NAME_NTH(3), 1, 640),	/* int c;		*/
+				BTF_MEMBER_ENC(NAME_NTH(4), 7, 672),	/* float d;		*/
 			/* ptr -> [3] struct s */
 			BTF_PTR_ENC(3),							/* [4] */
 			/* ptr -> [6] const int */
 			BTF_PTR_ENC(6),							/* [5] */
 			/* const -> [1] int */
 			BTF_CONST_ENC(1),						/* [6] */
+			BTF_TYPE_FLOAT_ENC(NAME_NTH(7), 4),				/* [7] */
 			BTF_END_RAW,
 		},
-		BTF_STR_SEC("\0a\0b\0c\0int\0next\0s"),
+		BTF_STR_SEC("\0a\0b\0c\0d\0int\0float\0next\0s"),
 	},
 	.opts = {
 		.dont_resolve_fwds = false,
@@ -6579,9 +6584,10 @@ const struct btf_dedup_test dedup_tests[] = {
 				BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
 				BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 8),
 			BTF_FUNC_ENC(NAME_TBD, 12),					/* [13] func */
+			BTF_TYPE_FLOAT_ENC(NAME_TBD, 2),				/* [14] float */
 			BTF_END_RAW,
 		},
-		BTF_STR_SEC("\0A\0B\0C\0D\0E\0F\0G\0H\0I\0J\0K\0L\0M"),
+		BTF_STR_SEC("\0A\0B\0C\0D\0E\0F\0G\0H\0I\0J\0K\0L\0M\0N"),
 	},
 	.expect = {
 		.raw_types = {
@@ -6604,16 +6610,17 @@ const struct btf_dedup_test dedup_tests[] = {
 				BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
 				BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 8),
 			BTF_FUNC_ENC(NAME_TBD, 12),					/* [13] func */
+			BTF_TYPE_FLOAT_ENC(NAME_TBD, 2),				/* [14] float */
 			BTF_END_RAW,
 		},
-		BTF_STR_SEC("\0A\0B\0C\0D\0E\0F\0G\0H\0I\0J\0K\0L\0M"),
+		BTF_STR_SEC("\0A\0B\0C\0D\0E\0F\0G\0H\0I\0J\0K\0L\0M\0N"),
 	},
 	.opts = {
 		.dont_resolve_fwds = false,
 	},
 },
 {
-	.descr = "dedup: no int duplicates",
+	.descr = "dedup: no int/float duplicates",
 	.input = {
 		.raw_types = {
 			BTF_TYPE_INT_ENC(NAME_NTH(1), BTF_INT_SIGNED, 0, 32, 8),
@@ -6628,9 +6635,15 @@ const struct btf_dedup_test dedup_tests[] = {
 			BTF_TYPE_INT_ENC(NAME_NTH(1), BTF_INT_SIGNED, 0, 27, 8),
 			/* different byte size */
 			BTF_TYPE_INT_ENC(NAME_NTH(1), BTF_INT_SIGNED, 0, 32, 4),
+			/* all allowed sizes */
+			BTF_TYPE_FLOAT_ENC(NAME_NTH(3), 2),
+			BTF_TYPE_FLOAT_ENC(NAME_NTH(3), 4),
+			BTF_TYPE_FLOAT_ENC(NAME_NTH(3), 8),
+			BTF_TYPE_FLOAT_ENC(NAME_NTH(3), 12),
+			BTF_TYPE_FLOAT_ENC(NAME_NTH(3), 16),
 			BTF_END_RAW,
 		},
-		BTF_STR_SEC("\0int\0some other int"),
+		BTF_STR_SEC("\0int\0some other int\0float"),
 	},
 	.expect = {
 		.raw_types = {
@@ -6646,9 +6659,15 @@ const struct btf_dedup_test dedup_tests[] = {
 			BTF_TYPE_INT_ENC(NAME_NTH(1), BTF_INT_SIGNED, 0, 27, 8),
 			/* different byte size */
 			BTF_TYPE_INT_ENC(NAME_NTH(1), BTF_INT_SIGNED, 0, 32, 4),
+			/* all allowed sizes */
+			BTF_TYPE_FLOAT_ENC(NAME_NTH(3), 2),
+			BTF_TYPE_FLOAT_ENC(NAME_NTH(3), 4),
+			BTF_TYPE_FLOAT_ENC(NAME_NTH(3), 8),
+			BTF_TYPE_FLOAT_ENC(NAME_NTH(3), 12),
+			BTF_TYPE_FLOAT_ENC(NAME_NTH(3), 16),
 			BTF_END_RAW,
 		},
-		BTF_STR_SEC("\0int\0some other int"),
+		BTF_STR_SEC("\0int\0some other int\0float"),
 	},
 	.opts = {
 		.dont_resolve_fwds = false,
