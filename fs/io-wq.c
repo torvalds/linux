@@ -826,7 +826,6 @@ static int io_wq_fork_manager(struct io_wq *wq)
 		return 0;
 	}
 
-	io_wq_put(wq);
 	return ret;
 }
 
@@ -1078,7 +1077,6 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 	if (!ret)
 		return wq;
 
-	io_wq_put(wq);
 	io_wq_put_hash(data->hash);
 err:
 	cpuhp_state_remove_instance_nocalls(io_wq_online, &wq->cpuhp_node);
