@@ -6783,10 +6783,13 @@ static int io_sq_thread(void *data)
 
 	io_run_task_work();
 
+	if (io_sq_thread_should_park(sqd))
+		io_sq_thread_parkme(sqd);
+
 	/*
 	 * Clear thread under lock so that concurrent parks work correctly
 	 */
-	complete_all(&sqd->completion);
+	complete(&sqd->completion);
 	mutex_lock(&sqd->lock);
 	sqd->thread = NULL;
 	list_for_each_entry(ctx, &sqd->ctx_list, sqd_list) {
