@@ -920,6 +920,14 @@ static __always_inline int kvm_tdp_mmu_handle_hva_range(struct kvm *kvm,
 	return ret;
 }
 
+static __always_inline int kvm_tdp_mmu_handle_hva(struct kvm *kvm,
+						  unsigned long addr,
+						  unsigned long data,
+						  tdp_handler_t handler)
+{
+	return kvm_tdp_mmu_handle_hva_range(kvm, addr, addr + 1, data, handler);
+}
+
 static int zap_gfn_range_hva_wrapper(struct kvm *kvm,
 				     struct kvm_memory_slot *slot,
 				     struct kvm_mmu_page *root, gfn_t start,
@@ -1007,8 +1015,7 @@ static int test_age_gfn(struct kvm *kvm, struct kvm_memory_slot *slot,
 
 int kvm_tdp_mmu_test_age_hva(struct kvm *kvm, unsigned long hva)
 {
-	return kvm_tdp_mmu_handle_hva_range(kvm, hva, hva + 1, 0,
-					    test_age_gfn);
+	return kvm_tdp_mmu_handle_hva(kvm, hva, 0, test_age_gfn);
 }
 
 /*
@@ -1069,9 +1076,8 @@ static int set_tdp_spte(struct kvm *kvm, struct kvm_memory_slot *slot,
 int kvm_tdp_mmu_set_spte_hva(struct kvm *kvm, unsigned long address,
 			     pte_t *host_ptep)
 {
-	return kvm_tdp_mmu_handle_hva_range(kvm, address, address + 1,
-					    (unsigned long)host_ptep,
-					    set_tdp_spte);
+	return kvm_tdp_mmu_handle_hva(kvm, address, (unsigned long)host_ptep,
+				      set_tdp_spte);
 }
 
 /*
