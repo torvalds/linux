@@ -9,6 +9,7 @@
 #ifndef __ARCH_X86_KVM_XEN_H__
 #define __ARCH_X86_KVM_XEN_H__
 
+#ifdef CONFIG_KVM_XEN
 #include <linux/jump_label_ratelimit.h>
 
 extern struct static_key_false_deferred kvm_xen_enabled;
@@ -18,7 +19,6 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 int kvm_xen_vcpu_get_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data);
 int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data);
 int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data);
-int kvm_xen_hypercall(struct kvm_vcpu *vcpu);
 int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data);
 int kvm_xen_hvm_config(struct kvm *kvm, struct kvm_xen_hvm_config *xhc);
 void kvm_xen_destroy_vm(struct kvm *kvm);
@@ -38,6 +38,28 @@ static inline int kvm_xen_has_interrupt(struct kvm_vcpu *vcpu)
 
 	return 0;
 }
+#else
+static inline int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data)
+{
+	return 1;
+}
+
+static inline void kvm_xen_destroy_vm(struct kvm *kvm)
+{
+}
+
+static inline bool kvm_xen_hypercall_enabled(struct kvm *kvm)
+{
+	return false;
+}
+
+static inline int kvm_xen_has_interrupt(struct kvm_vcpu *vcpu)
+{
+	return 0;
+}
+#endif
+
+int kvm_xen_hypercall(struct kvm_vcpu *vcpu);
 
 /* 32-bit compatibility definitions, also used natively in 32-bit build */
 #include <asm/pvclock-abi.h>
