@@ -264,6 +264,7 @@ static int dp83811_config_intr(struct phy_device *phydev)
 
 static irqreturn_t dp83811_handle_interrupt(struct phy_device *phydev)
 {
+	bool trigger_machine = false;
 	int irq_status;
 
 	/* The INT_STAT registers 1, 2 and 3 are holding the interrupt status
@@ -279,7 +280,7 @@ static irqreturn_t dp83811_handle_interrupt(struct phy_device *phydev)
 		return IRQ_NONE;
 	}
 	if (irq_status & ((irq_status & GENMASK(7, 0)) << 8))
-		goto trigger_machine;
+		trigger_machine = true;
 
 	irq_status = phy_read(phydev, MII_DP83811_INT_STAT2);
 	if (irq_status < 0) {
@@ -287,7 +288,7 @@ static irqreturn_t dp83811_handle_interrupt(struct phy_device *phydev)
 		return IRQ_NONE;
 	}
 	if (irq_status & ((irq_status & GENMASK(7, 0)) << 8))
-		goto trigger_machine;
+		trigger_machine = true;
 
 	irq_status = phy_read(phydev, MII_DP83811_INT_STAT3);
 	if (irq_status < 0) {
@@ -295,11 +296,11 @@ static irqreturn_t dp83811_handle_interrupt(struct phy_device *phydev)
 		return IRQ_NONE;
 	}
 	if (irq_status & ((irq_status & GENMASK(7, 0)) << 8))
-		goto trigger_machine;
+		trigger_machine = true;
 
-	return IRQ_NONE;
+	if (!trigger_machine)
+		return IRQ_NONE;
 
-trigger_machine:
 	phy_trigger_machine(phydev);
 
 	return IRQ_HANDLED;
