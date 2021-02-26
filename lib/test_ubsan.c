@@ -11,51 +11,6 @@ typedef void(*test_ubsan_fp)(void);
 			#config, IS_ENABLED(config) ? "y" : "n");	\
 	} while (0)
 
-static void test_ubsan_add_overflow(void)
-{
-	volatile int val = INT_MAX;
-	volatile unsigned int uval = UINT_MAX;
-
-	UBSAN_TEST(CONFIG_UBSAN_SIGNED_OVERFLOW);
-	val += 2;
-
-	UBSAN_TEST(CONFIG_UBSAN_UNSIGNED_OVERFLOW);
-	uval += 2;
-}
-
-static void test_ubsan_sub_overflow(void)
-{
-	volatile int val = INT_MIN;
-	volatile unsigned int uval = 0;
-	volatile int val2 = 2;
-
-	UBSAN_TEST(CONFIG_UBSAN_SIGNED_OVERFLOW);
-	val -= val2;
-
-	UBSAN_TEST(CONFIG_UBSAN_UNSIGNED_OVERFLOW);
-	uval -= val2;
-}
-
-static void test_ubsan_mul_overflow(void)
-{
-	volatile int val = INT_MAX / 2;
-	volatile unsigned int uval = UINT_MAX / 2;
-
-	UBSAN_TEST(CONFIG_UBSAN_SIGNED_OVERFLOW);
-	val *= 3;
-
-	UBSAN_TEST(CONFIG_UBSAN_UNSIGNED_OVERFLOW);
-	uval *= 3;
-}
-
-static void test_ubsan_negate_overflow(void)
-{
-	volatile int val = INT_MIN;
-
-	UBSAN_TEST(CONFIG_UBSAN_SIGNED_OVERFLOW);
-	val = -val;
-}
-
 static void test_ubsan_divrem_overflow(void)
 {
 	volatile int val = 16;
@@ -155,10 +110,6 @@ static void test_ubsan_object_size_mismatch(void)
 }
 
 static const test_ubsan_fp test_ubsan_array[] = {
-	test_ubsan_add_overflow,
-	test_ubsan_sub_overflow,
-	test_ubsan_mul_overflow,
-	test_ubsan_negate_overflow,
 	test_ubsan_shift_out_of_bounds,
 	test_ubsan_out_of_bounds,
 	test_ubsan_load_invalid_value,

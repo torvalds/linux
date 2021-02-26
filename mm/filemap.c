@@ -1658,8 +1658,8 @@ pgoff_t page_cache_prev_miss(struct address_space *mapping,
 }
 EXPORT_SYMBOL(page_cache_prev_miss);
 
-/**
- * find_get_entry - find and get a page cache entry
+/*
+ * mapping_get_entry - Get a page cache entry.
  * @mapping: the address_space to search
  * @index: The page cache index.
  *
@@ -1671,7 +1671,8 @@ EXPORT_SYMBOL(page_cache_prev_miss);
  *
  * Return: The head page or shadow entry, %NULL if nothing is found.
  */
-struct page *find_get_entry(struct address_space *mapping, pgoff_t index)
+static struct page *mapping_get_entry(struct address_space *mapping,
+		pgoff_t index)
 {
 	XA_STATE(xas, &mapping->i_pages, index);
 	struct page *page;
@@ -1708,39 +1709,6 @@ out:
 }
 
 /**
- * find_lock_entry - Locate and lock a page cache entry.
- * @mapping: The address_space to search.
- * @index: The page cache index.
- *
- * Looks up the page at @mapping & @index.  If there is a page in the
- * cache, the head page is returned locked and with an increased refcount.
- *
- * If the slot holds a shadow entry of a previously evicted page, or a
- * swap entry from shmem/tmpfs, it is returned.
- *
- * Context: May sleep.
- * Return: The head page or shadow entry, %NULL if nothing is found.
- */
-struct page *find_lock_entry(struct address_space *mapping, pgoff_t index)
-{
-	struct page *page;
-
-repeat:
-	page = find_get_entry(mapping, index);
-	if (page && !xa_is_value(page)) {
-		lock_page(page);
-		/* Has the page been truncated? */
-		if (unlikely(page->mapping != mapping)) {
-			unlock_page(page);
-			put_page(page);
-			goto repeat;
-		}
-		VM_BUG_ON_PAGE(!thp_contains(page, index), page);
-	}
-	return page;
-}
-
-/**
  * pagecache_get_page - Find and get a reference to a page.
  * @mapping: The address_space to search.
  * @index: The page index.
@@ -1755,6 +1723,8 @@ repeat:
  * * %FGP_LOCK - The page is returned locked.
  * * %FGP_HEAD - If the page is present and a THP, return the head page
  *   rather than the exact page specified by the index.
+ * * %FGP_ENTRY - If there is a shadow / swap / DAX entry, return it
+ *   instead of allocating a new page to replace it.
  * * %FGP_CREAT - If no page is present then a new page is allocated using
  *   @gfp_mask and added to the page cache and the VM's LRU list.
  *   The page is returned locked and with an increased refcount.
@@ -1778,9 +1748,12 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t index,
 	struct page *page;
 
 repeat:
-	page = find_get_entry(mapping, index);
-	if (xa_is_value(page))
+	page = mapping_get_entry(mapping, index);
+	if (xa_is_value(page)) {
+		if (fgp_flags & FGP_ENTRY)
+			return page;
 		page = NULL;
+	}
 	if (!page)
 		goto no_page;
 
@@ -1852,18 +1825,53 @@ no_page:
 }
 EXPORT_SYMBOL(pagecache_get_page);
 
+static inline struct page *find_get_entry(struct xa_state *xas, pgoff_t max,
+		xa_mark_t mark)
+{
+	struct page *page;
+
+retry:
+	if (mark == XA_PRESENT)
+		page = xas_find(xas, max);
+	else
+		page = xas_find_marked(xas, max, mark);
+
+	if (xas_retry(xas, page))
+		goto retry;
+	/*
+	 * A shadow entry of a recently evicted page, a swap
+	 * entry from shmem/tmpfs or a DAX entry.  Return it
+	 * without attempting to raise page count.
+	 */
+	if (!page || xa_is_value(page))
+		return page;
+
+	if (!page_cache_get_speculative(page))
+		goto reset;
+
+	/* Has the page moved or been split? */
+	if (unlikely(page != xas_reload(xas))) {
+		put_page(page);
+		goto reset;
+	}
+
+	return page;
+reset:
+	xas_reset(xas);
+	goto retry;
+}
+
 /**
  * find_get_entries - gang pagecache lookup
  * @mapping:	The address_space to search
  * @start:	The starting page cache index
- * @nr_entries:	The maximum number of entries
- * @entries:	Where the resulting entries are placed
+ * @end:	The final page index (inclusive).
+ * @pvec:	Where the resulting entries are placed.
  * @indices:	The cache indices corresponding to the entries in @entries
  *
- * find_get_entries() will search for and return a group of up to
- * @nr_entries entries in the mapping.  The entries are placed at
- * @entries.  find_get_entries() takes a reference against any actual
- * pages it returns.
+ * find_get_entries() will search for and return a batch of entries in
+ * the mapping.  The entries are placed in @pvec.  find_get_entries()
+ * takes a reference on any actual pages it returns.
  *
  * The search returns a group of mapping-contiguous page cache entries
  * with ascending indexes.  There may be holes in the indices due to
@@ -1879,57 +1887,94 @@ EXPORT_SYMBOL(pagecache_get_page);
  *
  * Return: the number of pages and shadow entries which were found.
  */
-unsigned find_get_entries(struct address_space *mapping,
-			  pgoff_t start, unsigned int nr_entries,
-			  struct page **entries, pgoff_t *indices)
+unsigned find_get_entries(struct address_space *mapping, pgoff_t start,
+		pgoff_t end, struct pagevec *pvec, pgoff_t *indices)
 {
 	XA_STATE(xas, &mapping->i_pages, start);
 	struct page *page;
 	unsigned int ret = 0;
-
-	if (!nr_entries)
-		return 0;
+	unsigned nr_entries = PAGEVEC_SIZE;
 
 	rcu_read_lock();
-	xas_for_each(&xas, page, ULONG_MAX) {
-		if (xas_retry(&xas, page))
-			continue;
-		/*
-		 * A shadow entry of a recently evicted page, a swap
-		 * entry from shmem/tmpfs or a DAX entry.  Return it
-		 * without attempting to raise page count.
-		 */
-		if (xa_is_value(page))
-			goto export;
-
-		if (!page_cache_get_speculative(page))
-			goto retry;
-
-		/* Has the page moved or been split? */
-		if (unlikely(page != xas_reload(&xas)))
-			goto put_page;
-
+	while ((page = find_get_entry(&xas, end, XA_PRESENT))) {
 		/*
 		 * Terminate early on finding a THP, to allow the caller to
 		 * handle it all at once; but continue if this is hugetlbfs.
 		 */
-		if (PageTransHuge(page) && !PageHuge(page)) {
+		if (!xa_is_value(page) && PageTransHuge(page) &&
+				!PageHuge(page)) {
 			page = find_subpage(page, xas.xa_index);
 			nr_entries = ret + 1;
 		}
-export:
+
 		indices[ret] = xas.xa_index;
-		entries[ret] = page;
+		pvec->pages[ret] = page;
 		if (++ret == nr_entries)
 			break;
-		continue;
-put_page:
-		put_page(page);
-retry:
-		xas_reset(&xas);
 	}
 	rcu_read_unlock();
+
+	pvec->nr = ret;
 	return ret;
+}
+
+/**
+ * find_lock_entries - Find a batch of pagecache entries.
+ * @mapping:	The address_space to search.
+ * @start:	The starting page cache index.
+ * @end:	The final page index (inclusive).
+ * @pvec:	Where the resulting entries are placed.
+ * @indices:	The cache indices of the entries in @pvec.
+ *
+ * find_lock_entries() will return a batch of entries from @mapping.
+ * Swap, shadow and DAX entries are included.  Pages are returned
+ * locked and with an incremented refcount.  Pages which are locked by
+ * somebody else or under writeback are skipped.  Only the head page of
+ * a THP is returned.  Pages which are partially outside the range are
+ * not returned.
+ *
+ * The entries have ascending indexes.  The indices may not be consecutive
+ * due to not-present entries, THP pages, pages which could not be locked
+ * or pages under writeback.
+ *
+ * Return: The number of entries which were found.
+ */
+unsigned find_lock_entries(struct address_space *mapping, pgoff_t start,
+		pgoff_t end, struct pagevec *pvec, pgoff_t *indices)
+{
+	XA_STATE(xas, &mapping->i_pages, start);
+	struct page *page;
+
+	rcu_read_lock();
+	while ((page = find_get_entry(&xas, end, XA_PRESENT))) {
+		if (!xa_is_value(page)) {
+			if (page->index < start)
+				goto put;
+			VM_BUG_ON_PAGE(page->index != xas.xa_index, page);
+			if (page->index + thp_nr_pages(page) - 1 > end)
+				goto put;
+			if (!trylock_page(page))
+				goto put;
+			if (page->mapping != mapping || PageWriteback(page))
+				goto unlock;
+			VM_BUG_ON_PAGE(!thp_contains(page, xas.xa_index),
+					page);
+		}
+		indices[pvec->nr] = xas.xa_index;
+		if (!pagevec_add(pvec, page))
+			break;
+		goto next;
+unlock:
+		unlock_page(page);
+put:
+		put_page(page);
+next:
+		if (!xa_is_value(page) && PageTransHuge(page))
+			xas_set(&xas, page->index + thp_nr_pages(page));
+	}
+	rcu_read_unlock();
+
+	return pagevec_count(pvec);
 }
 
 /**
@@ -1965,30 +2010,16 @@ unsigned find_get_pages_range(struct address_space *mapping, pgoff_t *start,
 		return 0;
 
 	rcu_read_lock();
-	xas_for_each(&xas, page, end) {
-		if (xas_retry(&xas, page))
-			continue;
+	while ((page = find_get_entry(&xas, end, XA_PRESENT))) {
 		/* Skip over shadow, swap and DAX entries */
 		if (xa_is_value(page))
 			continue;
-
-		if (!page_cache_get_speculative(page))
-			goto retry;
-
-		/* Has the page moved or been split? */
-		if (unlikely(page != xas_reload(&xas)))
-			goto put_page;
 
 		pages[ret] = find_subpage(page, xas.xa_index);
 		if (++ret == nr_pages) {
 			*start = xas.xa_index + 1;
 			goto out;
 		}
-		continue;
-put_page:
-		put_page(page);
-retry:
-		xas_reset(&xas);
 	}
 
 	/*
@@ -2062,7 +2093,7 @@ retry:
 EXPORT_SYMBOL(find_get_pages_contig);
 
 /**
- * find_get_pages_range_tag - find and return pages in given range matching @tag
+ * find_get_pages_range_tag - Find and return head pages matching @tag.
  * @mapping:	the address_space to search
  * @index:	the starting page index
  * @end:	The final page index (inclusive)
@@ -2070,8 +2101,9 @@ EXPORT_SYMBOL(find_get_pages_contig);
  * @nr_pages:	the maximum number of pages
  * @pages:	where the resulting pages are placed
  *
- * Like find_get_pages, except we only return pages which are tagged with
- * @tag.   We update @index to index the next page for the traversal.
+ * Like find_get_pages(), except we only return head pages which are tagged
+ * with @tag.  @index is updated to the index immediately after the last
+ * page we return, ready for the next iteration.
  *
  * Return: the number of pages which were found.
  */
@@ -2087,9 +2119,7 @@ unsigned find_get_pages_range_tag(struct address_space *mapping, pgoff_t *index,
 		return 0;
 
 	rcu_read_lock();
-	xas_for_each_marked(&xas, page, end, tag) {
-		if (xas_retry(&xas, page))
-			continue;
+	while ((page = find_get_entry(&xas, end, tag))) {
 		/*
 		 * Shadow entries should never be tagged, but this iteration
 		 * is lockless so there is a window for page reclaim to evict
@@ -2098,23 +2128,11 @@ unsigned find_get_pages_range_tag(struct address_space *mapping, pgoff_t *index,
 		if (xa_is_value(page))
 			continue;
 
-		if (!page_cache_get_speculative(page))
-			goto retry;
-
-		/* Has the page moved or been split? */
-		if (unlikely(page != xas_reload(&xas)))
-			goto put_page;
-
-		pages[ret] = find_subpage(page, xas.xa_index);
+		pages[ret] = page;
 		if (++ret == nr_pages) {
-			*index = xas.xa_index + 1;
+			*index = page->index + thp_nr_pages(page);
 			goto out;
 		}
-		continue;
-put_page:
-		put_page(page);
-retry:
-		xas_reset(&xas);
 	}
 
 	/*
@@ -2591,6 +2609,109 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	return filemap_read(iocb, iter, retval);
 }
 EXPORT_SYMBOL(generic_file_read_iter);
+
+static inline loff_t page_seek_hole_data(struct xa_state *xas,
+		struct address_space *mapping, struct page *page,
+		loff_t start, loff_t end, bool seek_data)
+{
+	const struct address_space_operations *ops = mapping->a_ops;
+	size_t offset, bsz = i_blocksize(mapping->host);
+
+	if (xa_is_value(page) || PageUptodate(page))
+		return seek_data ? start : end;
+	if (!ops->is_partially_uptodate)
+		return seek_data ? end : start;
+
+	xas_pause(xas);
+	rcu_read_unlock();
+	lock_page(page);
+	if (unlikely(page->mapping != mapping))
+		goto unlock;
+
+	offset = offset_in_thp(page, start) & ~(bsz - 1);
+
+	do {
+		if (ops->is_partially_uptodate(page, offset, bsz) == seek_data)
+			break;
+		start = (start + bsz) & ~(bsz - 1);
+		offset += bsz;
+	} while (offset < thp_size(page));
+unlock:
+	unlock_page(page);
+	rcu_read_lock();
+	return start;
+}
+
+static inline
+unsigned int seek_page_size(struct xa_state *xas, struct page *page)
+{
+	if (xa_is_value(page))
+		return PAGE_SIZE << xa_get_order(xas->xa, xas->xa_index);
+	return thp_size(page);
+}
+
+/**
+ * mapping_seek_hole_data - Seek for SEEK_DATA / SEEK_HOLE in the page cache.
+ * @mapping: Address space to search.
+ * @start: First byte to consider.
+ * @end: Limit of search (exclusive).
+ * @whence: Either SEEK_HOLE or SEEK_DATA.
+ *
+ * If the page cache knows which blocks contain holes and which blocks
+ * contain data, your filesystem can use this function to implement
+ * SEEK_HOLE and SEEK_DATA.  This is useful for filesystems which are
+ * entirely memory-based such as tmpfs, and filesystems which support
+ * unwritten extents.
+ *
+ * Return: The requested offset on successs, or -ENXIO if @whence specifies
+ * SEEK_DATA and there is no data after @start.  There is an implicit hole
+ * after @end - 1, so SEEK_HOLE returns @end if all the bytes between @start
+ * and @end contain data.
+ */
+loff_t mapping_seek_hole_data(struct address_space *mapping, loff_t start,
+		loff_t end, int whence)
+{
+	XA_STATE(xas, &mapping->i_pages, start >> PAGE_SHIFT);
+	pgoff_t max = (end - 1) / PAGE_SIZE;
+	bool seek_data = (whence == SEEK_DATA);
+	struct page *page;
+
+	if (end <= start)
+		return -ENXIO;
+
+	rcu_read_lock();
+	while ((page = find_get_entry(&xas, max, XA_PRESENT))) {
+		loff_t pos = xas.xa_index * PAGE_SIZE;
+
+		if (start < pos) {
+			if (!seek_data)
+				goto unlock;
+			start = pos;
+		}
+
+		pos += seek_page_size(&xas, page);
+		start = page_seek_hole_data(&xas, mapping, page, start, pos,
+				seek_data);
+		if (start < pos)
+			goto unlock;
+		if (!xa_is_value(page))
+			put_page(page);
+	}
+	rcu_read_unlock();
+
+	if (seek_data)
+		return -ENXIO;
+	goto out;
+
+unlock:
+	rcu_read_unlock();
+	if (!xa_is_value(page))
+		put_page(page);
+out:
+	if (start > end)
+		return end;
+	return start;
+}
 
 #ifdef CONFIG_MMU
 #define MMAP_LOTSAMISS  (100)

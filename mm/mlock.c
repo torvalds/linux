@@ -622,7 +622,7 @@ static unsigned long count_mm_mlocked_page_nr(struct mm_struct *mm,
 
 	vma = find_vma(mm, start);
 	if (vma == NULL)
-		vma = mm->mmap;
+		return 0;
 
 	for (; vma ; vma = vma->vm_next) {
 		if (start >= vma->vm_end)
