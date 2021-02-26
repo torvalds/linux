@@ -1052,9 +1052,6 @@ ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
 	}
 
 	err = ovl_xattr_set(dentry, inode, handler->name, value, size, flags);
-	if (!err)
-		ovl_copyattr(ovl_inode_real(inode), inode);
-
 	return err;
 
 out_acl_release:
