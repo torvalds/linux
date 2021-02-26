@@ -732,7 +732,9 @@ struct skl_plane_wm {
 	struct skl_wm_level wm[8];
 	struct skl_wm_level uv_wm[8];
 	struct skl_wm_level trans_wm;
-	struct skl_wm_level sagv_wm0;
+	struct {
+		struct skl_wm_level wm0;
+	} sagv;
 	bool is_planar;
 };
 
