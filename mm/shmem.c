@@ -907,12 +907,8 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 
 	pagevec_init(&pvec);
 	index = start;
-	while (index < end) {
-		pvec.nr = find_get_entries(mapping, index,
-			min(end - index, (pgoff_t)PAGEVEC_SIZE),
-			pvec.pages, indices);
-		if (!pvec.nr)
-			break;
+	while (index < end && find_lock_entries(mapping, index, end - 1,
+			&pvec, indices)) {
 		for (i = 0; i < pagevec_count(&pvec); i++) {
 			struct page *page = pvec.pages[i];
 
@@ -927,18 +923,10 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 								index, page);
 				continue;
 			}
+			index += thp_nr_pages(page) - 1;
 
-			VM_BUG_ON_PAGE(page_to_pgoff(page) != index, page);
-
-			if (!trylock_page(page))
-				continue;
-
-			if ((!unfalloc || !PageUptodate(page)) &&
-			    page_mapping(page) == mapping) {
-				VM_BUG_ON_PAGE(PageWriteback(page), page);
-				if (shmem_punch_compound(page, start, end))
-					truncate_inode_page(mapping, page);
-			}
+			if (!unfalloc || !PageUptodate(page))
+				truncate_inode_page(mapping, page);
 			unlock_page(page);
 		}
 		pagevec_remove_exceptionals(&pvec);
