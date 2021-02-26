@@ -56,6 +56,7 @@ struct io_worker {
 	const struct cred *saved_creds;
 
 	struct completion ref_done;
+	struct completion started;
 
 	struct rcu_head rcu;
 };
@@ -267,6 +268,7 @@ static void io_worker_start(struct io_worker *worker)
 {
 	worker->flags |= (IO_WORKER_F_UP | IO_WORKER_F_RUNNING);
 	io_wqe_inc_running(worker);
+	complete(&worker->started);
 }
 
 /*
@@ -644,6 +646,7 @@ static bool create_io_worker(struct io_wq *wq, struct io_wqe *wqe, int index)
 	worker->wqe = wqe;
 	spin_lock_init(&worker->lock);
 	init_completion(&worker->ref_done);
+	init_completion(&worker->started);
 
 	refcount_inc(&wq->refs);
 
@@ -656,6 +659,7 @@ static bool create_io_worker(struct io_wq *wq, struct io_wqe *wqe, int index)
 		kfree(worker);
 		return false;
 	}
+	wait_for_completion(&worker->started);
 	return true;
 }
 
