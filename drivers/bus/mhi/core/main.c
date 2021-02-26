@@ -1014,12 +1014,8 @@ static int mhi_queue(struct mhi_device *mhi_dev, struct mhi_buf_info *buf_info,
 	if (mhi_chan->dir == DMA_TO_DEVICE)
 		atomic_inc(&mhi_cntrl->pending_pkts);
 
-	if (unlikely(!MHI_DB_ACCESS_VALID(mhi_cntrl))) {
-		ret = -EIO;
-		goto exit_unlock;
-	}
-
-	mhi_ring_chan_db(mhi_cntrl, mhi_chan);
+	if (likely(MHI_DB_ACCESS_VALID(mhi_cntrl)))
+		mhi_ring_chan_db(mhi_cntrl, mhi_chan);
 
 exit_unlock:
 	read_unlock_irqrestore(&mhi_cntrl->pm_lock, flags);
