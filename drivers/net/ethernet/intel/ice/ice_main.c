@@ -3515,15 +3515,14 @@ static int ice_init_interrupt_scheme(struct ice_pf *pf)
 }
 
 /**
- * ice_is_wol_supported - get NVM state of WoL
- * @pf: board private structure
+ * ice_is_wol_supported - check if WoL is supported
+ * @hw: pointer to hardware info
  *
  * Check if WoL is supported based on the HW configuration.
  * Returns true if NVM supports and enables WoL for this port, false otherwise
  */
-bool ice_is_wol_supported(struct ice_pf *pf)
+bool ice_is_wol_supported(struct ice_hw *hw)
 {
-	struct ice_hw *hw = &pf->hw;
 	u16 wol_ctrl;
 
 	/* A bit set to 1 in the NVM Software Reserved Word 2 (WoL control
@@ -3532,7 +3531,7 @@ bool ice_is_wol_supported(struct ice_pf *pf)
 	if (ice_read_sr_word(hw, ICE_SR_NVM_WOL_CFG, &wol_ctrl))
 		return false;
 
-	return !(BIT(hw->pf_id) & wol_ctrl);
+	return !(BIT(hw->port_info->lport) & wol_ctrl);
 }
 
 /**
