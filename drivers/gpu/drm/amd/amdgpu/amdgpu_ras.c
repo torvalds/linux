@@ -2189,19 +2189,3 @@ bool amdgpu_ras_need_emergency_restart(struct amdgpu_device *adev)
 
 	return false;
 }
-
-bool amdgpu_ras_check_err_threshold(struct amdgpu_device *adev)
-{
-	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	bool exc_err_limit = false;
-
-	if (con && (amdgpu_bad_page_threshold != 0))
-		amdgpu_ras_eeprom_check_err_threshold(&con->eeprom_control,
-						&exc_err_limit);
-
-	/*
-	 * We are only interested in variable exc_err_limit,
-	 * as it says if GPU is in bad state or not.
-	 */
-	return exc_err_limit;
-}

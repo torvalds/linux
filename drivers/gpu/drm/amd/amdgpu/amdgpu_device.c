@@ -4399,7 +4399,7 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 				 * bad_page_threshold value to fix this once
 				 * probing driver again.
 				 */
-				if (!amdgpu_ras_check_err_threshold(tmp_adev)) {
+				if (!amdgpu_ras_eeprom_check_err_threshold(tmp_adev)) {
 					/* must succeed. */
 					amdgpu_ras_resume(tmp_adev);
 				} else {

@@ -491,8 +491,6 @@ void amdgpu_ras_suspend(struct amdgpu_device *adev);
 unsigned long amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 		bool is_ce);
 
-bool amdgpu_ras_check_err_threshold(struct amdgpu_device *adev);
-
 /* error handling functions */
 int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 		struct eeprom_table_record *bps, int pages);
