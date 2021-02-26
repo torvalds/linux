@@ -118,7 +118,7 @@ struct io_wq {
 	struct io_wq_hash *hash;
 
 	refcount_t refs;
-	struct completion done;
+	struct completion started;
 
 	atomic_t worker_refs;
 	struct completion worker_done;
@@ -750,7 +750,7 @@ static int io_wq_manager(void *data)
 	current->flags |= PF_IO_WORKER;
 	wq->manager = current;
 
-	complete(&wq->done);
+	complete(&wq->started);
 
 	do {
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -820,7 +820,7 @@ static int io_wq_fork_manager(struct io_wq *wq)
 	ret = io_wq_fork_thread(io_wq_manager, wq);
 	current->flags &= ~PF_IO_WORKER;
 	if (ret >= 0) {
-		wait_for_completion(&wq->done);
+		wait_for_completion(&wq->started);
 		return 0;
 	}
 
@@ -1065,7 +1065,7 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 	}
 
 	wq->task_pid = current->pid;
-	init_completion(&wq->done);
+	init_completion(&wq->started);
 	refcount_set(&wq->refs, 1);
 
 	init_completion(&wq->worker_done);
