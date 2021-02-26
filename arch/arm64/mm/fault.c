@@ -390,7 +390,7 @@ static void __do_kernel_fault(unsigned long addr, unsigned int esr,
 	} else if (addr < PAGE_SIZE) {
 		msg = "NULL pointer dereference";
 	} else {
-		if (kfence_handle_page_fault(addr))
+		if (kfence_handle_page_fault(addr, regs))
 			return;
 
 		msg = "paging request";
