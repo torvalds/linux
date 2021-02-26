@@ -3921,12 +3921,10 @@ static bool tgl_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 		return true;
 
 	for_each_plane_id_on_crtc(crtc, plane_id) {
-		const struct skl_ddb_entry *plane_alloc =
-			&crtc_state->wm.skl.plane_ddb_y[plane_id];
 		const struct skl_plane_wm *wm =
 			&crtc_state->wm.skl.optimal.planes[plane_id];
 
-		if (skl_ddb_entry_size(plane_alloc) < wm->sagv_wm0.min_ddb_alloc)
+		if (wm->wm[0].plane_en && !wm->sagv_wm0.plane_en)
 			return false;
 	}
 
@@ -4957,8 +4955,8 @@ skl_allocate_plane_ddb(struct intel_atomic_state *state,
 	}
 
 	/*
-	 * Go back and disable the transition watermark if it turns out we
-	 * don't have enough DDB blocks for it.
+	 * Go back and disable the transition and SAGV watermarks
+	 * if it turns out we don't have enough DDB blocks for them.
 	 */
 	for_each_plane_id_on_crtc(crtc, plane_id) {
 		struct skl_plane_wm *wm =
@@ -4966,6 +4964,9 @@ skl_allocate_plane_ddb(struct intel_atomic_state *state,
 
 		if (wm->trans_wm.plane_res_b >= total[plane_id])
 			memset(&wm->trans_wm, 0, sizeof(wm->trans_wm));
+
+		if (wm->sagv_wm0.plane_res_b >= total[plane_id])
+			memset(&wm->sagv_wm0, 0, sizeof(wm->sagv_wm0));
 	}
 
 	return 0;
