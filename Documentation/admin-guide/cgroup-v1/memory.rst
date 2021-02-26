@@ -851,6 +851,9 @@ At reading, current status of OOM is shown.
 	  (if 1, oom-killer is disabled)
 	- under_oom	   0 or 1
 	  (if 1, the memory cgroup is under OOM, tasks may be stopped.)
+        - oom_kill         integer counter
+          The number of processes belonging to this cgroup killed by any
+          kind of OOM killer.
 
 11. Memory Pressure
 ===================
