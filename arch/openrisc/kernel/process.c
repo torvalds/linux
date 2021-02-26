@@ -34,6 +34,7 @@
 #include <linux/init_task.h>
 #include <linux/mqueue.h>
 #include <linux/fs.h>
+#include <linux/reboot.h>
 
 #include <linux/uaccess.h>
 #include <asm/io.h>
@@ -49,10 +50,16 @@
  */
 struct thread_info *current_thread_info_set[NR_CPUS] = { &init_thread_info, };
 
-void machine_restart(void)
+void machine_restart(char *cmd)
 {
-	printk(KERN_INFO "*** MACHINE RESTART ***\n");
-	__asm__("l.nop 1");
+	do_kernel_restart(cmd);
+
+	/* Give a grace period for failure to restart of 1s */
+	mdelay(1000);
+
+	/* Whoops - the platform was unable to reboot. Tell the user! */
+	pr_emerg("Reboot failed -- System halted\n");
+	while (1);
 }
 
 /*
