@@ -4835,7 +4835,7 @@ static void __atomisp_init_stream_info(u16 stream_index,
 }
 
 /* This function looks up the closest available resolution. */
-int atomisp_try_fmt(struct video_device *vdev, struct v4l2_format *f,
+int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f,
 		    bool *res_overflow)
 {
 	struct atomisp_device *isp = video_get_drvdata(vdev);
@@ -4857,18 +4857,18 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_format *f,
 		return -EINVAL;
 
 	stream_index = atomisp_source_pad_to_stream_id(asd, source_pad);
-	fmt = atomisp_get_format_bridge(f->fmt.pix.pixelformat);
+	fmt = atomisp_get_format_bridge(f->pixelformat);
 	if (!fmt) {
 		dev_err(isp->dev, "unsupported pixelformat!\n");
 		fmt = atomisp_output_fmts;
 	}
 
-	if (f->fmt.pix.width <= 0 || f->fmt.pix.height <= 0)
+	if (f->width <= 0 || f->height <= 0)
 		return -EINVAL;
 
 	snr_mbus_fmt->code = fmt->mbus_code;
-	snr_mbus_fmt->width = f->fmt.pix.width;
-	snr_mbus_fmt->height = f->fmt.pix.height;
+	snr_mbus_fmt->width = f->width;
+	snr_mbus_fmt->height = f->height;
 
 	__atomisp_init_stream_info(stream_index, stream_info);
 
@@ -4890,7 +4890,7 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_format *f,
 		return -EINVAL;
 	}
 
-	f->fmt.pix.pixelformat = fmt->pixelformat;
+	f->pixelformat = fmt->pixelformat;
 
 	/*
 	 * If the format is jpeg or custom RAW, then the width and height will
@@ -4898,17 +4898,17 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_format *f,
 	 * the below conditions. So just assign to what is being returned from
 	 * the sensor driver.
 	 */
-	if (f->fmt.pix.pixelformat == V4L2_PIX_FMT_JPEG ||
-	    f->fmt.pix.pixelformat == V4L2_PIX_FMT_CUSTOM_M10MO_RAW) {
-		f->fmt.pix.width = snr_mbus_fmt->width;
-		f->fmt.pix.height = snr_mbus_fmt->height;
+	if (f->pixelformat == V4L2_PIX_FMT_JPEG ||
+	    f->pixelformat == V4L2_PIX_FMT_CUSTOM_M10MO_RAW) {
+		f->width = snr_mbus_fmt->width;
+		f->height = snr_mbus_fmt->height;
 		return 0;
 	}
 
-	if (snr_mbus_fmt->width < f->fmt.pix.width
-	    && snr_mbus_fmt->height < f->fmt.pix.height) {
-		f->fmt.pix.width = snr_mbus_fmt->width;
-		f->fmt.pix.height = snr_mbus_fmt->height;
+	if (snr_mbus_fmt->width < f->width
+	    && snr_mbus_fmt->height < f->height) {
+		f->width = snr_mbus_fmt->width;
+		f->height = snr_mbus_fmt->height;
 		/* Set the flag when resolution requested is
 		 * beyond the max value supported by sensor
 		 */
@@ -4917,12 +4917,10 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_format *f,
 	}
 
 	/* app vs isp */
-	f->fmt.pix.width = rounddown(
-			       clamp_t(u32, f->fmt.pix.width, ATOM_ISP_MIN_WIDTH,
-				       ATOM_ISP_MAX_WIDTH), ATOM_ISP_STEP_WIDTH);
-	f->fmt.pix.height = rounddown(
-				clamp_t(u32, f->fmt.pix.height, ATOM_ISP_MIN_HEIGHT,
-					ATOM_ISP_MAX_HEIGHT), ATOM_ISP_STEP_HEIGHT);
+	f->width = rounddown(clamp_t(u32, f->width, ATOM_ISP_MIN_WIDTH,
+				     ATOM_ISP_MAX_WIDTH), ATOM_ISP_STEP_WIDTH);
+	f->height = rounddown(clamp_t(u32, f->height, ATOM_ISP_MIN_HEIGHT,
+				      ATOM_ISP_MAX_HEIGHT), ATOM_ISP_STEP_HEIGHT);
 
 	return 0;
 }
@@ -5461,7 +5459,7 @@ static void atomisp_get_dis_envelop(struct atomisp_sub_device *asd,
 }
 
 static void atomisp_check_copy_mode(struct atomisp_sub_device *asd,
-				    int source_pad, struct v4l2_format *f)
+				    int source_pad, struct v4l2_pix_format *f)
 {
 #if defined(ISP2401_NEW_INPUT_SYSTEM)
 	struct v4l2_mbus_framefmt *sink, *src;
@@ -5472,8 +5470,8 @@ static void atomisp_check_copy_mode(struct atomisp_sub_device *asd,
 				      V4L2_SUBDEV_FORMAT_ACTIVE, source_pad);
 
 	if ((sink->code == src->code &&
-	     sink->width == f->fmt.pix.width &&
-	     sink->height == f->fmt.pix.height) ||
+	     sink->width == f->width &&
+	     sink->height == f->height) ||
 	    ((asd->isp->inputs[asd->input_curr].type == SOC_CAMERA) &&
 	     (asd->isp->inputs[asd->input_curr].camera_caps->
 	      sensor[asd->sensor_curr].stream_num > 1)))
@@ -5487,7 +5485,7 @@ static void atomisp_check_copy_mode(struct atomisp_sub_device *asd,
 }
 
 static int atomisp_set_fmt_to_snr(struct video_device *vdev,
-				  struct v4l2_format *f, unsigned int pixelformat,
+				  struct v4l2_pix_format *f, unsigned int pixelformat,
 				  unsigned int padding_w, unsigned int padding_h,
 				  unsigned int dvs_env_w, unsigned int dvs_env_h)
 {
@@ -5515,7 +5513,7 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev,
 	if (!format)
 		return -EINVAL;
 
-	v4l2_fill_mbus_format(ffmt, &f->fmt.pix, format->mbus_code);
+	v4l2_fill_mbus_format(ffmt, f, format->mbus_code);
 	ffmt->height += padding_h + dvs_env_h;
 	ffmt->width += padding_w + dvs_env_w;
 
@@ -5585,8 +5583,8 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	const struct atomisp_format_bridge *format_bridge;
 	const struct atomisp_format_bridge *snr_format_bridge;
 	struct ia_css_frame_info output_info, raw_output_info;
-	struct v4l2_format snr_fmt = *f;
-	struct v4l2_format backup_fmt = *f, s_fmt = *f;
+	struct v4l2_pix_format snr_fmt = f->fmt.pix;
+	struct v4l2_pix_format backup_fmt = snr_fmt, s_fmt;
 	unsigned int dvs_env_w = 0, dvs_env_h = 0;
 	unsigned int padding_w = pad_w, padding_h = pad_h;
 	bool res_overflow = false, crop_needs_override = false;
@@ -5760,11 +5758,10 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 		dev_warn(isp->dev, "Try format failed with error %d\n", ret);
 		return ret;
 	}
-	f->fmt.pix.width = snr_fmt.fmt.pix.width;
-	f->fmt.pix.height = snr_fmt.fmt.pix.height;
+	f->fmt.pix.width = snr_fmt.width;
+	f->fmt.pix.height = snr_fmt.height;
 
-	snr_format_bridge =
-	    atomisp_get_format_bridge(snr_fmt.fmt.pix.pixelformat);
+	snr_format_bridge = atomisp_get_format_bridge(snr_fmt.pixelformat);
 	if (!snr_format_bridge) {
 		dev_warn(isp->dev, "Can't find bridge format\n");
 		return -EINVAL;
@@ -5845,11 +5842,11 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 		 * and height while set_mbus_fmt() so actual resolutions are
 		 * being used in while set media bus format.
 		 */
-		s_fmt = *f;
+		s_fmt = f->fmt.pix;
 		if (f->fmt.pix.pixelformat == V4L2_PIX_FMT_JPEG ||
 		    f->fmt.pix.pixelformat == V4L2_PIX_FMT_CUSTOM_M10MO_RAW) {
-			s_fmt.fmt.pix.width = backup_fmt.fmt.pix.width;
-			s_fmt.fmt.pix.height = backup_fmt.fmt.pix.height;
+			s_fmt.width = backup_fmt.width;
+			s_fmt.height = backup_fmt.height;
 		}
 		ret = atomisp_set_fmt_to_snr(vdev, &s_fmt,
 					     f->fmt.pix.pixelformat, padding_w,

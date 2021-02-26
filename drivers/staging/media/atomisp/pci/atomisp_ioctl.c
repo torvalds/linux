@@ -843,7 +843,7 @@ static int atomisp_try_fmt_cap(struct file *file, void *fh,
 	int ret;
 
 	rt_mutex_lock(&isp->mutex);
-	ret = atomisp_try_fmt(vdev, f, NULL);
+	ret = atomisp_try_fmt(vdev, &f->fmt.pix, NULL);
 	rt_mutex_unlock(&isp->mutex);
 	return ret;
 }
