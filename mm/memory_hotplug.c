@@ -301,6 +301,22 @@ static int check_hotplug_memory_addressable(unsigned long pfn,
 }
 
 /*
+ * Return page for the valid pfn only if the page is online. All pfn
+ * walkers which rely on the fully initialized page->flags and others
+ * should use this rather than pfn_valid && pfn_to_page
+ */
+struct page *pfn_to_online_page(unsigned long pfn)
+{
+	unsigned long nr = pfn_to_section_nr(pfn);
+
+	if (nr < NR_MEM_SECTIONS && online_section_nr(nr) &&
+	    pfn_valid_within(pfn))
+		return pfn_to_page(pfn);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(pfn_to_online_page);
+
+/*
  * Reasonably generic function for adding memory.  It is
  * expected that archs that support memory hotplug will
  * call this function after deciding the zone to which to
