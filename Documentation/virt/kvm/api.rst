@@ -6181,7 +6181,7 @@ the bus lock vm exit can be preempted by a higher priority VM exit, the exit
 notifications to userspace can be KVM_EXIT_BUS_LOCK or other reasons.
 KVM_RUN_BUS_LOCK flag is used to distinguish between them.
 
-7.22 KVM_CAP_PPC_DAWR1
+7.23 KVM_CAP_PPC_DAWR1
 ----------------------
 
 :Architectures: ppc
