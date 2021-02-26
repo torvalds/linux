@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # bcmdhd
 
-MODULE_NAME := bcmdhd_wifi6
+MODULE_NAME := bcmdhd
 CONFIG_BCMDHD_SDIO := y
 #CONFIG_BCMDHD_PCIE := y
 #CONFIG_BCMDHD_USB := y
