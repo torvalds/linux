@@ -119,6 +119,7 @@ struct io_wq {
 
 	refcount_t refs;
 	struct completion started;
+	struct completion exited;
 
 	atomic_t worker_refs;
 	struct completion worker_done;
@@ -771,6 +772,7 @@ static int io_wq_manager(void *data)
 	if (atomic_read(&wq->worker_refs))
 		wait_for_completion(&wq->worker_done);
 	wq->manager = NULL;
+	complete(&wq->exited);
 	io_wq_put(wq);
 	do_exit(0);
 }
@@ -1066,6 +1068,7 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 
 	wq->task_pid = current->pid;
 	init_completion(&wq->started);
+	init_completion(&wq->exited);
 	refcount_set(&wq->refs, 1);
 
 	init_completion(&wq->worker_done);
@@ -1095,8 +1098,10 @@ static void io_wq_destroy(struct io_wq *wq)
 	cpuhp_state_remove_instance_nocalls(io_wq_online, &wq->cpuhp_node);
 
 	set_bit(IO_WQ_BIT_EXIT, &wq->state);
-	if (wq->manager)
+	if (wq->manager) {
 		wake_up_process(wq->manager);
+		wait_for_completion(&wq->exited);
+	}
 
 	spin_lock_irq(&wq->hash->wait.lock);
 	for_each_node(node) {
