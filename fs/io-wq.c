@@ -673,6 +673,8 @@ static inline bool io_wqe_need_worker(struct io_wqe *wqe, int index)
 {
 	struct io_wqe_acct *acct = &wqe->acct[index];
 
+	if (acct->nr_workers && test_bit(IO_WQ_BIT_EXIT, &wqe->wq->state))
+		return false;
 	/* if we have available workers or no work, no need */
 	if (!hlist_nulls_empty(&wqe->free_list) || !io_wqe_run_queue(wqe))
 		return false;
