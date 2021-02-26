@@ -2632,7 +2632,7 @@ static int fwserial_parse_mgmt_write(struct fwtty_peer *peer,
 
 	rcode = RCODE_COMPLETE;
 
-	fwtty_dbg(&peer->unit, "mgmt: hdr.code: %04hx\n", pkt->hdr.code);
+	fwtty_dbg(&peer->unit, "mgmt: hdr.code: %04x\n", pkt->hdr.code);
 
 	switch (be16_to_cpu(pkt->hdr.code) & FWSC_CODE_MASK) {
 	case FWSC_VIRT_CABLE_PLUG:
