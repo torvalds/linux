@@ -703,14 +703,11 @@ static int pipeconf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	if (data & PIPECONF_ENABLE) {
 		vgpu_vreg(vgpu, offset) |= I965_PIPECONF_ACTIVE;
 		vgpu_update_refresh_rate(vgpu);
-
+		vgpu_update_vblank_emulation(vgpu, true);
 	} else {
 		vgpu_vreg(vgpu, offset) &= ~I965_PIPECONF_ACTIVE;
+		vgpu_update_vblank_emulation(vgpu, false);
 	}
-	/* vgpu_lock already hold by emulate mmio r/w */
-	mutex_unlock(&vgpu->vgpu_lock);
-	intel_gvt_check_vblank_emulation(vgpu->gvt);
-	mutex_lock(&vgpu->vgpu_lock);
 	return 0;
 }
 

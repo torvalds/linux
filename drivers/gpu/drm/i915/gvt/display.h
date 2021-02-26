@@ -36,6 +36,7 @@
 #define _GVT_DISPLAY_H_
 
 #include <linux/types.h>
+#include <linux/hrtimer.h>
 
 struct intel_gvt;
 struct intel_vgpu;
@@ -169,6 +170,12 @@ struct intel_vgpu_port {
 	u32 vrefresh_k;
 };
 
+struct intel_vgpu_vblank_timer {
+	struct hrtimer timer;
+	u32 vrefresh_k;
+	u64 period;
+};
+
 static inline char *vgpu_edid_str(enum intel_vgpu_edid id)
 {
 	switch (id) {
@@ -205,8 +212,8 @@ static inline unsigned int vgpu_edid_yres(enum intel_vgpu_edid id)
 	}
 }
 
-void intel_gvt_emulate_vblank(struct intel_gvt *gvt);
-void intel_gvt_check_vblank_emulation(struct intel_gvt *gvt);
+void intel_vgpu_emulate_vblank(struct intel_vgpu *vgpu);
+void vgpu_update_vblank_emulation(struct intel_vgpu *vgpu, bool turnon);
 
 int intel_vgpu_init_display(struct intel_vgpu *vgpu, u64 resolution);
 void intel_vgpu_reset_display(struct intel_vgpu *vgpu);
