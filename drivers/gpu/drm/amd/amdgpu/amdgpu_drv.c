@@ -163,7 +163,7 @@ int amdgpu_discovery = -1;
 int amdgpu_mes;
 int amdgpu_noretry = -1;
 int amdgpu_force_asic_type = -1;
-int amdgpu_tmz;
+int amdgpu_tmz = -1; /* auto */
 uint amdgpu_freesync_vid_mode;
 int amdgpu_reset_method = -1; /* auto */
 int amdgpu_num_kcq = -1;
@@ -790,7 +790,7 @@ module_param_named(abmlevel, amdgpu_dm_abm_level, uint, 0444);
  *
  * The default value: 0 (off).  TODO: change to auto till it is completed.
  */
-MODULE_PARM_DESC(tmz, "Enable TMZ feature (-1 = auto, 0 = off (default), 1 = on)");
+MODULE_PARM_DESC(tmz, "Enable TMZ feature (-1 = auto (default), 0 = off, 1 = on)");
 module_param_named(tmz, amdgpu_tmz, int, 0444);
 
 /**
