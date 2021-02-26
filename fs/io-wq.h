@@ -114,6 +114,7 @@ struct io_wq_data {
 
 struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data);
 void io_wq_put(struct io_wq *wq);
+void io_wq_put_and_exit(struct io_wq *wq);
 
 void io_wq_enqueue(struct io_wq *wq, struct io_wq_work *work);
 void io_wq_hash_work(struct io_wq_work *work, void *val);

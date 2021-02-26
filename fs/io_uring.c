@@ -8857,7 +8857,7 @@ void __io_uring_files_cancel(struct files_struct *files)
 	if (files) {
 		io_uring_remove_task_files(tctx);
 		if (tctx->io_wq) {
-			io_wq_put(tctx->io_wq);
+			io_wq_put_and_exit(tctx->io_wq);
 			tctx->io_wq = NULL;
 		}
 	}
