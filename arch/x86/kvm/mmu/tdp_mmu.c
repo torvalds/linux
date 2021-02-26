@@ -1020,7 +1020,7 @@ int kvm_tdp_mmu_test_age_hva(struct kvm *kvm, unsigned long hva)
  * Returns non-zero if a flush is needed before releasing the MMU lock.
  */
 static int set_tdp_spte(struct kvm *kvm, struct kvm_memory_slot *slot,
-			struct kvm_mmu_page *root, gfn_t gfn, gfn_t unused,
+			struct kvm_mmu_page *root, gfn_t gfn, gfn_t end,
 			unsigned long data)
 {
 	struct tdp_iter iter;
@@ -1031,7 +1031,7 @@ static int set_tdp_spte(struct kvm *kvm, struct kvm_memory_slot *slot,
 
 	rcu_read_lock();
 
-	WARN_ON(pte_huge(*ptep));
+	WARN_ON(pte_huge(*ptep) || (gfn + 1) != end);
 
 	new_pfn = pte_pfn(*ptep);
 
