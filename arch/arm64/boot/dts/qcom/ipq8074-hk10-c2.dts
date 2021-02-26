@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/dts-v1/;
+/* Copyright (c) 2020 The Linux Foundation. All rights reserved.
+ */
+#include "ipq8074-hk10.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. IPQ8074/AP-HK10-C2";
+	compatible = "qcom,ipq8074-hk10-c2", "qcom,ipq8074";
+};
