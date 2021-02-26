@@ -304,6 +304,10 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 			fw_info->ver = adev->psp.ta_fw_version;
 			fw_info->feature = adev->psp.ta_dtm_ucode_version;
 			break;
+		case 4:
+			fw_info->ver = adev->psp.ta_fw_version;
+			fw_info->feature = adev->psp.ta_rap_ucode_version;
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -1466,6 +1470,10 @@ static int amdgpu_debugfs_firmware_info_show(struct seq_file *m, void *unused)
 		case 3:
 			seq_printf(m, "TA %s feature version: 0x%08x, firmware version: 0x%08x\n",
 					"DTM", fw_info.feature, fw_info.ver);
+			break;
+		case 4:
+			seq_printf(m, "TA %s feature version: 0x%08x, firmware version: 0x%08x\n",
+					"RAP", fw_info.feature, fw_info.ver);
 			break;
 		default:
 			return -EINVAL;
