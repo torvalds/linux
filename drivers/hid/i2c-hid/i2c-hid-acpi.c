@@ -25,6 +25,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pm.h>
+#include <linux/uuid.h>
 
 #include "i2c-hid.h"
 
@@ -42,11 +43,13 @@ static const struct acpi_device_id i2c_hid_acpi_blacklist[] = {
 	{ },
 };
 
+/* HID I²C Device: 3cdff6f7-4267-4555-ad05-b30a3d8938de */
+static guid_t i2c_hid_guid =
+	GUID_INIT(0x3CDFF6F7, 0x4267, 0x4555,
+		  0xAD, 0x05, 0xB3, 0x0A, 0x3D, 0x89, 0x38, 0xDE);
+
 static int i2c_hid_acpi_get_descriptor(struct acpi_device *adev)
 {
-	static guid_t i2c_hid_guid =
-		GUID_INIT(0x3CDFF6F7, 0x4267, 0x4555,
-			  0xAD, 0x05, 0xB3, 0x0A, 0x3D, 0x89, 0x38, 0xDE);
 	acpi_handle handle = acpi_device_handle(adev);
 	union acpi_object *obj;
 	u16 hid_descriptor_address;
