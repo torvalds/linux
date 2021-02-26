@@ -20,8 +20,7 @@ enum epd_lut_type {
 	WF_TYPE_GLR16	= 9,
 	WF_TYPE_GLD16	= 10,
 	WF_TYPE_GCC16	= 11,
-	WF_TYPE_GRAY32	= 12,
-	WF_TYPE_MAX	= 13,
+	WF_TYPE_MAX	= 12,
 };
 
 enum pvi_wf_mode {
