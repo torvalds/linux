@@ -488,8 +488,10 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 
 	for_each_child_of_node(port, ep) {
 		ret = fimc_md_parse_one_endpoint(fmd, ep);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(ep);
 			return ret;
+		}
 	}
 
 	return 0;
