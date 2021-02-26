@@ -89,6 +89,8 @@
 	KVM_ARCH_REQ_FLAGS(27, KVM_REQUEST_NO_WAKEUP)
 #define KVM_REQ_APF_READY		KVM_ARCH_REQ(28)
 #define KVM_REQ_MSR_FILTER_CHANGED	KVM_ARCH_REQ(29)
+#define KVM_REQ_UPDATE_CPU_DIRTY_LOGGING \
+	KVM_ARCH_REQ_FLAGS(30, KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
 
 #define CR0_RESERVED_BITS                                               \
 	(~(unsigned long)(X86_CR0_PE | X86_CR0_MP | X86_CR0_EM | X86_CR0_TS \
@@ -1007,6 +1009,7 @@ struct kvm_arch {
 	u32 bsp_vcpu_id;
 
 	u64 disabled_quirks;
+	int cpu_dirty_logging_count;
 
 	enum kvm_irqchip_mode irqchip_mode;
 	u8 nr_reserved_ioapic_pins;
@@ -1271,30 +1274,11 @@ struct kvm_x86_ops {
 	void (*sched_in)(struct kvm_vcpu *kvm, int cpu);
 
 	/*
-	 * Arch-specific dirty logging hooks. These hooks are only supposed to
-	 * be valid if the specific arch has hardware-accelerated dirty logging
-	 * mechanism. Currently only for PML on VMX.
-	 *
-	 *  - slot_enable_log_dirty:
-	 *	called when enabling log dirty mode for the slot.
-	 *  - slot_disable_log_dirty:
-	 *	called when disabling log dirty mode for the slot.
-	 *	also called when slot is created with log dirty disabled.
-	 *  - flush_log_dirty:
-	 *	called before reporting dirty_bitmap to userspace.
-	 *  - enable_log_dirty_pt_masked:
-	 *	called when reenabling log dirty for the GFNs in the mask after
-	 *	corresponding bits are cleared in slot->dirty_bitmap.
+	 * Size of the CPU's dirty log buffer, i.e. VMX's PML buffer.  A zero
+	 * value indicates CPU dirty logging is unsupported or disabled.
 	 */
-	void (*slot_enable_log_dirty)(struct kvm *kvm,
-				      struct kvm_memory_slot *slot);
-	void (*slot_disable_log_dirty)(struct kvm *kvm,
-				       struct kvm_memory_slot *slot);
-	void (*flush_log_dirty)(struct kvm *kvm);
-	void (*enable_log_dirty_pt_masked)(struct kvm *kvm,
-					   struct kvm_memory_slot *slot,
-					   gfn_t offset, unsigned long mask);
-	int (*cpu_dirty_log_size)(void);
+	int cpu_dirty_log_size;
+	void (*update_cpu_dirty_logging)(struct kvm_vcpu *vcpu);
 
 	/* pmu operations of sub-arch */
 	const struct kvm_pmu_ops *pmu_ops;
@@ -1437,11 +1421,6 @@ void kvm_mmu_slot_leaf_clear_dirty(struct kvm *kvm,
 				   struct kvm_memory_slot *memslot);
 void kvm_mmu_slot_largepage_remove_write_access(struct kvm *kvm,
 					struct kvm_memory_slot *memslot);
-void kvm_mmu_slot_set_dirty(struct kvm *kvm,
-			    struct kvm_memory_slot *memslot);
-void kvm_mmu_clear_dirty_pt_masked(struct kvm *kvm,
-				   struct kvm_memory_slot *slot,
-				   gfn_t gfn_offset, unsigned long mask);
 void kvm_mmu_zap_all(struct kvm *kvm);
 void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm, u64 gen);
 unsigned long kvm_mmu_calculate_default_mmu_pages(struct kvm *kvm);
@@ -1613,7 +1592,6 @@ void kvm_inject_nmi(struct kvm_vcpu *vcpu);
 void kvm_update_dr7(struct kvm_vcpu *vcpu);
 
 int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn);
-int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva);
 void __kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu);
 int kvm_mmu_load(struct kvm_vcpu *vcpu);
 void kvm_mmu_unload(struct kvm_vcpu *vcpu);
