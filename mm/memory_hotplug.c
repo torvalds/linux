@@ -107,6 +107,9 @@ static struct resource *register_memory_resource(u64 start, u64 size,
 	if (strcmp(resource_name, "System RAM"))
 		flags |= IORESOURCE_SYSRAM_DRIVER_MANAGED;
 
+	if (!mhp_range_allowed(start, size, true))
+		return ERR_PTR(-E2BIG);
+
 	/*
 	 * Make sure value parsed from 'mem=' only restricts memory adding
 	 * while booting, so that memory hotplug won't be impacted. Please
@@ -284,22 +287,6 @@ static int check_pfn_span(unsigned long pfn, unsigned long nr_pages,
 	return 0;
 }
 
-static int check_hotplug_memory_addressable(unsigned long pfn,
-					    unsigned long nr_pages)
-{
-	const u64 max_addr = PFN_PHYS(pfn + nr_pages) - 1;
-
-	if (max_addr >> MAX_PHYSMEM_BITS) {
-		const u64 max_allowed = (1ull << (MAX_PHYSMEM_BITS + 1)) - 1;
-		WARN(1,
-		     "Hotplugged memory exceeds maximum addressable address, range=%#llx-%#llx, maximum=%#llx\n",
-		     (u64)PFN_PHYS(pfn), max_addr, max_allowed);
-		return -E2BIG;
-	}
-
-	return 0;
-}
-
 /*
  * Return page for the valid pfn only if the page is online. All pfn
  * walkers which rely on the fully initialized page->flags and others
@@ -365,9 +352,7 @@ int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
 	if (WARN_ON_ONCE(!params->pgprot.pgprot))
 		return -EINVAL;
 
-	err = check_hotplug_memory_addressable(pfn, nr_pages);
-	if (err)
-		return err;
+	VM_BUG_ON(!mhp_range_allowed(PFN_PHYS(pfn), nr_pages * PAGE_SIZE, false));
 
 	if (altmap) {
 		/*
@@ -1247,6 +1232,61 @@ out_unlock:
 	return rc;
 }
 EXPORT_SYMBOL_GPL(add_memory_driver_managed);
+
+/*
+ * Platforms should define arch_get_mappable_range() that provides
+ * maximum possible addressable physical memory range for which the
+ * linear mapping could be created. The platform returned address
+ * range must adhere to these following semantics.
+ *
+ * - range.start <= range.end
+ * - Range includes both end points [range.start..range.end]
+ *
+ * There is also a fallback definition provided here, allowing the
+ * entire possible physical address range in case any platform does
+ * not define arch_get_mappable_range().
+ */
+struct range __weak arch_get_mappable_range(void)
+{
+	struct range mhp_range = {
+		.start = 0UL,
+		.end = -1ULL,
+	};
+	return mhp_range;
+}
+
+struct range mhp_get_pluggable_range(bool need_mapping)
+{
+	const u64 max_phys = (1ULL << MAX_PHYSMEM_BITS) - 1;
+	struct range mhp_range;
+
+	if (need_mapping) {
+		mhp_range = arch_get_mappable_range();
+		if (mhp_range.start > max_phys) {
+			mhp_range.start = 0;
+			mhp_range.end = 0;
+		}
+		mhp_range.end = min_t(u64, mhp_range.end, max_phys);
+	} else {
+		mhp_range.start = 0;
+		mhp_range.end = max_phys;
+	}
+	return mhp_range;
+}
+EXPORT_SYMBOL_GPL(mhp_get_pluggable_range);
+
+bool mhp_range_allowed(u64 start, u64 size, bool need_mapping)
+{
+	struct range mhp_range = mhp_get_pluggable_range(need_mapping);
+	u64 end = start + size;
+
+	if (start < end && start >= mhp_range.start && (end - 1) <= mhp_range.end)
+		return true;
+
+	pr_warn("Hotplug memory [%#llx-%#llx] exceeds maximum addressable range [%#llx-%#llx]\n",
+		start, end, mhp_range.start, mhp_range.end);
+	return false;
+}
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
 /*

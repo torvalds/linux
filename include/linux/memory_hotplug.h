@@ -66,6 +66,9 @@ struct mhp_params {
 	pgprot_t pgprot;
 };
 
+bool mhp_range_allowed(u64 start, u64 size, bool need_mapping);
+struct range mhp_get_pluggable_range(bool need_mapping);
+
 /*
  * Zone resizing functions
  *
@@ -265,6 +268,13 @@ static inline bool movable_node_is_enabled(void)
 	return false;
 }
 #endif /* ! CONFIG_MEMORY_HOTPLUG */
+
+/*
+ * Keep this declaration outside CONFIG_MEMORY_HOTPLUG as some
+ * platforms might override and use arch_get_mappable_range()
+ * for internal non memory hotplug purposes.
+ */
+struct range arch_get_mappable_range(void);
 
 #if defined(CONFIG_MEMORY_HOTPLUG) || defined(CONFIG_DEFERRED_STRUCT_PAGE_INIT)
 /*
