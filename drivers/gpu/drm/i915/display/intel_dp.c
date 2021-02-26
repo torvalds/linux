@@ -3356,6 +3356,9 @@ static void intel_dp_process_phy_request(struct intel_dp *intel_dp,
 
 	intel_dp_autotest_phy_ddi_enable(intel_dp, crtc_state);
 
+	drm_dp_dpcd_write(&intel_dp->aux, DP_TRAINING_LANE0_SET,
+			  intel_dp->train_set, crtc_state->lane_count);
+
 	drm_dp_set_phy_test_pattern(&intel_dp->aux, data,
 				    link_status[DP_DPCD_REV]);
 }
