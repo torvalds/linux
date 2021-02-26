@@ -9390,41 +9390,40 @@ static void verify_wm_state(struct intel_crtc *crtc,
 
 	/* planes */
 	for_each_universal_plane(dev_priv, pipe, plane) {
-		struct skl_plane_wm *hw_plane_wm, *sw_plane_wm;
-
-		hw_plane_wm = &hw->wm.planes[plane];
-		sw_plane_wm = &sw_wm->planes[plane];
+		const struct skl_wm_level *hw_wm_level, *sw_wm_level;
 
 		/* Watermarks */
 		for (level = 0; level <= max_level; level++) {
-			if (skl_wm_level_equals(&hw_plane_wm->wm[level],
-						&sw_plane_wm->wm[level]) ||
-			    (level == 0 && skl_wm_level_equals(&hw_plane_wm->wm[level],
-							       &sw_plane_wm->sagv.wm0)))
+			hw_wm_level = &hw->wm.planes[plane].wm[level];
+			sw_wm_level = skl_plane_wm_level(sw_wm, plane, level);
+
+			if (skl_wm_level_equals(hw_wm_level, sw_wm_level))
 				continue;
 
 			drm_err(&dev_priv->drm,
 				"mismatch in WM pipe %c plane %d level %d (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
 				pipe_name(pipe), plane + 1, level,
-				sw_plane_wm->wm[level].plane_en,
-				sw_plane_wm->wm[level].plane_res_b,
-				sw_plane_wm->wm[level].plane_res_l,
-				hw_plane_wm->wm[level].plane_en,
-				hw_plane_wm->wm[level].plane_res_b,
-				hw_plane_wm->wm[level].plane_res_l);
+				sw_wm_level->plane_en,
+				sw_wm_level->plane_res_b,
+				sw_wm_level->plane_res_l,
+				hw_wm_level->plane_en,
+				hw_wm_level->plane_res_b,
+				hw_wm_level->plane_res_l);
 		}
 
-		if (!skl_wm_level_equals(&hw_plane_wm->trans_wm,
-					 &sw_plane_wm->trans_wm)) {
+		hw_wm_level = &hw->wm.planes[plane].trans_wm;
+		sw_wm_level = skl_plane_trans_wm(sw_wm, plane);
+
+		if (!skl_wm_level_equals(hw_wm_level, sw_wm_level)) {
 			drm_err(&dev_priv->drm,
 				"mismatch in trans WM pipe %c plane %d (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
 				pipe_name(pipe), plane + 1,
-				sw_plane_wm->trans_wm.plane_en,
-				sw_plane_wm->trans_wm.plane_res_b,
-				sw_plane_wm->trans_wm.plane_res_l,
-				hw_plane_wm->trans_wm.plane_en,
-				hw_plane_wm->trans_wm.plane_res_b,
-				hw_plane_wm->trans_wm.plane_res_l);
+				sw_wm_level->plane_en,
+				sw_wm_level->plane_res_b,
+				sw_wm_level->plane_res_l,
+				hw_wm_level->plane_en,
+				hw_wm_level->plane_res_b,
+				hw_wm_level->plane_res_l);
 		}
 
 		/* DDB */
@@ -9447,43 +9446,36 @@ static void verify_wm_state(struct intel_crtc *crtc,
 	 * once the plane becomes visible, we can skip this check
 	 */
 	if (1) {
-		struct skl_plane_wm *hw_plane_wm, *sw_plane_wm;
-
-		hw_plane_wm = &hw->wm.planes[PLANE_CURSOR];
-		sw_plane_wm = &sw_wm->planes[PLANE_CURSOR];
+		const struct skl_wm_level *hw_wm_level, *sw_wm_level;
 
 		/* Watermarks */
 		for (level = 0; level <= max_level; level++) {
-			if (skl_wm_level_equals(&hw_plane_wm->wm[level],
-						&sw_plane_wm->wm[level]) ||
-			    (level == 0 && skl_wm_level_equals(&hw_plane_wm->wm[level],
-							       &sw_plane_wm->sagv.wm0)))
-				continue;
-
+			hw_wm_level = &hw->wm.planes[PLANE_CURSOR].wm[level];
+			sw_wm_level = skl_plane_wm_level(sw_wm, PLANE_CURSOR, level);
 			drm_err(&dev_priv->drm,
 				"mismatch in WM pipe %c cursor level %d (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
 				pipe_name(pipe), level,
-				sw_plane_wm->wm[level].plane_en,
-				sw_plane_wm->wm[level].plane_res_b,
-				sw_plane_wm->wm[level].plane_res_l,
-				hw_plane_wm->wm[level].plane_en,
-				hw_plane_wm->wm[level].plane_res_b,
-				hw_plane_wm->wm[level].plane_res_l);
+				sw_wm_level->plane_en,
+				sw_wm_level->plane_res_b,
+				sw_wm_level->plane_res_l,
+				hw_wm_level->plane_en,
+				hw_wm_level->plane_res_b,
+				hw_wm_level->plane_res_l);
 		}
 
-		if (!skl_wm_level_equals(&hw_plane_wm->trans_wm,
-					 &sw_plane_wm->trans_wm) &&
-		    !skl_wm_level_equals(&hw_plane_wm->trans_wm,
-					 &sw_plane_wm->sagv.trans_wm)) {
+		hw_wm_level = &hw->wm.planes[PLANE_CURSOR].trans_wm;
+		sw_wm_level = skl_plane_trans_wm(sw_wm, PLANE_CURSOR);
+
+		if (!skl_wm_level_equals(hw_wm_level, sw_wm_level)) {
 			drm_err(&dev_priv->drm,
 				"mismatch in trans WM pipe %c cursor (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
 				pipe_name(pipe),
-				sw_plane_wm->trans_wm.plane_en,
-				sw_plane_wm->trans_wm.plane_res_b,
-				sw_plane_wm->trans_wm.plane_res_l,
-				hw_plane_wm->trans_wm.plane_en,
-				hw_plane_wm->trans_wm.plane_res_b,
-				hw_plane_wm->trans_wm.plane_res_l);
+				sw_wm_level->plane_en,
+				sw_wm_level->plane_res_b,
+				sw_wm_level->plane_res_l,
+				hw_wm_level->plane_en,
+				hw_wm_level->plane_res_b,
+				hw_wm_level->plane_res_l);
 		}
 
 		/* DDB */
