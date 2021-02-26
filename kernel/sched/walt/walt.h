@@ -49,14 +49,6 @@ enum migrate_types {
 	RQ_TO_GROUP,
 };
 
-enum task_boost_type {
-	TASK_BOOST_NONE = 0,
-	TASK_BOOST_ON_MID,
-	TASK_BOOST_ON_MAX,
-	TASK_BOOST_STRICT_MAX,
-	TASK_BOOST_END,
-};
-
 #define WALT_LOW_LATENCY_PROCFS	BIT(0)
 #define WALT_LOW_LATENCY_BINDER	BIT(1)
 

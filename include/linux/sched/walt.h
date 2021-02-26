@@ -22,6 +22,14 @@ struct core_ctl_notif_data {
 	unsigned int cur_cap_pct[MAX_CLUSTERS];
 };
 
+enum task_boost_type {
+	TASK_BOOST_NONE = 0,
+	TASK_BOOST_ON_MID,
+	TASK_BOOST_ON_MAX,
+	TASK_BOOST_STRICT_MAX,
+	TASK_BOOST_END,
+};
+
 #define WALT_NR_CPUS 8
 #define RAVG_HIST_SIZE_MAX 5
 #define NUM_BUSY_BUCKETS 10
