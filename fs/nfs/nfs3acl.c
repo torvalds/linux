@@ -111,6 +111,7 @@ struct posix_acl *nfs3_get_acl(struct inode *inode, int type)
 			fallthrough;
 		case -ENOTSUPP:
 			status = -EOPNOTSUPP;
+			goto getout;
 		default:
 			goto getout;
 	}
