@@ -317,7 +317,7 @@ void trace_event_printf(struct trace_iterator *iter, const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	trace_seq_vprintf(&iter->seq, trace_event_format(iter, fmt), ap);
+	trace_check_vprintf(iter, trace_event_format(iter, fmt), ap);
 	va_end(ap);
 }
 EXPORT_SYMBOL(trace_event_printf);
