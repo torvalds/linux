@@ -393,6 +393,12 @@ annotate.*::
 
 		This option works with tui, stdio2 browsers.
 
+	annotate.demangle::
+		Demangle symbol names to human readable form. Default is 'true'.
+
+	annotate.demangle_kernel::
+		Demangle kernel symbol names to human readable form. Default is 'true'.
+
 hist.*::
 	hist.percentage::
 		This option control the way to calculate overhead of filtered entries -

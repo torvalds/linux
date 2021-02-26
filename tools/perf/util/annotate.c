@@ -3144,6 +3144,10 @@ static int annotation__config(const char *var, const char *value, void *data)
 		opt->use_offset = perf_config_bool("use_offset", value);
 	} else if (!strcmp(var, "annotate.disassembler_style")) {
 		opt->disassembler_style = value;
+	} else if (!strcmp(var, "annotate.demangle")) {
+		symbol_conf.demangle = perf_config_bool("demangle", value);
+	} else if (!strcmp(var, "annotate.demangle_kernel")) {
+		symbol_conf.demangle_kernel = perf_config_bool("demangle_kernel", value);
 	} else {
 		pr_debug("%s variable unknown, ignoring...", var);
 	}
