@@ -353,11 +353,6 @@ enum phy_fia {
 	for_each_cpu_transcoder(__dev_priv, __t) \
 		for_each_if ((__mask) & BIT(__t))
 
-#define for_each_universal_plane(__dev_priv, __pipe, __p)		\
-	for ((__p) = 0;							\
-	     (__p) < RUNTIME_INFO(__dev_priv)->num_sprites[(__pipe)] + 1;	\
-	     (__p)++)
-
 #define for_each_sprite(__dev_priv, __p, __s)				\
 	for ((__s) = 0;							\
 	     (__s) < RUNTIME_INFO(__dev_priv)->num_sprites[(__p)];	\

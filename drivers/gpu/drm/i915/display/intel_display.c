@@ -9361,11 +9361,10 @@ static void verify_wm_state(struct intel_crtc *crtc,
 		struct skl_ddb_entry ddb_uv[I915_MAX_PLANES];
 		struct skl_pipe_wm wm;
 	} *hw;
-	struct skl_pipe_wm *sw_wm;
-	struct skl_ddb_entry *hw_ddb_entry, *sw_ddb_entry;
+	const struct skl_pipe_wm *sw_wm = &new_crtc_state->wm.skl.optimal;
+	int level, max_level = ilk_wm_max_level(dev_priv);
+	struct intel_plane *plane;
 	u8 hw_enabled_slices;
-	const enum pipe pipe = crtc->pipe;
-	int plane, level, max_level = ilk_wm_max_level(dev_priv);
 
 	if (INTEL_GEN(dev_priv) < 9 || !new_crtc_state->hw.active)
 		return;
@@ -9375,7 +9374,6 @@ static void verify_wm_state(struct intel_crtc *crtc,
 		return;
 
 	skl_pipe_wm_get_hw_state(crtc, &hw->wm);
-	sw_wm = &new_crtc_state->wm.skl.optimal;
 
 	skl_pipe_ddb_get_hw_state(crtc, hw->ddb_y, hw->ddb_uv);
 
@@ -9388,21 +9386,21 @@ static void verify_wm_state(struct intel_crtc *crtc,
 			dev_priv->dbuf.enabled_slices,
 			hw_enabled_slices);
 
-	/* planes */
-	for_each_universal_plane(dev_priv, pipe, plane) {
+	for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane) {
+		const struct skl_ddb_entry *hw_ddb_entry, *sw_ddb_entry;
 		const struct skl_wm_level *hw_wm_level, *sw_wm_level;
 
 		/* Watermarks */
 		for (level = 0; level <= max_level; level++) {
-			hw_wm_level = &hw->wm.planes[plane].wm[level];
-			sw_wm_level = skl_plane_wm_level(sw_wm, plane, level);
+			hw_wm_level = &hw->wm.planes[plane->id].wm[level];
+			sw_wm_level = skl_plane_wm_level(sw_wm, plane->id, level);
 
 			if (skl_wm_level_equals(hw_wm_level, sw_wm_level))
 				continue;
 
 			drm_err(&dev_priv->drm,
-				"mismatch in WM pipe %c plane %d level %d (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
-				pipe_name(pipe), plane + 1, level,
+				"[PLANE:%d:%s] mismatch in WM%d (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
+				plane->base.base.id, plane->base.name, level,
 				sw_wm_level->plane_en,
 				sw_wm_level->plane_res_b,
 				sw_wm_level->plane_res_l,
@@ -9411,13 +9409,13 @@ static void verify_wm_state(struct intel_crtc *crtc,
 				hw_wm_level->plane_res_l);
 		}
 
-		hw_wm_level = &hw->wm.planes[plane].trans_wm;
-		sw_wm_level = skl_plane_trans_wm(sw_wm, plane);
+		hw_wm_level = &hw->wm.planes[plane->id].trans_wm;
+		sw_wm_level = skl_plane_trans_wm(sw_wm, plane->id);
 
 		if (!skl_wm_level_equals(hw_wm_level, sw_wm_level)) {
 			drm_err(&dev_priv->drm,
-				"mismatch in trans WM pipe %c plane %d (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
-				pipe_name(pipe), plane + 1,
+				"[PLANE:%d:%s] mismatch in trans WM (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
+				plane->base.base.id, plane->base.name,
 				sw_wm_level->plane_en,
 				sw_wm_level->plane_res_b,
 				sw_wm_level->plane_res_l,
@@ -9427,65 +9425,13 @@ static void verify_wm_state(struct intel_crtc *crtc,
 		}
 
 		/* DDB */
-		hw_ddb_entry = &hw->ddb_y[plane];
-		sw_ddb_entry = &new_crtc_state->wm.skl.plane_ddb_y[plane];
+		hw_ddb_entry = &hw->ddb_y[plane->id];
+		sw_ddb_entry = &new_crtc_state->wm.skl.plane_ddb_y[plane->id];
 
 		if (!skl_ddb_entry_equal(hw_ddb_entry, sw_ddb_entry)) {
 			drm_err(&dev_priv->drm,
-				"mismatch in DDB state pipe %c plane %d (expected (%u,%u), found (%u,%u))\n",
-				pipe_name(pipe), plane + 1,
-				sw_ddb_entry->start, sw_ddb_entry->end,
-				hw_ddb_entry->start, hw_ddb_entry->end);
-		}
-	}
-
-	/*
-	 * cursor
-	 * If the cursor plane isn't active, we may not have updated it's ddb
-	 * allocation. In that case since the ddb allocation will be updated
-	 * once the plane becomes visible, we can skip this check
-	 */
-	if (1) {
-		const struct skl_wm_level *hw_wm_level, *sw_wm_level;
-
-		/* Watermarks */
-		for (level = 0; level <= max_level; level++) {
-			hw_wm_level = &hw->wm.planes[PLANE_CURSOR].wm[level];
-			sw_wm_level = skl_plane_wm_level(sw_wm, PLANE_CURSOR, level);
-			drm_err(&dev_priv->drm,
-				"mismatch in WM pipe %c cursor level %d (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
-				pipe_name(pipe), level,
-				sw_wm_level->plane_en,
-				sw_wm_level->plane_res_b,
-				sw_wm_level->plane_res_l,
-				hw_wm_level->plane_en,
-				hw_wm_level->plane_res_b,
-				hw_wm_level->plane_res_l);
-		}
-
-		hw_wm_level = &hw->wm.planes[PLANE_CURSOR].trans_wm;
-		sw_wm_level = skl_plane_trans_wm(sw_wm, PLANE_CURSOR);
-
-		if (!skl_wm_level_equals(hw_wm_level, sw_wm_level)) {
-			drm_err(&dev_priv->drm,
-				"mismatch in trans WM pipe %c cursor (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
-				pipe_name(pipe),
-				sw_wm_level->plane_en,
-				sw_wm_level->plane_res_b,
-				sw_wm_level->plane_res_l,
-				hw_wm_level->plane_en,
-				hw_wm_level->plane_res_b,
-				hw_wm_level->plane_res_l);
-		}
-
-		/* DDB */
-		hw_ddb_entry = &hw->ddb_y[PLANE_CURSOR];
-		sw_ddb_entry = &new_crtc_state->wm.skl.plane_ddb_y[PLANE_CURSOR];
-
-		if (!skl_ddb_entry_equal(hw_ddb_entry, sw_ddb_entry)) {
-			drm_err(&dev_priv->drm,
-				"mismatch in DDB state pipe %c cursor (expected (%u,%u), found (%u,%u))\n",
-				pipe_name(pipe),
+				"[PLANE:%d:%s] mismatch in DDB (expected (%u,%u), found (%u,%u))\n",
+				plane->base.base.id, plane->base.name,
 				sw_ddb_entry->start, sw_ddb_entry->end,
 				hw_ddb_entry->start, hw_ddb_entry->end);
 		}
