@@ -5647,7 +5647,8 @@ static bool skl_plane_wm_equals(struct drm_i915_private *dev_priv,
 			return false;
 	}
 
-	return skl_wm_level_equals(&wm1->trans_wm, &wm2->trans_wm);
+	return skl_wm_level_equals(&wm1->trans_wm, &wm2->trans_wm) &&
+		skl_wm_level_equals(&wm1->sagv_wm0, &wm2->sagv_wm0);
 }
 
 static bool skl_ddb_entries_overlap(const struct skl_ddb_entry *a,
