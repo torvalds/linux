@@ -63,7 +63,7 @@ void __kasan_unpoison_range(const void *address, size_t size)
 	kasan_unpoison(address, size);
 }
 
-#ifdef CONFIG_KASAN_STACK
+#if CONFIG_KASAN_STACK
 /* Unpoison the entire stack for a task. */
 void kasan_unpoison_task_stack(struct task_struct *task)
 {
