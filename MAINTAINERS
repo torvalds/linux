@@ -2982,7 +2982,7 @@ F:	include/uapi/linux/audit.h
 F:	kernel/audit*
 
 AUXILIARY DISPLAY DRIVERS
-M:	Miguel Ojeda Sandonis <miguel.ojeda.sandonis@gmail.com>
+M:	Miguel Ojeda <ojeda@kernel.org>
 S:	Maintained
 F:	drivers/auxdisplay/
 F:	include/linux/cfag12864b.h
@@ -4128,13 +4128,13 @@ F:	scripts/extract-cert.c
 F:	scripts/sign-file.c
 
 CFAG12864B LCD DRIVER
-M:	Miguel Ojeda Sandonis <miguel.ojeda.sandonis@gmail.com>
+M:	Miguel Ojeda <ojeda@kernel.org>
 S:	Maintained
 F:	drivers/auxdisplay/cfag12864b.c
 F:	include/linux/cfag12864b.h
 
 CFAG12864BFB LCD FRAMEBUFFER DRIVER
-M:	Miguel Ojeda Sandonis <miguel.ojeda.sandonis@gmail.com>
+M:	Miguel Ojeda <ojeda@kernel.org>
 S:	Maintained
 F:	drivers/auxdisplay/cfag12864bfb.c
 F:	include/linux/cfag12864b.h
@@ -4304,7 +4304,7 @@ S:	Supported
 F:	drivers/infiniband/hw/usnic/
 
 CLANG-FORMAT FILE
-M:	Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>
+M:	Miguel Ojeda <ojeda@kernel.org>
 S:	Maintained
 F:	.clang-format
 
@@ -4444,7 +4444,7 @@ S:	Maintained
 F:	drivers/platform/x86/compal-laptop.c
 
 COMPILER ATTRIBUTES
-M:	Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>
+M:	Miguel Ojeda <ojeda@kernel.org>
 S:	Maintained
 F:	include/linux/compiler_attributes.h
 
@@ -9939,7 +9939,7 @@ F:	include/linux/kprobes.h
 F:	kernel/kprobes.c
 
 KS0108 LCD CONTROLLER DRIVER
-M:	Miguel Ojeda Sandonis <miguel.ojeda.sandonis@gmail.com>
+M:	Miguel Ojeda <ojeda@kernel.org>
 S:	Maintained
 F:	Documentation/admin-guide/auxdisplay/ks0108.rst
 F:	drivers/auxdisplay/ks0108.c
