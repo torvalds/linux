@@ -995,12 +995,12 @@ int kvm_tdp_mmu_age_hva_range(struct kvm *kvm, unsigned long start,
 }
 
 static int test_age_gfn(struct kvm *kvm, struct kvm_memory_slot *slot,
-			struct kvm_mmu_page *root, gfn_t gfn, gfn_t unused,
-			unsigned long unused2)
+			struct kvm_mmu_page *root, gfn_t gfn, gfn_t end,
+			unsigned long unused)
 {
 	struct tdp_iter iter;
 
-	tdp_root_for_each_leaf_pte(iter, root, gfn, gfn + 1)
+	tdp_root_for_each_leaf_pte(iter, root, gfn, end)
 		if (is_accessed_spte(iter.old_spte))
 			return 1;
 
