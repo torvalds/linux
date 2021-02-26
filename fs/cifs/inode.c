@@ -2199,12 +2199,23 @@ cifs_inode_needs_reval(struct inode *inode)
 	if (!lookupCacheEnabled)
 		return true;
 
-	if (!cifs_sb->ctx->actimeo)
-		return true;
-
-	if (!time_in_range(jiffies, cifs_i->time,
-				cifs_i->time + cifs_sb->ctx->actimeo))
-		return true;
+	/*
+	 * depending on inode type, check if attribute caching disabled for
+	 * files or directories
+	 */
+	if (S_ISDIR(inode->i_mode)) {
+		if (!cifs_sb->ctx->acdirmax)
+			return true;
+		if (!time_in_range(jiffies, cifs_i->time,
+				   cifs_i->time + cifs_sb->ctx->acdirmax))
+			return true;
+	} else { /* file */
+		if (!cifs_sb->ctx->acregmax)
+			return true;
+		if (!time_in_range(jiffies, cifs_i->time,
+				   cifs_i->time + cifs_sb->ctx->acregmax))
+			return true;
+	}
 
 	/* hardlinked files w/ noserverino get "special" treatment */
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) &&
