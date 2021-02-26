@@ -30,7 +30,7 @@
 
 struct i2c_hid_acpi {
 	struct i2chid_ops ops;
-	struct i2c_client *client;
+	struct acpi_device *adev;
 };
 
 static const struct acpi_device_id i2c_hid_acpi_blacklist[] = {
@@ -42,21 +42,14 @@ static const struct acpi_device_id i2c_hid_acpi_blacklist[] = {
 	{ },
 };
 
-static int i2c_hid_acpi_get_descriptor(struct i2c_client *client)
+static int i2c_hid_acpi_get_descriptor(struct acpi_device *adev)
 {
 	static guid_t i2c_hid_guid =
 		GUID_INIT(0x3CDFF6F7, 0x4267, 0x4555,
 			  0xAD, 0x05, 0xB3, 0x0A, 0x3D, 0x89, 0x38, 0xDE);
+	acpi_handle handle = acpi_device_handle(adev);
 	union acpi_object *obj;
-	struct acpi_device *adev;
-	acpi_handle handle;
 	u16 hid_descriptor_address;
-
-	handle = ACPI_HANDLE(&client->dev);
-	if (!handle || acpi_bus_get_device(handle, &adev)) {
-		dev_err(&client->dev, "Error could not get ACPI device\n");
-		return -ENODEV;
-	}
 
 	if (acpi_match_device_ids(adev, i2c_hid_acpi_blacklist) == 0)
 		return -ENODEV;
@@ -64,7 +57,7 @@ static int i2c_hid_acpi_get_descriptor(struct i2c_client *client)
 	obj = acpi_evaluate_dsm_typed(handle, &i2c_hid_guid, 1, 1, NULL,
 				      ACPI_TYPE_INTEGER);
 	if (!obj) {
-		dev_err(&client->dev, "Error _DSM call to get HID descriptor address failed\n");
+		acpi_handle_err(handle, "Error _DSM call to get HID descriptor address failed\n");
 		return -ENODEV;
 	}
 
@@ -76,10 +69,9 @@ static int i2c_hid_acpi_get_descriptor(struct i2c_client *client)
 
 static void i2c_hid_acpi_shutdown_tail(struct i2chid_ops *ops)
 {
-	struct i2c_hid_acpi *ihid_acpi =
-		container_of(ops, struct i2c_hid_acpi, ops);
-	struct device *dev = &ihid_acpi->client->dev;
-	acpi_device_set_power(ACPI_COMPANION(dev), ACPI_STATE_D3_COLD);
+	struct i2c_hid_acpi *ihid_acpi = container_of(ops, struct i2c_hid_acpi, ops);
+
+	acpi_device_set_power(ihid_acpi->adev, ACPI_STATE_D3_COLD);
 }
 
 static int i2c_hid_acpi_probe(struct i2c_client *client,
@@ -91,21 +83,25 @@ static int i2c_hid_acpi_probe(struct i2c_client *client,
 	u16 hid_descriptor_address;
 	int ret;
 
+	adev = ACPI_COMPANION(dev);
+	if (!adev) {
+		dev_err(&client->dev, "Error could not get ACPI device\n");
+		return -ENODEV;
+	}
+
 	ihid_acpi = devm_kzalloc(&client->dev, sizeof(*ihid_acpi), GFP_KERNEL);
 	if (!ihid_acpi)
 		return -ENOMEM;
 
-	ihid_acpi->client = client;
+	ihid_acpi->adev = adev;
 	ihid_acpi->ops.shutdown_tail = i2c_hid_acpi_shutdown_tail;
 
-	ret = i2c_hid_acpi_get_descriptor(client);
+	ret = i2c_hid_acpi_get_descriptor(adev);
 	if (ret < 0)
 		return ret;
 	hid_descriptor_address = ret;
 
-	adev = ACPI_COMPANION(dev);
-	if (adev)
-		acpi_device_fix_up_power(adev);
+	acpi_device_fix_up_power(adev);
 
 	if (acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0) {
 		device_set_wakeup_capable(dev, true);
