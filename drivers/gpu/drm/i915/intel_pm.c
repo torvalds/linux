@@ -4748,11 +4748,10 @@ icl_get_total_relative_data_rate(struct intel_atomic_state *state,
 }
 
 static const struct skl_wm_level *
-skl_plane_wm_level(const struct intel_crtc_state *crtc_state,
+skl_plane_wm_level(const struct skl_pipe_wm *pipe_wm,
 		   enum plane_id plane_id,
 		   int level)
 {
-	const struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
 	const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
 
 	if (level == 0 && pipe_wm->use_sagv_wm)
@@ -5572,21 +5571,17 @@ void skl_write_plane_wm(struct intel_plane *plane,
 	int level, max_level = ilk_wm_max_level(dev_priv);
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
-	const struct skl_plane_wm *wm =
-		&crtc_state->wm.skl.optimal.planes[plane_id];
+	const struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
+	const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
 	const struct skl_ddb_entry *ddb_y =
 		&crtc_state->wm.skl.plane_ddb_y[plane_id];
 	const struct skl_ddb_entry *ddb_uv =
 		&crtc_state->wm.skl.plane_ddb_uv[plane_id];
 
-	for (level = 0; level <= max_level; level++) {
-		const struct skl_wm_level *wm_level;
-
-		wm_level = skl_plane_wm_level(crtc_state, plane_id, level);
-
+	for (level = 0; level <= max_level; level++)
 		skl_write_wm_level(dev_priv, PLANE_WM(pipe, plane_id, level),
-				   wm_level);
-	}
+				   skl_plane_wm_level(pipe_wm, plane_id, level));
+
 	skl_write_wm_level(dev_priv, PLANE_WM_TRANS(pipe, plane_id),
 			   &wm->trans_wm);
 
@@ -5612,19 +5607,15 @@ void skl_write_cursor_wm(struct intel_plane *plane,
 	int level, max_level = ilk_wm_max_level(dev_priv);
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
-	const struct skl_plane_wm *wm =
-		&crtc_state->wm.skl.optimal.planes[plane_id];
+	const struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
+	const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
 	const struct skl_ddb_entry *ddb =
 		&crtc_state->wm.skl.plane_ddb_y[plane_id];
 
-	for (level = 0; level <= max_level; level++) {
-		const struct skl_wm_level *wm_level;
-
-		wm_level = skl_plane_wm_level(crtc_state, plane_id, level);
-
+	for (level = 0; level <= max_level; level++)
 		skl_write_wm_level(dev_priv, CUR_WM(pipe, level),
-				   wm_level);
-	}
+				   skl_plane_wm_level(pipe_wm, plane_id, level));
+
 	skl_write_wm_level(dev_priv, CUR_WM_TRANS(pipe), &wm->trans_wm);
 
 	skl_ddb_entry_write(dev_priv, CUR_BUF_CFG(pipe), ddb);
@@ -5964,6 +5955,29 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 	}
 }
 
+static bool skl_plane_selected_wm_equals(struct intel_plane *plane,
+					 const struct skl_pipe_wm *old_pipe_wm,
+					 const struct skl_pipe_wm *new_pipe_wm)
+{
+	const struct skl_plane_wm *old_wm = &old_pipe_wm->planes[plane->id];
+	const struct skl_plane_wm *new_wm = &new_pipe_wm->planes[plane->id];
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	int level, max_level = ilk_wm_max_level(i915);
+
+	for (level = 0; level <= max_level; level++) {
+		/*
+		 * We don't check uv_wm as the hardware doesn't actually
+		 * use it. It only gets used for calculating the required
+		 * ddb allocation.
+		 */
+		if (!skl_wm_level_equals(skl_plane_wm_level(old_pipe_wm, level, plane->id),
+					 skl_plane_wm_level(new_pipe_wm, level, plane->id)))
+			return false;
+	}
+
+	return skl_wm_level_equals(&old_wm->trans_wm, &new_wm->trans_wm);
+}
+
 /*
  * To make sure the cursor watermark registers are always consistent
  * with our computed state the following scenario needs special
@@ -6009,9 +6023,9 @@ static int skl_wm_add_affected_planes(struct intel_atomic_state *state,
 		 * with the software state.
 		 */
 		if (!drm_atomic_crtc_needs_modeset(&new_crtc_state->uapi) &&
-		    skl_plane_wm_equals(dev_priv,
-					&old_crtc_state->wm.skl.optimal.planes[plane_id],
-					&new_crtc_state->wm.skl.optimal.planes[plane_id]))
+		    skl_plane_selected_wm_equals(plane,
+						 &old_crtc_state->wm.skl.optimal,
+						 &new_crtc_state->wm.skl.optimal))
 			continue;
 
 		plane_state = intel_atomic_get_plane_state(state, plane);
