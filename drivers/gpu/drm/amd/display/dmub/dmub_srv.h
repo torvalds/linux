@@ -667,7 +667,7 @@ enum dmub_status dmub_srv_get_fw_boot_status(struct dmub_srv *dmub,
 enum dmub_status dmub_srv_cmd_with_reply_data(struct dmub_srv *dmub,
 					      union dmub_rb_cmd *cmd);
 
-enum dmub_status dmub_srv_get_outbox0_msg(struct dmub_srv *dmub, struct dmcub_trace_buf_entry *entry);
+bool dmub_srv_get_outbox0_msg(struct dmub_srv *dmub, struct dmcub_trace_buf_entry *entry);
 
 #if defined(__cplusplus)
 }

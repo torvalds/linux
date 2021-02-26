@@ -725,27 +725,26 @@ static inline bool dmub_rb_out_trace_buffer_front(struct dmub_rb *rb,
 	const uint64_t *src = (const uint64_t *)(rb->base_address) + rb->rptr / sizeof(uint64_t);
 	uint64_t *dst = (uint64_t *)entry;
 	uint8_t i;
+	uint8_t loop_count;
 
+	if (rb->rptr == rb->wrpt)
+		return false;
+
+	loop_count = sizeof(struct dmcub_trace_buf_entry) / sizeof(uint64_t);
 	// copying data
-	for (i = 0; i < sizeof(struct dmcub_trace_buf_entry) / sizeof(uint64_t); i++)
+	for (i = 0; i < loop_count; i++)
 		*dst++ = *src++;
 
 	rb->rptr += sizeof(struct dmcub_trace_buf_entry);
 
 	rb->rptr %= rb->capacity;
 
-	if (rb->rptr == rb->wrpt)
-		return true;
-
-	return false;
+	return true;
 }
 
-enum dmub_status dmub_srv_get_outbox0_msg(struct dmub_srv *dmub, struct dmcub_trace_buf_entry *entry)
+bool dmub_srv_get_outbox0_msg(struct dmub_srv *dmub, struct dmcub_trace_buf_entry *entry)
 {
 	dmub->outbox0_rb.wrpt = dmub->hw_funcs.get_outbox0_wptr(dmub);
 
-	if (dmub_rb_out_trace_buffer_front(&dmub->outbox0_rb, (void *)entry))
-		return DMUB_STATUS_OK;
-
-	return DMUB_STATUS_QUEUE_FULL;
+	return dmub_rb_out_trace_buffer_front(&dmub->outbox0_rb, (void *)entry);
 }

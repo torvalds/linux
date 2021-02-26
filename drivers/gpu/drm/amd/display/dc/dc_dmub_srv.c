@@ -172,14 +172,10 @@ bool dc_dmub_srv_notify_stream_mask(struct dc_dmub_srv *dc_dmub_srv,
 		       stream_mask, timeout) == DMUB_STATUS_OK;
 }
 
-enum dmub_status dc_dmub_srv_get_dmub_outbox0_msg(const struct dc *dc, struct dmcub_trace_buf_entry *entry)
+bool dc_dmub_srv_get_dmub_outbox0_msg(const struct dc *dc, struct dmcub_trace_buf_entry *entry)
 {
 	struct dmub_srv *dmub = dc->ctx->dmub_srv->dmub;
-	enum dmub_status status;
-
-	status = dmub_srv_get_outbox0_msg(dmub, entry);
-
-	return status;
+	return dmub_srv_get_outbox0_msg(dmub, entry);
 }
 
 void dc_dmub_trace_event_control(struct dc *dc, bool enable)
