@@ -597,7 +597,7 @@ b9b3	cu42	RRE_RR
 b9bd	trtre	RRF_U0RR
 b9be	srstu	RRE_RR
 b9bf	trte	RRF_U0RR
-b9c0	selhhhr	RRF_RURR
+b9c0	selfhr	RRF_RURR
 b9c8	ahhhr	RRF_R0RR2
 b9c9	shhhr	RRF_R0RR2
 b9ca	alhhhr	RRF_R0RR2
