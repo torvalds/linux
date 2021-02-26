@@ -494,6 +494,8 @@ static struct rcu_torture_ops rcu_ops = {
 	.sync		= synchronize_rcu,
 	.exp_sync	= synchronize_rcu_expedited,
 	.get_gp_state	= get_state_synchronize_rcu,
+	.start_gp_poll	= start_poll_synchronize_rcu,
+	.poll_gp_state	= poll_state_synchronize_rcu,
 	.cond_sync	= cond_synchronize_rcu,
 	.call		= call_rcu,
 	.cb_barrier	= rcu_barrier,
@@ -1223,14 +1225,6 @@ rcu_torture_writer(void *arg)
 				WARN_ON_ONCE(1);
 				break;
 			}
-			if (cur_ops->get_gp_state && cur_ops->poll_gp_state)
-				WARN_ONCE(rcu_torture_writer_state != RTWS_DEF_FREE &&
-					  !cur_ops->poll_gp_state(cookie),
-					  "%s: Cookie check 2 failed %s(%d) %lu->%lu\n",
-					  __func__,
-					  rcu_torture_writer_state_getname(),
-					  rcu_torture_writer_state,
-					  cookie, cur_ops->get_gp_state());
 		}
 		WRITE_ONCE(rcu_torture_current_version,
 			   rcu_torture_current_version + 1);
@@ -1589,7 +1583,7 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp, long myid)
 	preempt_enable();
 	if (cur_ops->get_gp_state && cur_ops->poll_gp_state)
 		WARN_ONCE(cur_ops->poll_gp_state(cookie),
-			  "%s: Cookie check 3 failed %s(%d) %lu->%lu\n",
+			  "%s: Cookie check 2 failed %s(%d) %lu->%lu\n",
 			  __func__,
 			  rcu_torture_writer_state_getname(),
 			  rcu_torture_writer_state,
