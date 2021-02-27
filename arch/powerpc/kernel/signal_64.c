@@ -79,6 +79,24 @@ static elf_vrreg_t __user *sigcontext_vmx_regs(struct sigcontext __user *sc)
 }
 #endif
 
+static void prepare_setup_sigcontext(struct task_struct *tsk)
+{
+#ifdef CONFIG_ALTIVEC
+	/* save altivec registers */
+	if (tsk->thread.used_vr)
+		flush_altivec_to_thread(tsk);
+	if (cpu_has_feature(CPU_FTR_ALTIVEC))
+		tsk->thread.vrsave = mfspr(SPRN_VRSAVE);
+#endif /* CONFIG_ALTIVEC */
+
+	flush_fp_to_thread(tsk);
+
+#ifdef CONFIG_VSX
+	if (tsk->thread.used_vsr)
+		flush_vsx_to_thread(tsk);
+#endif /* CONFIG_VSX */
+}
+
 /*
  * Set up the sigcontext for the signal frame.
  */
@@ -97,7 +115,6 @@ static long setup_sigcontext(struct sigcontext __user *sc,
 	 */
 #ifdef CONFIG_ALTIVEC
 	elf_vrreg_t __user *v_regs = sigcontext_vmx_regs(sc);
-	unsigned long vrsave;
 #endif
 	struct pt_regs *regs = tsk->thread.regs;
 	unsigned long msr = regs->msr;
@@ -112,7 +129,6 @@ static long setup_sigcontext(struct sigcontext __user *sc,
 
 	/* save altivec registers */
 	if (tsk->thread.used_vr) {
-		flush_altivec_to_thread(tsk);
 		/* Copy 33 vec registers (vr0..31 and vscr) to the stack */
 		err |= __copy_to_user(v_regs, &tsk->thread.vr_state,
 				      33 * sizeof(vector128));
@@ -124,17 +140,10 @@ static long setup_sigcontext(struct sigcontext __user *sc,
 	/* We always copy to/from vrsave, it's 0 if we don't have or don't
 	 * use altivec.
 	 */
-	vrsave = 0;
-	if (cpu_has_feature(CPU_FTR_ALTIVEC)) {
-		vrsave = mfspr(SPRN_VRSAVE);
-		tsk->thread.vrsave = vrsave;
-	}
-
-	err |= __put_user(vrsave, (u32 __user *)&v_regs[33]);
+	err |= __put_user(tsk->thread.vrsave, (u32 __user *)&v_regs[33]);
 #else /* CONFIG_ALTIVEC */
 	err |= __put_user(0, &sc->v_regs);
 #endif /* CONFIG_ALTIVEC */
-	flush_fp_to_thread(tsk);
 	/* copy fpr regs and fpscr */
 	err |= copy_fpr_to_user(&sc->fp_regs, tsk);
 
@@ -150,7 +159,6 @@ static long setup_sigcontext(struct sigcontext __user *sc,
 	 * VMX data.
 	 */
 	if (tsk->thread.used_vsr && ctx_has_vsx_region) {
-		flush_vsx_to_thread(tsk);
 		v_regs += ELF_NVRREG;
 		err |= copy_vsx_to_user(v_regs, tsk);
 		/* set MSR_VSX in the MSR value in the frame to
@@ -655,6 +663,7 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 		ctx_has_vsx_region = 1;
 
 	if (old_ctx != NULL) {
+		prepare_setup_sigcontext(current);
 		if (!access_ok(old_ctx, ctx_size)
 		    || setup_sigcontext(&old_ctx->uc_mcontext, current, 0, NULL, 0,
 					ctx_has_vsx_region)
@@ -842,6 +851,7 @@ int handle_rt_signal64(struct ksignal *ksig, sigset_t *set,
 #endif
 	{
 		err |= __put_user(0, &frame->uc.uc_link);
+		prepare_setup_sigcontext(tsk);
 		err |= setup_sigcontext(&frame->uc.uc_mcontext, tsk, ksig->sig,
 					NULL, (unsigned long)ksig->ka.sa.sa_handler,
 					1);
