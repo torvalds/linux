@@ -822,11 +822,11 @@ SYSCALL_DEFINE0(rt_sigreturn)
 		 */
 		current->thread.regs->msr &= ~MSR_TS_MASK;
 		if (!user_read_access_begin(&uc->uc_mcontext, sizeof(uc->uc_mcontext)))
-			return -EFAULT;
-		if (__unsafe_restore_sigcontext(current, NULL, 1, &uc->uc_mcontext)) {
-			user_read_access_end();
 			goto badframe;
-		}
+
+		unsafe_restore_sigcontext(current, NULL, 1, &uc->uc_mcontext,
+					  badframe_block);
+
 		user_read_access_end();
 	}
 
@@ -836,6 +836,8 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	set_thread_flag(TIF_RESTOREALL);
 	return 0;
 
+badframe_block:
+	user_read_access_end();
 badframe:
 	signal_fault(current, regs, "rt_sigreturn", uc);
 
