@@ -486,6 +486,27 @@ user_write_access_begin(const void __user *ptr, size_t len)
 #define unsafe_put_user(x, p, e) \
 	__unsafe_put_user_goto((__typeof__(*(p)))(x), (p), sizeof(*(p)), e)
 
+#define unsafe_copy_from_user(d, s, l, e) \
+do {											\
+	u8 *_dst = (u8 *)(d);								\
+	const u8 __user *_src = (const u8 __user *)(s);					\
+	size_t _len = (l);								\
+	int _i;										\
+											\
+	for (_i = 0; _i < (_len & ~(sizeof(long) - 1)); _i += sizeof(long))		\
+		unsafe_get_user(*(long *)(_dst + _i), (long __user *)(_src + _i), e);	\
+	if (IS_ENABLED(CONFIG_PPC64) && (_len & 4)) {					\
+		unsafe_get_user(*(u32 *)(_dst + _i), (u32 __user *)(_src + _i), e);	\
+		_i += 4;								\
+	}										\
+	if (_len & 2) {									\
+		unsafe_get_user(*(u16 *)(_dst + _i), (u16 __user *)(_src + _i), e);	\
+		_i += 2;								\
+	}										\
+	if (_len & 1)									\
+		unsafe_get_user(*(u8 *)(_dst + _i), (u8 __user *)(_src + _i), e);	\
+} while (0)
+
 #define unsafe_copy_to_user(d, s, l, e) \
 do {									\
 	u8 __user *_dst = (u8 __user *)(d);				\
