@@ -147,9 +147,10 @@ mt7915_get_he_phy_cap(struct mt7915_phy *phy, struct ieee80211_vif *vif)
 }
 
 static u8
-mt7915_get_phy_mode(struct mt7915_dev *dev, struct ieee80211_vif *vif,
-		    enum nl80211_band band, struct ieee80211_sta *sta)
+mt7915_get_phy_mode(struct mt76_phy *mphy, struct ieee80211_vif *vif,
+		    struct ieee80211_sta *sta)
 {
+	enum nl80211_band band = mphy->chandef.chan->band;
 	struct ieee80211_sta_ht_cap *ht_cap;
 	struct ieee80211_sta_vht_cap *vht_cap;
 	const struct ieee80211_sta_he_cap *he_cap;
@@ -161,12 +162,8 @@ mt7915_get_phy_mode(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 		he_cap = &sta->he_cap;
 	} else {
 		struct ieee80211_supported_band *sband;
-		struct mt7915_phy *phy;
-		struct mt7915_vif *mvif;
 
-		mvif = (struct mt7915_vif *)vif->drv_priv;
-		phy = mvif->band_idx ? mt7915_ext_phy(dev) : &dev->phy;
-		sband = phy->mt76->hw->wiphy->bands[band];
+		sband = mphy->hw->wiphy->bands[band];
 
 		ht_cap = &sband->ht_cap;
 		vht_cap = &sband->vht_cap;
@@ -676,8 +673,6 @@ mt7915_mcu_bss_basic_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 			 struct mt7915_phy *phy, bool enable)
 {
 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
-	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
-	enum nl80211_band band = chandef->chan->band;
 	struct bss_info_basic *bss;
 	u16 wlan_idx = mvif->sta.wcid.idx;
 	u32 type = NETWORK_INFRA;
@@ -727,7 +722,7 @@ mt7915_mcu_bss_basic_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 		memcpy(bss->bssid, vif->bss_conf.bssid, ETH_ALEN);
 		bss->bcn_interval = cpu_to_le16(vif->bss_conf.beacon_int);
 		bss->dtim_period = vif->bss_conf.dtim_period;
-		bss->phy_mode = mt7915_get_phy_mode(phy->dev, vif, band, NULL);
+		bss->phy_mode = mt7915_get_phy_mode(phy->mt76, vif, NULL);
 	} else {
 		memcpy(bss->bssid, phy->mt76->macaddr, ETH_ALEN);
 	}
@@ -2069,25 +2064,30 @@ mt7915_mcu_add_txbf(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 
 static void
 mt7915_mcu_sta_rate_ctrl_tlv(struct sk_buff *skb, struct mt7915_dev *dev,
-			     struct ieee80211_vif *vif,
-			     struct ieee80211_sta *sta)
+			     struct ieee80211_vif *vif, struct ieee80211_sta *sta)
 {
-	struct cfg80211_chan_def *chandef = &dev->mphy.chandef;
+	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
+	struct mt76_phy *mphy = &dev->mphy;
+	enum nl80211_band band;
 	struct sta_rec_ra *ra;
 	struct tlv *tlv;
-	enum nl80211_band band = chandef->chan->band;
-	u32 supp_rate = sta->supp_rates[band];
-	int n_rates = hweight32(supp_rate);
-	u32 cap = sta->wme ? STA_CAP_WMM : 0;
+	u32 supp_rate, n_rates, cap = sta->wme ? STA_CAP_WMM : 0;
 	u8 i, nss = sta->rx_nss, mcs = 0;
 
 	tlv = mt7915_mcu_add_tlv(skb, STA_REC_RA, sizeof(*ra));
-
 	ra = (struct sta_rec_ra *)tlv;
+
+	if (msta->wcid.ext_phy && dev->mt76.phy2)
+		mphy = dev->mt76.phy2;
+
+	band = mphy->chandef.chan->band;
+	supp_rate = sta->supp_rates[band];
+	n_rates = hweight32(supp_rate);
+
 	ra->valid = true;
 	ra->auto_rate = true;
-	ra->phy_mode = mt7915_get_phy_mode(dev, vif, band, sta);
-	ra->channel = chandef->chan->hw_value;
+	ra->phy_mode = mt7915_get_phy_mode(mphy, vif, sta);
+	ra->channel = mphy->chandef.chan->hw_value;
 	ra->bw = sta->bandwidth;
 	ra->rate_len = n_rates;
 	ra->phy.bw = sta->bandwidth;
