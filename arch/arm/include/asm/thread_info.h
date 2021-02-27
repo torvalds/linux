@@ -65,9 +65,6 @@ struct thread_info {
 	__u32			syscall;	/* syscall number */
 	__u8			used_cp[16];	/* thread used copro */
 	unsigned long		tp_value[2];	/* TLS registers */
-#ifdef CONFIG_CRUNCH
-	struct crunch_state	crunchstate;
-#endif
 	union fp_state		fpstate __attribute__((aligned(8)));
 	union vfp_state		vfpstate;
 #ifdef CONFIG_ARM_THUMBEE
@@ -106,11 +103,6 @@ static inline struct thread_info *current_thread_info(void)
 #define thread_saved_fp(tsk)	\
 	((unsigned long)(task_thread_info(tsk)->cpu_context.r7))
 #endif
-
-extern void crunch_task_disable(struct thread_info *);
-extern void crunch_task_copy(struct thread_info *, void *);
-extern void crunch_task_restore(struct thread_info *, void *);
-extern void crunch_task_release(struct thread_info *);
 
 extern void iwmmxt_task_disable(struct thread_info *);
 extern void iwmmxt_task_copy(struct thread_info *, void *);

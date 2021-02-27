@@ -63,9 +63,6 @@ int main(void)
 #ifdef CONFIG_IWMMXT
   DEFINE(TI_IWMMXT_STATE,	offsetof(struct thread_info, fpstate.iwmmxt));
 #endif
-#ifdef CONFIG_CRUNCH
-  DEFINE(TI_CRUNCH_STATE,	offsetof(struct thread_info, crunchstate));
-#endif
 #ifdef CONFIG_STACKPROTECTOR_PER_TASK
   DEFINE(TI_STACK_CANARY,	offsetof(struct thread_info, stack_canary));
 #endif

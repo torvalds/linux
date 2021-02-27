@@ -9,11 +9,6 @@ config EP93XX_SOC_COMMON
 	select SOC_BUS
 	select LEDS_GPIO_REGISTER
 
-config CRUNCH
-	bool "Support for MaverickCrunch"
-	help
-	  Enable kernel support for MaverickCrunch.
-
 comment "EP93xx Platforms"
 
 config MACH_ADSSPHERE
