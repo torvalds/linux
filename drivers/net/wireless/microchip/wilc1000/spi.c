@@ -46,12 +46,25 @@ static const struct wilc_hif_func wilc_hif_spi;
 #define CMD_RESET				0xcf
 
 #define SPI_ENABLE_VMM_RETRY_LIMIT		2
-#define DATA_PKT_SZ_256				256
-#define DATA_PKT_SZ_512				512
-#define DATA_PKT_SZ_1K				1024
-#define DATA_PKT_SZ_4K				(4 * 1024)
-#define DATA_PKT_SZ_8K				(8 * 1024)
-#define DATA_PKT_SZ				DATA_PKT_SZ_8K
+
+#define PROTOCOL_REG_PKT_SZ_MASK		GENMASK(6, 4)
+#define PROTOCOL_REG_CRC16_MASK			GENMASK(3, 3)
+#define PROTOCOL_REG_CRC7_MASK			GENMASK(2, 2)
+
+/*
+ * The SPI data packet size may be any integer power of two in the
+ * range from 256 to 8192 bytes.
+ */
+#define DATA_PKT_LOG_SZ_MIN			8	/* 256 B */
+#define DATA_PKT_LOG_SZ_MAX			13	/* 8 KiB */
+
+/*
+ * Select the data packet size (log2 of number of bytes): Use the
+ * maximum data packet size.  We only retransmit complete packets, so
+ * there is no benefit from using smaller data packets.
+ */
+#define DATA_PKT_LOG_SZ				DATA_PKT_LOG_SZ_MAX
+#define DATA_PKT_SZ				(1 << DATA_PKT_LOG_SZ)
 
 #define USE_SPI_DMA				0
 
@@ -827,9 +840,16 @@ static int wilc_spi_init(struct wilc *wilc, bool resume)
 		}
 	}
 	if (spi_priv->crc_off == 0) {
-		reg &= ~0xc; /* disable crc checking */
-		reg &= ~0x70;
-		reg |= (0x5 << 4);
+		/* disable crc checking: */
+		reg &= ~(PROTOCOL_REG_CRC7_MASK | PROTOCOL_REG_CRC16_MASK);
+
+		/* set the data packet size: */
+		BUILD_BUG_ON(DATA_PKT_LOG_SZ < DATA_PKT_LOG_SZ_MIN
+			     || DATA_PKT_LOG_SZ > DATA_PKT_LOG_SZ_MAX);
+		reg &= ~PROTOCOL_REG_PKT_SZ_MASK;
+		reg |= FIELD_PREP(PROTOCOL_REG_PKT_SZ_MASK,
+				  DATA_PKT_LOG_SZ - DATA_PKT_LOG_SZ_MIN);
+
 		ret = spi_internal_write(wilc, WILC_SPI_PROTOCOL_OFFSET, reg);
 		if (ret) {
 			dev_err(&spi->dev,
