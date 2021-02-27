@@ -855,7 +855,7 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 
 					cmd.mall.cursor_copy_src.quad_part = cursor_attr.address.quad_part;
 					cmd.mall.cursor_copy_dst.quad_part =
-							plane->address.grph.cursor_cache_addr.quad_part;
+							(plane->address.grph.cursor_cache_addr.quad_part + 2047) & ~2047;
 					cmd.mall.cursor_width = cursor_attr.width;
 					cmd.mall.cursor_height = cursor_attr.height;
 					cmd.mall.cursor_pitch = cursor_attr.pitch;
@@ -865,8 +865,7 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 					dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
 
 					/* Use copied cursor, and it's okay to not switch back */
-					cursor_attr.address.quad_part =
-							plane->address.grph.cursor_cache_addr.quad_part;
+					cursor_attr.address.quad_part = cmd.mall.cursor_copy_dst.quad_part;
 					dc_stream_set_cursor_attributes(stream, &cursor_attr);
 				}
 
