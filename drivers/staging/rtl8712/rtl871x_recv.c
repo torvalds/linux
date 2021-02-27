@@ -466,8 +466,8 @@ static sint validate_recv_data_frame(struct _adapter *adapter,
 	struct security_priv *psecuritypriv = &adapter->securitypriv;
 
 	bretry = GetRetry(ptr);
-	pda = get_da(ptr);
-	psa = get_sa(ptr);
+	pda = ieee80211_get_DA((struct ieee80211_hdr *)ptr);
+	psa = ieee80211_get_SA((struct ieee80211_hdr *)ptr);
 	pbssid = get_hdr_bssid(ptr);
 	if (!pbssid)
 		return _FAIL;
