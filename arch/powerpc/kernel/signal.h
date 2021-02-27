@@ -53,6 +53,26 @@ unsigned long copy_ckfpr_from_user(struct task_struct *task, void __user *from);
 				&buf[i], label);\
 } while (0)
 
+#define unsafe_copy_fpr_from_user(task, from, label)	do {		\
+	struct task_struct *__t = task;					\
+	u64 __user *buf = (u64 __user *)from;				\
+	int i;								\
+									\
+	for (i = 0; i < ELF_NFPREG - 1; i++)				\
+		unsafe_get_user(__t->thread.TS_FPR(i), &buf[i], label); \
+	unsafe_get_user(__t->thread.fp_state.fpscr, &buf[i], label);	\
+} while (0)
+
+#define unsafe_copy_vsx_from_user(task, from, label)	do {		\
+	struct task_struct *__t = task;					\
+	u64 __user *buf = (u64 __user *)from;				\
+	int i;								\
+									\
+	for (i = 0; i < ELF_NVSRHALFREG ; i++)				\
+		unsafe_get_user(__t->thread.fp_state.fpr[i][TS_VSRLOWOFFSET], \
+				&buf[i], label);			\
+} while (0)
+
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 #define unsafe_copy_ckfpr_to_user(to, task, label)	do {		\
 	struct task_struct *__t = task;					\
@@ -78,6 +98,10 @@ unsigned long copy_ckfpr_from_user(struct task_struct *task, void __user *from);
 
 #define unsafe_copy_fpr_to_user(to, task, label)		\
 	unsafe_copy_to_user(to, (task)->thread.fp_state.fpr,	\
+			    ELF_NFPREG * sizeof(double), label)
+
+#define unsafe_copy_fpr_from_user(task, from, label)			\
+	unsafe_copy_from_user((task)->thread.fp_state.fpr, from,	\
 			    ELF_NFPREG * sizeof(double), label)
 
 static inline unsigned long
@@ -114,6 +138,8 @@ copy_ckfpr_from_user(struct task_struct *task, void __user *from)
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 #else
 #define unsafe_copy_fpr_to_user(to, task, label) do { } while (0)
+
+#define unsafe_copy_fpr_from_user(task, from, label) do { } while (0)
 
 static inline unsigned long
 copy_fpr_to_user(void __user *to, struct task_struct *task)
