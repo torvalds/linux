@@ -14,7 +14,6 @@
 KBUILD_DEFCONFIG := generic_defconfig
 
 NM := $(CROSS_COMPILE)nm -B
-READELF := $(CROSS_COMPILE)readelf
 
 CHECKFLAGS	+= -D__ia64=1 -D__ia64__=1 -D_LP64 -D__LP64__
 
