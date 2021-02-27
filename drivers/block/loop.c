@@ -663,7 +663,7 @@ static inline int is_loop_device(struct file *file)
 {
 	struct inode *i = file->f_mapping->host;
 
-	return i && S_ISBLK(i->i_mode) && MAJOR(i->i_rdev) == LOOP_MAJOR;
+	return i && S_ISBLK(i->i_mode) && imajor(i) == LOOP_MAJOR;
 }
 
 static int loop_validate_file(struct file *file, struct block_device *bdev)
