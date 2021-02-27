@@ -6569,13 +6569,17 @@ static int dm_plane_helper_check_state(struct drm_plane_state *state,
 			else if (state->crtc_y + state->crtc_h > new_crtc_state->mode.crtc_vdisplay)
 				viewport_height = new_crtc_state->mode.crtc_vdisplay - state->crtc_y;
 
-			/* If completely outside of screen, viewport_width and/or viewport_height will be negative,
-			 * which is still OK to satisfy the condition below, thereby also covering these cases
-			 * (when plane is completely outside of screen).
-			 * x2 for width is because of pipe-split.
-			 */
-			if (viewport_width < MIN_VIEWPORT_SIZE*2 || viewport_height < MIN_VIEWPORT_SIZE)
+			if (viewport_width < 0 || viewport_height < 0) {
+				DRM_DEBUG_ATOMIC("Plane completely outside of screen\n");
 				return -EINVAL;
+			} else if (viewport_width < MIN_VIEWPORT_SIZE*2) { /* x2 for width is because of pipe-split. */
+				DRM_DEBUG_ATOMIC("Viewport width %d smaller than %d\n", viewport_width, MIN_VIEWPORT_SIZE*2);
+				return -EINVAL;
+			} else if (viewport_height < MIN_VIEWPORT_SIZE) {
+				DRM_DEBUG_ATOMIC("Viewport height %d smaller than %d\n", viewport_height, MIN_VIEWPORT_SIZE);
+				return -EINVAL;
+			}
+
 		}
 
 		/* Get min/max allowed scaling factors from plane caps. */
