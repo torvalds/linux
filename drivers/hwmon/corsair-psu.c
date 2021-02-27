@@ -119,27 +119,13 @@ struct corsairpsu_data {
 };
 
 /* some values are SMBus LINEAR11 data which need a conversion */
-static int corsairpsu_linear11_to_int(const int val)
+static int corsairpsu_linear11_to_int(const u16 val, const int scale)
 {
-	int exp = (val & 0xFFFF) >> 0x0B;
-	int mant = val & 0x7FF;
-	int i;
+	const int exp = ((s16)val) >> 11;
+	const int mant = (((s16)(val & 0x7ff)) << 5) >> 5;
+	const int result = mant * scale;
 
-	if (exp > 0x0F)
-		exp -= 0x20;
-	if (mant > 0x3FF)
-		mant -= 0x800;
-	if ((mant & 0x01) == 1)
-		++mant;
-	if (exp < 0) {
-		for (i = 0; i < -exp; ++i)
-			mant /= 2;
-	} else {
-		for (i = 0; i < exp; ++i)
-			mant *= 2;
-	}
-
-	return mant;
+	return (exp >= 0) ? (result << exp) : (result >> -exp);
 }
 
 static int corsairpsu_usb_cmd(struct corsairpsu_data *priv, u8 p0, u8 p1, u8 p2, void *data)
@@ -249,14 +235,14 @@ static int corsairpsu_get_value(struct corsairpsu_data *priv, u8 cmd, u8 rail, l
 	case PSU_CMD_RAIL_AMPS:
 	case PSU_CMD_TEMP0:
 	case PSU_CMD_TEMP1:
-		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF) * 1000;
+		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF, 1000);
 		break;
 	case PSU_CMD_FAN:
-		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF);
+		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF, 1);
 		break;
 	case PSU_CMD_RAIL_WATTS:
 	case PSU_CMD_TOTAL_WATTS:
-		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF) * 1000000;
+		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF, 1000000);
 		break;
 	case PSU_CMD_TOTAL_UPTIME:
 	case PSU_CMD_UPTIME:
