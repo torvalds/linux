@@ -144,7 +144,7 @@ static inline int restore_general_regs(struct pt_regs *regs,
 
 static inline int get_sigset_t(sigset_t *set, const sigset_t __user *uset)
 {
-	return copy_from_user(set, uset, sizeof(*uset));
+	return __get_user_sigset(set, uset);
 }
 
 #define to_user_ptr(p)		((unsigned long)(p))

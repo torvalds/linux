@@ -708,7 +708,7 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 	 * We kill the task with a SIGSEGV in this situation.
 	 */
 
-	if (__copy_from_user(&set, &new_ctx->uc_sigmask, sizeof(set)))
+	if (__get_user_sigset(&set, &new_ctx->uc_sigmask))
 		do_exit(SIGSEGV);
 	set_current_blocked(&set);
 
@@ -747,7 +747,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	if (!access_ok(uc, sizeof(*uc)))
 		goto badframe;
 
-	if (__copy_from_user(&set, &uc->uc_sigmask, sizeof(set)))
+	if (__get_user_sigset(&set, &uc->uc_sigmask))
 		goto badframe;
 	set_current_blocked(&set);
 
