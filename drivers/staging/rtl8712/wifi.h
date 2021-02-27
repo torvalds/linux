@@ -16,22 +16,8 @@
 
 #include <linux/compiler.h>
 
-#define WLAN_IEEE_OUI_LEN	3
-#define WLAN_CRC_LEN		4
-#define WLAN_BSSID_LEN		6
-#define WLAN_BSS_TS_LEN		8
 #define WLAN_HDR_A3_LEN		24
-#define WLAN_HDR_A4_LEN		30
 #define WLAN_HDR_A3_QOS_LEN	26
-#define WLAN_HDR_A4_QOS_LEN	32
-#define WLAN_SSID_MAXLEN	32
-#define WLAN_DATA_MAXLEN	2312
-
-#define WLAN_A3_PN_OFFSET	24
-#define WLAN_A4_PN_OFFSET	30
-
-#define WLAN_MIN_ETHFRM_LEN	60
-#define WLAN_MAX_ETHFRM_LEN	1514
 
 #define P80211CAPTURE_VERSION	0x80211001
 
@@ -72,33 +58,6 @@ enum WIFI_FRAME_SUBTYPE {
 	WIFI_CF_ACK         = (BIT(6) | BIT(4) | WIFI_DATA_TYPE),
 	WIFI_CF_POLL        = (BIT(6) | BIT(5) | WIFI_DATA_TYPE),
 	WIFI_CF_ACKPOLL     = (BIT(6) | BIT(5) | BIT(4) | WIFI_DATA_TYPE),
-};
-
-enum WIFI_REASON_CODE	{
-	_RSON_RESERVED_			= 0,
-	_RSON_UNSPECIFIED_		= 1,
-	_RSON_AUTH_NO_LONGER_VALID_	= 2,
-	_RSON_DEAUTH_STA_LEAVING_	= 3,
-	_RSON_INACTIVITY_		= 4,
-	_RSON_UNABLE_HANDLE_		= 5,
-	_RSON_CLS2_			= 6,
-	_RSON_CLS3_			= 7,
-	_RSON_DISAOC_STA_LEAVING_	= 8,
-	_RSON_ASOC_NOT_AUTH_		= 9,
-	/* WPA reason */
-	_RSON_INVALID_IE_		= 13,
-	_RSON_MIC_FAILURE_		= 14,
-	_RSON_4WAY_HNDSHK_TIMEOUT_	= 15,
-	_RSON_GROUP_KEY_UPDATE_TIMEOUT_	= 16,
-	_RSON_DIFF_IE_			= 17,
-	_RSON_MLTCST_CIPHER_NOT_VALID_	= 18,
-	_RSON_UNICST_CIPHER_NOT_VALID_	= 19,
-	_RSON_AKMP_NOT_VALID_		= 20,
-	_RSON_UNSUPPORT_RSNE_VER_	= 21,
-	_RSON_INVALID_RSNE_CAP_		= 22,
-	_RSON_IEEE_802DOT1X_AUTH_FAIL_	= 23,
-	/* below are Realtek definitions */
-	_RSON_PMK_NOT_AVAILABLE_	= 24,
 };
 
 enum WIFI_REG_DOMAIN {
@@ -234,11 +193,6 @@ static inline unsigned char get_tofr_ds(unsigned char *pframe)
 	0x000f) | (0xfff0 & (num << 4))); \
 })
 
-#define SetDuration(pbuf, dur) ({ \
-	*(__le16 *)((addr_t)(pbuf) + 2) |= \
-	cpu_to_le16(0xffff & (dur)); \
-})
-
 #define SetPriority(pbuf, tid) ({ \
 	*(__le16 *)(pbuf) |= cpu_to_le16(tid & 0xf); \
 })
@@ -252,9 +206,6 @@ static inline unsigned char get_tofr_ds(unsigned char *pframe)
 #define GetAckpolicy(pbuf) (((le16_to_cpu(*(__le16 *)pbuf)) >> 5) & 0x3)
 
 #define GetAMsdu(pbuf) (((le16_to_cpu(*(__le16 *)pbuf)) >> 7) & 0x1)
-
-#define GetAid(pbuf)	(cpu_to_le16(*(__le16 *)((addr_t)(pbuf) + 2)) \
-			& 0x3fff)
 
 #define GetAddr1Ptr(pbuf)	((unsigned char *)((addr_t)(pbuf) + 4))
 
@@ -290,19 +241,6 @@ static inline unsigned char *get_hdr_bssid(unsigned char *pframe)
  *		Below is for the security related definition
  *-----------------------------------------------------------------------------
  */
-#define _RESERVED_FRAME_TYPE_	0
-#define _SKB_FRAME_TYPE_	2
-#define _PRE_ALLOCMEM_		1
-#define _PRE_ALLOCHDR_		3
-#define _PRE_ALLOCLLCHDR_	4
-#define _PRE_ALLOCICVHDR_	5
-#define _PRE_ALLOCMICHDR_	6
-
-#define _SIFSTIME_		((priv->pmib->BssType.net_work_type & \
-				WIRELESS_11A) ? 16 : 10)
-#define _ACKCTSLNG_		14	/*14 bytes long, including crclng */
-#define _CRCLNG_		4
-
 #define _ASOCREQ_IE_OFFSET_	4	/* excluding wlan_hdr */
 #define	_ASOCRSP_IE_OFFSET_	6
 #define _REASOCREQ_IE_OFFSET_	10
@@ -348,10 +286,6 @@ static inline unsigned char *get_hdr_bssid(unsigned char *pframe)
 #define AUTH_ODD_TO				0
 #define AUTH_EVEN_TO			1
 
-#define WLAN_ETHCONV_ENCAP		1
-#define WLAN_ETHCONV_RFC1042	2
-#define WLAN_ETHCONV_8021h		3
-
 #define cap_ESS BIT(0)
 #define cap_IBSS BIT(1)
 #define cap_CFPollable BIT(2)
@@ -371,19 +305,11 @@ static inline unsigned char *get_hdr_bssid(unsigned char *pframe)
  *------------------------------------------------------------------------------
  */
 #define _WMM_IE_Length_				7  /* for WMM STA */
-#define _WMM_Para_Element_Length_		24
 
 /*-----------------------------------------------------------------------------
  *			Below is the definition for 802.11n
  *------------------------------------------------------------------------------
  */
-
-#define SetOrderBit(pbuf) ({ \
-	*(__le16 *)(pbuf) |= cpu_to_le16(_ORDER_); \
-})
-
-#define GetOrderBit(pbuf)	(((*(__le16 *)(pbuf)) & \
-				le16_to_cpu(_ORDER_)) != 0)
 
 /*
  * struct rtl_ieee80211_ht_cap - HT capabilities
