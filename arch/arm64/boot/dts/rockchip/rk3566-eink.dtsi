@@ -87,3 +87,21 @@
 		opp-microvolt = <825000>;
 	};
 };
+
+&rockchip_suspend {
+	status = "okay";
+
+	rockchip,sleep-debug-en = <0>;
+	rockchip,sleep-mode-config = <
+		(0
+		| RKPM_SLP_ARMOFF_LOGOFF
+		| RKPM_SLP_CENTER_OFF
+		| RKPM_SLP_HW_PLLS_OFF
+		| RKPM_SLP_PMUALIVE_32K
+		| RKPM_SLP_OSC_DIS
+		| RKPM_SLP_PMIC_LP
+		| RKPM_SLP_32K_PVTM
+		)
+	>;
+};
+
