@@ -1117,9 +1117,10 @@ void restore_tm_state(struct pt_regs *regs)
 	regs->msr |= msr_diff;
 }
 
-#else
+#else /* !CONFIG_PPC_TRANSACTIONAL_MEM */
 #define tm_recheckpoint_new_task(new)
 #define __switch_to_tm(prev, new)
+void tm_reclaim_current(uint8_t cause) {}
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
 static inline void save_sprs(struct thread_struct *t)

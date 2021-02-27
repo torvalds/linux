@@ -594,6 +594,12 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 
 	return err;
 }
+#else /* !CONFIG_PPC_TRANSACTIONAL_MEM */
+static long restore_tm_sigcontexts(struct task_struct *tsk, struct sigcontext __user *sc,
+				   struct sigcontext __user *tm_sc)
+{
+	return -EINVAL;
+}
 #endif
 
 /*
@@ -710,9 +716,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	struct pt_regs *regs = current_pt_regs();
 	struct ucontext __user *uc = (struct ucontext __user *)regs->gpr[1];
 	sigset_t set;
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	unsigned long msr;
-#endif
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current->restart_block.fn = do_no_restart_syscall;
@@ -724,48 +728,50 @@ SYSCALL_DEFINE0(rt_sigreturn)
 		goto badframe;
 	set_current_blocked(&set);
 
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	/*
-	 * If there is a transactional state then throw it away.
-	 * The purpose of a sigreturn is to destroy all traces of the
-	 * signal frame, this includes any transactional state created
-	 * within in. We only check for suspended as we can never be
-	 * active in the kernel, we are active, there is nothing better to
-	 * do than go ahead and Bad Thing later.
-	 * The cause is not important as there will never be a
-	 * recheckpoint so it's not user visible.
-	 */
-	if (MSR_TM_SUSPENDED(mfmsr()))
-		tm_reclaim_current(0);
+	if (IS_ENABLED(CONFIG_PPC_TRANSACTIONAL_MEM)) {
+		/*
+		 * If there is a transactional state then throw it away.
+		 * The purpose of a sigreturn is to destroy all traces of the
+		 * signal frame, this includes any transactional state created
+		 * within in. We only check for suspended as we can never be
+		 * active in the kernel, we are active, there is nothing better to
+		 * do than go ahead and Bad Thing later.
+		 * The cause is not important as there will never be a
+		 * recheckpoint so it's not user visible.
+		 */
+		if (MSR_TM_SUSPENDED(mfmsr()))
+			tm_reclaim_current(0);
 
-	/*
-	 * Disable MSR[TS] bit also, so, if there is an exception in the
-	 * code below (as a page fault in copy_ckvsx_to_user()), it does
-	 * not recheckpoint this task if there was a context switch inside
-	 * the exception.
-	 *
-	 * A major page fault can indirectly call schedule(). A reschedule
-	 * process in the middle of an exception can have a side effect
-	 * (Changing the CPU MSR[TS] state), since schedule() is called
-	 * with the CPU MSR[TS] disable and returns with MSR[TS]=Suspended
-	 * (switch_to() calls tm_recheckpoint() for the 'new' process). In
-	 * this case, the process continues to be the same in the CPU, but
-	 * the CPU state just changed.
-	 *
-	 * This can cause a TM Bad Thing, since the MSR in the stack will
-	 * have the MSR[TS]=0, and this is what will be used to RFID.
-	 *
-	 * Clearing MSR[TS] state here will avoid a recheckpoint if there
-	 * is any process reschedule in kernel space. The MSR[TS] state
-	 * does not need to be saved also, since it will be replaced with
-	 * the MSR[TS] that came from user context later, at
-	 * restore_tm_sigcontexts.
-	 */
-	regs->msr &= ~MSR_TS_MASK;
+		/*
+		 * Disable MSR[TS] bit also, so, if there is an exception in the
+		 * code below (as a page fault in copy_ckvsx_to_user()), it does
+		 * not recheckpoint this task if there was a context switch inside
+		 * the exception.
+		 *
+		 * A major page fault can indirectly call schedule(). A reschedule
+		 * process in the middle of an exception can have a side effect
+		 * (Changing the CPU MSR[TS] state), since schedule() is called
+		 * with the CPU MSR[TS] disable and returns with MSR[TS]=Suspended
+		 * (switch_to() calls tm_recheckpoint() for the 'new' process). In
+		 * this case, the process continues to be the same in the CPU, but
+		 * the CPU state just changed.
+		 *
+		 * This can cause a TM Bad Thing, since the MSR in the stack will
+		 * have the MSR[TS]=0, and this is what will be used to RFID.
+		 *
+		 * Clearing MSR[TS] state here will avoid a recheckpoint if there
+		 * is any process reschedule in kernel space. The MSR[TS] state
+		 * does not need to be saved also, since it will be replaced with
+		 * the MSR[TS] that came from user context later, at
+		 * restore_tm_sigcontexts.
+		 */
+		regs->msr &= ~MSR_TS_MASK;
 
-	if (__get_user(msr, &uc->uc_mcontext.gp_regs[PT_MSR]))
-		goto badframe;
-	if (MSR_TM_ACTIVE(msr)) {
+		if (__get_user(msr, &uc->uc_mcontext.gp_regs[PT_MSR]))
+			goto badframe;
+	}
+
+	if (IS_ENABLED(CONFIG_PPC_TRANSACTIONAL_MEM) && MSR_TM_ACTIVE(msr)) {
 		/* We recheckpoint on return. */
 		struct ucontext __user *uc_transact;
 
@@ -778,9 +784,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 		if (restore_tm_sigcontexts(current, &uc->uc_mcontext,
 					   &uc_transact->uc_mcontext))
 			goto badframe;
-	} else
-#endif
-	{
+	} else {
 		/*
 		 * Fall through, for non-TM restore
 		 *
@@ -818,10 +822,8 @@ int handle_rt_signal64(struct ksignal *ksig, sigset_t *set,
 	unsigned long newsp = 0;
 	long err = 0;
 	struct pt_regs *regs = tsk->thread.regs;
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	/* Save the thread's msr before get_tm_stackpointer() changes it */
 	unsigned long msr = regs->msr;
-#endif
 
 	frame = get_sigframe(ksig, tsk, sizeof(*frame), 0);
 	if (!access_ok(frame, sizeof(*frame)))
@@ -836,8 +838,9 @@ int handle_rt_signal64(struct ksignal *ksig, sigset_t *set,
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __save_altstack(&frame->uc.uc_stack, regs->gpr[1]);
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+
 	if (MSR_TM_ACTIVE(msr)) {
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 		/* The ucontext_t passed to userland points to the second
 		 * ucontext_t (for transactional state) with its uc_link ptr.
 		 */
@@ -847,9 +850,8 @@ int handle_rt_signal64(struct ksignal *ksig, sigset_t *set,
 					    tsk, ksig->sig, NULL,
 					    (unsigned long)ksig->ka.sa.sa_handler,
 					    msr);
-	} else
 #endif
-	{
+	} else {
 		err |= __put_user(0, &frame->uc.uc_link);
 		prepare_setup_sigcontext(tsk);
 		err |= setup_sigcontext(&frame->uc.uc_mcontext, tsk, ksig->sig,
