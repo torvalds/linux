@@ -52,9 +52,6 @@ struct io_worker {
 	struct io_wq_work *cur_work;
 	spinlock_t lock;
 
-	const struct cred *cur_creds;
-	const struct cred *saved_creds;
-
 	struct completion ref_done;
 	struct completion started;
 
@@ -179,11 +176,6 @@ static void io_worker_exit(struct io_worker *worker)
 		atomic_dec(&acct->nr_running);
 	worker->flags = 0;
 	preempt_enable();
-
-	if (worker->saved_creds) {
-		revert_creds(worker->saved_creds);
-		worker->cur_creds = worker->saved_creds = NULL;
-	}
 
 	raw_spin_lock_irq(&wqe->lock);
 	if (flags & IO_WORKER_F_FREE)
@@ -326,10 +318,6 @@ static void __io_worker_idle(struct io_wqe *wqe, struct io_worker *worker)
 		worker->flags |= IO_WORKER_F_FREE;
 		hlist_nulls_add_head_rcu(&worker->nulls_node, &wqe->free_list);
 	}
-	if (worker->saved_creds) {
-		revert_creds(worker->saved_creds);
-		worker->cur_creds = worker->saved_creds = NULL;
-	}
 }
 
 static inline unsigned int io_get_work_hash(struct io_wq_work *work)
@@ -404,18 +392,6 @@ static void io_flush_signals(void)
 	}
 }
 
-static void io_wq_switch_creds(struct io_worker *worker,
-			       struct io_wq_work *work)
-{
-	const struct cred *old_creds = override_creds(work->creds);
-
-	worker->cur_creds = work->creds;
-	if (worker->saved_creds)
-		put_cred(old_creds); /* creds set by previous switch */
-	else
-		worker->saved_creds = old_creds;
-}
-
 static void io_assign_current_work(struct io_worker *worker,
 				   struct io_wq_work *work)
 {
@@ -465,8 +441,6 @@ get_next:
 			unsigned int hash = io_get_work_hash(work);
 
 			next_hashed = wq_next_work(work);
-			if (work->creds && worker->cur_creds != work->creds)
-				io_wq_switch_creds(worker, work);
 			wq->do_work(work);
 			io_assign_current_work(worker, NULL);
 

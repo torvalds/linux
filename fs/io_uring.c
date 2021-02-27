@@ -688,7 +688,6 @@ enum {
 	REQ_F_POLLED_BIT,
 	REQ_F_BUFFER_SELECTED_BIT,
 	REQ_F_NO_FILE_TABLE_BIT,
-	REQ_F_WORK_INITIALIZED_BIT,
 	REQ_F_LTIMEOUT_ACTIVE_BIT,
 	REQ_F_COMPLETE_INLINE_BIT,
 
@@ -730,8 +729,6 @@ enum {
 	REQ_F_BUFFER_SELECTED	= BIT(REQ_F_BUFFER_SELECTED_BIT),
 	/* doesn't need file table for this request */
 	REQ_F_NO_FILE_TABLE	= BIT(REQ_F_NO_FILE_TABLE_BIT),
-	/* io_wq_work is initialized */
-	REQ_F_WORK_INITIALIZED	= BIT(REQ_F_WORK_INITIALIZED_BIT),
 	/* linked timeout is active, i.e. prepared by link's head */
 	REQ_F_LTIMEOUT_ACTIVE	= BIT(REQ_F_LTIMEOUT_ACTIVE_BIT),
 	/* completion is deferred through io_comp_state */
@@ -1094,24 +1091,6 @@ static inline void req_set_fail_links(struct io_kiocb *req)
 		req->flags |= REQ_F_FAIL_LINK;
 }
 
-static inline void __io_req_init_async(struct io_kiocb *req)
-{
-	memset(&req->work, 0, sizeof(req->work));
-	req->flags |= REQ_F_WORK_INITIALIZED;
-}
-
-/*
- * Note: must call io_req_init_async() for the first time you
- * touch any members of io_wq_work.
- */
-static inline void io_req_init_async(struct io_kiocb *req)
-{
-	if (req->flags & REQ_F_WORK_INITIALIZED)
-		return;
-
-	__io_req_init_async(req);
-}
-
 static void io_ring_ctx_ref_free(struct percpu_ref *ref)
 {
 	struct io_ring_ctx *ctx = container_of(ref, struct io_ring_ctx, refs);
@@ -1196,13 +1175,6 @@ static bool req_need_defer(struct io_kiocb *req, u32 seq)
 
 static void io_req_clean_work(struct io_kiocb *req)
 {
-	if (!(req->flags & REQ_F_WORK_INITIALIZED))
-		return;
-
-	if (req->work.creds) {
-		put_cred(req->work.creds);
-		req->work.creds = NULL;
-	}
 	if (req->flags & REQ_F_INFLIGHT) {
 		struct io_ring_ctx *ctx = req->ctx;
 		struct io_uring_task *tctx = req->task->io_uring;
@@ -1215,8 +1187,6 @@ static void io_req_clean_work(struct io_kiocb *req)
 		if (atomic_read(&tctx->in_idle))
 			wake_up(&tctx->wait);
 	}
-
-	req->flags &= ~REQ_F_WORK_INITIALIZED;
 }
 
 static void io_req_track_inflight(struct io_kiocb *req)
@@ -1224,7 +1194,6 @@ static void io_req_track_inflight(struct io_kiocb *req)
 	struct io_ring_ctx *ctx = req->ctx;
 
 	if (!(req->flags & REQ_F_INFLIGHT)) {
-		io_req_init_async(req);
 		req->flags |= REQ_F_INFLIGHT;
 
 		spin_lock_irq(&ctx->inflight_lock);
@@ -1238,8 +1207,6 @@ static void io_prep_async_work(struct io_kiocb *req)
 	const struct io_op_def *def = &io_op_defs[req->opcode];
 	struct io_ring_ctx *ctx = req->ctx;
 
-	io_req_init_async(req);
-
 	if (req->flags & REQ_F_FORCE_ASYNC)
 		req->work.flags |= IO_WQ_WORK_CONCURRENT;
 
@@ -1250,8 +1217,6 @@ static void io_prep_async_work(struct io_kiocb *req)
 		if (def->unbound_nonreg_file)
 			req->work.flags |= IO_WQ_WORK_UNBOUND;
 	}
-	if (!req->work.creds)
-		req->work.creds = get_current_cred();
 }
 
 static void io_prep_async_link(struct io_kiocb *req)
@@ -3578,7 +3543,6 @@ static int __io_splice_prep(struct io_kiocb *req,
 		 * Splice operation will be punted aync, and here need to
 		 * modify io_wq_work.flags, so initialize io_wq_work firstly.
 		 */
-		io_req_init_async(req);
 		req->work.flags |= IO_WQ_WORK_UNBOUND;
 	}
 
@@ -5935,7 +5899,21 @@ static void __io_clean_op(struct io_kiocb *req)
 static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
+	const struct cred *creds = NULL;
 	int ret;
+
+	if (req->work.personality) {
+		const struct cred *new_creds;
+
+		if (!(issue_flags & IO_URING_F_NONBLOCK))
+			mutex_lock(&ctx->uring_lock);
+		new_creds = idr_find(&ctx->personality_idr, req->work.personality);
+		if (!(issue_flags & IO_URING_F_NONBLOCK))
+			mutex_unlock(&ctx->uring_lock);
+		if (!new_creds)
+			return -EINVAL;
+		creds = override_creds(new_creds);
+	}
 
 	switch (req->opcode) {
 	case IORING_OP_NOP:
@@ -6042,6 +6020,9 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 		ret = -EINVAL;
 		break;
 	}
+
+	if (creds)
+		revert_creds(creds);
 
 	if (ret)
 		return ret;
@@ -6206,17 +6187,9 @@ static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req)
 static void __io_queue_sqe(struct io_kiocb *req)
 {
 	struct io_kiocb *linked_timeout = io_prep_linked_timeout(req);
-	const struct cred *old_creds = NULL;
 	int ret;
 
-	if ((req->flags & REQ_F_WORK_INITIALIZED) && req->work.creds &&
-	    req->work.creds != current_cred())
-		old_creds = override_creds(req->work.creds);
-
 	ret = io_issue_sqe(req, IO_URING_F_NONBLOCK|IO_URING_F_COMPLETE_DEFER);
-
-	if (old_creds)
-		revert_creds(old_creds);
 
 	/*
 	 * We async punt it if the file wasn't marked NOWAIT, or if the file
@@ -6304,7 +6277,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 {
 	struct io_submit_state *state;
 	unsigned int sqe_flags;
-	int id, ret = 0;
+	int ret = 0;
 
 	req->opcode = READ_ONCE(sqe->opcode);
 	/* same numerical values with corresponding REQ_F_*, safe to copy */
@@ -6336,15 +6309,9 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	    !io_op_defs[req->opcode].buffer_select)
 		return -EOPNOTSUPP;
 
-	id = READ_ONCE(sqe->personality);
-	if (id) {
-		__io_req_init_async(req);
-		req->work.creds = idr_find(&ctx->personality_idr, id);
-		if (unlikely(!req->work.creds))
-			return -EINVAL;
-		get_cred(req->work.creds);
-	}
-
+	req->work.list.next = NULL;
+	req->work.flags = 0;
+	req->work.personality = READ_ONCE(sqe->personality);
 	state = &ctx->submit_state;
 
 	/*
