@@ -91,6 +91,10 @@ static int ttm_resource_ioremap(struct ttm_device *bdev,
 
 		if (mem->bus.caching == ttm_write_combined)
 			addr = ioremap_wc(mem->bus.offset, bus_size);
+#ifdef CONFIG_X86
+		else if (mem->bus.caching == ttm_cached)
+			addr = ioremap_cache(mem->bus.offset, bus_size);
+#endif
 		else
 			addr = ioremap(mem->bus.offset, bus_size);
 		if (!addr) {
@@ -371,6 +375,11 @@ static int ttm_bo_ioremap(struct ttm_buffer_object *bo,
 		if (mem->bus.caching == ttm_write_combined)
 			map->virtual = ioremap_wc(bo->mem.bus.offset + offset,
 						  size);
+#ifdef CONFIG_X86
+		else if (mem->bus.caching == ttm_cached)
+			map->virtual = ioremap_cache(bo->mem.bus.offset + offset,
+						  size);
+#endif
 		else
 			map->virtual = ioremap(bo->mem.bus.offset + offset,
 					       size);
@@ -489,6 +498,11 @@ int ttm_bo_vmap(struct ttm_buffer_object *bo, struct dma_buf_map *map)
 		else if (mem->bus.caching == ttm_write_combined)
 			vaddr_iomem = ioremap_wc(mem->bus.offset,
 						 bo->base.size);
+#ifdef CONFIG_X86
+		else if (mem->bus.caching == ttm_cached)
+			vaddr_iomem = ioremap_cache(mem->bus.offset,
+						  bo->base.size);
+#endif
 		else
 			vaddr_iomem = ioremap(mem->bus.offset, bo->base.size);
 
