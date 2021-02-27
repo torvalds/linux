@@ -142,6 +142,12 @@
  *	@orig the original mount data copied from userspace.
  *	@copy copied data which will be passed to the security module.
  *	Returns 0 if the copy was successful.
+ * @sb_mnt_opts_compat:
+ *	Determine if the new mount options in @mnt_opts are allowed given
+ *	the existing mounted filesystem at @sb.
+ *	@sb superblock being compared
+ *	@mnt_opts new mount options
+ *	Return 0 if options are compatible.
  * @sb_remount:
  *	Extracts security system specific mount options and verifies no changes
  *	are being made to those options.
