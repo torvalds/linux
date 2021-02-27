@@ -1573,8 +1573,189 @@ transport_generic_map_mem_to_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
 }
 
 /**
+ * target_init_cmd - initialize se_cmd
+ * @se_cmd: command descriptor to init
+ * @se_sess: associated se_sess for endpoint
+ * @sense: pointer to SCSI sense buffer
+ * @unpacked_lun: unpacked LUN to reference for struct se_lun
+ * @data_length: fabric expected data transfer length
+ * @task_attr: SAM task attribute
+ * @data_dir: DMA data direction
+ * @flags: flags for command submission from target_sc_flags_tables
+ *
+ * Task tags are supported if the caller has set @se_cmd->tag.
+ *
+ * Returns:
+ *	- less than zero to signal active I/O shutdown failure.
+ *	- zero on success.
+ *
+ * If the fabric driver calls target_stop_session, then it must check the
+ * return code and handle failures. This will never fail for other drivers,
+ * and the return code can be ignored.
+ */
+int target_init_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
+		    unsigned char *sense, u64 unpacked_lun,
+		    u32 data_length, int task_attr, int data_dir, int flags)
+{
+	struct se_portal_group *se_tpg;
+
+	se_tpg = se_sess->se_tpg;
+	BUG_ON(!se_tpg);
+	BUG_ON(se_cmd->se_tfo || se_cmd->se_sess);
+
+	if (flags & TARGET_SCF_USE_CPUID)
+		se_cmd->se_cmd_flags |= SCF_USE_CPUID;
+	/*
+	 * Signal bidirectional data payloads to target-core
+	 */
+	if (flags & TARGET_SCF_BIDI_OP)
+		se_cmd->se_cmd_flags |= SCF_BIDI;
+
+	if (flags & TARGET_SCF_UNKNOWN_SIZE)
+		se_cmd->unknown_data_length = 1;
+	/*
+	 * Initialize se_cmd for target operation.  From this point
+	 * exceptions are handled by sending exception status via
+	 * target_core_fabric_ops->queue_status() callback
+	 */
+	__target_init_cmd(se_cmd, se_tpg->se_tpg_tfo, se_sess, data_length,
+			  data_dir, task_attr, sense, unpacked_lun);
+
+	/*
+	 * Obtain struct se_cmd->cmd_kref reference. A second kref_get here is
+	 * necessary for fabrics using TARGET_SCF_ACK_KREF that expect a second
+	 * kref_put() to happen during fabric packet acknowledgement.
+	 */
+	return target_get_sess_cmd(se_cmd, flags & TARGET_SCF_ACK_KREF);
+}
+EXPORT_SYMBOL_GPL(target_init_cmd);
+
+/**
+ * target_submit_prep - prepare cmd for submission
+ * @se_cmd: command descriptor to prep
+ * @cdb: pointer to SCSI CDB
+ * @sgl: struct scatterlist memory for unidirectional mapping
+ * @sgl_count: scatterlist count for unidirectional mapping
+ * @sgl_bidi: struct scatterlist memory for bidirectional READ mapping
+ * @sgl_bidi_count: scatterlist count for bidirectional READ mapping
+ * @sgl_prot: struct scatterlist memory protection information
+ * @sgl_prot_count: scatterlist count for protection information
+ *
+ * Returns:
+ *	- less than zero to signal failure.
+ *	- zero on success.
+ * If failure is returned, lio will the callers queue_status to complete
+ * the cmd.
+ */
+int target_submit_prep(struct se_cmd *se_cmd, unsigned char *cdb,
+		       struct scatterlist *sgl, u32 sgl_count,
+		       struct scatterlist *sgl_bidi, u32 sgl_bidi_count,
+		       struct scatterlist *sgl_prot, u32 sgl_prot_count)
+{
+	sense_reason_t rc;
+
+	rc = target_cmd_init_cdb(se_cmd, cdb);
+	if (rc)
+		goto send_cc_direct;
+
+	/*
+	 * Locate se_lun pointer and attach it to struct se_cmd
+	 */
+	rc = transport_lookup_cmd_lun(se_cmd);
+	if (rc)
+		goto send_cc_direct;
+
+	rc = target_cmd_parse_cdb(se_cmd);
+	if (rc != 0)
+		goto generic_fail;
+
+	/*
+	 * Save pointers for SGLs containing protection information,
+	 * if present.
+	 */
+	if (sgl_prot_count) {
+		se_cmd->t_prot_sg = sgl_prot;
+		se_cmd->t_prot_nents = sgl_prot_count;
+		se_cmd->se_cmd_flags |= SCF_PASSTHROUGH_PROT_SG_TO_MEM_NOALLOC;
+	}
+
+	/*
+	 * When a non zero sgl_count has been passed perform SGL passthrough
+	 * mapping for pre-allocated fabric memory instead of having target
+	 * core perform an internal SGL allocation..
+	 */
+	if (sgl_count != 0) {
+		BUG_ON(!sgl);
+
+		rc = transport_generic_map_mem_to_cmd(se_cmd, sgl, sgl_count,
+				sgl_bidi, sgl_bidi_count);
+		if (rc != 0)
+			goto generic_fail;
+	}
+
+	return 0;
+
+send_cc_direct:
+	transport_send_check_condition_and_sense(se_cmd, rc, 0);
+	target_put_sess_cmd(se_cmd);
+	return -EIO;
+
+generic_fail:
+	transport_generic_request_failure(se_cmd, rc);
+	return -EIO;
+}
+EXPORT_SYMBOL_GPL(target_submit_prep);
+
+/**
+ * target_submit - perform final initialization and submit cmd to LIO core
+ * @se_cmd: command descriptor to submit
+ *
+ * target_submit_prep must have been called on the cmd, and this must be
+ * called from process context.
+ */
+void target_submit(struct se_cmd *se_cmd)
+{
+	struct scatterlist *sgl = se_cmd->t_data_sg;
+	unsigned char *buf = NULL;
+
+	might_sleep();
+
+	if (se_cmd->t_data_nents != 0) {
+		BUG_ON(!sgl);
+		/*
+		 * A work-around for tcm_loop as some userspace code via
+		 * scsi-generic do not memset their associated read buffers,
+		 * so go ahead and do that here for type non-data CDBs.  Also
+		 * note that this is currently guaranteed to be a single SGL
+		 * for this case by target core in target_setup_cmd_from_cdb()
+		 * -> transport_generic_cmd_sequencer().
+		 */
+		if (!(se_cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) &&
+		     se_cmd->data_direction == DMA_FROM_DEVICE) {
+			if (sgl)
+				buf = kmap(sg_page(sgl)) + sgl->offset;
+
+			if (buf) {
+				memset(buf, 0, sgl->length);
+				kunmap(sg_page(sgl));
+			}
+		}
+
+	}
+
+	/*
+	 * Check if we need to delay processing because of ALUA
+	 * Active/NonOptimized primary access state..
+	 */
+	core_alua_check_nonop_delay(se_cmd);
+
+	transport_handle_cdb_direct(se_cmd);
+}
+EXPORT_SYMBOL_GPL(target_submit);
+
+/**
  * target_submit_cmd_map_sgls - lookup unpacked lun and submit uninitialized
- * 			 se_cmd + use pre-allocated SGL memory.
+ *					se_cmd + use pre-allocated SGL memory.
  *
  * @se_cmd: command descriptor to submit
  * @se_sess: associated se_sess for endpoint
@@ -1608,120 +1789,18 @@ int target_submit_cmd_map_sgls(struct se_cmd *se_cmd, struct se_session *se_sess
 		struct scatterlist *sgl_bidi, u32 sgl_bidi_count,
 		struct scatterlist *sgl_prot, u32 sgl_prot_count)
 {
-	struct se_portal_group *se_tpg;
-	sense_reason_t rc;
-	int ret;
+	int rc;
 
-	might_sleep();
+	rc = target_init_cmd(se_cmd, se_sess, sense, unpacked_lun,
+			     data_length, task_attr, data_dir, flags);
+	if (rc < 0)
+		return rc;
 
-	se_tpg = se_sess->se_tpg;
-	BUG_ON(!se_tpg);
-	BUG_ON(se_cmd->se_tfo || se_cmd->se_sess);
-
-	if (flags & TARGET_SCF_USE_CPUID)
-		se_cmd->se_cmd_flags |= SCF_USE_CPUID;
-	/*
-	 * Initialize se_cmd for target operation.  From this point
-	 * exceptions are handled by sending exception status via
-	 * target_core_fabric_ops->queue_status() callback
-	 */
-	__target_init_cmd(se_cmd, se_tpg->se_tpg_tfo, se_sess,
-			  data_length, data_dir, task_attr, sense,
-			  unpacked_lun);
-
-	if (flags & TARGET_SCF_UNKNOWN_SIZE)
-		se_cmd->unknown_data_length = 1;
-	/*
-	 * Obtain struct se_cmd->cmd_kref reference. A second kref_get here is
-	 * necessary for fabrics using TARGET_SCF_ACK_KREF that expect a second
-	 * kref_put() to happen during fabric packet acknowledgement.
-	 */
-	ret = target_get_sess_cmd(se_cmd, flags & TARGET_SCF_ACK_KREF);
-	if (ret)
-		return ret;
-	/*
-	 * Signal bidirectional data payloads to target-core
-	 */
-	if (flags & TARGET_SCF_BIDI_OP)
-		se_cmd->se_cmd_flags |= SCF_BIDI;
-
-	rc = target_cmd_init_cdb(se_cmd, cdb);
-	if (rc) {
-		transport_send_check_condition_and_sense(se_cmd, rc, 0);
-		target_put_sess_cmd(se_cmd);
+	if (target_submit_prep(se_cmd, cdb, sgl, sgl_count, sgl_bidi,
+			       sgl_bidi_count, sgl_prot, sgl_prot_count))
 		return 0;
-	}
 
-	/*
-	 * Locate se_lun pointer and attach it to struct se_cmd
-	 */
-	rc = transport_lookup_cmd_lun(se_cmd);
-	if (rc) {
-		transport_send_check_condition_and_sense(se_cmd, rc, 0);
-		target_put_sess_cmd(se_cmd);
-		return 0;
-	}
-
-	rc = target_cmd_parse_cdb(se_cmd);
-	if (rc != 0) {
-		transport_generic_request_failure(se_cmd, rc);
-		return 0;
-	}
-
-	/*
-	 * Save pointers for SGLs containing protection information,
-	 * if present.
-	 */
-	if (sgl_prot_count) {
-		se_cmd->t_prot_sg = sgl_prot;
-		se_cmd->t_prot_nents = sgl_prot_count;
-		se_cmd->se_cmd_flags |= SCF_PASSTHROUGH_PROT_SG_TO_MEM_NOALLOC;
-	}
-
-	/*
-	 * When a non zero sgl_count has been passed perform SGL passthrough
-	 * mapping for pre-allocated fabric memory instead of having target
-	 * core perform an internal SGL allocation..
-	 */
-	if (sgl_count != 0) {
-		BUG_ON(!sgl);
-
-		/*
-		 * A work-around for tcm_loop as some userspace code via
-		 * scsi-generic do not memset their associated read buffers,
-		 * so go ahead and do that here for type non-data CDBs.  Also
-		 * note that this is currently guaranteed to be a single SGL
-		 * for this case by target core in target_setup_cmd_from_cdb()
-		 * -> transport_generic_cmd_sequencer().
-		 */
-		if (!(se_cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) &&
-		     se_cmd->data_direction == DMA_FROM_DEVICE) {
-			unsigned char *buf = NULL;
-
-			if (sgl)
-				buf = kmap(sg_page(sgl)) + sgl->offset;
-
-			if (buf) {
-				memset(buf, 0, sgl->length);
-				kunmap(sg_page(sgl));
-			}
-		}
-
-		rc = transport_generic_map_mem_to_cmd(se_cmd, sgl, sgl_count,
-				sgl_bidi, sgl_bidi_count);
-		if (rc != 0) {
-			transport_generic_request_failure(se_cmd, rc);
-			return 0;
-		}
-	}
-
-	/*
-	 * Check if we need to delay processing because of ALUA
-	 * Active/NonOptimized primary access state..
-	 */
-	core_alua_check_nonop_delay(se_cmd);
-
-	transport_handle_cdb_direct(se_cmd);
+	target_submit(se_cmd);
 	return 0;
 }
 EXPORT_SYMBOL(target_submit_cmd_map_sgls);
