@@ -157,10 +157,11 @@ int	target_init_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
 int	target_submit_prep(struct se_cmd *se_cmd, unsigned char *cdb,
 		struct scatterlist *sgl, u32 sgl_count,
 		struct scatterlist *sgl_bidi, u32 sgl_bidi_count,
-		struct scatterlist *sgl_prot, u32 sgl_prot_count);
+		struct scatterlist *sgl_prot, u32 sgl_prot_count, gfp_t gfp);
 void	target_submit(struct se_cmd *se_cmd);
 sense_reason_t transport_lookup_cmd_lun(struct se_cmd *);
-sense_reason_t target_cmd_init_cdb(struct se_cmd *, unsigned char *);
+sense_reason_t target_cmd_init_cdb(struct se_cmd *se_cmd, unsigned char *cdb,
+				   gfp_t gfp);
 sense_reason_t target_cmd_parse_cdb(struct se_cmd *);
 void	target_submit_cmd(struct se_cmd *, struct se_session *, unsigned char *,
 		unsigned char *, u64, u32, int, int, int);

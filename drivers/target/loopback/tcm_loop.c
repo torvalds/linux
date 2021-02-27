@@ -156,7 +156,8 @@ static void tcm_loop_submission_work(struct work_struct *work)
 
 	if (target_submit_prep(se_cmd, sc->cmnd, scsi_sglist(sc),
 			       scsi_sg_count(sc), sgl_bidi, sgl_bidi_count,
-			       scsi_prot_sglist(sc), scsi_prot_sg_count(sc)))
+			       scsi_prot_sglist(sc), scsi_prot_sg_count(sc),
+			       GFP_NOIO))
 		return;
 
 	target_submit(se_cmd);

@@ -555,7 +555,7 @@ static void ft_send_work(struct work_struct *work)
 		goto err;
 
 	if (target_submit_prep(&cmd->se_cmd, fcp->fc_cdb, NULL, 0, NULL, 0,
-			       NULL, 0))
+			       NULL, 0, GFP_KERNEL))
 		return;
 
 	target_submit(&cmd->se_cmd);

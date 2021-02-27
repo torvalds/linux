@@ -492,7 +492,8 @@ static int tcm_qla2xxx_handle_cmd(scsi_qla_host_t *vha, struct qla_tgt_cmd *cmd,
 	if (rc)
 		return rc;
 
-	if (target_submit_prep(se_cmd, cdb, NULL, 0, NULL, 0, NULL, 0))
+	if (target_submit_prep(se_cmd, cdb, NULL, 0, NULL, 0, NULL, 0,
+			       GFP_KERNEL))
 		return 0;
 
 	target_submit(se_cmd);

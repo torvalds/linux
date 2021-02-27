@@ -554,7 +554,7 @@ static int target_xcopy_setup_pt_cmd(
 	}
 	cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
 
-	if (target_cmd_init_cdb(cmd, cdb))
+	if (target_cmd_init_cdb(cmd, cdb, GFP_KERNEL))
 		return -EINVAL;
 
 	cmd->tag = 0;

@@ -811,7 +811,7 @@ static void vhost_scsi_submission_work(struct work_struct *work)
 
 	if (target_submit_prep(se_cmd, cmd->tvc_cdb, sg_ptr,
 			       cmd->tvc_sgl_count, NULL, 0, sg_prot_ptr,
-			       cmd->tvc_prot_sgl_count))
+			       cmd->tvc_prot_sgl_count, GFP_KERNEL))
 		return;
 
 	target_submit(se_cmd);

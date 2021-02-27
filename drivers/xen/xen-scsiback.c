@@ -368,7 +368,7 @@ static void scsiback_cmd_exec(struct vscsibk_pend *pending_req)
 			pending_req->sc_data_direction, TARGET_SCF_ACK_KREF);
 
 	if (target_submit_prep(se_cmd, pending_req->cmnd, pending_req->sgl,
-			       pending_req->n_sg, NULL, 0, NULL, 0))
+			       pending_req->n_sg, NULL, 0, NULL, 0, GFP_KERNEL))
 		return;
 
 	target_submit(se_cmd);

@@ -1429,7 +1429,7 @@ transport_check_alloc_task_attr(struct se_cmd *cmd)
 }
 
 sense_reason_t
-target_cmd_init_cdb(struct se_cmd *cmd, unsigned char *cdb)
+target_cmd_init_cdb(struct se_cmd *cmd, unsigned char *cdb, gfp_t gfp)
 {
 	sense_reason_t ret;
 
@@ -1450,8 +1450,7 @@ target_cmd_init_cdb(struct se_cmd *cmd, unsigned char *cdb)
 	 * setup the pointer from __t_task_cdb to t_task_cdb.
 	 */
 	if (scsi_command_size(cdb) > sizeof(cmd->__t_task_cdb)) {
-		cmd->t_task_cdb = kzalloc(scsi_command_size(cdb),
-						GFP_KERNEL);
+		cmd->t_task_cdb = kzalloc(scsi_command_size(cdb), gfp);
 		if (!cmd->t_task_cdb) {
 			pr_err("Unable to allocate cmd->t_task_cdb"
 				" %u > sizeof(cmd->__t_task_cdb): %lu ops\n",
@@ -1640,6 +1639,7 @@ EXPORT_SYMBOL_GPL(target_init_cmd);
  * @sgl_bidi_count: scatterlist count for bidirectional READ mapping
  * @sgl_prot: struct scatterlist memory protection information
  * @sgl_prot_count: scatterlist count for protection information
+ * @gfp: gfp allocation type
  *
  * Returns:
  *	- less than zero to signal failure.
@@ -1650,11 +1650,12 @@ EXPORT_SYMBOL_GPL(target_init_cmd);
 int target_submit_prep(struct se_cmd *se_cmd, unsigned char *cdb,
 		       struct scatterlist *sgl, u32 sgl_count,
 		       struct scatterlist *sgl_bidi, u32 sgl_bidi_count,
-		       struct scatterlist *sgl_prot, u32 sgl_prot_count)
+		       struct scatterlist *sgl_prot, u32 sgl_prot_count,
+		       gfp_t gfp)
 {
 	sense_reason_t rc;
 
-	rc = target_cmd_init_cdb(se_cmd, cdb);
+	rc = target_cmd_init_cdb(se_cmd, cdb, gfp);
 	if (rc)
 		goto send_cc_direct;
 
@@ -1790,7 +1791,8 @@ void target_submit_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
 	if (rc)
 		return;
 
-	if (target_submit_prep(se_cmd, cdb, NULL, 0, NULL, 0, NULL, 0))
+	if (target_submit_prep(se_cmd, cdb, NULL, 0, NULL, 0, NULL, 0,
+			       GFP_KERNEL))
 		return;
 
 	target_submit(se_cmd);
