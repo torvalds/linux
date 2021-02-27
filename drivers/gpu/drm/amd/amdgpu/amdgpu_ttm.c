@@ -1432,6 +1432,10 @@ uint64_t amdgpu_ttm_tt_pde_flags(struct ttm_tt *ttm, struct ttm_resource *mem)
 			flags |= AMDGPU_PTE_SNOOPED;
 	}
 
+	if (mem && mem->mem_type == TTM_PL_VRAM &&
+			mem->bus.caching == ttm_cached)
+		flags |= AMDGPU_PTE_SNOOPED;
+
 	return flags;
 }
 
