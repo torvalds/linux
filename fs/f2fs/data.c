@@ -3803,7 +3803,7 @@ static int check_swap_activate_fast(struct swap_info_struct *sis,
 	last_lblock = bytes_to_blks(inode, i_size_read(inode));
 	len = i_size_read(inode);
 
-	while (cur_lblock <= last_lblock && cur_lblock < sis->max) {
+	while (cur_lblock < last_lblock && cur_lblock < sis->max) {
 		struct f2fs_map_blocks map;
 		pgoff_t next_pgofs;
 
