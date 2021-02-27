@@ -11,6 +11,16 @@
 #include "netdev.h"
 #include "cfg80211.h"
 
+/*
+ * For CMD_SINGLE_READ and CMD_INTERNAL_READ, WILC may insert one or
+ * more zero bytes between the command response and the DATA Start tag
+ * (0xf3).  This behavior appears to be undocumented in "ATWILC1000
+ * USER GUIDE" (https://tinyurl.com/4hhshdts) but we have observed 1-4
+ * zero bytes when the SPI bus operates at 48MHz and none when it
+ * operates at 1MHz.
+ */
+#define WILC_SPI_RSP_HDR_EXTRA_DATA	8
+
 struct wilc_spi {
 	int crc_off;
 };
@@ -79,16 +89,15 @@ struct wilc_spi_cmd {
 } __packed;
 
 struct wilc_spi_read_rsp_data {
-	u8 rsp_cmd_type;
-	u8 status;
-	u8 resp_header;
-	u8 resp_data[4];
+	u8 header;
+	u8 data[4];
 	u8 crc[];
 } __packed;
 
 struct wilc_spi_rsp_data {
 	u8 rsp_cmd_type;
 	u8 status;
+	u8 data[];
 } __packed;
 
 static int wilc_bus_probe(struct spi_device *spi)
@@ -359,10 +368,11 @@ static int wilc_spi_single_read(struct wilc *wilc, u8 cmd, u32 adr, void *b,
 	struct spi_device *spi = to_spi_device(wilc->dev);
 	struct wilc_spi *spi_priv = wilc->bus_data;
 	u8 wb[32], rb[32];
-	int cmd_len, resp_len;
 	u8 crc[2];
+	int cmd_len, resp_len, i;
 	struct wilc_spi_cmd *c;
-	struct wilc_spi_read_rsp_data *r;
+	struct wilc_spi_read_rsp_data *r_data;
+	struct wilc_spi_rsp_data *r;
 
 	memset(wb, 0x0, sizeof(wb));
 	memset(rb, 0x0, sizeof(rb));
@@ -384,7 +394,8 @@ static int wilc_spi_single_read(struct wilc *wilc, u8 cmd, u32 adr, void *b,
 	}
 
 	cmd_len = offsetof(struct wilc_spi_cmd, u.simple_cmd.crc);
-	resp_len = sizeof(*r);
+	resp_len = sizeof(*r) + sizeof(*r_data) + WILC_SPI_RSP_HDR_EXTRA_DATA;
+
 	if (!spi_priv->crc_off) {
 		c->u.simple_cmd.crc[0] = wilc_get_crc7(wb, cmd_len);
 		cmd_len += 1;
@@ -403,7 +414,7 @@ static int wilc_spi_single_read(struct wilc *wilc, u8 cmd, u32 adr, void *b,
 		return -EINVAL;
 	}
 
-	r = (struct wilc_spi_read_rsp_data *)&rb[cmd_len];
+	r = (struct wilc_spi_rsp_data *)&rb[cmd_len];
 	if (r->rsp_cmd_type != cmd) {
 		dev_err(&spi->dev,
 			"Failed cmd response, cmd (%02x), resp (%02x)\n",
@@ -417,17 +428,22 @@ static int wilc_spi_single_read(struct wilc *wilc, u8 cmd, u32 adr, void *b,
 		return -EINVAL;
 	}
 
-	if (WILC_GET_RESP_HDR_START(r->resp_header) != 0xf) {
-		dev_err(&spi->dev, "Error, data read response (%02x)\n",
-			r->resp_header);
+	for (i = 0; i < WILC_SPI_RSP_HDR_EXTRA_DATA; ++i)
+		if (WILC_GET_RESP_HDR_START(r->data[i]) == 0xf)
+			break;
+
+	if (i >= WILC_SPI_RSP_HDR_EXTRA_DATA) {
+		dev_err(&spi->dev, "Error, data start missing\n");
 		return -EINVAL;
 	}
 
+	r_data = (struct wilc_spi_read_rsp_data *)&r->data[i];
+
 	if (b)
-		memcpy(b, r->resp_data, 4);
+		memcpy(b, r_data->data, 4);
 
 	if (!spi_priv->crc_off)
-		memcpy(crc, r->crc, 2);
+		memcpy(crc, r_data->crc, 2);
 
 	return 0;
 }
