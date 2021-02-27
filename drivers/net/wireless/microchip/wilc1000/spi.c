@@ -47,6 +47,17 @@ static const struct wilc_hif_func wilc_hif_spi;
 
 #define SPI_ENABLE_VMM_RETRY_LIMIT		2
 
+/* SPI response fields (section 11.1.2 in ATWILC1000 User Guide): */
+#define RSP_START_FIELD				GENMASK(7, 4)
+#define RSP_TYPE_FIELD				GENMASK(3, 0)
+
+/* SPI response values for the response fields: */
+#define RSP_START_TAG				0xc
+#define RSP_TYPE_FIRST_PACKET			0x1
+#define RSP_TYPE_INNER_PACKET			0x2
+#define RSP_TYPE_LAST_PACKET			0x3
+#define RSP_STATE_NO_ERROR			0x00
+
 #define PROTOCOL_REG_PKT_SZ_MASK		GENMASK(6, 4)
 #define PROTOCOL_REG_CRC16_MASK			GENMASK(3, 3)
 #define PROTOCOL_REG_CRC7_MASK			GENMASK(2, 2)
@@ -750,6 +761,52 @@ static int wilc_spi_write_reg(struct wilc *wilc, u32 addr, u32 data)
 	return 0;
 }
 
+static int spi_data_rsp(struct wilc *wilc, u8 cmd)
+{
+	struct spi_device *spi = to_spi_device(wilc->dev);
+	int result, i;
+	u8 rsp[4];
+
+	/*
+	 * The response to data packets is two bytes long.  For
+	 * efficiency's sake, wilc_spi_write() wisely ignores the
+	 * responses for all packets but the final one.  The downside
+	 * of that optimization is that when the final data packet is
+	 * short, we may receive (part of) the response to the
+	 * second-to-last packet before the one for the final packet.
+	 * To handle this, we always read 4 bytes and then search for
+	 * the last byte that contains the "Response Start" code (0xc
+	 * in the top 4 bits).  We then know that this byte is the
+	 * first response byte of the final data packet.
+	 */
+	result = wilc_spi_rx(wilc, rsp, sizeof(rsp));
+	if (result) {
+		dev_err(&spi->dev, "Failed bus error...\n");
+		return result;
+	}
+
+	for (i = sizeof(rsp) - 2; i >= 0; --i)
+		if (FIELD_GET(RSP_START_FIELD, rsp[i]) == RSP_START_TAG)
+			break;
+
+	if (i < 0) {
+		dev_err(&spi->dev,
+			"Data packet response missing (%02x %02x %02x %02x)\n",
+			rsp[0], rsp[1], rsp[2], rsp[3]);
+		return -1;
+	}
+
+	/* rsp[i] is the last response start byte */
+
+	if (FIELD_GET(RSP_TYPE_FIELD, rsp[i]) != RSP_TYPE_LAST_PACKET
+	    || rsp[i + 1] != RSP_STATE_NO_ERROR) {
+		dev_err(&spi->dev, "Data response error (%02x %02x)\n",
+			rsp[i], rsp[i + 1]);
+		return -1;
+	}
+	return 0;
+}
+
 static int wilc_spi_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 {
 	struct spi_device *spi = to_spi_device(wilc->dev);
@@ -777,7 +834,10 @@ static int wilc_spi_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 		return result;
 	}
 
-	return 0;
+	/*
+	 * Data response
+	 */
+	return spi_data_rsp(wilc, CMD_DMA_EXT_WRITE);
 }
 
 /********************************************
