@@ -8835,13 +8835,17 @@ static void io_uring_del_task_file(struct file *file)
 		fput(file);
 }
 
-static void io_uring_remove_task_files(struct io_uring_task *tctx)
+static void io_uring_clean_tctx(struct io_uring_task *tctx)
 {
 	struct file *file;
 	unsigned long index;
 
 	xa_for_each(&tctx->xa, index, file)
 		io_uring_del_task_file(file);
+	if (tctx->io_wq) {
+		io_wq_put_and_exit(tctx->io_wq);
+		tctx->io_wq = NULL;
+	}
 }
 
 void __io_uring_files_cancel(struct files_struct *files)
@@ -8856,13 +8860,8 @@ void __io_uring_files_cancel(struct files_struct *files)
 		io_uring_cancel_task_requests(file->private_data, files);
 	atomic_dec(&tctx->in_idle);
 
-	if (files) {
-		io_uring_remove_task_files(tctx);
-		if (tctx->io_wq) {
-			io_wq_put_and_exit(tctx->io_wq);
-			tctx->io_wq = NULL;
-		}
-	}
+	if (files)
+		io_uring_clean_tctx(tctx);
 }
 
 static s64 tctx_inflight(struct io_uring_task *tctx)
@@ -8954,7 +8953,9 @@ void __io_uring_task_cancel(void)
 
 	atomic_dec(&tctx->in_idle);
 
-	io_uring_remove_task_files(tctx);
+	io_uring_clean_tctx(tctx);
+	/* all current's requests should be gone, we can kill tctx */
+	__io_uring_free(current);
 }
 
 static int io_uring_flush(struct file *file, void *data)
