@@ -1401,35 +1401,20 @@ static int a6xx_set_supported_hw(struct device *dev, struct a6xx_gpu *a6xx_gpu,
 		u32 revn)
 {
 	struct opp_table *opp_table;
-	struct nvmem_cell *cell;
 	u32 supp_hw = UINT_MAX;
-	void *buf;
+	u16 speedbin;
+	int ret;
 
-	cell = nvmem_cell_get(dev, "speed_bin");
-	/*
-	 * -ENOENT means that the platform doesn't support speedbin which is
-	 * fine
-	 */
-	if (PTR_ERR(cell) == -ENOENT)
-		return 0;
-	else if (IS_ERR(cell)) {
+	ret = nvmem_cell_read_u16(dev, "speed_bin", &speedbin);
+	if (ret) {
 		DRM_DEV_ERROR(dev,
-				"failed to read speed-bin. Some OPPs may not be supported by hardware");
+			      "failed to read speed-bin (%d). Some OPPs may not be supported by hardware",
+			      ret);
 		goto done;
 	}
+	speedbin = le16_to_cpu(speedbin);
 
-	buf = nvmem_cell_read(cell, NULL);
-	if (IS_ERR(buf)) {
-		nvmem_cell_put(cell);
-		DRM_DEV_ERROR(dev,
-				"failed to read speed-bin. Some OPPs may not be supported by hardware");
-		goto done;
-	}
-
-	supp_hw = fuse_to_supp_hw(dev, revn, *((u32 *) buf));
-
-	kfree(buf);
-	nvmem_cell_put(cell);
+	supp_hw = fuse_to_supp_hw(dev, revn, speedbin);
 
 done:
 	opp_table = dev_pm_opp_set_supported_hw(dev, &supp_hw, 1);
