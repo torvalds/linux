@@ -716,7 +716,7 @@ Further reading
 Exercises
 =========
 
-.. include:: exercises-summary.hrst
+.. include:: ../labs/exercises-summary.hrst
 .. |LAB_NAME| replace:: deferred_work
 
 0. Intro

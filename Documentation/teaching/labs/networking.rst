@@ -978,7 +978,7 @@ Further reading
 Exercises
 =========
 
-.. include:: exercises-summary.hrst
+.. include:: ../labs/exercises-summary.hrst
 .. |LAB_NAME| replace:: networking
 
 .. important::

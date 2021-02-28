@@ -442,7 +442,7 @@ Further reading
 Exercises
 =========
 
-.. include:: exercises-summary.hrst
+.. include:: ../labs/exercises-summary.hrst
 .. |LAB_NAME| replace:: filesystems
 
 
@@ -619,7 +619,7 @@ The rest of the operations will be implemented in the next lab.
 
 Follow the diagram below to clarify the role of structures within the ``minfs`` file system.
 
-.. image:: minfs.png
+.. image:: ../img/minfs.png
 
 1. Registering and unregistering the minfs file system
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

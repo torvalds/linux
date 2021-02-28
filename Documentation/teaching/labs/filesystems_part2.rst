@@ -602,7 +602,7 @@ Further reading
 Exercises
 =========
 
-.. include:: exercises-summary.hrst
+.. include:: ../labs/exercises-summary.hrst
 .. |LAB_NAME| replace:: filesystems
 
 .. important::
@@ -819,7 +819,7 @@ The formatting tool prepares a virtual machine disk using a command like
 
 After formatting, the disk has a structure like the one in the diagram below:
 
-.. image:: minfs_arch.png
+.. image:: ../img/minfs_arch.png
 
 As shown in the diagram, ``minfs`` is a minimalist file system.
 ``minfs`` contains a maximum of 32 inodes, each inode having a single data block (the file size is limited to block size).

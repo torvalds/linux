@@ -942,7 +942,7 @@ Exercises
 
 .. _exercises_summary:
 
-.. include:: exercises-summary.hrst
+.. include:: ../labs/exercises-summary.hrst
 .. |LAB_NAME| replace:: kernel_modules
 
 0. Intro

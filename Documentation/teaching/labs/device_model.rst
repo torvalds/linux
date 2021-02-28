@@ -1128,7 +1128,7 @@ can be detected by ``udev``, and entries are removed from ``sysfs``.
 Exercises
 =========
 
-.. include:: exercises-summary.hrst
+.. include:: ../labs/exercises-summary.hrst
 .. |LAB_NAME| replace:: device_model
 
 0. Intro

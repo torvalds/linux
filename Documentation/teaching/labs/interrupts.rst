@@ -675,7 +675,7 @@ Linux device drivers
 Exercises
 =========
 
-.. include:: exercises-summary.hrst
+.. include:: ../labs/exercises-summary.hrst
 .. |LAB_NAME| replace:: interrupts
 
 0. Intro
