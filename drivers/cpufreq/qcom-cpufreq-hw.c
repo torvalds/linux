@@ -368,7 +368,7 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 error:
 	kfree(data);
 unmap_base:
-	iounmap(data->base);
+	iounmap(base);
 release_region:
 	release_mem_region(res->start, resource_size(res));
 	return ret;
