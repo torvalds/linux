@@ -6204,13 +6204,19 @@ static void io_wq_submit_work(struct io_wq_work *work)
 	}
 }
 
-static inline struct file *io_file_from_index(struct io_ring_ctx *ctx,
-					      int index)
+static inline struct file **io_fixed_file_slot(struct fixed_rsrc_data *file_data,
+					       unsigned i)
 {
 	struct fixed_rsrc_table *table;
 
-	table = &ctx->file_data->table[index >> IORING_FILE_TABLE_SHIFT];
-	return table->files[index & IORING_FILE_TABLE_MASK];
+	table = &file_data->table[i >> IORING_FILE_TABLE_SHIFT];
+	return &table->files[i & IORING_FILE_TABLE_MASK];
+}
+
+static inline struct file *io_file_from_index(struct io_ring_ctx *ctx,
+					      int index)
+{
+	return *io_fixed_file_slot(ctx->file_data, index);
 }
 
 static struct file *io_file_get(struct io_submit_state *state,
@@ -7476,15 +7482,6 @@ static void io_rsrc_put_work(struct work_struct *work)
 		__io_rsrc_put_work(ref_node);
 		node = next;
 	}
-}
-
-static struct file **io_fixed_file_slot(struct fixed_rsrc_data *file_data,
-					unsigned i)
-{
-	struct fixed_rsrc_table *table;
-
-	table = &file_data->table[i >> IORING_FILE_TABLE_SHIFT];
-	return &table->files[i & IORING_FILE_TABLE_MASK];
 }
 
 static void io_rsrc_node_ref_zero(struct percpu_ref *ref)
