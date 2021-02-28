@@ -519,12 +519,15 @@ void kvm_vgic_init_cpu_hardware(void)
  */
 int kvm_vgic_hyp_init(void)
 {
+	bool has_mask;
 	int ret;
 
 	if (!gic_kvm_info)
 		return -ENODEV;
 
-	if (!gic_kvm_info->maint_irq) {
+	has_mask = !gic_kvm_info->no_maint_irq_mask;
+
+	if (has_mask && !gic_kvm_info->maint_irq) {
 		kvm_err("No vgic maintenance irq\n");
 		return -ENXIO;
 	}
@@ -551,6 +554,9 @@ int kvm_vgic_hyp_init(void)
 
 	if (ret)
 		return ret;
+
+	if (!has_mask)
+		return 0;
 
 	ret = request_percpu_irq(kvm_vgic_global_state.maint_irq,
 				 vgic_maintenance_handler,
