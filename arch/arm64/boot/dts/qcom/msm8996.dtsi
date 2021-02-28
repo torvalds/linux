@@ -473,7 +473,7 @@
 
 		tcsr_mutex_regs: syscon@740000 {
 			compatible = "syscon";
-			reg = <0x00740000 0x20000>;
+			reg = <0x00740000 0x40000>;
 		};
 
 		tcsr: syscon@7a0000 {
