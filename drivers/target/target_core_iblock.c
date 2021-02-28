@@ -341,9 +341,8 @@ static void iblock_bio_done(struct bio *bio)
 	iblock_complete_cmd(cmd);
 }
 
-static struct bio *
-iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num, int op,
-	       int op_flags)
+static struct bio *iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num,
+				  unsigned int opf)
 {
 	struct iblock_dev *ib_dev = IBLOCK_DEV(cmd->se_dev);
 	struct bio *bio;
@@ -363,7 +362,7 @@ iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num, int op,
 	bio->bi_private = cmd;
 	bio->bi_end_io = &iblock_bio_done;
 	bio->bi_iter.bi_sector = lba;
-	bio_set_op_attrs(bio, op, op_flags);
+	bio->bi_opf = opf;
 
 	return bio;
 }
@@ -517,7 +516,7 @@ iblock_execute_write_same(struct se_cmd *cmd)
 		goto fail;
 	cmd->priv = ibr;
 
-	bio = iblock_get_bio(cmd, block_lba, 1, REQ_OP_WRITE, 0);
+	bio = iblock_get_bio(cmd, block_lba, 1, REQ_OP_WRITE);
 	if (!bio)
 		goto fail_free_ibr;
 
@@ -530,8 +529,7 @@ iblock_execute_write_same(struct se_cmd *cmd)
 		while (bio_add_page(bio, sg_page(sg), sg->length, sg->offset)
 				!= sg->length) {
 
-			bio = iblock_get_bio(cmd, block_lba, 1, REQ_OP_WRITE,
-					     0);
+			bio = iblock_get_bio(cmd, block_lba, 1, REQ_OP_WRITE);
 			if (!bio)
 				goto fail_put_bios;
 
@@ -725,9 +723,11 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	struct bio_list list;
 	struct scatterlist *sg;
 	u32 sg_num = sgl_nents;
+	unsigned int opf;
 	unsigned bio_cnt;
-	int i, rc, op, op_flags = 0;
+	int i, rc;
 	struct sg_mapping_iter prot_miter;
+	unsigned int miter_dir;
 
 	if (data_direction == DMA_TO_DEVICE) {
 		struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
@@ -736,15 +736,17 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		 * Force writethrough using REQ_FUA if a volatile write cache
 		 * is not enabled, or if initiator set the Force Unit Access bit.
 		 */
-		op = REQ_OP_WRITE;
+		opf = REQ_OP_WRITE;
+		miter_dir = SG_MITER_TO_SG;
 		if (test_bit(QUEUE_FLAG_FUA, &q->queue_flags)) {
 			if (cmd->se_cmd_flags & SCF_FUA)
-				op_flags = REQ_FUA;
+				opf |= REQ_FUA;
 			else if (!test_bit(QUEUE_FLAG_WC, &q->queue_flags))
-				op_flags = REQ_FUA;
+				opf |= REQ_FUA;
 		}
 	} else {
-		op = REQ_OP_READ;
+		opf = REQ_OP_READ;
+		miter_dir = SG_MITER_FROM_SG;
 	}
 
 	ibr = kzalloc(sizeof(struct iblock_req), GFP_KERNEL);
@@ -758,7 +760,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		return 0;
 	}
 
-	bio = iblock_get_bio(cmd, block_lba, sgl_nents, op, op_flags);
+	bio = iblock_get_bio(cmd, block_lba, sgl_nents, opf);
 	if (!bio)
 		goto fail_free_ibr;
 
@@ -770,8 +772,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 
 	if (cmd->prot_type && dev->dev_attrib.pi_prot_type)
 		sg_miter_start(&prot_miter, cmd->t_prot_sg, cmd->t_prot_nents,
-			       op == REQ_OP_READ ? SG_MITER_FROM_SG :
-						   SG_MITER_TO_SG);
+			       miter_dir);
 
 	for_each_sg(sgl, sg, sgl_nents, i) {
 		/*
@@ -792,8 +793,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 				bio_cnt = 0;
 			}
 
-			bio = iblock_get_bio(cmd, block_lba, sg_num, op,
-					     op_flags);
+			bio = iblock_get_bio(cmd, block_lba, sg_num, opf);
 			if (!bio)
 				goto fail_put_bios;
 
