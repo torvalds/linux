@@ -413,7 +413,7 @@ as vsyscalls are: getpid or gettimeofday.
 
 
 Accessing user space from system calls
-=====================================
+======================================
 
 As we mentioned earlier, user space must be accessed with special APIs
 (:c:func:`get_user`, :c:func:`put_user`, :c:func:`copy_from_user`,
