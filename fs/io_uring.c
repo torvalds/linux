@@ -8914,52 +8914,6 @@ void __io_uring_task_cancel(void)
 	__io_uring_free(current);
 }
 
-static int io_uring_flush(struct file *file, void *data)
-{
-	struct io_uring_task *tctx = current->io_uring;
-	struct io_ring_ctx *ctx = file->private_data;
-
-	/* Ignore helper thread files exit */
-	if (current->flags & PF_IO_WORKER)
-		return 0;
-
-	if (fatal_signal_pending(current) || (current->flags & PF_EXITING)) {
-		io_uring_cancel_task_requests(ctx, NULL);
-		io_req_caches_free(ctx);
-	}
-
-	io_run_ctx_fallback(ctx);
-
-	if (!tctx)
-		return 0;
-
-	/* we should have cancelled and erased it before PF_EXITING */
-	WARN_ON_ONCE((current->flags & PF_EXITING) &&
-		     xa_load(&tctx->xa, (unsigned long)file));
-
-	/*
-	 * fput() is pending, will be 2 if the only other ref is our potential
-	 * task file note. If the task is exiting, drop regardless of count.
-	 */
-	if (atomic_long_read(&file->f_count) != 2)
-		return 0;
-
-	if (ctx->flags & IORING_SETUP_SQPOLL) {
-		/* there is only one file note, which is owned by sqo_task */
-		WARN_ON_ONCE(ctx->sqo_task != current &&
-			     xa_load(&tctx->xa, (unsigned long)file));
-		/* sqo_dead check is for when this happens after cancellation */
-		WARN_ON_ONCE(ctx->sqo_task == current && !ctx->sqo_dead &&
-			     !xa_load(&tctx->xa, (unsigned long)file));
-
-		io_disable_sqo_submit(ctx);
-	}
-
-	if (!(ctx->flags & IORING_SETUP_SQPOLL) || ctx->sqo_task == current)
-		io_uring_del_task_file(file);
-	return 0;
-}
-
 static void *io_uring_validate_mmap_request(struct file *file,
 					    loff_t pgoff, size_t sz)
 {
@@ -9291,7 +9245,6 @@ static void io_uring_show_fdinfo(struct seq_file *m, struct file *f)
 
 static const struct file_operations io_uring_fops = {
 	.release	= io_uring_release,
-	.flush		= io_uring_flush,
 	.mmap		= io_uring_mmap,
 #ifndef CONFIG_MMU
 	.get_unmapped_area = io_uring_nommu_get_unmapped_area,
