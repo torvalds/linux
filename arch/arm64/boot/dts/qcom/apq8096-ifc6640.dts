@@ -391,3 +391,7 @@
 	vdda-phy-max-microamp = <18380>;
 	vdda-pll-max-microamp = <9440>;
 };
+
+&venus {
+	status = "okay";
+};

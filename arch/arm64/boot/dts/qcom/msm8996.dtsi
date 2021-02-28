@@ -1625,7 +1625,7 @@
 			power-domains = <&mmcc GPU_GDSC>;
 		};
 
-		video-codec@c00000 {
+		venus: video-codec@c00000 {
 			compatible = "qcom,msm8996-venus";
 			reg = <0x00c00000 0xff000>;
 			interrupts = <GIC_SPI 287 IRQ_TYPE_LEVEL_HIGH>;
@@ -1656,7 +1656,7 @@
 				 <&venus_smmu 0x2d>,
 				 <&venus_smmu 0x31>;
 			memory-region = <&venus_region>;
-			status = "okay";
+			status = "disabled";
 
 			video-decoder {
 				compatible = "venus-decoder";

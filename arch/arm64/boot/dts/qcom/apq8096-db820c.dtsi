@@ -1097,6 +1097,10 @@
 
 };
 
+&venus {
+	status = "okay";
+};
+
 &wcd9335 {
 	clock-names = "mclk", "slimbus";
 	clocks = <&div1_mclk>,
