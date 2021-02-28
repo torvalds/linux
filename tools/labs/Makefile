@@ -47,6 +47,7 @@ docs:
 	$(MAKE) -C $(KDIR) DOCBOOKS= SPHINXDIRS="teaching" htmldocs
 	$(MAKE) -C $(KDIR) BUILDDIR=$(KDIR)/Documentation/output/slides DOCBOOKS= SPHINXDIRS="teaching" slides
 	for i in $(KDIR)/Documentation/output/slides/teaching/lectures/*.html; do name=$$(basename $$i .html); cp $$i $(KDIR)/Documentation/output/teaching/lectures/$$name-slides.html; done
+	for i in $(KDIR)/Documentation/output/slides/teaching/so2/lec*.html; do name=$$(basename $$i .html); cp $$i $(KDIR)/Documentation/output/teaching/so2/$$name-slides.html; done
 	cp -r $(KDIR)/Documentation/output/slides/teaching/_static $(KDIR)/Documentation/output/teaching/
 
 clean::
