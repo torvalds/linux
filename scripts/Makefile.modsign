@@ -6,7 +6,7 @@
 PHONY := __modsign
 __modsign:
 
-include scripts/Kbuild.include
+include $(srctree)/scripts/Kbuild.include
 
 modules := $(sort $(shell cat modules.order))
 

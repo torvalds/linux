@@ -14,10 +14,10 @@ src := $(subst /generated,,$(obj))
 
 # $(generic)/Kbuild lists mandatory-y. Exclude um since it is a special case.
 ifneq ($(SRCARCH),um)
-include $(generic)/Kbuild
+include $(srctree)/$(generic)/Kbuild
 endif
 
-include scripts/Kbuild.include
+include $(srctree)/scripts/Kbuild.include
 
 redundant := $(filter $(mandatory-y) $(generated-y), $(generic-y))
 redundant += $(foreach f, $(generic-y), $(if $(wildcard $(srctree)/$(src)/$(f)),$(f)))

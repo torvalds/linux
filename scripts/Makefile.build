@@ -35,27 +35,27 @@ subdir-ccflags-y :=
 # Read auto.conf if it exists, otherwise ignore
 -include include/config/auto.conf
 
-include scripts/Kbuild.include
+include $(srctree)/scripts/Kbuild.include
 
 # The filename Kbuild has precedence over Makefile
 kbuild-dir := $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
 kbuild-file := $(if $(wildcard $(kbuild-dir)/Kbuild),$(kbuild-dir)/Kbuild,$(kbuild-dir)/Makefile)
 include $(kbuild-file)
 
-include scripts/Makefile.lib
+include $(srctree)/scripts/Makefile.lib
 
 # Do not include hostprogs rules unless needed.
 # $(sort ...) is used here to remove duplicated words and excessive spaces.
 hostprogs := $(sort $(hostprogs))
 ifneq ($(hostprogs),)
-include scripts/Makefile.host
+include $(srctree)/scripts/Makefile.host
 endif
 
 # Do not include userprogs rules unless needed.
 # $(sort ...) is used here to remove duplicated words and excessive spaces.
 userprogs := $(sort $(userprogs))
 ifneq ($(userprogs),)
-include scripts/Makefile.userprogs
+include $(srctree)/scripts/Makefile.userprogs
 endif
 
 ifndef obj
