@@ -41,6 +41,7 @@
 #include "en.h"
 
 struct mlx5e_tls_sw_stats {
+	atomic64_t tx_tls_ctx;
 	atomic64_t tx_tls_drop_metadata;
 	atomic64_t tx_tls_drop_resync_alloc;
 	atomic64_t tx_tls_drop_no_sync_data;
