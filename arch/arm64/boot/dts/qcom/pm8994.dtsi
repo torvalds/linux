@@ -45,7 +45,6 @@
 
 		pm8994_pon: pon@800 {
 			compatible = "qcom,pm8916-pon";
-
 			reg = <0x800>;
 			mode-bootloader = <0x2>;
 			mode-recovery = <0x1>;
@@ -58,6 +57,13 @@
 				linux,code = <KEY_POWER>;
 			};
 
+			pm8994_resin: resin {
+				compatible = "qcom,pm8941-resin";
+				interrupts = <0x0 0x8 1 IRQ_TYPE_EDGE_BOTH>;
+				debounce = <15625>;
+				bias-pull-up;
+				status = "disabled";
+			};
 		};
 
 		pm8994_temp: temp-alarm@2400 {
