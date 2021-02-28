@@ -3128,19 +3128,11 @@ static void io_req_map_rw(struct io_kiocb *req, const struct iovec *iovec,
 	}
 }
 
-static inline int __io_alloc_async_data(struct io_kiocb *req)
+static inline int io_alloc_async_data(struct io_kiocb *req)
 {
 	WARN_ON_ONCE(!io_op_defs[req->opcode].async_size);
 	req->async_data = kmalloc(io_op_defs[req->opcode].async_size, GFP_KERNEL);
 	return req->async_data == NULL;
-}
-
-static int io_alloc_async_data(struct io_kiocb *req)
-{
-	if (!io_op_defs[req->opcode].needs_async_data)
-		return 0;
-
-	return  __io_alloc_async_data(req);
 }
 
 static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
@@ -3150,7 +3142,7 @@ static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
 	if (!force && !io_op_defs[req->opcode].needs_async_data)
 		return 0;
 	if (!req->async_data) {
-		if (__io_alloc_async_data(req)) {
+		if (io_alloc_async_data(req)) {
 			kfree(iovec);
 			return -ENOMEM;
 		}
@@ -5904,7 +5896,7 @@ static int io_req_defer_prep(struct io_kiocb *req)
 	/* some opcodes init it during the inital prep */
 	if (req->async_data)
 		return 0;
-	if (__io_alloc_async_data(req))
+	if (io_alloc_async_data(req))
 		return -EAGAIN;
 	return io_req_prep_async(req);
 }
