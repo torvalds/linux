@@ -8484,15 +8484,11 @@ static int io_remove_personalities(int id, void *p, void *data)
 
 static bool io_run_ctx_fallback(struct io_ring_ctx *ctx)
 {
-	struct callback_head *work, *head, *next;
+	struct callback_head *work, *next;
 	bool executed = false;
 
 	do {
-		do {
-			head = NULL;
-			work = READ_ONCE(ctx->exit_task_work);
-		} while (cmpxchg(&ctx->exit_task_work, work, head) != work);
-
+		work = xchg(&ctx->exit_task_work, NULL);
 		if (!work)
 			break;
 
