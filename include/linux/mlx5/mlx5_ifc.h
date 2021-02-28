@@ -622,7 +622,19 @@ struct mlx5_ifc_fte_match_set_misc3_bits {
 
 	u8         geneve_tlv_option_0_data[0x20];
 
-	u8         reserved_at_140[0xc0];
+	u8	   gtpu_teid[0x20];
+
+	u8	   gtpu_msg_type[0x8];
+	u8	   gtpu_msg_flags[0x8];
+	u8	   reserved_at_170[0x10];
+
+	u8	   gtpu_dw_2[0x20];
+
+	u8	   gtpu_first_ext_dw_0[0x20];
+
+	u8	   gtpu_dw_0[0x20];
+
+	u8	   reserved_at_1e0[0x20];
 };
 
 struct mlx5_ifc_fte_match_set_misc4_bits {
@@ -1237,9 +1249,17 @@ enum {
 
 enum {
 	MLX5_FLEX_PARSER_GENEVE_ENABLED		= 1 << 3,
+	MLX5_FLEX_PARSER_MPLS_OVER_GRE_ENABLED	= 1 << 4,
+	mlx5_FLEX_PARSER_MPLS_OVER_UDP_ENABLED	= 1 << 5,
 	MLX5_FLEX_PARSER_VXLAN_GPE_ENABLED	= 1 << 7,
 	MLX5_FLEX_PARSER_ICMP_V4_ENABLED	= 1 << 8,
 	MLX5_FLEX_PARSER_ICMP_V6_ENABLED	= 1 << 9,
+	MLX5_FLEX_PARSER_GENEVE_TLV_OPTION_0_ENABLED = 1 << 10,
+	MLX5_FLEX_PARSER_GTPU_ENABLED		= 1 << 11,
+	MLX5_FLEX_PARSER_GTPU_DW_2_ENABLED	= 1 << 16,
+	MLX5_FLEX_PARSER_GTPU_FIRST_EXT_DW_0_ENABLED = 1 << 17,
+	MLX5_FLEX_PARSER_GTPU_DW_0_ENABLED	= 1 << 18,
+	MLX5_FLEX_PARSER_GTPU_TEID_ENABLED	= 1 << 19,
 };
 
 enum {
@@ -1637,7 +1657,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         cqe_compression_timeout[0x10];
 	u8         cqe_compression_max_num[0x10];
 
-	u8         reserved_at_5e0[0x10];
+	u8         reserved_at_5e0[0x8];
+	u8         flex_parser_id_gtpu_dw_0[0x4];
+	u8         reserved_at_5ec[0x4];
 	u8         tag_matching[0x1];
 	u8         rndv_offload_rc[0x1];
 	u8         rndv_offload_dc[0x1];
@@ -1648,7 +1670,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8	   affiliate_nic_vport_criteria[0x8];
 	u8	   native_port_num[0x8];
 	u8	   num_vhca_ports[0x8];
-	u8	   reserved_at_618[0x6];
+	u8         flex_parser_id_gtpu_teid[0x4];
+	u8         reserved_at_61c[0x2];
 	u8	   sw_owner_id[0x1];
 	u8         reserved_at_61f[0x1];
 
@@ -1683,7 +1706,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8	   reserved_at_6e0[0x10];
 	u8	   sf_base_id[0x10];
 
-	u8	   reserved_at_700[0x8];
+	u8         flex_parser_id_gtpu_dw_2[0x4];
+	u8         flex_parser_id_gtpu_first_ext_dw_0[0x4];
 	u8	   num_total_dynamic_vf_msix[0x18];
 	u8	   reserved_at_720[0x14];
 	u8	   dynamic_msix_table_size[0xc];
