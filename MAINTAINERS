@@ -5835,7 +5835,7 @@ M:	David Airlie <airlied@linux.ie>
 M:	Daniel Vetter <daniel@ffwll.ch>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
-B:	https://bugs.freedesktop.org/
+B:	https://gitlab.freedesktop.org/drm
 C:	irc://chat.freenode.net/dri-devel
 T:	git git://anongit.freedesktop.org/drm/drm
 F:	Documentation/devicetree/bindings/display/
