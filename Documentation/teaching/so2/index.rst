@@ -7,7 +7,7 @@ Operating Systems 2
    :caption: Lectures
    :maxdepth: 1
 
-   ../lectures/so2.cs.pub.ro.rst
+   lec1-intro.rst
 
 .. toctree::
    :caption: Labs
