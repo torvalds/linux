@@ -2011,18 +2011,6 @@ static void io_req_task_submit(struct callback_head *cb)
 	__io_req_task_submit(req);
 }
 
-static void io_req_task_queue(struct io_kiocb *req)
-{
-	int ret;
-
-	req->task_work.func = io_req_task_submit;
-	ret = io_req_task_work_add(req);
-	if (unlikely(ret)) {
-		req->result = -ECANCELED;
-		io_req_task_work_add_fallback(req, io_req_task_cancel);
-	}
-}
-
 static void io_req_task_queue_fail(struct io_kiocb *req, int ret)
 {
 	req->result = ret;
@@ -2030,6 +2018,14 @@ static void io_req_task_queue_fail(struct io_kiocb *req, int ret)
 
 	if (unlikely(io_req_task_work_add(req)))
 		io_req_task_work_add_fallback(req, io_req_task_cancel);
+}
+
+static void io_req_task_queue(struct io_kiocb *req)
+{
+	req->task_work.func = io_req_task_submit;
+
+	if (unlikely(io_req_task_work_add(req)))
+		io_req_task_queue_fail(req, -ECANCELED);
 }
 
 static inline void io_queue_next(struct io_kiocb *req)
