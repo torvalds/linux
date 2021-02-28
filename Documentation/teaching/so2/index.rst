@@ -8,6 +8,17 @@ Operating Systems 2
    :maxdepth: 1
 
    lec1-intro.rst
+   lec2-syscalls.rst
+   lec3-processes.rst
+   lec4-interrupts.rst
+   lec5-smp.rst
+   lec6-virtmem.rst
+   lec7-physmem.rst
+   lec8-filesystems.rst
+   lec9-debugging.rst
+   lec10-networking.rst
+   lec11-virtualization.rst
+   lec12-profiling.rst
 
 .. toctree::
    :caption: Labs
