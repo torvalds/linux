@@ -3816,6 +3816,15 @@ void mlx5e_fold_sw_stats64(struct mlx5e_priv *priv, struct rtnl_link_stats64 *s)
 			s->tx_dropped    += sq_stats->dropped;
 		}
 	}
+	if (priv->port_ptp_opened) {
+		for (i = 0; i < priv->max_opened_tc; i++) {
+			struct mlx5e_sq_stats *sq_stats = &priv->port_ptp_stats.sq[i];
+
+			s->tx_packets    += sq_stats->packets;
+			s->tx_bytes      += sq_stats->bytes;
+			s->tx_dropped    += sq_stats->dropped;
+		}
+	}
 }
 
 void
