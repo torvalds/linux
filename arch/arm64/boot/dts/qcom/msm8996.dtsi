@@ -522,6 +522,8 @@
 			#size-cells = <1>;
 			ranges;
 
+			status = "disabled";
+
 			mdp: mdp@901000 {
 				compatible = "qcom,mdp5";
 				reg = <0x00901000 0x90000>;
@@ -619,7 +621,8 @@
 					      "ref";
 			};
 		};
-		gpu@b00000 {
+
+		gpu: gpu@b00000 {
 			compatible = "qcom,adreno-530.2", "qcom,adreno";
 			#stream-id-cells = <16>;
 
@@ -650,6 +653,8 @@
 			qcom,gpu-quirk-fault-detect-mask;
 
 			operating-points-v2 = <&gpu_opp_table>;
+
+			status = "disabled";
 
 			gpu_opp_table: opp-table {
 				compatible  ="operating-points-v2";

@@ -88,6 +88,14 @@
 	pinctrl-1 = <&blsp2_uart2_2pins_sleep>;
 };
 
+&gpu {
+	status = "okay";
+};
+
+&mdss {
+	status = "okay";
+};
+
 &tlmm {
 	sdc2_pins_default: sdc2-pins-default {
 		clk {

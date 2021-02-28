@@ -204,6 +204,10 @@
 	vdda-supply = <&vreg_l2a_1p25>;
 };
 
+&gpu {
+	status = "okay";
+};
+
 &hdmi {
 	status = "okay";
 
