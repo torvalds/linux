@@ -64,13 +64,14 @@
 static const char * const s5k2xx_supply_names[] = { "avdd", "dvdd", "vio", "aux" };
 
 #define S5K2XX_NUM_SUPPLIES		ARRAY_SIZE(s5k2xx_supply_names)
-
+#define S5K2XX_LINK_FREQ_562MHZ 562000000
 #define S5K2XX_LINK_FREQ_580MHZ 580500000
 #define S5K2XX_LINK_FREQ_720MHZ 720000000
 #define S5K2XX_LINK_FREQ_678MHZ 678000000
 #define S5K2XX_LINK_FREQ_1050MHZ 1050000000
 
 enum {
+	S5K2XX_LINK_FREQ_562MHZ_INDEX,
 	S5K2XX_LINK_FREQ_580MHZ_INDEX,
 	S5K2XX_LINK_FREQ_678MHZ_INDEX,
 	S5K2XX_LINK_FREQ_720MHZ_INDEX,
@@ -78,6 +79,7 @@ enum {
 };
 
 static const s64 link_freq_menu_items[] = {
+	S5K2XX_LINK_FREQ_562MHZ,
 	S5K2XX_LINK_FREQ_580MHZ,
 	S5K2XX_LINK_FREQ_678MHZ,
 	S5K2XX_LINK_FREQ_720MHZ,
@@ -559,6 +561,148 @@ static struct s5k2xx_data s5k2x7sp_data = {
 	.num_modes = ARRAY_SIZE(s5k2x7_modes),
 	.init_regs = s5k2x7_init,
 	.num_init_regs = ARRAY_SIZE(s5k2x7_init),
+};
+
+static const struct reg_sequence s5k3l8_init[] = {
+	{ 0xfcfc, 0x4000 },
+	{ 0x6028, 0x2000 },
+	{ 0x0100, 0x0000 },
+	{ 0x0344, 0x0008 },
+	{ 0x0348, 0x1077 },
+	{ 0x0380, 0x0001 },
+	{ 0x0382, 0x0001 },
+	{ 0x0384, 0x0001 },
+	{ 0x0136, 0x1800 },
+	{ 0x0300, 0x0005 },
+	{ 0x0302, 0x0001 },
+	{ 0x0304, 0x0006 }, //?
+	{ 0x030c, 0x0006 }, // MIPI divider, Default multiplier: 124
+	{ 0x0200, 0x00c6 },
+	{ 0x0204, 0x0020 },
+	{ 0x0114, 0x0300 },
+	{ 0x3052, 0x0000 }, //Disable heading embedded line(0x3051 on s5k2 and disabled by default), 
+	
+};
+
+static const struct reg_sequence s5k3l8_mode_4208x3120_regs[] = {
+	{0x6028, 0x4000},
+	{0x0100, 0x0000},  
+	{0x6028, 0x2000},  
+	{0x602A, 0x0F74},
+	{0x6F12, 0x0040}, 
+	{0x6F12, 0x0040}, 
+	{0x6028, 0x4000}, 
+	{0x0344, 0x0008},
+	{0x0346, 0x0008},  
+	{0x0348, 0x1077}, 
+	{0x034A, 0x0C37}, 
+	{0x034C, 0x1070},
+	{0x034E, 0x0C30},  
+	{0x0900, 0x0011},  
+	{0x0380, 0x0001}, 
+	{0x0382, 0x0001},
+	{0x0384, 0x0001},  
+	{0x0386, 0x0001}, 
+	{0x0400, 0x0000}, 
+	{0x0404, 0x0010},
+	{0x0114, 0x0300}, 
+	{0x0110, 0x0002}, 
+	{0x0136, 0x1800},
+	{0x0304, 0x0006},
+	{0x0306, 0x00B1},  
+	{0x0302, 0x0001}, 
+	{0x0300, 0x0005},  
+	{0x030C, 0x0006},
+	{0x030E, 0x0119},  
+	{0x030A, 0x0001}, 
+	{0x0308, 0x0008}, 
+	{0x0342, 0x16B0},
+	{0x0340, 0x0CB2},  
+	{0x0202, 0x0200},  
+	{0x0200, 0x00C6}, 
+	{0x0B04, 0x0101},
+	{0x0B08, 0x0000}, 
+	{0x0B00, 0x0007},  
+	{0x316A, 0x00A0},  
+	{0x6028, 0x4000},
+	{0x30C0, 0x0300},
+};
+
+static const struct reg_sequence s5k3l8_mode_1280x720_regs[] = {
+	{0x6028, 0x4000},
+	{0x0100, 0x0000},
+	{0x6028, 0x2000},
+	{0x602A, 0x0F74},
+	{0x6F12, 0x0040},
+	{0x6F12, 0x0040},
+	{0x6028, 0x4000},
+	{0x0344, 0x00C0},
+	{0x0346, 0x01E8},
+	{0x0348, 0x0FBF},
+	{0x034A, 0x0A57},
+	{0x034C, 0x0500},
+	{0x034E, 0x02D0},
+	{0x0900, 0x0113}, 
+	{0x0380, 0x0001}, 
+	{0x0382, 0x0001},
+	{0x0384, 0x0001},
+	{0x0386, 0x0005}, 
+	{0x0400, 0x0001}, 
+	{0x0404, 0x0030},
+	{0x0114, 0x0300},
+	{0x0110, 0x0002}, 
+	{0x0136, 0x1800}, 
+	{0x0304, 0x0006},
+	{0x0306, 0x00B1},
+	{0x0302, 0x0001}, 
+	{0x0300, 0x0005}, 
+	{0x030C, 0x0006},
+	{0x030E, 0x0119},
+	{0x030A, 0x0001}, 
+	{0x0308, 0x0008}, 
+	{0x0342, 0x16B0},
+	{0x0340, 0x032C},
+	{0x0202, 0x0200}, 
+	{0x0200, 0x00C6}, 
+	{0x0B04, 0x0101},
+	{0x0B08, 0x0000},
+	{0x0B00, 0x0007}, 
+	{0x316A, 0x00A0}, 
+	{0x6028, 0x4000},
+	{0x30C0, 0x0300},
+};
+
+static const struct s5k2xx_mode s5k3l8_modes[] = {
+	{
+		.width = 4208,
+		.height = 3120,
+		.fps = 30,
+		.fll_def = 3250,
+		.fll_min = 3250,
+		.llp = 5808,
+		.link_freq_index = S5K2XX_LINK_FREQ_562MHZ_INDEX,
+		.regs = s5k3l8_mode_4208x3120_regs,
+		.num_regs = ARRAY_SIZE(s5k3l8_mode_4208x3120_regs),
+	}, {
+		.width = 1280,
+		.height = 720,
+		.fps = 120,
+		.fll_def = 812,
+		.fll_min = 812,
+		.llp = 5808,
+		.link_freq_index = S5K2XX_LINK_FREQ_562MHZ_INDEX,
+		.regs = s5k3l8_mode_1280x720_regs,
+		.num_regs = ARRAY_SIZE(s5k3l8_mode_1280x720_regs),
+	}
+};
+
+static struct s5k2xx_data s5k3l8_data = {
+	.model = "s5k3l8",
+	.chip_id = 0x30c8,
+	.modes = s5k3l8_modes,
+	.num_modes = ARRAY_SIZE(s5k3l8_modes),
+	.init_regs = s5k3l8_init,
+	.num_init_regs = ARRAY_SIZE(s5k3l8_init),
 };
 
 struct s5k2xx {
@@ -1301,6 +1445,7 @@ static const struct dev_pm_ops s5k2xx_pm_ops = {
 };
 
 static const struct of_device_id s5k2xx_of_match[] = {
+	{ .compatible = "samsung,s5k3l8", &s5k3l8_data },
 	{ .compatible = "samsung,s5k2p6sx", &s5k2p6sx_data },
 	{ .compatible = "samsung,s5k2x7sp", &s5k2x7sp_data },
 	{ /* sentinel */ }
