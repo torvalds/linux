@@ -796,6 +796,8 @@ static inline void cancel_dirty_page(struct page *page)
 {
 	folio_cancel_dirty(page_folio(page));
 }
+bool folio_clear_dirty_for_io(struct folio *folio);
+bool clear_page_dirty_for_io(struct page *page);
 
 int __set_page_dirty_nobuffers(struct page *page);
 int __set_page_dirty_no_writeback(struct page *page);
