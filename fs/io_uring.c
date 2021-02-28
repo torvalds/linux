@@ -4349,8 +4349,6 @@ static int io_sendmsg_prep_async(struct io_kiocb *req)
 {
 	int ret;
 
-	if (!io_op_defs[req->opcode].needs_async_data)
-		return 0;
 	ret = io_sendmsg_copy_hdr(req, req->async_data);
 	if (!ret)
 		req->flags |= REQ_F_NEED_CLEANUP;
@@ -4578,8 +4576,6 @@ static int io_recvmsg_prep_async(struct io_kiocb *req)
 {
 	int ret;
 
-	if (!io_op_defs[req->opcode].needs_async_data)
-		return 0;
 	ret = io_recvmsg_copy_hdr(req, req->async_data);
 	if (!ret)
 		req->flags |= REQ_F_NEED_CLEANUP;
@@ -5892,10 +5888,8 @@ static int io_req_prep_async(struct io_kiocb *req)
 	case IORING_OP_WRITE:
 		return io_rw_prep_async(req, WRITE);
 	case IORING_OP_SENDMSG:
-	case IORING_OP_SEND:
 		return io_sendmsg_prep_async(req);
 	case IORING_OP_RECVMSG:
-	case IORING_OP_RECV:
 		return io_recvmsg_prep_async(req);
 	case IORING_OP_CONNECT:
 		return io_connect_prep_async(req);
