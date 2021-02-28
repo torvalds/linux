@@ -2326,7 +2326,7 @@
 			 bus-width = <4>;
 		 };
 
-		blsp1_uart1: serial@7570000 {
+		blsp1_uart2: serial@7570000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x07570000 0x1000>;
 			interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
@@ -2336,7 +2336,7 @@
 			status = "disabled";
 		};
 
-		blsp1_spi0: spi@7575000 {
+		blsp1_spi1: spi@7575000 {
 			compatible = "qcom,spi-qup-v2.2.1";
 			reg = <0x07575000 0x600>;
 			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
@@ -2351,7 +2351,7 @@
 			status = "disabled";
 		};
 
-		blsp1_i2c2: i2c@7577000 {
+		blsp1_i2c3: i2c@7577000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x07577000 0x1000>;
 			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
@@ -2366,7 +2366,7 @@
 			status = "disabled";
 		};
 
-		blsp2_uart1: serial@75b0000 {
+		blsp2_uart2: serial@75b0000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x075b0000 0x1000>;
 			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
@@ -2376,7 +2376,7 @@
 			status = "disabled";
 		};
 
-		blsp2_uart2: serial@75b1000 {
+		blsp2_uart3: serial@75b1000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x075b1000 0x1000>;
 			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
@@ -2386,7 +2386,7 @@
 			status = "disabled";
 		};
 
-		blsp2_i2c0: i2c@75b5000 {
+		blsp2_i2c1: i2c@75b5000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x075b5000 0x1000>;
 			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
@@ -2401,7 +2401,7 @@
 			status = "disabled";
 		};
 
-		blsp2_i2c1: i2c@75b6000 {
+		blsp2_i2c2: i2c@75b6000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x075b6000 0x1000>;
 			interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
@@ -2416,7 +2416,7 @@
 			status = "disabled";
 		};
 
-		blsp2_spi5: spi@75ba000{
+		blsp2_spi6: spi@75ba000{
 			compatible = "qcom,spi-qup-v2.2.1";
 			reg = <0x075ba000 0x600>;
 			interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;

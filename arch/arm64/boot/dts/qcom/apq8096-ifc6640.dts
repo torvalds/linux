@@ -17,7 +17,7 @@
 	qcom,board-id = <0x00010018 0>;
 
 	aliases {
-		serial0 = &blsp2_uart1;
+		serial0 = &blsp2_uart2;
 	};
 
 	chosen {
@@ -81,7 +81,7 @@
 	};
 };
 
-&blsp2_uart1 {
+&blsp2_uart2 {
 	status = "okay";
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&blsp2_uart2_2pins_default>;

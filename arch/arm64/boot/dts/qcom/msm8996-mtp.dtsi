@@ -7,7 +7,7 @@
 
 / {
 	aliases {
-		serial0 = &blsp2_uart1;
+		serial0 = &blsp2_uart2;
 	};
 
 	chosen {

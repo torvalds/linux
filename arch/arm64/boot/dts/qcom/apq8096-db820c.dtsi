@@ -41,14 +41,14 @@
 
 / {
 	aliases {
-		serial0 = &blsp2_uart1;
-		serial1 = &blsp2_uart2;
-		serial2 = &blsp1_uart1;
-		i2c0	= &blsp1_i2c2;
+		serial0 = &blsp2_uart2;
+		serial1 = &blsp2_uart3;
+		serial2 = &blsp1_uart2;
+		i2c0	= &blsp1_i2c3;
 		i2c1	= &blsp2_i2c1;
-		i2c2	= &blsp2_i2c0;
-		spi0	= &blsp1_spi0;
-		spi1	= &blsp2_spi5;
+		i2c2	= &blsp2_i2c1;
+		spi0	= &blsp1_spi1;
+		spi1	= &blsp2_spi6;
 	};
 
 	chosen {
@@ -133,24 +133,24 @@
 	};
 };
 
-&blsp1_i2c2 {
+&blsp1_i2c3 {
 	/* On Low speed expansion */
 	label = "LS-I2C0";
 	status = "okay";
 };
 
-&blsp1_spi0 {
+&blsp1_spi1 {
 	/* On Low speed expansion */
 	label = "LS-SPI0";
 	status = "okay";
 };
 
-&blsp1_uart1 {
+&blsp1_uart2 {
 	label = "BT-UART";
 	status = "okay";
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&blsp1_uart1_default>;
-	pinctrl-1 = <&blsp1_uart1_sleep>;
+	pinctrl-0 = <&blsp1_uart2_default>;
+	pinctrl-1 = <&blsp1_uart2_sleep>;
 
 	bluetooth {
 		compatible = "qcom,qca6174-bt";
@@ -166,7 +166,7 @@
 	status = "okay";
 };
 
-&blsp2_i2c0 {
+&blsp2_i2c1 {
 	/* On High speed expansion */
 	label = "HS-I2C2";
 	status = "okay";
@@ -178,13 +178,13 @@
 	status = "okay";
 };
 
-&blsp2_spi5 {
+&blsp2_spi6 {
 	/* On High speed expansion */
 	label = "HS-SPI1";
 	status = "okay";
 };
 
-&blsp2_uart1 {
+&blsp2_uart2 {
 	label = "LS-UART1";
 	status = "okay";
 	pinctrl-names = "default", "sleep";
@@ -192,7 +192,7 @@
 	pinctrl-1 = <&blsp2_uart2_2pins_sleep>;
 };
 
-&blsp2_uart2 {
+&blsp2_uart3 {
 	label = "LS-UART0";
 	status = "disabled";
 	pinctrl-names = "default", "sleep";
@@ -428,7 +428,7 @@
 		};
 	};
 
-	blsp1_uart1_default: blsp1_uart1_default {
+	blsp1_uart2_default: blsp1_uart2_default {
 		mux {
 			pins = "gpio41", "gpio42", "gpio43", "gpio44";
 			function = "blsp_uart2";
@@ -441,7 +441,7 @@
 		};
 	};
 
-	blsp1_uart1_sleep: blsp1_uart1_sleep {
+	blsp1_uart2_sleep: blsp1_uart2_sleep {
 		mux {
 			pins = "gpio41", "gpio42", "gpio43", "gpio44";
 			function = "gpio";
