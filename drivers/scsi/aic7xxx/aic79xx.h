@@ -1175,7 +1175,7 @@ struct ahd_softc {
 	uint8_t			  tqinfifonext;
 
 	/*
-	 * Cached verson of the hs_mailbox so we can avoid
+	 * Cached version of the hs_mailbox so we can avoid
 	 * pausing the sequencer during mailbox updates.
 	 */
 	uint8_t			  hs_mailbox;
