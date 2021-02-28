@@ -2184,26 +2184,40 @@ static void vop2_layer_map_initial(struct vop2 *vop2, uint32_t current_vp_id)
 	const struct vop2_data *vop2_data = vop2->data;
 	struct vop2_layer *layer = &vop2->layers[0];
 	struct vop2_video_port *vp = &vop2->vps[0];
-	struct vop2_video_port *current_vp = &vop2->vps[current_vp_id];
+	struct vop2_video_port *last_active_vp;
 	struct vop2_win *win;
 	const struct vop2_win_data *win_data = NULL;
 	uint32_t used_layers = 0;
 	uint32_t layer_map, sel;
 	uint32_t win_map, vp_id;
 	uint32_t port_mux;
+	uint32_t active_vp_mask = 0;
 	uint32_t standby;
 	uint32_t shift;
 	int i, j;
 
 	layer_map = vop2_readl(vop2, layer->regs->layer_sel.offset);
 	win_map = vop2_readl(vop2, vp->regs->port_mux.offset);
-	current_vp->win_mask = 0;
+
+	active_vp_mask |= BIT(current_vp_id);
+	/*
+	 * lookup if there are some vps activated
+	 * by bootloader(et: show boot logo)
+	 */
 	for (i = 0; i < vop2->data->nr_vps; i++) {
 		vp = &vop2->vps[i];
-		vp->win_mask = 0;
 		standby = vop2_readl(vop2, vp->regs->standby.offset);
 		shift = vp->regs->standby.shift;
 		standby = (standby >> shift) & 0x1;
+		if (!standby)
+			active_vp_mask |= BIT(i);
+	}
+
+	last_active_vp = &vop2->vps[fls(active_vp_mask) - 1];
+
+	for (i = 0; i < vop2->data->nr_vps; i++) {
+		vp = &vop2->vps[i];
+		vp->win_mask = 0;
 		for (j = 0; j < vop2_data->nr_layers; j++) {
 			win = vop2_find_win_by_phys_id(vop2, j);
 			shift = vop2->data->ctrl->win_vp_id[j].shift;
@@ -2211,16 +2225,18 @@ static void vop2_layer_map_initial(struct vop2 *vop2, uint32_t current_vp_id)
 			if (vp_id == i) {
 				/*
 				 * If the Video Port is not activated,
-				 * move the attached win to the Video Port
+				 * move the attached win to the last Video Port
 				 * we want enabled.
 				 */
-				if (standby) {
-					current_vp->win_mask |=  BIT(j);
-					win->vp_mask = BIT(current_vp_id);
-					VOP_CTRL_SET(vop2, win_vp_id[win->phys_id], current_vp_id);
-				} else {
+				if (active_vp_mask & BIT(vp_id)) {
 					vp->win_mask |=  BIT(j);
 					win->vp_mask = BIT(vp_id);
+
+				} else {
+					last_active_vp->win_mask |= BIT(j);
+					win->vp_mask = BIT(last_active_vp->id);
+					VOP_CTRL_SET(vop2, win_vp_id[win->phys_id], last_active_vp->id);
+
 				}
 			}
 		}
