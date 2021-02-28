@@ -843,7 +843,7 @@ using :command:`dmesg`. Also note that when you use the serial port no
 keyboard interrupt is generated.
 
 .. attention:: To get access to the keyboard on the virtual machine
-	       boot with "QEMU_DISPLAY=sdl make boot".
+	       boot with "QEMU_DISPLAY=gtk make boot".
 
 3. Store ASCII keys to buffer
 -----------------------------

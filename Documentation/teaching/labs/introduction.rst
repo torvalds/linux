@@ -526,7 +526,7 @@ a console exposed by the virtual machine using :command:`minicom` or :command:`s
     Poky (Yocto Project Reference Distro) 2.3 qemux86 /dev/hvc0
 
 Alternatively, you can start the virtual machine with graphical interface support, using
-the :command:`QEMU_DISPLAY=sdl make boot`.
+the :command:`QEMU_DISPLAY=gtk make boot`.
 
 .. note::
     To access the virtual machine, at the login prompt, enter the

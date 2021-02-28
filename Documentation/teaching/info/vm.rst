@@ -44,7 +44,7 @@ tools/labs:
    char device redirected to /dev/pts/19 (label virtiocon0)
 
 
-.. note:: To show the qemu console use "QEMU_DISPLAY=sdl make
+.. note:: To show the qemu console use "QEMU_DISPLAY=gtk make
           boot". This will show the VGA output and will also give
           access to the standard keyboard.
 
