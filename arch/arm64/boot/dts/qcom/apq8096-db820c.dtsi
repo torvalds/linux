@@ -188,16 +188,16 @@
 	label = "LS-UART1";
 	status = "okay";
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&blsp2_uart1_2pins_default>;
-	pinctrl-1 = <&blsp2_uart1_2pins_sleep>;
+	pinctrl-0 = <&blsp2_uart2_2pins_default>;
+	pinctrl-1 = <&blsp2_uart2_2pins_sleep>;
 };
 
 &blsp2_uart2 {
 	label = "LS-UART0";
 	status = "disabled";
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&blsp2_uart2_4pins_default>;
-	pinctrl-1 = <&blsp2_uart2_4pins_sleep>;
+	pinctrl-0 = <&blsp2_uart3_4pins_default>;
+	pinctrl-1 = <&blsp2_uart3_4pins_sleep>;
 };
 
 &camss {
@@ -249,7 +249,7 @@
 	vdd-gfx-supply = <&vdd_gfx>;
 };
 
-&msmgpio {
+&tlmm {
 	gpio-line-names =
 		"[SPI0_DOUT]", /* GPIO_0, BLSP1_SPI_MOSI, LSEC pin 14 */
 		"[SPI0_DIN]", /* GPIO_1, BLSP1_SPI_MISO, LSEC pin 10 */
@@ -509,20 +509,20 @@
 
 &pcie0 {
 	status = "okay";
-	perst-gpio = <&msmgpio 35 GPIO_ACTIVE_LOW>;
+	perst-gpio = <&tlmm 35 GPIO_ACTIVE_LOW>;
 	vddpe-3v3-supply = <&wlan_en>;
 	vdda-supply = <&vreg_l28a_0p925>;
 };
 
 &pcie1 {
 	status = "okay";
-	perst-gpio = <&msmgpio 130 GPIO_ACTIVE_LOW>;
+	perst-gpio = <&tlmm 130 GPIO_ACTIVE_LOW>;
 	vdda-supply = <&vreg_l28a_0p925>;
 };
 
 &pcie2 {
 	status = "okay";
-	perst-gpio = <&msmgpio 114 GPIO_ACTIVE_LOW>;
+	perst-gpio = <&tlmm 114 GPIO_ACTIVE_LOW>;
 	vdda-supply = <&vreg_l28a_0p925>;
 };
 
@@ -933,9 +933,9 @@
 &sdhc2 {
 	/* External SD card */
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
-	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
-	cd-gpios = <&msmgpio 38 0x1>;
+	pinctrl-0 = <&sdc2_state_on &sdc2_cd_on>;
+	pinctrl-1 = <&sdc2_state_off &sdc2_cd_off>;
+	cd-gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&vreg_l21a_2p95>;
 	vqmmc-supply = <&vreg_l13a_2p95>;
 	status = "okay";

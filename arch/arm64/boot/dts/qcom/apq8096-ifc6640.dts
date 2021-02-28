@@ -84,11 +84,11 @@
 &blsp2_uart1 {
 	status = "okay";
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&blsp2_uart1_2pins_default>;
-	pinctrl-1 = <&blsp2_uart1_2pins_sleep>;
+	pinctrl-0 = <&blsp2_uart2_2pins_default>;
+	pinctrl-1 = <&blsp2_uart2_2pins_sleep>;
 };
 
-&msmgpio {
+&tlmm {
 	sdc2_pins_default: sdc2-pins-default {
 		clk {
 			pins = "sdc2_clk";
@@ -352,7 +352,7 @@
 
 	bus-width = <4>;
 
-	cd-gpios = <&msmgpio 38 0x1>;
+	cd-gpios = <&tlmm 38 0x1>;
 
 	vmmc-supply = <&vreg_l21a_2p95>;
 	vqmmc-supply = <&vreg_l13a_2p95>;
