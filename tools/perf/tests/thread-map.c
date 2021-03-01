@@ -102,6 +102,7 @@ int test__thread_map_synthesize(struct test *test __maybe_unused, int subtest __
 	TEST_ASSERT_VAL("failed to synthesize map",
 		!perf_event__synthesize_thread_map2(NULL, threads, process_event, NULL));
 
+	perf_thread_map__put(threads);
 	return 0;
 }
 
