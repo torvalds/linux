@@ -281,7 +281,6 @@ struct pm8001_prd {
  * CCB(Command Control Block)
  */
 struct pm8001_ccb_info {
-	struct list_head	entry;
 	struct sas_task		*task;
 	u32			n_elem;
 	u32			ccb_tag;
