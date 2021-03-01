@@ -8,7 +8,7 @@ on:
 
 jobs:
   build_job:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     name: Build documentation
     steps:
       - name: Checkout

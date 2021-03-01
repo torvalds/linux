@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
 ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update
@@ -7,8 +7,10 @@ RUN apt-get install -y software-properties-common
 RUN apt-get install -y sudo
 RUN apt-get install -y make
 RUN apt-get install -y git
-RUN apt-get install -y python
-RUN apt-get install -y python-pip
+RUN apt-get install -y python3
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
+RUN apt-get install -y python3-pip
+RUN update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
 RUN apt-get install -y ditaa
 RUN apt-get install -y graphviz
 RUN apt-get install -y imagemagick
