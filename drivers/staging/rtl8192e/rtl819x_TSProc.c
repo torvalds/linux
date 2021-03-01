@@ -31,9 +31,9 @@ static void RxPktPendingTimeout(struct timer_list *t)
 
 	spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
 	if (pRxTs->rx_timeout_indicate_seq != 0xffff) {
-		while (!list_empty(&pRxTs->RxPendingPktList)) {
+		while (!list_empty(&pRxTs->rx_pending_pkt_list)) {
 			pReorderEntry = (struct rx_reorder_entry *)
-					list_entry(pRxTs->RxPendingPktList.prev,
+					list_entry(pRxTs->rx_pending_pkt_list.prev,
 					struct rx_reorder_entry, List);
 			if (index == 0)
 				pRxTs->rx_indicate_seq = pReorderEntry->SeqNum;
@@ -167,7 +167,7 @@ void TSInitialize(struct rtllib_device *ieee)
 	INIT_LIST_HEAD(&ieee->Rx_TS_Unused_List);
 	for (count = 0; count < TOTAL_TS_NUM; count++) {
 		pRxTS->num = count;
-		INIT_LIST_HEAD(&pRxTS->RxPendingPktList);
+		INIT_LIST_HEAD(&pRxTS->rx_pending_pkt_list);
 
 		timer_setup(&pRxTS->ts_common_info.SetupTimer, TsSetupTimeOut,
 			    0);
@@ -408,9 +408,9 @@ static void RemoveTsEntry(struct rtllib_device *ieee,
 		if (timer_pending(&pRxTS->RxPktPendingTimer))
 			del_timer_sync(&pRxTS->RxPktPendingTimer);
 
-		while (!list_empty(&pRxTS->RxPendingPktList)) {
+		while (!list_empty(&pRxTS->rx_pending_pkt_list)) {
 			pRxReorderEntry = (struct rx_reorder_entry *)
-					list_entry(pRxTS->RxPendingPktList.prev,
+					list_entry(pRxTS->rx_pending_pkt_list.prev,
 					struct rx_reorder_entry, List);
 			netdev_dbg(ieee->dev,  "%s(): Delete SeqNum %d!\n",
 				   __func__, pRxReorderEntry->SeqNum);

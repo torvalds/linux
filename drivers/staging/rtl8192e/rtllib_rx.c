@@ -449,9 +449,9 @@ drop:
 static bool AddReorderEntry(struct rx_ts_record *pTS,
 			    struct rx_reorder_entry *pReorderEntry)
 {
-	struct list_head *pList = &pTS->RxPendingPktList;
+	struct list_head *pList = &pTS->rx_pending_pkt_list;
 
-	while (pList->next != &pTS->RxPendingPktList) {
+	while (pList->next != &pTS->rx_pending_pkt_list) {
 		if (SN_LESS(pReorderEntry->SeqNum, ((struct rx_reorder_entry *)
 		    list_entry(pList->next, struct rx_reorder_entry,
 		    List))->SeqNum))
@@ -537,7 +537,7 @@ void rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,
 	u8 RfdCnt = 0;
 
 	del_timer_sync(&pTS->RxPktPendingTimer);
-	while (!list_empty(&pTS->RxPendingPktList)) {
+	while (!list_empty(&pTS->rx_pending_pkt_list)) {
 		if (RfdCnt >= REORDER_WIN_SIZE) {
 			netdev_info(ieee->dev,
 				    "-------------->%s() error! RfdCnt >= REORDER_WIN_SIZE\n",
@@ -546,7 +546,7 @@ void rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,
 		}
 
 		pRxReorderEntry = (struct rx_reorder_entry *)
-				  list_entry(pTS->RxPendingPktList.prev,
+				  list_entry(pTS->rx_pending_pkt_list.prev,
 					     struct rx_reorder_entry, List);
 		netdev_dbg(ieee->dev, "%s(): Indicate SeqNum %d!\n", __func__,
 			   pRxReorderEntry->SeqNum);
@@ -693,12 +693,12 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 	}
 
 	/* Check if there is any packet need indicate.*/
-	while (!list_empty(&pTS->RxPendingPktList)) {
+	while (!list_empty(&pTS->rx_pending_pkt_list)) {
 		netdev_dbg(ieee->dev, "%s(): start RREORDER indicate\n",
 			   __func__);
 
 		pReorderEntry = (struct rx_reorder_entry *)
-					list_entry(pTS->RxPendingPktList.prev,
+					list_entry(pTS->rx_pending_pkt_list.prev,
 						   struct rx_reorder_entry,
 						   List);
 		if (SN_LESS(pReorderEntry->SeqNum, pTS->rx_indicate_seq) ||

@@ -45,7 +45,7 @@ struct rx_ts_record {
 	struct ts_common_info ts_common_info;
 	u16				rx_indicate_seq;
 	u16				rx_timeout_indicate_seq;
-	struct list_head		RxPendingPktList;
+	struct list_head		rx_pending_pkt_list;
 	struct timer_list		RxPktPendingTimer;
 	struct ba_record RxAdmittedBARecord;
 	u16				RxLastSeqNum;
