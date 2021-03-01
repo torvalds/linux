@@ -13,6 +13,12 @@
 struct ufs_hba;
 struct request;
 struct ufshcd_lrb;
+
+DECLARE_HOOK(android_vh_ufs_fill_prdt,
+	TP_PROTO(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
+		 unsigned int segments, int *err),
+	TP_ARGS(hba, lrbp, segments, err));
+
 DECLARE_HOOK(android_vh_ufs_prepare_command,
 	TP_PROTO(struct ufs_hba *hba, struct request *rq,
 		 struct ufshcd_lrb *lrbp, int *err),
