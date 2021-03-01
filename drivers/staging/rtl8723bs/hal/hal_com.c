@@ -40,47 +40,50 @@ void rtw_hal_data_deinit(struct adapter *padapter)
 
 void dump_chip_info(HAL_VERSION	ChipVersion)
 {
-	int cnt = 0;
-	u8 buf[128];
+	char buf[128];
+	size_t cnt = 0;
 
-	cnt += sprintf((buf+cnt), "Chip Version Info: CHIP_8723B_");
-	cnt += sprintf((buf+cnt), "%s_", IS_NORMAL_CHIP(ChipVersion) ? "Normal_Chip" : "Test_Chip");
+	cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "Chip Version Info: CHIP_8723B_%s_",
+			IS_NORMAL_CHIP(ChipVersion) ? "Normal_Chip" : "Test_Chip");
+
 	if (IS_CHIP_VENDOR_TSMC(ChipVersion))
-		cnt += sprintf((buf+cnt), "%s_", "TSMC");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "TSMC_");
 	else if (IS_CHIP_VENDOR_UMC(ChipVersion))
-		cnt += sprintf((buf+cnt), "%s_", "UMC");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "UMC_");
 	else if (IS_CHIP_VENDOR_SMIC(ChipVersion))
-		cnt += sprintf((buf+cnt), "%s_", "SMIC");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "SMIC_");
 
 	if (IS_A_CUT(ChipVersion))
-		cnt += sprintf((buf+cnt), "A_CUT_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "A_CUT_");
 	else if (IS_B_CUT(ChipVersion))
-		cnt += sprintf((buf+cnt), "B_CUT_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "B_CUT_");
 	else if (IS_C_CUT(ChipVersion))
-		cnt += sprintf((buf+cnt), "C_CUT_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "C_CUT_");
 	else if (IS_D_CUT(ChipVersion))
-		cnt += sprintf((buf+cnt), "D_CUT_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "D_CUT_");
 	else if (IS_E_CUT(ChipVersion))
-		cnt += sprintf((buf+cnt), "E_CUT_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "E_CUT_");
 	else if (IS_I_CUT(ChipVersion))
-		cnt += sprintf((buf+cnt), "I_CUT_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "I_CUT_");
 	else if (IS_J_CUT(ChipVersion))
-		cnt += sprintf((buf+cnt), "J_CUT_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "J_CUT_");
 	else if (IS_K_CUT(ChipVersion))
-		cnt += sprintf((buf+cnt), "K_CUT_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "K_CUT_");
 	else
-		cnt += sprintf((buf+cnt), "UNKNOWN_CUT(%d)_", ChipVersion.CUTVersion);
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt,
+				"UNKNOWN_CUT(%d)_", ChipVersion.CUTVersion);
 
 	if (IS_1T1R(ChipVersion))
-		cnt += sprintf((buf+cnt), "1T1R_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "1T1R_");
 	else if (IS_1T2R(ChipVersion))
-		cnt += sprintf((buf+cnt), "1T2R_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "1T2R_");
 	else if (IS_2T2R(ChipVersion))
-		cnt += sprintf((buf+cnt), "2T2R_");
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "2T2R_");
 	else
-		cnt += sprintf((buf+cnt), "UNKNOWN_RFTYPE(%d)_", ChipVersion.RFType);
+		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt,
+				"UNKNOWN_RFTYPE(%d)_", ChipVersion.RFType);
 
-	cnt += sprintf((buf+cnt), "RomVer(%d)\n", ChipVersion.ROMVer);
+	cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "RomVer(%d)\n", ChipVersion.ROMVer);
 
 	DBG_871X("%s", buf);
 }
