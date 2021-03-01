@@ -306,6 +306,10 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 			fw_info->ver = adev->psp.ta_fw_version;
 			fw_info->feature = adev->psp.ta_rap_ucode_version;
 			break;
+		case TA_FW_TYPE_PSP_SECUREDISPLAY:
+			fw_info->ver = adev->psp.ta_fw_version;
+			fw_info->feature = adev->psp.ta_securedisplay_ucode_version;
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -1337,6 +1341,7 @@ static int amdgpu_debugfs_firmware_info_show(struct seq_file *m, void *unused)
 		TA_FW_NAME(HDCP),
 		TA_FW_NAME(DTM),
 		TA_FW_NAME(RAP),
+		TA_FW_NAME(SECUREDISPLAY),
 #undef TA_FW_NAME
 	};
 
