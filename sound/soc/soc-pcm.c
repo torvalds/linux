@@ -1707,7 +1707,6 @@ static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
 			snd_soc_dpcm_get_substream(be, stream);
 		struct snd_soc_pcm_runtime *rtd;
 		struct snd_soc_dai *dai;
-		int i;
 
 		/* A backend may not have the requested substream */
 		if (!be_substream)
@@ -1901,6 +1900,8 @@ static int dpcm_fe_dai_hw_free(struct snd_pcm_substream *substream)
 	/* only hw_params backends that are either sinks or sources
 	 * to this frontend DAI */
 	err = dpcm_be_dai_hw_free(fe, stream);
+	if (err < 0)
+		dev_err(fe->dev, "ASoC: hw_free BE failed %d\n", err);
 
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_HW_FREE;
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
@@ -2388,7 +2389,6 @@ static int dpcm_run_update_startup(struct snd_soc_pcm_runtime *fe, int stream)
 	/* Only start the BE if the FE is ready */
 	if (fe->dpcm[stream].state == SND_SOC_DPCM_STATE_HW_FREE ||
 		fe->dpcm[stream].state == SND_SOC_DPCM_STATE_CLOSE) {
-		ret = -EINVAL;
 		dev_err(fe->dev, "ASoC: FE %s is not ready %d\n",
 			fe->dai_link->name, fe->dpcm[stream].state);
 		ret = -EINVAL;
