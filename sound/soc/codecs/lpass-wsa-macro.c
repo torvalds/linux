@@ -944,6 +944,8 @@ static int wsa_macro_set_interpolator_rate(struct snd_soc_dai *dai,
 		goto prim_rate;
 
 	ret = wsa_macro_set_mix_interpolator_rate(dai, (u8) rate_val, sample_rate);
+	if (ret < 0)
+		return ret;
 prim_rate:
 	/* set primary path sample rate */
 	for (i = 0; i < ARRAY_SIZE(int_prim_sample_rate_val); i++) {

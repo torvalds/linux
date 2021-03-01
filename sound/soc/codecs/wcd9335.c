@@ -5213,7 +5213,7 @@ static int wcd9335_slim_status(struct slim_device *sdev,
 
 	wcd9335_probe(wcd);
 
-	return ret;
+	return 0;
 }
 
 static const struct slim_device_id wcd9335_slim_id[] = {
