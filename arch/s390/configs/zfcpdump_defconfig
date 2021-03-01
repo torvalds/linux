@@ -61,7 +61,6 @@ CONFIG_RAW_DRIVER=y
 # CONFIG_HID is not set
 # CONFIG_VIRTIO_MENU is not set
 # CONFIG_VHOST_MENU is not set
-# CONFIG_SURFACE_PLATFORMS is not set
 # CONFIG_IOMMU_SUPPORT is not set
 # CONFIG_DNOTIFY is not set
 # CONFIG_INOTIFY_USER is not set
