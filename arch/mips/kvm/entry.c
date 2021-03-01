@@ -305,7 +305,6 @@ static void *kvm_mips_build_enter_guest(void *addr)
 	UASM_i_LW(&p, T0, offsetof(struct kvm_vcpu_arch, pc), K1);
 	UASM_i_MTC0(&p, T0, C0_EPC);
 
-#ifdef CONFIG_KVM_MIPS_VZ
 	/* Save normal linux process pgd (VZ guarantees pgd_reg is set) */
 	if (cpu_has_ldpte)
 		UASM_i_MFC0(&p, K0, C0_PWBASE);
@@ -367,21 +366,6 @@ static void *kvm_mips_build_enter_guest(void *addr)
 	/* Set the root ASID for the Guest */
 	UASM_i_ADDIU(&p, T1, S0,
 		     offsetof(struct kvm, arch.gpa_mm.context.asid));
-#else
-	/* Set the ASID for the Guest Kernel or User */
-	UASM_i_LW(&p, T0, offsetof(struct kvm_vcpu_arch, cop0), K1);
-	UASM_i_LW(&p, T0, offsetof(struct mips_coproc, reg[MIPS_CP0_STATUS][0]),
-		  T0);
-	uasm_i_andi(&p, T0, T0, KSU_USER | ST0_ERL | ST0_EXL);
-	uasm_i_xori(&p, T0, T0, KSU_USER);
-	uasm_il_bnez(&p, &r, T0, label_kernel_asid);
-	 UASM_i_ADDIU(&p, T1, K1, offsetof(struct kvm_vcpu_arch,
-					   guest_kernel_mm.context.asid));
-	/* else user */
-	UASM_i_ADDIU(&p, T1, K1, offsetof(struct kvm_vcpu_arch,
-					  guest_user_mm.context.asid));
-	uasm_l_kernel_asid(&l, p);
-#endif
 
 	/* t1: contains the base of the ASID array, need to get the cpu id  */
 	/* smp_processor_id */
@@ -406,24 +390,9 @@ static void *kvm_mips_build_enter_guest(void *addr)
 	uasm_i_andi(&p, K0, K0, MIPS_ENTRYHI_ASID);
 #endif
 
-#ifndef CONFIG_KVM_MIPS_VZ
-	/*
-	 * Set up KVM T&E GVA pgd.
-	 * This does roughly the same as TLBMISS_HANDLER_SETUP_PGD():
-	 * - call tlbmiss_handler_setup_pgd(mm->pgd)
-	 * - but skips write into CP0_PWBase for now
-	 */
-	UASM_i_LW(&p, A0, (int)offsetof(struct mm_struct, pgd) -
-			  (int)offsetof(struct mm_struct, context.asid), T1);
-
-	UASM_i_LA(&p, T9, (unsigned long)tlbmiss_handler_setup_pgd);
-	uasm_i_jalr(&p, RA, T9);
-	 uasm_i_mtc0(&p, K0, C0_ENTRYHI);
-#else
 	/* Set up KVM VZ root ASID (!guestid) */
 	uasm_i_mtc0(&p, K0, C0_ENTRYHI);
 skip_asid_restore:
-#endif
 	uasm_i_ehb(&p);
 
 	/* Disable RDHWR access */
@@ -720,7 +689,6 @@ void *kvm_mips_build_exit(void *addr)
 		uasm_l_msa_1(&l, p);
 	}
 
-#ifdef CONFIG_KVM_MIPS_VZ
 	/* Restore host ASID */
 	if (!cpu_has_guestid) {
 		UASM_i_LW(&p, K0, offsetof(struct kvm_vcpu_arch, host_entryhi),
@@ -764,7 +732,6 @@ void *kvm_mips_build_exit(void *addr)
 			   MIPS_GCTL1_RID_WIDTH);
 		uasm_i_mtc0(&p, T0, C0_GUESTCTL1);
 	}
-#endif
 
 	/* Now that the new EBASE has been loaded, unset BEV and KSU_USER */
 	uasm_i_addiu(&p, AT, ZERO, ~(ST0_EXL | KSU_USER | ST0_IE));
