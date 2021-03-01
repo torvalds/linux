@@ -373,12 +373,12 @@ static int daemon_session__run(struct daemon_session *session,
 	dup2(fd, 2);
 	close(fd);
 
-	if (mkfifo(SESSION_CONTROL, O_RDWR) && errno != EEXIST) {
+	if (mkfifo(SESSION_CONTROL, 0600) && errno != EEXIST) {
 		perror("failed: create control fifo");
 		return -1;
 	}
 
-	if (mkfifo(SESSION_ACK, O_RDWR) && errno != EEXIST) {
+	if (mkfifo(SESSION_ACK, 0600) && errno != EEXIST) {
 		perror("failed: create ack fifo");
 		return -1;
 	}
