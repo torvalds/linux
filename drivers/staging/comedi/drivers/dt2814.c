@@ -52,6 +52,43 @@ struct dt2814_private {
 #define DT2814_TIMEOUT 10
 #define DT2814_MAX_SPEED 100000	/* Arbitrary 10 khz limit */
 
+static int dt2814_ai_notbusy(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned long context)
+{
+	unsigned int status;
+
+	status = inb(dev->iobase + DT2814_CSR);
+	if (context)
+		*(unsigned int *)context = status;
+	if (status & DT2814_BUSY)
+		return -EBUSY;
+	return 0;
+}
+
+static int dt2814_ai_clear(struct comedi_device *dev)
+{
+	unsigned int status = 0;
+	int ret;
+
+	/* Wait until not busy and get status register value. */
+	ret = comedi_timeout(dev, NULL, NULL, dt2814_ai_notbusy,
+			     (unsigned long)&status);
+	if (ret)
+		return ret;
+
+	if (status & (DT2814_FINISH | DT2814_ERR)) {
+		/*
+		 * There unread data, or the error flag is set.
+		 * Read the data register twice to clear the condition.
+		 */
+		inb(dev->iobase + DT2814_DATA);
+		inb(dev->iobase + DT2814_DATA);
+	}
+	return 0;
+}
+
 static int dt2814_ai_eoc(struct comedi_device *dev,
 			 struct comedi_subdevice *s,
 			 struct comedi_insn *insn,
@@ -73,6 +110,7 @@ static int dt2814_ai_insn_read(struct comedi_device *dev,
 	int chan;
 	int ret;
 
+	dt2814_ai_clear(dev);	/* clear stale data or error */
 	for (n = 0; n < insn->n; n++) {
 		chan = CR_CHAN(insn->chanspec);
 
@@ -174,6 +212,7 @@ static int dt2814_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int chan;
 	int trigvar;
 
+	dt2814_ai_clear(dev);	/* clear stale data or error */
 	trigvar = dt2814_ns_to_timer(&cmd->scan_begin_arg, cmd->flags);
 
 	chan = CR_CHAN(cmd->chanlist[0]);
