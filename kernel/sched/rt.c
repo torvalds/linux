@@ -1372,7 +1372,7 @@ static void dequeue_rt_entity(struct sched_rt_entity *rt_se, unsigned int flags)
 	enqueue_top_rt_rq(&rq->rt);
 }
 
-#if defined CONFIG_SMP || defined CONFIG_RT_GROUP_SCHED
+#ifdef CONFIG_SMP
 static inline bool should_honor_rt_sync(struct rq *rq, struct task_struct *p,
 					bool sync)
 {
