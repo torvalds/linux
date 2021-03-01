@@ -67,6 +67,15 @@ config MTD_OF_PARTS
 	  flash memory node, as described in
 	  Documentation/devicetree/bindings/mtd/partition.txt.
 
+config MTD_OF_PARTS_BCM4908
+	bool "BCM4908 partitioning support"
+	depends on MTD_OF_PARTS && (ARCH_BCM4908 || COMPILE_TEST)
+	default ARCH_BCM4908
+	help
+	  This provides partitions parser for BCM4908 family devices
+	  that can have multiple "firmware" partitions. It takes care of
+	  finding currently used one and backup ones.
+
 config MTD_PARSER_IMAGETAG
 	tristate "Parser for BCM963XX Image Tag format partitions"
 	depends on BCM63XX || BMIPS_GENERIC || COMPILE_TEST
