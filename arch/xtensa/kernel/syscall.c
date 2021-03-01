@@ -28,9 +28,8 @@
 #include <linux/shm.h>
 
 syscall_t sys_call_table[] /* FIXME __cacheline_aligned */= {
-#define __SYSCALL(nr, entry, nargs)	(syscall_t)entry,
+#define __SYSCALL(nr, entry)	(syscall_t)entry,
 #include <asm/syscall_table.h>
-#undef __SYSCALL
 };
 
 #define COLOUR_ALIGN(addr, pgoff) \
