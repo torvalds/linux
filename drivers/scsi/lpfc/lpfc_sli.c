@@ -11591,7 +11591,7 @@ release_iocb:
  * which are aborted. The function frees memory resources used for
  * the aborted ELS commands.
  **/
-static void
+void
 lpfc_ignore_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		     struct lpfc_iocbq *rspiocb)
 {

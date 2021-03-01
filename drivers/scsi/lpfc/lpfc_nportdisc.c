@@ -523,6 +523,16 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		/* rcv'ed PLOGI decides what our NPortId will be */
 		vport->fc_myDID = icmd->un.rcvels.parmRo;
 
+		/* If there is an outstanding FLOGI, abort it now.
+		 * The remote NPort is not going to ACC our FLOGI
+		 * if its already issuing a PLOGI for pt2pt mode.
+		 * This indicates our FLOGI was dropped; however, we
+		 * must have ACCed the remote NPorts FLOGI to us
+		 * to make it here.
+		 */
+		if (phba->hba_flag & HBA_FLOGI_OUTSTANDING)
+			lpfc_els_abort_flogi(phba);
+
 		ed_tov = be32_to_cpu(sp->cmn.e_d_tov);
 		if (sp->cmn.edtovResolution) {
 			/* E_D_TOV ticks are in nanoseconds */
