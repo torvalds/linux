@@ -790,7 +790,7 @@ MODULE_DEVICE_TABLE(of, rt1308_of_match);
 #endif
 
 #ifdef CONFIG_ACPI
-static struct acpi_device_id rt1308_acpi_match[] = {
+static const struct acpi_device_id rt1308_acpi_match[] = {
 	{ "10EC1308", 0, },
 	{ },
 };
