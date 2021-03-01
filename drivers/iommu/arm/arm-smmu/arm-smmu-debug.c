@@ -38,12 +38,13 @@ u32 arm_smmu_debug_tcu_testbus_select(phys_addr_t phys_addr,
 	int ret = 0;
 
 	if (testbus == CLK_TESTBUS) {
-		offset = ARM_SMMU_TESTBUS_SEL_HLOS1_NS;
 		if (write) {
+			offset = ARM_SMMU_TESTBUS_SEL_HLOS1_NS;
 			writel_relaxed(val, tcu_base + offset);
 			/* Make sure tcu select register is written to */
 			wmb();
 		} else {
+			offset = ARM_SMMU_TCU_TESTBUS_HLOS1_NS;
 			return readl_relaxed(tcu_base + offset);
 		}
 	} else {
