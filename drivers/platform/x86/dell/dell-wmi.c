@@ -714,10 +714,9 @@ static int dell_wmi_probe(struct wmi_device *wdev, const void *context)
 	return dell_wmi_input_setup(wdev);
 }
 
-static int dell_wmi_remove(struct wmi_device *wdev)
+static void dell_wmi_remove(struct wmi_device *wdev)
 {
 	dell_wmi_input_destroy(wdev);
-	return 0;
 }
 static const struct wmi_device_id dell_wmi_id_table[] = {
 	{ .guid_string = DELL_EVENT_GUID },

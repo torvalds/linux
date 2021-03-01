@@ -119,12 +119,11 @@ static int bios_attr_pass_interface_probe(struct wmi_device *wdev, const void *c
 	return 0;
 }
 
-static int bios_attr_pass_interface_remove(struct wmi_device *wdev)
+static void bios_attr_pass_interface_remove(struct wmi_device *wdev)
 {
 	mutex_lock(&wmi_priv.mutex);
 	wmi_priv.password_attr_wdev = NULL;
 	mutex_unlock(&wmi_priv.mutex);
-	return 0;
 }
 
 static const struct wmi_device_id bios_attr_pass_interface_id_table[] = {

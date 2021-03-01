@@ -174,14 +174,13 @@ out:
 	return ret;
 }
 
-static int dell_wmi_descriptor_remove(struct wmi_device *wdev)
+static void dell_wmi_descriptor_remove(struct wmi_device *wdev)
 {
 	struct descriptor_priv *priv = dev_get_drvdata(&wdev->dev);
 
 	mutex_lock(&list_mutex);
 	list_del(&priv->list);
 	mutex_unlock(&list_mutex);
-	return 0;
 }
 
 static const struct wmi_device_id dell_wmi_descriptor_id_table[] = {
