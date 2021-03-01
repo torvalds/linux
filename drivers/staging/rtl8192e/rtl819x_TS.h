@@ -49,7 +49,7 @@ struct rx_ts_record {
 	struct timer_list		rx_pkt_pending_timer;
 	struct ba_record rx_admitted_ba_record;
 	u16				rx_last_seq_num;
-	u8				RxLastFragNum;
+	u8				rx_last_frag_num;
 	u8				num;
 };
 
