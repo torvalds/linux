@@ -6961,7 +6961,7 @@ static int qla4xxx_sess_conn_setup(struct scsi_qla_host *ha,
 	if (is_reset == RESET_ADAPTER) {
 		iscsi_block_session(cls_sess);
 		/* Use the relogin path to discover new devices
-		 *  by short-circuting the logic of setting
+		 *  by short-circuiting the logic of setting
 		 *  timer to relogin - instead set the flags
 		 *  to initiate login right away.
 		 */
