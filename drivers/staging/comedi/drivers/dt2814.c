@@ -223,30 +223,87 @@ static int dt2814_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
+static int dt2814_ai_cancel(struct comedi_device *dev,
+			    struct comedi_subdevice *s)
+{
+	unsigned int status;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->spinlock, flags);
+	status = inb(dev->iobase + DT2814_CSR);
+	if (status & DT2814_ENB) {
+		/*
+		 * Clear the timed trigger enable bit.
+		 *
+		 * Note: turning off timed mode triggers another
+		 * sample.  This will be mopped up by the calls to
+		 * dt2814_ai_clear().
+		 */
+		outb(status & DT2814_CHANMASK, dev->iobase + DT2814_CSR);
+	}
+	spin_unlock_irqrestore(&dev->spinlock, flags);
+	return 0;
+}
+
 static irqreturn_t dt2814_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct dt2814_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_async *async;
+	unsigned int lo, hi;
+	unsigned short data;
+	unsigned int status;
 
 	if (!dev->attached) {
 		dev_err(dev->class_dev, "spurious interrupt\n");
 		return IRQ_HANDLED;
 	}
 
-	inb(dev->iobase + DT2814_DATA);
-	inb(dev->iobase + DT2814_DATA);
+	async = s->async;
 
-	if (!(--devpriv->ntrig)) {
-		outb(0, dev->iobase + DT2814_CSR);
+	spin_lock(&dev->spinlock);
+
+	status = inb(dev->iobase + DT2814_CSR);
+	if (!(status & DT2814_ENB)) {
+		/* Timed acquisition not enabled.  Nothing to do. */
+		spin_unlock(&dev->spinlock);
+		return IRQ_HANDLED;
+	}
+
+	if (!(status & (DT2814_FINISH | DT2814_ERR))) {
+		/* Spurious interrupt? */
+		spin_unlock(&dev->spinlock);
+		return IRQ_HANDLED;
+	}
+
+	/* Read data or clear error. */
+	hi = inb(dev->iobase + DT2814_DATA);
+	lo = inb(dev->iobase + DT2814_DATA);
+
+	data = (hi << 4) | (lo >> 4);
+
+	if (status & DT2814_ERR) {
+		async->events |= COMEDI_CB_ERROR;
+	} else {
+		comedi_buf_write_samples(s, &data, 1);
+		if (async->cmd.stop_src == TRIG_COUNT &&
+		    async->scans_done >=  async->cmd.stop_arg) {
+			async->events |= COMEDI_CB_EOA;
+		}
+	}
+	if (async->events & COMEDI_CB_CANCEL_MASK) {
 		/*
+		 * Disable timed mode.
+		 *
 		 * Note: turning off timed mode triggers another
 		 * sample.  This will be mopped up by the calls to
 		 * dt2814_ai_clear().
 		 */
-
-		s->async->events |= COMEDI_CB_EOA;
+		outb(status & DT2814_CHANMASK, dev->iobase + DT2814_CSR);
 	}
+
+	spin_unlock(&dev->spinlock);
+
 	comedi_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
@@ -295,6 +352,7 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->len_chanlist = 1;
 		s->do_cmd = dt2814_ai_cmd;
 		s->do_cmdtest = dt2814_ai_cmdtest;
+		s->cancel = dt2814_ai_cancel;
 	}
 
 	return 0;
