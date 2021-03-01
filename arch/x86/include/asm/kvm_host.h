@@ -535,10 +535,16 @@ struct kvm_vcpu_hv {
 /* Xen HVM per vcpu emulation context */
 struct kvm_vcpu_xen {
 	u64 hypercall_rip;
+	u32 current_runstate;
 	bool vcpu_info_set;
 	bool vcpu_time_info_set;
+	bool runstate_set;
 	struct gfn_to_hva_cache vcpu_info_cache;
 	struct gfn_to_hva_cache vcpu_time_info_cache;
+	struct gfn_to_hva_cache runstate_cache;
+	u64 last_steal;
+	u64 runstate_entry_time;
+	u64 runstate_times[4];
 };
 
 struct kvm_vcpu_arch {

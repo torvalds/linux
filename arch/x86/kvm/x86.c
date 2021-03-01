@@ -2956,6 +2956,11 @@ static void record_steal_time(struct kvm_vcpu *vcpu)
 	struct kvm_host_map map;
 	struct kvm_steal_time *st;
 
+	if (kvm_xen_msr_enabled(vcpu->kvm)) {
+		kvm_xen_runstate_set_running(vcpu);
+		return;
+	}
+
 	if (!(vcpu->arch.st.msr_val & KVM_MSR_ENABLED))
 		return;
 
@@ -3760,6 +3765,8 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = KVM_XEN_HVM_CONFIG_HYPERCALL_MSR |
 		    KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL |
 		    KVM_XEN_HVM_CONFIG_SHARED_INFO;
+		if (sched_info_on())
+			r |= KVM_XEN_HVM_CONFIG_RUNSTATE;
 		break;
 #endif
 	case KVM_CAP_SYNC_REGS:
@@ -4039,7 +4046,11 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	if (vcpu->preempted && !vcpu->arch.guest_state_protected)
 		vcpu->arch.preempted_in_kernel = !static_call(kvm_x86_get_cpl)(vcpu);
 
-	kvm_steal_time_set_preempted(vcpu);
+	if (kvm_xen_msr_enabled(vcpu->kvm))
+		kvm_xen_runstate_set_preempted(vcpu);
+	else
+		kvm_steal_time_set_preempted(vcpu);
+
 	static_call(kvm_x86_vcpu_put)(vcpu);
 	vcpu->arch.last_host_tsc = rdtsc();
 	/*
