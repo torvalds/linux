@@ -869,7 +869,7 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 				"WWNN x%llx ",
 				wwn_to_u64(ndlp->nlp_nodename.u.wwn));
 		if (ndlp->nlp_flag & NLP_RPI_REGISTERED)
-			len += scnprintf(buf+len, size-len, "RPI:%03d ",
+			len += scnprintf(buf+len, size-len, "RPI:%04d ",
 					ndlp->nlp_rpi);
 		else
 			len += scnprintf(buf+len, size-len, "RPI:none ");
@@ -895,7 +895,7 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 		if (ndlp->nlp_type & NLP_NVME_INITIATOR)
 			len += scnprintf(buf + len,
 					size - len, "NVME_INITIATOR ");
-		len += scnprintf(buf+len, size-len, "refcnt:%x",
+		len += scnprintf(buf+len, size-len, "refcnt:%d",
 			kref_read(&ndlp->kref));
 		if (iocnt) {
 			i = atomic_read(&ndlp->cmd_pending);
@@ -904,8 +904,11 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 					i, ndlp->cmd_qdepth);
 			outio += i;
 		}
-		len += scnprintf(buf + len, size - len, "defer:%x ",
-			ndlp->nlp_defer_did);
+		len += scnprintf(buf+len, size-len, " xpt:x%x",
+				 ndlp->fc4_xpt_flags);
+		if (ndlp->nlp_defer_did != NLP_EVT_NOTHING_PENDING)
+			len += scnprintf(buf+len, size-len, " defer:%x",
+					 ndlp->nlp_defer_did);
 		len +=  scnprintf(buf+len, size-len, "\n");
 	}
 	spin_unlock_irq(shost->host_lock);
