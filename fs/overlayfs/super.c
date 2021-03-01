@@ -1981,6 +1981,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	if (!ofs)
 		goto out;
 
+	err = -ENOMEM;
 	ofs->creator_cred = cred = prepare_creds();
 	if (!cred)
 		goto out_err;
@@ -2009,6 +2010,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	if (!splitlower)
 		goto out_err;
 
+	err = -EINVAL;
 	numlower = ovl_split_lowerdirs(splitlower);
 	if (numlower > OVL_MAX_STACK) {
 		pr_err("too many lower directories, limit is %d\n",
@@ -2016,6 +2018,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		goto out_err;
 	}
 
+	err = -ENOMEM;
 	layers = kcalloc(numlower + 1, sizeof(struct ovl_layer), GFP_KERNEL);
 	if (!layers)
 		goto out_err;
@@ -2042,6 +2045,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	if (ofs->config.upperdir) {
 		struct super_block *upper_sb;
 
+		err = -EINVAL;
 		if (!ofs->config.workdir) {
 			pr_err("missing 'workdir'\n");
 			goto out_err;
