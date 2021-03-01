@@ -2693,7 +2693,7 @@ static const char *snd_djm_get_label_caplevel(u16 wvalue)
 	}
 };
 
-static const char *snd_djm_get_label_cap(u16 wvalue)
+static const char *snd_djm_get_label_cap_common(u16 wvalue)
 {
 	switch (wvalue & 0x00ff) {
 	case SND_DJM_CAP_LINE:		return "Control Tone LINE";
@@ -2715,6 +2715,25 @@ static const char *snd_djm_get_label_cap(u16 wvalue)
 	}
 };
 
+// The DJM-850 has different values for CD/LINE and LINE capture
+// control options than the other DJM declared in this file.
+static const char *snd_djm_get_label_cap_850(u16 wvalue)
+{
+	switch (wvalue & 0x00ff) {
+	case 0x00:		return "Control Tone CD/LINE";
+	case 0x01:		return "Control Tone LINE";
+	default:		return snd_djm_get_label_cap_common(wvalue);
+	}
+};
+
+static const char *snd_djm_get_label_cap(u8 device_idx, u16 wvalue)
+{
+	switch (device_idx) {
+	case SND_DJM_850_IDX:		return snd_djm_get_label_cap_850(wvalue);
+	default:			return snd_djm_get_label_cap_common(wvalue);
+	}
+};
+
 static const char *snd_djm_get_label_pb(u16 wvalue)
 {
 	switch (wvalue & 0x00ff) {
@@ -2725,11 +2744,11 @@ static const char *snd_djm_get_label_pb(u16 wvalue)
 	}
 };
 
-static const char *snd_djm_get_label(u16 wvalue, u16 windex)
+static const char *snd_djm_get_label(u8 device_idx, u16 wvalue, u16 windex)
 {
 	switch (windex) {
 	case SND_DJM_WINDEX_CAPLVL:	return snd_djm_get_label_caplevel(wvalue);
-	case SND_DJM_WINDEX_CAP:	return snd_djm_get_label_cap(wvalue);
+	case SND_DJM_WINDEX_CAP:	return snd_djm_get_label_cap(device_idx, wvalue);
 	case SND_DJM_WINDEX_PB:		return snd_djm_get_label_pb(wvalue);
 	default:			return NULL;
 	}
@@ -2852,7 +2871,8 @@ static int snd_djm_controls_info(struct snd_kcontrol *kctl,
 	if (info->value.enumerated.item >= noptions)
 		info->value.enumerated.item = noptions - 1;
 
-	name = snd_djm_get_label(ctl->options[info->value.enumerated.item],
+	name = snd_djm_get_label(device_idx,
+				ctl->options[info->value.enumerated.item],
 				ctl->wIndex);
 	if (!name)
 		return -EINVAL;
