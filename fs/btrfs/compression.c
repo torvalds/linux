@@ -1261,7 +1261,6 @@ int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
 	unsigned long prev_start_byte;
 	unsigned long working_bytes = total_out - buf_start;
 	unsigned long bytes;
-	char *kaddr;
 	struct bio_vec bvec = bio_iter_iovec(bio, bio->bi_iter);
 
 	/*
@@ -1292,9 +1291,8 @@ int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
 				PAGE_SIZE - (buf_offset % PAGE_SIZE));
 		bytes = min(bytes, working_bytes);
 
-		kaddr = kmap_atomic(bvec.bv_page);
-		memcpy(kaddr + bvec.bv_offset, buf + buf_offset, bytes);
-		kunmap_atomic(kaddr);
+		memcpy_to_page(bvec.bv_page, bvec.bv_offset, buf + buf_offset,
+			       bytes);
 		flush_dcache_page(bvec.bv_page);
 
 		buf_offset += bytes;
