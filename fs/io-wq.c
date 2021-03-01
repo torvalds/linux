@@ -1047,8 +1047,8 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 	if (!ret)
 		return wq;
 
-	io_wq_put_hash(data->hash);
 err:
+	io_wq_put_hash(data->hash);
 	cpuhp_state_remove_instance_nocalls(io_wq_online, &wq->cpuhp_node);
 	for_each_node(node)
 		kfree(wq->wqes[node]);
