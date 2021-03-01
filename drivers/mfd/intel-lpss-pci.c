@@ -70,9 +70,13 @@ static const struct property_entry spt_i2c_properties[] = {
 	{ },
 };
 
+static const struct software_node spt_i2c_node = {
+	.properties = spt_i2c_properties,
+};
+
 static const struct intel_lpss_platform_info spt_i2c_info = {
 	.clk_rate = 120000000,
-	.properties = spt_i2c_properties,
+	.swnode = &spt_i2c_node,
 };
 
 static const struct property_entry uart_properties[] = {
@@ -82,10 +86,14 @@ static const struct property_entry uart_properties[] = {
 	{ },
 };
 
+static const struct software_node uart_node = {
+	.properties = uart_properties,
+};
+
 static const struct intel_lpss_platform_info spt_uart_info = {
 	.clk_rate = 120000000,
 	.clk_con_id = "baudclk",
-	.properties = uart_properties,
+	.swnode = &uart_node,
 };
 
 static const struct intel_lpss_platform_info bxt_info = {
@@ -95,7 +103,7 @@ static const struct intel_lpss_platform_info bxt_info = {
 static const struct intel_lpss_platform_info bxt_uart_info = {
 	.clk_rate = 100000000,
 	.clk_con_id = "baudclk",
-	.properties = uart_properties,
+	.swnode = &uart_node,
 };
 
 static const struct property_entry bxt_i2c_properties[] = {
@@ -105,9 +113,13 @@ static const struct property_entry bxt_i2c_properties[] = {
 	{ },
 };
 
+static const struct software_node bxt_i2c_node = {
+	.properties = bxt_i2c_properties,
+};
+
 static const struct intel_lpss_platform_info bxt_i2c_info = {
 	.clk_rate = 133000000,
-	.properties = bxt_i2c_properties,
+	.swnode = &bxt_i2c_node,
 };
 
 static const struct property_entry apl_i2c_properties[] = {
@@ -117,9 +129,13 @@ static const struct property_entry apl_i2c_properties[] = {
 	{ },
 };
 
+static const struct software_node apl_i2c_node = {
+	.properties = apl_i2c_properties,
+};
+
 static const struct intel_lpss_platform_info apl_i2c_info = {
 	.clk_rate = 133000000,
-	.properties = apl_i2c_properties,
+	.swnode = &apl_i2c_node,
 };
 
 static const struct property_entry glk_i2c_properties[] = {
@@ -129,19 +145,23 @@ static const struct property_entry glk_i2c_properties[] = {
 	{ },
 };
 
+static const struct software_node glk_i2c_node = {
+	.properties = glk_i2c_properties,
+};
+
 static const struct intel_lpss_platform_info glk_i2c_info = {
 	.clk_rate = 133000000,
-	.properties = glk_i2c_properties,
+	.swnode = &glk_i2c_node,
 };
 
 static const struct intel_lpss_platform_info cnl_i2c_info = {
 	.clk_rate = 216000000,
-	.properties = spt_i2c_properties,
+	.swnode = &spt_i2c_node,
 };
 
 static const struct intel_lpss_platform_info ehl_i2c_info = {
 	.clk_rate = 100000000,
-	.properties = bxt_i2c_properties,
+	.swnode = &bxt_i2c_node,
 };
 
 static const struct pci_device_id intel_lpss_pci_ids[] = {
