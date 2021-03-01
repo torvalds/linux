@@ -1782,6 +1782,17 @@ int vfs_rmdir(struct user_namespace *, struct inode *, struct dentry *);
 int vfs_unlink(struct user_namespace *, struct inode *, struct dentry *,
 	       struct inode **);
 
+/**
+ * struct renamedata - contains all information required for renaming
+ * @old_mnt_userns:    old user namespace of the mount the inode was found from
+ * @old_dir:           parent of source
+ * @old_dentry:                source
+ * @new_mnt_userns:    new user namespace of the mount the inode was found from
+ * @new_dir:           parent of destination
+ * @new_dentry:                destination
+ * @delegated_inode:   returns an inode needing a delegation break
+ * @flags:             rename flags
+ */
 struct renamedata {
 	struct user_namespace *old_mnt_userns;
 	struct inode *old_dir;
