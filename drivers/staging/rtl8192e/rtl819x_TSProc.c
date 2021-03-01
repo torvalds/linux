@@ -30,7 +30,7 @@ static void RxPktPendingTimeout(struct timer_list *t)
 	bool bPktInBuf = false;
 
 	spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
-	if (pRxTs->RxTimeoutIndicateSeq != 0xffff) {
+	if (pRxTs->rx_timeout_indicate_seq != 0xffff) {
 		while (!list_empty(&pRxTs->RxPendingPktList)) {
 			pReorderEntry = (struct rx_reorder_entry *)
 					list_entry(pRxTs->RxPendingPktList.prev,
@@ -66,7 +66,7 @@ static void RxPktPendingTimeout(struct timer_list *t)
 	}
 
 	if (index > 0) {
-		pRxTs->RxTimeoutIndicateSeq = 0xffff;
+		pRxTs->rx_timeout_indicate_seq = 0xffff;
 
 		if (index > REORDER_WIN_SIZE) {
 			netdev_warn(ieee->dev,
@@ -80,8 +80,8 @@ static void RxPktPendingTimeout(struct timer_list *t)
 		bPktInBuf = false;
 	}
 
-	if (bPktInBuf && (pRxTs->RxTimeoutIndicateSeq == 0xffff)) {
-		pRxTs->RxTimeoutIndicateSeq = pRxTs->rx_indicate_seq;
+	if (bPktInBuf && (pRxTs->rx_timeout_indicate_seq == 0xffff)) {
+		pRxTs->rx_timeout_indicate_seq = pRxTs->rx_indicate_seq;
 		mod_timer(&pRxTs->RxPktPendingTimer,  jiffies +
 			  msecs_to_jiffies(ieee->pHTInfo->RxReorderPendingTime)
 			  );
@@ -125,7 +125,7 @@ static void ResetRxTsEntry(struct rx_ts_record *pTS)
 {
 	ResetTsCommonInfo(&pTS->ts_common_info);
 	pTS->rx_indicate_seq = 0xffff;
-	pTS->RxTimeoutIndicateSeq = 0xffff;
+	pTS->rx_timeout_indicate_seq = 0xffff;
 	ResetBaEntry(&pTS->RxAdmittedBARecord);
 }
 
