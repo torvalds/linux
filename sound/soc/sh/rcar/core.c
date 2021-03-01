@@ -230,12 +230,12 @@ void rsnd_mod_interrupt(struct rsnd_mod *mod,
 					 struct rsnd_dai_stream *io))
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct rsnd_dai_stream *io;
 	struct rsnd_dai *rdai;
 	int i;
 
 	for_each_rsnd_dai(rdai, priv, i) {
-		io = &rdai->playback;
+		struct rsnd_dai_stream *io = &rdai->playback;
+
 		if (mod == io->mod[mod->type])
 			callback(mod, io);
 
@@ -486,13 +486,12 @@ struct rsnd_mod *rsnd_mod_next(int *iterator,
 			       enum rsnd_mod_type *array,
 			       int array_size)
 {
-	struct rsnd_mod *mod;
-	enum rsnd_mod_type type;
 	int max = array ? array_size : RSND_MOD_MAX;
 
 	for (; *iterator < max; (*iterator)++) {
-		type = (array) ? array[*iterator] : *iterator;
-		mod = rsnd_io_to_mod(io, type);
+		enum rsnd_mod_type type = (array) ? array[*iterator] : *iterator;
+		struct rsnd_mod *mod = rsnd_io_to_mod(io, type);
+
 		if (mod)
 			return mod;
 	}
@@ -1061,7 +1060,7 @@ static void rsnd_parse_tdm_split_mode(struct rsnd_priv *priv,
 	struct device_node *ssiu_np = rsnd_ssiu_of_node(priv);
 	struct device_node *np;
 	int is_play = rsnd_io_is_play(io);
-	int i, j;
+	int i;
 
 	if (!ssiu_np)
 		return;
@@ -1078,13 +1077,11 @@ static void rsnd_parse_tdm_split_mode(struct rsnd_priv *priv,
 		if (!node)
 			break;
 
-		j = 0;
 		for_each_child_of_node(ssiu_np, np) {
 			if (np == node) {
 				rsnd_flags_set(io, RSND_STREAM_TDM_SPLIT);
 				dev_dbg(dev, "%s is part of TDM Split\n", io->name);
 			}
-			j++;
 		}
 
 		of_node_put(node);
@@ -1140,7 +1137,6 @@ void rsnd_parse_connect_common(struct rsnd_dai *rdai,
 {
 	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
 	struct device_node *np;
-	struct rsnd_mod *mod;
 	int i;
 
 	if (!node)
@@ -1148,7 +1144,8 @@ void rsnd_parse_connect_common(struct rsnd_dai *rdai,
 
 	i = 0;
 	for_each_child_of_node(node, np) {
-		mod = mod_get(priv, i);
+		struct rsnd_mod *mod = mod_get(priv, i);
+
 		if (np == playback)
 			rsnd_dai_connect(mod, &rdai->playback, mod->type);
 		if (np == capture)
@@ -1258,7 +1255,6 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 			     struct device_node *dai_np,
 			     int dai_i)
 {
-	struct device_node *playback, *capture;
 	struct rsnd_dai_stream *io_playback;
 	struct rsnd_dai_stream *io_capture;
 	struct snd_soc_dai_driver *drv;
@@ -1301,8 +1297,8 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 	rsnd_rdai_width_set(rdai, 32);   /* default 32bit width */
 
 	for (io_i = 0;; io_i++) {
-		playback = of_parse_phandle(dai_np, "playback", io_i);
-		capture  = of_parse_phandle(dai_np, "capture", io_i);
+		struct device_node *playback = of_parse_phandle(dai_np, "playback", io_i);
+		struct device_node *capture  = of_parse_phandle(dai_np, "capture", io_i);
 
 		if (!playback && !capture)
 			break;
@@ -1366,7 +1362,7 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 		for_each_endpoint_of_node(dai_node, dai_np) {
 			__rsnd_dai_probe(priv, dai_np, dai_i);
 			if (rsnd_is_gen3(priv)) {
-				struct rsnd_dai *rdai = rsnd_rdai_get(priv, dai_i);
+				rdai = rsnd_rdai_get(priv, dai_i);
 
 				rsnd_parse_connect_graph(priv, &rdai->playback, dai_np);
 				rsnd_parse_connect_graph(priv, &rdai->capture,  dai_np);
@@ -1377,7 +1373,7 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 		for_each_child_of_node(dai_node, dai_np) {
 			__rsnd_dai_probe(priv, dai_np, dai_i);
 			if (rsnd_is_gen3(priv)) {
-				struct rsnd_dai *rdai = rsnd_rdai_get(priv, dai_i);
+				rdai = rsnd_rdai_get(priv, dai_i);
 
 				rsnd_parse_connect_simple(priv, &rdai->playback, dai_np);
 				rsnd_parse_connect_simple(priv, &rdai->capture,  dai_np);
@@ -1416,11 +1412,11 @@ static int rsnd_hw_params(struct snd_soc_component *component,
 		struct rsnd_priv *priv = rsnd_io_to_priv(io);
 		struct device *dev = rsnd_priv_to_dev(priv);
 		struct snd_soc_dpcm *dpcm;
-		struct snd_pcm_hw_params *be_params;
 		int stream = substream->stream;
 
 		for_each_dpcm_be(fe, stream, dpcm) {
-			be_params = &dpcm->hw_params;
+			struct snd_pcm_hw_params *be_params = &dpcm->hw_params;
+
 			if (params_channels(hw_params) != params_channels(be_params))
 				io->converted_chan = params_channels(be_params);
 			if (params_rate(hw_params) != params_rate(be_params))
