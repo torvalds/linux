@@ -48,7 +48,7 @@ struct rx_ts_record {
 	struct list_head		rx_pending_pkt_list;
 	struct timer_list		rx_pkt_pending_timer;
 	struct ba_record rx_admitted_ba_record;
-	u16				RxLastSeqNum;
+	u16				rx_last_seq_num;
 	u8				RxLastFragNum;
 	u8				num;
 };
