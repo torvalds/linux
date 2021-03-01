@@ -1649,18 +1649,16 @@ static void io_dismantle_req(struct io_kiocb *req)
 
 	if (req->flags & REQ_F_INFLIGHT) {
 		struct io_ring_ctx *ctx = req->ctx;
-		struct io_uring_task *tctx = req->task->io_uring;
 		unsigned long flags;
 
 		spin_lock_irqsave(&ctx->inflight_lock, flags);
 		list_del(&req->inflight_entry);
 		spin_unlock_irqrestore(&ctx->inflight_lock, flags);
 		req->flags &= ~REQ_F_INFLIGHT;
-		if (atomic_read(&tctx->in_idle))
-			wake_up(&tctx->wait);
 	}
 }
 
+/* must to be called somewhat shortly after putting a request */
 static inline void io_put_task(struct task_struct *task, int nr)
 {
 	struct io_uring_task *tctx = task->io_uring;
