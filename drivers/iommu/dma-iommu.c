@@ -750,7 +750,7 @@ static void iommu_dma_sync_single_for_cpu(struct device *dev,
 		arch_sync_dma_for_cpu(phys, size, dir);
 
 	if (is_swiotlb_buffer(phys))
-		swiotlb_tbl_sync_single(dev, phys, size, dir, SYNC_FOR_CPU);
+		swiotlb_sync_single_for_cpu(dev, phys, size, dir);
 }
 
 static void iommu_dma_sync_single_for_device(struct device *dev,
@@ -763,7 +763,7 @@ static void iommu_dma_sync_single_for_device(struct device *dev,
 
 	phys = iommu_iova_to_phys(iommu_get_dma_domain(dev), dma_handle);
 	if (is_swiotlb_buffer(phys))
-		swiotlb_tbl_sync_single(dev, phys, size, dir, SYNC_FOR_DEVICE);
+		swiotlb_sync_single_for_device(dev, phys, size, dir);
 
 	if (!dev_is_dma_coherent(dev))
 		arch_sync_dma_for_device(phys, size, dir);
@@ -784,8 +784,8 @@ static void iommu_dma_sync_sg_for_cpu(struct device *dev,
 			arch_sync_dma_for_cpu(sg_phys(sg), sg->length, dir);
 
 		if (is_swiotlb_buffer(sg_phys(sg)))
-			swiotlb_tbl_sync_single(dev, sg_phys(sg), sg->length,
-						dir, SYNC_FOR_CPU);
+			swiotlb_sync_single_for_cpu(dev, sg_phys(sg),
+						    sg->length, dir);
 	}
 }
 
@@ -801,8 +801,8 @@ static void iommu_dma_sync_sg_for_device(struct device *dev,
 
 	for_each_sg(sgl, sg, nelems, i) {
 		if (is_swiotlb_buffer(sg_phys(sg)))
-			swiotlb_tbl_sync_single(dev, sg_phys(sg), sg->length,
-						dir, SYNC_FOR_DEVICE);
+			swiotlb_sync_single_for_device(dev, sg_phys(sg),
+						       sg->length, dir);
 
 		if (!dev_is_dma_coherent(dev))
 			arch_sync_dma_for_device(sg_phys(sg), sg->length, dir);
