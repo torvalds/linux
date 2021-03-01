@@ -2663,7 +2663,6 @@ static void _set_preferred_cluster(struct walt_related_thread_group *grp)
 	u64 wallclock;
 	bool prev_skip_min = grp->skip_min;
 	struct walt_task_struct *wts;
-	struct list_head *task_list;
 
 	if (list_empty(&grp->tasks)) {
 		grp->skip_min = false;
@@ -2686,9 +2685,8 @@ static void _set_preferred_cluster(struct walt_related_thread_group *grp)
 	if (wallclock - grp->last_update < sched_ravg_window / 10)
 		return;
 
-	list_for_each(task_list, &grp->tasks) {
-		p = (struct task_struct *) task_list;
-		wts = (struct walt_task_struct *) p->android_vendor_data1;
+	list_for_each_entry(wts, &grp->tasks, grp_list) {
+		p = wts_to_ts(wts);
 		if (task_boost_policy(p) == SCHED_BOOST_ON_BIG) {
 			group_boost = true;
 			break;
@@ -3444,12 +3442,10 @@ void walt_fill_ta_data(struct core_ctl_notif_data *data)
 	struct walt_related_thread_group *grp;
 	unsigned long flags;
 	u64 total_demand = 0, wallclock;
-	struct task_struct *p;
 	int min_cap_cpu, scale = 1024;
 	struct walt_sched_cluster *cluster;
 	int i = 0;
 	struct walt_task_struct *wts;
-	struct list_head *task_list;
 
 	grp = lookup_related_thread_group(DEFAULT_CGROUP_COLOC_ID);
 
@@ -3461,9 +3457,7 @@ void walt_fill_ta_data(struct core_ctl_notif_data *data)
 
 	wallclock = sched_ktime_clock();
 
-	list_for_each(task_list, &grp->tasks) {
-		p = (struct task_struct *) task_list;
-		wts = (struct walt_task_struct *) p->android_vendor_data1;
+	list_for_each_entry(wts, &grp->tasks, grp_list) {
 		if (wts->mark_start < wallclock -
 		    (sched_ravg_window * sched_ravg_hist_size))
 			continue;

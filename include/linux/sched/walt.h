@@ -112,6 +112,11 @@ struct walt_task_struct {
 	bool				iowaited;
 };
 
+#define wts_to_ts(wts) ({ \
+		void *__mptr = (void *)(wts); \
+		((struct task_struct *)(__mptr - \
+			offsetof(struct task_struct, android_vendor_data1))); })
+
 static inline bool sched_get_wake_up_idle(struct task_struct *p)
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
