@@ -616,8 +616,6 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	u32 link_mask;
 	int ret = 0;
 
-	device_disable_async_suspend(bus->dev);
-
 	/* check if dsp is there */
 	if (bus->ppcap)
 		dev_dbg(sdev->dev, "PP capability, will probe DSP later.\n");
