@@ -136,6 +136,7 @@ enum ta_fw_type {
 	TA_FW_TYPE_PSP_DTM,
 	TA_FW_TYPE_PSP_RAP,
 	TA_FW_TYPE_PSP_SECUREDISPLAY,
+	TA_FW_TYPE_MAX_INDEX,
 };
 
 struct ta_fw_bin_desc {
