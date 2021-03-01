@@ -19,7 +19,7 @@ static void TsInactTimeout(struct timer_list *unused)
 static void RxPktPendingTimeout(struct timer_list *t)
 {
 	struct rx_ts_record *pRxTs = from_timer(pRxTs, t,
-						     RxPktPendingTimer);
+						     rx_pkt_pending_timer);
 	struct rtllib_device *ieee = container_of(pRxTs, struct rtllib_device,
 						  RxTsRecord[pRxTs->num]);
 
@@ -82,7 +82,7 @@ static void RxPktPendingTimeout(struct timer_list *t)
 
 	if (bPktInBuf && (pRxTs->rx_timeout_indicate_seq == 0xffff)) {
 		pRxTs->rx_timeout_indicate_seq = pRxTs->rx_indicate_seq;
-		mod_timer(&pRxTs->RxPktPendingTimer,  jiffies +
+		mod_timer(&pRxTs->rx_pkt_pending_timer,  jiffies +
 			  msecs_to_jiffies(ieee->pHTInfo->RxReorderPendingTime)
 			  );
 	}
@@ -178,7 +178,7 @@ void TSInitialize(struct rtllib_device *ieee)
 		timer_setup(&pRxTS->RxAdmittedBARecord.timer,
 			    RxBaInactTimeout, 0);
 
-		timer_setup(&pRxTS->RxPktPendingTimer, RxPktPendingTimeout, 0);
+		timer_setup(&pRxTS->rx_pkt_pending_timer, RxPktPendingTimeout, 0);
 
 		ResetRxTsEntry(pRxTS);
 		list_add_tail(&pRxTS->ts_common_info.List,
@@ -405,8 +405,8 @@ static void RemoveTsEntry(struct rtllib_device *ieee,
 		struct rx_reorder_entry *pRxReorderEntry;
 		struct rx_ts_record *pRxTS = (struct rx_ts_record *)pTs;
 
-		if (timer_pending(&pRxTS->RxPktPendingTimer))
-			del_timer_sync(&pRxTS->RxPktPendingTimer);
+		if (timer_pending(&pRxTS->rx_pkt_pending_timer))
+			del_timer_sync(&pRxTS->rx_pkt_pending_timer);
 
 		while (!list_empty(&pRxTS->rx_pending_pkt_list)) {
 			pRxReorderEntry = (struct rx_reorder_entry *)
