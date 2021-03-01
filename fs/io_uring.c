@@ -1205,7 +1205,7 @@ static void io_prep_async_link(struct io_kiocb *req)
 		io_prep_async_work(cur);
 }
 
-static struct io_kiocb *__io_queue_async_work(struct io_kiocb *req)
+static void io_queue_async_work(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_kiocb *link = io_prep_linked_timeout(req);
@@ -1216,18 +1216,9 @@ static struct io_kiocb *__io_queue_async_work(struct io_kiocb *req)
 
 	trace_io_uring_queue_async_work(ctx, io_wq_is_hashed(&req->work), req,
 					&req->work, req->flags);
-	io_wq_enqueue(tctx->io_wq, &req->work);
-	return link;
-}
-
-static void io_queue_async_work(struct io_kiocb *req)
-{
-	struct io_kiocb *link;
-
 	/* init ->work of the whole link before punting */
 	io_prep_async_link(req);
-	link = __io_queue_async_work(req);
-
+	io_wq_enqueue(tctx->io_wq, &req->work);
 	if (link)
 		io_queue_linked_timeout(link);
 }
