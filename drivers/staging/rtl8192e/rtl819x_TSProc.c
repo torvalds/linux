@@ -123,7 +123,7 @@ static void ResetTxTsEntry(struct tx_ts_record *pTS)
 
 static void ResetRxTsEntry(struct rx_ts_record *pTS)
 {
-	ResetTsCommonInfo(&pTS->TsCommonInfo);
+	ResetTsCommonInfo(&pTS->ts_common_info);
 	pTS->RxIndicateSeq = 0xffff;
 	pTS->RxTimeoutIndicateSeq = 0xffff;
 	ResetBaEntry(&pTS->RxAdmittedBARecord);
@@ -169,10 +169,10 @@ void TSInitialize(struct rtllib_device *ieee)
 		pRxTS->num = count;
 		INIT_LIST_HEAD(&pRxTS->RxPendingPktList);
 
-		timer_setup(&pRxTS->TsCommonInfo.SetupTimer, TsSetupTimeOut,
+		timer_setup(&pRxTS->ts_common_info.SetupTimer, TsSetupTimeOut,
 			    0);
 
-		timer_setup(&pRxTS->TsCommonInfo.InactTimer, TsInactTimeout,
+		timer_setup(&pRxTS->ts_common_info.InactTimer, TsInactTimeout,
 			    0);
 
 		timer_setup(&pRxTS->RxAdmittedBARecord.timer,
@@ -181,7 +181,7 @@ void TSInitialize(struct rtllib_device *ieee)
 		timer_setup(&pRxTS->RxPktPendingTimer, RxPktPendingTimeout, 0);
 
 		ResetRxTsEntry(pRxTS);
-		list_add_tail(&pRxTS->TsCommonInfo.List,
+		list_add_tail(&pRxTS->ts_common_info.List,
 			      &ieee->Rx_TS_Unused_List);
 		pRxTS++;
 	}
@@ -364,7 +364,7 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 			struct rx_ts_record *tmp =
 				 container_of(*ppTS,
 				 struct rx_ts_record,
-				 TsCommonInfo);
+				 ts_common_info);
 			ResetRxTsEntry(tmp);
 		}
 

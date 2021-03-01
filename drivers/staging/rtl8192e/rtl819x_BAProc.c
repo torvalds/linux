@@ -549,7 +549,7 @@ void RxBaInactTimeout(struct timer_list *t)
 				     RxTsRecord[pRxTs->num]);
 
 	RxTsDeleteBA(ieee, pRxTs);
-	rtllib_send_DELBA(ieee, pRxTs->TsCommonInfo.Addr,
+	rtllib_send_DELBA(ieee, pRxTs->ts_common_info.Addr,
 			  &pRxTs->RxAdmittedBARecord, RX_DIR,
 			  DELBA_REASON_TIMEOUT);
 }
