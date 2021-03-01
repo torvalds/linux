@@ -238,20 +238,12 @@ static irqreturn_t dt2814_interrupt(int irq, void *d)
 	inb(dev->iobase + DT2814_DATA);
 
 	if (!(--devpriv->ntrig)) {
-		int i;
-
 		outb(0, dev->iobase + DT2814_CSR);
 		/*
-		 * note: turning off timed mode triggers another
-		 * sample.
+		 * Note: turning off timed mode triggers another
+		 * sample.  This will be mopped up by the calls to
+		 * dt2814_ai_clear().
 		 */
-
-		for (i = 0; i < DT2814_TIMEOUT; i++) {
-			if (inb(dev->iobase + DT2814_CSR) & DT2814_FINISH)
-				break;
-		}
-		inb(dev->iobase + DT2814_DATA);
-		inb(dev->iobase + DT2814_DATA);
 
 		s->async->events |= COMEDI_CB_EOA;
 	}
