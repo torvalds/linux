@@ -238,12 +238,6 @@ static int mfd_add_device(struct device *parent, int id,
 			goto fail_of_entry;
 	}
 
-	if (cell->properties) {
-		ret = platform_device_add_properties(pdev, cell->properties);
-		if (ret)
-			goto fail_of_entry;
-	}
-
 	if (cell->swnode) {
 		ret = device_add_software_node(&pdev->dev, cell->swnode);
 		if (ret)
