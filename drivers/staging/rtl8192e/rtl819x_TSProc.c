@@ -36,18 +36,18 @@ static void RxPktPendingTimeout(struct timer_list *t)
 					list_entry(pRxTs->RxPendingPktList.prev,
 					struct rx_reorder_entry, List);
 			if (index == 0)
-				pRxTs->RxIndicateSeq = pReorderEntry->SeqNum;
+				pRxTs->rx_indicate_seq = pReorderEntry->SeqNum;
 
 			if (SN_LESS(pReorderEntry->SeqNum,
-				    pRxTs->RxIndicateSeq) ||
+				    pRxTs->rx_indicate_seq) ||
 			    SN_EQUAL(pReorderEntry->SeqNum,
-				     pRxTs->RxIndicateSeq)) {
+				     pRxTs->rx_indicate_seq)) {
 				list_del_init(&pReorderEntry->List);
 
 				if (SN_EQUAL(pReorderEntry->SeqNum,
-				    pRxTs->RxIndicateSeq))
-					pRxTs->RxIndicateSeq =
-					      (pRxTs->RxIndicateSeq + 1) % 4096;
+				    pRxTs->rx_indicate_seq))
+					pRxTs->rx_indicate_seq =
+					      (pRxTs->rx_indicate_seq + 1) % 4096;
 
 				netdev_dbg(ieee->dev,
 					   "%s(): Indicate SeqNum: %d\n",
@@ -81,7 +81,7 @@ static void RxPktPendingTimeout(struct timer_list *t)
 	}
 
 	if (bPktInBuf && (pRxTs->RxTimeoutIndicateSeq == 0xffff)) {
-		pRxTs->RxTimeoutIndicateSeq = pRxTs->RxIndicateSeq;
+		pRxTs->RxTimeoutIndicateSeq = pRxTs->rx_indicate_seq;
 		mod_timer(&pRxTs->RxPktPendingTimer,  jiffies +
 			  msecs_to_jiffies(ieee->pHTInfo->RxReorderPendingTime)
 			  );
@@ -124,7 +124,7 @@ static void ResetTxTsEntry(struct tx_ts_record *pTS)
 static void ResetRxTsEntry(struct rx_ts_record *pTS)
 {
 	ResetTsCommonInfo(&pTS->ts_common_info);
-	pTS->RxIndicateSeq = 0xffff;
+	pTS->rx_indicate_seq = 0xffff;
 	pTS->RxTimeoutIndicateSeq = 0xffff;
 	ResetBaEntry(&pTS->RxAdmittedBARecord);
 }

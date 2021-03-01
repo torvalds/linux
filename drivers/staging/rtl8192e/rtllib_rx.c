@@ -560,7 +560,7 @@ void rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,
 	}
 	rtllib_indicate_packets(ieee, ieee->RfdArray, RfdCnt);
 
-	pTS->RxIndicateSeq = 0xffff;
+	pTS->rx_indicate_seq = 0xffff;
 }
 
 static void RxReorderIndicatePacket(struct rtllib_device *ieee,
@@ -576,21 +576,21 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 	unsigned long flags;
 
 	netdev_dbg(ieee->dev,
-		   "%s(): Seq is %d, pTS->RxIndicateSeq is %d, WinSize is %d\n",
-		   __func__, SeqNum, pTS->RxIndicateSeq, WinSize);
+		   "%s(): Seq is %d, pTS->rx_indicate_seq is %d, WinSize is %d\n",
+		   __func__, SeqNum, pTS->rx_indicate_seq, WinSize);
 
 	spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
 
-	WinEnd = (pTS->RxIndicateSeq + WinSize - 1) % 4096;
+	WinEnd = (pTS->rx_indicate_seq + WinSize - 1) % 4096;
 	/* Rx Reorder initialize condition.*/
-	if (pTS->RxIndicateSeq == 0xffff)
-		pTS->RxIndicateSeq = SeqNum;
+	if (pTS->rx_indicate_seq == 0xffff)
+		pTS->rx_indicate_seq = SeqNum;
 
 	/* Drop out the packet which SeqNum is smaller than WinStart */
-	if (SN_LESS(SeqNum, pTS->RxIndicateSeq)) {
+	if (SN_LESS(SeqNum, pTS->rx_indicate_seq)) {
 		netdev_dbg(ieee->dev,
 			   "Packet Drop! IndicateSeq: %d, NewSeq: %d\n",
-			   pTS->RxIndicateSeq, SeqNum);
+			   pTS->rx_indicate_seq, SeqNum);
 		pHTInfo->RxReorderDropCounter++;
 		{
 			int i;
@@ -608,18 +608,18 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 	 * 1. Incoming SeqNum is equal to WinStart =>Window shift 1
 	 * 2. Incoming SeqNum is larger than the WinEnd => Window shift N
 	 */
-	if (SN_EQUAL(SeqNum, pTS->RxIndicateSeq)) {
-		pTS->RxIndicateSeq = (pTS->RxIndicateSeq + 1) % 4096;
+	if (SN_EQUAL(SeqNum, pTS->rx_indicate_seq)) {
+		pTS->rx_indicate_seq = (pTS->rx_indicate_seq + 1) % 4096;
 		bMatchWinStart = true;
 	} else if (SN_LESS(WinEnd, SeqNum)) {
 		if (SeqNum >= (WinSize - 1))
-			pTS->RxIndicateSeq = SeqNum + 1 - WinSize;
+			pTS->rx_indicate_seq = SeqNum + 1 - WinSize;
 		else
-			pTS->RxIndicateSeq = 4095 -
+			pTS->rx_indicate_seq = 4095 -
 					     (WinSize - (SeqNum + 1)) + 1;
 		netdev_dbg(ieee->dev,
 			   "Window Shift! IndicateSeq: %d, NewSeq: %d\n",
-			   pTS->RxIndicateSeq, SeqNum);
+			   pTS->rx_indicate_seq, SeqNum);
 	}
 
 	/* Indication process.
@@ -636,7 +636,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 		/* Current packet is going to be indicated.*/
 		netdev_dbg(ieee->dev,
 			   "Packets indication! IndicateSeq: %d, NewSeq: %d\n",
-			   pTS->RxIndicateSeq, SeqNum);
+			   pTS->rx_indicate_seq, SeqNum);
 		ieee->prxbIndicateArray[0] = prxb;
 		index = 1;
 	} else {
@@ -658,7 +658,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 
 				netdev_dbg(ieee->dev,
 					   "%s(): Duplicate packet is dropped. IndicateSeq: %d, NewSeq: %d\n",
-					   __func__, pTS->RxIndicateSeq,
+					   __func__, pTS->rx_indicate_seq,
 					   SeqNum);
 				list_add_tail(&pReorderEntry->List,
 					      &ieee->RxReorder_Unused_List);
@@ -670,7 +670,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 			} else {
 				netdev_dbg(ieee->dev,
 					   "Pkt insert into struct buffer. IndicateSeq: %d, NewSeq: %d\n",
-					   pTS->RxIndicateSeq, SeqNum);
+					   pTS->rx_indicate_seq, SeqNum);
 			}
 		} else {
 			/* Packets are dropped if there are not enough reorder
@@ -701,8 +701,8 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 					list_entry(pTS->RxPendingPktList.prev,
 						   struct rx_reorder_entry,
 						   List);
-		if (SN_LESS(pReorderEntry->SeqNum, pTS->RxIndicateSeq) ||
-		    SN_EQUAL(pReorderEntry->SeqNum, pTS->RxIndicateSeq)) {
+		if (SN_LESS(pReorderEntry->SeqNum, pTS->rx_indicate_seq) ||
+		    SN_EQUAL(pReorderEntry->SeqNum, pTS->rx_indicate_seq)) {
 			/* This protect struct buffer from overflow. */
 			if (index >= REORDER_WIN_SIZE) {
 				netdev_err(ieee->dev,
@@ -714,8 +714,8 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 
 			list_del_init(&pReorderEntry->List);
 
-			if (SN_EQUAL(pReorderEntry->SeqNum, pTS->RxIndicateSeq))
-				pTS->RxIndicateSeq = (pTS->RxIndicateSeq + 1) %
+			if (SN_EQUAL(pReorderEntry->SeqNum, pTS->rx_indicate_seq))
+				pTS->rx_indicate_seq = (pTS->rx_indicate_seq + 1) %
 						     4096;
 
 			ieee->prxbIndicateArray[index] = pReorderEntry->prxb;
@@ -753,7 +753,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 
 	if (bPktInBuf && pTS->RxTimeoutIndicateSeq == 0xffff) {
 		netdev_dbg(ieee->dev, "%s(): SET rx timeout timer\n", __func__);
-		pTS->RxTimeoutIndicateSeq = pTS->RxIndicateSeq;
+		pTS->RxTimeoutIndicateSeq = pTS->rx_indicate_seq;
 		mod_timer(&pTS->RxPktPendingTimer, jiffies +
 			  msecs_to_jiffies(pHTInfo->RxReorderPendingTime));
 	}
