@@ -1,7 +1,8 @@
 * Microchip I2S Multi-Channel Controller
 
 Required properties:
-- compatible:     Should be "microchip,sam9x60-i2smcc".
+- compatible:     Should be "microchip,sam9x60-i2smcc" or
+		  "microchip,sama7g5-i2smcc".
 - reg:            Should be the physical base address of the controller and the
                   length of memory mapped region.
 - interrupts:     Should contain the interrupt for the controller.
