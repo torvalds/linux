@@ -44,11 +44,6 @@
 #define DT2814_ENB 0x10
 #define DT2814_CHANMASK 0x0f
 
-struct dt2814_private {
-	int ntrig;
-	int curadchan;
-};
-
 #define DT2814_TIMEOUT 10
 #define DT2814_MAX_SPEED 100000	/* Arbitrary 10 khz limit */
 
@@ -207,7 +202,6 @@ static int dt2814_ai_cmdtest(struct comedi_device *dev,
 
 static int dt2814_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct dt2814_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int chan;
 	int trigvar;
@@ -217,7 +211,6 @@ static int dt2814_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	chan = CR_CHAN(cmd->chanlist[0]);
 
-	devpriv->ntrig = cmd->stop_arg;
 	outb(chan | DT2814_ENB | (trigvar << 5), dev->iobase + DT2814_CSR);
 
 	return 0;
@@ -310,7 +303,6 @@ static irqreturn_t dt2814_interrupt(int irq, void *d)
 
 static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	struct dt2814_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
@@ -334,10 +326,6 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
 		return ret;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
 
 	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_AI;
