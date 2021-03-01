@@ -1708,7 +1708,7 @@ restart:
  *
  * If this routine returns error, the LLDD should abort the exchange.
  *
- * @remoteport: pointer to the (registered) remote port that the LS
+ * @portptr:    pointer to the (registered) remote port that the LS
  *              was received from. The remoteport is associated with
  *              a specific localport.
  * @lsrsp:      pointer to a nvmefc_ls_rsp response structure to be
