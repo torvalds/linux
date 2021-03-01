@@ -36,6 +36,7 @@ enum {
 	ST_LSM6DSOX_TS_TAG = 0x04,
 	ST_LSM6DSOX_EXT0_TAG = 0x0f,
 	ST_LSM6DSOX_EXT1_TAG = 0x10,
+	ST_LSM6DSOX_SC_TAG = 0x12,
 };
 
 /* Default timeout before to re-enable gyro */
@@ -116,7 +117,7 @@ int st_lsm6dsox_update_watermark(struct st_lsm6dsox_sensor *sensor,
 	int i, err;
 	int data = 0;
 
-	for (i = ST_LSM6DSOX_ID_GYRO; i <= ST_LSM6DSOX_ID_EXT1; i++) {
+	for (i = ST_LSM6DSOX_ID_GYRO; i <= ST_LSM6DSOX_ID_STEP_COUNTER; i++) {
 		if (!hw->iio_devs[i])
 			continue;
 
@@ -174,6 +175,9 @@ iio_dev *st_lsm6dsox_get_iiodev_from_tag(struct st_lsm6dsox_hw *hw, u8 tag)
 		break;
 	case ST_LSM6DSOX_EXT1_TAG:
 		iio_dev = hw->iio_devs[ST_LSM6DSOX_ID_EXT1];
+		break;
+	case ST_LSM6DSOX_SC_TAG:
+		iio_dev = hw->iio_devs[ST_LSM6DSOX_ID_STEP_COUNTER];
 		break;
 	default:
 		iio_dev = NULL;
@@ -257,13 +261,21 @@ static int st_lsm6dsox_read_fifo(struct st_lsm6dsox_hw *hw)
 					continue;
 				}
 
+				/*
+				 * hw ts in not queued in FIFO if only step
+				 * counter enabled
+				 */
+				if (sensor->id == ST_LSM6DSOX_ID_STEP_COUNTER) {
+					val = get_unaligned_le32(ptr + 2);
+					hw->tsample = val * hw->ts_delta_ns;
+				} else {
+					hw->tsample = min_t(s64,
+						iio_get_time_ns(iio_dev),
+						hw->tsample);
+					sensor->last_fifo_timestamp = hw->tsample;
+				}
+
 				memcpy(iio_buf, ptr, ST_LSM6DSOX_SAMPLE_SIZE);
-
-				hw->tsample = min_t(s64,
-					iio_get_time_ns(iio_dev),
-					hw->tsample);
-
-				sensor->last_fifo_timestamp = hw->tsample;
 
 				/* support decimation for ODR < 12.5 Hz */
 				if (sensor->dec_counter > 0) {
@@ -403,26 +415,23 @@ static int st_lsm6dsox_update_fifo(struct iio_dev *iio_dev, bool enable)
 
 	disable_irq(hw->irq);
 
-	if (sensor->id == ST_LSM6DSOX_ID_EXT0 ||
-	    sensor->id == ST_LSM6DSOX_ID_EXT1) {
+	switch (sensor->id) {
+	case ST_LSM6DSOX_ID_EXT0:
+	case ST_LSM6DSOX_ID_EXT1:
 		err = st_lsm6dsox_shub_set_enable(sensor, enable);
 		if (err < 0)
 			goto out;
-	} else {
-		err = st_lsm6dsox_sensor_set_enable(sensor, enable);
+		break;
+	case ST_LSM6DSOX_ID_STEP_COUNTER:
+		err = st_lsm6dsox_step_counter_set_enable(sensor, enable);
 		if (err < 0)
 			goto out;
-
-		err = st_lsm6dsox_set_sensor_batching_odr(sensor, enable);
-		if (err < 0)
-			goto out;
-	}
-
-	/*
-	 * This is an auxiliary sensor, it need to get batched
-	 * toghether at least with a primary sensor (Acc/Gyro).
-	 */
-	if (sensor->id == ST_LSM6DSOX_ID_TEMP) {
+		break;
+	case ST_LSM6DSOX_ID_TEMP:
+		/*
+		 * This is an auxiliary sensor, it need to get batched
+		 * toghether at least with a primary sensor (Acc/Gyro).
+		 */
 		if (!(hw->enable_mask & (BIT(ST_LSM6DSOX_ID_ACC) |
 					 BIT(ST_LSM6DSOX_ID_GYRO)))) {
 			struct st_lsm6dsox_sensor *acc_sensor;
@@ -445,6 +454,16 @@ static int st_lsm6dsox_update_fifo(struct iio_dev *iio_dev, bool enable)
 			if (err < 0)
 				goto out;
 		}
+		break;
+	default:
+		err = st_lsm6dsox_sensor_set_enable(sensor, enable);
+		if (err < 0)
+			goto out;
+
+		err = st_lsm6dsox_set_sensor_batching_odr(sensor, enable);
+		if (err < 0)
+			goto out;
+		break;
 	}
 
 	err = st_lsm6dsox_update_watermark(sensor, sensor->watermark);
@@ -488,6 +507,50 @@ static irqreturn_t st_lsm6dsox_handler_thread(int irq, void *private)
 	clear_bit(ST_LSM6DSOX_HW_FLUSH, &hw->state);
 	mutex_unlock(&hw->fifo_lock);
 
+	if (hw->enable_mask & (BIT(ST_LSM6DSOX_ID_STEP_DETECTOR) |
+			       BIT(ST_LSM6DSOX_ID_TILT) |
+			       BIT(ST_LSM6DSOX_ID_SIGN_MOTION))) {
+		struct iio_dev *iio_dev;
+		u8 status[3];
+		s64 event;
+		int err;
+
+		err = regmap_bulk_read(hw->regmap,
+				       ST_LSM6DSOX_REG_EMB_FUNC_STATUS_MAINPAGE,
+				       status, sizeof(status));
+		if (err < 0)
+			goto out;
+
+		/* embedded function sensors */
+		if (status[0] & ST_LSM6DSOX_REG_INT_STEP_DET_MASK) {
+			iio_dev = hw->iio_devs[ST_LSM6DSOX_ID_STEP_DETECTOR];
+			event = IIO_UNMOD_EVENT_CODE(IIO_STEP_DETECTOR, -1,
+						     IIO_EV_TYPE_THRESH,
+						     IIO_EV_DIR_RISING);
+			iio_push_event(iio_dev, event,
+				       iio_get_time_ns(iio_dev));
+		}
+
+		if (status[0] & ST_LSM6DSOX_REG_INT_SIGMOT_MASK) {
+			iio_dev = hw->iio_devs[ST_LSM6DSOX_ID_SIGN_MOTION];
+			event = IIO_UNMOD_EVENT_CODE(IIO_SIGN_MOTION, -1,
+						     IIO_EV_TYPE_THRESH,
+						     IIO_EV_DIR_RISING);
+			iio_push_event(iio_dev, event,
+				       iio_get_time_ns(iio_dev));
+		}
+
+		if (status[0] & ST_LSM6DSOX_REG_INT_TILT_MASK) {
+			iio_dev = hw->iio_devs[ST_LSM6DSOX_ID_TILT];
+			event = IIO_UNMOD_EVENT_CODE(IIO_TILT, -1,
+						     IIO_EV_TYPE_THRESH,
+						     IIO_EV_DIR_RISING);
+			iio_push_event(iio_dev, event,
+				       iio_get_time_ns(iio_dev));
+		}
+	}
+
+out:
 	return IRQ_HANDLED;
 }
 
@@ -560,7 +623,7 @@ int st_lsm6dsox_buffers_setup(struct st_lsm6dsox_hw *hw)
 		return err;
 	}
 
-	for (i = ST_LSM6DSOX_ID_GYRO; i <= ST_LSM6DSOX_ID_EXT1; i++) {
+	for (i = ST_LSM6DSOX_ID_GYRO; i <= ST_LSM6DSOX_ID_STEP_COUNTER; i++) {
 		if (!hw->iio_devs[i])
 			continue;
 

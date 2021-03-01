@@ -19,7 +19,7 @@
 #define ST_LSM6DSOX_ODR_EXPAND(odr, uodr)	(((odr) * 1000000) + (uodr))
 
 #define ST_LSM6DSOX_DEV_NAME			"lsm6dsox"
-#define ST_LSM6DSOX_DRV_VERSION			"1.1"
+#define ST_LSM6DSOX_DRV_VERSION			"1.2"
 
 #define ST_LSM6DSOX_REG_FUNC_CFG_ACCESS_ADDR	0x01
 #define ST_LSM6DSOX_REG_SHUB_REG_MASK		BIT(6)
@@ -103,6 +103,11 @@
 #define ST_LSM6DSOX_REG_OUTY_L_G_ADDR		0x24
 #define ST_LSM6DSOX_REG_OUTZ_L_G_ADDR		0x26
 
+#define ST_LSM6DSOX_REG_EMB_FUNC_STATUS_MAINPAGE	0x35
+#define ST_LSM6DSOX_REG_INT_STEP_DET_MASK	BIT(3)
+#define ST_LSM6DSOX_REG_INT_TILT_MASK		BIT(4)
+#define ST_LSM6DSOX_REG_INT_SIGMOT_MASK		BIT(5)
+
 #define ST_LSM6DSOX_FSM_STATUS_A_MAINPAGE	0x36
 #define ST_LSM6DSOX_FSM_STATUS_B_MAINPAGE	0x37
 #define ST_LSM6DSOX_MLC_STATUS_MAINPAGE 	0x38
@@ -144,13 +149,24 @@
 #define ST_LSM6DSOX_REG_SLV0_OUT_ADDR		0x02
 
 /* embedded function registers */
+#define ST_LSM6DSOX_EMB_FUNC_EN_A_ADDR		0x04
+#define ST_LSM6DSOX_PEDO_EN_MASK		BIT(3)
+#define ST_LSM6DSOX_TILT_EN_MASK		BIT(4)
+#define ST_LSM6DSOX_SIGN_MOTION_EN_MASK		BIT(5)
+
 #define ST_LSM6DSOX_EMB_FUNC_EN_B_ADDR		0x05
 #define ST_LSM6DSOX_FSM_EN_MASK			BIT(0)
 #define ST_LSM6DSOX_MLC_EN_MASK			BIT(4)
 
+#define ST_LSM6DSOX_EMB_FUNC_INT1_ADDR		0x0a
+#define ST_LSM6DSOX_INT_STEP_DET_MASK		BIT(3)
+#define ST_LSM6DSOX_INT_TILT_MASK		BIT(4)
+#define ST_LSM6DSOX_INT_SIGMOT_MASK		BIT(5)
+
 #define ST_LSM6DSOX_FSM_INT1_A_ADDR		0x0b
 #define ST_LSM6DSOX_FSM_INT1_B_ADDR		0x0c
 #define ST_LSM6DSOX_MLC_INT1_ADDR		0x0d
+#define ST_LSM6DSOX_EMB_FUNC_INT2_ADDR		0x0e
 
 #define ST_LSM6DSOX_FSM_INT2_A_ADDR		0x0f
 #define ST_LSM6DSOX_FSM_INT2_B_ADDR		0x10
@@ -158,10 +174,20 @@
 
 #define ST_LSM6DSOX_REG_MLC_STATUS_ADDR		0x15
 
+#define ST_LSM6DSOX_PAGE_RW_ADDR		0x17
+#define ST_LSM6DSOX_REG_EMB_FUNC_LIR_MASK	BIT(7)
+
+#define ST_LSM6DSOX_EMB_FUNC_FIFO_CFG_ADDR	0x44
+#define ST_LSM6DSOX_PEDO_FIFO_EN_MASK		BIT(6)
+
 #define ST_LSM6DSOX_FSM_ENABLE_A_ADDR		0x46
 #define ST_LSM6DSOX_FSM_ENABLE_B_ADDR		0x47
 
 #define ST_LSM6DSOX_FSM_OUTS1_ADDR		0x4c
+
+#define ST_LSM6DSOX_REG_STEP_COUNTER_L_ADDR	0x62
+#define ST_LSM6DSOX_REG_EMB_FUNC_SRC_ADDR	0x64
+#define ST_LSM6DSOX_REG_PEDO_RST_STEP_MASK	BIT(7)
 
 #define ST_LSM6DSOX_REG_MLC0_SRC_ADDR		0x70
 
@@ -382,6 +408,10 @@ enum st_lsm6dsox_sensor_id {
 	ST_LSM6DSOX_ID_TEMP,
 	ST_LSM6DSOX_ID_EXT0,
 	ST_LSM6DSOX_ID_EXT1,
+	ST_LSM6DSOX_ID_STEP_COUNTER,
+	ST_LSM6DSOX_ID_STEP_DETECTOR,
+	ST_LSM6DSOX_ID_SIGN_MOTION,
+	ST_LSM6DSOX_ID_TILT,
 #ifdef CONFIG_IIO_ST_LSM6DSOX_MLC
 	ST_LSM6DSOX_ID_MLC,
 	ST_LSM6DSOX_ID_MLC_0,
@@ -410,6 +440,20 @@ enum st_lsm6dsox_sensor_id {
 	ST_LSM6DSOX_ID_FSM_15,
 #endif /* CONFIG_IIO_ST_LSM6DSOX_MLC */
 	ST_LSM6DSOX_ID_MAX,
+};
+
+/**
+ * @enum st_lsm6dso_sensor_id
+ * @brief Sensor Table Identifier
+ */
+static const enum st_lsm6dsox_sensor_id st_lsm6dsox_main_sensor_list[] = {
+	 [0] = ST_LSM6DSOX_ID_GYRO,
+	 [1] = ST_LSM6DSOX_ID_ACC,
+	 [2] = ST_LSM6DSOX_ID_TEMP,
+	 [3] = ST_LSM6DSOX_ID_STEP_COUNTER,
+	 [4] = ST_LSM6DSOX_ID_STEP_DETECTOR,
+	 [5] = ST_LSM6DSOX_ID_SIGN_MOTION,
+	 [6] = ST_LSM6DSOX_ID_TILT,
 };
 
 static const enum st_lsm6dsox_sensor_id st_lsm6dsox_mlc_sensor_list[] = {
@@ -471,8 +515,7 @@ static const enum st_lsm6dsox_sensor_id st_lsm6dsox_fsm_sensor_list[] = {
  * HW devices that can wakeup the target
  */
 #define ST_LSM6DSOX_WAKE_UP_SENSORS (BIT(ST_LSM6DSOX_ID_GYRO) | \
-				     BIT(ST_LSM6DSOX_ID_ACC)  | \
-				     ST_LSM6DSOX_ID_ALL_FSM_MLC)
+				     BIT(ST_LSM6DSOX_ID_ACC))
 
 /* this is the minimal ODR for wake-up sensors and dependencies */
 #define ST_LSM6DSOX_MIN_ODR_IN_WAKEUP	26
@@ -555,7 +598,6 @@ struct st_lsm6dsox_sensor {
  * @fifo_mode: FIFO operating mode supported by the device.
  * @state: hw operational state.
  * @enable_mask: Enabled sensor bitmask.
- * @requested_mask: Sensor requesting bitmask.
  * @ext_data_len: Number of i2c slave devices connected to I2C master.
  * @ts_delta_ns: Calibrated delta timestamp.
  * @ts_offset: Hw timestamp offset.
@@ -568,6 +610,8 @@ struct st_lsm6dsox_sensor {
  * @mlc_config:
  * @odr_table_entry: Sensors ODR table.
  * @iio_devs: Pointers to acc/gyro iio_dev instances.
+ * embfunc_pg0_irq_reg: Embedded function irq configutation register (page 0).
+ * embfunc_irq_reg: Embedded function irq configutation register (other).
  */
 struct st_lsm6dsox_hw {
 	struct device *dev;
@@ -577,8 +621,7 @@ struct st_lsm6dsox_hw {
 	struct mutex fifo_lock;
 	enum st_lsm6dsox_fifo_mode fifo_mode;
 	unsigned long state;
-	u32 enable_mask;
-	u32 requested_mask;
+	u64 enable_mask;
 	u8 ext_data_len;
 	u64 ts_delta_ns;
 	s64 ts_offset;
@@ -597,6 +640,9 @@ struct st_lsm6dsox_hw {
 	bool preload_mlc;
 
 	struct iio_dev *iio_devs[ST_LSM6DSOX_ID_MAX];
+
+	u8 embfunc_irq_reg;
+	u8 embfunc_pg0_irq_reg;
 };
 
 extern const struct dev_pm_ops st_lsm6dsox_pm_ops;
@@ -604,6 +650,7 @@ extern const struct dev_pm_ops st_lsm6dsox_pm_ops;
 static inline bool st_lsm6dsox_is_fifo_enabled(struct st_lsm6dsox_hw *hw)
 {
 	return hw->enable_mask & (BIT(ST_LSM6DSOX_ID_GYRO) |
+				  BIT(ST_LSM6DSOX_ID_STEP_COUNTER) |
 				  BIT(ST_LSM6DSOX_ID_ACC));
 }
 
@@ -721,4 +768,10 @@ int st_lsm6dsox_mlc_check_status(struct st_lsm6dsox_hw *hw);
 int st_lsm6dsox_mlc_init_preload(struct st_lsm6dsox_hw *hw);
 #endif /* CONFIG_IIO_ST_LSM6DSOX_MLC */
 
+int st_lsm6dsox_embfunc_sensor_set_enable(struct st_lsm6dsox_sensor *sensor,
+					  bool enable);
+int st_lsm6dsox_step_counter_set_enable(struct st_lsm6dsox_sensor *sensor,
+					bool enable);
+int st_lsm6dsox_reset_step_counter(struct iio_dev *iio_dev);
+int st_lsm6dsox_embedded_function_init(struct st_lsm6dsox_hw *hw);
 #endif /* ST_LSM6DSOX_H */
