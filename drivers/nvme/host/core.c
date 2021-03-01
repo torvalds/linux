@@ -1120,7 +1120,7 @@ static void nvme_passthru_end(struct nvme_ctrl *ctrl, u32 effects)
 		mutex_unlock(&ctrl->scan_lock);
 	}
 	if (effects & NVME_CMD_EFFECTS_CCC)
-		nvme_init_identify(ctrl);
+		nvme_init_ctrl_finish(ctrl);
 	if (effects & (NVME_CMD_EFFECTS_NIC | NVME_CMD_EFFECTS_NCC)) {
 		nvme_queue_scan(ctrl);
 		flush_work(&ctrl->scan_work);
@@ -1980,7 +1980,7 @@ static void nvme_config_write_zeroes(struct gendisk *disk, struct nvme_ns *ns)
 	 * In order to be more cautious use controller's max_hw_sectors value
 	 * to configure the maximum sectors for the write-zeroes which is
 	 * configured based on the controller's MDTS field in the
-	 * nvme_init_identify() if available.
+	 * nvme_init_ctrl_finish() if available.
 	 */
 	if (ns->ctrl->max_hw_sectors == UINT_MAX)
 		max_blocks = (u64)USHRT_MAX + 1;
@@ -3066,7 +3066,7 @@ out:
  * register in our nvme_ctrl structure.  This should be called as soon as
  * the admin queue is fully up and running.
  */
-int nvme_init_identify(struct nvme_ctrl *ctrl)
+int nvme_init_ctrl_finish(struct nvme_ctrl *ctrl)
 {
 	struct nvme_id_ctrl *id;
 	int ret, page_shift;
@@ -3253,7 +3253,7 @@ out_free:
 	kfree(id);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nvme_init_identify);
+EXPORT_SYMBOL_GPL(nvme_init_ctrl_finish);
 
 static int nvme_dev_open(struct inode *inode, struct file *file)
 {

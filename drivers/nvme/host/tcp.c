@@ -1875,7 +1875,7 @@ static int nvme_tcp_configure_admin_queue(struct nvme_ctrl *ctrl, bool new)
 
 	blk_mq_unquiesce_queue(ctrl->admin_q);
 
-	error = nvme_init_identify(ctrl);
+	error = nvme_init_ctrl_finish(ctrl);
 	if (error)
 		goto out_quiesce_queue;
 

@@ -3086,7 +3086,7 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 
 	blk_mq_unquiesce_queue(ctrl->ctrl.admin_q);
 
-	ret = nvme_init_identify(&ctrl->ctrl);
+	ret = nvme_init_ctrl_finish(&ctrl->ctrl);
 	if (ret || test_bit(ASSOC_FAILED, &ctrl->flags))
 		goto out_disconnect_admin_queue;
 

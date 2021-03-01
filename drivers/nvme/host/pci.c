@@ -2645,7 +2645,7 @@ static void nvme_reset_work(struct work_struct *work)
 	 */
 	dev->ctrl.max_integrity_segments = 1;
 
-	result = nvme_init_identify(&dev->ctrl);
+	result = nvme_init_ctrl_finish(&dev->ctrl);
 	if (result)
 		goto out;
 
