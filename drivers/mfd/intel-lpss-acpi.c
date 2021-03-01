@@ -22,7 +22,7 @@ static const struct intel_lpss_platform_info spt_info = {
 	.clk_rate = 120000000,
 };
 
-static struct property_entry spt_i2c_properties[] = {
+static const struct property_entry spt_i2c_properties[] = {
 	PROPERTY_ENTRY_U32("i2c-sda-hold-time-ns", 230),
 	{ },
 };
@@ -32,7 +32,7 @@ static const struct intel_lpss_platform_info spt_i2c_info = {
 	.properties = spt_i2c_properties,
 };
 
-static struct property_entry uart_properties[] = {
+static const struct property_entry uart_properties[] = {
 	PROPERTY_ENTRY_U32("reg-io-width", 4),
 	PROPERTY_ENTRY_U32("reg-shift", 2),
 	PROPERTY_ENTRY_BOOL("snps,uart-16550-compatible"),
@@ -49,7 +49,7 @@ static const struct intel_lpss_platform_info bxt_info = {
 	.clk_rate = 100000000,
 };
 
-static struct property_entry bxt_i2c_properties[] = {
+static const struct property_entry bxt_i2c_properties[] = {
 	PROPERTY_ENTRY_U32("i2c-sda-hold-time-ns", 42),
 	PROPERTY_ENTRY_U32("i2c-sda-falling-time-ns", 171),
 	PROPERTY_ENTRY_U32("i2c-scl-falling-time-ns", 208),
@@ -61,7 +61,7 @@ static const struct intel_lpss_platform_info bxt_i2c_info = {
 	.properties = bxt_i2c_properties,
 };
 
-static struct property_entry apl_i2c_properties[] = {
+static const struct property_entry apl_i2c_properties[] = {
 	PROPERTY_ENTRY_U32("i2c-sda-hold-time-ns", 207),
 	PROPERTY_ENTRY_U32("i2c-sda-falling-time-ns", 171),
 	PROPERTY_ENTRY_U32("i2c-scl-falling-time-ns", 208),

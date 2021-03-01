@@ -22,7 +22,7 @@ struct intel_lpss_platform_info {
 	int irq;
 	unsigned long clk_rate;
 	const char *clk_con_id;
-	struct property_entry *properties;
+	const struct property_entry *properties;
 };
 
 int intel_lpss_probe(struct device *dev,
