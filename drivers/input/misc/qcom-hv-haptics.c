@@ -116,13 +116,16 @@
 #define RC_CLK_CAL_COUNT_LSB_MASK		GENMASK(7, 0)
 
 #define HAP_CFG_DRV_DUTY_CFG_REG		0x60
+#define ADT_DRV_DUTY_EN_BIT			BIT(7)
+
 #define HAP_CFG_ADT_DRV_DUTY_CFG_REG		0x61
 #define HAP_CFG_ZX_WIND_CFG_REG			0x62
 
 #define HAP_CFG_AUTORES_CFG_REG			0x63
 #define AUTORES_EN_BIT				BIT(7)
 #define AUTORES_EN_DLY_MASK			GENMASK(5, 2)
-#define AUTORES_EN_DLY_1_CYCLE			0x2
+#define AUTORES_EN_DLY(cycles)			((cycles) * 2)
+#define AUTORES_EN_DLY_6_CYCLES			AUTORES_EN_DLY(6)
 #define AUTORES_EN_DLY_SHIFT			2
 #define AUTORES_ERR_WINDOW_MASK			GENMASK(1, 0)
 #define AUTORES_ERR_WINDOW_12P5_PERCENT		0x0
@@ -4086,10 +4089,15 @@ static int haptics_detect_lra_frequency(struct haptics_chip *chip)
 	rc = haptics_masked_write(chip, chip->cfg_addr_base,
 			HAP_CFG_AUTORES_CFG_REG, AUTORES_EN_BIT |
 			AUTORES_EN_DLY_MASK | AUTORES_ERR_WINDOW_MASK,
-			AUTORES_EN_DLY_1_CYCLE << AUTORES_EN_DLY_SHIFT
+			AUTORES_EN_DLY_6_CYCLES << AUTORES_EN_DLY_SHIFT
 			| AUTORES_ERR_WINDOW_50_PERCENT | AUTORES_EN_BIT);
 	if (rc < 0)
 		return rc;
+
+	rc = haptics_masked_write(chip, chip->cfg_addr_base,
+			HAP_CFG_DRV_DUTY_CFG_REG, ADT_DRV_DUTY_EN_BIT, 0);
+	if (rc < 0)
+		goto restore;
 
 	rc = haptics_config_openloop_lra_period(chip, chip->config.t_lra_us);
 	if (rc < 0)
@@ -4143,6 +4151,12 @@ restore:
 
 	rc = haptics_write(chip, chip->cfg_addr_base,
 			HAP_CFG_AUTORES_CFG_REG, &autores_cfg, 1);
+	if (rc < 0)
+		return rc;
+
+	rc = haptics_masked_write(chip, chip->cfg_addr_base,
+			HAP_CFG_DRV_DUTY_CFG_REG, ADT_DRV_DUTY_EN_BIT,
+			ADT_DRV_DUTY_EN_BIT);
 
 	return rc;
 }
