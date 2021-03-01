@@ -262,13 +262,10 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return ret;
 
 	outb(0, dev->iobase + DT2814_CSR);
-	usleep_range(100, 200);
-	if (inb(dev->iobase + DT2814_CSR) & DT2814_ERR) {
+	if (dt2814_ai_clear(dev)) {
 		dev_err(dev->class_dev, "reset error (fatal)\n");
 		return -EIO;
 	}
-	inb(dev->iobase + DT2814_DATA);
-	inb(dev->iobase + DT2814_DATA);
 
 	if (it->options[1]) {
 		ret = request_irq(it->options[1], dt2814_interrupt, 0,
