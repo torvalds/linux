@@ -4009,8 +4009,13 @@ void __isp_isr_other_config(struct rkisp_isp_params_vdev *params_vdev,
 				&new_params->others.ldch_cfg);
 
 		if (module_en_update & ISP2X_MODULE_LDCH) {
+			/*
+			 * lsc read table from sram in mult-isp mode,
+			 * so don't delay in mult-isp mode.
+			 */
 			if (params_vdev->first_cfg_params &&
-			    !!(module_ens & ISP2X_MODULE_LDCH))
+			    !!(module_ens & ISP2X_MODULE_LDCH) &&
+			    params_vdev->dev->hw_dev->is_single)
 				priv_val->delay_en_ldch = true;
 			else
 				ops->ldch_enable(params_vdev,
