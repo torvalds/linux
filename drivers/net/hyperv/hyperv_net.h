@@ -229,7 +229,7 @@ int netvsc_send(struct net_device *net,
 		bool xdp_tx);
 void netvsc_linkstatus_callback(struct net_device *net,
 				struct rndis_message *resp,
-				void *data);
+				void *data, u32 data_buflen);
 int netvsc_recv_callback(struct net_device *net,
 			 struct netvsc_device *nvdev,
 			 struct netvsc_channel *nvchan);

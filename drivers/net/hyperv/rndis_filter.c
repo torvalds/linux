@@ -620,7 +620,7 @@ int rndis_filter_receive(struct net_device *ndev,
 
 	case RNDIS_MSG_INDICATE:
 		/* notification msgs */
-		netvsc_linkstatus_callback(ndev, rndis_msg, data);
+		netvsc_linkstatus_callback(ndev, rndis_msg, data, buflen);
 		break;
 	default:
 		netdev_err(ndev,
