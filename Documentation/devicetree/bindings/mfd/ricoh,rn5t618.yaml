@@ -15,7 +15,7 @@ description: |
   GPIOs, and a watchdog timer. It can be controlled through an I2C interface.
   The RN5T618/RC5T619 provides additionally a Li-ion battery charger,
   fuel gauge, and an ADC.
-  The RC5T619 additionnally includes USB charger detection and an RTC.
+  The RC5T619 additionally includes USB charger detection and an RTC.
 
 allOf:
   - if:
