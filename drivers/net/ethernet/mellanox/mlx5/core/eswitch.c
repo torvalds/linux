@@ -1367,6 +1367,47 @@ static void mlx5_esw_mode_change_notify(struct mlx5_eswitch *esw, u16 mode)
 	blocking_notifier_call_chain(&esw->n_head, 0, &info);
 }
 
+static int mlx5_esw_acls_ns_init(struct mlx5_eswitch *esw)
+{
+	struct mlx5_core_dev *dev = esw->dev;
+	int total_vports;
+	int err;
+
+	total_vports = mlx5_eswitch_get_total_vports(dev);
+
+	if (MLX5_CAP_ESW_EGRESS_ACL(dev, ft_support)) {
+		err = mlx5_fs_egress_acls_init(dev, total_vports);
+		if (err)
+			return err;
+	} else {
+		esw_warn(dev, "engress ACL is not supported by FW\n");
+	}
+
+	if (MLX5_CAP_ESW_INGRESS_ACL(dev, ft_support)) {
+		err = mlx5_fs_ingress_acls_init(dev, total_vports);
+		if (err)
+			goto err;
+	} else {
+		esw_warn(dev, "ingress ACL is not supported by FW\n");
+	}
+	return 0;
+
+err:
+	if (MLX5_CAP_ESW_EGRESS_ACL(dev, ft_support))
+		mlx5_fs_egress_acls_cleanup(dev);
+	return err;
+}
+
+static void mlx5_esw_acls_ns_cleanup(struct mlx5_eswitch *esw)
+{
+	struct mlx5_core_dev *dev = esw->dev;
+
+	if (MLX5_CAP_ESW_INGRESS_ACL(dev, ft_support))
+		mlx5_fs_ingress_acls_cleanup(dev);
+	if (MLX5_CAP_ESW_EGRESS_ACL(dev, ft_support))
+		mlx5_fs_egress_acls_cleanup(dev);
+}
+
 /**
  * mlx5_eswitch_enable_locked - Enable eswitch
  * @esw:	Pointer to eswitch
@@ -1395,13 +1436,11 @@ int mlx5_eswitch_enable_locked(struct mlx5_eswitch *esw, int mode, int num_vfs)
 		return -EOPNOTSUPP;
 	}
 
-	if (!MLX5_CAP_ESW_INGRESS_ACL(esw->dev, ft_support))
-		esw_warn(esw->dev, "ingress ACL is not supported by FW\n");
-
-	if (!MLX5_CAP_ESW_EGRESS_ACL(esw->dev, ft_support))
-		esw_warn(esw->dev, "engress ACL is not supported by FW\n");
-
 	mlx5_eswitch_get_devlink_param(esw);
+
+	err = mlx5_esw_acls_ns_init(esw);
+	if (err)
+		return err;
 
 	mlx5_eswitch_update_num_of_vfs(esw, num_vfs);
 
@@ -1438,6 +1477,7 @@ abort:
 		mlx5_rescan_drivers(esw->dev);
 
 	esw_destroy_tsar(esw);
+	mlx5_esw_acls_ns_cleanup(esw);
 	return err;
 }
 
@@ -1506,6 +1546,7 @@ void mlx5_eswitch_disable_locked(struct mlx5_eswitch *esw, bool clear_vf)
 		mlx5_rescan_drivers(esw->dev);
 
 	esw_destroy_tsar(esw);
+	mlx5_esw_acls_ns_cleanup(esw);
 
 	if (clear_vf)
 		mlx5_eswitch_clear_vf_vports_info(esw);
