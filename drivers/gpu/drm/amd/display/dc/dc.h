@@ -45,7 +45,7 @@
 /* forward declaration */
 struct aux_payload;
 
-#define DC_VER "3.2.126"
+#define DC_VER "3.2.126.1"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
