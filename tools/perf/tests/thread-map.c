@@ -110,12 +110,12 @@ int test__thread_map_remove(struct test *test __maybe_unused, int subtest __mayb
 {
 	struct perf_thread_map *threads;
 	char *str;
-	int i;
 
 	TEST_ASSERT_VAL("failed to allocate map string",
 			asprintf(&str, "%d,%d", getpid(), getppid()) >= 0);
 
 	threads = thread_map__new_str(str, NULL, 0, false);
+	free(str);
 
 	TEST_ASSERT_VAL("failed to allocate thread_map",
 			threads);
@@ -142,9 +142,6 @@ int test__thread_map_remove(struct test *test __maybe_unused, int subtest __mayb
 	TEST_ASSERT_VAL("failed to not remove thread",
 			thread_map__remove(threads, 0));
 
-	for (i = 0; i < threads->nr; i++)
-		zfree(&threads->map[i].comm);
-
-	free(threads);
+	perf_thread_map__put(threads);
 	return 0;
 }
