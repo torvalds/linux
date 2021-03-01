@@ -5012,7 +5012,7 @@ lpfc_check_pci_resettable(struct lpfc_hba *phba)
 			break;
 		default:
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-					"8347 Invalid device found: "
+					"8347 Incapable PCI reset device: "
 					"0x%04x\n", ptr->device);
 			return -EBADSLT;
 		}
