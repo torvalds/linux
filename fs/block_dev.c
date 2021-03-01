@@ -556,55 +556,47 @@ EXPORT_SYMBOL(fsync_bdev);
  * count down in thaw_bdev(). When it becomes 0, thaw_bdev() will unfreeze
  * actually.
  */
-struct super_block *freeze_bdev(struct block_device *bdev)
+int freeze_bdev(struct block_device *bdev)
 {
 	struct super_block *sb;
 	int error = 0;
 
 	mutex_lock(&bdev->bd_fsfreeze_mutex);
-	if (++bdev->bd_fsfreeze_count > 1) {
-		/*
-		 * We don't even need to grab a reference - the first call
-		 * to freeze_bdev grab an active reference and only the last
-		 * thaw_bdev drops it.
-		 */
-		sb = get_super(bdev);
-		if (sb)
-			drop_super(sb);
-		mutex_unlock(&bdev->bd_fsfreeze_mutex);
-		return sb;
-	}
+	if (++bdev->bd_fsfreeze_count > 1)
+		goto done;
 
 	sb = get_active_super(bdev);
 	if (!sb)
-		goto out;
+		goto sync;
 	if (sb->s_op->freeze_super)
 		error = sb->s_op->freeze_super(sb);
 	else
 		error = freeze_super(sb);
-	if (error) {
-		deactivate_super(sb);
-		bdev->bd_fsfreeze_count--;
-		mutex_unlock(&bdev->bd_fsfreeze_mutex);
-		return ERR_PTR(error);
-	}
 	deactivate_super(sb);
- out:
+
+	if (error) {
+		bdev->bd_fsfreeze_count--;
+		goto done;
+	}
+	bdev->bd_fsfreeze_sb = sb;
+
+sync:
 	sync_blockdev(bdev);
+done:
 	mutex_unlock(&bdev->bd_fsfreeze_mutex);
-	return sb;	/* thaw_bdev releases s->s_umount */
+	return error;
 }
 EXPORT_SYMBOL(freeze_bdev);
 
 /**
  * thaw_bdev  -- unlock filesystem
  * @bdev:	blockdevice to unlock
- * @sb:		associated superblock
  *
  * Unlocks the filesystem and marks it writeable again after freeze_bdev().
  */
-int thaw_bdev(struct block_device *bdev, struct super_block *sb)
+int thaw_bdev(struct block_device *bdev)
 {
+	struct super_block *sb;
 	int error = -EINVAL;
 
 	mutex_lock(&bdev->bd_fsfreeze_mutex);
@@ -615,6 +607,7 @@ int thaw_bdev(struct block_device *bdev, struct super_block *sb)
 	if (--bdev->bd_fsfreeze_count > 0)
 		goto out;
 
+	sb = bdev->bd_fsfreeze_sb;
 	if (!sb)
 		goto out;
 

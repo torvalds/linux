@@ -138,6 +138,10 @@ int fsverity_file_open(struct inode *inode, struct file *filp);
 int fsverity_prepare_setattr(struct dentry *dentry, struct iattr *attr);
 void fsverity_cleanup_inode(struct inode *inode);
 
+/* read_metadata.c */
+
+int fsverity_ioctl_read_metadata(struct file *filp, const void __user *uarg);
+
 /* verify.c */
 
 bool fsverity_verify_page(struct page *page);
@@ -183,6 +187,14 @@ static inline void fsverity_cleanup_inode(struct inode *inode)
 {
 }
 
+/* read_metadata.c */
+
+static inline int fsverity_ioctl_read_metadata(struct file *filp,
+					       const void __user *uarg)
+{
+	return -EOPNOTSUPP;
+}
+
 /* verify.c */
 
 static inline bool fsverity_verify_page(struct page *page)
@@ -223,11 +235,11 @@ static inline bool fsverity_active(const struct inode *inode)
 
 #ifdef CONFIG_FS_VERITY_BUILTIN_SIGNATURES
 int __fsverity_verify_signature(const struct inode *inode, const u8 *signature,
-				u32 sig_size, const u8 *file_digest,
+				size_t sig_size, const u8 *file_digest,
 				unsigned int digest_algorithm);
 #else /* !CONFIG_FS_VERITY_BUILTIN_SIGNATURES */
 static inline int __fsverity_verify_signature(const struct inode *inode,
-				const u8 *signature, u32 sig_size,
+				const u8 *signature, size_t sig_size,
 				const u8 *file_digest,
 				unsigned int digest_algorithm)
 {
