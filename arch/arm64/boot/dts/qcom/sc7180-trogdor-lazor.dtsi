@@ -58,7 +58,21 @@ ap_ts_pen_1v8: &i2c4 {
 	};
 };
 
+&trackpad {
+	interrupts = <58 IRQ_TYPE_EDGE_FALLING>;
+};
+
 /* PINCTRL - modifications to sc7180-trogdor.dtsi */
+
+&trackpad_int_1v8_odl {
+	pinmux {
+		pins = "gpio58";
+	};
+
+	pinconf {
+		pins = "gpio58";
+	};
+};
 
 &ts_reset_l {
 	pinconf {
