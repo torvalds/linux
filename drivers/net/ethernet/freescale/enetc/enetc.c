@@ -1212,6 +1212,8 @@ static void enetc_setup_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring)
 	rx_ring->idr = hw->reg + ENETC_SIRXIDR;
 
 	enetc_refill_rx_ring(rx_ring, enetc_bd_unused(rx_ring));
+	/* update ENETC's consumer index */
+	enetc_rxbdr_wr(hw, idx, ENETC_RBCIR, rx_ring->next_to_use);
 
 	/* enable ring */
 	enetc_rxbdr_wr(hw, idx, ENETC_RBMR, rbmr);
