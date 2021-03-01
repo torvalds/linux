@@ -271,7 +271,6 @@ static int kona_pwmc_probe(struct platform_device *pdev)
 
 	kp->chip.dev = &pdev->dev;
 	kp->chip.ops = &kona_pwm_ops;
-	kp->chip.base = -1;
 	kp->chip.npwm = 6;
 	kp->chip.of_xlate = of_pwm_xlate_with_flags;
 	kp->chip.of_pwm_n_cells = 3;

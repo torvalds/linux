@@ -263,7 +263,6 @@ static int pwm_mediatek_probe(struct platform_device *pdev)
 
 	pc->chip.dev = &pdev->dev;
 	pc->chip.ops = &pwm_mediatek_ops;
-	pc->chip.base = -1;
 	pc->chip.npwm = pc->soc->num_pwms;
 
 	ret = pwmchip_add(&pc->chip);

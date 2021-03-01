@@ -234,7 +234,6 @@ struct pwm_lpss_chip *pwm_lpss_probe(struct device *dev, struct resource *r,
 
 	lpwm->chip.dev = dev;
 	lpwm->chip.ops = &pwm_lpss_ops;
-	lpwm->chip.base = -1;
 	lpwm->chip.npwm = info->npwm;
 
 	ret = pwmchip_add(&lpwm->chip);

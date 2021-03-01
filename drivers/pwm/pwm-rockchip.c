@@ -352,7 +352,6 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	pc->data = id->data;
 	pc->chip.dev = &pdev->dev;
 	pc->chip.ops = &rockchip_pwm_ops;
-	pc->chip.base = -1;
 	pc->chip.npwm = 1;
 
 	if (pc->data->supports_polarity) {

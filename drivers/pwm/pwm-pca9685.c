@@ -493,7 +493,6 @@ static int pca9685_pwm_probe(struct i2c_client *client,
 	pca->chip.npwm = PCA9685_MAXCHAN + 1;
 
 	pca->chip.dev = &client->dev;
-	pca->chip.base = -1;
 
 	ret = pwmchip_add(&pca->chip);
 	if (ret < 0)

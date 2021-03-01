@@ -37,22 +37,12 @@ static struct pwm_device *pwm_to_device(unsigned int pwm)
 	return radix_tree_lookup(&pwm_tree, pwm);
 }
 
-static int alloc_pwms(int pwm, unsigned int count)
+static int alloc_pwms(unsigned int count)
 {
-	unsigned int from = 0;
 	unsigned int start;
 
-	if (pwm >= MAX_PWMS)
-		return -EINVAL;
-
-	if (pwm >= 0)
-		from = pwm;
-
-	start = bitmap_find_next_zero_area(allocated_pwms, MAX_PWMS, from,
+	start = bitmap_find_next_zero_area(allocated_pwms, MAX_PWMS, 0,
 					   count, 0);
-
-	if (pwm >= 0 && start != pwm)
-		return -EEXIST;
 
 	if (start + count > MAX_PWMS)
 		return -ENOSPC;
@@ -264,9 +254,8 @@ static bool pwm_ops_check(const struct pwm_chip *chip)
  * @chip: the PWM chip to add
  * @polarity: initial polarity of PWM channels
  *
- * Register a new PWM chip. If chip->base < 0 then a dynamically assigned base
- * will be used. The initial polarity for all channels is specified by the
- * @polarity parameter.
+ * Register a new PWM chip. The initial polarity for all channels is specified
+ * by the @polarity parameter.
  *
  * Returns: 0 on success or a negative error code on failure.
  */
@@ -285,17 +274,17 @@ int pwmchip_add_with_polarity(struct pwm_chip *chip,
 
 	mutex_lock(&pwm_lock);
 
-	ret = alloc_pwms(chip->base, chip->npwm);
+	ret = alloc_pwms(chip->npwm);
 	if (ret < 0)
 		goto out;
+
+	chip->base = ret;
 
 	chip->pwms = kcalloc(chip->npwm, sizeof(*pwm), GFP_KERNEL);
 	if (!chip->pwms) {
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	chip->base = ret;
 
 	for (i = 0; i < chip->npwm; i++) {
 		pwm = &chip->pwms[i];

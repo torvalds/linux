@@ -265,7 +265,6 @@ static int atmel_hlcdc_pwm_probe(struct platform_device *pdev)
 	chip->hlcdc = hlcdc;
 	chip->chip.ops = &atmel_hlcdc_pwm_ops;
 	chip->chip.dev = dev;
-	chip->chip.base = -1;
 	chip->chip.npwm = 1;
 	chip->chip.of_xlate = of_pwm_xlate_with_flags;
 	chip->chip.of_pwm_n_cells = 3;

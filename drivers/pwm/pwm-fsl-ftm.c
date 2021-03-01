@@ -453,7 +453,6 @@ static int fsl_pwm_probe(struct platform_device *pdev)
 	fpc->chip.ops = &fsl_pwm_ops;
 	fpc->chip.of_xlate = of_pwm_xlate_with_flags;
 	fpc->chip.of_pwm_n_cells = 3;
-	fpc->chip.base = -1;
 	fpc->chip.npwm = 8;
 
 	ret = pwmchip_add(&fpc->chip);
