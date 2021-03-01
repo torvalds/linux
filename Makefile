@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 5
-PATCHLEVEL = 11
+PATCHLEVEL = 12
 SUBLEVEL = 0
-EXTRAVERSION =
-NAME = 💕 Valentine's Day Edition 💕
+EXTRAVERSION = -rc1
+NAME = Frozen Wasteland
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
