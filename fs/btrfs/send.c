@@ -6650,6 +6650,7 @@ static int full_send_tree(struct send_ctx *sctx)
 	path = alloc_path_for_send();
 	if (!path)
 		return -ENOMEM;
+	path->reada = READA_FORWARD;
 
 	key.objectid = BTRFS_FIRST_FREE_OBJECTID;
 	key.type = BTRFS_INODE_ITEM_KEY;
