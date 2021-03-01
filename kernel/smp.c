@@ -24,6 +24,7 @@
 #include <linux/sched/clock.h>
 #include <linux/nmi.h>
 #include <linux/sched/debug.h>
+#include <linux/jump_label.h>
 
 #include "smpboot.h"
 #include "sched/smp.h"
@@ -102,6 +103,20 @@ void __init call_function_init(void)
 
 #ifdef CONFIG_CSD_LOCK_WAIT_DEBUG
 
+static DEFINE_STATIC_KEY_FALSE(csdlock_debug_enabled);
+
+static int __init csdlock_debug(char *str)
+{
+	unsigned int val = 0;
+
+	get_option(&str, &val);
+	if (val)
+		static_branch_enable(&csdlock_debug_enabled);
+
+	return 0;
+}
+early_param("csdlock_debug", csdlock_debug);
+
 static DEFINE_PER_CPU(call_single_data_t *, cur_csd);
 static DEFINE_PER_CPU(smp_call_func_t, cur_csd_func);
 static DEFINE_PER_CPU(void *, cur_csd_info);
@@ -110,7 +125,7 @@ static DEFINE_PER_CPU(void *, cur_csd_info);
 static atomic_t csd_bug_count = ATOMIC_INIT(0);
 
 /* Record current CSD work for current CPU, NULL to erase. */
-static void csd_lock_record(call_single_data_t *csd)
+static void __csd_lock_record(call_single_data_t *csd)
 {
 	if (!csd) {
 		smp_mb(); /* NULL cur_csd after unlock. */
@@ -125,7 +140,13 @@ static void csd_lock_record(call_single_data_t *csd)
 		  /* Or before unlock, as the case may be. */
 }
 
-static __always_inline int csd_lock_wait_getcpu(call_single_data_t *csd)
+static __always_inline void csd_lock_record(call_single_data_t *csd)
+{
+	if (static_branch_unlikely(&csdlock_debug_enabled))
+		__csd_lock_record(csd);
+}
+
+static int csd_lock_wait_getcpu(call_single_data_t *csd)
 {
 	unsigned int csd_type;
 
@@ -140,7 +161,7 @@ static __always_inline int csd_lock_wait_getcpu(call_single_data_t *csd)
  * the CSD_TYPE_SYNC/ASYNC types provide the destination CPU,
  * so waiting on other types gets much less information.
  */
-static __always_inline bool csd_lock_wait_toolong(call_single_data_t *csd, u64 ts0, u64 *ts1, int *bug_id)
+static bool csd_lock_wait_toolong(call_single_data_t *csd, u64 ts0, u64 *ts1, int *bug_id)
 {
 	int cpu = -1;
 	int cpux;
@@ -204,7 +225,7 @@ static __always_inline bool csd_lock_wait_toolong(call_single_data_t *csd, u64 t
  * previous function call. For multi-cpu calls its even more interesting
  * as we'll have to ensure no other cpu is observing our csd.
  */
-static __always_inline void csd_lock_wait(call_single_data_t *csd)
+static void __csd_lock_wait(call_single_data_t *csd)
 {
 	int bug_id = 0;
 	u64 ts0, ts1;
@@ -218,6 +239,15 @@ static __always_inline void csd_lock_wait(call_single_data_t *csd)
 	smp_acquire__after_ctrl_dep();
 }
 
+static __always_inline void csd_lock_wait(call_single_data_t *csd)
+{
+	if (static_branch_unlikely(&csdlock_debug_enabled)) {
+		__csd_lock_wait(csd);
+		return;
+	}
+
+	smp_cond_load_acquire(&csd->node.u_flags, !(VAL & CSD_FLAG_LOCK));
+}
 #else
 static void csd_lock_record(call_single_data_t *csd)
 {
