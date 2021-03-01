@@ -240,9 +240,10 @@ static char *translate_scan(struct adapter *padapter,
 			return start;
 		if (wpa_len > 0) {
 			p = buf;
-			p += sprintf(p, "wpa_ie =");
+			p += scnprintf(p, (MAX_WPA_IE_LEN * 2) - (p - buf), "wpa_ie =");
 			for (i = 0; i < wpa_len; i++)
-				p += sprintf(p, "%02x", wpa_ie[i]);
+				p += scnprintf(p, (MAX_WPA_IE_LEN * 2) - (p - buf),
+						"%02x", wpa_ie[i]);
 
 			if (wpa_len > 100) {
 				printk("-----------------Len %d----------------\n", wpa_len);
@@ -265,9 +266,10 @@ static char *translate_scan(struct adapter *padapter,
 		if (rsn_len > 0) {
 			p = buf;
 			memset(buf, 0, MAX_WPA_IE_LEN*2);
-			p += sprintf(p, "rsn_ie =");
+			p += scnprintf(p, (MAX_WPA_IE_LEN * 2) - (p - buf), "rsn_ie =");
 			for (i = 0; i < rsn_len; i++)
-				p += sprintf(p, "%02x", rsn_ie[i]);
+				p += scnprintf(p, (MAX_WPA_IE_LEN * 2) - (p - buf),
+						"%02x", rsn_ie[i]);
 			memset(&iwe, 0, sizeof(iwe));
 			iwe.cmd = IWEVCUSTOM;
 			iwe.u.data.length = strlen(buf);
@@ -365,17 +367,16 @@ static char *translate_scan(struct adapter *padapter,
 
 	{
 		u8 *buf;
-		u8 *p, *pos;
+		u8 *pos;
 
 		buf = kzalloc(MAX_WPA_IE_LEN, GFP_ATOMIC);
 		if (!buf)
 			goto exit;
-		p = buf;
+
 		pos = pnetwork->network.Reserved;
-		p += sprintf(p, "fm =%02X%02X", pos[1], pos[0]);
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = IWEVCUSTOM;
-		iwe.u.data.length = strlen(buf);
+		iwe.u.data.length = scnprintf(buf, MAX_WPA_IE_LEN, "fm =%02X%02X", pos[1], pos[0]);
 		start = iwe_stream_add_point(info, start, stop, &iwe, buf);
 		kfree(buf);
 	}
@@ -5082,8 +5083,7 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 		case IW_PRIV_TYPE_BYTE:
 			/* Display args */
 			for (j = 0; j < n; j++) {
-				sprintf(str, "%d  ", extra[j]);
-				len = strlen(str);
+				len = scnprintf(str, sizeof(str), "%d  ", extra[j]);
 				output_len = strlen(output);
 				if ((output_len + len + 1) > 4096) {
 					err = -E2BIG;
@@ -5096,8 +5096,7 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 		case IW_PRIV_TYPE_INT:
 			/* Display args */
 			for (j = 0; j < n; j++) {
-				sprintf(str, "%d  ", ((__s32 *)extra)[j]);
-				len = strlen(str);
+				len = scnprintf(str, sizeof(str), "%d  ", ((__s32 *)extra)[j]);
 				output_len = strlen(output);
 				if ((output_len + len + 1) > 4096) {
 					err = -E2BIG;
