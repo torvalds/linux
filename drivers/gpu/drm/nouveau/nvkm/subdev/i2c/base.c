@@ -277,7 +277,7 @@ nvkm_i2c_drv[] = {
 
 int
 nvkm_i2c_new_(const struct nvkm_i2c_func *func, struct nvkm_device *device,
-	      int index, struct nvkm_i2c **pi2c)
+	      enum nvkm_subdev_type type, int inst, struct nvkm_i2c **pi2c)
 {
 	struct nvkm_bios *bios = device->bios;
 	struct nvkm_i2c *i2c;
@@ -289,7 +289,7 @@ nvkm_i2c_new_(const struct nvkm_i2c_func *func, struct nvkm_device *device,
 	if (!(i2c = *pi2c = kzalloc(sizeof(*i2c), GFP_KERNEL)))
 		return -ENOMEM;
 
-	nvkm_subdev_ctor(&nvkm_i2c, device, index, &i2c->subdev);
+	nvkm_subdev_ctor(&nvkm_i2c, device, type, inst, &i2c->subdev);
 	i2c->func = func;
 	INIT_LIST_HEAD(&i2c->pad);
 	INIT_LIST_HEAD(&i2c->bus);

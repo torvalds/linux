@@ -40,6 +40,7 @@ properties:
       ADC reference voltage supply
 
   adi,sync-in-gpios:
+    maxItems: 1
     description:
       Enables synchronization of multiple devices that require simultaneous
       sampling. A pulse is always required if the configuration is changed
@@ -76,6 +77,7 @@ patternProperties:
 
     properties:
       reg:
+        maxItems: 1
         description: |
           The channel number.
 

@@ -456,7 +456,7 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 		bo = entry->bo;
 
 		dma_resv_add_shared_fence(bo->base.resv, &release->base);
-		ttm_bo_move_to_lru_tail(bo, NULL);
+		ttm_bo_move_to_lru_tail(bo, &bo->mem, NULL);
 		dma_resv_unlock(bo->base.resv);
 	}
 	spin_unlock(&ttm_bo_glob.lru_lock);

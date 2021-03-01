@@ -79,9 +79,9 @@
 #include "gem/i915_gem_shrinker.h"
 #include "gem/i915_gem_stolen.h"
 
-#include "gt/intel_lrc.h"
 #include "gt/intel_engine.h"
 #include "gt/intel_gt_types.h"
+#include "gt/intel_region_lmem.h"
 #include "gt/intel_workarounds.h"
 #include "gt/uc/intel_uc.h"
 
@@ -103,7 +103,6 @@
 #include "i915_vma.h"
 #include "i915_irq.h"
 
-#include "intel_region_lmem.h"
 
 /* General customization:
  */
@@ -416,6 +415,7 @@ struct intel_fbc {
 		u16 gen9_wa_cfb_stride;
 		u16 interval;
 		s8 fence_id;
+		bool psr2_active;
 	} state_cache;
 
 	/*
@@ -1122,23 +1122,11 @@ struct drm_i915_private {
 		 * crtc_state->wm.need_postvbl_update.
 		 */
 		struct mutex wm_mutex;
-
-		/*
-		 * Set during HW readout of watermarks/DDB.  Some platforms
-		 * need to know when we're still using BIOS-provided values
-		 * (which we don't fully trust).
-		 *
-		 * FIXME get rid of this.
-		 */
-		bool distrust_bios_wm;
 	} wm;
 
 	struct dram_info {
-		bool valid;
-		bool is_16gb_dimm;
+		bool wm_lv_0_adjust_needed;
 		u8 num_channels;
-		u8 ranks;
-		u32 bandwidth_kbps;
 		bool symmetric_memory;
 		enum intel_dram_type {
 			INTEL_DRAM_UNKNOWN,
@@ -1147,6 +1135,7 @@ struct drm_i915_private {
 			INTEL_DRAM_LPDDR3,
 			INTEL_DRAM_LPDDR4
 		} type;
+		u8 num_qgv_points;
 	} dram_info;
 
 	struct intel_bw_info {
@@ -1169,9 +1158,6 @@ struct drm_i915_private {
 		struct i915_gem_contexts {
 			spinlock_t lock; /* locks list */
 			struct list_head list;
-
-			struct llist_head free_list;
-			struct work_struct free_work;
 		} contexts;
 
 		/*
@@ -1184,6 +1170,8 @@ struct drm_i915_private {
 		 */
 		struct file *mmap_singleton;
 	} gem;
+
+	u8 framestart_delay;
 
 	u8 pch_ssc_use;
 
@@ -1569,16 +1557,30 @@ enum {
 	TGL_REVID_D0,
 };
 
-extern const struct i915_rev_steppings tgl_uy_revids[];
-extern const struct i915_rev_steppings tgl_revids[];
+#define TGL_UY_REVIDS_SIZE	4
+#define TGL_REVIDS_SIZE		2
+
+extern const struct i915_rev_steppings tgl_uy_revids[TGL_UY_REVIDS_SIZE];
+extern const struct i915_rev_steppings tgl_revids[TGL_REVIDS_SIZE];
 
 static inline const struct i915_rev_steppings *
 tgl_revids_get(struct drm_i915_private *dev_priv)
 {
-	if (IS_TGL_U(dev_priv) || IS_TGL_Y(dev_priv))
-		return &tgl_uy_revids[INTEL_REVID(dev_priv)];
-	else
-		return &tgl_revids[INTEL_REVID(dev_priv)];
+	u8 revid = INTEL_REVID(dev_priv);
+	u8 size;
+	const struct i915_rev_steppings *tgl_revid_tbl;
+
+	if (IS_TGL_U(dev_priv) || IS_TGL_Y(dev_priv)) {
+		tgl_revid_tbl = tgl_uy_revids;
+		size = ARRAY_SIZE(tgl_uy_revids);
+	} else {
+		tgl_revid_tbl = tgl_revids;
+		size = ARRAY_SIZE(tgl_revids);
+	}
+
+	revid = min_t(u8, revid, size - 1);
+
+	return &tgl_revid_tbl[revid];
 }
 
 #define IS_TGL_DISP_REVID(p, since, until) \
@@ -1588,14 +1590,14 @@ tgl_revids_get(struct drm_i915_private *dev_priv)
 
 #define IS_TGL_UY_GT_REVID(p, since, until) \
 	((IS_TGL_U(p) || IS_TGL_Y(p)) && \
-	 tgl_uy_revids[INTEL_REVID(p)].gt_stepping >= (since) && \
-	 tgl_uy_revids[INTEL_REVID(p)].gt_stepping <= (until))
+	 tgl_revids_get(p)->gt_stepping >= (since) && \
+	 tgl_revids_get(p)->gt_stepping <= (until))
 
 #define IS_TGL_GT_REVID(p, since, until) \
 	(IS_TIGERLAKE(p) && \
 	 !(IS_TGL_U(p) || IS_TGL_Y(p)) && \
-	 tgl_revids[INTEL_REVID(p)].gt_stepping >= (since) && \
-	 tgl_revids[INTEL_REVID(p)].gt_stepping <= (until))
+	 tgl_revids_get(p)->gt_stepping >= (since) && \
+	 tgl_revids_get(p)->gt_stepping <= (until))
 
 #define RKL_REVID_A0		0x0
 #define RKL_REVID_B0		0x1
@@ -1646,8 +1648,6 @@ tgl_revids_get(struct drm_i915_private *dev_priv)
 		(INTEL_INFO(dev_priv)->has_logical_ring_contexts)
 #define HAS_LOGICAL_RING_ELSQ(dev_priv) \
 		(INTEL_INFO(dev_priv)->has_logical_ring_elsq)
-#define HAS_LOGICAL_RING_PREEMPTION(dev_priv) \
-		(INTEL_INFO(dev_priv)->has_logical_ring_preemption)
 
 #define HAS_MASTER_UNIT_IRQ(dev_priv) (INTEL_INFO(dev_priv)->has_master_unit_irq)
 
@@ -1749,9 +1749,16 @@ tgl_revids_get(struct drm_i915_private *dev_priv)
 
 #define HAS_DISPLAY(dev_priv) (INTEL_INFO(dev_priv)->pipe_mask != 0)
 
+#define HAS_VRR(i915)	(INTEL_GEN(i915) >= 12)
+
 /* Only valid when HAS_DISPLAY() is true */
 #define INTEL_DISPLAY_ENABLED(dev_priv) \
 	(drm_WARN_ON(&(dev_priv)->drm, !HAS_DISPLAY(dev_priv)), !(dev_priv)->params.disable_display)
+
+static inline bool run_as_guest(void)
+{
+	return !hypervisor_is_type(X86_HYPER_NATIVE);
+}
 
 static inline bool intel_vtd_active(void)
 {
@@ -1761,7 +1768,7 @@ static inline bool intel_vtd_active(void)
 #endif
 
 	/* Running as a guest, we assume the host is enforcing VT'd */
-	return !hypervisor_is_type(X86_HYPER_NATIVE);
+	return run_as_guest();
 }
 
 static inline bool intel_scanout_needs_vtd_wa(struct drm_i915_private *dev_priv)
@@ -1793,8 +1800,6 @@ int i915_gem_init_userptr(struct drm_i915_private *dev_priv);
 void i915_gem_cleanup_userptr(struct drm_i915_private *dev_priv);
 void i915_gem_init_early(struct drm_i915_private *dev_priv);
 void i915_gem_cleanup_early(struct drm_i915_private *dev_priv);
-int i915_gem_freeze(struct drm_i915_private *dev_priv);
-int i915_gem_freeze_late(struct drm_i915_private *dev_priv);
 
 struct intel_memory_region *i915_gem_shmem_setup(struct drm_i915_private *i915);
 
@@ -1967,43 +1972,6 @@ mkwrite_device_info(struct drm_i915_private *dev_priv)
 int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file);
 
-#define __I915_REG_OP(op__, dev_priv__, ...) \
-	intel_uncore_##op__(&(dev_priv__)->uncore, __VA_ARGS__)
-
-#define I915_READ(reg__)	 __I915_REG_OP(read, dev_priv, (reg__))
-#define I915_WRITE(reg__, val__) __I915_REG_OP(write, dev_priv, (reg__), (val__))
-
-#define POSTING_READ(reg__)	__I915_REG_OP(posting_read, dev_priv, (reg__))
-
-/* These are untraced mmio-accessors that are only valid to be used inside
- * critical sections, such as inside IRQ handlers, where forcewake is explicitly
- * controlled.
- *
- * Think twice, and think again, before using these.
- *
- * As an example, these accessors can possibly be used between:
- *
- * spin_lock_irq(&dev_priv->uncore.lock);
- * intel_uncore_forcewake_get__locked();
- *
- * and
- *
- * intel_uncore_forcewake_put__locked();
- * spin_unlock_irq(&dev_priv->uncore.lock);
- *
- *
- * Note: some registers may not need forcewake held, so
- * intel_uncore_forcewake_{get,put} can be omitted, see
- * intel_uncore_forcewake_for_reg().
- *
- * Certain architectures will die if the same cacheline is concurrently accessed
- * by different clients (e.g. on Ivybridge). Access to registers should
- * therefore generally be serialised, by either the dev_priv->uncore.lock or
- * a more localised lock guarding all access to that bank of registers.
- */
-#define I915_READ_FW(reg__) __I915_REG_OP(read_fw, dev_priv, (reg__))
-#define I915_WRITE_FW(reg__, val__) __I915_REG_OP(write_fw, dev_priv, (reg__), (val__))
-
 /* i915_mm.c */
 int remap_io_mapping(struct vm_area_struct *vma,
 		     unsigned long addr, unsigned long pfn, unsigned long size,
@@ -2024,18 +1992,6 @@ static inline enum i915_map_type
 i915_coherent_map_type(struct drm_i915_private *i915)
 {
 	return HAS_LLC(i915) ? I915_MAP_WB : I915_MAP_WC;
-}
-
-static inline u64 i915_cs_timestamp_ns_to_ticks(struct drm_i915_private *i915, u64 val)
-{
-	return DIV_ROUND_UP_ULL(val * RUNTIME_INFO(i915)->cs_timestamp_frequency_hz,
-				1000000000);
-}
-
-static inline u64 i915_cs_timestamp_ticks_to_ns(struct drm_i915_private *i915, u64 val)
-{
-	return div_u64(val * 1000000000,
-		       RUNTIME_INFO(i915)->cs_timestamp_frequency_hz);
 }
 
 #endif

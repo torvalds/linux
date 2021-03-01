@@ -41,6 +41,7 @@ config INFINIBAND_USER_MEM
 	bool
 	depends on INFINIBAND_USER_ACCESS != n
 	depends on MMU
+	select DMA_SHARED_BUFFER
 	default y
 
 config INFINIBAND_ON_DEMAND_PAGING

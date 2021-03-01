@@ -83,11 +83,20 @@ static const struct apu_led_profile apu1_led_profile[] = {
 };
 
 static const struct dmi_system_id apu_led_dmi_table[] __initconst = {
+	/* PC Engines APU with factory bios "SageBios_PCEngines_APU-45" */
 	{
 		.ident = "apu",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "PC Engines"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "APU")
+		}
+	},
+	/* PC Engines APU with "Mainline" bios >= 4.6.8 */
+	{
+		.ident = "apu",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "PC Engines"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "apu1")
 		}
 	},
 	{}
@@ -173,7 +182,7 @@ static int __init apu_led_init(void)
 	int err;
 
 	if (!(dmi_match(DMI_SYS_VENDOR, "PC Engines") &&
-	      dmi_match(DMI_PRODUCT_NAME, "APU"))) {
+	      (dmi_match(DMI_PRODUCT_NAME, "APU") || dmi_match(DMI_PRODUCT_NAME, "apu1")))) {
 		pr_err("No PC Engines APUv1 board detected. For APUv2,3 support, enable CONFIG_PCENGINES_APU2\n");
 		return -ENODEV;
 	}

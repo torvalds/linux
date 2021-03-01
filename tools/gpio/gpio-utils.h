@@ -24,12 +24,6 @@ static inline int check_prefix(const char *str, const char *prefix)
 		strncmp(str, prefix, strlen(prefix)) == 0;
 }
 
-int gpiotools_request_linehandle(const char *device_name, unsigned int *lines,
-				 unsigned int num_lines, unsigned int flag,
-				 struct gpiohandle_data *data,
-				 const char *consumer_label);
-int gpiotools_release_linehandle(const int fd);
-
 int gpiotools_request_line(const char *device_name,
 			   unsigned int *lines,
 			   unsigned int num_lines,

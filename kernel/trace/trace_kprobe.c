@@ -35,7 +35,7 @@ static int __init set_kprobe_boot_events(char *str)
 }
 __setup("kprobe_event=", set_kprobe_boot_events);
 
-static int trace_kprobe_create(int argc, const char **argv);
+static int trace_kprobe_create(const char *raw_command);
 static int trace_kprobe_show(struct seq_file *m, struct dyn_event *ev);
 static int trace_kprobe_release(struct dyn_event *ev);
 static bool trace_kprobe_is_busy(struct dyn_event *ev);
@@ -124,9 +124,9 @@ static nokprobe_inline bool trace_kprobe_module_exist(struct trace_kprobe *tk)
 	if (!p)
 		return true;
 	*p = '\0';
-	mutex_lock(&module_mutex);
+	rcu_read_lock_sched();
 	ret = !!find_module(tk->symbol);
-	mutex_unlock(&module_mutex);
+	rcu_read_unlock_sched();
 	*p = ':';
 
 	return ret;
@@ -711,7 +711,7 @@ static inline void sanitize_event_name(char *name)
 			*name = '_';
 }
 
-static int trace_kprobe_create(int argc, const char *argv[])
+static int __trace_kprobe_create(int argc, const char *argv[])
 {
 	/*
 	 * Argument syntax:
@@ -910,20 +910,25 @@ error:
 	goto out;
 }
 
-static int create_or_delete_trace_kprobe(int argc, char **argv)
+static int trace_kprobe_create(const char *raw_command)
+{
+	return trace_probe_create(raw_command, __trace_kprobe_create);
+}
+
+static int create_or_delete_trace_kprobe(const char *raw_command)
 {
 	int ret;
 
-	if (argv[0][0] == '-')
-		return dyn_event_release(argc, argv, &trace_kprobe_ops);
+	if (raw_command[0] == '-')
+		return dyn_event_release(raw_command, &trace_kprobe_ops);
 
-	ret = trace_kprobe_create(argc, (const char **)argv);
+	ret = trace_kprobe_create(raw_command);
 	return ret == -ECANCELED ? -EINVAL : ret;
 }
 
 static int trace_kprobe_run_command(struct dynevent_cmd *cmd)
 {
-	return trace_run_command(cmd->seq.buffer, create_or_delete_trace_kprobe);
+	return create_or_delete_trace_kprobe(cmd->seq.buffer);
 }
 
 /**
@@ -1084,7 +1089,7 @@ int kprobe_event_delete(const char *name)
 
 	snprintf(buf, MAX_EVENT_NAME_LEN, "-:%s", name);
 
-	return trace_run_command(buf, create_or_delete_trace_kprobe);
+	return create_or_delete_trace_kprobe(buf);
 }
 EXPORT_SYMBOL_GPL(kprobe_event_delete);
 
@@ -1386,8 +1391,7 @@ __kprobe_trace_func(struct trace_kprobe *tk, struct pt_regs *regs,
 	if (trace_trigger_soft_disabled(trace_file))
 		return;
 
-	local_save_flags(fbuffer.flags);
-	fbuffer.pc = preempt_count();
+	fbuffer.trace_ctx = tracing_gen_ctx();
 	fbuffer.trace_file = trace_file;
 
 	dsize = __get_data_size(&tk->tp, regs);
@@ -1396,7 +1400,7 @@ __kprobe_trace_func(struct trace_kprobe *tk, struct pt_regs *regs,
 		trace_event_buffer_lock_reserve(&fbuffer.buffer, trace_file,
 					call->event.type,
 					sizeof(*entry) + tk->tp.size + dsize,
-					fbuffer.flags, fbuffer.pc);
+					fbuffer.trace_ctx);
 	if (!fbuffer.event)
 		return;
 
@@ -1434,8 +1438,7 @@ __kretprobe_trace_func(struct trace_kprobe *tk, struct kretprobe_instance *ri,
 	if (trace_trigger_soft_disabled(trace_file))
 		return;
 
-	local_save_flags(fbuffer.flags);
-	fbuffer.pc = preempt_count();
+	fbuffer.trace_ctx = tracing_gen_ctx();
 	fbuffer.trace_file = trace_file;
 
 	dsize = __get_data_size(&tk->tp, regs);
@@ -1443,7 +1446,7 @@ __kretprobe_trace_func(struct trace_kprobe *tk, struct kretprobe_instance *ri,
 		trace_event_buffer_lock_reserve(&fbuffer.buffer, trace_file,
 					call->event.type,
 					sizeof(*entry) + tk->tp.size + dsize,
-					fbuffer.flags, fbuffer.pc);
+					fbuffer.trace_ctx);
 	if (!fbuffer.event)
 		return;
 
@@ -1888,7 +1891,7 @@ static __init void setup_boot_kprobe_events(void)
 		if (p)
 			*p++ = '\0';
 
-		ret = trace_run_command(cmd, create_or_delete_trace_kprobe);
+		ret = create_or_delete_trace_kprobe(cmd);
 		if (ret)
 			pr_warn("Failed to add event(%d): %s\n", ret, cmd);
 
@@ -1982,8 +1985,7 @@ static __init int kprobe_trace_self_tests_init(void)
 
 	pr_info("Testing kprobe tracing: ");
 
-	ret = trace_run_command("p:testprobe kprobe_trace_selftest_target $stack $stack0 +0($stack)",
-				create_or_delete_trace_kprobe);
+	ret = create_or_delete_trace_kprobe("p:testprobe kprobe_trace_selftest_target $stack $stack0 +0($stack)");
 	if (WARN_ON_ONCE(ret)) {
 		pr_warn("error on probing function entry.\n");
 		warn++;
@@ -2004,8 +2006,7 @@ static __init int kprobe_trace_self_tests_init(void)
 		}
 	}
 
-	ret = trace_run_command("r:testprobe2 kprobe_trace_selftest_target $retval",
-				create_or_delete_trace_kprobe);
+	ret = create_or_delete_trace_kprobe("r:testprobe2 kprobe_trace_selftest_target $retval");
 	if (WARN_ON_ONCE(ret)) {
 		pr_warn("error on probing function return.\n");
 		warn++;
@@ -2078,13 +2079,13 @@ static __init int kprobe_trace_self_tests_init(void)
 				trace_probe_event_call(&tk->tp), file);
 	}
 
-	ret = trace_run_command("-:testprobe", create_or_delete_trace_kprobe);
+	ret = create_or_delete_trace_kprobe("-:testprobe");
 	if (WARN_ON_ONCE(ret)) {
 		pr_warn("error on deleting a probe.\n");
 		warn++;
 	}
 
-	ret = trace_run_command("-:testprobe2", create_or_delete_trace_kprobe);
+	ret = create_or_delete_trace_kprobe("-:testprobe2");
 	if (WARN_ON_ONCE(ret)) {
 		pr_warn("error on deleting a probe.\n");
 		warn++;

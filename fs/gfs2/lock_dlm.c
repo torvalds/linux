@@ -284,7 +284,6 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
-	int lvb_needs_unlock = 0;
 	int error;
 
 	if (gl->gl_lksb.sb_lkid == 0) {
@@ -297,13 +296,10 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 	gfs2_sbstats_inc(gl, GFS2_LKS_DCOUNT);
 	gfs2_update_request_times(gl);
 
-	/* don't want to skip dlm_unlock writing the lvb when lock is ex */
-
-	if (gl->gl_lksb.sb_lvbptr && (gl->gl_state == LM_ST_EXCLUSIVE))
-		lvb_needs_unlock = 1;
+	/* don't want to skip dlm_unlock writing the lvb when lock has one */
 
 	if (test_bit(SDF_SKIP_DLM_UNLOCK, &sdp->sd_flags) &&
-	    !lvb_needs_unlock) {
+	    !gl->gl_lksb.sb_lvbptr) {
 		gfs2_glock_free(gl);
 		return;
 	}

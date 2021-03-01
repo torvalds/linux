@@ -7,6 +7,7 @@
 #include <linux/prime_numbers.h>
 
 #include "gt/intel_engine_pm.h"
+#include "gt/intel_gpu_commands.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_ring.h"

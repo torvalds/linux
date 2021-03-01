@@ -59,6 +59,19 @@ static u32 dpu_hw_util_log_mask = DPU_DBG_MASK_NONE;
 #define QSEED3_SEP_LUT_SIZE \
 	(QSEED3_LUT_SIZE * QSEED3_SEPARABLE_LUTS * sizeof(u32))
 
+/* DPU_SCALER_QSEED3LITE */
+#define QSEED3LITE_COEF_LUT_Y_SEP_BIT         4
+#define QSEED3LITE_COEF_LUT_UV_SEP_BIT        5
+#define QSEED3LITE_COEF_LUT_CTRL              0x4C
+#define QSEED3LITE_COEF_LUT_SWAP_BIT          0
+#define QSEED3LITE_DIR_FILTER_WEIGHT          0x60
+#define QSEED3LITE_FILTERS                 2
+#define QSEED3LITE_SEPARABLE_LUTS             10
+#define QSEED3LITE_LUT_SIZE                   33
+#define QSEED3LITE_SEP_LUT_SIZE \
+	        (QSEED3LITE_LUT_SIZE * QSEED3LITE_SEPARABLE_LUTS * sizeof(u32))
+
+
 void dpu_reg_write(struct dpu_hw_blk_reg_map *c,
 		u32 reg_off,
 		u32 val,
@@ -156,6 +169,57 @@ static void _dpu_hw_setup_scaler3_lut(struct dpu_hw_blk_reg_map *c,
 
 }
 
+static void _dpu_hw_setup_scaler3lite_lut(struct dpu_hw_blk_reg_map *c,
+		struct dpu_hw_scaler3_cfg *scaler3_cfg, u32 offset)
+{
+	int j, filter;
+	int config_lut = 0x0;
+	unsigned long lut_flags;
+	u32 lut_addr, lut_offset;
+	u32 *lut[QSEED3LITE_FILTERS] = {NULL, NULL};
+	static const uint32_t off_tbl[QSEED3_FILTERS] = { 0x000, 0x200 };
+
+	DPU_REG_WRITE(c, QSEED3LITE_DIR_FILTER_WEIGHT + offset, scaler3_cfg->dir_weight);
+
+	if (!scaler3_cfg->sep_lut)
+		return;
+
+	lut_flags = (unsigned long) scaler3_cfg->lut_flag;
+	if (test_bit(QSEED3_COEF_LUT_Y_SEP_BIT, &lut_flags) &&
+		(scaler3_cfg->y_rgb_sep_lut_idx < QSEED3LITE_SEPARABLE_LUTS) &&
+		(scaler3_cfg->sep_len == QSEED3LITE_SEP_LUT_SIZE)) {
+		lut[0] = scaler3_cfg->sep_lut +
+			scaler3_cfg->y_rgb_sep_lut_idx * QSEED3LITE_LUT_SIZE;
+		config_lut = 1;
+	}
+	if (test_bit(QSEED3_COEF_LUT_UV_SEP_BIT, &lut_flags) &&
+		(scaler3_cfg->uv_sep_lut_idx < QSEED3LITE_SEPARABLE_LUTS) &&
+		(scaler3_cfg->sep_len == QSEED3LITE_SEP_LUT_SIZE)) {
+		lut[1] = scaler3_cfg->sep_lut +
+			scaler3_cfg->uv_sep_lut_idx * QSEED3LITE_LUT_SIZE;
+		config_lut = 1;
+	}
+
+	if (config_lut) {
+		for (filter = 0; filter < QSEED3LITE_FILTERS; filter++) {
+			if (!lut[filter])
+				continue;
+			lut_offset = 0;
+			lut_addr = QSEED3_COEF_LUT + offset + off_tbl[filter];
+			for (j = 0; j < QSEED3LITE_LUT_SIZE; j++) {
+				DPU_REG_WRITE(c,
+					lut_addr,
+					(lut[filter])[lut_offset++]);
+				lut_addr += 4;
+			}
+		}
+	}
+
+	if (test_bit(QSEED3_COEF_LUT_SWAP_BIT, &lut_flags))
+		DPU_REG_WRITE(c, QSEED3_COEF_LUT_CTRL + offset, BIT(0));
+
+}
+
 static void _dpu_hw_setup_scaler3_de(struct dpu_hw_blk_reg_map *c,
 		struct dpu_hw_scaler3_de_cfg *de_cfg, u32 offset)
 {
@@ -242,9 +306,12 @@ void dpu_hw_setup_scaler3(struct dpu_hw_blk_reg_map *c,
 		op_mode |= BIT(8);
 	}
 
-	if (scaler3_cfg->lut_flag)
-		_dpu_hw_setup_scaler3_lut(c, scaler3_cfg,
-								scaler_offset);
+	if (scaler3_cfg->lut_flag) {
+		if (scaler_version < 0x2004)
+			_dpu_hw_setup_scaler3_lut(c, scaler3_cfg, scaler_offset);
+		else
+			_dpu_hw_setup_scaler3lite_lut(c, scaler3_cfg, scaler_offset);
+	}
 
 	if (scaler_version == 0x1002) {
 		phase_init =

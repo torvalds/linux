@@ -46,7 +46,6 @@
 #include <drm/radeon_drm.h>
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_placement.h>
 
 #include "radeon_reg.h"
@@ -276,7 +275,7 @@ static int radeon_bo_move(struct ttm_buffer_object *bo, bool evict,
 
 out:
 	/* update statistics */
-	atomic64_add((u64)bo->num_pages << PAGE_SHIFT, &rdev->num_bytes_moved);
+	atomic64_add(bo->base.size, &rdev->num_bytes_moved);
 	radeon_bo_move_notify(bo, evict, new_mem);
 	return 0;
 }
@@ -325,7 +324,7 @@ static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_reso
 		 * access, as done in ttm_bo_vm_fault().
 		 */
 		mem->bus.offset = (mem->bus.offset & 0x0ffffffffUL) +
-			rdev->ddev->hose->dense_mem_base;
+			rdev->hose->dense_mem_base;
 #endif
 		break;
 	default:
@@ -396,8 +395,8 @@ static int radeon_ttm_tt_pin_userptr(struct ttm_bo_device *bdev, struct ttm_tt *
 	if (r)
 		goto release_sg;
 
-	drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
-					 gtt->ttm.dma_address, ttm->num_pages);
+	drm_prime_sg_to_dma_addr_array(ttm->sg, gtt->ttm.dma_address,
+				       ttm->num_pages);
 
 	return 0;
 
@@ -535,7 +534,7 @@ static struct ttm_tt *radeon_ttm_tt_create(struct ttm_buffer_object *bo,
 	else
 		caching = ttm_cached;
 
-	if (ttm_dma_tt_init(&gtt->ttm, bo, page_flags, caching)) {
+	if (ttm_sg_tt_init(&gtt->ttm, bo, page_flags, caching)) {
 		kfree(gtt);
 		return NULL;
 	}
@@ -573,8 +572,8 @@ static int radeon_ttm_tt_populate(struct ttm_bo_device *bdev,
 	}
 
 	if (slave && ttm->sg) {
-		drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
-						 gtt->ttm.dma_address, ttm->num_pages);
+		drm_prime_sg_to_dma_addr_array(ttm->sg, gtt->ttm.dma_address,
+					       ttm->num_pages);
 		return 0;
 	}
 

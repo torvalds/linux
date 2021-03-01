@@ -17,7 +17,7 @@ maintainers:
 
 properties:
   compatible:
-    const: nuvoton,npcm7xx-i2c
+    const: nuvoton,npcm750-i2c
 
   reg:
     maxItems: 1

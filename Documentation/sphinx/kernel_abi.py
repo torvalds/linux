@@ -45,17 +45,7 @@ from docutils import nodes, statemachine
 from docutils.statemachine import ViewList
 from docutils.parsers.rst import directives, Directive
 from docutils.utils.error_reporting import ErrorString
-
-#
-# AutodocReporter is only good up to Sphinx 1.7
-#
-import sphinx
-
-Use_SSI = sphinx.__version__[:3] >= '1.7'
-if Use_SSI:
-    from sphinx.util.docutils import switch_source_input
-else:
-    from sphinx.ext.autodoc import AutodocReporter
+from sphinx.util.docutils import switch_source_input
 
 __version__  = '1.0'
 
@@ -179,16 +169,5 @@ class KernelCmd(Directive):
         return node.children
 
     def do_parse(self, content, node):
-        if Use_SSI:
-            with switch_source_input(self.state, content):
-                self.state.nested_parse(content, 0, node, match_titles=1)
-        else:
-            buf  = self.state.memo.title_styles, self.state.memo.section_level, self.state.memo.reporter
-
-            self.state.memo.title_styles  = []
-            self.state.memo.section_level = 0
-            self.state.memo.reporter      = AutodocReporter(content, self.state.memo.reporter)
-            try:
-                self.state.nested_parse(content, 0, node, match_titles=1)
-            finally:
-                self.state.memo.title_styles, self.state.memo.section_level, self.state.memo.reporter = buf
+        with switch_source_input(self.state, content):
+            self.state.nested_parse(content, 0, node, match_titles=1)

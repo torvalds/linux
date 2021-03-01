@@ -139,7 +139,7 @@ static bool efifb_bgrt_sanity_check(struct screen_info *si, u32 bmp_width)
 
 static void efifb_show_boot_graphics(struct fb_info *info)
 {
-	u32 bmp_width, bmp_height, bmp_pitch, screen_pitch, dst_x, y, src_y;
+	u32 bmp_width, bmp_height, bmp_pitch, dst_x, y, src_y;
 	struct screen_info *si = &screen_info;
 	struct bmp_file_header *file_header;
 	struct bmp_dib_header *dib_header;
@@ -193,7 +193,6 @@ static void efifb_show_boot_graphics(struct fb_info *info)
 	bmp_width = dib_header->width;
 	bmp_height = abs(dib_header->height);
 	bmp_pitch = round_up(3 * bmp_width, 4);
-	screen_pitch = si->lfb_linelength;
 
 	if ((file_header->bitmap_offset + bmp_pitch * bmp_height) >
 				bgrt_image_size)

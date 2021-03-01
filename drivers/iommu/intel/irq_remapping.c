@@ -22,6 +22,7 @@
 #include <asm/pci-direct.h>
 
 #include "../irq_remapping.h"
+#include "cap_audit.h"
 
 enum irq_mode {
 	IRQ_REMAPPING,
@@ -734,6 +735,9 @@ static int __init intel_prepare_irq_remapping(void)
 	if (dmar_table_init() < 0)
 		return -ENODEV;
 
+	if (intel_cap_audit(CAP_AUDIT_STATIC_IRQR, NULL))
+		goto error;
+
 	if (!dmar_ir_support())
 		return -ENODEV;
 
@@ -1438,6 +1442,10 @@ static int dmar_ir_add(struct dmar_drhd_unit *dmaru, struct intel_iommu *iommu)
 {
 	int ret;
 	int eim = x2apic_enabled();
+
+	ret = intel_cap_audit(CAP_AUDIT_HOTPLUG_IRQR, iommu);
+	if (ret)
+		return ret;
 
 	if (eim && !ecap_eim_support(iommu->ecap)) {
 		pr_info("DRHD %Lx: EIM not supported by DRHD, ecap %Lx\n",

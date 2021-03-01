@@ -59,9 +59,9 @@ gp100_ce_intr_launcherr(struct nvkm_engine *ce, const u32 base)
 void
 gp100_ce_intr(struct nvkm_engine *ce)
 {
-	const u32 base = (ce->subdev.index - NVKM_ENGINE_CE0) * 0x80;
 	struct nvkm_subdev *subdev = &ce->subdev;
 	struct nvkm_device *device = subdev->device;
+	const u32 base = subdev->inst * 0x80;
 	u32 mask = nvkm_rd32(device, 0x10440c + base);
 	u32 intr = nvkm_rd32(device, 0x104410 + base) & mask;
 	if (intr & 0x00000001) { //XXX: guess
@@ -95,8 +95,8 @@ gp100_ce = {
 };
 
 int
-gp100_ce_new(struct nvkm_device *device, int index,
+gp100_ce_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	     struct nvkm_engine **pengine)
 {
-	return nvkm_engine_new_(&gp100_ce, device, index, true, pengine);
+	return nvkm_engine_new_(&gp100_ce, device, type, inst, true, pengine);
 }

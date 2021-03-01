@@ -4519,6 +4519,7 @@ KVM_GET_SUPPORTED_CPUID ioctl because some of them intersect with KVM feature
 leaves (0x40000000, 0x40000001).
 
 Currently, the following list of CPUID leaves are returned:
+
  - HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS
  - HYPERV_CPUID_INTERFACE
  - HYPERV_CPUID_VERSION
@@ -4543,6 +4544,7 @@ userspace should not expect to get any particular value there.
 Note, vcpu version of KVM_GET_SUPPORTED_HV_CPUID is currently deprecated. Unlike
 system ioctl which exposes all supported feature bits unconditionally, vcpu
 version has the following quirks:
+
 - HYPERV_CPUID_NESTED_FEATURES leaf and HV_X64_ENLIGHTENED_VMCS_RECOMMENDED
   feature bit are only exposed when Enlightened VMCS was previously enabled
   on the corresponding vCPU (KVM_CAP_HYPERV_ENLIGHTENED_VMCS).

@@ -71,6 +71,7 @@ static void
 ast_set_def_ext_reg(struct drm_device *dev)
 {
 	struct ast_private *ast = to_ast_private(dev);
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	u8 i, index, reg;
 	const u8 *ext_reg_info;
 
@@ -80,7 +81,7 @@ ast_set_def_ext_reg(struct drm_device *dev)
 
 	if (ast->chip == AST2300 || ast->chip == AST2400 ||
 	    ast->chip == AST2500) {
-		if (dev->pdev->revision >= 0x20)
+		if (pdev->revision >= 0x20)
 			ext_reg_info = extreginfo_ast2300;
 		else
 			ext_reg_info = extreginfo_ast2300a0;
@@ -366,11 +367,12 @@ static void ast_init_dram_reg(struct drm_device *dev)
 void ast_post_gpu(struct drm_device *dev)
 {
 	struct ast_private *ast = to_ast_private(dev);
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	u32 reg;
 
-	pci_read_config_dword(dev->pdev, 0x04, &reg);
+	pci_read_config_dword(pdev, 0x04, &reg);
 	reg |= 0x3;
-	pci_write_config_dword(dev->pdev, 0x04, reg);
+	pci_write_config_dword(pdev, 0x04, reg);
 
 	ast_enable_vga(dev);
 	ast_open_key(ast);

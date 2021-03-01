@@ -77,31 +77,32 @@ static u32 ast_get_vram_size(struct ast_private *ast)
 static void ast_mm_release(struct drm_device *dev, void *ptr)
 {
 	struct ast_private *ast = to_ast_private(dev);
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
 	arch_phys_wc_del(ast->fb_mtrr);
-	arch_io_free_memtype_wc(pci_resource_start(dev->pdev, 0),
-				pci_resource_len(dev->pdev, 0));
+	arch_io_free_memtype_wc(pci_resource_start(pdev, 0),
+				pci_resource_len(pdev, 0));
 }
 
 int ast_mm_init(struct ast_private *ast)
 {
 	struct drm_device *dev = &ast->base;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	u32 vram_size;
 	int ret;
 
 	vram_size = ast_get_vram_size(ast);
 
-	ret = drmm_vram_helper_init(dev, pci_resource_start(dev->pdev, 0),
-				    vram_size);
+	ret = drmm_vram_helper_init(dev, pci_resource_start(pdev, 0), vram_size);
 	if (ret) {
 		drm_err(dev, "Error initializing VRAM MM; %d\n", ret);
 		return ret;
 	}
 
-	arch_io_reserve_memtype_wc(pci_resource_start(dev->pdev, 0),
-				   pci_resource_len(dev->pdev, 0));
-	ast->fb_mtrr = arch_phys_wc_add(pci_resource_start(dev->pdev, 0),
-					pci_resource_len(dev->pdev, 0));
+	arch_io_reserve_memtype_wc(pci_resource_start(pdev, 0),
+				   pci_resource_len(pdev, 0));
+	ast->fb_mtrr = arch_phys_wc_add(pci_resource_start(pdev, 0),
+					pci_resource_len(pdev, 0));
 
 	return drmm_add_action_or_reset(dev, ast_mm_release, NULL);
 }

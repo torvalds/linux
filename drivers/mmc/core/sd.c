@@ -860,7 +860,7 @@ try_again:
 	return err;
 }
 
-int mmc_sd_get_csd(struct mmc_host *host, struct mmc_card *card)
+int mmc_sd_get_csd(struct mmc_card *card)
 {
 	int err;
 
@@ -1046,7 +1046,7 @@ retry:
 	}
 
 	if (!oldcard) {
-		err = mmc_sd_get_csd(host, card);
+		err = mmc_sd_get_csd(card);
 		if (err)
 			goto free_card;
 

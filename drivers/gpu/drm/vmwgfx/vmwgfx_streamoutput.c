@@ -99,7 +99,7 @@ static int vmw_dx_streamoutput_unscrub(struct vmw_resource *res)
 	if (!list_empty(&so->cotable_head) || !so->committed )
 		return 0;
 
-	cmd = VMW_FIFO_RESERVE_DX(dev_priv, sizeof(*cmd), so->ctx->id);
+	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), so->ctx->id);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -109,7 +109,7 @@ static int vmw_dx_streamoutput_unscrub(struct vmw_resource *res)
 	cmd->body.mobid = res->backup->base.mem.start;
 	cmd->body.offsetInBytes = res->backup_offset;
 	cmd->body.sizeInBytes = so->size;
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	vmw_cotable_add_resource(so->cotable, &so->cotable_head);
 
@@ -172,7 +172,7 @@ static int vmw_dx_streamoutput_scrub(struct vmw_resource *res)
 
 	WARN_ON_ONCE(!so->committed);
 
-	cmd = VMW_FIFO_RESERVE_DX(dev_priv, sizeof(*cmd), so->ctx->id);
+	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), so->ctx->id);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -182,7 +182,7 @@ static int vmw_dx_streamoutput_scrub(struct vmw_resource *res)
 	cmd->body.mobid = SVGA3D_INVALID_ID;
 	cmd->body.offsetInBytes = 0;
 	cmd->body.sizeInBytes = so->size;
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	res->id = -1;
 	list_del_init(&so->cotable_head);

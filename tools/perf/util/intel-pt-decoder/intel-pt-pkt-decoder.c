@@ -16,8 +16,6 @@
 
 #define BIT63		((uint64_t)1 << 63)
 
-#define NR_FLAG		BIT63
-
 #if __BYTE_ORDER == __BIG_ENDIAN
 #define le16_to_cpu bswap_16
 #define le32_to_cpu bswap_32
@@ -106,9 +104,7 @@ static int intel_pt_get_pip(const unsigned char *buf, size_t len,
 
 	packet->type = INTEL_PT_PIP;
 	memcpy_le64(&payload, buf + 2, 6);
-	packet->payload = payload >> 1;
-	if (payload & 1)
-		packet->payload |= NR_FLAG;
+	packet->payload = payload;
 
 	return 8;
 }
@@ -719,10 +715,10 @@ int intel_pt_pkt_desc(const struct intel_pt_pkt *packet, char *buf,
 				name, (unsigned)(payload >> 1) & 1,
 				(unsigned)payload & 1);
 	case INTEL_PT_PIP:
-		nr = packet->payload & NR_FLAG ? 1 : 0;
-		payload &= ~NR_FLAG;
+		nr = packet->payload & INTEL_PT_VMX_NR_FLAG ? 1 : 0;
+		payload &= ~INTEL_PT_VMX_NR_FLAG;
 		ret = snprintf(buf, buf_len, "%s 0x%llx (NR=%d)",
-			       name, payload, nr);
+			       name, payload >> 1, nr);
 		return ret;
 	case INTEL_PT_PTWRITE:
 		return snprintf(buf, buf_len, "%s 0x%llx IP:0", name, payload);

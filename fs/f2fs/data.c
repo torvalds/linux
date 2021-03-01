@@ -969,8 +969,7 @@ static struct bio *f2fs_grab_read_bio(struct inode *inode, block_t blkaddr,
 	unsigned int post_read_steps = 0;
 
 	bio = bio_alloc_bioset(for_write ? GFP_NOIO : GFP_KERNEL,
-			       min_t(int, nr_pages, BIO_MAX_PAGES),
-			       &f2fs_bioset);
+			       bio_max_segs(nr_pages), &f2fs_bioset);
 	if (!bio)
 		return ERR_PTR(-ENOMEM);
 

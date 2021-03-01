@@ -99,6 +99,10 @@ static const char *id_str[PERF_STAT_EVSEL_ID__MAX] = {
 	ID(TOPDOWN_BAD_SPEC, topdown-bad-spec),
 	ID(TOPDOWN_FE_BOUND, topdown-fe-bound),
 	ID(TOPDOWN_BE_BOUND, topdown-be-bound),
+	ID(TOPDOWN_HEAVY_OPS, topdown-heavy-ops),
+	ID(TOPDOWN_BR_MISPREDICT, topdown-br-mispredict),
+	ID(TOPDOWN_FETCH_LAT, topdown-fetch-lat),
+	ID(TOPDOWN_MEM_BOUND, topdown-mem-bound),
 	ID(SMI_NUM, msr/smi/),
 	ID(APERF, msr/aperf/),
 };
@@ -527,7 +531,7 @@ int create_perf_stat_counter(struct evsel *evsel,
 	if (leader->core.nr_members > 1)
 		attr->read_format |= PERF_FORMAT_ID|PERF_FORMAT_GROUP;
 
-	attr->inherit = !config->no_inherit;
+	attr->inherit = !config->no_inherit && list_empty(&evsel->bpf_counter_list);
 
 	/*
 	 * Some events get initialized with sample_(period/type) set,

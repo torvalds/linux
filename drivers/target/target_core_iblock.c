@@ -315,10 +315,8 @@ iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num, int op,
 	 * Only allocate as many vector entries as the bio code allows us to,
 	 * we'll loop later on until we have handled the whole request.
 	 */
-	if (sg_num > BIO_MAX_PAGES)
-		sg_num = BIO_MAX_PAGES;
-
-	bio = bio_alloc_bioset(GFP_NOIO, sg_num, &ib_dev->ibd_bio_set);
+	bio = bio_alloc_bioset(GFP_NOIO, bio_max_segs(sg_num),
+				&ib_dev->ibd_bio_set);
 	if (!bio) {
 		pr_err("Unable to allocate memory for bio\n");
 		return NULL;
@@ -638,8 +636,7 @@ iblock_alloc_bip(struct se_cmd *cmd, struct bio *bio,
 		return -ENODEV;
 	}
 
-	bip = bio_integrity_alloc(bio, GFP_NOIO,
-			min_t(unsigned int, cmd->t_prot_nents, BIO_MAX_PAGES));
+	bip = bio_integrity_alloc(bio, GFP_NOIO, bio_max_segs(cmd->t_prot_nents));
 	if (IS_ERR(bip)) {
 		pr_err("Unable to allocate bio_integrity_payload\n");
 		return PTR_ERR(bip);

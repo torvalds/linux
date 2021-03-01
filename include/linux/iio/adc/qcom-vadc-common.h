@@ -158,6 +158,9 @@ int qcom_adc5_hw_scale(enum vadc_scale_fn_type scaletype,
 		    const struct adc5_data *data,
 		    u16 adc_code, int *result_mdec);
 
+u16 qcom_adc_tm5_temp_volt_scale(unsigned int prescale_ratio,
+				 u32 full_scale_code_volt, int temp);
+
 int qcom_adc5_prescaling_from_dt(u32 num, u32 den);
 
 int qcom_adc5_hw_settle_time_from_dt(u32 value, const unsigned int *hw_settle);

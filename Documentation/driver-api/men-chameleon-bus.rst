@@ -18,6 +18,7 @@ MEN Chameleon Bus
        4.1 The driver structure
        4.2 Probing and attaching
        4.3 Initializing the driver
+       4.4 Using DMA
 
 
 Introduction
@@ -173,3 +174,14 @@ module at the MCB core::
 The module_mcb_driver() macro can be used to reduce the above code::
 
 	module_mcb_driver(foo_driver);
+
+Using DMA
+---------
+
+To make use of the kernel's DMA-API's function, you will need to use the
+carrier device's 'struct device'. Fortunately 'struct mcb_device' embeds a
+pointer (->dma_dev) to the carrier's device for DMA purposes::
+
+        ret = dma_set_mask_and_coherent(&mdev->dma_dev, DMA_BIT_MASK(dma_bits));
+        if (rc)
+                /* Handle errors */
