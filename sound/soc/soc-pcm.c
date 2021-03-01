@@ -1526,23 +1526,40 @@ unwind:
 	return err;
 }
 
-static void dpcm_init_runtime_hw(struct snd_pcm_runtime *runtime,
-				 struct snd_soc_pcm_stream *stream)
-{
-	struct snd_pcm_hardware *hw = &runtime->hw;
-
-	soc_pcm_hw_update_rate(hw, stream);
-	soc_pcm_hw_update_chan(hw, stream);
-	if (runtime->hw.formats)
-		runtime->hw.formats &= stream->formats;
-	else
-		runtime->hw.formats = stream->formats;
-}
-
-static void dpcm_runtime_merge_format(struct snd_pcm_substream *substream,
-				      struct snd_pcm_runtime *runtime)
+static void dpcm_runtime_setup_fe(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *fe = asoc_substream_to_rtd(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_pcm_hardware *hw = &runtime->hw;
+	struct snd_soc_dai *dai;
+	int stream = substream->stream;
+	int i;
+
+	soc_pcm_hw_init(hw);
+
+	for_each_rtd_cpu_dais(fe, i, dai) {
+		struct snd_soc_pcm_stream *cpu_stream;
+
+		/*
+		 * Skip CPUs which don't support the current stream
+		 * type. See soc_pcm_init_runtime_hw() for more details
+		 */
+		if (!snd_soc_dai_stream_valid(dai, stream))
+			continue;
+
+		cpu_stream = snd_soc_dai_get_pcm_stream(dai, stream);
+
+		soc_pcm_hw_update_rate(hw, cpu_stream);
+		soc_pcm_hw_update_chan(hw, cpu_stream);
+		soc_pcm_hw_update_format(hw, cpu_stream);
+	}
+
+}
+
+static void dpcm_runtime_setup_be_format(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *fe = asoc_substream_to_rtd(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_pcm_hardware *hw = &runtime->hw;
 	struct snd_soc_dpcm *dpcm;
 	struct snd_soc_dai *dai;
@@ -1576,10 +1593,10 @@ static void dpcm_runtime_merge_format(struct snd_pcm_substream *substream,
 	}
 }
 
-static void dpcm_runtime_merge_chan(struct snd_pcm_substream *substream,
-				    struct snd_pcm_runtime *runtime)
+static void dpcm_runtime_setup_be_chan(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *fe = asoc_substream_to_rtd(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_pcm_hardware *hw = &runtime->hw;
 	struct snd_soc_dpcm *dpcm;
 	int stream = substream->stream;
@@ -1624,10 +1641,10 @@ static void dpcm_runtime_merge_chan(struct snd_pcm_substream *substream,
 	}
 }
 
-static void dpcm_runtime_merge_rate(struct snd_pcm_substream *substream,
-				    struct snd_pcm_runtime *runtime)
+static void dpcm_runtime_setup_be_rate(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *fe = asoc_substream_to_rtd(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_pcm_hardware *hw = &runtime->hw;
 	struct snd_soc_dpcm *dpcm;
 	int stream = substream->stream;
@@ -1659,34 +1676,6 @@ static void dpcm_runtime_merge_rate(struct snd_pcm_substream *substream,
 			soc_pcm_hw_update_rate(hw, pcm);
 		}
 	}
-}
-
-static void dpcm_set_fe_runtime(struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_pcm_hardware *hw = &runtime->hw;
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai *cpu_dai;
-	int i;
-
-	soc_pcm_hw_init(hw);
-
-	for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
-		/*
-		 * Skip CPUs which don't support the current stream
-		 * type. See soc_pcm_init_runtime_hw() for more details
-		 */
-		if (!snd_soc_dai_stream_valid(cpu_dai, substream->stream))
-			continue;
-
-		dpcm_init_runtime_hw(runtime,
-			snd_soc_dai_get_pcm_stream(cpu_dai,
-						   substream->stream));
-	}
-
-	dpcm_runtime_merge_format(substream, runtime);
-	dpcm_runtime_merge_chan(substream, runtime);
-	dpcm_runtime_merge_rate(substream, runtime);
 }
 
 static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
@@ -1768,7 +1757,11 @@ static int dpcm_fe_dai_startup(struct snd_pcm_substream *fe_substream)
 
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_OPEN;
 
-	dpcm_set_fe_runtime(fe_substream);
+	dpcm_runtime_setup_fe(fe_substream);
+
+	dpcm_runtime_setup_be_format(fe_substream);
+	dpcm_runtime_setup_be_chan(fe_substream);
+	dpcm_runtime_setup_be_rate(fe_substream);
 
 	ret = dpcm_apply_symmetry(fe_substream, stream);
 	if (ret < 0)
