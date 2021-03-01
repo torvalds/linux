@@ -44,7 +44,7 @@ static u8 TxTsDeleteBA(struct rtllib_device *ieee, struct tx_ts_record *pTxTs)
 
 static u8 RxTsDeleteBA(struct rtllib_device *ieee, struct rx_ts_record *pRxTs)
 {
-	struct ba_record *pBa = &pRxTs->RxAdmittedBARecord;
+	struct ba_record *pBa = &pRxTs->rx_admitted_ba_record;
 	u8			bSendDELBA = false;
 
 	if (pBa->b_valid) {
@@ -265,7 +265,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 		netdev_warn(ieee->dev, "%s(): can't get TS\n", __func__);
 		goto OnADDBAReq_Fail;
 	}
-	pBA = &pTS->RxAdmittedBARecord;
+	pBA = &pTS->rx_admitted_ba_record;
 
 	if (pBaParamSet->field.ba_policy == BA_POLICY_DELAYED) {
 		rc = ADDBA_STATUS_INVALID_PARAM;
@@ -514,7 +514,7 @@ void TsInitDelBA(struct rtllib_device *ieee,
 				 (struct rx_ts_record *)pTsCommonInfo;
 		if (RxTsDeleteBA(ieee, pRxTs))
 			rtllib_send_DELBA(ieee, pTsCommonInfo->Addr,
-					  &pRxTs->RxAdmittedBARecord,
+					  &pRxTs->rx_admitted_ba_record,
 					  TxRxSelect, DELBA_REASON_END_BA);
 	}
 }
@@ -544,12 +544,12 @@ void TxBaInactTimeout(struct timer_list *t)
 void RxBaInactTimeout(struct timer_list *t)
 {
 	struct rx_ts_record *pRxTs = from_timer(pRxTs, t,
-					      RxAdmittedBARecord.timer);
+					      rx_admitted_ba_record.timer);
 	struct rtllib_device *ieee = container_of(pRxTs, struct rtllib_device,
 				     RxTsRecord[pRxTs->num]);
 
 	RxTsDeleteBA(ieee, pRxTs);
 	rtllib_send_DELBA(ieee, pRxTs->ts_common_info.Addr,
-			  &pRxTs->RxAdmittedBARecord, RX_DIR,
+			  &pRxTs->rx_admitted_ba_record, RX_DIR,
 			  DELBA_REASON_TIMEOUT);
 }

@@ -126,7 +126,7 @@ static void ResetRxTsEntry(struct rx_ts_record *pTS)
 	ResetTsCommonInfo(&pTS->ts_common_info);
 	pTS->rx_indicate_seq = 0xffff;
 	pTS->rx_timeout_indicate_seq = 0xffff;
-	ResetBaEntry(&pTS->RxAdmittedBARecord);
+	ResetBaEntry(&pTS->rx_admitted_ba_record);
 }
 
 void TSInitialize(struct rtllib_device *ieee)
@@ -175,7 +175,7 @@ void TSInitialize(struct rtllib_device *ieee)
 		timer_setup(&pRxTS->ts_common_info.InactTimer, TsInactTimeout,
 			    0);
 
-		timer_setup(&pRxTS->RxAdmittedBARecord.timer,
+		timer_setup(&pRxTS->rx_admitted_ba_record.timer,
 			    RxBaInactTimeout, 0);
 
 		timer_setup(&pRxTS->rx_pkt_pending_timer, RxPktPendingTimeout, 0);
