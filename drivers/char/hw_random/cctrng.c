@@ -585,7 +585,7 @@ static int cctrng_probe(struct platform_device *pdev)
 	atomic_set(&drvdata->pending_hw, 1);
 
 	/* registration of the hwrng device */
-	rc = hwrng_register(&drvdata->rng);
+	rc = devm_hwrng_register(dev, &drvdata->rng);
 	if (rc) {
 		dev_err(dev, "Could not register hwrng device.\n");
 		goto post_pm_err;
@@ -617,8 +617,6 @@ static int cctrng_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 
 	dev_dbg(dev, "Releasing cctrng resources...\n");
-
-	hwrng_unregister(&drvdata->rng);
 
 	cc_trng_pm_fini(drvdata);
 
