@@ -14,6 +14,9 @@
 
 #define LOWCOMMS_MAX_TX_BUFFER_LEN	4096
 
+/* switch to check if dlm is running */
+extern int dlm_allow_conn;
+
 int dlm_lowcomms_start(void);
 void dlm_lowcomms_stop(void);
 void dlm_lowcomms_exit(void);
