@@ -324,8 +324,6 @@ struct ufs_pwr_mode_info {
  * @device_reset: called to issue a reset pulse on the UFS device
  * @program_key: program or evict an inline encryption key
  * @event_notify: called to notify important events
- * @fill_prdt: called after initializing the standard PRDT fields so that any
- *	       variant-specific PRDT fields can be initialized too
  */
 struct ufs_hba_variant_ops {
 	const char *name;
@@ -362,8 +360,6 @@ struct ufs_hba_variant_ops {
 			       const union ufs_crypto_cfg_entry *cfg, int slot);
 	void	(*event_notify)(struct ufs_hba *hba,
 				enum ufs_event_type evt, void *data);
-	int	(*fill_prdt)(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
-			     unsigned int segments);
 };
 
 /* clock gating state  */
@@ -1266,16 +1262,6 @@ static inline void ufshcd_vops_config_scaling_param(struct ufs_hba *hba,
 {
 	if (hba->vops && hba->vops->config_scaling_param)
 		hba->vops->config_scaling_param(hba, profile, data);
-}
-
-static inline int ufshcd_vops_fill_prdt(struct ufs_hba *hba,
-					struct ufshcd_lrb *lrbp,
-					unsigned int segments)
-{
-	if (hba->vops && hba->vops->fill_prdt)
-		return hba->vops->fill_prdt(hba, lrbp, segments);
-
-	return 0;
 }
 
 extern struct ufs_pm_lvl_states ufs_pm_lvl_states[];

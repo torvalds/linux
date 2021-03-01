@@ -2256,6 +2256,7 @@ static int ufshcd_map_sg(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 	struct scsi_cmnd *cmd;
 	int sg_segments;
 	int i;
+	int err;
 
 	cmd = lrbp->cmd;
 	sg_segments = scsi_dma_map(cmd);
@@ -2287,7 +2288,9 @@ static int ufshcd_map_sg(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 		lrbp->utr_descriptor_ptr->prd_table_length = 0;
 	}
 
-	return ufshcd_vops_fill_prdt(hba, lrbp, sg_segments);
+	err = 0;
+	trace_android_vh_ufs_fill_prdt(hba, lrbp, sg_segments, &err);
+	return err;
 }
 
 /**
