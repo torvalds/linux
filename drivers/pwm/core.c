@@ -596,7 +596,7 @@ int pwm_apply_state(struct pwm_device *pwm, const struct pwm_state *state)
 		 */
 		if (state->polarity != pwm->state.polarity) {
 			if (!chip->ops->set_polarity)
-				return -ENOTSUPP;
+				return -EINVAL;
 
 			/*
 			 * Changing the polarity of a running PWM is
