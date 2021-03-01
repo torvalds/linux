@@ -794,22 +794,22 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 
 	rqstp->rq_xprt_ctxt = NULL;
 
+	ctxt = NULL;
 	spin_lock(&rdma_xprt->sc_rq_dto_lock);
 	ctxt = svc_rdma_next_recv_ctxt(&rdma_xprt->sc_rq_dto_q);
-	if (!ctxt) {
+	if (ctxt)
+		list_del(&ctxt->rc_list);
+	else
 		/* No new incoming requests, terminate the loop */
 		clear_bit(XPT_DATA, &xprt->xpt_flags);
-		spin_unlock(&rdma_xprt->sc_rq_dto_lock);
-		svc_xprt_received(xprt);
-		return 0;
-	}
-	list_del(&ctxt->rc_list);
 	spin_unlock(&rdma_xprt->sc_rq_dto_lock);
-	percpu_counter_inc(&svcrdma_stat_recv);
 
 	/* Unblock the transport for the next receive */
 	svc_xprt_received(xprt);
+	if (!ctxt)
+		return 0;
 
+	percpu_counter_inc(&svcrdma_stat_recv);
 	ib_dma_sync_single_for_cpu(rdma_xprt->sc_pd->device,
 				   ctxt->rc_recv_sge.addr, ctxt->rc_byte_len,
 				   DMA_FROM_DEVICE);
