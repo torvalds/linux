@@ -346,11 +346,24 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
+static void dt2814_detach(struct comedi_device *dev)
+{
+	if (dev->irq) {
+		/*
+		 * An extra conversion triggered on termination of an
+		 * asynchronous command may still be in progress.  Wait for
+		 * it to finish and clear the data or error status.
+		 */
+		dt2814_ai_clear(dev);
+	}
+	comedi_legacy_detach(dev);
+}
+
 static struct comedi_driver dt2814_driver = {
 	.driver_name	= "dt2814",
 	.module		= THIS_MODULE,
 	.attach		= dt2814_attach,
-	.detach		= comedi_legacy_detach,
+	.detach		= dt2814_detach,
 };
 module_comedi_driver(dt2814_driver);
 
