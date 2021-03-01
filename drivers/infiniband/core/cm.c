@@ -202,7 +202,7 @@ static struct attribute *cm_counter_default_attrs[] = {
 struct cm_port {
 	struct cm_device *cm_dev;
 	struct ib_mad_agent *mad_agent;
-	u8 port_num;
+	u32 port_num;
 	struct list_head cm_priv_prim_list;
 	struct list_head cm_priv_altr_list;
 	struct cm_counter_group counter_group[CM_COUNTER_GROUPS];
@@ -1631,7 +1631,7 @@ static bool cm_req_has_alt_path(struct cm_req_msg *req_msg)
 					       req_msg))));
 }
 
-static void cm_path_set_rec_type(struct ib_device *ib_device, u8 port_num,
+static void cm_path_set_rec_type(struct ib_device *ib_device, u32 port_num,
 				 struct sa_path_rec *path, union ib_gid *gid)
 {
 	if (ib_is_opa_gid(gid) && rdma_cap_opa_ah(ib_device, port_num))
@@ -1750,7 +1750,7 @@ static void cm_format_paths_from_req(struct cm_req_msg *req_msg,
 static u16 cm_get_bth_pkey(struct cm_work *work)
 {
 	struct ib_device *ib_dev = work->port->cm_dev->ib_device;
-	u8 port_num = work->port->port_num;
+	u32 port_num = work->port->port_num;
 	u16 pkey_index = work->mad_recv_wc->wc->pkey_index;
 	u16 pkey;
 	int ret;
@@ -1778,7 +1778,7 @@ static void cm_opa_to_ib_sgid(struct cm_work *work,
 			      struct sa_path_rec *path)
 {
 	struct ib_device *dev = work->port->cm_dev->ib_device;
-	u8 port_num = work->port->port_num;
+	u32 port_num = work->port->port_num;
 
 	if (rdma_cap_opa_ah(dev, port_num) &&
 	    (ib_is_opa_gid(&path->sgid))) {
@@ -4334,7 +4334,7 @@ static int cm_add_one(struct ib_device *ib_device)
 	unsigned long flags;
 	int ret;
 	int count = 0;
-	unsigned int i;
+	u32 i;
 
 	cm_dev = kzalloc(struct_size(cm_dev, port, ib_device->phys_port_cnt),
 			 GFP_KERNEL);
@@ -4432,7 +4432,7 @@ static void cm_remove_one(struct ib_device *ib_device, void *client_data)
 		.clr_port_cap_mask = IB_PORT_CM_SUP
 	};
 	unsigned long flags;
-	unsigned int i;
+	u32 i;
 
 	write_lock_irqsave(&cm.device_lock, flags);
 	list_del(&cm_dev->list);

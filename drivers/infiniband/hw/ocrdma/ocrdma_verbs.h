@@ -53,13 +53,14 @@ int ocrdma_arm_cq(struct ib_cq *, enum ib_cq_notify_flags flags);
 
 int ocrdma_query_device(struct ib_device *, struct ib_device_attr *props,
 			struct ib_udata *uhw);
-int ocrdma_query_port(struct ib_device *, u8 port, struct ib_port_attr *props);
+int ocrdma_query_port(struct ib_device *ibdev, u32 port,
+		      struct ib_port_attr *props);
 
 enum rdma_protocol_type
-ocrdma_query_protocol(struct ib_device *device, u8 port_num);
+ocrdma_query_protocol(struct ib_device *device, u32 port_num);
 
 void ocrdma_get_guid(struct ocrdma_dev *, u8 *guid);
-int ocrdma_query_pkey(struct ib_device *, u8 port, u16 index, u16 *pkey);
+int ocrdma_query_pkey(struct ib_device *ibdev, u32 port, u16 index, u16 *pkey);
 
 int ocrdma_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata);
 void ocrdma_dealloc_ucontext(struct ib_ucontext *uctx);

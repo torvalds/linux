@@ -162,7 +162,7 @@ static void node_desc_override(struct ib_device *dev,
 }
 
 static void forward_trap(struct mthca_dev *dev,
-			 u8 port_num,
+			 u32 port_num,
 			 const struct ib_mad *mad)
 {
 	int qpn = mad->mad_hdr.mgmt_class != IB_MGMT_CLASS_SUBN_LID_ROUTED;
@@ -196,7 +196,7 @@ static void forward_trap(struct mthca_dev *dev,
 	}
 }
 
-int mthca_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
+int mthca_process_mad(struct ib_device *ibdev, int mad_flags, u32 port_num,
 		      const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 		      const struct ib_mad *in, struct ib_mad *out,
 		      size_t *out_mad_size, u16 *out_mad_pkey_index)

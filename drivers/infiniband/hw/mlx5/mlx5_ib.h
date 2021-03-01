@@ -406,7 +406,7 @@ struct mlx5_ib_qp_base {
 struct mlx5_ib_qp_trans {
 	struct mlx5_ib_qp_base	base;
 	u16			xrcdn;
-	u8			alt_port;
+	u32			alt_port;
 	u8			atomic_rd_en;
 	u8			resp_depth;
 };
@@ -453,7 +453,7 @@ struct mlx5_ib_dct {
 
 struct mlx5_ib_gsi_qp {
 	struct ib_qp *rx_qp;
-	u8 port_num;
+	u32 port_num;
 	struct ib_qp_cap cap;
 	struct ib_cq *cq;
 	struct mlx5_ib_gsi_wr *outstanding_wrs;
@@ -490,7 +490,7 @@ struct mlx5_ib_qp {
 	struct mutex		mutex;
 	/* cached variant of create_flags from struct ib_qp_init_attr */
 	u32			flags;
-	u8			port;
+	u32			port;
 	u8			state;
 	int			max_inline_data;
 	struct mlx5_bf	        bf;
@@ -839,7 +839,7 @@ struct mlx5_roce {
 	atomic_t		tx_port_affinity;
 	enum ib_port_state last_port_state;
 	struct mlx5_ib_dev	*dev;
-	u8			native_port_num;
+	u32			native_port_num;
 };
 
 struct mlx5_ib_port {
@@ -854,7 +854,7 @@ struct mlx5_ib_dbg_param {
 	int			offset;
 	struct mlx5_ib_dev	*dev;
 	struct dentry		*dentry;
-	u8			port_num;
+	u32			port_num;
 };
 
 enum mlx5_ib_dbg_cc_types {
@@ -1302,7 +1302,7 @@ int mlx5_ib_map_mr_sg_pi(struct ib_mr *ibmr, struct scatterlist *data_sg,
 			 int data_sg_nents, unsigned int *data_sg_offset,
 			 struct scatterlist *meta_sg, int meta_sg_nents,
 			 unsigned int *meta_sg_offset);
-int mlx5_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
+int mlx5_ib_process_mad(struct ib_device *ibdev, int mad_flags, u32 port_num,
 			const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 			const struct ib_mad *in, struct ib_mad *out,
 			size_t *out_mad_size, u16 *out_mad_pkey_index);
@@ -1317,13 +1317,13 @@ int mlx5_query_mad_ifc_vendor_id(struct ib_device *ibdev,
 				 u32 *vendor_id);
 int mlx5_query_mad_ifc_node_desc(struct mlx5_ib_dev *dev, char *node_desc);
 int mlx5_query_mad_ifc_node_guid(struct mlx5_ib_dev *dev, __be64 *node_guid);
-int mlx5_query_mad_ifc_pkey(struct ib_device *ibdev, u8 port, u16 index,
+int mlx5_query_mad_ifc_pkey(struct ib_device *ibdev, u32 port, u16 index,
 			    u16 *pkey);
-int mlx5_query_mad_ifc_gids(struct ib_device *ibdev, u8 port, int index,
+int mlx5_query_mad_ifc_gids(struct ib_device *ibdev, u32 port, int index,
 			    union ib_gid *gid);
-int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u8 port,
+int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u32 port,
 			    struct ib_port_attr *props);
-int mlx5_ib_query_port(struct ib_device *ibdev, u8 port,
+int mlx5_ib_query_port(struct ib_device *ibdev, u32 port,
 		       struct ib_port_attr *props);
 void mlx5_ib_populate_pas(struct ib_umem *umem, size_t page_size, __be64 *pas,
 			  u64 access_flags);
@@ -1418,22 +1418,22 @@ int __mlx5_ib_add(struct mlx5_ib_dev *dev,
 		  const struct mlx5_ib_profile *profile);
 
 int mlx5_ib_get_vf_config(struct ib_device *device, int vf,
-			  u8 port, struct ifla_vf_info *info);
+			  u32 port, struct ifla_vf_info *info);
 int mlx5_ib_set_vf_link_state(struct ib_device *device, int vf,
-			      u8 port, int state);
+			      u32 port, int state);
 int mlx5_ib_get_vf_stats(struct ib_device *device, int vf,
-			 u8 port, struct ifla_vf_stats *stats);
-int mlx5_ib_get_vf_guid(struct ib_device *device, int vf, u8 port,
+			 u32 port, struct ifla_vf_stats *stats);
+int mlx5_ib_get_vf_guid(struct ib_device *device, int vf, u32 port,
 			struct ifla_vf_guid *node_guid,
 			struct ifla_vf_guid *port_guid);
-int mlx5_ib_set_vf_guid(struct ib_device *device, int vf, u8 port,
+int mlx5_ib_set_vf_guid(struct ib_device *device, int vf, u32 port,
 			u64 guid, int type);
 
 __be16 mlx5_get_roce_udp_sport_min(const struct mlx5_ib_dev *dev,
 				   const struct ib_gid_attr *attr);
 
-void mlx5_ib_cleanup_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num);
-void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num);
+void mlx5_ib_cleanup_cong_debugfs(struct mlx5_ib_dev *dev, u32 port_num);
+void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u32 port_num);
 
 /* GSI QP helper functions */
 int mlx5_ib_create_gsi(struct ib_pd *pd, struct mlx5_ib_qp *mqp,
@@ -1456,10 +1456,10 @@ void mlx5_ib_free_bfreg(struct mlx5_ib_dev *dev, struct mlx5_bfreg_info *bfregi,
 			int bfregn);
 struct mlx5_ib_dev *mlx5_ib_get_ibdev_from_mpi(struct mlx5_ib_multiport_info *mpi);
 struct mlx5_core_dev *mlx5_ib_get_native_port_mdev(struct mlx5_ib_dev *dev,
-						   u8 ib_port_num,
-						   u8 *native_port_num);
+						   u32 ib_port_num,
+						   u32 *native_port_num);
 void mlx5_ib_put_native_port_mdev(struct mlx5_ib_dev *dev,
-				  u8 port_num);
+				  u32 port_num);
 
 extern const struct uapi_definition mlx5_ib_devx_defs[];
 extern const struct uapi_definition mlx5_ib_flow_defs[];

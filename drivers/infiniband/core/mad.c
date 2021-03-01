@@ -61,7 +61,7 @@ static void create_mad_addr_info(struct ib_mad_send_wr_private *mad_send_wr,
 {
 	u16 pkey;
 	struct ib_device *dev = qp_info->port_priv->device;
-	u8 pnum = qp_info->port_priv->port_num;
+	u32 pnum = qp_info->port_priv->port_num;
 	struct ib_ud_wr *wr = &mad_send_wr->send_wr;
 	struct rdma_ah_attr attr = {};
 
@@ -118,7 +118,7 @@ static void ib_mad_send_done(struct ib_cq *cq, struct ib_wc *wc);
  * Assumes ib_mad_port_list_lock is being held
  */
 static inline struct ib_mad_port_private *
-__ib_get_mad_port(struct ib_device *device, int port_num)
+__ib_get_mad_port(struct ib_device *device, u32 port_num)
 {
 	struct ib_mad_port_private *entry;
 
@@ -134,7 +134,7 @@ __ib_get_mad_port(struct ib_device *device, int port_num)
  * for a device/port
  */
 static inline struct ib_mad_port_private *
-ib_get_mad_port(struct ib_device *device, int port_num)
+ib_get_mad_port(struct ib_device *device, u32 port_num)
 {
 	struct ib_mad_port_private *entry;
 	unsigned long flags;
@@ -222,7 +222,7 @@ EXPORT_SYMBOL(ib_response_mad);
  * Context: Process context.
  */
 struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
-					   u8 port_num,
+					   u32 port_num,
 					   enum ib_qp_type qp_type,
 					   struct ib_mad_reg_req *mad_reg_req,
 					   u8 rmpp_version,
@@ -549,7 +549,7 @@ static void dequeue_mad(struct ib_mad_list_head *mad_list)
 }
 
 static void build_smp_wc(struct ib_qp *qp, struct ib_cqe *cqe, u16 slid,
-		u16 pkey_index, u8 port_num, struct ib_wc *wc)
+		u16 pkey_index, u32 port_num, struct ib_wc *wc)
 {
 	memset(wc, 0, sizeof *wc);
 	wc->wr_cqe = cqe;
@@ -608,7 +608,7 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	struct ib_mad_port_private *port_priv;
 	struct ib_mad_agent_private *recv_mad_agent = NULL;
 	struct ib_device *device = mad_agent_priv->agent.device;
-	u8 port_num;
+	u32 port_num;
 	struct ib_wc mad_wc;
 	struct ib_ud_wr *send_wr = &mad_send_wr->send_wr;
 	size_t mad_size = port_mad_size(mad_agent_priv->qp_info->port_priv);
@@ -1613,7 +1613,7 @@ out:
 
 	if (mad_agent && !mad_agent->agent.recv_handler) {
 		dev_notice(&port_priv->device->dev,
-			   "No receive handler for client %p on port %d\n",
+			   "No receive handler for client %p on port %u\n",
 			   &mad_agent->agent, port_priv->port_num);
 		deref_mad_agent(mad_agent);
 		mad_agent = NULL;
@@ -1685,7 +1685,7 @@ static inline int rcv_has_same_gid(const struct ib_mad_agent_private *mad_agent_
 	u8 send_resp, rcv_resp;
 	union ib_gid sgid;
 	struct ib_device *device = mad_agent_priv->agent.device;
-	u8 port_num = mad_agent_priv->agent.port_num;
+	u32 port_num = mad_agent_priv->agent.port_num;
 	u8 lmc;
 	bool has_grh;
 
@@ -1867,7 +1867,7 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 static enum smi_action handle_ib_smi(const struct ib_mad_port_private *port_priv,
 				     const struct ib_mad_qp_info *qp_info,
 				     const struct ib_wc *wc,
-				     int port_num,
+				     u32 port_num,
 				     struct ib_mad_private *recv,
 				     struct ib_mad_private *response)
 {
@@ -1954,7 +1954,7 @@ static enum smi_action
 handle_opa_smi(struct ib_mad_port_private *port_priv,
 	       struct ib_mad_qp_info *qp_info,
 	       struct ib_wc *wc,
-	       int port_num,
+	       u32 port_num,
 	       struct ib_mad_private *recv,
 	       struct ib_mad_private *response)
 {
@@ -2010,7 +2010,7 @@ static enum smi_action
 handle_smi(struct ib_mad_port_private *port_priv,
 	   struct ib_mad_qp_info *qp_info,
 	   struct ib_wc *wc,
-	   int port_num,
+	   u32 port_num,
 	   struct ib_mad_private *recv,
 	   struct ib_mad_private *response,
 	   bool opa)
@@ -2034,7 +2034,7 @@ static void ib_mad_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct ib_mad_private_header *mad_priv_hdr;
 	struct ib_mad_private *recv, *response = NULL;
 	struct ib_mad_agent_private *mad_agent;
-	int port_num;
+	u32 port_num;
 	int ret = IB_MAD_RESULT_SUCCESS;
 	size_t mad_size;
 	u16 resp_mad_pkey_index = 0;
@@ -2947,7 +2947,7 @@ static void destroy_mad_qp(struct ib_mad_qp_info *qp_info)
  * Create the QP, PD, MR, and CQ if needed
  */
 static int ib_mad_port_open(struct ib_device *device,
-			    int port_num)
+			    u32 port_num)
 {
 	int ret, cq_size;
 	struct ib_mad_port_private *port_priv;
@@ -3002,7 +3002,7 @@ static int ib_mad_port_open(struct ib_device *device,
 	if (ret)
 		goto error7;
 
-	snprintf(name, sizeof name, "ib_mad%d", port_num);
+	snprintf(name, sizeof(name), "ib_mad%u", port_num);
 	port_priv->wq = alloc_ordered_workqueue(name, WQ_MEM_RECLAIM);
 	if (!port_priv->wq) {
 		ret = -ENOMEM;
@@ -3048,7 +3048,7 @@ error3:
  * If there are no classes using the port, free the port
  * resources (CQ, MR, PD, QP) and remove the port's info structure
  */
-static int ib_mad_port_close(struct ib_device *device, int port_num)
+static int ib_mad_port_close(struct ib_device *device, u32 port_num)
 {
 	struct ib_mad_port_private *port_priv;
 	unsigned long flags;
@@ -3057,7 +3057,7 @@ static int ib_mad_port_close(struct ib_device *device, int port_num)
 	port_priv = __ib_get_mad_port(device, port_num);
 	if (port_priv == NULL) {
 		spin_unlock_irqrestore(&ib_mad_port_list_lock, flags);
-		dev_err(&device->dev, "Port %d not found\n", port_num);
+		dev_err(&device->dev, "Port %u not found\n", port_num);
 		return -ENODEV;
 	}
 	list_del_init(&port_priv->port_list);

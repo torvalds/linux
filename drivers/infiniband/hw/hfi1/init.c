@@ -627,7 +627,7 @@ static enum hrtimer_restart cca_timer_fn(struct hrtimer *t)
  * Common code for initializing the physical port structure.
  */
 void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
-			 struct hfi1_devdata *dd, u8 hw_pidx, u8 port)
+			 struct hfi1_devdata *dd, u8 hw_pidx, u32 port)
 {
 	int i;
 	uint default_pkey_idx;

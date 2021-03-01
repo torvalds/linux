@@ -63,7 +63,7 @@ struct mcast_port {
 	struct rb_root		table;
 	atomic_t		refcount;
 	struct completion	comp;
-	u8			port_num;
+	u32			port_num;
 };
 
 struct mcast_device {
@@ -605,7 +605,7 @@ found:
  */
 struct ib_sa_multicast *
 ib_sa_join_multicast(struct ib_sa_client *client,
-		     struct ib_device *device, u8 port_num,
+		     struct ib_device *device, u32 port_num,
 		     struct ib_sa_mcmember_rec *rec,
 		     ib_sa_comp_mask comp_mask, gfp_t gfp_mask,
 		     int (*callback)(int status,
@@ -690,7 +690,7 @@ void ib_sa_free_multicast(struct ib_sa_multicast *multicast)
 }
 EXPORT_SYMBOL(ib_sa_free_multicast);
 
-int ib_sa_get_mcmember_rec(struct ib_device *device, u8 port_num,
+int ib_sa_get_mcmember_rec(struct ib_device *device, u32 port_num,
 			   union ib_gid *mgid, struct ib_sa_mcmember_rec *rec)
 {
 	struct mcast_device *dev;
@@ -732,7 +732,7 @@ EXPORT_SYMBOL(ib_sa_get_mcmember_rec);
  * success or appropriate error code.
  *
  */
-int ib_init_ah_from_mcmember(struct ib_device *device, u8 port_num,
+int ib_init_ah_from_mcmember(struct ib_device *device, u32 port_num,
 			     struct ib_sa_mcmember_rec *rec,
 			     struct net_device *ndev,
 			     enum ib_gid_type gid_type,

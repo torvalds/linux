@@ -54,7 +54,7 @@
  *		GID[0][0], GID[1][0],.....GID[N - 1][0],
  *		And so on
  */
-u8 hns_get_gid_index(struct hns_roce_dev *hr_dev, u8 port, int gid_index)
+u8 hns_get_gid_index(struct hns_roce_dev *hr_dev, u32 port, int gid_index)
 {
 	return gid_index * hr_dev->caps.num_ports + port;
 }
@@ -711,7 +711,7 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 	int i, j;
 	u8 queue_en[HNS_ROCE_V1_RESV_QP] = { 0 };
 	u8 phy_port;
-	u8 port = 0;
+	u32 port = 0;
 	u8 sl;
 
 	/* Reserved cq for loop qp */
@@ -1676,7 +1676,7 @@ static int hns_roce_v1_chk_mbox(struct hns_roce_dev *hr_dev,
 	return 0;
 }
 
-static int hns_roce_v1_set_gid(struct hns_roce_dev *hr_dev, u8 port,
+static int hns_roce_v1_set_gid(struct hns_roce_dev *hr_dev, u32 port,
 			       int gid_index, const union ib_gid *gid,
 			       const struct ib_gid_attr *attr)
 {
@@ -2673,8 +2673,8 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 	int ret = -EINVAL;
 	u64 sq_ba = 0;
 	u64 rq_ba = 0;
-	int port;
-	u8 port_num;
+	u32 port;
+	u32 port_num;
 	u8 *dmac;
 	u8 *smac;
 

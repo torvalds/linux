@@ -858,7 +858,7 @@ struct hfi1_pportdata {
 	u8 rx_pol_inv;
 
 	u8 hw_pidx;     /* physical port index */
-	u8 port;        /* IB port number and index into dd->pports - 1 */
+	u32 port;        /* IB port number and index into dd->pports - 1 */
 	/* type of neighbor node */
 	u8 neighbor_type;
 	u8 neighbor_normal;
@@ -1473,7 +1473,7 @@ int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
 			 struct hfi1_ctxtdata **rcd);
 void hfi1_free_ctxt(struct hfi1_ctxtdata *rcd);
 void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
-			 struct hfi1_devdata *dd, u8 hw_pidx, u8 port);
+			 struct hfi1_devdata *dd, u8 hw_pidx, u32 port);
 void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
 int hfi1_rcd_put(struct hfi1_ctxtdata *rcd);
 int hfi1_rcd_get(struct hfi1_ctxtdata *rcd);
@@ -1969,10 +1969,10 @@ static inline struct hfi1_ibdev *dev_from_rdi(struct rvt_dev_info *rdi)
 	return container_of(rdi, struct hfi1_ibdev, rdi);
 }
 
-static inline struct hfi1_ibport *to_iport(struct ib_device *ibdev, u8 port)
+static inline struct hfi1_ibport *to_iport(struct ib_device *ibdev, u32 port)
 {
 	struct hfi1_devdata *dd = dd_from_ibdev(ibdev);
-	unsigned pidx = port - 1; /* IB number port from 1, hdw from 0 */
+	u32 pidx = port - 1; /* IB number port from 1, hdw from 0 */
 
 	WARN_ON(pidx >= dd->num_pports);
 	return &dd->pport[pidx].ibport_data;
@@ -2191,7 +2191,7 @@ extern const struct attribute_group ib_hfi1_attr_group;
 int hfi1_device_create(struct hfi1_devdata *dd);
 void hfi1_device_remove(struct hfi1_devdata *dd);
 
-int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,
+int hfi1_create_port_files(struct ib_device *ibdev, u32 port_num,
 			   struct kobject *kobj);
 int hfi1_verbs_register_sysfs(struct hfi1_devdata *dd);
 void hfi1_verbs_unregister_sysfs(struct hfi1_devdata *dd);

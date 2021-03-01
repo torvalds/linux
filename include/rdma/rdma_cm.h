@@ -107,7 +107,7 @@ struct rdma_cm_id {
 	struct rdma_route	 route;
 	enum rdma_ucm_port_space ps;
 	enum ib_qp_type		 qp_type;
-	u8			 port_num;
+	u32			 port_num;
 };
 
 struct rdma_cm_id *

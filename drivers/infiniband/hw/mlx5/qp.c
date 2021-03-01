@@ -67,7 +67,7 @@ struct mlx5_modify_raw_qp_param {
 	struct mlx5_rate_limit rl;
 
 	u8 rq_q_ctr_id;
-	u16 port;
+	u32 port;
 };
 
 static void get_cqs(enum ib_qp_type qp_type,

@@ -101,7 +101,7 @@ struct ib_umad_port {
 	struct ib_device      *ib_dev;
 	struct ib_umad_device *umad_dev;
 	int                    dev_num;
-	u8                     port_num;
+	u32                     port_num;
 };
 
 struct ib_umad_device {
@@ -1145,7 +1145,7 @@ static const struct file_operations umad_sm_fops = {
 
 static struct ib_umad_port *get_port(struct ib_device *ibdev,
 				     struct ib_umad_device *umad_dev,
-				     unsigned int port)
+				     u32 port)
 {
 	if (!umad_dev)
 		return ERR_PTR(-EOPNOTSUPP);

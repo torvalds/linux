@@ -117,11 +117,11 @@ void cma_dev_put(struct cma_device *dev);
 typedef bool (*cma_device_filter)(struct ib_device *, void *);
 struct cma_device *cma_enum_devices_by_ibdev(cma_device_filter filter,
 					     void *cookie);
-int cma_get_default_gid_type(struct cma_device *dev, unsigned int port);
-int cma_set_default_gid_type(struct cma_device *dev, unsigned int port,
+int cma_get_default_gid_type(struct cma_device *dev, u32 port);
+int cma_set_default_gid_type(struct cma_device *dev, u32 port,
 			     enum ib_gid_type default_gid_type);
-int cma_get_default_roce_tos(struct cma_device *dev, unsigned int port);
-int cma_set_default_roce_tos(struct cma_device *dev, unsigned int port,
+int cma_get_default_roce_tos(struct cma_device *dev, u32 port);
+int cma_set_default_roce_tos(struct cma_device *dev, u32 port,
 			     u8 default_roce_tos);
 struct ib_device *cma_get_ib_dev(struct cma_device *dev);
 

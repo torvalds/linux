@@ -309,16 +309,16 @@ struct rvt_driver_provided {
 	/*
 	 * Query driver for the state of the port.
 	 */
-	int (*query_port_state)(struct rvt_dev_info *rdi, u8 port_num,
+	int (*query_port_state)(struct rvt_dev_info *rdi, u32 port_num,
 				struct ib_port_attr *props);
 
 	/*
 	 * Tell driver to shutdown a port
 	 */
-	int (*shut_down_port)(struct rvt_dev_info *rdi, u8 port_num);
+	int (*shut_down_port)(struct rvt_dev_info *rdi, u32 port_num);
 
 	/* Tell driver to send a trap for changed  port capabilities */
-	void (*cap_mask_chg)(struct rvt_dev_info *rdi, u8 port_num);
+	void (*cap_mask_chg)(struct rvt_dev_info *rdi, u32 port_num);
 
 	/*
 	 * The following functions can be safely ignored completely. Any use of
@@ -338,7 +338,7 @@ struct rvt_driver_provided {
 
 	/* Let the driver pick the next queue pair number*/
 	int (*alloc_qpn)(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
-			 enum ib_qp_type type, u8 port_num);
+			 enum ib_qp_type type, u32 port_num);
 
 	/* Determine if its safe or allowed to modify the qp */
 	int (*check_modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,

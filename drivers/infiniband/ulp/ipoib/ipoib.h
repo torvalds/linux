@@ -501,9 +501,9 @@ void ipoib_reap_ah(struct work_struct *work);
 struct ipoib_path *__path_find(struct net_device *dev, void *gid);
 void ipoib_mark_paths_invalid(struct net_device *dev);
 void ipoib_flush_paths(struct net_device *dev);
-struct net_device *ipoib_intf_alloc(struct ib_device *hca, u8 port,
+struct net_device *ipoib_intf_alloc(struct ib_device *hca, u32 port,
 				    const char *format);
-int ipoib_intf_init(struct ib_device *hca, u8 port, const char *format,
+int ipoib_intf_init(struct ib_device *hca, u32 port, const char *format,
 		    struct net_device *dev);
 void ipoib_ib_tx_timer_func(struct timer_list *t);
 void ipoib_ib_dev_flush_light(struct work_struct *work);

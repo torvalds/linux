@@ -348,17 +348,17 @@ enum pvrdma_access_flags {
 int pvrdma_query_device(struct ib_device *ibdev,
 			struct ib_device_attr *props,
 			struct ib_udata *udata);
-int pvrdma_query_port(struct ib_device *ibdev, u8 port,
+int pvrdma_query_port(struct ib_device *ibdev, u32 port,
 		      struct ib_port_attr *props);
-int pvrdma_query_gid(struct ib_device *ibdev, u8 port,
+int pvrdma_query_gid(struct ib_device *ibdev, u32 port,
 		     int index, union ib_gid *gid);
-int pvrdma_query_pkey(struct ib_device *ibdev, u8 port,
+int pvrdma_query_pkey(struct ib_device *ibdev, u32 port,
 		      u16 index, u16 *pkey);
 enum rdma_link_layer pvrdma_port_link_layer(struct ib_device *ibdev,
-					    u8 port);
+					    u32 port);
 int pvrdma_modify_device(struct ib_device *ibdev, int mask,
 			 struct ib_device_modify *props);
-int pvrdma_modify_port(struct ib_device *ibdev, u8 port,
+int pvrdma_modify_port(struct ib_device *ibdev, u32 port,
 		       int mask, struct ib_port_modify *props);
 int pvrdma_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 int pvrdma_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata);

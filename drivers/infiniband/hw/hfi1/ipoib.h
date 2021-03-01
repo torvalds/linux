@@ -143,7 +143,7 @@ struct sk_buff *hfi1_ipoib_prepare_skb(struct hfi1_netdev_rxq *rxq,
 				       int size, void *data);
 
 int hfi1_ipoib_rn_get_params(struct ib_device *device,
-			     u8 port_num,
+			     u32 port_num,
 			     enum rdma_netdev_t type,
 			     struct rdma_netdev_alloc_params *params);
 

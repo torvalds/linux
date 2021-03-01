@@ -242,7 +242,7 @@ static int fill_dev_info(struct sk_buff *msg, struct ib_device *device)
 {
 	char fw[IB_FW_VERSION_NAME_MAX];
 	int ret = 0;
-	u8 port;
+	u32 port;
 
 	if (fill_nldev_handle(msg, device))
 		return -EMSGSIZE;

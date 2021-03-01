@@ -364,7 +364,7 @@ static void copy_query_dev_fields(struct ib_ucontext *ucontext,
 	resp->max_srq_sge		= attr->max_srq_sge;
 	resp->max_pkeys			= attr->max_pkeys;
 	resp->local_ca_ack_delay	= attr->local_ca_ack_delay;
-	resp->phys_port_cnt		= ib_dev->phys_port_cnt;
+	resp->phys_port_cnt = min_t(u32, ib_dev->phys_port_cnt, U8_MAX);
 }
 
 static int ib_uverbs_query_device(struct uverbs_attr_bundle *attrs)

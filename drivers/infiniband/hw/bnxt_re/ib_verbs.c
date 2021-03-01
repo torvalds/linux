@@ -189,7 +189,7 @@ int bnxt_re_query_device(struct ib_device *ibdev,
 }
 
 /* Port */
-int bnxt_re_query_port(struct ib_device *ibdev, u8 port_num,
+int bnxt_re_query_port(struct ib_device *ibdev, u32 port_num,
 		       struct ib_port_attr *port_attr)
 {
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
@@ -229,7 +229,7 @@ int bnxt_re_query_port(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
-int bnxt_re_get_port_immutable(struct ib_device *ibdev, u8 port_num,
+int bnxt_re_get_port_immutable(struct ib_device *ibdev, u32 port_num,
 			       struct ib_port_immutable *immutable)
 {
 	struct ib_port_attr port_attr;
@@ -254,7 +254,7 @@ void bnxt_re_query_fw_str(struct ib_device *ibdev, char *str)
 		 rdev->dev_attr.fw_ver[2], rdev->dev_attr.fw_ver[3]);
 }
 
-int bnxt_re_query_pkey(struct ib_device *ibdev, u8 port_num,
+int bnxt_re_query_pkey(struct ib_device *ibdev, u32 port_num,
 		       u16 index, u16 *pkey)
 {
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
@@ -266,7 +266,7 @@ int bnxt_re_query_pkey(struct ib_device *ibdev, u8 port_num,
 				   &rdev->qplib_res.pkey_tbl, index, pkey);
 }
 
-int bnxt_re_query_gid(struct ib_device *ibdev, u8 port_num,
+int bnxt_re_query_gid(struct ib_device *ibdev, u32 port_num,
 		      int index, union ib_gid *gid)
 {
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
@@ -374,7 +374,7 @@ int bnxt_re_add_gid(const struct ib_gid_attr *attr, void **context)
 }
 
 enum rdma_link_layer bnxt_re_get_link_layer(struct ib_device *ibdev,
-					    u8 port_num)
+					    u32 port_num)
 {
 	return IB_LINK_LAYER_ETHERNET;
 }

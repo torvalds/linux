@@ -26,7 +26,7 @@ static int rxe_query_device(struct ib_device *dev,
 }
 
 static int rxe_query_port(struct ib_device *dev,
-			  u8 port_num, struct ib_port_attr *attr)
+			  u32 port_num, struct ib_port_attr *attr)
 {
 	struct rxe_dev *rxe = to_rdev(dev);
 	struct rxe_port *port;
@@ -54,7 +54,7 @@ static int rxe_query_port(struct ib_device *dev,
 }
 
 static int rxe_query_pkey(struct ib_device *device,
-			  u8 port_num, u16 index, u16 *pkey)
+			  u32 port_num, u16 index, u16 *pkey)
 {
 	if (index > 0)
 		return -EINVAL;
@@ -84,7 +84,7 @@ static int rxe_modify_device(struct ib_device *dev,
 }
 
 static int rxe_modify_port(struct ib_device *dev,
-			   u8 port_num, int mask, struct ib_port_modify *attr)
+			   u32 port_num, int mask, struct ib_port_modify *attr)
 {
 	struct rxe_dev *rxe = to_rdev(dev);
 	struct rxe_port *port;
@@ -101,7 +101,7 @@ static int rxe_modify_port(struct ib_device *dev,
 }
 
 static enum rdma_link_layer rxe_get_link_layer(struct ib_device *dev,
-					       u8 port_num)
+					       u32 port_num)
 {
 	return IB_LINK_LAYER_ETHERNET;
 }
@@ -121,7 +121,7 @@ static void rxe_dealloc_ucontext(struct ib_ucontext *ibuc)
 	rxe_drop_ref(uc);
 }
 
-static int rxe_port_immutable(struct ib_device *dev, u8 port_num,
+static int rxe_port_immutable(struct ib_device *dev, u32 port_num,
 			      struct ib_port_immutable *immutable)
 {
 	int err;

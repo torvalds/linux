@@ -436,7 +436,7 @@ struct sc2vlnt {
 		    COUNTER_MASK(1, 3) | \
 		    COUNTER_MASK(1, 4))
 
-void hfi1_event_pkey_change(struct hfi1_devdata *dd, u8 port);
+void hfi1_event_pkey_change(struct hfi1_devdata *dd, u32 port);
 void hfi1_handle_trap_timer(struct timer_list *t);
 u16 tx_link_width(u16 link_width);
 u64 get_xmit_wait_counters(struct hfi1_pportdata *ppd, u16 link_width,
