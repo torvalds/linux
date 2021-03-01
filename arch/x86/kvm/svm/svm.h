@@ -93,6 +93,7 @@ struct svm_nested_state {
 	u64 hsave_msr;
 	u64 vm_cr_msr;
 	u64 vmcb12_gpa;
+	u64 last_vmcb12_gpa;
 
 	/* These are the merged vectors */
 	u32 *msrpm;
@@ -245,6 +246,11 @@ static inline void vmcb_mark_all_clean(struct vmcb *vmcb)
 static inline void vmcb_mark_dirty(struct vmcb *vmcb, int bit)
 {
 	vmcb->control.clean &= ~(1 << bit);
+}
+
+static inline bool vmcb_is_dirty(struct vmcb *vmcb, int bit)
+{
+        return !test_bit(bit, (unsigned long *)&vmcb->control.clean);
 }
 
 static inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
