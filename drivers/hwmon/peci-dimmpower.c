@@ -286,40 +286,16 @@ peci_dimmpower_read_min_power(void *ctx, struct peci_sensor_conf *sensor_conf,
 			      struct peci_sensor_data *sensor_data)
 {
 	struct peci_dimmpower *priv = (struct peci_dimmpower *)ctx;
-	union peci_dram_power_info_low power_info;
-	ulong jif;
-	int ret;
 
-	if (!peci_sensor_need_update_with_time(sensor_data,
-					       sensor_conf->update_interval)) {
-		dev_dbg(priv->dev, "skip reading peci, min power %dmW\n",
-			sensor_data->value);
-		return 0;
-	}
-
-	ret = peci_pcs_get_units(priv->mgr, &priv->units, &priv->units_valid);
-	if (ret) {
-		dev_dbg(priv->dev, "not able to read units\n");
-		return ret;
-	}
-
-	jif = jiffies;
-	ret = peci_pcs_read(priv->mgr, PECI_MBX_INDEX_DDR_PWR_INFO_LOW,
-			    PECI_PCS_PARAM_ZERO, &power_info.value);
-	if (ret) {
-		dev_dbg(priv->dev, "not able to read power info\n");
-		return ret;
-	}
-
-	sensor_data->value = peci_pcs_xn_to_munits(power_info.bits.min_pwr,
-						   priv->units.bits.pwr_unit);
-	peci_sensor_mark_updated_with_time(sensor_data, jif);
-
-	dev_dbg(priv->dev, "raw min power %u, unit %u, min power %dmW\n",
-		power_info.bits.min_pwr, priv->units.bits.pwr_unit,
-		sensor_data->value);
-
-	return ret;
+	/* DRAM_POWER_INFO.DRAM_MIN_PWR is no more supported in CPU starting from
+	 * SPR. So BIOS doesn't update this. That's why there is still default
+	 * value (15W) which doesn't make sense. There should be a case when
+	 * MAX_PWR/TDP is smaller than 15W.
+	 * 0 seems to be a reasonable value for that parameter.
+	 */
+	sensor_data->value = 0;
+	dev_dbg(priv->dev, "min power %dmW\n", sensor_data->value);
+	return 0;
 }
 
 static int
