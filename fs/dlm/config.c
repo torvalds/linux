@@ -688,6 +688,7 @@ static ssize_t comm_mark_show(struct config_item *item, char *buf)
 static ssize_t comm_mark_store(struct config_item *item, const char *buf,
 			       size_t len)
 {
+	struct dlm_comm *comm;
 	unsigned int mark;
 	int rc;
 
@@ -695,7 +696,15 @@ static ssize_t comm_mark_store(struct config_item *item, const char *buf,
 	if (rc)
 		return rc;
 
-	config_item_to_comm(item)->mark = mark;
+	if (mark == 0)
+		mark = dlm_config.ci_mark;
+
+	comm = config_item_to_comm(item);
+	rc = dlm_lowcomms_nodes_set_mark(comm->nodeid, mark);
+	if (rc)
+		return rc;
+
+	comm->mark = mark;
 	return len;
 }
 
@@ -868,24 +877,6 @@ int dlm_comm_seq(int nodeid, uint32_t *seq)
 	*seq = cm->seq;
 	put_comm(cm);
 	return 0;
-}
-
-void dlm_comm_mark(int nodeid, unsigned int *mark)
-{
-	struct dlm_comm *cm;
-
-	cm = get_comm(nodeid);
-	if (!cm) {
-		*mark = dlm_config.ci_mark;
-		return;
-	}
-
-	if (cm->mark)
-		*mark = cm->mark;
-	else
-		*mark = dlm_config.ci_mark;
-
-	put_comm(cm);
 }
 
 int dlm_our_nodeid(void)
