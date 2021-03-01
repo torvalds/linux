@@ -132,6 +132,8 @@ lpfc_sli4_set_rsp_sgl_last(struct lpfc_hba *phba,
 	}
 }
 
+#define LPFC_INVALID_REFTAG ((u32)-1)
+
 /**
  * lpfc_update_stats - Update statistical data for the command completion
  * @vport: The virtual port on which this call is executing.
@@ -1000,7 +1002,7 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	uint32_t op = scsi_get_prot_op(sc);
 	uint32_t blksize;
 	uint32_t numblks;
-	sector_t lba;
+	u32 lba;
 	int rc = 0;
 	int blockoff = 0;
 
@@ -1008,7 +1010,9 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		return 0;
 
 	sgpe = scsi_prot_sglist(sc);
-	lba = scsi_get_lba(sc);
+	lba = t10_pi_ref_tag(sc->request);
+	if (lba == LPFC_INVALID_REFTAG)
+		return 0;
 
 	/* First check if we need to match the LBA */
 	if (phba->lpfc_injerr_lba != LPFC_INJERR_LBA_OFF) {
@@ -1016,11 +1020,11 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		numblks = (scsi_bufflen(sc) + blksize - 1) / blksize;
 
 		/* Make sure we have the right LBA if one is specified */
-		if ((phba->lpfc_injerr_lba < lba) ||
-			(phba->lpfc_injerr_lba >= (lba + numblks)))
+		if (phba->lpfc_injerr_lba < (u64)lba ||
+		    (phba->lpfc_injerr_lba >= (u64)(lba + numblks)))
 			return 0;
 		if (sgpe) {
-			blockoff = phba->lpfc_injerr_lba - lba;
+			blockoff = phba->lpfc_injerr_lba - (u64)lba;
 			numblks = sg_dma_len(sgpe) /
 				sizeof(struct scsi_dif_tuple);
 			if (numblks < blockoff)
@@ -1589,7 +1593,9 @@ lpfc_bg_setup_bpl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		goto out;
 
 	/* extract some info from the scsi command for pde*/
-	reftag = (uint32_t)scsi_get_lba(sc); /* Truncate LBA */
+	reftag = t10_pi_ref_tag(sc->request);
+	if (reftag == LPFC_INVALID_REFTAG)
+		goto out;
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	rc = lpfc_bg_err_inject(phba, sc, &reftag, NULL, 1);
@@ -1750,7 +1756,9 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 
 	/* extract some info from the scsi command */
 	blksize = lpfc_cmd_blksize(sc);
-	reftag = (uint32_t)scsi_get_lba(sc); /* Truncate LBA */
+	reftag = t10_pi_ref_tag(sc->request);
+	if (reftag == LPFC_INVALID_REFTAG)
+		goto out;
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	rc = lpfc_bg_err_inject(phba, sc, &reftag, NULL, 1);
@@ -1979,7 +1987,9 @@ lpfc_bg_setup_sgl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		goto out;
 
 	/* extract some info from the scsi command for pde*/
-	reftag = (uint32_t)scsi_get_lba(sc); /* Truncate LBA */
+	reftag = t10_pi_ref_tag(sc->request);
+	if (reftag == LPFC_INVALID_REFTAG)
+		goto out;
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	rc = lpfc_bg_err_inject(phba, sc, &reftag, NULL, 1);
@@ -2178,7 +2188,9 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 
 	/* extract some info from the scsi command */
 	blksize = lpfc_cmd_blksize(sc);
-	reftag = (uint32_t)scsi_get_lba(sc); /* Truncate LBA */
+	reftag = t10_pi_ref_tag(sc->request);
+	if (reftag == LPFC_INVALID_REFTAG)
+		goto out;
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	rc = lpfc_bg_err_inject(phba, sc, &reftag, NULL, 1);
@@ -2770,7 +2782,9 @@ lpfc_calc_bg_err(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 			chk_guard = 1;
 
 		src = (struct scsi_dif_tuple *)sg_virt(sgpe);
-		start_ref_tag = (uint32_t)scsi_get_lba(cmd); /* Truncate LBA */
+		start_ref_tag = t10_pi_ref_tag(cmd->request);
+		if (start_ref_tag == LPFC_INVALID_REFTAG)
+			goto out;
 		start_app_tag = src->app_tag;
 		len = sgpe->length;
 		while (src && protsegcnt) {
@@ -2861,8 +2875,8 @@ out:
 			      SAM_STAT_CHECK_CONDITION;
 		phba->bg_guard_err_cnt++;
 		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
-				"9069 BLKGRD: LBA %lx grd_tag error %x != %x\n",
-				(unsigned long)scsi_get_lba(cmd),
+				"9069 BLKGRD: reftag %x grd_tag err %x != %x\n",
+				t10_pi_ref_tag(cmd->request),
 				sum, guard_tag);
 
 	} else if (err_type == BGS_REFTAG_ERR_MASK) {
@@ -2873,8 +2887,8 @@ out:
 
 		phba->bg_reftag_err_cnt++;
 		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
-				"9066 BLKGRD: LBA %lx ref_tag error %x != %x\n",
-				(unsigned long)scsi_get_lba(cmd),
+				"9066 BLKGRD: reftag %x ref_tag err %x != %x\n",
+				t10_pi_ref_tag(cmd->request),
 				ref_tag, start_ref_tag);
 
 	} else if (err_type == BGS_APPTAG_ERR_MASK) {
@@ -2885,8 +2899,8 @@ out:
 
 		phba->bg_apptag_err_cnt++;
 		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
-				"9041 BLKGRD: LBA %lx app_tag error %x != %x\n",
-				(unsigned long)scsi_get_lba(cmd),
+				"9041 BLKGRD: reftag %x app_tag err %x != %x\n",
+				t10_pi_ref_tag(cmd->request),
 				app_tag, start_app_tag);
 	}
 }
@@ -3062,10 +3076,10 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd,
 	if (lpfc_bgs_get_invalid_prof(bgstat)) {
 		cmd->result = DID_ERROR << 16;
 		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
-				"9072 BLKGRD: Invalid BG Profile in cmd"
-				" 0x%x lba 0x%llx blk cnt 0x%x "
+				"9072 BLKGRD: Invalid BG Profile in cmd "
+				"0x%x reftag 0x%x blk cnt 0x%x "
 				"bgstat=x%x bghm=x%x\n", cmd->cmnd[0],
-				(unsigned long long)scsi_get_lba(cmd),
+				t10_pi_ref_tag(cmd->request),
 				blk_rq_sectors(cmd->request), bgstat, bghm);
 		ret = (-1);
 		goto out;
@@ -3074,10 +3088,10 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd,
 	if (lpfc_bgs_get_uninit_dif_block(bgstat)) {
 		cmd->result = DID_ERROR << 16;
 		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
-				"9073 BLKGRD: Invalid BG PDIF Block in cmd"
-				" 0x%x lba 0x%llx blk cnt 0x%x "
+				"9073 BLKGRD: Invalid BG PDIF Block in cmd "
+				"0x%x reftag 0x%x blk cnt 0x%x "
 				"bgstat=x%x bghm=x%x\n", cmd->cmnd[0],
-				(unsigned long long)scsi_get_lba(cmd),
+				t10_pi_ref_tag(cmd->request),
 				blk_rq_sectors(cmd->request), bgstat, bghm);
 		ret = (-1);
 		goto out;
@@ -3092,10 +3106,10 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd,
 			      SAM_STAT_CHECK_CONDITION;
 		phba->bg_guard_err_cnt++;
 		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
-				"9055 BLKGRD: Guard Tag error in cmd"
-				" 0x%x lba 0x%llx blk cnt 0x%x "
+				"9055 BLKGRD: Guard Tag error in cmd "
+				"0x%x reftag 0x%x blk cnt 0x%x "
 				"bgstat=x%x bghm=x%x\n", cmd->cmnd[0],
-				(unsigned long long)scsi_get_lba(cmd),
+				t10_pi_ref_tag(cmd->request),
 				blk_rq_sectors(cmd->request), bgstat, bghm);
 	}
 
@@ -3109,10 +3123,10 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd,
 
 		phba->bg_reftag_err_cnt++;
 		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
-				"9056 BLKGRD: Ref Tag error in cmd"
-				" 0x%x lba 0x%llx blk cnt 0x%x "
+				"9056 BLKGRD: Ref Tag error in cmd "
+				"0x%x reftag 0x%x blk cnt 0x%x "
 				"bgstat=x%x bghm=x%x\n", cmd->cmnd[0],
-				(unsigned long long)scsi_get_lba(cmd),
+				t10_pi_ref_tag(cmd->request),
 				blk_rq_sectors(cmd->request), bgstat, bghm);
 	}
 
@@ -3126,10 +3140,10 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd,
 
 		phba->bg_apptag_err_cnt++;
 		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
-				"9061 BLKGRD: App Tag error in cmd"
-				" 0x%x lba 0x%llx blk cnt 0x%x "
+				"9061 BLKGRD: App Tag error in cmd "
+				"0x%x reftag 0x%x blk cnt 0x%x "
 				"bgstat=x%x bghm=x%x\n", cmd->cmnd[0],
-				(unsigned long long)scsi_get_lba(cmd),
+				t10_pi_ref_tag(cmd->request),
 				blk_rq_sectors(cmd->request), bgstat, bghm);
 	}
 
@@ -3170,10 +3184,10 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd,
 	if (!ret) {
 		/* No error was reported - problem in FW? */
 		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
-				"9057 BLKGRD: Unknown error in cmd"
-				" 0x%x lba 0x%llx blk cnt 0x%x "
+				"9057 BLKGRD: Unknown error in cmd "
+				"0x%x reftag 0x%x blk cnt 0x%x "
 				"bgstat=x%x bghm=x%x\n", cmd->cmnd[0],
-				(unsigned long long)scsi_get_lba(cmd),
+				t10_pi_ref_tag(cmd->request),
 				blk_rq_sectors(cmd->request), bgstat, bghm);
 
 		/* Calcuate what type of error it was */
@@ -5252,10 +5266,10 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 			lpfc_printf_vlog(vport,
 					 KERN_INFO, LOG_SCSI_CMD,
 					 "9033 BLKGRD: rcvd %s cmd:x%x "
-					 "sector x%llx cnt %u pt %x\n",
+					 "reftag x%x cnt %u pt %x\n",
 					 dif_op_str[scsi_get_prot_op(cmnd)],
 					 cmnd->cmnd[0],
-					 (unsigned long long)scsi_get_lba(cmnd),
+					 t10_pi_ref_tag(cmnd->request),
 					 blk_rq_sectors(cmnd->request),
 					 (cmnd->cmnd[1]>>5));
 		}
@@ -5265,9 +5279,9 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 			lpfc_printf_vlog(vport,
 					 KERN_INFO, LOG_SCSI_CMD,
 					 "9038 BLKGRD: rcvd PROT_NORMAL cmd: "
-					 "x%x sector x%llx cnt %u pt %x\n",
+					 "x%x reftag x%x cnt %u pt %x\n",
 					 cmnd->cmnd[0],
-					 (unsigned long long)scsi_get_lba(cmnd),
+					 t10_pi_ref_tag(cmnd->request),
 					 blk_rq_sectors(cmnd->request),
 					 (cmnd->cmnd[1]>>5));
 		}
