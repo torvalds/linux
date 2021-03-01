@@ -1403,7 +1403,6 @@ __lpfc_sli_release_iocbq_s4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 			goto out;
 		}
 
-		pring = phba->sli4_hba.els_wq->pring;
 		if ((iocbq->iocb_flag & LPFC_EXCHANGE_BUSY) &&
 			(sglq->state != SGL_XRI_ABORTED)) {
 			spin_lock_irqsave(&phba->sli4_hba.sgl_list_lock,
@@ -1426,9 +1425,9 @@ __lpfc_sli_release_iocbq_s4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 				      &phba->sli4_hba.lpfc_els_sgl_list);
 			spin_unlock_irqrestore(
 				&phba->sli4_hba.sgl_list_lock, iflag);
-
+			pring = lpfc_phba_elsring(phba);
 			/* Check if TXQ queue needs to be serviced */
-			if (!list_empty(&pring->txq))
+			if (pring && (!list_empty(&pring->txq)))
 				lpfc_worker_wake_up(phba);
 		}
 	}
