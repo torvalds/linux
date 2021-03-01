@@ -415,12 +415,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_sdw_machines[] = {
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-tgl-sdw-max98373-rt5682.tplg",
 	},
-	{
-		.link_mask = 0x1, /* this will only enable rt5682 for now */
-		.links = tgl_chromebook_base,
-		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-tgl-rt5682.tplg",
-	},
 	{},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_tgl_sdw_machines);
