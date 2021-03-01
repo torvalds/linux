@@ -24,6 +24,7 @@
 #include <linux/reset.h>
 #include <linux/spinlock.h>
 
+#include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-mc.h>
@@ -482,6 +483,39 @@ static void __mipi_csis_set_format(struct csi_state *state)
 	mipi_csis_write(state, MIPI_CSIS_ISPRESOL_CH0, val);
 }
 
+static int mipi_csis_calculate_params(struct csi_state *state)
+{
+	s64 link_freq;
+	u32 lane_rate;
+
+	/* Calculate the line rate from the pixel rate. */
+	link_freq = v4l2_get_link_freq(state->src_sd->ctrl_handler,
+				       state->csis_fmt->width,
+				       state->bus.num_data_lanes * 2);
+	if (link_freq < 0) {
+		dev_err(state->dev, "Unable to obtain link frequency: %d\n",
+			(int)link_freq);
+		return link_freq;
+	}
+
+	lane_rate = link_freq * 2;
+
+	if (lane_rate < 80000000 || lane_rate > 1500000000) {
+		dev_dbg(state->dev, "Out-of-bound lane rate %u\n", lane_rate);
+		return -EINVAL;
+	}
+
+	/*
+	 * The HSSETTLE counter value is document in a table, but can also
+	 * easily be calculated.
+	 */
+	state->hs_settle = (lane_rate - 5000000) / 45000000;
+	dev_dbg(state->dev, "lane rate %u, Ths_settle %u\n",
+		lane_rate, state->hs_settle);
+
+	return 0;
+}
+
 static void mipi_csis_set_params(struct csi_state *state)
 {
 	int lanes = state->bus.num_data_lanes;
@@ -608,9 +642,13 @@ static void mipi_csis_log_counters(struct csi_state *state, bool non_errors)
 static int mipi_csis_s_stream(struct v4l2_subdev *mipi_sd, int enable)
 {
 	struct csi_state *state = mipi_sd_to_csis_state(mipi_sd);
-	int ret = 0;
+	int ret;
 
 	if (enable) {
+		ret = mipi_csis_calculate_params(state);
+		if (ret < 0)
+			return ret;
+
 		mipi_csis_clear_counters(state);
 		ret = pm_runtime_get_sync(&state->pdev->dev);
 		if (ret < 0) {
@@ -943,9 +981,6 @@ static int mipi_csis_parse_dt(struct platform_device *pdev,
 	if (IS_ERR(state->mrst))
 		return PTR_ERR(state->mrst);
 
-	/* Get MIPI CSI-2 bus configuration from the endpoint node. */
-	of_property_read_u32(node, "fsl,csis-hs-settle", &state->hs_settle);
-
 	return 0;
 }
 
@@ -1143,9 +1178,8 @@ static int mipi_csis_probe(struct platform_device *pdev)
 			goto unregister_all;
 	}
 
-	dev_info(&pdev->dev, "lanes: %d, hs_settle: %d, freq: %u\n",
-		 state->bus.num_data_lanes, state->hs_settle,
-		 state->clk_frequency);
+	dev_info(&pdev->dev, "lanes: %d, freq: %u\n",
+		 state->bus.num_data_lanes, state->clk_frequency);
 
 	return 0;
 
