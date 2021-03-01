@@ -8636,7 +8636,8 @@ static void io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 					 struct files_struct *files)
 {
 	struct io_task_cancel cancel = { .task = task, .files = files, };
-	struct io_uring_task *tctx = current->io_uring;
+	struct task_struct *tctx_task = task ?: current;
+	struct io_uring_task *tctx = tctx_task->io_uring;
 
 	while (1) {
 		enum io_wq_cancel cret;
