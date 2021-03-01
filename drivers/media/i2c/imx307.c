@@ -12,6 +12,7 @@
  * v1.0x01.0x04 update max exposure and formula
  *	shs1 = vts - (line + 1)
  * V0.0X01.0X05 add quick stream on/off
+ * V0.0X01.0X06 support lvds 2lane
  */
 
 #include <linux/clk.h>
@@ -36,7 +37,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x05)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
 #endif
@@ -123,6 +124,8 @@ static bool g_isHCG;
 #define MIRROR_BIT_MASK			BIT(1)
 #define FLIP_BIT_MASK			BIT(0)
 
+#define RHS1 0X0B
+
 static const char * const imx307_supply_names[] = {
 	"avdd",		/* Analog power */
 	"dovdd",	/* Digital I/O power */
@@ -147,6 +150,9 @@ struct imx307_mode {
 	const struct regval *reg_list;
 	u32 hdr_mode;
 	struct rkmodule_lvds_cfg lvds_cfg;
+	u32 freq_idx;
+	u32 lanes;
+	u32 bpp;
 };
 
 struct imx307 {
@@ -198,6 +204,113 @@ struct imx307 {
  * Xclk 37.125Mhz
  */
 static const struct regval imx307_global_regs[] = {
+	{REG_NULL, 0x00},
+};
+
+/*
+ * Xclk 37.125Mhz
+ * max_framerate 30fps
+ * lvds_datarate per lane 111Mbps 2 lane
+ */
+static const struct regval imx307_linear_1920x1080_30fps_lvds_2lane_regs[] = {
+	{0x3003, 0x01},
+	{REG_DELAY, 0x10},
+	{0x3000, 0x01},
+	{0x3001, 0x00},
+	{0x3002, 0x01},
+	{0x3005, 0x00},
+	{0x3007, 0x00},
+	{0x3009, 0x02},
+	{0x300a, 0x3c},
+	{0x3010, 0x21},
+	{0x3011, 0x0a},
+	{0x3018, 0x65},
+	{0x3019, 0x04},
+	{0x301c, 0x30},
+	{0x301d, 0x11},
+	{0x3046, 0xD0},
+	{0x304b, 0x0a},
+	{0x305c, 0x18},
+	{0x305d, 0x00},
+	{0x305e, 0x20},
+	{0x305f, 0x01},
+	{0x309e, 0x4a},
+	{0x309f, 0x4a},
+	{0x311c, 0x0e},
+	{0x3128, 0x04},
+	{0x3129, 0x1d},
+	{0x313b, 0x41},
+	{0x315e, 0x1a},
+	{0x3164, 0x1a},
+	{0x317c, 0x12},
+	{0x31ec, 0x37},
+	{0x3480, 0x49},
+	{0x3002, 0x00},
+	{REG_NULL, 0x00},
+};
+
+/*
+ * Xclk 37.125Mhz
+ * max_framerate 15fps
+ * lvds_datarate per lane 222Mbps 2 lane
+ */
+static const struct regval imx307_hdr2_1920x1080_lvds_2lane_regs[] = {
+	{0x3003, 0x01},
+	{REG_DELAY, 0x10},
+	{0x3000, 0x01},
+	{0x3001, 0x00},
+	{0x3002, 0x01},
+	{0x3005, 0x00},
+	{0x3007, 0x00},
+	{0x3009, 0x02},
+	{0x300a, 0x3c},
+	{0x300c, 0x11},
+	{0x3010, 0x21},
+	{0x3011, 0x0a},
+	{0x3014, 0x0f},
+	{0x3018, 0x65},/* VMAX L */
+	{0x3019, 0x04},/* VMAX M */
+	{0x301c, 0x30},/* HMAX L */
+	{0x301d, 0x11},/* HMAX H */
+	{0x3020, 0x02},//hdr+ shs1 l  short
+	{0x3021, 0x00},//hdr+ shs1 m
+	{0x3024, 0x49},//hdr+ shs2 l
+	{0x3025, 0x04},//hdr+ shs2 m
+	{0x3030, RHS1},//hdr+ IMX327_RHS1
+	{0x3031, 0x00},//hdr+IMX327_RHS1
+	{0x3045, 0x03},//hdr+
+	{0x3046, 0xd0},
+	{0x305c, 0x18},
+	{0x305d, 0x00},
+	{0x305e, 0x20},
+	{0x305f, 0x01},
+	{0x309e, 0x4a},
+	{0x309f, 0x4a},
+	{0x30d2, 0x19},
+	{0x30d7, 0x03},
+	{0x3106, 0x10},
+	{0x311c, 0x0e},
+	{0x3128, 0x04},
+	{0x3129, 0x1d},
+	{0x313b, 0x41},
+	{0x315e, 0x1a},
+	{0x3164, 0x1a},
+	{0x317c, 0x12},
+	{0x31ec, 0x37},
+	{0x3480, 0x49},
+	{0x31a0, 0xb4},
+	{0x31a1, 0x02},
+	{0x303c, 0x04},//Y offset
+	{0x303d, 0x00},
+	{0x303e, 0x41},
+	{0x303f, 0x04},//height
+	{0x303A, 0x08},//hdr+
+	{0x3010, 0x61},//hdr+ gain 1frame FPGC
+	{0x3014, 0x00},//hdr+ gain 1frame long
+	{0x30F0, 0x64},//hdr+ gain 2frame FPGC
+	{0x30f2, 0x00},//hdr+ gain 2frame short
+	{0x3002, 0x00},
+	{0x304B, 0x0a},
 	{REG_NULL, 0x00},
 };
 
@@ -527,6 +640,106 @@ static const struct regval imx307_hdr2_1920x1080_mipi_regs[] = {
  *	.get_selection
  * }
  */
+
+static const struct imx307_mode lvds_2lane_supported_modes[] = {
+	{
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.width = 1948,
+		.height = 1110,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.exp_def = 0x03fe,
+		.hts_def = 0x1130,
+		.vts_def = 0x0465,
+		.reg_list = imx307_linear_1920x1080_30fps_lvds_2lane_regs,
+		.hdr_mode = NO_HDR,
+		.lanes = 2,
+		.freq_idx = 0,
+		.bpp = 10,
+		.lvds_cfg = {
+			.mode = LS_FIRST,
+			.frm_sync_code[LVDS_CODE_GRP_LINEAR] = {
+				.odd_sync_code = {
+					.act = {
+						.sav = 0x200,
+						.eav = 0x274,
+					},
+					.blk = {
+						.sav = 0x2ac,
+						.eav = 0x2d8,
+					},
+				},
+			},
+		},
+	},
+	{
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.width = 1948,
+		.height = 1098,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 150000,
+		},
+		.exp_def = 0x0473,
+		.hts_def = 0x07ec,
+		.vts_def = 0x04c4 * 2,
+		.reg_list = imx307_hdr2_1920x1080_lvds_2lane_regs,
+		.hdr_mode = HDR_X2,
+		.lanes = 2,
+		.freq_idx = 1,
+		.bpp = 10,
+		.lvds_cfg = {
+			.mode  = SONY_DOL_HDR_1,
+			.frm_sync_code[LVDS_CODE_GRP_LONG] = {
+				.odd_sync_code = {
+					.act = {
+						.sav = 0x001,
+						.eav = 0x075,
+					},
+					.blk = {
+						.sav = 0x0ac,
+						.eav = 0x0d8,
+					},
+				},
+				.even_sync_code = {
+					.act = {
+						.sav = 0x101,
+						.eav = 0x175,
+					},
+					.blk = {
+						.sav = 0x1ac,
+						.eav = 0x1d8,
+					},
+				},
+			},
+			.frm_sync_code[LVDS_CODE_GRP_SHORT] = {
+				.odd_sync_code = {
+					.act = {
+						.sav = 0x002,
+						.eav = 0x076,
+					},
+					.blk = {
+						.sav = 0x0ac,
+						.eav = 0x0d8,
+					},
+				},
+				.even_sync_code = {
+					.act = {
+						.sav = 0x102,
+						.eav = 0x176,
+					},
+					.blk = {
+						.sav = 0x1ac,
+						.eav = 0x1d8,
+					},
+				},
+			},
+		},
+	},
+};
+
 static const struct imx307_mode lvds_supported_modes[] = {
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
@@ -541,6 +754,9 @@ static const struct imx307_mode lvds_supported_modes[] = {
 		.vts_def = 0x0465,
 		.reg_list = imx307_linear_1920x1080_60fps_lvds_regs,
 		.hdr_mode = NO_HDR,
+		.lanes = 4,
+		.freq_idx = 0,
+		.bpp = 10,
 		.lvds_cfg = {
 			.mode = LS_FIRST,
 			.frm_sync_code[LVDS_CODE_GRP_LINEAR] = {
@@ -569,6 +785,9 @@ static const struct imx307_mode lvds_supported_modes[] = {
 		.vts_def = 0x0465,
 		.reg_list = imx307_linear_1920x1080_30fps_lvds_regs,
 		.hdr_mode = NO_HDR,
+		.lanes = 4,
+		.freq_idx = 0,
+		.bpp = 10,
 		.lvds_cfg = {
 			.mode = LS_FIRST,
 			.frm_sync_code[LVDS_CODE_GRP_LINEAR] = {
@@ -598,6 +817,9 @@ static const struct imx307_mode lvds_supported_modes[] = {
 		.vts_def = 0x04c4 * 2,
 		.reg_list = imx307_hdr2_1920x1080_lvds_regs,
 		.hdr_mode = HDR_X2,
+		.lanes = 4,
+		.freq_idx = 1,
+		.bpp = 10,
 		.lvds_cfg = {
 			.mode  = SONY_DOL_HDR_1,
 			.frm_sync_code[LVDS_CODE_GRP_LONG] = {
@@ -662,6 +884,9 @@ static const struct imx307_mode mipi_supported_modes[] = {
 		.vts_def = 0x0465,
 		.reg_list = imx307_linear_1920x1080_mipi_regs,
 		.hdr_mode = NO_HDR,
+		.lanes = 4,
+		.freq_idx = 0,
+		.bpp = 10,
 	}, {
 		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 1952,
@@ -675,6 +900,9 @@ static const struct imx307_mode mipi_supported_modes[] = {
 		.vts_def = 0x04c4 * 2,
 		.reg_list = imx307_hdr2_1920x1080_mipi_regs,
 		.hdr_mode = HDR_X2,
+		.lanes = 4,
+		.freq_idx = 1,
+		.bpp = 10,
 	},
 };
 
@@ -843,13 +1071,8 @@ static int imx307_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(imx307->vblank, vblank_def,
 					 IMX307_VTS_MAX - mode->height,
 					 1, vblank_def);
-		if (imx307->cur_mode->hdr_mode == NO_HDR) {
-			dst_link_freq = 0;
-			dst_pixel_rate = IMX307_LINK_FREQ_111M;
-		} else {
-			dst_link_freq = 1;
-			dst_pixel_rate = IMX307_LINK_FREQ_222M;
-		}
+		dst_link_freq = mode->freq_idx;
+		dst_pixel_rate = (u32)link_freq_menu_items[mode->freq_idx] / mode->bpp * 2 * mode->lanes;
 		__v4l2_ctrl_s_ctrl_int64(imx307->pixel_rate,
 					 dst_pixel_rate);
 		__v4l2_ctrl_s_ctrl(imx307->link_freq,
@@ -977,7 +1200,7 @@ static int imx307_g_mbus_config(struct v4l2_subdev *sd,
 	struct imx307 *imx307 = to_imx307(sd);
 	u32 val = 0;
 
-	val = 1 << (IMX307_4LANES - 1) |
+	val = 1 << (imx307->cur_mode->lanes - 1) |
 			V4L2_MBUS_CSI2_CHANNEL_0 |
 			V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 	if (imx307->bus_cfg.bus_type == 3)
@@ -1036,7 +1259,10 @@ static int imx307_set_hdrae(struct imx307 *imx307,
 	}
 
 	//long exposure and short exposure
-	rhs1 = 0xe1;
+	if (imx307->cur_mode->lanes == 2 && imx307->bus_cfg.bus_type == 3)
+		rhs1 = RHS1;
+	else
+		rhs1 = 0xe1;
 	shs1 = rhs1 - s_exp_time - 1;
 	shs2 = fsc - l_exp_time - 1;
 	if (shs1 < 2)
@@ -1184,6 +1410,7 @@ static long imx307_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct imx307 *imx307 = to_imx307(sd);
 	struct rkmodule_hdr_cfg *hdr;
 	struct rkmodule_lvds_cfg *lvds_cfg;
+	const struct imx307_mode *mode;
 	u32 i, h, w;
 	long ret = 0;
 	s64 dst_pixel_rate = 0;
@@ -1219,24 +1446,20 @@ static long imx307_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				hdr->hdr_mode);
 			ret = -EINVAL;
 		} else {
-			w = imx307->cur_mode->hts_def - imx307->cur_mode->width;
-			h = imx307->cur_mode->vts_def - imx307->cur_mode->height;
+			mode = imx307->cur_mode;
+			w = mode->hts_def - mode->width;
+			h = mode->vts_def - mode->height;
 			__v4l2_ctrl_modify_range(imx307->hblank, w, w, 1, w);
 			__v4l2_ctrl_modify_range(imx307->vblank, h,
-				IMX307_VTS_MAX - imx307->cur_mode->height,
+				IMX307_VTS_MAX - mode->height,
 				1, h);
-			if (imx307->cur_mode->hdr_mode == NO_HDR) {
-				dst_link_freq = 0;
-				dst_pixel_rate = IMX307_PIXEL_RATE_NORMAL;
-			} else {
-				dst_link_freq = 1;
-				dst_pixel_rate = IMX307_PIXEL_RATE_HDR;
-			}
+			dst_link_freq = mode->freq_idx;
+			dst_pixel_rate = (u32)link_freq_menu_items[mode->freq_idx] / mode->bpp * 2 * mode->lanes;
 			__v4l2_ctrl_s_ctrl_int64(imx307->pixel_rate,
 						 dst_pixel_rate);
 			__v4l2_ctrl_s_ctrl(imx307->link_freq,
 					   dst_link_freq);
-			imx307->cur_vts = imx307->cur_mode->vts_def;
+			imx307->cur_vts = mode->vts_def;
 		}
 		break;
 	case RKMODULE_SET_CONVERSION_GAIN:
@@ -1857,13 +2080,8 @@ static int imx307_initialize_controls(struct imx307 *imx307)
 	imx307->link_freq = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
 				      1, 0, link_freq_menu_items);
 
-	if (imx307->cur_mode->hdr_mode == NO_HDR) {
-		dst_link_freq = 0;
-		dst_pixel_rate = IMX307_PIXEL_RATE_NORMAL;
-	} else {
-		dst_link_freq = 1;
-		dst_pixel_rate = IMX307_PIXEL_RATE_HDR;
-	}
+	dst_link_freq = mode->freq_idx;
+	dst_pixel_rate = (u32)link_freq_menu_items[mode->freq_idx] / mode->bpp * 2 * mode->lanes;
 	__v4l2_ctrl_s_ctrl(imx307->link_freq,
 			   dst_link_freq);
 	imx307->pixel_rate = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
@@ -1997,8 +2215,15 @@ static int imx307_probe(struct i2c_client *client,
 	if (ret)
 		dev_warn(dev, "could not get bus config!\n");
 	if (imx307->bus_cfg.bus_type == 3) {
-		imx307->support_modes = lvds_supported_modes;
-		imx307->support_modes_num = ARRAY_SIZE(lvds_supported_modes);
+		if (imx307->bus_cfg.bus.mipi_csi1.data_lane == 2) {
+			imx307->support_modes = lvds_2lane_supported_modes;
+			imx307->support_modes_num = ARRAY_SIZE(lvds_2lane_supported_modes);
+		} else if (imx307->bus_cfg.bus.mipi_csi1.data_lane  == 4) {
+			imx307->support_modes = lvds_supported_modes;
+			imx307->support_modes_num = ARRAY_SIZE(lvds_supported_modes);
+		} else {
+			dev_err(dev, "lvds lanes err!\n");
+		}
 	} else {
 		imx307->support_modes = mipi_supported_modes;
 		imx307->support_modes_num = ARRAY_SIZE(mipi_supported_modes);
