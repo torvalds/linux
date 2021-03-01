@@ -3061,28 +3061,14 @@ out:
 	return 0;
 }
 
-/*
- * Initialize the cached copies of the Identify data and various controller
- * register in our nvme_ctrl structure.  This should be called as soon as
- * the admin queue is fully up and running.
- */
-int nvme_init_ctrl_finish(struct nvme_ctrl *ctrl)
+static int nvme_init_identify(struct nvme_ctrl *ctrl)
 {
 	struct nvme_id_ctrl *id;
 	int ret, page_shift;
 	u32 max_hw_sectors;
 	bool prev_apst_enabled;
 
-	ret = ctrl->ops->reg_read32(ctrl, NVME_REG_VS, &ctrl->vs);
-	if (ret) {
-		dev_err(ctrl->device, "Reading VS failed (%d)\n", ret);
-		return ret;
-	}
 	page_shift = NVME_CAP_MPSMIN(ctrl->cap) + 12;
-	ctrl->sqsize = min_t(u16, NVME_CAP_MQES(ctrl->cap), ctrl->sqsize);
-
-	if (ctrl->vs >= NVME_VS(1, 1, 0))
-		ctrl->subsystem = NVME_CAP_NSSRC(ctrl->cap);
 
 	ret = nvme_identify_ctrl(ctrl, &id);
 	if (ret) {
@@ -3100,7 +3086,7 @@ int nvme_init_ctrl_finish(struct nvme_ctrl *ctrl)
 		ctrl->cntlid = le16_to_cpu(id->cntlid);
 
 	if (!ctrl->identified) {
-		int i;
+		unsigned int i;
 
 		ret = nvme_init_subsystem(ctrl, id);
 		if (ret)
@@ -3213,15 +3199,42 @@ int nvme_init_ctrl_finish(struct nvme_ctrl *ctrl)
 	}
 
 	ret = nvme_mpath_init(ctrl, id);
-	kfree(id);
-
 	if (ret < 0)
-		return ret;
+		goto out_free;
 
 	if (ctrl->apst_enabled && !prev_apst_enabled)
 		dev_pm_qos_expose_latency_tolerance(ctrl->device);
 	else if (!ctrl->apst_enabled && prev_apst_enabled)
 		dev_pm_qos_hide_latency_tolerance(ctrl->device);
+
+out_free:
+	kfree(id);
+	return ret;
+}
+
+/*
+ * Initialize the cached copies of the Identify data and various controller
+ * register in our nvme_ctrl structure.  This should be called as soon as
+ * the admin queue is fully up and running.
+ */
+int nvme_init_ctrl_finish(struct nvme_ctrl *ctrl)
+{
+	int ret;
+
+	ret = ctrl->ops->reg_read32(ctrl, NVME_REG_VS, &ctrl->vs);
+	if (ret) {
+		dev_err(ctrl->device, "Reading VS failed (%d)\n", ret);
+		return ret;
+	}
+
+	ctrl->sqsize = min_t(u16, NVME_CAP_MQES(ctrl->cap), ctrl->sqsize);
+
+	if (ctrl->vs >= NVME_VS(1, 1, 0))
+		ctrl->subsystem = NVME_CAP_NSSRC(ctrl->cap);
+
+	ret = nvme_init_identify(ctrl);
+	if (ret)
+		return ret;
 
 	ret = nvme_configure_apst(ctrl);
 	if (ret < 0)
@@ -3248,10 +3261,6 @@ int nvme_init_ctrl_finish(struct nvme_ctrl *ctrl)
 	ctrl->identified = true;
 
 	return 0;
-
-out_free:
-	kfree(id);
-	return ret;
 }
 EXPORT_SYMBOL_GPL(nvme_init_ctrl_finish);
 
