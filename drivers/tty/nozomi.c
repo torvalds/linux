@@ -777,7 +777,6 @@ static int receive_data(enum port_type index, struct nozomi *dc)
 	int i, ret;
 
 	size = __le32_to_cpu(readl(addr));
-	/*  DBG1( "%d bytes port: %d", size, index); */
 
 	if (tty && tty_throttled(tty)) {
 		DBG1("No room in tty, don't read data, don't ack interrupt, "
@@ -1308,8 +1307,6 @@ static int nozomi_card_init(struct pci_dev *pdev,
 	int ndev_idx;
 	int i;
 
-	dev_dbg(&pdev->dev, "Init, new card found\n");
-
 	for (ndev_idx = 0; ndev_idx < ARRAY_SIZE(ndevs); ndev_idx++)
 		if (!ndevs[ndev_idx])
 			break;
@@ -1442,8 +1439,6 @@ err:
 static void tty_exit(struct nozomi *dc)
 {
 	unsigned int i;
-
-	DBG1(" ");
 
 	for (i = 0; i < MAX_PORT; ++i)
 		tty_port_tty_hangup(&dc->port[i].port, false);
@@ -1609,8 +1604,6 @@ static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
 	struct port *port = tty->driver_data;
 	unsigned long flags;
 
-	/* DBG1( "WRITEx: %d, index = %d", count, index); */
-
 	if (!dc || !port)
 		return -ENODEV;
 
@@ -1736,8 +1729,6 @@ static int ntty_ioctl(struct tty_struct *tty,
 	struct port *port = tty->driver_data;
 	int rval = -ENOIOCTLCMD;
 
-	DBG1("******** IOCTL, cmd: %d", cmd);
-
 	switch (cmd) {
 	case TIOCMIWAIT: {
 		struct async_icount cprev = port->tty_icount;
@@ -1763,7 +1754,6 @@ static void ntty_unthrottle(struct tty_struct *tty)
 	struct nozomi *dc = get_dc_by_tty(tty);
 	unsigned long flags;
 
-	DBG1("UNTHROTTLE");
 	spin_lock_irqsave(&dc->spin_mutex, flags);
 	enable_transmit_dl(tty->index % MAX_PORT, dc);
 	set_rts(tty, 1);
@@ -1780,7 +1770,6 @@ static void ntty_throttle(struct tty_struct *tty)
 	struct nozomi *dc = get_dc_by_tty(tty);
 	unsigned long flags;
 
-	DBG1("THROTTLE");
 	spin_lock_irqsave(&dc->spin_mutex, flags);
 	set_rts(tty, 0);
 	spin_unlock_irqrestore(&dc->spin_mutex, flags);
