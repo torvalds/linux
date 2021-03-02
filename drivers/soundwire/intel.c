@@ -1302,6 +1302,7 @@ static int intel_prop_read(struct sdw_bus *bus)
 
 static struct sdw_master_ops sdw_intel_ops = {
 	.read_prop = sdw_master_read_prop,
+	.override_adr = sdw_dmi_override_adr,
 	.xfer_msg = cdns_xfer_msg,
 	.xfer_msg_defer = cdns_xfer_msg_defer,
 	.reset_page_addr = cdns_reset_page_addr,
