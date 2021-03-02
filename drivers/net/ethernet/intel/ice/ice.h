@@ -426,6 +426,7 @@ struct ice_pf {
 	u16 num_msix_per_vf;
 	/* used to ratelimit the MDD event logging */
 	unsigned long last_printed_mdd_jiffies;
+	DECLARE_BITMAP(malvfs, ICE_MAX_VF_COUNT);
 	DECLARE_BITMAP(state, ICE_STATE_NBITS);
 	DECLARE_BITMAP(flags, ICE_PF_FLAGS_NBITS);
 	unsigned long *avail_txqs;	/* bitmap to track PF Tx queue usage */

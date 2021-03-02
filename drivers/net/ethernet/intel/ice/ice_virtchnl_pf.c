@@ -424,6 +424,14 @@ void ice_free_vfs(struct ice_pf *pf)
 			wr32(hw, GLGEN_VFLRSTAT(reg_idx), BIT(bit_idx));
 		}
 	}
+
+	/* clear malicious info if the VFs are getting released */
+	for (i = 0; i < tmp; i++)
+		if (ice_mbx_clear_malvf(&hw->mbx_snapshot, pf->malvfs,
+					ICE_MAX_VF_COUNT, i))
+			dev_dbg(dev, "failed to clear malicious VF state for VF %u\n",
+				i);
+
 	clear_bit(ICE_VF_DIS, pf->state);
 	clear_bit(ICE_FLAG_SRIOV_ENA, pf->flags);
 }
@@ -1257,6 +1265,11 @@ bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr)
 	if (!pf->num_alloc_vfs)
 		return false;
 
+	/* clear all malicious info if the VFs are getting reset */
+	ice_for_each_vf(pf, i)
+		if (ice_mbx_clear_malvf(&hw->mbx_snapshot, pf->malvfs, ICE_MAX_VF_COUNT, i))
+			dev_dbg(dev, "failed to clear malicious VF state for VF %u\n", i);
+
 	/* If VFs have been disabled, there is no need to reset */
 	if (test_and_set_bit(ICE_VF_DIS, pf->state))
 		return false;
@@ -1436,6 +1449,10 @@ bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 	ice_vf_pre_vsi_rebuild(vf);
 	ice_vf_rebuild_vsi_with_release(vf);
 	ice_vf_post_vsi_rebuild(vf);
+
+	/* if the VF has been reset allow it to come up again */
+	if (ice_mbx_clear_malvf(&hw->mbx_snapshot, pf->malvfs, ICE_MAX_VF_COUNT, vf->vf_id))
+		dev_dbg(dev, "failed to clear malicious VF state for VF %u\n", i);
 
 	return true;
 }
@@ -1769,6 +1786,7 @@ int ice_sriov_configure(struct pci_dev *pdev, int num_vfs)
 {
 	struct ice_pf *pf = pci_get_drvdata(pdev);
 	struct device *dev = ice_pf_to_dev(pf);
+	enum ice_status status;
 	int err;
 
 	err = ice_check_sriov_allowed(pf);
@@ -1777,6 +1795,7 @@ int ice_sriov_configure(struct pci_dev *pdev, int num_vfs)
 
 	if (!num_vfs) {
 		if (!pci_vfs_assigned(pdev)) {
+			ice_mbx_deinit_snapshot(&pf->hw);
 			ice_free_vfs(pf);
 			if (pf->lag)
 				ice_enable_lag(pf->lag);
@@ -1787,9 +1806,15 @@ int ice_sriov_configure(struct pci_dev *pdev, int num_vfs)
 		return -EBUSY;
 	}
 
+	status = ice_mbx_init_snapshot(&pf->hw, num_vfs);
+	if (status)
+		return ice_status_to_errno(status);
+
 	err = ice_pci_sriov_ena(pf, num_vfs);
-	if (err)
+	if (err) {
+		ice_mbx_deinit_snapshot(&pf->hw);
 		return err;
+	}
 
 	if (pf->lag)
 		ice_disable_lag(pf->lag);
@@ -4254,4 +4279,71 @@ void ice_restore_all_vfs_msi_state(struct pci_dev *pdev)
 					       vfdev);
 		}
 	}
+}
+
+/**
+ * ice_is_malicious_vf - helper function to detect a malicious VF
+ * @pf: ptr to struct ice_pf
+ * @event: pointer to the AQ event
+ * @num_msg_proc: the number of messages processed so far
+ * @num_msg_pending: the number of messages peinding in admin queue
+ */
+bool
+ice_is_malicious_vf(struct ice_pf *pf, struct ice_rq_event_info *event,
+		    u16 num_msg_proc, u16 num_msg_pending)
+{
+	s16 vf_id = le16_to_cpu(event->desc.retval);
+	struct device *dev = ice_pf_to_dev(pf);
+	struct ice_mbx_data mbxdata;
+	enum ice_status status;
+	bool malvf = false;
+	struct ice_vf *vf;
+
+	if (ice_validate_vf_id(pf, vf_id))
+		return false;
+
+	vf = &pf->vf[vf_id];
+	/* Check if VF is disabled. */
+	if (test_bit(ICE_VF_STATE_DIS, vf->vf_states))
+		return false;
+
+	mbxdata.num_msg_proc = num_msg_proc;
+	mbxdata.num_pending_arq = num_msg_pending;
+	mbxdata.max_num_msgs_mbx = pf->hw.mailboxq.num_rq_entries;
+#define ICE_MBX_OVERFLOW_WATERMARK 64
+	mbxdata.async_watermark_val = ICE_MBX_OVERFLOW_WATERMARK;
+
+	/* check to see if we have a malicious VF */
+	status = ice_mbx_vf_state_handler(&pf->hw, &mbxdata, vf_id, &malvf);
+	if (status)
+		return false;
+
+	if (malvf) {
+		bool report_vf = false;
+
+		/* if the VF is malicious and we haven't let the user
+		 * know about it, then let them know now
+		 */
+		status = ice_mbx_report_malvf(&pf->hw, pf->malvfs,
+					      ICE_MAX_VF_COUNT, vf_id,
+					      &report_vf);
+		if (status)
+			dev_dbg(dev, "Error reporting malicious VF\n");
+
+		if (report_vf) {
+			struct ice_vsi *pf_vsi = ice_get_main_vsi(pf);
+
+			if (pf_vsi)
+				dev_warn(dev, "VF MAC %pM on PF MAC %pM is generating asynchronous messages and may be overflowing the PF message queue. Please see the Adapter User Guide for more information\n",
+					 &vf->dflt_lan_addr.addr[0],
+					 pf_vsi->netdev->dev_addr);
+		}
+
+		return true;
+	}
+
+	/* if there was an error in detection or the VF is not malicious then
+	 * return false
+	 */
+	return false;
 }
