@@ -908,7 +908,7 @@ static long vmci_host_unlocked_ioctl(struct file *filp,
 				     unsigned int iocmd, unsigned long ioarg)
 {
 #define VMCI_DO_IOCTL(ioctl_name, ioctl_fn) do {			\
-		char *name = __stringify(IOCTL_VMCI_ ## ioctl_name);	\
+		char *name = "IOCTL_VMCI_" # ioctl_name;		\
 		return vmci_host_do_ ## ioctl_fn(			\
 			vmci_host_dev, name, uptr);			\
 	} while (0)
