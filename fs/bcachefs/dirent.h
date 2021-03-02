@@ -31,7 +31,7 @@ static inline unsigned dirent_val_u64s(unsigned len)
 
 int bch2_dirent_create(struct btree_trans *, u64,
 		       const struct bch_hash_info *, u8,
-		       const struct qstr *, u64, int);
+		       const struct qstr *, u64, u64 *, int);
 
 int bch2_dirent_delete_at(struct btree_trans *,
 			  const struct bch_hash_info *,
@@ -46,8 +46,8 @@ enum bch_rename_mode {
 int bch2_dirent_rename(struct btree_trans *,
 		       u64, struct bch_hash_info *,
 		       u64, struct bch_hash_info *,
-		       const struct qstr *, u64 *,
-		       const struct qstr *, u64 *,
+		       const struct qstr *, u64 *, u64 *,
+		       const struct qstr *, u64 *, u64 *,
 		       enum bch_rename_mode);
 
 struct btree_iter *

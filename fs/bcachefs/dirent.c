@@ -141,7 +141,7 @@ static struct bkey_i_dirent *dirent_create_key(struct btree_trans *trans,
 int bch2_dirent_create(struct btree_trans *trans,
 		       u64 dir_inum, const struct bch_hash_info *hash_info,
 		       u8 type, const struct qstr *name, u64 dst_inum,
-		       int flags)
+		       u64 *dir_offset, int flags)
 {
 	struct bkey_i_dirent *dirent;
 	int ret;
@@ -151,8 +151,11 @@ int bch2_dirent_create(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	return bch2_hash_set(trans, bch2_dirent_hash_desc, hash_info,
-			     dir_inum, &dirent->k_i, flags);
+	ret = bch2_hash_set(trans, bch2_dirent_hash_desc, hash_info,
+			    dir_inum, &dirent->k_i, flags);
+	*dir_offset = dirent->k.p.offset;
+
+	return ret;
 }
 
 static void dirent_copy_target(struct bkey_i_dirent *dst,
@@ -165,8 +168,8 @@ static void dirent_copy_target(struct bkey_i_dirent *dst,
 int bch2_dirent_rename(struct btree_trans *trans,
 		       u64 src_dir, struct bch_hash_info *src_hash,
 		       u64 dst_dir, struct bch_hash_info *dst_hash,
-		       const struct qstr *src_name, u64 *src_inum,
-		       const struct qstr *dst_name, u64 *dst_inum,
+		       const struct qstr *src_name, u64 *src_inum, u64 *src_offset,
+		       const struct qstr *dst_name, u64 *dst_inum, u64 *dst_offset,
 		       enum bch_rename_mode mode)
 {
 	struct btree_iter *src_iter = NULL, *dst_iter = NULL;
@@ -255,7 +258,7 @@ int bch2_dirent_rename(struct btree_trans *trans,
 				new_dst->k.p = src_iter->pos;
 				bch2_trans_update(trans, src_iter,
 						  &new_dst->k_i, 0);
-				goto out;
+				goto out_set_offset;
 			} else {
 				/* If we're overwriting, we can't insert new_dst
 				 * at a different slot because it has to
@@ -278,6 +281,9 @@ int bch2_dirent_rename(struct btree_trans *trans,
 
 	bch2_trans_update(trans, src_iter, &new_src->k_i, 0);
 	bch2_trans_update(trans, dst_iter, &new_dst->k_i, 0);
+out_set_offset:
+	*src_offset = new_src->k.p.offset;
+	*dst_offset = new_dst->k.p.offset;
 out:
 	bch2_trans_iter_put(trans, src_iter);
 	bch2_trans_iter_put(trans, dst_iter);

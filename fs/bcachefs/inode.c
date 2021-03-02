@@ -470,11 +470,10 @@ static inline u32 bkey_generation(struct bkey_s_c k)
 	}
 }
 
-int bch2_inode_create(struct btree_trans *trans,
-		      struct bch_inode_unpacked *inode_u)
+struct btree_iter *bch2_inode_create(struct btree_trans *trans,
+				     struct bch_inode_unpacked *inode_u)
 {
 	struct bch_fs *c = trans->c;
-	struct bkey_inode_buf *inode_p;
 	struct btree_iter *iter = NULL;
 	struct bkey_s_c k;
 	u64 min, max, start, *hint;
@@ -494,10 +493,6 @@ int bch2_inode_create(struct btree_trans *trans,
 
 	if (start >= max || start < min)
 		start = min;
-
-	inode_p = bch2_trans_kmalloc(trans, sizeof(*inode_p));
-	if (IS_ERR(inode_p))
-		return PTR_ERR(inode_p);
 again:
 	for_each_btree_key(trans, iter, BTREE_ID_inodes, POS(0, start),
 			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
@@ -521,7 +516,7 @@ again:
 	bch2_trans_iter_put(trans, iter);
 
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
 
 	if (start != min) {
 		/* Retry from start */
@@ -529,15 +524,12 @@ again:
 		goto again;
 	}
 
-	return -ENOSPC;
+	return ERR_PTR(-ENOSPC);
 found_slot:
 	*hint			= k.k->p.offset;
 	inode_u->bi_inum	= k.k->p.offset;
 	inode_u->bi_generation	= bkey_generation(k);
-
-	ret = bch2_inode_write(trans, iter, inode_u);
-	bch2_trans_iter_put(trans, iter);
-	return ret;
+	return iter;
 }
 
 int bch2_inode_rm(struct bch_fs *c, u64 inode_nr, bool cached)

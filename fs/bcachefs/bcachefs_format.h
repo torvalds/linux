@@ -710,7 +710,9 @@ struct bch_inode_generation {
 	x(bi_foreground_target,		16)	\
 	x(bi_background_target,		16)	\
 	x(bi_erasure_code,		16)	\
-	x(bi_fields_set,		16)
+	x(bi_fields_set,		16)	\
+	x(bi_dir,			64)	\
+	x(bi_dir_offset,		64)
 
 /* subset of BCH_INODE_FIELDS */
 #define BCH_INODE_OPTS()			\
@@ -746,6 +748,7 @@ enum {
 	__BCH_INODE_I_SIZE_DIRTY= 5,
 	__BCH_INODE_I_SECTORS_DIRTY= 6,
 	__BCH_INODE_UNLINKED	= 7,
+	__BCH_INODE_BACKPTR_UNTRUSTED = 8,
 
 	/* bits 20+ reserved for packed fields below: */
 };
@@ -758,6 +761,7 @@ enum {
 #define BCH_INODE_I_SIZE_DIRTY	(1 << __BCH_INODE_I_SIZE_DIRTY)
 #define BCH_INODE_I_SECTORS_DIRTY (1 << __BCH_INODE_I_SECTORS_DIRTY)
 #define BCH_INODE_UNLINKED	(1 << __BCH_INODE_UNLINKED)
+#define BCH_INODE_BACKPTR_UNTRUSTED (1 << __BCH_INODE_BACKPTR_UNTRUSTED)
 
 LE32_BITMASK(INODE_STR_HASH,	struct bch_inode, bi_flags, 20, 24);
 LE32_BITMASK(INODE_NR_FIELDS,	struct bch_inode, bi_flags, 24, 31);
@@ -1208,7 +1212,8 @@ enum bcachefs_metadata_version {
 	bcachefs_metadata_version_bkey_renumber		= 10,
 	bcachefs_metadata_version_inode_btree_change	= 11,
 	bcachefs_metadata_version_snapshot		= 12,
-	bcachefs_metadata_version_max			= 13,
+	bcachefs_metadata_version_inode_backpointers	= 13,
+	bcachefs_metadata_version_max			= 14,
 };
 
 #define bcachefs_metadata_version_current	(bcachefs_metadata_version_max - 1)
