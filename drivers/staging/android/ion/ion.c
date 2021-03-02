@@ -703,6 +703,8 @@ void ion_device_add_heap(struct ion_heap *heap)
 
 	dev->heap_cnt++;
 	up_write(&dev->lock);
+
+	pr_info("%s: %s id=%d type=%d\n", __func__, heap->name, heap->id, heap->type);
 }
 EXPORT_SYMBOL(ion_device_add_heap);
 
