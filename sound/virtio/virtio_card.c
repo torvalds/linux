@@ -209,6 +209,16 @@ static int virtsnd_build_devs(struct virtio_snd *snd)
 			 VIRTIO_SND_CARD_NAME " at %s/%s",
 			 dev_name(dev->parent), dev_name(dev));
 
+	rc = virtsnd_pcm_parse_cfg(snd);
+	if (rc)
+		return rc;
+
+	if (snd->nsubstreams) {
+		rc = virtsnd_pcm_build_devs(snd);
+		if (rc)
+			return rc;
+	}
+
 	return snd_card_register(snd->card);
 }
 
@@ -237,6 +247,9 @@ static int virtsnd_validate(struct virtio_device *vdev)
 		return -EINVAL;
 	}
 
+	if (virtsnd_pcm_validate(vdev))
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -259,6 +272,7 @@ static int virtsnd_probe(struct virtio_device *vdev)
 
 	snd->vdev = vdev;
 	INIT_LIST_HEAD(&snd->ctl_msgs);
+	INIT_LIST_HEAD(&snd->pcm_list);
 
 	vdev->priv = snd;
 
@@ -293,6 +307,7 @@ on_exit:
 static void virtsnd_remove(struct virtio_device *vdev)
 {
 	struct virtio_snd *snd = vdev->priv;
+	unsigned int i;
 
 	virtsnd_disable_event_vq(snd);
 	virtsnd_ctl_msg_cancel_all(snd);
@@ -302,6 +317,9 @@ static void virtsnd_remove(struct virtio_device *vdev)
 
 	vdev->config->del_vqs(vdev);
 	vdev->config->reset(vdev);
+
+	for (i = 0; snd->substreams && i < snd->nsubstreams; ++i)
+		cancel_work_sync(&snd->substreams[i].elapsed_period);
 
 	kfree(snd->event_msgs);
 }

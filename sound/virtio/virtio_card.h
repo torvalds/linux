@@ -12,9 +12,13 @@
 #include <uapi/linux/virtio_snd.h>
 
 #include "virtio_ctl_msg.h"
+#include "virtio_pcm.h"
 
 #define VIRTIO_SND_CARD_DRIVER	"virtio-snd"
 #define VIRTIO_SND_CARD_NAME	"VirtIO SoundCard"
+#define VIRTIO_SND_PCM_NAME	"VirtIO PCM"
+
+struct virtio_pcm_substream;
 
 /**
  * struct virtio_snd_queue - Virtqueue wrapper structure.
@@ -33,6 +37,9 @@ struct virtio_snd_queue {
  * @card: ALSA sound card.
  * @ctl_msgs: Pending control request list.
  * @event_msgs: Device events.
+ * @pcm_list: VirtIO PCM device list.
+ * @substreams: VirtIO PCM substreams.
+ * @nsubstreams: Number of PCM substreams.
  */
 struct virtio_snd {
 	struct virtio_device *vdev;
@@ -40,6 +47,9 @@ struct virtio_snd {
 	struct snd_card *card;
 	struct list_head ctl_msgs;
 	struct virtio_snd_event *event_msgs;
+	struct list_head pcm_list;
+	struct virtio_pcm_substream *substreams;
+	u32 nsubstreams;
 };
 
 /* Message completion timeout in milliseconds (module parameter). */
