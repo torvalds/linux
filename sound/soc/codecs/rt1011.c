@@ -1987,10 +1987,10 @@ static int rt1011_set_tdm_slot(struct snd_soc_dai *dai,
 		RT1011_TDM_I2S_DOCK_EN_1_MASK, tdm_en);
 	snd_soc_component_update_bits(component, RT1011_TDM2_SET_2,
 		RT1011_TDM_I2S_DOCK_EN_2_MASK, tdm_en);
-	if (tx_slotnum)
-		snd_soc_component_update_bits(component, RT1011_TDM_TOTAL_SET,
-			RT1011_ADCDAT1_PIN_CONFIG | RT1011_ADCDAT2_PIN_CONFIG,
-			RT1011_ADCDAT1_OUTPUT | RT1011_ADCDAT2_OUTPUT);
+
+	snd_soc_component_update_bits(component, RT1011_TDM_TOTAL_SET,
+		RT1011_ADCDAT1_PIN_CONFIG | RT1011_ADCDAT2_PIN_CONFIG,
+		RT1011_ADCDAT1_OUTPUT | RT1011_ADCDAT2_OUTPUT);
 
 _set_tdm_err_:
 	snd_soc_dapm_mutex_unlock(dapm);
