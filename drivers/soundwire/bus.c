@@ -1636,7 +1636,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 		ret = sdw_read_no_pm(slave, SDW_SCP_INT1);
 		if (ret < 0) {
 			dev_err(&slave->dev,
-				"SDW_SCP_INT1 read failed:%d\n", ret);
+				"SDW_SCP_INT1 recheck read failed:%d\n", ret);
 			goto io_err;
 		}
 		_buf = ret;
@@ -1644,7 +1644,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 		ret = sdw_nread_no_pm(slave, SDW_SCP_INTSTAT2, 2, _buf2);
 		if (ret < 0) {
 			dev_err(&slave->dev,
-				"SDW_SCP_INT2/3 read failed:%d\n", ret);
+				"SDW_SCP_INT2/3 recheck read failed:%d\n", ret);
 			goto io_err;
 		}
 
@@ -1652,7 +1652,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 			ret = sdw_read_no_pm(slave, SDW_DP0_INT);
 			if (ret < 0) {
 				dev_err(&slave->dev,
-					"SDW_DP0_INT read failed:%d\n", ret);
+					"SDW_DP0_INT recheck read failed:%d\n", ret);
 				goto io_err;
 			}
 			sdca_cascade = ret & SDW_DP0_SDCA_CASCADE;
