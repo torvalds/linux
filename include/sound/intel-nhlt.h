@@ -113,6 +113,11 @@ struct nhlt_vendor_dmic_array_config {
 } __packed;
 
 enum {
+	NHLT_CONFIG_TYPE_GENERIC = 0,
+	NHLT_CONFIG_TYPE_MIC_ARRAY = 1
+};
+
+enum {
 	NHLT_MIC_ARRAY_2CH_SMALL = 0xa,
 	NHLT_MIC_ARRAY_2CH_BIG = 0xb,
 	NHLT_MIC_ARRAY_4CH_1ST_GEOM = 0xc,
