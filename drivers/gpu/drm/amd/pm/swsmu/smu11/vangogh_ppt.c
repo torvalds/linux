@@ -442,7 +442,7 @@ static int vangogh_get_dpm_clk_limited(struct smu_context *smu, enum smu_clk_typ
 	return 0;
 }
 
-static int vangogh_print_fine_grain_clk(struct smu_context *smu,
+static int vangogh_print_clk_levels(struct smu_context *smu,
 			enum smu_clk_type clk_type, char *buf)
 {
 	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
@@ -1869,7 +1869,7 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.interrupt_work = smu_v11_0_interrupt_work,
 	.get_gpu_metrics = vangogh_get_gpu_metrics,
 	.od_edit_dpm_table = vangogh_od_edit_dpm_table,
-	.print_clk_levels = vangogh_print_fine_grain_clk,
+	.print_clk_levels = vangogh_print_clk_levels,
 	.set_default_dpm_table = vangogh_set_default_dpm_tables,
 	.set_fine_grain_gfx_freq_parameters = vangogh_set_fine_grain_gfx_freq_parameters,
 	.system_features_control = vangogh_system_features_control,
