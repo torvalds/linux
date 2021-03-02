@@ -1466,12 +1466,10 @@ EXPORT_SYMBOL_GPL(serial8250_em485_stop_tx);
 
 static enum hrtimer_restart serial8250_em485_handle_stop_tx(struct hrtimer *t)
 {
-	struct uart_8250_em485 *em485;
-	struct uart_8250_port *p;
+	struct uart_8250_em485 *em485 = container_of(t, struct uart_8250_em485,
+			stop_tx_timer);
+	struct uart_8250_port *p = em485->port;
 	unsigned long flags;
-
-	em485 = container_of(t, struct uart_8250_em485, stop_tx_timer);
-	p = em485->port;
 
 	serial8250_rpm_get(p);
 	spin_lock_irqsave(&p->port.lock, flags);
@@ -1482,6 +1480,7 @@ static enum hrtimer_restart serial8250_em485_handle_stop_tx(struct hrtimer *t)
 	}
 	spin_unlock_irqrestore(&p->port.lock, flags);
 	serial8250_rpm_put(p);
+
 	return HRTIMER_NORESTART;
 }
 
@@ -1629,12 +1628,10 @@ static inline void start_tx_rs485(struct uart_port *port)
 
 static enum hrtimer_restart serial8250_em485_handle_start_tx(struct hrtimer *t)
 {
-	struct uart_8250_em485 *em485;
-	struct uart_8250_port *p;
+	struct uart_8250_em485 *em485 = container_of(t, struct uart_8250_em485,
+			start_tx_timer);
+	struct uart_8250_port *p = em485->port;
 	unsigned long flags;
-
-	em485 = container_of(t, struct uart_8250_em485, start_tx_timer);
-	p = em485->port;
 
 	spin_lock_irqsave(&p->port.lock, flags);
 	if (em485->active_timer == &em485->start_tx_timer) {
@@ -1642,6 +1639,7 @@ static enum hrtimer_restart serial8250_em485_handle_start_tx(struct hrtimer *t)
 		em485->active_timer = NULL;
 	}
 	spin_unlock_irqrestore(&p->port.lock, flags);
+
 	return HRTIMER_NORESTART;
 }
 
