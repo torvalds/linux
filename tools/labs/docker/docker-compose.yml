@@ -13,11 +13,12 @@ services:
   kernel-build:
     privileged: true
     tty: true
+    hostname: "so2"
     build:
       context: .
       dockerfile: ./kernel/Dockerfile
       args:
-              UID: ${UID}
-              GID: ${GID}
+              ARG_UID: ${ARG_UID}
+              ARG_GID: ${ARG_GID}
     volumes:
       - ../../../:/linux

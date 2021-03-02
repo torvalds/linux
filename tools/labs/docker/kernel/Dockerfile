@@ -28,11 +28,11 @@ RUN apt-get -y clean
 
 RUN rm -rf /var/lib/apt/lists/*
 
-ARG UID
-ARG GID
+ARG ARG_UID
+ARG ARG_GID
 
-RUN groupadd -g $GID ubuntu
-RUN useradd -u $UID -g $GID -ms /bin/bash ubuntu && adduser ubuntu sudo && echo -n 'ubuntu:ubuntu' | chpasswd
+RUN groupadd -g $ARG_GID ubuntu
+RUN useradd -u $ARG_UID -g $ARG_GID -ms /bin/bash ubuntu && adduser ubuntu sudo && echo -n 'ubuntu:ubuntu' | chpasswd
 
 # Enable passwordless sudo for users under the "sudo" group
 RUN sed -i.bkp -e \

@@ -36,7 +36,7 @@ docker-docs:
 	cd docker && UID=$(shell id -u) GID=$(shell id -g) docker-compose run docs-build bash -c "cd /linux/tools/labs && make docs"
 
 docker-kernel:
-	cd docker && UID=$(shell id -u) GID=$(shell id -g) docker-compose build kernel-build
+	cd docker && ARG_UID=$(shell id -u) ARG_GID=$(shell id -g) docker-compose build kernel-build
 	cd docker && docker-compose up -d kernel-build
 	cd docker && docker-compose exec -u ubuntu kernel-build bash
 
