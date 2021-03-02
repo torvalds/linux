@@ -235,10 +235,10 @@ static int ipw_write_room(struct tty_struct *linux_tty)
 
 	/* FIXME: Exactly how is the tty object locked here .. */
 	if (!tty)
-		return -ENODEV;
+		return 0;
 
 	if (!tty->port.count)
-		return -EINVAL;
+		return 0;
 
 	room = IPWIRELESS_TX_QUEUE_SIZE - tty->tx_bytes_queued;
 	if (room < 0)

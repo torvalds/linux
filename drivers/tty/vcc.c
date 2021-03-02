@@ -878,7 +878,7 @@ static int vcc_write_room(struct tty_struct *tty)
 	port = vcc_get_ne(tty->index);
 	if (unlikely(!port)) {
 		pr_err("VCC: write_room: Failed to find VCC port\n");
-		return -ENODEV;
+		return 0;
 	}
 
 	num = VCC_BUFF_LEN - port->chars_in_buffer;
