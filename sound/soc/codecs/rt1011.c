@@ -1089,25 +1089,21 @@ static int rt1011_recv_spk_mode_put(struct snd_kcontrol *kcontrol,
 
 static bool rt1011_validate_bq_drc_coeff(unsigned short reg)
 {
-	if ((reg == RT1011_DAC_SET_1) |
-		(reg >= RT1011_ADC_SET && reg <= RT1011_ADC_SET_1) |
-		(reg == RT1011_ADC_SET_4) | (reg == RT1011_ADC_SET_5) |
-		(reg == RT1011_MIXER_1) |
-		(reg == RT1011_A_TIMING_1) | (reg >= RT1011_POWER_7 &&
-		reg <= RT1011_POWER_8) |
-		(reg == RT1011_CLASS_D_POS) | (reg == RT1011_ANALOG_CTRL) |
-		(reg >= RT1011_SPK_TEMP_PROTECT_0 &&
-		reg <= RT1011_SPK_TEMP_PROTECT_6) |
-		(reg >= RT1011_SPK_PRO_DC_DET_5 && reg <= RT1011_BAT_GAIN_1) |
-		(reg >= RT1011_RT_DRC_CROSS && reg <= RT1011_RT_DRC_POS_8) |
-		(reg >= RT1011_CROSS_BQ_SET_1 && reg <= RT1011_BQ_10_A2_15_0) |
-		(reg >= RT1011_SMART_BOOST_TIMING_1 &&
-		reg <= RT1011_SMART_BOOST_TIMING_36) |
-		(reg == RT1011_SINE_GEN_REG_1) |
-		(reg >= RT1011_STP_ALPHA_RECIPROCAL_MSB &&
-		reg <= RT1011_BQ_6_PARAMS_CHECK_5) |
-		(reg >= RT1011_BQ_7_PARAMS_CHECK_1 &&
-		reg <= RT1011_BQ_10_PARAMS_CHECK_5))
+	if ((reg == RT1011_DAC_SET_1) ||
+		(reg >= RT1011_ADC_SET && reg <= RT1011_ADC_SET_1) ||
+		(reg == RT1011_ADC_SET_4) || (reg == RT1011_ADC_SET_5) ||
+		(reg == RT1011_MIXER_1) ||
+		(reg == RT1011_A_TIMING_1) ||
+		(reg >= RT1011_POWER_7 && reg <= RT1011_POWER_8) ||
+		(reg == RT1011_CLASS_D_POS) || (reg == RT1011_ANALOG_CTRL) ||
+		(reg >= RT1011_SPK_TEMP_PROTECT_0 && reg <= RT1011_SPK_TEMP_PROTECT_6) ||
+		(reg >= RT1011_SPK_PRO_DC_DET_5 && reg <= RT1011_BAT_GAIN_1) ||
+		(reg >= RT1011_RT_DRC_CROSS && reg <= RT1011_RT_DRC_POS_8) ||
+		(reg >= RT1011_CROSS_BQ_SET_1 && reg <= RT1011_BQ_10_A2_15_0) ||
+		(reg >= RT1011_SMART_BOOST_TIMING_1 && reg <= RT1011_SMART_BOOST_TIMING_36) ||
+		(reg == RT1011_SINE_GEN_REG_1) ||
+		(reg >= RT1011_STP_ALPHA_RECIPROCAL_MSB && reg <= RT1011_BQ_6_PARAMS_CHECK_5) ||
+		(reg >= RT1011_BQ_7_PARAMS_CHECK_1 && reg <= RT1011_BQ_10_PARAMS_CHECK_5))
 		return true;
 
 	return false;
