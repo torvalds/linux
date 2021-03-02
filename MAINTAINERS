@@ -4885,7 +4885,6 @@ F:	include/uapi/linux/cyclades.h
 
 CYCLADES PC300 DRIVER
 S:	Orphan
-W:	http://www.cyclades.com/
 F:	drivers/net/wan/pc300*
 
 CYPRESS_FIRMWARE MEDIA DRIVER
