@@ -183,6 +183,7 @@ static int bch2_ioc_reinherit_attrs(struct bch_fs *c,
 				    struct bch_inode_info *src,
 				    const char __user *name)
 {
+	struct bch_hash_info hash = bch2_hash_info_init(c, &src->ei_inode);
 	struct bch_inode_info *dst;
 	struct inode *vinode = NULL;
 	char *kname = NULL;
@@ -202,8 +203,7 @@ static int bch2_ioc_reinherit_attrs(struct bch_fs *c,
 	qstr.name	= kname;
 
 	ret = -ENOENT;
-	inum = bch2_dirent_lookup(c, src->v.i_ino,
-				  &src->ei_str_hash,
+	inum = bch2_dirent_lookup(c, src->v.i_ino, &hash,
 				  &qstr);
 	if (!inum)
 		goto err1;

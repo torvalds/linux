@@ -370,11 +370,11 @@ static struct dentry *bch2_lookup(struct inode *vdir, struct dentry *dentry,
 {
 	struct bch_fs *c = vdir->i_sb->s_fs_info;
 	struct bch_inode_info *dir = to_bch_ei(vdir);
+	struct bch_hash_info hash = bch2_hash_info_init(c, &dir->ei_inode);
 	struct inode *vinode = NULL;
 	u64 inum;
 
-	inum = bch2_dirent_lookup(c, dir->v.i_ino,
-				  &dir->ei_str_hash,
+	inum = bch2_dirent_lookup(c, dir->v.i_ino, &hash,
 				  &dentry->d_name);
 
 	if (inum)
@@ -723,7 +723,7 @@ retry:
 	bch2_setattr_copy(idmap, inode, &inode_u, attr);
 
 	if (attr->ia_valid & ATTR_MODE) {
-		ret = bch2_acl_chmod(&trans, inode, inode_u.bi_mode, &acl);
+		ret = bch2_acl_chmod(&trans, &inode_u, inode_u.bi_mode, &acl);
 		if (ret)
 			goto btree_err;
 	}
@@ -1150,7 +1150,6 @@ static void bch2_vfs_inode_init(struct bch_fs *c,
 	inode->ei_flags		= 0;
 	inode->ei_journal_seq	= 0;
 	inode->ei_quota_reserved = 0;
-	inode->ei_str_hash	= bch2_hash_info_init(c, bi);
 	inode->ei_qid		= bch_qid(bi);
 
 	inode->v.i_mapping->a_ops = &bch_address_space_operations;

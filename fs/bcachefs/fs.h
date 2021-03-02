@@ -44,8 +44,6 @@ struct bch_inode_info {
 	struct mutex		ei_quota_lock;
 	struct bch_qid		ei_qid;
 
-	struct bch_hash_info	ei_str_hash;
-
 	/* copy of inode in btree: */
 	struct bch_inode_unpacked ei_inode;
 };

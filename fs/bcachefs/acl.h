@@ -33,7 +33,7 @@ int bch2_set_acl_trans(struct btree_trans *,
 		       const struct bch_hash_info *,
 		       struct posix_acl *, int);
 int bch2_set_acl(struct mnt_idmap *, struct dentry *, struct posix_acl *, int);
-int bch2_acl_chmod(struct btree_trans *, struct bch_inode_info *,
+int bch2_acl_chmod(struct btree_trans *, struct bch_inode_unpacked *,
 		   umode_t, struct posix_acl **);
 
 #else
@@ -47,7 +47,7 @@ static inline int bch2_set_acl_trans(struct btree_trans *trans,
 }
 
 static inline int bch2_acl_chmod(struct btree_trans *trans,
-				 struct bch_inode_info *inode,
+				 struct bch_inode_unpacked *inode,
 				 umode_t mode,
 				 struct posix_acl **new_acl)
 {

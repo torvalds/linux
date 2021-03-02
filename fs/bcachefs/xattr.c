@@ -121,6 +121,7 @@ void bch2_xattr_to_text(struct printbuf *out, struct bch_fs *c,
 int bch2_xattr_get(struct bch_fs *c, struct bch_inode_info *inode,
 		   const char *name, void *buffer, size_t size, int type)
 {
+	struct bch_hash_info hash = bch2_hash_info_init(c, &inode->ei_inode);
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c_xattr xattr;
@@ -128,8 +129,8 @@ int bch2_xattr_get(struct bch_fs *c, struct bch_inode_info *inode,
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	iter = bch2_hash_lookup(&trans, bch2_xattr_hash_desc,
-				&inode->ei_str_hash, inode->v.i_ino,
+	iter = bch2_hash_lookup(&trans, bch2_xattr_hash_desc, &hash,
+				inode->v.i_ino,
 				&X_SEARCH(type, name, strlen(name)),
 				0);
 	if (IS_ERR(iter)) {
@@ -239,7 +240,7 @@ static int bch2_xattr_emit(struct dentry *dentry,
 }
 
 static int bch2_xattr_list_bcachefs(struct bch_fs *c,
-				    struct bch_inode_info *inode,
+				    struct bch_inode_unpacked *inode,
 				    struct xattr_buf *buf,
 				    bool all)
 {
@@ -249,12 +250,12 @@ static int bch2_xattr_list_bcachefs(struct bch_fs *c,
 	u64 v;
 
 	for (id = 0; id < Inode_opt_nr; id++) {
-		v = bch2_inode_opt_get(&inode->ei_inode, id);
+		v = bch2_inode_opt_get(inode, id);
 		if (!v)
 			continue;
 
 		if (!all &&
-		    !(inode->ei_inode.bi_fields_set & (1 << id)))
+		    !(inode->bi_fields_set & (1 << id)))
 			continue;
 
 		ret = __bch2_xattr_emit(prefix, bch2_inode_opts[id],
@@ -298,11 +299,11 @@ ssize_t bch2_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 	if (ret)
 		return ret;
 
-	ret = bch2_xattr_list_bcachefs(c, inode, &buf, false);
+	ret = bch2_xattr_list_bcachefs(c, &inode->ei_inode, &buf, false);
 	if (ret)
 		return ret;
 
-	ret = bch2_xattr_list_bcachefs(c, inode, &buf, true);
+	ret = bch2_xattr_list_bcachefs(c, &inode->ei_inode, &buf, true);
 	if (ret)
 		return ret;
 
@@ -327,10 +328,10 @@ static int bch2_xattr_set_handler(const struct xattr_handler *handler,
 {
 	struct bch_inode_info *inode = to_bch_ei(vinode);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	struct bch_hash_info hash = bch2_hash_info_init(c, &inode->ei_inode);
 
 	return bch2_trans_do(c, NULL, &inode->ei_journal_seq, 0,
-			bch2_xattr_set(&trans, inode->v.i_ino,
-				       &inode->ei_str_hash,
+			bch2_xattr_set(&trans, inode->v.i_ino, &hash,
 				       name, value, size,
 				       handler->flags, flags));
 }
