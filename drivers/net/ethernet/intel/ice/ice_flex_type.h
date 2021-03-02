@@ -497,8 +497,8 @@ struct ice_xlt1 {
 #define ICE_PF_NUM_S	13
 #define ICE_PF_NUM_M	(0x07 << ICE_PF_NUM_S)
 #define ICE_VSIG_VALUE(vsig, pf_id) \
-	(u16)((((u16)(vsig)) & ICE_VSIG_IDX_M) | \
-	      (((u16)(pf_id) << ICE_PF_NUM_S) & ICE_PF_NUM_M))
+	((u16)((((u16)(vsig)) & ICE_VSIG_IDX_M) | \
+	       (((u16)(pf_id) << ICE_PF_NUM_S) & ICE_PF_NUM_M)))
 #define ICE_DEFAULT_VSIG	0
 
 /* XLT2 Table */
