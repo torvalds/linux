@@ -52,8 +52,6 @@ struct vcc_port {
 #define VCC_CTL_BREAK		-1
 #define VCC_CTL_HUP		-2
 
-static const char vcc_driver_name[] = "vcc";
-static const char vcc_device_node[] = "vcc";
 static struct tty_driver *vcc_tty_driver;
 
 static struct vcc_port *vcc_table[VCC_MAX_PORTS];
@@ -1065,8 +1063,8 @@ static int vcc_tty_init(void)
 		return PTR_ERR(vcc_tty_driver);
 	}
 
-	vcc_tty_driver->driver_name = vcc_driver_name;
-	vcc_tty_driver->name = vcc_device_node;
+	vcc_tty_driver->driver_name = "vcc";
+	vcc_tty_driver->name = "vcc";
 
 	vcc_tty_driver->minor_start = VCC_MINOR_START;
 	vcc_tty_driver->type = TTY_DRIVER_TYPE_SYSTEM;
