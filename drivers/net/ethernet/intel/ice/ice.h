@@ -197,45 +197,45 @@ struct ice_sw {
 };
 
 enum ice_pf_state {
-	__ICE_TESTING,
-	__ICE_DOWN,
-	__ICE_NEEDS_RESTART,
-	__ICE_PREPARED_FOR_RESET,	/* set by driver when prepared */
-	__ICE_RESET_OICR_RECV,		/* set by driver after rcv reset OICR */
-	__ICE_PFR_REQ,			/* set by driver and peers */
-	__ICE_CORER_REQ,		/* set by driver and peers */
-	__ICE_GLOBR_REQ,		/* set by driver and peers */
-	__ICE_CORER_RECV,		/* set by OICR handler */
-	__ICE_GLOBR_RECV,		/* set by OICR handler */
-	__ICE_EMPR_RECV,		/* set by OICR handler */
-	__ICE_SUSPENDED,		/* set on module remove path */
-	__ICE_RESET_FAILED,		/* set by reset/rebuild */
+	ICE_TESTING,
+	ICE_DOWN,
+	ICE_NEEDS_RESTART,
+	ICE_PREPARED_FOR_RESET,	/* set by driver when prepared */
+	ICE_RESET_OICR_RECV,		/* set by driver after rcv reset OICR */
+	ICE_PFR_REQ,			/* set by driver and peers */
+	ICE_CORER_REQ,		/* set by driver and peers */
+	ICE_GLOBR_REQ,		/* set by driver and peers */
+	ICE_CORER_RECV,		/* set by OICR handler */
+	ICE_GLOBR_RECV,		/* set by OICR handler */
+	ICE_EMPR_RECV,		/* set by OICR handler */
+	ICE_SUSPENDED,		/* set on module remove path */
+	ICE_RESET_FAILED,		/* set by reset/rebuild */
 	/* When checking for the PF to be in a nominal operating state, the
 	 * bits that are grouped at the beginning of the list need to be
-	 * checked. Bits occurring before __ICE_STATE_NOMINAL_CHECK_BITS will
+	 * checked. Bits occurring before ICE_STATE_NOMINAL_CHECK_BITS will
 	 * be checked. If you need to add a bit into consideration for nominal
 	 * operating state, it must be added before
-	 * __ICE_STATE_NOMINAL_CHECK_BITS. Do not move this entry's position
+	 * ICE_STATE_NOMINAL_CHECK_BITS. Do not move this entry's position
 	 * without appropriate consideration.
 	 */
-	__ICE_STATE_NOMINAL_CHECK_BITS,
-	__ICE_ADMINQ_EVENT_PENDING,
-	__ICE_MAILBOXQ_EVENT_PENDING,
-	__ICE_MDD_EVENT_PENDING,
-	__ICE_VFLR_EVENT_PENDING,
-	__ICE_FLTR_OVERFLOW_PROMISC,
-	__ICE_VF_DIS,
-	__ICE_CFG_BUSY,
-	__ICE_SERVICE_SCHED,
-	__ICE_SERVICE_DIS,
-	__ICE_FD_FLUSH_REQ,
-	__ICE_OICR_INTR_DIS,		/* Global OICR interrupt disabled */
-	__ICE_MDD_VF_PRINT_PENDING,	/* set when MDD event handle */
-	__ICE_VF_RESETS_DISABLED,	/* disable resets during ice_remove */
-	__ICE_LINK_DEFAULT_OVERRIDE_PENDING,
-	__ICE_PHY_INIT_COMPLETE,
-	__ICE_FD_VF_FLUSH_CTX,		/* set at FD Rx IRQ or timeout */
-	__ICE_STATE_NBITS		/* must be last */
+	ICE_STATE_NOMINAL_CHECK_BITS,
+	ICE_ADMINQ_EVENT_PENDING,
+	ICE_MAILBOXQ_EVENT_PENDING,
+	ICE_MDD_EVENT_PENDING,
+	ICE_VFLR_EVENT_PENDING,
+	ICE_FLTR_OVERFLOW_PROMISC,
+	ICE_VF_DIS,
+	ICE_CFG_BUSY,
+	ICE_SERVICE_SCHED,
+	ICE_SERVICE_DIS,
+	ICE_FD_FLUSH_REQ,
+	ICE_OICR_INTR_DIS,		/* Global OICR interrupt disabled */
+	ICE_MDD_VF_PRINT_PENDING,	/* set when MDD event handle */
+	ICE_VF_RESETS_DISABLED,	/* disable resets during ice_remove */
+	ICE_LINK_DEFAULT_OVERRIDE_PENDING,
+	ICE_PHY_INIT_COMPLETE,
+	ICE_FD_VF_FLUSH_CTX,		/* set at FD Rx IRQ or timeout */
+	ICE_STATE_NBITS		/* must be last */
 };
 
 enum ice_vsi_state {
@@ -421,7 +421,7 @@ struct ice_pf {
 	u16 num_msix_per_vf;
 	/* used to ratelimit the MDD event logging */
 	unsigned long last_printed_mdd_jiffies;
-	DECLARE_BITMAP(state, __ICE_STATE_NBITS);
+	DECLARE_BITMAP(state, ICE_STATE_NBITS);
 	DECLARE_BITMAP(flags, ICE_PF_FLAGS_NBITS);
 	unsigned long *avail_txqs;	/* bitmap to track PF Tx queue usage */
 	unsigned long *avail_rxqs;	/* bitmap to track PF Rx queue usage */

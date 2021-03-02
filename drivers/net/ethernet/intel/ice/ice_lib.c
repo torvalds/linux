@@ -1502,13 +1502,13 @@ static void ice_vsi_set_rss_flow_fld(struct ice_vsi *vsi)
  */
 bool ice_pf_state_is_nominal(struct ice_pf *pf)
 {
-	DECLARE_BITMAP(check_bits, __ICE_STATE_NBITS) = { 0 };
+	DECLARE_BITMAP(check_bits, ICE_STATE_NBITS) = { 0 };
 
 	if (!pf)
 		return false;
 
-	bitmap_set(check_bits, 0, __ICE_STATE_NOMINAL_CHECK_BITS);
-	if (bitmap_intersects(pf->state, check_bits, __ICE_STATE_NBITS))
+	bitmap_set(check_bits, 0, ICE_STATE_NOMINAL_CHECK_BITS);
+	if (bitmap_intersects(pf->state, check_bits, ICE_STATE_NBITS))
 		return false;
 
 	return true;
@@ -2811,7 +2811,7 @@ int ice_vsi_release(struct ice_vsi *vsi)
 	ice_vsi_delete(vsi);
 	ice_vsi_free_q_vectors(vsi);
 
-	/* make sure unregister_netdev() was called by checking __ICE_DOWN */
+	/* make sure unregister_netdev() was called by checking ICE_DOWN */
 	if (vsi->netdev && test_bit(ICE_VSI_DOWN, vsi->state)) {
 		free_netdev(vsi->netdev);
 		vsi->netdev = NULL;
@@ -3140,7 +3140,7 @@ err_rings:
 	}
 err_vsi:
 	ice_vsi_clear(vsi);
-	set_bit(__ICE_RESET_FAILED, pf->state);
+	set_bit(ICE_RESET_FAILED, pf->state);
 	kfree(coalesce);
 	return ret;
 }
@@ -3151,10 +3151,10 @@ err_vsi:
  */
 bool ice_is_reset_in_progress(unsigned long *state)
 {
-	return test_bit(__ICE_RESET_OICR_RECV, state) ||
-	       test_bit(__ICE_PFR_REQ, state) ||
-	       test_bit(__ICE_CORER_REQ, state) ||
-	       test_bit(__ICE_GLOBR_REQ, state);
+	return test_bit(ICE_RESET_OICR_RECV, state) ||
+	       test_bit(ICE_PFR_REQ, state) ||
+	       test_bit(ICE_CORER_REQ, state) ||
+	       test_bit(ICE_GLOBR_REQ, state);
 }
 
 #ifdef CONFIG_DCB

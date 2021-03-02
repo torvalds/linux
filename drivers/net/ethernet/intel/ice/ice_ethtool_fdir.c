@@ -1452,7 +1452,7 @@ int ice_del_fdir_ethtool(struct ice_vsi *vsi, struct ethtool_rxnfc *cmd)
 		return -EBUSY;
 	}
 
-	if (test_bit(__ICE_FD_FLUSH_REQ, pf->state))
+	if (test_bit(ICE_FD_FLUSH_REQ, pf->state))
 		return -EBUSY;
 
 	mutex_lock(&hw->fdir_fltr_lock);
