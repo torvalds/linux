@@ -16,6 +16,7 @@
 #include <linux/version.h>
 #include <linux/random.h>
 #include <linux/clockchips.h>
+#include <linux/interrupt.h>
 #include <clocksource/hyperv_timer.h>
 #include <asm/mshyperv.h>
 #include "hyperv_vmbus.h"
@@ -214,10 +215,12 @@ void hv_synic_enable_regs(unsigned int cpu)
 	hv_set_register(HV_REGISTER_SIEFP, siefp.as_uint64);
 
 	/* Setup the shared SINT. */
+	if (vmbus_irq != -1)
+		enable_percpu_irq(vmbus_irq, 0);
 	shared_sint.as_uint64 = hv_get_register(HV_REGISTER_SINT0 +
 					VMBUS_MESSAGE_SINT);
 
-	shared_sint.vector = hv_get_vector();
+	shared_sint.vector = vmbus_interrupt;
 	shared_sint.masked = false;
 
 	/*
@@ -285,6 +288,9 @@ void hv_synic_disable_regs(unsigned int cpu)
 	sctrl.as_uint64 = hv_get_register(HV_REGISTER_SCONTROL);
 	sctrl.enable = 0;
 	hv_set_register(HV_REGISTER_SCONTROL, sctrl.as_uint64);
+
+	if (vmbus_irq != -1)
+		disable_percpu_irq(vmbus_irq);
 }
 
 

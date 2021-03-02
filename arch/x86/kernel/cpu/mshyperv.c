@@ -60,23 +60,18 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_hyperv_callback)
 	set_irq_regs(old_regs);
 }
 
-int hv_setup_vmbus_irq(int irq, void (*handler)(void))
+void hv_setup_vmbus_handler(void (*handler)(void))
 {
-	/*
-	 * The 'irq' argument is ignored on x86/x64 because a hard-coded
-	 * interrupt vector is used for Hyper-V interrupts.
-	 */
 	vmbus_handler = handler;
-	return 0;
 }
+EXPORT_SYMBOL_GPL(hv_setup_vmbus_handler);
 
-void hv_remove_vmbus_irq(void)
+void hv_remove_vmbus_handler(void)
 {
 	/* We have no way to deallocate the interrupt gate */
 	vmbus_handler = NULL;
 }
-EXPORT_SYMBOL_GPL(hv_setup_vmbus_irq);
-EXPORT_SYMBOL_GPL(hv_remove_vmbus_irq);
+EXPORT_SYMBOL_GPL(hv_remove_vmbus_handler);
 
 /*
  * Routines to do per-architecture handling of stimer0

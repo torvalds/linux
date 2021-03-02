@@ -48,8 +48,10 @@ static int hyperv_cpuhp_online;
 
 static void *hv_panic_page;
 
+static long __percpu *vmbus_evt;
+
 /* Values parsed from ACPI DSDT */
-static int vmbus_irq;
+int vmbus_irq;
 int vmbus_interrupt;
 
 /*
@@ -1381,7 +1383,13 @@ static void vmbus_isr(void)
 			tasklet_schedule(&hv_cpu->msg_dpc);
 	}
 
-	add_interrupt_randomness(hv_get_vector(), 0);
+	add_interrupt_randomness(vmbus_interrupt, 0);
+}
+
+static irqreturn_t vmbus_percpu_isr(int irq, void *dev_id)
+{
+	vmbus_isr();
+	return IRQ_HANDLED;
 }
 
 /*
@@ -1496,9 +1504,28 @@ static int vmbus_bus_init(void)
 	if (ret)
 		return ret;
 
-	ret = hv_setup_vmbus_irq(vmbus_irq, vmbus_isr);
-	if (ret)
-		goto err_setup;
+	/*
+	 * VMbus interrupts are best modeled as per-cpu interrupts. If
+	 * on an architecture with support for per-cpu IRQs (e.g. ARM64),
+	 * allocate a per-cpu IRQ using standard Linux kernel functionality.
+	 * If not on such an architecture (e.g., x86/x64), then rely on
+	 * code in the arch-specific portion of the code tree to connect
+	 * the VMbus interrupt handler.
+	 */
+
+	if (vmbus_irq == -1) {
+		hv_setup_vmbus_handler(vmbus_isr);
+	} else {
+		vmbus_evt = alloc_percpu(long);
+		ret = request_percpu_irq(vmbus_irq, vmbus_percpu_isr,
+				"Hyper-V VMbus", vmbus_evt);
+		if (ret) {
+			pr_err("Can't request Hyper-V VMbus IRQ %d, Err %d",
+					vmbus_irq, ret);
+			free_percpu(vmbus_evt);
+			goto err_setup;
+		}
+	}
 
 	ret = hv_synic_alloc();
 	if (ret)
@@ -1559,7 +1586,12 @@ err_connect:
 err_cpuhp:
 	hv_synic_free();
 err_alloc:
-	hv_remove_vmbus_irq();
+	if (vmbus_irq == -1) {
+		hv_remove_vmbus_handler();
+	} else {
+		free_percpu_irq(vmbus_irq, vmbus_evt);
+		free_percpu(vmbus_evt);
+	}
 err_setup:
 	bus_unregister(&hv_bus);
 	unregister_sysctl_table(hv_ctl_table_hdr);
@@ -2677,6 +2709,18 @@ static int __init hv_acpi_init(void)
 		ret = -ETIMEDOUT;
 		goto cleanup;
 	}
+
+	/*
+	 * If we're on an architecture with a hardcoded hypervisor
+	 * vector (i.e. x86/x64), override the VMbus interrupt found
+	 * in the ACPI tables. Ensure vmbus_irq is not set since the
+	 * normal Linux IRQ mechanism is not used in this case.
+	 */
+#ifdef HYPERVISOR_CALLBACK_VECTOR
+	vmbus_interrupt = HYPERVISOR_CALLBACK_VECTOR;
+	vmbus_irq = -1;
+#endif
+
 	hv_debug_init();
 
 	ret = vmbus_bus_init();
@@ -2707,7 +2751,12 @@ static void __exit vmbus_exit(void)
 	vmbus_connection.conn_state = DISCONNECTED;
 	hv_stimer_global_cleanup();
 	vmbus_disconnect();
-	hv_remove_vmbus_irq();
+	if (vmbus_irq == -1) {
+		hv_remove_vmbus_handler();
+	} else {
+		free_percpu_irq(vmbus_irq, vmbus_evt);
+		free_percpu(vmbus_evt);
+	}
 	for_each_online_cpu(cpu) {
 		struct hv_per_cpu_context *hv_cpu
 			= per_cpu_ptr(hv_context.cpu_context, cpu);
