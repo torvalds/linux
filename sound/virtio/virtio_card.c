@@ -56,6 +56,10 @@ static void virtsnd_event_dispatch(struct virtio_snd *snd,
 				   struct virtio_snd_event *event)
 {
 	switch (le32_to_cpu(event->hdr.code)) {
+	case VIRTIO_SND_EVT_JACK_CONNECTED:
+	case VIRTIO_SND_EVT_JACK_DISCONNECTED:
+		virtsnd_jack_event(snd, event);
+		break;
 	case VIRTIO_SND_EVT_PCM_PERIOD_ELAPSED:
 	case VIRTIO_SND_EVT_PCM_XRUN:
 		virtsnd_pcm_event(snd, event);
@@ -219,9 +223,19 @@ static int virtsnd_build_devs(struct virtio_snd *snd)
 			 VIRTIO_SND_CARD_NAME " at %s/%s",
 			 dev_name(dev->parent), dev_name(dev));
 
+	rc = virtsnd_jack_parse_cfg(snd);
+	if (rc)
+		return rc;
+
 	rc = virtsnd_pcm_parse_cfg(snd);
 	if (rc)
 		return rc;
+
+	if (snd->njacks) {
+		rc = virtsnd_jack_build_devs(snd);
+		if (rc)
+			return rc;
+	}
 
 	if (snd->nsubstreams) {
 		rc = virtsnd_pcm_build_devs(snd);
