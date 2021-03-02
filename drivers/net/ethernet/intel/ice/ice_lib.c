@@ -1337,6 +1337,7 @@ int ice_vsi_manage_rss_lut(struct ice_vsi *vsi, bool ena)
  */
 static int ice_vsi_cfg_rss_lut_key(struct ice_vsi *vsi)
 {
+	struct ice_aq_get_set_rss_lut_params set_params = {};
 	struct ice_aqc_get_set_rss_keys *key;
 	struct ice_pf *pf = vsi->back;
 	enum ice_status status;
@@ -1356,8 +1357,12 @@ static int ice_vsi_cfg_rss_lut_key(struct ice_vsi *vsi)
 	else
 		ice_fill_rss_lut(lut, vsi->rss_table_size, vsi->rss_size);
 
-	status = ice_aq_set_rss_lut(&pf->hw, vsi->idx, vsi->rss_lut_type, lut,
-				    vsi->rss_table_size);
+	set_params.vsi_handle = vsi->idx;
+	set_params.lut_size = vsi->rss_table_size;
+	set_params.lut_type = vsi->rss_lut_type;
+	set_params.lut = lut;
+	set_params.global_lut_id = 0;
+	status = ice_aq_set_rss_lut(&pf->hw, &set_params);
 
 	if (status) {
 		dev_err(dev, "set_rss_lut failed, error %s\n",

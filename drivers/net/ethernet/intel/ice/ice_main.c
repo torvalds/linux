@@ -6348,8 +6348,13 @@ int ice_set_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size)
 	}
 
 	if (lut) {
-		status = ice_aq_set_rss_lut(hw, vsi->idx, vsi->rss_lut_type,
-					    lut, lut_size);
+		struct ice_aq_get_set_rss_lut_params set_params = {
+			.vsi_handle = vsi->idx, .lut_size = lut_size,
+			.lut_type = vsi->rss_lut_type, .lut = lut,
+			.global_lut_id = 0
+		};
+
+		status = ice_aq_set_rss_lut(hw, &set_params);
 		if (status) {
 			dev_err(dev, "Cannot set RSS lut, err %s aq_err %s\n",
 				ice_stat_str(status),
@@ -6392,8 +6397,13 @@ int ice_get_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size)
 	}
 
 	if (lut) {
-		status = ice_aq_get_rss_lut(hw, vsi->idx, vsi->rss_lut_type,
-					    lut, lut_size);
+		struct ice_aq_get_set_rss_lut_params get_params = {
+			.vsi_handle = vsi->idx, .lut_size = lut_size,
+			.lut_type = vsi->rss_lut_type, .lut = lut,
+			.global_lut_id = 0
+		};
+
+		status = ice_aq_get_rss_lut(hw, &get_params);
 		if (status) {
 			dev_err(dev, "Cannot get RSS lut, err %s aq_err %s\n",
 				ice_stat_str(status),
