@@ -1007,6 +1007,11 @@
 		groups = "SPI2CS2";
 	};
 
+	pinctrl_ssprstroot_default: ssprstroot_default {
+		function = "SSPRSTROOT";
+		groups = "SSPRSTROOT";
+	};
+
 	pinctrl_tach0_default: tach0_default {
 		function = "TACH0";
 		groups = "TACH0";
