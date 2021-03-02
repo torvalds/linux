@@ -16,6 +16,7 @@
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/dmi.h>
+#include <linux/i2c.h>
 #include <linux/platform_data/gpio-dwapb.h>
 #include <linux/platform_data/i2c-designware.h>
 
@@ -54,19 +55,19 @@ static const struct dmi_system_id dmi_platform_info[] = {
 		.matches = {
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "Galileo"),
 		},
-		.driver_data = (void *)100000,
+		.driver_data = (void *)I2C_MAX_STANDARD_MODE_FREQ,
 	},
 	{
 		.matches = {
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "GalileoGen2"),
 		},
-		.driver_data = (void *)400000,
+		.driver_data = (void *)I2C_MAX_FAST_MODE_FREQ,
 	},
 	{
 		.matches = {
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "SIMATIC IOT2000"),
 		},
-		.driver_data = (void *)400000,
+		.driver_data = (void *)I2C_MAX_FAST_MODE_FREQ,
 	},
 	{}
 };
@@ -174,7 +175,7 @@ static int intel_quark_i2c_setup(struct pci_dev *pdev, struct mfd_cell *cell)
 		return -ENOMEM;
 
 	/* Normal mode by default */
-	pdata->i2c_scl_freq = 100000;
+	pdata->i2c_scl_freq = I2C_MAX_STANDARD_MODE_FREQ;
 
 	dmi_id = dmi_first_match(dmi_platform_info);
 	if (dmi_id)
