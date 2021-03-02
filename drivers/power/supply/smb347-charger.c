@@ -1401,11 +1401,10 @@ static struct i2c_driver smb347_driver = {
 		.name = "smb347",
 		.of_match_table = smb3xx_of_match,
 	},
-	.probe        = smb347_probe,
-	.remove       = smb347_remove,
-	.id_table     = smb347_id,
+	.probe = smb347_probe,
+	.remove = smb347_remove,
+	.id_table = smb347_id,
 };
-
 module_i2c_driver(smb347_driver);
 
 MODULE_AUTHOR("Bruce E. Robertson <bruce.e.robertson@intel.com>");
