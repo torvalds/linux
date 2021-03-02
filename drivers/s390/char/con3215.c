@@ -85,7 +85,6 @@ struct raw3215_info {
 	int written;		      /* number of bytes in write requests */
 	struct raw3215_req *queued_read; /* pointer to queued read requests */
 	struct raw3215_req *queued_write;/* pointer to queued write requests */
-	struct tasklet_struct tlet;   /* tasklet to invoke tty_wakeup */
 	wait_queue_head_t empty_wait; /* wait queue for flushing */
 	struct timer_list timer;      /* timer for delayed output */
 	int line_pos;		      /* position on the line (for tabs) */
@@ -330,21 +329,6 @@ static inline void raw3215_try_io(struct raw3215_info *raw)
 }
 
 /*
- * Call tty_wakeup from tasklet context
- */
-static void raw3215_wakeup(unsigned long data)
-{
-	struct raw3215_info *raw = (struct raw3215_info *) data;
-	struct tty_struct *tty;
-
-	tty = tty_port_tty_get(&raw->port);
-	if (tty) {
-		tty_wakeup(tty);
-		tty_kref_put(tty);
-	}
-}
-
-/*
  * Try to start the next IO and wake up processes waiting on the tty.
  */
 static void raw3215_next_io(struct raw3215_info *raw, struct tty_struct *tty)
@@ -352,7 +336,7 @@ static void raw3215_next_io(struct raw3215_info *raw, struct tty_struct *tty)
 	raw3215_mk_write_req(raw);
 	raw3215_try_io(raw);
 	if (tty && RAW3215_BUFFER_SIZE - raw->count >= RAW3215_MIN_SPACE)
-		tasklet_schedule(&raw->tlet);
+		tty_wakeup(tty);
 }
 
 /*
@@ -644,7 +628,6 @@ static struct raw3215_info *raw3215_alloc_info(void)
 
 	timer_setup(&info->timer, raw3215_timeout, 0);
 	init_waitqueue_head(&info->empty_wait);
-	tasklet_init(&info->tlet, raw3215_wakeup, (unsigned long)info);
 	tty_port_init(&info->port);
 
 	return info;
@@ -936,7 +919,6 @@ static void tty3215_close(struct tty_struct *tty, struct file * filp)
 	tty->closing = 1;
 	/* Shutdown the terminal */
 	raw3215_shutdown(raw);
-	tasklet_kill(&raw->tlet);
 	tty->closing = 0;
 	tty_port_tty_set(&raw->port, NULL);
 }
