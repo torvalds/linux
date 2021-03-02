@@ -39,24 +39,34 @@ $(OUTPUT)bpf-$1.rst: ../../../../include/uapi/linux/bpf.h
 	$$(QUIET_GEN)../../../../scripts/bpf_doc.py $1 \
 		--filename $$< > $$@
 
-$(OUTPUT)%.7: $(OUTPUT)%.rst
+$(OUTPUT)%.$2: $(OUTPUT)%.rst
 ifndef RST2MAN_DEP
-	$(error "rst2man not found, but required to generate man pages")
+	$$(error "rst2man not found, but required to generate man pages")
 endif
-	$(QUIET_GEN)rst2man $< > $@
+	$$(QUIET_GEN)rst2man $$< > $$@
 
-docs-clean:
-	$(call QUIET_CLEAN, eBPF_helpers-manpage)
-	$(Q)$(RM) $(DOC_MAN7) $(OUTPUT)$(HELPERS_RST)
+docs-clean-$1:
+	$$(call QUIET_CLEAN, eBPF_$1-manpage)
+	$(Q)$(RM) $$(DOC_MAN$2) $(OUTPUT)bpf-$1.rst
 
-docs-install: helpers
-	$(call QUIET_INSTALL, eBPF_helpers-manpage)
-	$(Q)$(INSTALL) -d -m 755 $(DESTDIR)$(man7dir)
-	$(Q)$(INSTALL) -m 644 $(DOC_MAN7) $(DESTDIR)$(man7dir)
+docs-install-$1: docs
+	$$(call QUIET_INSTALL, eBPF_$1-manpage)
+	$(Q)$(INSTALL) -d -m 755 $(DESTDIR)$$(man$2dir)
+	$(Q)$(INSTALL) -m 644 $$(DOC_MAN$2) $(DESTDIR)$$(man$2dir)
 
-docs-uninstall:
-	$(call QUIET_UNINST, eBPF_helpers-manpage)
-	$(Q)$(RM) $(addprefix $(DESTDIR)$(man7dir)/,$(_DOC_MAN7))
-	$(Q)$(RMDIR) $(DESTDIR)$(man7dir)
+docs-uninstall-$1:
+	$$(call QUIET_UNINST, eBPF_$1-manpage)
+	$(Q)$(RM) $$(addprefix $(DESTDIR)$$(man$2dir)/,$$(_DOC_MAN$2))
+	$(Q)$(RMDIR) $(DESTDIR)$$(man$2dir)
 
-.PHONY: docs docs-clean docs-install docs-uninstall
+.PHONY: $1 docs-clean-$1 docs-install-$1 docs-uninstall-$1
+endef
+
+# Create the make targets to generate manual pages by name and section
+$(eval $(call DOCS_RULES,helpers,7))
+
+docs-clean: $(foreach doctarget,$(DOCTARGETS), docs-clean-$(doctarget))
+docs-install: $(foreach doctarget,$(DOCTARGETS), docs-install-$(doctarget))
+docs-uninstall: $(foreach doctarget,$(DOCTARGETS), docs-uninstall-$(doctarget))
+
+.PHONY: docs docs-clean docs-install docs-uninstall man7
