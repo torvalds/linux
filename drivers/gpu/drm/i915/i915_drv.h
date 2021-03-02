@@ -1705,6 +1705,8 @@ tgl_stepping_get(struct drm_i915_private *dev_priv)
 
 #define HAS_CSR(dev_priv)	(INTEL_INFO(dev_priv)->display.has_csr)
 
+#define HAS_MSO(i915)		(INTEL_GEN(i915) >= 12)
+
 #define HAS_RUNTIME_PM(dev_priv) (INTEL_INFO(dev_priv)->has_runtime_pm)
 #define HAS_64BIT_RELOC(dev_priv) (INTEL_INFO(dev_priv)->has_64bit_reloc)
 
