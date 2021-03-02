@@ -238,6 +238,7 @@ struct exfat_sb_info {
 	unsigned int used_clusters; /* number of used clusters */
 
 	struct mutex s_lock; /* superblock lock */
+	struct mutex bitmap_lock; /* bitmap lock */
 	struct exfat_mount_options options;
 	struct nls_table *nls_io; /* Charset used for input and display */
 	struct ratelimit_state ratelimit;
