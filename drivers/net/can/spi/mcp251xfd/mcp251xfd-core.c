@@ -2493,6 +2493,7 @@ static int mcp251xfd_open(struct net_device *ndev)
 	if (err)
 		goto out_transceiver_disable;
 
+	mcp251xfd_timestamp_init(priv);
 	can_rx_offload_enable(&priv->offload);
 
 	err = request_threaded_irq(spi->irq, NULL, mcp251xfd_irq,
@@ -2513,6 +2514,7 @@ static int mcp251xfd_open(struct net_device *ndev)
 	free_irq(spi->irq, priv);
  out_can_rx_offload_disable:
 	can_rx_offload_disable(&priv->offload);
+	mcp251xfd_timestamp_stop(priv);
  out_transceiver_disable:
 	mcp251xfd_transceiver_disable(priv);
  out_mcp251xfd_ring_free:
@@ -2534,6 +2536,7 @@ static int mcp251xfd_stop(struct net_device *ndev)
 	mcp251xfd_chip_interrupts_disable(priv);
 	free_irq(ndev->irq, priv);
 	can_rx_offload_disable(&priv->offload);
+	mcp251xfd_timestamp_stop(priv);
 	mcp251xfd_chip_stop(priv, CAN_STATE_STOPPED);
 	mcp251xfd_transceiver_disable(priv);
 	mcp251xfd_ring_free(priv);
