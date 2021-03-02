@@ -32,6 +32,29 @@ static const struct adr_remap hp_spectre_360[] = {
 	{}
 };
 
+/*
+ * The initial version of the Dell SKU 0A3E did not expose the devices
+ * on the correct links.
+ */
+static const struct adr_remap dell_sku_0A3E[] = {
+	/* rt715 on link0 */
+	{
+		0x00020025d071100,
+		0x00021025d071500
+	},
+	/* rt711 on link1 */
+	{
+		0x000120025d130800,
+		0x000120025d071100,
+	},
+	/* rt1308 on link2 */
+	{
+		0x000220025d071500,
+		0x000220025d130800
+	},
+	{}
+};
+
 static const struct dmi_system_id adr_remap_quirk_table[] = {
 	{
 		.matches = {
@@ -39,6 +62,13 @@ static const struct dmi_system_id adr_remap_quirk_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "HP Spectre x360 Convertible"),
 		},
 		.driver_data = (void *)hp_spectre_360,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0A3E")
+		},
+		.driver_data = (void *)dell_sku_0A3E,
 	},
 	{}
 };
