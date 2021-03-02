@@ -800,12 +800,10 @@ start:
 	}
 	rtl92e_writew(dev, ATIMWND, 2);
 	rtl92e_writew(dev, BCN_INTERVAL, 100);
-	{
-		int i;
 
-		for (i = 0; i < QOS_QUEUE_NUM; i++)
-			rtl92e_writel(dev, WDCAPARA_ADD[i], 0x005e4332);
-	}
+	for (i = 0; i < QOS_QUEUE_NUM; i++)
+		rtl92e_writel(dev, WDCAPARA_ADD[i], 0x005e4332);
+
 	rtl92e_writeb(dev, 0xbe, 0xc0);
 
 	rtl92e_config_mac(dev);
