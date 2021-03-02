@@ -1044,7 +1044,7 @@ struct ice_aq_task {
 };
 
 /**
- * ice_wait_for_aq_event - Wait for an AdminQ event from firmware
+ * ice_aq_wait_for_event - Wait for an AdminQ event from firmware
  * @pf: pointer to the PF private structure
  * @opcode: the opcode to wait for
  * @timeout: how long to wait, in jiffies
@@ -4321,7 +4321,7 @@ static void ice_set_wake(struct ice_pf *pf)
 }
 
 /**
- * ice_setup_magic_mc_wake - setup device to wake on multicast magic packet
+ * ice_setup_mc_magic_wake - setup device to wake on multicast magic packet
  * @pf: pointer to the PF struct
  *
  * Issue firmware command to enable multicast magic wake, making

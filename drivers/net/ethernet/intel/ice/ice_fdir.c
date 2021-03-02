@@ -1135,7 +1135,7 @@ bool ice_fdir_has_frag(enum ice_fltr_ptype flow)
 }
 
 /**
- * ice_fdir_find_by_idx - find filter with idx
+ * ice_fdir_find_fltr_by_idx - find filter with idx
  * @hw: pointer to hardware structure
  * @fltr_idx: index to find.
  *
