@@ -469,6 +469,11 @@ struct vop2_video_port {
 	 * @cubic_lut: cubic look up table
 	 */
 	struct drm_color_lut *cubic_lut;
+
+	/**
+	 * @loader_protect: loader logo protect state
+	 */
+	bool loader_protect;
 };
 
 struct vop2 {
@@ -3211,7 +3216,7 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
 
-	if (on == vop2->loader_protect)
+	if (on == vp->loader_protect)
 		return 0;
 
 	if (on) {
@@ -3219,10 +3224,10 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 		vop2_set_system_status(vop2);
 		vop2_initial(crtc);
 		drm_crtc_vblank_on(crtc);
-		vop2->loader_protect = true;
+		vp->loader_protect = true;
 	} else {
 		vop2_crtc_atomic_disable(crtc, NULL);
-		vop2->loader_protect = false;
+		vp->loader_protect = false;
 	}
 
 	return 0;
