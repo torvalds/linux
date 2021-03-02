@@ -391,19 +391,23 @@
 			cpu-supply = <&vdd_cpu>;
 			#cooling-cells = <2>;
 		};
-		cpu@1 {
+
+		cpu1: cpu@1 {
 			operating-points-v2 = <&cpu0_opp_table>;
 			cpu-supply = <&vdd_cpu>;
+			#cooling-cells = <2>;
 		};
 
-		cpu@2 {
+		cpu2: cpu@2 {
 			operating-points-v2 = <&cpu0_opp_table>;
 			cpu-supply = <&vdd_cpu>;
+			#cooling-cells = <2>;
 		};
 
-		cpu@3 {
+		cpu3: cpu@3 {
 			operating-points-v2 = <&cpu0_opp_table>;
 			cpu-supply = <&vdd_cpu>;
+			#cooling-cells = <2>;
 		};
 	};
 
@@ -455,7 +459,10 @@
 				};
 				map1 {
 					trip = <&cpu_alert1>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
