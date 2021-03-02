@@ -6,6 +6,7 @@
 #ifndef QCOM_VADC_COMMON_H
 #define QCOM_VADC_COMMON_H
 
+#include <linux/adc-tm-clients.h>
 #include <linux/math.h>
 #include <linux/types.h>
 
@@ -60,6 +61,8 @@
 #define R_PU_100K				100000
 #define RATIO_MAX_ADC7				BIT(14)
 
+#define ADC_VDD_REF				1875000
+
 /*
  * VADC_CALIB_ABSOLUTE: uses the 625mV and 1.25V as reference channels.
  * VADC_CALIB_RATIOMETRIC: uses the reference voltage (1.8V) and GND for
@@ -83,6 +86,54 @@ struct vadc_linear_graph {
 	s32 dy;
 	s32 dx;
 	s32 gnd;
+};
+
+/**
+ * enum adc_tm_rscale_fn_type - Scaling function used to convert the
+ *	channels input voltage/temperature to corresponding ADC code that is
+ *	applied for thresholds. Check the corresponding channels scaling to
+ *	determine the appropriate temperature/voltage units that are passed
+ *	to the scaling function. Example battery follows the power supply
+ *	framework that needs its units to be in decidegreesC so it passes
+ *	deci-degreesC. PA_THERM clients pass the temperature in degrees.
+ *	The order below should match the one in the driver for
+ *	adc_tm_rscale_fn[].
+ */
+enum adc_tm_rscale_fn_type {
+	SCALE_R_ABSOLUTE = 0,
+	SCALE_RSCALE_NONE,
+};
+
+/**
+ * struct adc_tm_config - Represent ADC Thermal Monitor configuration.
+ * @high_thr_temp: Temperature at which high threshold notification is required.
+ * @low_thr_temp: Temperature at which low threshold notification is required.
+ * @low_thr_voltage : Low threshold voltage ADC code used for reverse
+ *			calibration.
+ * @high_thr_voltage: High threshold voltage ADC code used for reverse
+ *			calibration.
+ */
+struct adc_tm_config {
+	int	high_thr_temp;
+	int	low_thr_temp;
+	int64_t	high_thr_voltage;
+	int64_t	low_thr_voltage;
+};
+
+struct adc_tm_reverse_scale_fn {
+	int32_t (*chan)(struct adc_tm_config *tm_config);
+};
+
+struct adc_tm_client_info {
+	struct list_head			list;
+	struct adc_tm_param			*param;
+	int32_t						low_thr_requested;
+	int32_t						high_thr_requested;
+	bool						notify_low_thr;
+	bool						notify_high_thr;
+	bool						high_thr_set;
+	bool						low_thr_set;
+	enum adc_tm_state_request	state_request;
 };
 
 /**
@@ -200,5 +251,9 @@ int qcom_adc5_avg_samples_from_dt(u32 value);
 int qcom_adc5_decimation_from_dt(u32 value, const unsigned int *decimation);
 
 int qcom_vadc_decimation_from_dt(u32 value);
+
+void adc_tm_scale_therm_voltage_100k_gen3(struct adc_tm_config *param);
+
+int32_t adc_tm_absolute_rthr_gen3(struct adc_tm_config *tm_config);
 
 #endif /* QCOM_VADC_COMMON_H */
