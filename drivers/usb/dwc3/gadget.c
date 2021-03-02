@@ -406,6 +406,7 @@ int dwc3_send_gadget_ep_cmd(struct dwc3_ep *dep, unsigned int cmd,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(dwc3_send_gadget_ep_cmd);
 
 static int dwc3_send_clear_stall_ep_cmd(struct dwc3_ep *dep)
 {
@@ -626,9 +627,6 @@ static int dwc3_gadget_set_ep_config(struct dwc3_ep *dep, unsigned int action)
 
 	return dwc3_send_gadget_ep_cmd(dep, DWC3_DEPCMD_SETEPCONFIG, &params);
 }
-
-static void dwc3_stop_active_transfer(struct dwc3_ep *dep, bool force,
-		bool interrupt);
 
 /**
  * __dwc3_gadget_ep_enable - initializes a hw endpoint
@@ -3237,7 +3235,7 @@ static void dwc3_reset_gadget(struct dwc3 *dwc)
 	}
 }
 
-static void dwc3_stop_active_transfer(struct dwc3_ep *dep, bool force,
+void dwc3_stop_active_transfer(struct dwc3_ep *dep, bool force,
 	bool interrupt)
 {
 	struct dwc3_gadget_ep_cmd_params params;
@@ -3297,6 +3295,7 @@ static void dwc3_stop_active_transfer(struct dwc3_ep *dep, bool force,
 	else
 		dep->flags |= DWC3_EP_END_TRANSFER_PENDING;
 }
+EXPORT_SYMBOL_GPL(dwc3_stop_active_transfer);
 
 static void dwc3_clear_stall_all_ep(struct dwc3 *dwc)
 {
