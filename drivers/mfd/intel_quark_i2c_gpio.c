@@ -45,7 +45,6 @@
 #define INTEL_QUARK_I2C_CLK_HZ	33000000
 
 struct intel_quark_mfd {
-	struct device		*dev;
 	struct clk		*i2c_clk;
 	struct clk_lookup	*i2c_clk_lookup;
 };
@@ -238,7 +237,6 @@ static int intel_quark_mfd_probe(struct pci_dev *pdev,
 	if (!quark_mfd)
 		return -ENOMEM;
 
-	quark_mfd->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, quark_mfd);
 
 	ret = intel_quark_register_i2c_clk(&pdev->dev);
