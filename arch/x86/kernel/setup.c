@@ -713,11 +713,6 @@ static int __init parse_reservelow(char *p)
 
 early_param("reservelow", parse_reservelow);
 
-static void __init trim_low_memory_range(void)
-{
-	memblock_reserve(0, ALIGN(reserve_low, PAGE_SIZE));
-}
-
 static void __init early_reserve_memory(void)
 {
 	/*
@@ -730,10 +725,17 @@ static void __init early_reserve_memory(void)
 			 (unsigned long)__end_of_kernel_reserve - (unsigned long)_text);
 
 	/*
-	 * Make sure page 0 is always reserved because on systems with
-	 * L1TF its contents can be leaked to user processes.
+	 * The first 4Kb of memory is a BIOS owned area, but generally it is
+	 * not listed as such in the E820 table.
+	 *
+	 * Reserve the first memory page and typically some additional
+	 * memory (64KiB by default) since some BIOSes are known to corrupt
+	 * low memory. See the Kconfig help text for X86_RESERVE_LOW.
+	 *
+	 * In addition, make sure page 0 is always reserved because on
+	 * systems with L1TF its contents can be leaked to user processes.
 	 */
-	memblock_reserve(0, PAGE_SIZE);
+	memblock_reserve(0, ALIGN(reserve_low, PAGE_SIZE));
 
 	early_reserve_initrd();
 
@@ -746,7 +748,6 @@ static void __init early_reserve_memory(void)
 	reserve_bios_regions();
 
 	trim_snb_memory();
-	trim_low_memory_range();
 }
 
 /*
