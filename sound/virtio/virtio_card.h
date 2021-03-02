@@ -11,6 +11,8 @@
 #include <sound/core.h>
 #include <uapi/linux/virtio_snd.h>
 
+#include "virtio_ctl_msg.h"
+
 #define VIRTIO_SND_CARD_DRIVER	"virtio-snd"
 #define VIRTIO_SND_CARD_NAME	"VirtIO SoundCard"
 
@@ -29,14 +31,19 @@ struct virtio_snd_queue {
  * @vdev: Underlying virtio device.
  * @queues: Virtqueue wrappers.
  * @card: ALSA sound card.
+ * @ctl_msgs: Pending control request list.
  * @event_msgs: Device events.
  */
 struct virtio_snd {
 	struct virtio_device *vdev;
 	struct virtio_snd_queue queues[VIRTIO_SND_VQ_MAX];
 	struct snd_card *card;
+	struct list_head ctl_msgs;
 	struct virtio_snd_event *event_msgs;
 };
+
+/* Message completion timeout in milliseconds (module parameter). */
+extern u32 virtsnd_msg_timeout_ms;
 
 static inline struct virtio_snd_queue *
 virtsnd_control_queue(struct virtio_snd *snd)

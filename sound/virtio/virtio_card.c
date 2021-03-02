@@ -11,6 +11,10 @@
 
 #include "virtio_card.h"
 
+u32 virtsnd_msg_timeout_ms = MSEC_PER_SEC;
+module_param_named(msg_timeout_ms, virtsnd_msg_timeout_ms, uint, 0644);
+MODULE_PARM_DESC(msg_timeout_ms, "Message completion timeout in milliseconds");
+
 static void virtsnd_remove(struct virtio_device *vdev);
 
 /**
@@ -96,9 +100,11 @@ static int virtsnd_find_vqs(struct virtio_snd *snd)
 {
 	struct virtio_device *vdev = snd->vdev;
 	static vq_callback_t *callbacks[VIRTIO_SND_VQ_MAX] = {
+		[VIRTIO_SND_VQ_CONTROL] = virtsnd_ctl_notify_cb,
 		[VIRTIO_SND_VQ_EVENT] = virtsnd_event_notify_cb
 	};
 	static const char *names[VIRTIO_SND_VQ_MAX] = {
+		[VIRTIO_SND_VQ_CONTROL] = "virtsnd-ctl",
 		[VIRTIO_SND_VQ_EVENT] = "virtsnd-event"
 	};
 	struct virtqueue *vqs[VIRTIO_SND_VQ_MAX] = { 0 };
@@ -226,6 +232,11 @@ static int virtsnd_validate(struct virtio_device *vdev)
 		return -EINVAL;
 	}
 
+	if (!virtsnd_msg_timeout_ms) {
+		dev_err(&vdev->dev, "msg_timeout_ms value cannot be zero\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -247,6 +258,7 @@ static int virtsnd_probe(struct virtio_device *vdev)
 		return -ENOMEM;
 
 	snd->vdev = vdev;
+	INIT_LIST_HEAD(&snd->ctl_msgs);
 
 	vdev->priv = snd;
 
@@ -283,6 +295,7 @@ static void virtsnd_remove(struct virtio_device *vdev)
 	struct virtio_snd *snd = vdev->priv;
 
 	virtsnd_disable_event_vq(snd);
+	virtsnd_ctl_msg_cancel_all(snd);
 
 	if (snd->card)
 		snd_card_free(snd->card);
