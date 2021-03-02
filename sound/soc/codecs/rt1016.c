@@ -500,10 +500,11 @@ static int rt1016_set_component_pll(struct snd_soc_component *component,
 		(pll_code.k_bp ? 0 : pll_code.k_code));
 
 	snd_soc_component_write(component, RT1016_PLL1,
-		(pll_code.m_bp ? 0 : pll_code.m_code) << RT1016_PLL_M_SFT |
-		pll_code.m_bp << RT1016_PLL_M_BP_SFT | pll_code.n_code);
+		((pll_code.m_bp ? 0 : pll_code.m_code) << RT1016_PLL_M_SFT) |
+		(pll_code.m_bp << RT1016_PLL_M_BP_SFT) |
+		pll_code.n_code);
 	snd_soc_component_write(component, RT1016_PLL2,
-		pll_code.k_bp << RT1016_PLL_K_BP_SFT |
+		(pll_code.k_bp << RT1016_PLL_K_BP_SFT) |
 		(pll_code.k_bp ? 0 : pll_code.k_code));
 
 	rt1016->pll_in = freq_in;
