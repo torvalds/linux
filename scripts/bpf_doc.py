@@ -14,6 +14,9 @@ import sys, os
 class NoHelperFound(BaseException):
     pass
 
+class NoSyscallCommandFound(BaseException):
+    pass
+
 class ParsingError(BaseException):
     def __init__(self, line='<line not provided>', reader=None):
         if reader:
@@ -23,18 +26,27 @@ class ParsingError(BaseException):
         else:
             BaseException.__init__(self, 'Error parsing line: %s' % line)
 
-class Helper(object):
+
+class APIElement(object):
     """
-    An object representing the description of an eBPF helper function.
-    @proto: function prototype of the helper function
-    @desc: textual description of the helper function
-    @ret: description of the return value of the helper function
+    An object representing the description of an aspect of the eBPF API.
+    @proto: prototype of the API symbol
+    @desc: textual description of the symbol
+    @ret: (optional) description of any associated return value
     """
     def __init__(self, proto='', desc='', ret=''):
         self.proto = proto
         self.desc = desc
         self.ret = ret
 
+
+class Helper(APIElement):
+    """
+    An object representing the description of an eBPF helper function.
+    @proto: function prototype of the helper function
+    @desc: textual description of the helper function
+    @ret: description of the return value of the helper function
+    """
     def proto_break_down(self):
         """
         Break down helper function protocol into smaller chunks: return type,
@@ -61,6 +73,7 @@ class Helper(object):
 
         return res
 
+
 class HeaderParser(object):
     """
     An object used to parse a file in order to extract the documentation of a
@@ -73,12 +86,31 @@ class HeaderParser(object):
         self.reader = open(filename, 'r')
         self.line = ''
         self.helpers = []
+        self.commands = []
+
+    def parse_element(self):
+        proto    = self.parse_symbol()
+        desc     = self.parse_desc()
+        ret      = self.parse_ret()
+        return APIElement(proto=proto, desc=desc, ret=ret)
 
     def parse_helper(self):
         proto    = self.parse_proto()
         desc     = self.parse_desc()
         ret      = self.parse_ret()
         return Helper(proto=proto, desc=desc, ret=ret)
+
+    def parse_symbol(self):
+        p = re.compile(' \* ?(.+)$')
+        capture = p.match(self.line)
+        if not capture:
+            raise NoSyscallCommandFound
+        end_re = re.compile(' \* ?NOTES$')
+        end = end_re.match(self.line)
+        if end:
+            raise NoSyscallCommandFound
+        self.line = self.reader.readline()
+        return capture.group(1)
 
     def parse_proto(self):
         # Argument can be of shape:
@@ -141,16 +173,29 @@ class HeaderParser(object):
                     break
         return ret
 
-    def run(self):
-        # Advance to start of helper function descriptions.
-        offset = self.reader.read().find('* Start of BPF helper function descriptions:')
+    def seek_to(self, target, help_message):
+        self.reader.seek(0)
+        offset = self.reader.read().find(target)
         if offset == -1:
-            raise Exception('Could not find start of eBPF helper descriptions list')
+            raise Exception(help_message)
         self.reader.seek(offset)
         self.reader.readline()
         self.reader.readline()
         self.line = self.reader.readline()
 
+    def parse_syscall(self):
+        self.seek_to('* DOC: eBPF Syscall Commands',
+                     'Could not find start of eBPF syscall descriptions list')
+        while True:
+            try:
+                command = self.parse_element()
+                self.commands.append(command)
+            except NoSyscallCommandFound:
+                break
+
+    def parse_helpers(self):
+        self.seek_to('* Start of BPF helper function descriptions:',
+                     'Could not find start of eBPF helper descriptions list')
         while True:
             try:
                 helper = self.parse_helper()
@@ -158,6 +203,9 @@ class HeaderParser(object):
             except NoHelperFound:
                 break
 
+    def run(self):
+        self.parse_syscall()
+        self.parse_helpers()
         self.reader.close()
 
 ###############################################################################
@@ -420,6 +468,37 @@ SEE ALSO
         self.print_elem(helper)
 
 
+class PrinterSyscallRST(PrinterRST):
+    """
+    A printer for dumping collected information about the syscall API as a
+    ReStructured Text page compatible with the rst2man program, which can be
+    used to generate a manual page for the syscall.
+    @parser: A HeaderParser with APIElement objects to print to standard
+             output
+    """
+    def __init__(self, parser):
+        self.elements = parser.commands
+
+    def print_header(self):
+        header = '''\
+===
+bpf
+===
+-------------------------------------------------------------------------------
+Perform a command on an extended BPF object
+-------------------------------------------------------------------------------
+
+:Manual section: 2
+
+COMMANDS
+========
+'''
+        PrinterRST.print_license(self)
+        print(header)
+
+    def print_one(self, command):
+        print('**%s**' % (command.proto))
+        self.print_elem(command)
 
 
 class PrinterHelpers(Printer):
@@ -620,6 +699,7 @@ bpfh = os.path.join(linuxRoot, 'include/uapi/linux/bpf.h')
 
 printers = {
         'helpers': PrinterHelpersRST,
+        'syscall': PrinterSyscallRST,
 }
 
 argParser = argparse.ArgumentParser(description="""
@@ -644,6 +724,8 @@ headerParser.run()
 
 # Print formatted output to standard output.
 if args.header:
+    if args.target != 'helpers':
+        raise NotImplementedError('Only helpers header generation is supported')
     printer = PrinterHelpers(headerParser)
 else:
     printer = printers[args.target](headerParser)
