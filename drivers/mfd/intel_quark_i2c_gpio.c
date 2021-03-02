@@ -268,8 +268,8 @@ err_unregister_i2c_clk:
 
 static void intel_quark_mfd_remove(struct pci_dev *pdev)
 {
-	intel_quark_unregister_i2c_clk(&pdev->dev);
 	mfd_remove_devices(&pdev->dev);
+	intel_quark_unregister_i2c_clk(&pdev->dev);
 }
 
 static struct pci_driver intel_quark_mfd_driver = {
