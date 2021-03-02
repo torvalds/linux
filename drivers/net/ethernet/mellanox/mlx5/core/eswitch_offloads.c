@@ -986,12 +986,13 @@ static void mlx5_eswitch_del_send_to_vport_meta_rules(struct mlx5_eswitch *esw)
 static int
 mlx5_eswitch_add_send_to_vport_meta_rules(struct mlx5_eswitch *esw)
 {
-	int num_vfs, vport_num, rule_idx = 0, err = 0;
 	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_act flow_act = {0};
+	int num_vfs, rule_idx = 0, err = 0;
 	struct mlx5_flow_handle *flow_rule;
 	struct mlx5_flow_handle **flows;
 	struct mlx5_flow_spec *spec;
+	u16 vport_num;
 
 	num_vfs = esw->esw_funcs.num_vfs;
 	flows = kvzalloc(num_vfs * sizeof(*flows), GFP_KERNEL);
