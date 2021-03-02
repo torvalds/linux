@@ -312,6 +312,15 @@ struct amdgpu_display_manager {
 	vblank_params[DC_IRQ_SOURCE_VBLANK6 - DC_IRQ_SOURCE_VBLANK1 + 1];
 
 	/**
+	 * @vline0_params:
+	 *
+	 * OTG vertical interrupt0 IRQ parameters, passed to registered
+	 * handlers when triggered.
+	 */
+	struct common_irq_params
+	vline0_params[DC_IRQ_SOURCE_DC6_VLINE0 - DC_IRQ_SOURCE_DC1_VLINE0 + 1];
+
+	/**
 	 * @vupdate_params:
 	 *
 	 * Vertical update IRQ parameters, passed to registered handlers when

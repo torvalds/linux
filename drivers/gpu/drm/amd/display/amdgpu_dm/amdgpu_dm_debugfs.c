@@ -2538,6 +2538,202 @@ void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 #endif
 }
 
+#ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
+/*
+ * Set crc window coordinate x start
+ */
+static int crc_win_x_start_set(void *data, u64 val)
+{
+	struct drm_crtc *crtc = data;
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	spin_lock_irq(&drm_dev->event_lock);
+	acrtc->dm_irq_params.crc_window.x_start = (uint16_t) val;
+	acrtc->dm_irq_params.crc_window.update_win = false;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	return 0;
+}
+
+/*
+ * Get crc window coordinate x start
+ */
+static int crc_win_x_start_get(void *data, u64 *val)
+{
+	struct drm_crtc *crtc = data;
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	spin_lock_irq(&drm_dev->event_lock);
+	*val = acrtc->dm_irq_params.crc_window.x_start;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(crc_win_x_start_fops, crc_win_x_start_get,
+			 crc_win_x_start_set, "%llu\n");
+
+
+/*
+ * Set crc window coordinate y start
+ */
+static int crc_win_y_start_set(void *data, u64 val)
+{
+	struct drm_crtc *crtc = data;
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	spin_lock_irq(&drm_dev->event_lock);
+	acrtc->dm_irq_params.crc_window.y_start = (uint16_t) val;
+	acrtc->dm_irq_params.crc_window.update_win = false;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	return 0;
+}
+
+/*
+ * Get crc window coordinate y start
+ */
+static int crc_win_y_start_get(void *data, u64 *val)
+{
+	struct drm_crtc *crtc = data;
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	spin_lock_irq(&drm_dev->event_lock);
+	*val = acrtc->dm_irq_params.crc_window.y_start;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(crc_win_y_start_fops, crc_win_y_start_get,
+			 crc_win_y_start_set, "%llu\n");
+
+/*
+ * Set crc window coordinate x end
+ */
+static int crc_win_x_end_set(void *data, u64 val)
+{
+	struct drm_crtc *crtc = data;
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	spin_lock_irq(&drm_dev->event_lock);
+	acrtc->dm_irq_params.crc_window.x_end = (uint16_t) val;
+	acrtc->dm_irq_params.crc_window.update_win = false;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	return 0;
+}
+
+/*
+ * Get crc window coordinate x end
+ */
+static int crc_win_x_end_get(void *data, u64 *val)
+{
+	struct drm_crtc *crtc = data;
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	spin_lock_irq(&drm_dev->event_lock);
+	*val = acrtc->dm_irq_params.crc_window.x_end;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(crc_win_x_end_fops, crc_win_x_end_get,
+			 crc_win_x_end_set, "%llu\n");
+
+/*
+ * Set crc window coordinate y end
+ */
+static int crc_win_y_end_set(void *data, u64 val)
+{
+	struct drm_crtc *crtc = data;
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	spin_lock_irq(&drm_dev->event_lock);
+	acrtc->dm_irq_params.crc_window.y_end = (uint16_t) val;
+	acrtc->dm_irq_params.crc_window.update_win = false;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	return 0;
+}
+
+/*
+ * Get crc window coordinate y end
+ */
+static int crc_win_y_end_get(void *data, u64 *val)
+{
+	struct drm_crtc *crtc = data;
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	spin_lock_irq(&drm_dev->event_lock);
+	*val = acrtc->dm_irq_params.crc_window.y_end;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(crc_win_y_end_fops, crc_win_y_end_get,
+			 crc_win_y_end_set, "%llu\n");
+/*
+ * Trigger to commit crc window
+ */
+static int crc_win_update_set(void *data, u64 val)
+{
+	struct drm_crtc *crtc = data;
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	if (val) {
+		spin_lock_irq(&drm_dev->event_lock);
+		acrtc->dm_irq_params.crc_window.activated = true;
+		acrtc->dm_irq_params.crc_window.update_win = true;
+		spin_unlock_irq(&drm_dev->event_lock);
+	}
+
+	return 0;
+}
+
+/*
+ * Get crc window update flag
+ */
+static int crc_win_update_get(void *data, u64 *val)
+{
+	*val = 0;
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(crc_win_update_fops, crc_win_update_get,
+			 crc_win_update_set, "%llu\n");
+
+void crtc_debugfs_init(struct drm_crtc *crtc)
+{
+	struct dentry *dir = debugfs_lookup("crc", crtc->debugfs_entry);
+
+	if (!dir)
+		return;
+
+	debugfs_create_file_unsafe("crc_win_x_start", 0644, dir, crtc,
+				   &crc_win_x_start_fops);
+	debugfs_create_file_unsafe("crc_win_y_start", 0644, dir, crtc,
+				   &crc_win_y_start_fops);
+	debugfs_create_file_unsafe("crc_win_x_end", 0644, dir, crtc,
+				   &crc_win_x_end_fops);
+	debugfs_create_file_unsafe("crc_win_y_end", 0644, dir, crtc,
+				   &crc_win_y_end_fops);
+	debugfs_create_file_unsafe("crc_win_update", 0644, dir, crtc,
+				   &crc_win_update_fops);
+
+}
+#endif
 /*
  * Writes DTN log state to the user supplied buffer.
  * Example usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_dtn_log

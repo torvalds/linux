@@ -31,5 +31,8 @@
 
 void connector_debugfs_init(struct amdgpu_dm_connector *connector);
 void dtn_debugfs_init(struct amdgpu_device *adev);
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+void crtc_debugfs_init(struct drm_crtc *crtc);
+#endif
 
 #endif
