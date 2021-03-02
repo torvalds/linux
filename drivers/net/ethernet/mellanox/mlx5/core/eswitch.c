@@ -2205,3 +2205,16 @@ void mlx5_esw_unlock(struct mlx5_eswitch *esw)
 {
 	up_write(&esw->mode_lock);
 }
+
+/**
+ * mlx5_eswitch_get_total_vports - Get total vports of the eswitch
+ *
+ * @dev: Pointer to core device
+ *
+ * mlx5_eswitch_get_total_vports returns total number of eswitch vports.
+ */
+u16 mlx5_eswitch_get_total_vports(const struct mlx5_core_dev *dev)
+{
+	return MLX5_SPECIAL_VPORTS(dev) + mlx5_core_max_vfs(dev) + mlx5_sf_max_functions(dev);
+}
+EXPORT_SYMBOL_GPL(mlx5_eswitch_get_total_vports);
