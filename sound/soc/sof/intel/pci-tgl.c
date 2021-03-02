@@ -106,7 +106,7 @@ MODULE_DEVICE_TABLE(pci, sof_pci_ids);
 static struct pci_driver snd_sof_pci_intel_tgl_driver = {
 	.name = "sof-audio-pci-intel-tgl",
 	.id_table = sof_pci_ids,
-	.probe = sof_pci_probe,
+	.probe = hda_pci_intel_probe,
 	.remove = sof_pci_remove,
 	.shutdown = sof_pci_shutdown,
 	.driver = {
