@@ -52,7 +52,7 @@
 	compatible = "firefly,firefly-rk3288", "rockchip,rk3288";
 
 	chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xff690000 swiotlb=1";
+		bootargs = "earlycon=uart8250,mmio32,0xff690000";
 	};
 
 	sdio_pwrseq: sdio-pwrseq {

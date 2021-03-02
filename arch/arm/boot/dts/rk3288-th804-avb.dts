@@ -11,7 +11,7 @@
 	model = "Rockchip RK3288 TH804 avb";
 	compatible = "rockchip,rk3288-th804", "rockchip,rk3288";
 	chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xff690000 vmalloc=496M swiotlb=1 console=ttyFIQ0 androidboot.baseband=N/A androidboot.veritymode=enforcing androidboot.hardware=rk30board androidboot.console=ttyFIQ0 init=/init kpti=0";
+		bootargs = "earlycon=uart8250,mmio32,0xff690000 vmalloc=496M console=ttyFIQ0 androidboot.baseband=N/A androidboot.veritymode=enforcing androidboot.hardware=rk30board androidboot.console=ttyFIQ0 init=/init kpti=0";
 	};
 	vcc_camera: vcc-camera-regulator {
 		compatible = "regulator-fixed";
