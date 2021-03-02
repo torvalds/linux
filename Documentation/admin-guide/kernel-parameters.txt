@@ -3472,7 +3472,8 @@
 
 	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
 
-	numa_balancing=	[KNL,X86] Enable or disable automatic NUMA balancing.
+	numa_balancing=	[KNL,ARM64,PPC,RISCV,S390,X86] Enable or disable automatic
+			NUMA balancing.
 			Allowed values are enable and disable
 
 	numa_zonelist_order= [KNL, BOOT] Select zonelist order for NUMA.
