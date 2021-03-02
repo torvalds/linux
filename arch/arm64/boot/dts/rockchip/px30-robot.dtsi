@@ -9,7 +9,7 @@
 	compatible = "rockchip,linux", "rockchip,px30-robot";
 
 	chosen {
-		bootargs = "swiotlb=1 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootwait";
+		bootargs = "console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootwait";
 	};
 
 	fiq-debugger {

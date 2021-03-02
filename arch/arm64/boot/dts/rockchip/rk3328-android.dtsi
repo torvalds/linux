@@ -6,7 +6,7 @@
 
 / {
 	chosen: chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xff130000 swiotlb=1 kpti=0 coherent_pool=1m";
+		bootargs = "earlycon=uart8250,mmio32,0xff130000 kpti=0 coherent_pool=1m";
 	};
 
 	fiq-debugger {

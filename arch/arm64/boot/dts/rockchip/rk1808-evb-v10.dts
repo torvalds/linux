@@ -12,7 +12,7 @@
 	compatible = "rockchip,rk1808-evb-v10", "rockchip,rk1808";
 
 	chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xff550000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait swiotlb=1 kpti=0 snd_aloop.index=7";
+		bootargs = "earlycon=uart8250,mmio32,0xff550000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait kpti=0 snd_aloop.index=7";
 	};
 
 	vad-sound {

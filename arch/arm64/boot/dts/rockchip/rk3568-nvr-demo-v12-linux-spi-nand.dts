@@ -13,7 +13,7 @@
 	compatible = "rockchip,rk3568-nvr-demo-ddr4-v12-linux-spi-nand", "rockchip,rk3568";
 
 	chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xfe660000 swiotlb=1 console=ttyFIQ0 ubi.mtd=3 root=ubi0:rootfs rootfstype=ubifs";
+		bootargs = "earlycon=uart8250,mmio32,0xfe660000 console=ttyFIQ0 ubi.mtd=3 root=ubi0:rootfs rootfstype=ubifs";
 	};
 
 };
