@@ -405,6 +405,7 @@ struct sdw_slave_prop {
  * command
  * @mclk_freq: clock reference passed to SoundWire Master, in Hz.
  * @hw_disabled: if true, the Master is not functional, typically due to pin-mux
+ * @quirks: bitmask identifying optional behavior beyond the scope of the MIPI specification
  */
 struct sdw_master_prop {
 	u32 revision;
@@ -421,7 +422,28 @@ struct sdw_master_prop {
 	u32 err_threshold;
 	u32 mclk_freq;
 	bool hw_disabled;
+	u64 quirks;
 };
+
+/* Definitions for Master quirks */
+
+/*
+ * In a number of platforms bus clashes are reported after a hardware
+ * reset but without any explanations or evidence of a real problem.
+ * The following quirk will discard all initial bus clash interrupts
+ * but will leave the detection on should real bus clashes happen
+ */
+#define SDW_MASTER_QUIRKS_CLEAR_INITIAL_CLASH	BIT(0)
+
+/*
+ * Some Slave devices have known issues with incorrect parity errors
+ * reported after a hardware reset. However during integration unexplained
+ * parity errors can be reported by Slave devices, possibly due to electrical
+ * issues at the Master level.
+ * The following quirk will discard all initial parity errors but will leave
+ * the detection on should real parity errors happen.
+ */
+#define SDW_MASTER_QUIRKS_CLEAR_INITIAL_PARITY	BIT(1)
 
 int sdw_master_read_prop(struct sdw_bus *bus);
 int sdw_slave_read_prop(struct sdw_slave *slave);
