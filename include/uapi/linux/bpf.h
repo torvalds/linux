@@ -306,13 +306,21 @@ union bpf_iter_link_info {
  *
  * BPF_PROG_TEST_RUN
  *	Description
- *		Run an eBPF program a number of times against a provided
- *		program context and return the modified program context and
- *		duration of the test run.
+ *		Run the eBPF program associated with the *prog_fd* a *repeat*
+ *		number of times against a provided program context *ctx_in* and
+ *		data *data_in*, and return the modified program context
+ *		*ctx_out*, *data_out* (for example, packet data), result of the
+ *		execution *retval*, and *duration* of the test run.
  *
  *	Return
  *		Returns zero on success. On error, -1 is returned and *errno*
  *		is set appropriately.
+ *
+ *		**ENOSPC**
+ *			Either *data_size_out* or *ctx_size_out* is too small.
+ *		**ENOTSUPP**
+ *			This command is not supported by the program type of
+ *			the program referred to by *prog_fd*.
  *
  * BPF_PROG_GET_NEXT_ID
  *	Description
