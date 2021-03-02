@@ -14,41 +14,22 @@ typedef int (*hyperv_fill_flush_list_func)(
 		struct hv_guest_mapping_flush_list *flush,
 		void *data);
 
-#define hv_init_timer(timer, tick) \
-	wrmsrl(HV_X64_MSR_STIMER0_COUNT + (2*timer), tick)
-#define hv_init_timer_config(timer, val) \
-	wrmsrl(HV_X64_MSR_STIMER0_CONFIG + (2*timer), val)
+static inline void hv_set_register(unsigned int reg, u64 value)
+{
+	wrmsrl(reg, value);
+}
 
-#define hv_get_simp(val) rdmsrl(HV_X64_MSR_SIMP, val)
-#define hv_set_simp(val) wrmsrl(HV_X64_MSR_SIMP, val)
+static inline u64 hv_get_register(unsigned int reg)
+{
+	u64 value;
 
-#define hv_get_siefp(val) rdmsrl(HV_X64_MSR_SIEFP, val)
-#define hv_set_siefp(val) wrmsrl(HV_X64_MSR_SIEFP, val)
+	rdmsrl(reg, value);
+	return value;
+}
 
-#define hv_get_synic_state(val) rdmsrl(HV_X64_MSR_SCONTROL, val)
-#define hv_set_synic_state(val) wrmsrl(HV_X64_MSR_SCONTROL, val)
-
-#define hv_get_vp_index(index) rdmsrl(HV_X64_MSR_VP_INDEX, index)
-
-#define hv_signal_eom() wrmsrl(HV_X64_MSR_EOM, 0)
-
-#define hv_get_synint_state(int_num, val) \
-	rdmsrl(HV_X64_MSR_SINT0 + int_num, val)
-#define hv_set_synint_state(int_num, val) \
-	wrmsrl(HV_X64_MSR_SINT0 + int_num, val)
 #define hv_recommend_using_aeoi() \
 	(!(ms_hyperv.hints & HV_DEPRECATING_AEOI_RECOMMENDED))
 
-#define hv_get_crash_ctl(val) \
-	rdmsrl(HV_X64_MSR_CRASH_CTL, val)
-
-#define hv_get_time_ref_count(val) \
-	rdmsrl(HV_X64_MSR_TIME_REF_COUNT, val)
-
-#define hv_get_reference_tsc(val) \
-	rdmsrl(HV_X64_MSR_REFERENCE_TSC, val)
-#define hv_set_reference_tsc(val) \
-	wrmsrl(HV_X64_MSR_REFERENCE_TSC, val)
 #define hv_set_clocksource_vdso(val) \
 	((val).vdso_clock_mode = VDSO_CLOCKMODE_HVCLOCK)
 #define hv_enable_vdso_clocksource() \

@@ -68,14 +68,14 @@ static int hv_ce_set_next_event(unsigned long delta,
 
 	current_tick = hv_read_reference_counter();
 	current_tick += delta;
-	hv_init_timer(0, current_tick);
+	hv_set_register(HV_REGISTER_STIMER0_COUNT, current_tick);
 	return 0;
 }
 
 static int hv_ce_shutdown(struct clock_event_device *evt)
 {
-	hv_init_timer(0, 0);
-	hv_init_timer_config(0, 0);
+	hv_set_register(HV_REGISTER_STIMER0_COUNT, 0);
+	hv_set_register(HV_REGISTER_STIMER0_CONFIG, 0);
 	if (direct_mode_enabled)
 		hv_disable_stimer0_percpu_irq(stimer0_irq);
 
@@ -105,7 +105,7 @@ static int hv_ce_set_oneshot(struct clock_event_device *evt)
 		timer_cfg.direct_mode = 0;
 		timer_cfg.sintx = stimer0_message_sint;
 	}
-	hv_init_timer_config(0, timer_cfg.as_uint64);
+	hv_set_register(HV_REGISTER_STIMER0_CONFIG, timer_cfg.as_uint64);
 	return 0;
 }
 
@@ -331,7 +331,7 @@ static u64 notrace read_hv_clock_tsc(void)
 	u64 current_tick = hv_read_tsc_page(hv_get_tsc_page());
 
 	if (current_tick == U64_MAX)
-		hv_get_time_ref_count(current_tick);
+		current_tick = hv_get_register(HV_REGISTER_TIME_REF_COUNT);
 
 	return current_tick;
 }
@@ -352,9 +352,9 @@ static void suspend_hv_clock_tsc(struct clocksource *arg)
 	u64 tsc_msr;
 
 	/* Disable the TSC page */
-	hv_get_reference_tsc(tsc_msr);
+	tsc_msr = hv_get_register(HV_REGISTER_REFERENCE_TSC);
 	tsc_msr &= ~BIT_ULL(0);
-	hv_set_reference_tsc(tsc_msr);
+	hv_set_register(HV_REGISTER_REFERENCE_TSC, tsc_msr);
 }
 
 
@@ -364,10 +364,10 @@ static void resume_hv_clock_tsc(struct clocksource *arg)
 	u64 tsc_msr;
 
 	/* Re-enable the TSC page */
-	hv_get_reference_tsc(tsc_msr);
+	tsc_msr = hv_get_register(HV_REGISTER_REFERENCE_TSC);
 	tsc_msr &= GENMASK_ULL(11, 0);
 	tsc_msr |= BIT_ULL(0) | (u64)phys_addr;
-	hv_set_reference_tsc(tsc_msr);
+	hv_set_register(HV_REGISTER_REFERENCE_TSC, tsc_msr);
 }
 
 static int hv_cs_enable(struct clocksource *cs)
@@ -389,14 +389,12 @@ static struct clocksource hyperv_cs_tsc = {
 
 static u64 notrace read_hv_clock_msr(void)
 {
-	u64 current_tick;
 	/*
 	 * Read the partition counter to get the current tick count. This count
 	 * is set to 0 when the partition is created and is incremented in
 	 * 100 nanosecond units.
 	 */
-	hv_get_time_ref_count(current_tick);
-	return current_tick;
+	return hv_get_register(HV_REGISTER_TIME_REF_COUNT);
 }
 
 static u64 notrace read_hv_clock_msr_cs(struct clocksource *arg)
@@ -439,10 +437,10 @@ static bool __init hv_init_tsc_clocksource(void)
 	 * (which already has at least the low 12 bits set to zero since
 	 * it is page aligned). Also set the "enable" bit, which is bit 0.
 	 */
-	hv_get_reference_tsc(tsc_msr);
+	tsc_msr = hv_get_register(HV_REGISTER_REFERENCE_TSC);
 	tsc_msr &= GENMASK_ULL(11, 0);
 	tsc_msr = tsc_msr | 0x1 | (u64)phys_addr;
-	hv_set_reference_tsc(tsc_msr);
+	hv_set_register(HV_REGISTER_REFERENCE_TSC, tsc_msr);
 
 	hv_set_clocksource_vdso(hyperv_cs_tsc);
 	clocksource_register_hz(&hyperv_cs_tsc, NSEC_PER_SEC/100);

@@ -88,7 +88,7 @@ static inline void vmbus_signal_eom(struct hv_message *msg, u32 old_msg_type)
 		 * possibly deliver another msg from the
 		 * hypervisor
 		 */
-		hv_signal_eom();
+		hv_set_register(HV_REGISTER_EOM, 0);
 	}
 }
 
