@@ -256,6 +256,8 @@ void kfd_dbg_trap_deactivate(struct kfd_process *target, bool unwind, int unwind
 		if (unwind && i == unwind_count)
 			break;
 
+		kfd_process_set_trap_debug_flag(&pdd->qpd, false);
+
 		/* GFX off is already disabled by debug activate if not RLC restore supported. */
 		if (kfd_dbg_is_rlc_restore_supported(pdd->dev))
 			amdgpu_gfx_off_ctrl(pdd->dev->adev, false);
@@ -350,6 +352,15 @@ int kfd_dbg_trap_activate(struct kfd_process *target)
 
 		if (kfd_dbg_is_rlc_restore_supported(pdd->dev))
 			amdgpu_gfx_off_ctrl(pdd->dev->adev, true);
+
+		/*
+		 * Setting the debug flag in the trap handler requires that the TMA has been
+		 * allocated, which occurs during CWSR initialization.
+		 * In the event that CWSR has not been initialized at this point, setting the
+		 * flag will be called again during CWSR initialization if the target process
+		 * is still debug enabled.
+		 */
+		kfd_process_set_trap_debug_flag(&pdd->qpd, true);
 
 		if (!pdd->dev->kfd->shared_resources.enable_mes)
 			r = debug_refresh_runlist(pdd->dev->dqm);
