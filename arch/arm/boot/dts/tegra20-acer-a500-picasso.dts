@@ -450,6 +450,8 @@
 
 			vdda-supply = <&vdd_3v3_sys>;
 			vdd-supply  = <&vdd_3v3_sys>;
+
+			atmel,wakeup-method = <1>;
 		};
 
 		gyroscope@68 {
