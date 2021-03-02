@@ -37,13 +37,6 @@ static struct timer_list serial_timer;
 
 static DEFINE_SPINLOCK(timer_lock);
 
-/*
- * This routine is called whenever a serial port is opened.  It
- * enables interrupts for a serial port, linking in its async structure into
- * the IRQ chain.   It also performs the serial-specific
- * initialization for the tty structure.
- */
-
 static void rs_poll(struct timer_list *);
 
 static int rs_open(struct tty_struct *tty, struct file * filp)
@@ -58,17 +51,6 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 	return 0;
 }
 
-
-/*
- * ------------------------------------------------------------
- * iss_serial_close()
- *
- * This routine is called when the serial port gets closed.  First, we
- * wait for the last remaining data to be sent.  Then, we unlink its
- * async structure from the interrupt chain if necessary, and we free
- * that IRQ if nothing is left in the chain.
- * ------------------------------------------------------------
- */
 static void rs_close(struct tty_struct *tty, struct file * filp)
 {
 	spin_lock_bh(&timer_lock);
