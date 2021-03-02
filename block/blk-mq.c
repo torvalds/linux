@@ -2128,7 +2128,7 @@ static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
  */
 blk_qc_t blk_mq_submit_bio(struct bio *bio)
 {
-	struct request_queue *q = bio->bi_disk->queue;
+	struct request_queue *q = bio->bi_bdev->bd_disk->queue;
 	const int is_sync = op_is_sync(bio->bi_opf);
 	const int is_flush_fua = op_is_flush(bio->bi_opf);
 	struct blk_mq_alloc_data data = {

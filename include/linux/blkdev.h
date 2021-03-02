@@ -1967,7 +1967,8 @@ void part_end_io_acct(struct block_device *part, struct bio *bio,
  */
 static inline unsigned long bio_start_io_acct(struct bio *bio)
 {
-	return disk_start_io_acct(bio->bi_disk, bio_sectors(bio), bio_op(bio));
+	return disk_start_io_acct(bio->bi_bdev->bd_disk, bio_sectors(bio),
+				  bio_op(bio));
 }
 
 /**
@@ -1977,7 +1978,7 @@ static inline unsigned long bio_start_io_acct(struct bio *bio)
  */
 static inline void bio_end_io_acct(struct bio *bio, unsigned long start_time)
 {
-	return disk_end_io_acct(bio->bi_disk, bio_op(bio), start_time);
+	return disk_end_io_acct(bio->bi_bdev->bd_disk, bio_op(bio), start_time);
 }
 
 int bdev_read_only(struct block_device *bdev);

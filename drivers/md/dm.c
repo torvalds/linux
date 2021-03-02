@@ -978,16 +978,17 @@ static void clone_endio(struct bio *bio)
 	struct mapped_device *md = tio->io->md;
 	dm_endio_fn endio = tio->ti->type->end_io;
 	struct bio *orig_bio = io->orig_bio;
+	struct request_queue *q = bio->bi_bdev->bd_disk->queue;
 
 	if (unlikely(error == BLK_STS_TARGET)) {
 		if (bio_op(bio) == REQ_OP_DISCARD &&
-		    !bio->bi_disk->queue->limits.max_discard_sectors)
+		    !q->limits.max_discard_sectors)
 			disable_discard(md);
 		else if (bio_op(bio) == REQ_OP_WRITE_SAME &&
-			 !bio->bi_disk->queue->limits.max_write_same_sectors)
+			 !q->limits.max_write_same_sectors)
 			disable_write_same(md);
 		else if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
-			 !bio->bi_disk->queue->limits.max_write_zeroes_sectors)
+			 !q->limits.max_write_zeroes_sectors)
 			disable_write_zeroes(md);
 	}
 
@@ -997,7 +998,7 @@ static void clone_endio(struct bio *bio)
 	 */
 	if (bio_op(orig_bio) == REQ_OP_ZONE_APPEND) {
 		sector_t written_sector = bio->bi_iter.bi_sector;
-		struct request_queue *q = orig_bio->bi_disk->queue;
+		struct request_queue *q = orig_bio->bi_bdev->bd_disk->queue;
 		u64 mask = (u64)blk_queue_zone_sectors(q) - 1;
 
 		orig_bio->bi_iter.bi_sector += written_sector & mask;
@@ -1423,8 +1424,7 @@ static int __send_empty_flush(struct clone_info *ci)
 	 */
 	bio_init(&flush_bio, NULL, 0);
 	flush_bio.bi_opf = REQ_OP_WRITE | REQ_PREFLUSH | REQ_SYNC;
-	flush_bio.bi_disk = ci->io->md->disk;
-	bio_associate_blkg(&flush_bio);
+	bio_set_dev(&flush_bio, ci->io->md->disk->part0);
 
 	ci->bio = &flush_bio;
 	ci->sector_count = 0;
@@ -1627,7 +1627,7 @@ static blk_qc_t __split_and_process_bio(struct mapped_device *md,
 
 static blk_qc_t dm_submit_bio(struct bio *bio)
 {
-	struct mapped_device *md = bio->bi_disk->private_data;
+	struct mapped_device *md = bio->bi_bdev->bd_disk->private_data;
 	blk_qc_t ret = BLK_QC_T_NONE;
 	int srcu_idx;
 	struct dm_table *map;

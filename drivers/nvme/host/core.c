@@ -1113,7 +1113,7 @@ static int nvme_submit_user_cmd(struct request_queue *q,
 {
 	bool write = nvme_is_write(cmd);
 	struct nvme_ns *ns = q->queuedata;
-	struct gendisk *disk = ns ? ns->disk : NULL;
+	struct block_device *bdev = ns ? ns->disk->part0 : NULL;
 	struct request *req;
 	struct bio *bio = NULL;
 	void *meta = NULL;
@@ -1133,8 +1133,8 @@ static int nvme_submit_user_cmd(struct request_queue *q,
 		if (ret)
 			goto out;
 		bio = req->bio;
-		bio->bi_disk = disk;
-		if (disk && meta_buffer && meta_len) {
+		bio->bi_bdev = bdev;
+		if (bdev && meta_buffer && meta_len) {
 			meta = nvme_add_user_metadata(bio, meta_buffer, meta_len,
 					meta_seed, write);
 			if (IS_ERR(meta)) {

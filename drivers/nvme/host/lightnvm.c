@@ -757,7 +757,6 @@ static int nvme_nvm_submit_user_cmd(struct request_queue *q,
 {
 	bool write = nvme_is_write((struct nvme_command *)vcmd);
 	struct nvm_dev *dev = ns->ndev;
-	struct gendisk *disk = ns->disk;
 	struct request *rq;
 	struct bio *bio = NULL;
 	__le64 *ppa_list = NULL;
@@ -817,7 +816,7 @@ static int nvme_nvm_submit_user_cmd(struct request_queue *q,
 			vcmd->ph_rw.metadata = cpu_to_le64(metadata_dma);
 		}
 
-		bio->bi_disk = disk;
+		bio->bi_bdev = ns->disk->part0;
 	}
 
 	blk_execute_rq(q, NULL, rq, 0);

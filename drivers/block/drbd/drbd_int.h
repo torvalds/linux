@@ -1579,8 +1579,8 @@ static inline void drbd_submit_bio_noacct(struct drbd_device *device,
 					     int fault_type, struct bio *bio)
 {
 	__release(local);
-	if (!bio->bi_disk) {
-		drbd_err(device, "drbd_submit_bio_noacct: bio->bi_disk == NULL\n");
+	if (!bio->bi_bdev) {
+		drbd_err(device, "drbd_submit_bio_noacct: bio->bi_bdev == NULL\n");
 		bio->bi_status = BLK_STS_IOERR;
 		bio_endio(bio);
 		return;

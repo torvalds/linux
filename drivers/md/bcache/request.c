@@ -894,7 +894,8 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 	    !(bio->bi_opf & (REQ_META|REQ_PRIO)) &&
 	    s->iop.c->gc_stats.in_use < CUTOFF_CACHE_READA)
 		reada = min_t(sector_t, dc->readahead >> 9,
-			      get_capacity(bio->bi_disk) - bio_end_sector(bio));
+			      get_capacity(bio->bi_bdev->bd_disk) -
+			      bio_end_sector(bio));
 
 	s->insert_bio_sectors = min(sectors, bio_sectors(bio) + reada);
 
@@ -1167,7 +1168,7 @@ static void quit_max_writeback_rate(struct cache_set *c,
 blk_qc_t cached_dev_submit_bio(struct bio *bio)
 {
 	struct search *s;
-	struct bcache_device *d = bio->bi_disk->private_data;
+	struct bcache_device *d = bio->bi_bdev->bd_disk->private_data;
 	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
 	int rw = bio_data_dir(bio);
 
@@ -1274,7 +1275,7 @@ blk_qc_t flash_dev_submit_bio(struct bio *bio)
 {
 	struct search *s;
 	struct closure *cl;
-	struct bcache_device *d = bio->bi_disk->private_data;
+	struct bcache_device *d = bio->bi_bdev->bd_disk->private_data;
 
 	if (unlikely(d->c && test_bit(CACHE_SET_IO_DISABLE, &d->c->flags))) {
 		bio->bi_status = BLK_STS_IOERR;
