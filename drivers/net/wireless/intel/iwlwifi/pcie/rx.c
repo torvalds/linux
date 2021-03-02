@@ -1129,6 +1129,8 @@ static int _iwl_pcie_rx_init(struct iwl_trans *trans)
 
 		iwl_pcie_rx_init_rxb_lists(rxq);
 
+		spin_unlock_bh(&rxq->lock);
+
 		if (!rxq->napi.poll) {
 			int (*poll)(struct napi_struct *, int) = iwl_pcie_napi_poll;
 
@@ -1149,7 +1151,6 @@ static int _iwl_pcie_rx_init(struct iwl_trans *trans)
 			napi_enable(&rxq->napi);
 		}
 
-		spin_unlock_bh(&rxq->lock);
 	}
 
 	/* move the pool to the default queue and allocator ownerships */
