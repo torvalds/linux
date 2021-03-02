@@ -661,7 +661,6 @@ int zpci_enable_device(struct zpci_dev *zdev)
 	if (rc)
 		goto out_dma;
 
-	zdev->state = ZPCI_FN_STATE_ONLINE;
 	return 0;
 
 out_dma:
@@ -770,7 +769,7 @@ int zpci_create_device(u32 fid, u32 fh, enum zpci_state state)
 	return 0;
 
 error_disable:
-	if (zdev->state == ZPCI_FN_STATE_ONLINE)
+	if (zdev_enabled(zdev))
 		zpci_disable_device(zdev);
 error_destroy_iommu:
 	zpci_destroy_iommu(zdev);
@@ -787,11 +786,10 @@ void zpci_release_device(struct kref *kref)
 	if (zdev->zbus->bus)
 		zpci_remove_device(zdev, false);
 
-	switch (zdev->state) {
-	case ZPCI_FN_STATE_ONLINE:
-	case ZPCI_FN_STATE_CONFIGURED:
+	if (zdev_enabled(zdev))
 		zpci_disable_device(zdev);
-		fallthrough;
+
+	switch (zdev->state) {
 	case ZPCI_FN_STATE_STANDBY:
 		if (zdev->has_hp_slot)
 			zpci_exit_slot(zdev);

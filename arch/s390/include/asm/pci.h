@@ -85,7 +85,6 @@ enum zpci_state {
 	ZPCI_FN_STATE_STANDBY = 0,
 	ZPCI_FN_STATE_CONFIGURED = 1,
 	ZPCI_FN_STATE_RESERVED = 2,
-	ZPCI_FN_STATE_ONLINE = 3,
 };
 
 struct zpci_bar_struct {

@@ -20,12 +20,6 @@
 
 #define SLOT_NAME_SIZE	10
 
-static int zpci_fn_configured(enum zpci_state state)
-{
-	return state == ZPCI_FN_STATE_CONFIGURED ||
-	       state == ZPCI_FN_STATE_ONLINE;
-}
-
 static inline int zdev_configure(struct zpci_dev *zdev)
 {
 	int ret = sclp_pci_configure(zdev->fid);
@@ -85,7 +79,7 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 	struct pci_dev *pdev;
 	int rc;
 
-	if (!zpci_fn_configured(zdev->state))
+	if (zdev->state != ZPCI_FN_STATE_CONFIGURED)
 		return -EIO;
 
 	pdev = pci_get_slot(zdev->zbus->bus, zdev->devfn);
