@@ -263,39 +263,9 @@ static const struct divisor_table_entry divisor_table[] = {
 static atomic_t CmdUrbs = ATOMIC_INIT(0);
 
 
-/* local function prototypes */
+/* function prototypes */
 
-/* function prototypes for all URB callbacks */
-static void edge_interrupt_callback(struct urb *urb);
-static void edge_bulk_in_callback(struct urb *urb);
-static void edge_bulk_out_data_callback(struct urb *urb);
-static void edge_bulk_out_cmd_callback(struct urb *urb);
-
-/* function prototypes for the usbserial callbacks */
-static int edge_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void edge_close(struct usb_serial_port *port);
-static int edge_write(struct tty_struct *tty, struct usb_serial_port *port,
-					const unsigned char *buf, int count);
-static int edge_write_room(struct tty_struct *tty);
-static int edge_chars_in_buffer(struct tty_struct *tty);
-static void edge_throttle(struct tty_struct *tty);
-static void edge_unthrottle(struct tty_struct *tty);
-static void edge_set_termios(struct tty_struct *tty,
-					struct usb_serial_port *port,
-					struct ktermios *old_termios);
-static int  edge_ioctl(struct tty_struct *tty,
-					unsigned int cmd, unsigned long arg);
-static void edge_break(struct tty_struct *tty, int break_state);
-static int  edge_tiocmget(struct tty_struct *tty);
-static int  edge_tiocmset(struct tty_struct *tty,
-					unsigned int set, unsigned int clear);
-static int  edge_startup(struct usb_serial *serial);
-static void edge_disconnect(struct usb_serial *serial);
-static void edge_release(struct usb_serial *serial);
-static int edge_port_probe(struct usb_serial_port *port);
-static void edge_port_remove(struct usb_serial_port *port);
-
-/* function prototypes for all of our local functions */
 
 static void  process_rcvd_data(struct edgeport_serial *edge_serial,
 				unsigned char *buffer, __u16 bufferLength);
@@ -309,8 +279,6 @@ static void handle_new_lsr(struct edgeport_port *edge_port, __u8 lsrData,
 static int  send_iosp_ext_cmd(struct edgeport_port *edge_port, __u8 command,
 				__u8 param);
 static int  calc_baud_rate_divisor(struct device *dev, int baud_rate, int *divisor);
-static int  send_cmd_write_baud_rate(struct edgeport_port *edge_port,
-				int baudRate);
 static void change_port_settings(struct tty_struct *tty,
 				struct edgeport_port *edge_port,
 				struct ktermios *old_termios);
@@ -321,19 +289,8 @@ static int  write_cmd_usb(struct edgeport_port *edge_port,
 static void send_more_port_data(struct edgeport_serial *edge_serial,
 				struct edgeport_port *edge_port);
 
-static int sram_write(struct usb_serial *serial, __u16 extAddr, __u16 addr,
-					__u16 length, const __u8 *data);
-static int rom_read(struct usb_serial *serial, __u16 extAddr, __u16 addr,
-						__u16 length, __u8 *data);
 static int rom_write(struct usb_serial *serial, __u16 extAddr, __u16 addr,
 					__u16 length, const __u8 *data);
-static void get_manufacturing_desc(struct edgeport_serial *edge_serial);
-static void get_boot_desc(struct edgeport_serial *edge_serial);
-static void load_application_firmware(struct edgeport_serial *edge_serial);
-
-static void unicode_to_ascii(char *string, int buflen,
-				__le16 *unicode, int unicode_size);
-
 
 /* ************************************************************************ */
 /* ************************************************************************ */
