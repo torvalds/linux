@@ -62,7 +62,7 @@ available subsections can be seen below.
    80211/index
    uio-howto
    firmware/index
-   pinctl
+   pin-control
    gpio/index
    md/index
    media/index
