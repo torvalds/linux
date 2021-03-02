@@ -459,8 +459,10 @@ int device_bind_driver(struct device *dev)
 	int ret;
 
 	ret = driver_sysfs_add(dev);
-	if (!ret)
+	if (!ret) {
+		device_links_force_bind(dev);
 		driver_bound(dev);
+	}
 	else if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_DRIVER_NOT_BOUND, dev);
