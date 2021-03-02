@@ -4876,13 +4876,6 @@ S:	Maintained
 W:	http://www.armlinux.org.uk/
 F:	drivers/video/fbdev/cyber2000fb.*
 
-CYCLADES ASYNC MUX DRIVER
-S:	Orphan
-W:	http://www.cyclades.com/
-F:	drivers/tty/cyclades.c
-F:	include/linux/cyclades.h
-F:	include/uapi/linux/cyclades.h
-
 CYCLADES PC300 DRIVER
 S:	Orphan
 F:	drivers/net/wan/pc300*

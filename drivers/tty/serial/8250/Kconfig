@@ -15,8 +15,7 @@ config SERIAL_8250
 	  here are those that are setting up dedicated Ethernet WWW/FTP
 	  servers, or users that have one of the various bus mice instead of a
 	  serial mouse and don't intend to use their machine's standard serial
-	  port for anything.  (Note that the Cyclades multi serial port driver
-	  does not need this driver built in for it to work.)
+	  port for anything.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called 8250.
@@ -226,7 +225,7 @@ config SERIAL_8250_MANY_PORTS
 	  serial port hardware which acts similar to standard serial port
 	  hardware. If you only use the standard COM 1/2/3/4 ports, you can
 	  say N here to save some memory. You can also say Y if you have an
-	  "intelligent" multiport card such as Cyclades, Digiboards, etc.
+	  "intelligent" multiport card such as Digiboards, etc.
 
 #
 # Multi-port serial cards
