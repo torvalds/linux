@@ -37,9 +37,6 @@ static struct timer_list serial_timer;
 
 static DEFINE_SPINLOCK(timer_lock);
 
-static char *serial_version = "0.1";
-static char *serial_name = "ISS serial driver";
-
 /*
  * This routine is called whenever a serial port is opened.  It
  * enables interrupts for a serial port, linking in its async structure into
@@ -149,7 +146,7 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 
 static int rs_proc_show(struct seq_file *m, void *v)
 {
-	seq_printf(m, "serinfo:1.0 driver:%s\n", serial_version);
+	seq_printf(m, "serinfo:1.0 driver:0.1\n");
 	return 0;
 }
 
@@ -171,8 +168,6 @@ int __init rs_init(void)
 	tty_port_init(&serial_port);
 
 	serial_driver = alloc_tty_driver(SERIAL_MAX_NUM_LINES);
-
-	pr_info("%s %s\n", serial_name, serial_version);
 
 	/* Initialize the tty_driver structure */
 
