@@ -230,6 +230,8 @@ static int afs_xattr_get_yfs(const struct xattr_handler *handler,
 			else
 				ret = -ERANGE;
 		}
+	} else if (ret == -ENOTSUPP) {
+		ret = -ENODATA;
 	}
 
 error_yacl:
@@ -254,6 +256,7 @@ static int afs_xattr_set_yfs(const struct xattr_handler *handler,
 {
 	struct afs_operation *op;
 	struct afs_vnode *vnode = AFS_FS_I(inode);
+	int ret;
 
 	if (flags == XATTR_CREATE ||
 	    strcmp(name, "acl") != 0)
@@ -268,7 +271,10 @@ static int afs_xattr_set_yfs(const struct xattr_handler *handler,
 		return afs_put_operation(op);
 
 	op->ops = &yfs_store_opaque_acl2_operation;
-	return afs_do_sync_operation(op);
+	ret = afs_do_sync_operation(op);
+	if (ret == -ENOTSUPP)
+		ret = -ENODATA;
+	return ret;
 }
 
 static const struct xattr_handler afs_xattr_yfs_handler = {
