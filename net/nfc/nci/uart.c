@@ -468,7 +468,6 @@ static struct tty_ldisc_ops nci_uart_ldisc = {
 
 static int __init nci_uart_init(void)
 {
-	memset(nci_uart_drivers, 0, sizeof(nci_uart_drivers));
 	return tty_register_ldisc(N_NCI, &nci_uart_ldisc);
 }
 
