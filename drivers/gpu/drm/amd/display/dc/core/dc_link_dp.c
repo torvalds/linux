@@ -1635,6 +1635,42 @@ enum link_training_result dc_link_dp_perform_link_training(
 	return status;
 }
 
+static enum dp_panel_mode try_enable_assr(struct dc_stream_state *stream)
+{
+	struct dc_link *link = stream->link;
+	enum dp_panel_mode panel_mode = dp_get_panel_mode(link);
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	struct cp_psp *cp_psp = &stream->ctx->cp_psp;
+#endif
+
+	/* ASSR must be supported on the panel */
+	if (panel_mode == DP_PANEL_MODE_DEFAULT)
+		return panel_mode;
+
+	/* eDP or internal DP only */
+	if (link->connector_signal != SIGNAL_TYPE_EDP &&
+		!(link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT &&
+		 link->is_internal_display))
+		return DP_PANEL_MODE_DEFAULT;
+
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	if (cp_psp && cp_psp->funcs.enable_assr) {
+		if (!cp_psp->funcs.enable_assr(cp_psp->handle, link)) {
+			/* since eDP implies ASSR on, change panel
+			 * mode to disable ASSR
+			 */
+			panel_mode = DP_PANEL_MODE_DEFAULT;
+		}
+	} else
+		panel_mode = DP_PANEL_MODE_DEFAULT;
+
+#else
+	/* turn off ASSR if the implementation is not compiled in */
+	panel_mode = DP_PANEL_MODE_DEFAULT;
+#endif
+	return panel_mode;
+}
+
 bool perform_link_training_with_retries(
 	const struct dc_link_settings *link_setting,
 	bool skip_video_pattern,
@@ -1646,7 +1682,7 @@ bool perform_link_training_with_retries(
 	uint8_t delay_between_attempts = LINK_TRAINING_RETRY_DELAY;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
-	enum dp_panel_mode panel_mode = dp_get_panel_mode(link);
+	enum dp_panel_mode panel_mode;
 
 	/* We need to do this before the link training to ensure the idle pattern in SST
 	 * mode will be sent right after the link training
@@ -1671,23 +1707,11 @@ bool perform_link_training_with_retries(
 			msleep(delay_dp_power_up_in_ms);
 		}
 
-#ifdef CONFIG_DRM_AMD_DC_HDCP
-		if (panel_mode == DP_PANEL_MODE_EDP) {
-			struct cp_psp *cp_psp = &stream->ctx->cp_psp;
-
-			if (cp_psp && cp_psp->funcs.enable_assr) {
-				if (!cp_psp->funcs.enable_assr(cp_psp->handle, link)) {
-					/* since eDP implies ASSR on, change panel
-					 * mode to disable ASSR
-					 */
-					panel_mode = DP_PANEL_MODE_DEFAULT;
-				}
-			} else
-				panel_mode = DP_PANEL_MODE_DEFAULT;
-		}
-#endif
-
+		panel_mode = try_enable_assr(stream);
 		dp_set_panel_mode(link, panel_mode);
+		DC_LOG_DETECTION_DP_CAPS("Link: %d ASSR enabled: %d\n",
+			 link->link_index,
+			 panel_mode != DP_PANEL_MODE_DEFAULT);
 
 		if (link->aux_access_disabled) {
 			dc_link_dp_perform_link_training_skip_aux(link, link_setting);
