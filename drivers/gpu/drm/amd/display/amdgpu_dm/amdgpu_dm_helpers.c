@@ -530,7 +530,7 @@ bool dm_helpers_dp_write_dsc_enable(
 {
 	uint8_t enable_dsc = enable ? 1 : 0;
 	struct amdgpu_dm_connector *aconnector;
-	uint8_t ret;
+	uint8_t ret = 0;
 
 	if (!stream)
 		return false;
