@@ -140,21 +140,10 @@ static int ice_init_mac_fltr(struct ice_pf *pf)
 
 	perm_addr = vsi->port_info->mac.perm_addr;
 	status = ice_fltr_add_mac_and_broadcast(vsi, perm_addr, ICE_FWD_TO_VSI);
-	if (!status)
-		return 0;
+	if (status)
+		return -EIO;
 
-	/* We aren't useful with no MAC filters, so unregister if we
-	 * had an error
-	 */
-	if (vsi->netdev->reg_state == NETREG_REGISTERED) {
-		dev_err(ice_pf_to_dev(pf), "Could not add MAC filters error %s. Unregistering device\n",
-			ice_stat_str(status));
-		unregister_netdev(vsi->netdev);
-		free_netdev(vsi->netdev);
-		vsi->netdev = NULL;
-	}
-
-	return -EIO;
+	return 0;
 }
 
 /**
@@ -2982,18 +2971,11 @@ static int ice_cfg_netdev(struct ice_vsi *vsi)
 	struct ice_netdev_priv *np;
 	struct net_device *netdev;
 	u8 mac_addr[ETH_ALEN];
-	int err;
-
-	err = ice_devlink_create_port(vsi);
-	if (err)
-		return err;
 
 	netdev = alloc_etherdev_mqs(sizeof(*np), vsi->alloc_txq,
 				    vsi->alloc_rxq);
-	if (!netdev) {
-		err = -ENOMEM;
-		goto err_destroy_devlink_port;
-	}
+	if (!netdev)
+		return -ENOMEM;
 
 	vsi->netdev = netdev;
 	np = netdev_priv(netdev);
@@ -3021,25 +3003,7 @@ static int ice_cfg_netdev(struct ice_vsi *vsi)
 	netdev->min_mtu = ETH_MIN_MTU;
 	netdev->max_mtu = ICE_MAX_MTU;
 
-	err = register_netdev(vsi->netdev);
-	if (err)
-		goto err_free_netdev;
-
-	devlink_port_type_eth_set(&vsi->devlink_port, vsi->netdev);
-
-	netif_carrier_off(vsi->netdev);
-
-	/* make sure transmit queues start off as stopped */
-	netif_tx_stop_all_queues(vsi->netdev);
-
 	return 0;
-
-err_free_netdev:
-	free_netdev(vsi->netdev);
-	vsi->netdev = NULL;
-err_destroy_devlink_port:
-	ice_devlink_destroy_port(vsi);
-	return err;
 }
 
 /**
@@ -3237,8 +3201,6 @@ unroll_napi_add:
 	if (vsi) {
 		ice_napi_del(vsi);
 		if (vsi->netdev) {
-			if (vsi->netdev->reg_state == NETREG_REGISTERED)
-				unregister_netdev(vsi->netdev);
 			free_netdev(vsi->netdev);
 			vsi->netdev = NULL;
 		}
@@ -3993,6 +3955,40 @@ static void ice_print_wake_reason(struct ice_pf *pf)
 }
 
 /**
+ * ice_register_netdev - register netdev and devlink port
+ * @pf: pointer to the PF struct
+ */
+static int ice_register_netdev(struct ice_pf *pf)
+{
+	struct ice_vsi *vsi;
+	int err = 0;
+
+	vsi = ice_get_main_vsi(pf);
+	if (!vsi || !vsi->netdev)
+		return -EIO;
+
+	err = register_netdev(vsi->netdev);
+	if (err)
+		goto err_register_netdev;
+
+	netif_carrier_off(vsi->netdev);
+	netif_tx_stop_all_queues(vsi->netdev);
+	err = ice_devlink_create_port(vsi);
+	if (err)
+		goto err_devlink_create;
+
+	devlink_port_type_eth_set(&vsi->devlink_port, vsi->netdev);
+
+	return 0;
+err_devlink_create:
+	unregister_netdev(vsi->netdev);
+err_register_netdev:
+	free_netdev(vsi->netdev);
+	vsi->netdev = NULL;
+	return err;
+}
+
+/**
  * ice_probe - Device initialization routine
  * @pdev: PCI device information struct
  * @ent: entry in ice_pci_tbl
@@ -4272,10 +4268,16 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	pcie_print_link_status(pf->pdev);
 
 probe_done:
+	err = ice_register_netdev(pf);
+	if (err)
+		goto err_netdev_reg;
+
 	/* ready to go, so clear down state bit */
 	clear_bit(__ICE_DOWN, pf->state);
+
 	return 0;
 
+err_netdev_reg:
 err_send_version_unroll:
 	ice_vsi_release_all(pf);
 err_alloc_sw_unroll:
@@ -6652,11 +6654,6 @@ int ice_open(struct net_device *netdev)
 	if (test_bit(__ICE_NEEDS_RESTART, pf->state)) {
 		netdev_err(netdev, "driver needs to be unloaded and reloaded\n");
 		return -EIO;
-	}
-
-	if (test_bit(__ICE_DOWN, pf->state)) {
-		netdev_err(netdev, "device is not ready yet\n");
-		return -EBUSY;
 	}
 
 	netif_carrier_off(netdev);
