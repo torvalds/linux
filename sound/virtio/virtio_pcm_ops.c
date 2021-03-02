@@ -115,6 +115,7 @@ static int virtsnd_pcm_open(struct snd_pcm_substream *substream)
 				      SNDRV_PCM_HW_PARAM_PERIODS);
 
 	vss->stopped = !!virtsnd_pcm_msg_pending_num(vss);
+	vss->suspended = false;
 
 	/*
 	 * If the substream has already been used, then the I/O queue may be in
@@ -272,16 +273,31 @@ static int virtsnd_pcm_prepare(struct snd_pcm_substream *substream)
 	struct virtio_device *vdev = vss->snd->vdev;
 	struct virtio_snd_msg *msg;
 
-	if (virtsnd_pcm_msg_pending_num(vss)) {
-		dev_err(&vdev->dev, "SID %u: invalid I/O queue state\n",
-			vss->sid);
-		return -EBADFD;
+	if (!vss->suspended) {
+		if (virtsnd_pcm_msg_pending_num(vss)) {
+			dev_err(&vdev->dev, "SID %u: invalid I/O queue state\n",
+				vss->sid);
+			return -EBADFD;
+		}
+
+		vss->buffer_bytes = snd_pcm_lib_buffer_bytes(substream);
+		vss->hw_ptr = 0;
+		vss->msg_last_enqueued = -1;
+	} else {
+		struct snd_pcm_runtime *runtime = substream->runtime;
+		unsigned int buffer_bytes = snd_pcm_lib_buffer_bytes(substream);
+		unsigned int period_bytes = snd_pcm_lib_period_bytes(substream);
+		int rc;
+
+		rc = virtsnd_pcm_dev_set_params(vss, buffer_bytes, period_bytes,
+						runtime->channels,
+						runtime->format, runtime->rate);
+		if (rc)
+			return rc;
 	}
 
-	vss->buffer_bytes = snd_pcm_lib_buffer_bytes(substream);
-	vss->hw_ptr = 0;
 	vss->xfer_xrun = false;
-	vss->msg_last_enqueued = -1;
+	vss->suspended = false;
 	vss->msg_count = 0;
 
 	msg = virtsnd_pcm_ctl_msg_alloc(vss, VIRTIO_SND_R_PCM_PREPARE,
@@ -336,6 +352,9 @@ static int virtsnd_pcm_trigger(struct snd_pcm_substream *substream, int command)
 		}
 
 		return virtsnd_ctl_msg_send_sync(snd, msg);
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+		vss->suspended = true;
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_STOP:
 		vss->stopped = true;
 		fallthrough;
