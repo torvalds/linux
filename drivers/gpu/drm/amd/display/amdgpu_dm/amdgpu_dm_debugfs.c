@@ -2688,15 +2688,40 @@ DEFINE_DEBUGFS_ATTRIBUTE(crc_win_y_end_fops, crc_win_y_end_get,
  */
 static int crc_win_update_set(void *data, u64 val)
 {
-	struct drm_crtc *crtc = data;
-	struct drm_device *drm_dev = crtc->dev;
-	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+	struct drm_crtc *new_crtc = data;
+	struct drm_crtc *old_crtc = NULL;
+	struct amdgpu_crtc *new_acrtc, *old_acrtc;
+	struct amdgpu_device *adev = drm_to_adev(new_crtc->dev);
+	struct crc_rd_work *crc_rd_wrk = adev->dm.crc_rd_wrk;
 
 	if (val) {
-		spin_lock_irq(&drm_dev->event_lock);
-		acrtc->dm_irq_params.crc_window.activated = true;
-		acrtc->dm_irq_params.crc_window.update_win = true;
-		spin_unlock_irq(&drm_dev->event_lock);
+		spin_lock_irq(&crc_rd_wrk->crc_rd_work_lock);
+		spin_lock_irq(&adev_to_drm(adev)->event_lock);
+		if (crc_rd_wrk && crc_rd_wrk->crtc) {
+			old_crtc = crc_rd_wrk->crtc;
+			old_acrtc = to_amdgpu_crtc(old_crtc);
+			flush_work(&adev->dm.crc_rd_wrk->notify_ta_work);
+		}
+
+		new_acrtc = to_amdgpu_crtc(new_crtc);
+
+		if (old_crtc && old_crtc != new_crtc) {
+			old_acrtc->dm_irq_params.crc_window.activated = false;
+			old_acrtc->dm_irq_params.crc_window.update_win = false;
+			old_acrtc->dm_irq_params.crc_window.skip_frame_cnt = 0;
+
+			new_acrtc->dm_irq_params.crc_window.activated = true;
+			new_acrtc->dm_irq_params.crc_window.update_win = true;
+			new_acrtc->dm_irq_params.crc_window.skip_frame_cnt = 0;
+			crc_rd_wrk->crtc = new_crtc;
+		} else {
+			new_acrtc->dm_irq_params.crc_window.activated = true;
+			new_acrtc->dm_irq_params.crc_window.update_win = true;
+			new_acrtc->dm_irq_params.crc_window.skip_frame_cnt = 0;
+			crc_rd_wrk->crtc = new_crtc;
+		}
+		spin_unlock_irq(&adev_to_drm(adev)->event_lock);
+		spin_unlock_irq(&crc_rd_wrk->crc_rd_work_lock);
 	}
 
 	return 0;

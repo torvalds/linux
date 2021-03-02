@@ -1179,6 +1179,9 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		dc_init_callbacks(adev->dm.dc, &init_params);
 	}
 #endif
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+	adev->dm.crc_rd_wrk = amdgpu_dm_crtc_secure_display_create_work();
+#endif
 	if (amdgpu_dm_initialize_drm_device(adev)) {
 		DRM_ERROR(
 		"amdgpu: failed to initialize sw for display support.\n");
@@ -1222,6 +1225,13 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 
 	amdgpu_dm_destroy_drm_device(&adev->dm);
 
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+	if (adev->dm.crc_rd_wrk) {
+		flush_work(&adev->dm.crc_rd_wrk->notify_ta_work);
+		kfree(adev->dm.crc_rd_wrk);
+		adev->dm.crc_rd_wrk = NULL;
+	}
+#endif
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 	if (adev->dm.hdcp_workqueue) {
 		hdcp_destroy(&adev->dev->kobj, adev->dm.hdcp_workqueue);
@@ -1887,6 +1897,9 @@ static int dm_suspend(void *handle)
 		return ret;
 	}
 
+#ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
+	amdgpu_dm_crtc_secure_display_suspend(adev);
+#endif
 	WARN_ON(adev->dm.cached_state);
 	adev->dm.cached_state = drm_atomic_helper_suspend(adev_to_drm(adev));
 
@@ -2210,6 +2223,10 @@ static int dm_resume(void *handle)
 	drm_atomic_helper_resume(ddev, dm->cached_state);
 
 	dm->cached_state = NULL;
+
+#ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
+	amdgpu_dm_crtc_secure_display_resume(adev);
+#endif
 
 	amdgpu_dm_irq_resume_late(adev);
 
