@@ -18,6 +18,9 @@
 #include <linux/sched_clock.h>
 #include <linux/mm.h>
 #include <linux/cpuhotplug.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/acpi.h>
 #include <clocksource/hyperv_timer.h>
 #include <asm/hyperv-tlfs.h>
 #include <asm/mshyperv.h>
@@ -43,14 +46,13 @@ static u64 hv_sched_clock_offset __ro_after_init;
  */
 static bool direct_mode_enabled;
 
-static int stimer0_irq;
-static int stimer0_vector;
+static int stimer0_irq = -1;
 static int stimer0_message_sint;
+static DEFINE_PER_CPU(long, stimer0_evt);
 
 /*
- * ISR for when stimer0 is operating in Direct Mode.  Direct Mode
- * does not use VMbus or any VMbus messages, so process here and not
- * in the VMbus driver code.
+ * Common code for stimer0 interrupts coming via Direct Mode or
+ * as a VMbus message.
  */
 void hv_stimer0_isr(void)
 {
@@ -60,6 +62,16 @@ void hv_stimer0_isr(void)
 	ce->event_handler(ce);
 }
 EXPORT_SYMBOL_GPL(hv_stimer0_isr);
+
+/*
+ * stimer0 interrupt handler for architectures that support
+ * per-cpu interrupts, which also implies Direct Mode.
+ */
+static irqreturn_t hv_stimer0_percpu_isr(int irq, void *dev_id)
+{
+	hv_stimer0_isr();
+	return IRQ_HANDLED;
+}
 
 static int hv_ce_set_next_event(unsigned long delta,
 				struct clock_event_device *evt)
@@ -76,8 +88,8 @@ static int hv_ce_shutdown(struct clock_event_device *evt)
 {
 	hv_set_register(HV_REGISTER_STIMER0_COUNT, 0);
 	hv_set_register(HV_REGISTER_STIMER0_CONFIG, 0);
-	if (direct_mode_enabled)
-		hv_disable_stimer0_percpu_irq(stimer0_irq);
+	if (direct_mode_enabled && stimer0_irq >= 0)
+		disable_percpu_irq(stimer0_irq);
 
 	return 0;
 }
@@ -95,8 +107,9 @@ static int hv_ce_set_oneshot(struct clock_event_device *evt)
 		 * on the specified hardware vector/IRQ.
 		 */
 		timer_cfg.direct_mode = 1;
-		timer_cfg.apic_vector = stimer0_vector;
-		hv_enable_stimer0_percpu_irq(stimer0_irq);
+		timer_cfg.apic_vector = HYPERV_STIMER0_VECTOR;
+		if (stimer0_irq >= 0)
+			enable_percpu_irq(stimer0_irq, IRQ_TYPE_NONE);
 	} else {
 		/*
 		 * When it expires, the timer will generate a VMbus message,
@@ -169,10 +182,58 @@ int hv_stimer_cleanup(unsigned int cpu)
 }
 EXPORT_SYMBOL_GPL(hv_stimer_cleanup);
 
-/* hv_stimer_alloc - Global initialization of the clockevent and stimer0 */
-int hv_stimer_alloc(void)
+/*
+ * These placeholders are overridden by arch specific code on
+ * architectures that need special setup of the stimer0 IRQ because
+ * they don't support per-cpu IRQs (such as x86/x64).
+ */
+void __weak hv_setup_stimer0_handler(void (*handler)(void))
 {
-	int ret = 0;
+};
+
+void __weak hv_remove_stimer0_handler(void)
+{
+};
+
+/* Called only on architectures with per-cpu IRQs (i.e., not x86/x64) */
+static int hv_setup_stimer0_irq(void)
+{
+	int ret;
+
+	ret = acpi_register_gsi(NULL, HYPERV_STIMER0_VECTOR,
+			ACPI_EDGE_SENSITIVE, ACPI_ACTIVE_HIGH);
+	if (ret < 0) {
+		pr_err("Can't register Hyper-V stimer0 GSI. Error %d", ret);
+		return ret;
+	}
+	stimer0_irq = ret;
+
+	ret = request_percpu_irq(stimer0_irq, hv_stimer0_percpu_isr,
+		"Hyper-V stimer0", &stimer0_evt);
+	if (ret) {
+		pr_err("Can't request Hyper-V stimer0 IRQ %d. Error %d",
+			stimer0_irq, ret);
+		acpi_unregister_gsi(stimer0_irq);
+		stimer0_irq = -1;
+	}
+	return ret;
+}
+
+static void hv_remove_stimer0_irq(void)
+{
+	if (stimer0_irq == -1) {
+		hv_remove_stimer0_handler();
+	} else {
+		free_percpu_irq(stimer0_irq, &stimer0_evt);
+		acpi_unregister_gsi(stimer0_irq);
+		stimer0_irq = -1;
+	}
+}
+
+/* hv_stimer_alloc - Global initialization of the clockevent and stimer0 */
+int hv_stimer_alloc(bool have_percpu_irqs)
+{
+	int ret;
 
 	/*
 	 * Synthetic timers are always available except on old versions of
@@ -188,29 +249,37 @@ int hv_stimer_alloc(void)
 
 	direct_mode_enabled = ms_hyperv.misc_features &
 			HV_STIMER_DIRECT_MODE_AVAILABLE;
-	if (direct_mode_enabled) {
-		ret = hv_setup_stimer0_irq(&stimer0_irq, &stimer0_vector,
-				hv_stimer0_isr);
-		if (ret)
-			goto free_percpu;
 
-		/*
-		 * Since we are in Direct Mode, stimer initialization
-		 * can be done now with a CPUHP value in the same range
-		 * as other clockevent devices.
-		 */
-		ret = cpuhp_setup_state(CPUHP_AP_HYPERV_TIMER_STARTING,
-				"clockevents/hyperv/stimer:starting",
-				hv_stimer_init, hv_stimer_cleanup);
-		if (ret < 0)
-			goto free_stimer0_irq;
+	/*
+	 * If Direct Mode isn't enabled, the remainder of the initialization
+	 * is done later by hv_stimer_legacy_init()
+	 */
+	if (!direct_mode_enabled)
+		return 0;
+
+	if (have_percpu_irqs) {
+		ret = hv_setup_stimer0_irq();
+		if (ret)
+			goto free_clock_event;
+	} else {
+		hv_setup_stimer0_handler(hv_stimer0_isr);
+	}
+
+	/*
+	 * Since we are in Direct Mode, stimer initialization
+	 * can be done now with a CPUHP value in the same range
+	 * as other clockevent devices.
+	 */
+	ret = cpuhp_setup_state(CPUHP_AP_HYPERV_TIMER_STARTING,
+			"clockevents/hyperv/stimer:starting",
+			hv_stimer_init, hv_stimer_cleanup);
+	if (ret < 0) {
+		hv_remove_stimer0_irq();
+		goto free_clock_event;
 	}
 	return ret;
 
-free_stimer0_irq:
-	hv_remove_stimer0_irq(stimer0_irq);
-	stimer0_irq = 0;
-free_percpu:
+free_clock_event:
 	free_percpu(hv_clock_event);
 	hv_clock_event = NULL;
 	return ret;
@@ -254,23 +323,6 @@ void hv_stimer_legacy_cleanup(unsigned int cpu)
 }
 EXPORT_SYMBOL_GPL(hv_stimer_legacy_cleanup);
 
-
-/* hv_stimer_free - Free global resources allocated by hv_stimer_alloc() */
-void hv_stimer_free(void)
-{
-	if (!hv_clock_event)
-		return;
-
-	if (direct_mode_enabled) {
-		cpuhp_remove_state(CPUHP_AP_HYPERV_TIMER_STARTING);
-		hv_remove_stimer0_irq(stimer0_irq);
-		stimer0_irq = 0;
-	}
-	free_percpu(hv_clock_event);
-	hv_clock_event = NULL;
-}
-EXPORT_SYMBOL_GPL(hv_stimer_free);
-
 /*
  * Do a global cleanup of clockevents for the cases of kexec and
  * vmbus exit
@@ -287,12 +339,17 @@ void hv_stimer_global_cleanup(void)
 		hv_stimer_legacy_cleanup(cpu);
 	}
 
-	/*
-	 * If Direct Mode is enabled, the cpuhp teardown callback
-	 * (hv_stimer_cleanup) will be run on all CPUs to stop the
-	 * stimers.
-	 */
-	hv_stimer_free();
+	if (!hv_clock_event)
+		return;
+
+	if (direct_mode_enabled) {
+		cpuhp_remove_state(CPUHP_AP_HYPERV_TIMER_STARTING);
+		hv_remove_stimer0_irq();
+		stimer0_irq = -1;
+	}
+	free_percpu(hv_clock_event);
+	hv_clock_event = NULL;
+
 }
 EXPORT_SYMBOL_GPL(hv_stimer_global_cleanup);
 
@@ -457,9 +514,14 @@ static bool __init hv_init_tsc_clocksource(void)
 	 * Hyper-V Reference TSC rating, causing the generic TSC to be used.
 	 * TSC_INVARIANT is not offered on ARM64, so the Hyper-V Reference
 	 * TSC will be preferred over the virtualized ARM64 arch counter.
+	 * While the Hyper-V MSR clocksource won't be used since the
+	 * Reference TSC clocksource is present, change its rating as
+	 * well for consistency.
 	 */
-	if (ms_hyperv.features & HV_ACCESS_TSC_INVARIANT)
+	if (ms_hyperv.features & HV_ACCESS_TSC_INVARIANT) {
 		hyperv_cs_tsc.rating = 250;
+		hyperv_cs_msr.rating = 250;
+	}
 
 	hv_read_reference_counter = read_hv_clock_tsc;
 	phys_addr = virt_to_phys(hv_get_tsc_page());
