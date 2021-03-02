@@ -6,7 +6,12 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/bits.h>
+#include <linux/bitfield.h>
+#include <linux/device.h>
+#include <linux/errno.h>
 #include <linux/export.h>
+#include <linux/fwnode.h>
 #include <linux/module.h>
 #include <linux/soundwire/sdw_intel.h>
 #include <linux/string.h>
