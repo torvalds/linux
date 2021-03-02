@@ -97,6 +97,10 @@ static bool igp_read_bios_from_vram(struct amdgpu_device *adev)
 		if (amdgpu_device_need_post(adev))
 			return false;
 
+	/* FB BAR not enabled */
+	if (pci_resource_len(adev->pdev, 0) == 0)
+		return false;
+
 	adev->bios = NULL;
 	vram_base = pci_resource_start(adev->pdev, 0);
 	bios = ioremap_wc(vram_base, size);
