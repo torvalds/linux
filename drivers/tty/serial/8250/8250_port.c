@@ -1487,11 +1487,7 @@ static enum hrtimer_restart serial8250_em485_handle_stop_tx(struct hrtimer *t)
 
 static void start_hrtimer_ms(struct hrtimer *hrt, unsigned long msec)
 {
-	long sec = msec / 1000;
-	long nsec = (msec % 1000) * 1000000;
-	ktime_t t = ktime_set(sec, nsec);
-
-	hrtimer_start(hrt, t, HRTIMER_MODE_REL);
+	hrtimer_start(hrt, ms_to_ktime(msec), HRTIMER_MODE_REL);
 }
 
 static void __stop_tx_rs485(struct uart_8250_port *p)
