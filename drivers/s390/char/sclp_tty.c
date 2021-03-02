@@ -54,8 +54,8 @@ static unsigned short int sclp_tty_chars_count;
 struct tty_driver *sclp_tty_driver;
 
 static int sclp_tty_tolower;
-static int sclp_tty_columns = 80;
 
+#define SCLP_TTY_COLUMNS 320
 #define SPACES_PER_TAB 8
 #define CASE_DELIMITER 0x6c /* to separate upper and lower case (% in EBCDIC) */
 
@@ -193,7 +193,7 @@ static int sclp_tty_write_string(const unsigned char *str, int count, int may_fa
 			}
 			page = sclp_tty_pages.next;
 			list_del((struct list_head *) page);
-			sclp_ttybuf = sclp_make_buffer(page, sclp_tty_columns,
+			sclp_ttybuf = sclp_make_buffer(page, SCLP_TTY_COLUMNS,
 						       SPACES_PER_TAB);
 		}
 		/* try to write the string to the current output buffer */
@@ -531,11 +531,6 @@ sclp_tty_init(void)
 	sclp_ttybuf = NULL;
 	sclp_tty_buffer_count = 0;
 	if (MACHINE_IS_VM) {
-		/*
-		 * save 4 characters for the CPU number
-		 * written at start of each line by VM/CP
-		 */
-		sclp_tty_columns = 76;
 		/* case input lines to lowercase */
 		sclp_tty_tolower = 1;
 	}

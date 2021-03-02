@@ -41,8 +41,8 @@ static int sclp_con_suspended;
 static int sclp_con_queue_running;
 
 /* Output format for console messages */
-static unsigned short sclp_con_columns;
-static unsigned short sclp_con_width_htab;
+#define SCLP_CON_COLUMNS	320
+#define SPACES_PER_TAB		8
 
 static void
 sclp_conbuf_callback(struct sclp_buffer *buffer, int rc)
@@ -189,8 +189,8 @@ sclp_console_write(struct console *console, const char *message,
 			}
 			page = sclp_con_pages.next;
 			list_del((struct list_head *) page);
-			sclp_conbuf = sclp_make_buffer(page, sclp_con_columns,
-						       sclp_con_width_htab);
+			sclp_conbuf = sclp_make_buffer(page, SCLP_CON_COLUMNS,
+						       SPACES_PER_TAB);
 		}
 		/* try to write the string to the current output buffer */
 		written = sclp_write(sclp_conbuf, (const unsigned char *)
@@ -332,17 +332,6 @@ sclp_console_init(void)
 	spin_lock_init(&sclp_con_lock);
 	sclp_conbuf = NULL;
 	timer_setup(&sclp_con_timer, sclp_console_timeout, 0);
-
-	/* Set output format */
-	if (MACHINE_IS_VM)
-		/*
-		 * save 4 characters for the CPU number
-		 * written at start of each line by VM/CP
-		 */
-		sclp_con_columns = 76;
-	else
-		sclp_con_columns = 80;
-	sclp_con_width_htab = 8;
 
 	/* enable printk-access to this driver */
 	atomic_notifier_chain_register(&panic_notifier_list, &on_panic_nb);
