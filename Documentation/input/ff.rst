@@ -16,8 +16,8 @@ goal is not to support these devices as if they were simple input-only devices
 (as it is already the case), but to really enable the rendering of force
 effects.
 This document only describes the force feedback part of the Linux input
-interface. Please read joystick.txt and input.txt before reading further this
-document.
+interface. Please read joydev/joystick.rst and input.rst before reading further
+this document.
 
 Instructions to the user
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -36,7 +36,7 @@ should keep a hand on your device, in order to avoid it to break down if
 something goes wrong.
 
 If you have a serial iforce device, you need to start inputattach. See
-joystick.txt for details.
+joydev/joystick.rst for details.
 
 Does it work ?
 --------------
