@@ -423,6 +423,30 @@ static struct clocksource hyperv_cs_msr = {
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
+/*
+ * Reference to pv_ops must be inline so objtool
+ * detection of noinstr violations can work correctly.
+ */
+#ifdef CONFIG_GENERIC_SCHED_CLOCK
+static __always_inline void hv_setup_sched_clock(void *sched_clock)
+{
+	/*
+	 * We're on an architecture with generic sched clock (not x86/x64).
+	 * The Hyper-V sched clock read function returns nanoseconds, not
+	 * the normal 100ns units of the Hyper-V synthetic clock.
+	 */
+	sched_clock_register(sched_clock, 64, NSEC_PER_SEC);
+}
+#elif defined CONFIG_PARAVIRT
+static __always_inline void hv_setup_sched_clock(void *sched_clock)
+{
+	/* We're on x86/x64 *and* using PV ops */
+	pv_ops.time.sched_clock = sched_clock;
+}
+#else /* !CONFIG_GENERIC_SCHED_CLOCK && !CONFIG_PARAVIRT */
+static __always_inline void hv_setup_sched_clock(void *sched_clock) {}
+#endif /* CONFIG_GENERIC_SCHED_CLOCK */
+
 static bool __init hv_init_tsc_clocksource(void)
 {
 	u64		tsc_msr;
