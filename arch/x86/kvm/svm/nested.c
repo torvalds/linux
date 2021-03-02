@@ -787,12 +787,7 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 
 static void nested_svm_triple_fault(struct kvm_vcpu *vcpu)
 {
-	struct vcpu_svm *svm = to_svm(vcpu);
-
-	svm->vmcb->control.exit_code   = SVM_EXIT_SHUTDOWN;
-	svm->vmcb->control.exit_info_1 = 0;
-	svm->vmcb->control.exit_info_2 = 0;
-	nested_svm_vmexit(svm);
+	nested_svm_simple_vmexit(to_svm(vcpu), SVM_EXIT_SHUTDOWN);
 }
 
 int svm_allocate_nested(struct vcpu_svm *svm)
@@ -1017,49 +1012,10 @@ static void nested_svm_inject_exception_vmexit(struct vcpu_svm *svm)
 	nested_svm_vmexit(svm);
 }
 
-static void nested_svm_smi(struct vcpu_svm *svm)
-{
-	svm->vmcb->control.exit_code = SVM_EXIT_SMI;
-	svm->vmcb->control.exit_info_1 = 0;
-	svm->vmcb->control.exit_info_2 = 0;
-
-	nested_svm_vmexit(svm);
-}
-
-static void nested_svm_nmi(struct vcpu_svm *svm)
-{
-	svm->vmcb->control.exit_code = SVM_EXIT_NMI;
-	svm->vmcb->control.exit_info_1 = 0;
-	svm->vmcb->control.exit_info_2 = 0;
-
-	nested_svm_vmexit(svm);
-}
-
-static void nested_svm_intr(struct vcpu_svm *svm)
-{
-	trace_kvm_nested_intr_vmexit(svm->vmcb->save.rip);
-
-	svm->vmcb->control.exit_code   = SVM_EXIT_INTR;
-	svm->vmcb->control.exit_info_1 = 0;
-	svm->vmcb->control.exit_info_2 = 0;
-
-	nested_svm_vmexit(svm);
-}
-
 static inline bool nested_exit_on_init(struct vcpu_svm *svm)
 {
 	return vmcb_is_intercept(&svm->nested.ctl, INTERCEPT_INIT);
 }
-
-static void nested_svm_init(struct vcpu_svm *svm)
-{
-	svm->vmcb->control.exit_code   = SVM_EXIT_INIT;
-	svm->vmcb->control.exit_info_1 = 0;
-	svm->vmcb->control.exit_info_2 = 0;
-
-	nested_svm_vmexit(svm);
-}
-
 
 static int svm_check_nested_events(struct kvm_vcpu *vcpu)
 {
@@ -1074,7 +1030,7 @@ static int svm_check_nested_events(struct kvm_vcpu *vcpu)
 			return -EBUSY;
 		if (!nested_exit_on_init(svm))
 			return 0;
-		nested_svm_init(svm);
+		nested_svm_simple_vmexit(svm, SVM_EXIT_INIT);
 		return 0;
 	}
 
@@ -1092,7 +1048,7 @@ static int svm_check_nested_events(struct kvm_vcpu *vcpu)
 			return -EBUSY;
 		if (!nested_exit_on_smi(svm))
 			return 0;
-		nested_svm_smi(svm);
+		nested_svm_simple_vmexit(svm, SVM_EXIT_SMI);
 		return 0;
 	}
 
@@ -1101,7 +1057,7 @@ static int svm_check_nested_events(struct kvm_vcpu *vcpu)
 			return -EBUSY;
 		if (!nested_exit_on_nmi(svm))
 			return 0;
-		nested_svm_nmi(svm);
+		nested_svm_simple_vmexit(svm, SVM_EXIT_NMI);
 		return 0;
 	}
 
@@ -1110,7 +1066,8 @@ static int svm_check_nested_events(struct kvm_vcpu *vcpu)
 			return -EBUSY;
 		if (!nested_exit_on_intr(svm))
 			return 0;
-		nested_svm_intr(svm);
+		trace_kvm_nested_intr_vmexit(svm->vmcb->save.rip);
+		nested_svm_simple_vmexit(svm, SVM_EXIT_INTR);
 		return 0;
 	}
 
