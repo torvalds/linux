@@ -192,21 +192,6 @@ config SERIAL_NONSTANDARD
 
 	  Most people can say N here.
 
-config ROCKETPORT
-	tristate "Comtrol RocketPort support"
-	depends on SERIAL_NONSTANDARD && (ISA || EISA || PCI)
-	help
-	  This driver supports Comtrol RocketPort and RocketModem PCI boards.   
-	  These boards provide 2, 4, 8, 16, or 32 high-speed serial ports or
-	  modems.  For information about the RocketPort/RocketModem  boards
-	  and this driver read <file:Documentation/driver-api/serial/rocket.rst>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called rocket.
-
-	  If you want to compile this driver into the kernel, say Y here.  If
-	  you don't have a Comtrol RocketPort/RocketModem card installed, say N.
-
 config MOXA_INTELLIO
 	tristate "Moxa Intellio support"
 	depends on SERIAL_NONSTANDARD && (ISA || EISA || PCI)

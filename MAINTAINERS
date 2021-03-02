@@ -15394,12 +15394,6 @@ L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/rocker/
 
-ROCKETPORT DRIVER
-S:	Maintained
-W:	http://www.comtrol.com
-F:	Documentation/driver-api/serial/rocket.rst
-F:	drivers/tty/rocket*
-
 ROCKETPORT EXPRESS/INFINITY DRIVER
 M:	Kevin Cernekee <cernekee@gmail.com>
 L:	linux-serial@vger.kernel.org
