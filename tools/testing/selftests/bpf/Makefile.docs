@@ -15,18 +15,27 @@ endif
 
 prefix ?= /usr/local
 mandir ?= $(prefix)/man
+man2dir = $(mandir)/man2
 man7dir = $(mandir)/man7
+
+SYSCALL_RST = bpf-syscall.rst
+MAN2_RST = $(SYSCALL_RST)
 
 HELPERS_RST = bpf-helpers.rst
 MAN7_RST = $(HELPERS_RST)
 
+_DOC_MAN2 = $(patsubst %.rst,%.2,$(MAN2_RST))
+DOC_MAN2 = $(addprefix $(OUTPUT),$(_DOC_MAN2))
+
 _DOC_MAN7 = $(patsubst %.rst,%.7,$(MAN7_RST))
 DOC_MAN7 = $(addprefix $(OUTPUT),$(_DOC_MAN7))
 
-DOCTARGETS := helpers
+DOCTARGETS := helpers syscall
 
 docs: $(DOCTARGETS)
+syscall: man2
 helpers: man7
+man2: $(DOC_MAN2)
 man7: $(DOC_MAN7)
 
 RST2MAN_DEP := $(shell command -v rst2man 2>/dev/null)
@@ -64,9 +73,10 @@ endef
 
 # Create the make targets to generate manual pages by name and section
 $(eval $(call DOCS_RULES,helpers,7))
+$(eval $(call DOCS_RULES,syscall,2))
 
 docs-clean: $(foreach doctarget,$(DOCTARGETS), docs-clean-$(doctarget))
 docs-install: $(foreach doctarget,$(DOCTARGETS), docs-install-$(doctarget))
 docs-uninstall: $(foreach doctarget,$(DOCTARGETS), docs-uninstall-$(doctarget))
 
-.PHONY: docs docs-clean docs-install docs-uninstall man7
+.PHONY: docs docs-clean docs-install docs-uninstall man2 man7
