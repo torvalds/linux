@@ -387,12 +387,6 @@ static int nci_uart_send(struct nci_uart *nu, struct sk_buff *skb)
 	return 0;
 }
 
-/* -- Default recv handler -- */
-static int nci_uart_default_recv(struct nci_uart *nu, struct sk_buff *skb)
-{
-	return nci_recv_frame(nu->ndev, skb);
-}
-
 int nci_uart_register(struct nci_uart *nu)
 {
 	if (!nu || !nu->ops.open ||
@@ -401,10 +395,6 @@ int nci_uart_register(struct nci_uart *nu)
 
 	/* Set the send callback */
 	nu->ops.send = nci_uart_send;
-
-	/* Install default handlers if not overridden */
-	if (!nu->ops.recv)
-		nu->ops.recv = nci_uart_default_recv;
 
 	/* Add this driver in the driver list */
 	if (nci_uart_drivers[nu->driver]) {
