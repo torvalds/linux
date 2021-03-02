@@ -896,7 +896,7 @@ static int vcc_chars_in_buffer(struct tty_struct *tty)
 	port = vcc_get_ne(tty->index);
 	if (unlikely(!port)) {
 		pr_err("VCC: chars_in_buffer: Failed to find VCC port\n");
-		return -ENODEV;
+		return 0;
 	}
 
 	num = port->chars_in_buffer;
