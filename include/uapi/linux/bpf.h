@@ -123,6 +123,14 @@ union bpf_iter_link_info {
  *		Look up an element with a given *key* in the map referred to
  *		by the file descriptor *map_fd*.
  *
+ *		The *flags* argument may be specified as one of the
+ *		following:
+ *
+ *		**BPF_F_LOCK**
+ *			Look up the value of a spin-locked map without
+ *			returning the lock. This must be specified if the
+ *			elements contain a spinlock.
+ *
  *	Return
  *		Returns zero on success. On error, -1 is returned and *errno*
  *		is set appropriately.
@@ -140,6 +148,8 @@ union bpf_iter_link_info {
  *			Create a new element only if it did not exist.
  *		**BPF_EXIST**
  *			Update an existing element.
+ *		**BPF_F_LOCK**
+ *			Update a spin_lock-ed map element.
  *
  *	Return
  *		Returns zero on success. On error, -1 is returned and *errno*
