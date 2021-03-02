@@ -209,6 +209,7 @@ struct rkisp_device {
 	struct mutex apilock; /* mutex to serialize the calls of stream */
 	struct mutex iqlock; /* mutex to serialize the calls of iq */
 	wait_queue_head_t sync_onoff;
+	dma_addr_t resmem_addr;
 	phys_addr_t resmem_pa;
 	size_t resmem_size;
 	int dev_id;
