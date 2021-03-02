@@ -353,6 +353,8 @@ int virtsnd_pcm_parse_cfg(struct virtio_snd *snd)
 		vss->snd = snd;
 		vss->sid = i;
 		INIT_WORK(&vss->elapsed_period, virtsnd_pcm_period_elapsed);
+		init_waitqueue_head(&vss->msg_empty);
+		spin_lock_init(&vss->lock);
 
 		rc = virtsnd_pcm_build_hw(vss, &info[i]);
 		if (rc)
@@ -476,4 +478,34 @@ int virtsnd_pcm_build_devs(struct virtio_snd *snd)
 	}
 
 	return 0;
+}
+
+/**
+ * virtsnd_pcm_event() - Handle the PCM device event notification.
+ * @snd: VirtIO sound device.
+ * @event: VirtIO sound event.
+ *
+ * Context: Interrupt context.
+ */
+void virtsnd_pcm_event(struct virtio_snd *snd, struct virtio_snd_event *event)
+{
+	struct virtio_pcm_substream *vss;
+	u32 sid = le32_to_cpu(event->data);
+
+	if (sid >= snd->nsubstreams)
+		return;
+
+	vss = &snd->substreams[sid];
+
+	switch (le32_to_cpu(event->hdr.code)) {
+	case VIRTIO_SND_EVT_PCM_PERIOD_ELAPSED:
+		/* TODO: deal with shmem elapsed period */
+		break;
+	case VIRTIO_SND_EVT_PCM_XRUN:
+		spin_lock(&vss->lock);
+		if (vss->xfer_enabled)
+			vss->xfer_xrun = true;
+		spin_unlock(&vss->lock);
+		break;
+	}
 }

@@ -55,6 +55,12 @@ static void virtsnd_event_send(struct virtqueue *vqueue,
 static void virtsnd_event_dispatch(struct virtio_snd *snd,
 				   struct virtio_snd_event *event)
 {
+	switch (le32_to_cpu(event->hdr.code)) {
+	case VIRTIO_SND_EVT_PCM_PERIOD_ELAPSED:
+	case VIRTIO_SND_EVT_PCM_XRUN:
+		virtsnd_pcm_event(snd, event);
+		break;
+	}
 }
 
 /**
@@ -101,11 +107,15 @@ static int virtsnd_find_vqs(struct virtio_snd *snd)
 	struct virtio_device *vdev = snd->vdev;
 	static vq_callback_t *callbacks[VIRTIO_SND_VQ_MAX] = {
 		[VIRTIO_SND_VQ_CONTROL] = virtsnd_ctl_notify_cb,
-		[VIRTIO_SND_VQ_EVENT] = virtsnd_event_notify_cb
+		[VIRTIO_SND_VQ_EVENT] = virtsnd_event_notify_cb,
+		[VIRTIO_SND_VQ_TX] = virtsnd_pcm_tx_notify_cb,
+		[VIRTIO_SND_VQ_RX] = virtsnd_pcm_rx_notify_cb
 	};
 	static const char *names[VIRTIO_SND_VQ_MAX] = {
 		[VIRTIO_SND_VQ_CONTROL] = "virtsnd-ctl",
-		[VIRTIO_SND_VQ_EVENT] = "virtsnd-event"
+		[VIRTIO_SND_VQ_EVENT] = "virtsnd-event",
+		[VIRTIO_SND_VQ_TX] = "virtsnd-tx",
+		[VIRTIO_SND_VQ_RX] = "virtsnd-rx"
 	};
 	struct virtqueue *vqs[VIRTIO_SND_VQ_MAX] = { 0 };
 	unsigned int i;
@@ -318,8 +328,12 @@ static void virtsnd_remove(struct virtio_device *vdev)
 	vdev->config->del_vqs(vdev);
 	vdev->config->reset(vdev);
 
-	for (i = 0; snd->substreams && i < snd->nsubstreams; ++i)
-		cancel_work_sync(&snd->substreams[i].elapsed_period);
+	for (i = 0; snd->substreams && i < snd->nsubstreams; ++i) {
+		struct virtio_pcm_substream *vss = &snd->substreams[i];
+
+		cancel_work_sync(&vss->elapsed_period);
+		virtsnd_pcm_msg_free(vss);
+	}
 
 	kfree(snd->event_msgs);
 }
