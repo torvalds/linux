@@ -1253,12 +1253,51 @@ static int sdw_slave_set_frequency(struct sdw_slave *slave)
 static int sdw_initialize_slave(struct sdw_slave *slave)
 {
 	struct sdw_slave_prop *prop = &slave->prop;
+	int status;
 	int ret;
 	u8 val;
 
 	ret = sdw_slave_set_frequency(slave);
 	if (ret < 0)
 		return ret;
+
+	if (slave->bus->prop.quirks & SDW_MASTER_QUIRKS_CLEAR_INITIAL_CLASH) {
+		/* Clear bus clash interrupt before enabling interrupt mask */
+		status = sdw_read_no_pm(slave, SDW_SCP_INT1);
+		if (status < 0) {
+			dev_err(&slave->dev,
+				"SDW_SCP_INT1 (BUS_CLASH) read failed:%d\n", status);
+			return status;
+		}
+		if (status & SDW_SCP_INT1_BUS_CLASH) {
+			dev_warn(&slave->dev, "Bus clash detected before INT mask is enabled\n");
+			ret = sdw_write_no_pm(slave, SDW_SCP_INT1, SDW_SCP_INT1_BUS_CLASH);
+			if (ret < 0) {
+				dev_err(&slave->dev,
+					"SDW_SCP_INT1 (BUS_CLASH) write failed:%d\n", ret);
+				return ret;
+			}
+		}
+	}
+	if ((slave->bus->prop.quirks & SDW_MASTER_QUIRKS_CLEAR_INITIAL_PARITY) &&
+	    !(slave->prop.quirks & SDW_SLAVE_QUIRKS_INVALID_INITIAL_PARITY)) {
+		/* Clear parity interrupt before enabling interrupt mask */
+		status = sdw_read_no_pm(slave, SDW_SCP_INT1);
+		if (status < 0) {
+			dev_err(&slave->dev,
+				"SDW_SCP_INT1 (PARITY) read failed:%d\n", status);
+			return status;
+		}
+		if (status & SDW_SCP_INT1_PARITY) {
+			dev_warn(&slave->dev, "PARITY error detected before INT mask is enabled\n");
+			ret = sdw_write_no_pm(slave, SDW_SCP_INT1, SDW_SCP_INT1_PARITY);
+			if (ret < 0) {
+				dev_err(&slave->dev,
+					"SDW_SCP_INT1 (PARITY) write failed:%d\n", ret);
+				return ret;
+			}
+		}
+	}
 
 	/*
 	 * Set SCP_INT1_MASK register, typically bus clash and
