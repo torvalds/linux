@@ -1573,8 +1573,8 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	if (!MLX5_VPORT_MANAGER(dev))
 		return 0;
 
-	total_vports = mlx5_eswitch_get_total_vports(dev);
-
+	total_vports = MLX5_SPECIAL_VPORTS(dev) + mlx5_core_max_vfs(dev) +
+			mlx5_sf_max_functions(dev);
 	esw_info(dev,
 		 "Total vports %d, per vport: max uc(%d) max mc(%d)\n",
 		 total_vports,
@@ -2215,6 +2215,9 @@ void mlx5_esw_unlock(struct mlx5_eswitch *esw)
  */
 u16 mlx5_eswitch_get_total_vports(const struct mlx5_core_dev *dev)
 {
-	return MLX5_SPECIAL_VPORTS(dev) + mlx5_core_max_vfs(dev) + mlx5_sf_max_functions(dev);
+	struct mlx5_eswitch *esw;
+
+	esw = dev->priv.eswitch;
+	return mlx5_esw_allowed(esw) ? esw->total_vports : 0;
 }
 EXPORT_SYMBOL_GPL(mlx5_eswitch_get_total_vports);

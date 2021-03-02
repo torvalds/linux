@@ -545,6 +545,14 @@ static inline u16 mlx5_eswitch_first_host_vport_num(struct mlx5_core_dev *dev)
 		MLX5_VPORT_PF : MLX5_VPORT_FIRST_VF;
 }
 
+#define MLX5_VPORT_PF_PLACEHOLDER		(1u)
+#define MLX5_VPORT_UPLINK_PLACEHOLDER		(1u)
+#define MLX5_VPORT_ECPF_PLACEHOLDER(mdev)	(mlx5_ecpf_vport_exists(mdev))
+
+#define MLX5_SPECIAL_VPORTS(mdev) (MLX5_VPORT_PF_PLACEHOLDER +		\
+				   MLX5_VPORT_UPLINK_PLACEHOLDER +	\
+				   MLX5_VPORT_ECPF_PLACEHOLDER(mdev))
+
 static inline int mlx5_esw_sf_start_idx(const struct mlx5_eswitch *esw)
 {
 	/* PF and VF vports indices start from 0 to max_vfs */
