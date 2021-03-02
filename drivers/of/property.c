@@ -1368,7 +1368,6 @@ static int of_link_property(struct device_node *con_np, const char *prop_name)
 	const struct supplier_bindings *s = of_supplier_bindings;
 	unsigned int i = 0;
 	bool matched = false;
-	int ret = 0;
 
 	/* Do not stop at first failed link, link all available suppliers. */
 	while (!matched && s->parse_prop) {
@@ -1385,7 +1384,7 @@ static int of_link_property(struct device_node *con_np, const char *prop_name)
 		}
 		s++;
 	}
-	return ret;
+	return 0;
 }
 
 static int of_fwnode_add_links(struct fwnode_handle *fwnode)
