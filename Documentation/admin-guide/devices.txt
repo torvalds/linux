@@ -289,7 +289,7 @@
 		152 = /dev/kpoll	Kernel Poll Driver
 		153 = /dev/mergemem	Memory merge device
 		154 = /dev/pmu		Macintosh PowerBook power manager
-		155 = /dev/isictl	MultiTech ISICom serial control
+		155 =
 		156 = /dev/lcd		Front panel LCD display
 		157 = /dev/ac		Applicom Intl Profibus card
 		158 = /dev/nwbutton	Netwinder external button

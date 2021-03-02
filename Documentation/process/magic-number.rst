@@ -77,7 +77,6 @@ DB_MAGIC              0x4442           fc_info                  ``drivers/net/ip
 DL_MAGIC              0x444d           fc_info                  ``drivers/net/iph5526_novram.c``
 FASYNC_MAGIC          0x4601           fasync_struct            ``include/linux/fs.h``
 FF_MAGIC              0x4646           fc_info                  ``drivers/net/iph5526_novram.c``
-ISICOM_MAGIC          0x4d54           isi_port                 ``include/linux/isicom.h``
 PTY_MAGIC             0x5001                                    ``drivers/char/pty.c``
 PPP_MAGIC             0x5002           ppp                      ``include/linux/if_pppvar.h``
 SSTATE_MAGIC          0x5302           serial_state             ``include/linux/serial.h``
