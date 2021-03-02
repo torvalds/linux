@@ -139,6 +139,7 @@ enum virtchnl_ops {
 	/* opcode 34 - 46 are reserved */
 	VIRTCHNL_OP_ADD_FDIR_FILTER = 47,
 	VIRTCHNL_OP_DEL_FDIR_FILTER = 48,
+	VIRTCHNL_OP_MAX,
 };
 
 /* These macros are used to generate compilation errors if a structure/union

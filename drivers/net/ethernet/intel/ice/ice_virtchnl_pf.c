@@ -5,6 +5,7 @@
 #include "ice_base.h"
 #include "ice_lib.h"
 #include "ice_fltr.h"
+#include "ice_virtchnl_allowlist.h"
 
 /**
  * ice_validate_vf_id - helper to check if VF ID is valid
@@ -1314,6 +1315,9 @@ bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr)
 	ice_for_each_vf(pf, v) {
 		vf = &pf->vf[v];
 
+		vf->driver_caps = 0;
+		ice_vc_set_default_allowlist(vf);
+
 		ice_vf_fdir_exit(vf);
 		/* clean VF control VSI when resetting VFs since it should be
 		 * setup only when VF creates its first FDIR rule.
@@ -1417,6 +1421,9 @@ bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 		/* only sleep if the reset is not done */
 		usleep_range(10, 20);
 	}
+
+	vf->driver_caps = 0;
+	ice_vc_set_default_allowlist(vf);
 
 	/* Display a warning if VF didn't manage to reset in time, but need to
 	 * continue on with the operation.
@@ -1625,6 +1632,7 @@ static void ice_set_dflt_settings_vfs(struct ice_pf *pf)
 		set_bit(ICE_VIRTCHNL_VF_CAP_L2, &vf->vf_caps);
 		vf->spoofchk = true;
 		vf->num_vf_qs = pf->num_qps_per_vf;
+		ice_vc_set_default_allowlist(vf);
 
 		/* ctrl_vsi_idx will be set to a valid value only when VF
 		 * creates its first fdir rule.
@@ -2126,6 +2134,9 @@ static int ice_vc_get_vf_res_msg(struct ice_vf *vf, u8 *msg)
 
 	/* match guest capabilities */
 	vf->driver_caps = vfres->vf_cap_flags;
+
+	ice_vc_set_caps_allowlist(vf);
+	ice_vc_set_working_allowlist(vf);
 
 	set_bit(ICE_VF_STATE_ACTIVE, vf->vf_states);
 
@@ -3838,6 +3849,13 @@ void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event)
 			err = -EPERM;
 		else
 			err = -EINVAL;
+	}
+
+	if (!ice_vc_is_opcode_allowed(vf, v_opcode)) {
+		ice_vc_send_msg_to_vf(vf, v_opcode,
+				      VIRTCHNL_STATUS_ERR_NOT_SUPPORTED, NULL,
+				      0);
+		return;
 	}
 
 error_handler:
