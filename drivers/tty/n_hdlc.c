@@ -787,7 +787,6 @@ static struct n_hdlc_buf *n_hdlc_buf_get(struct n_hdlc_buf_list *buf_list)
 
 static struct tty_ldisc_ops n_hdlc_ldisc = {
 	.owner		= THIS_MODULE,
-	.magic		= TTY_LDISC_MAGIC,
 	.name		= "hdlc",
 	.open		= n_hdlc_tty_open,
 	.close		= n_hdlc_tty_close,

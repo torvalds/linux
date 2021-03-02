@@ -382,7 +382,6 @@ static void ldisc_close(struct tty_struct *tty)
 /* The line discipline structure. */
 static struct tty_ldisc_ops caif_ldisc = {
 	.owner =	THIS_MODULE,
-	.magic =	TTY_LDISC_MAGIC,
 	.name =		"n_caif",
 	.open =		ldisc_open,
 	.close =	ldisc_close,

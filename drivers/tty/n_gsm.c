@@ -2849,7 +2849,6 @@ static int gsm_create_network(struct gsm_dlci *dlci, struct gsm_netconfig *nc)
 /* Line discipline for real tty */
 static struct tty_ldisc_ops tty_ldisc_packet = {
 	.owner		 = THIS_MODULE,
-	.magic           = TTY_LDISC_MAGIC,
 	.name            = "n_gsm",
 	.open            = gsmld_open,
 	.close           = gsmld_close,

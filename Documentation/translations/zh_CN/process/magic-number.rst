@@ -77,7 +77,6 @@ TTY_MAGIC             0x5401           tty_struct               ``include/linux/
 MGSL_MAGIC            0x5401           mgsl_info                ``drivers/char/synclink.c``
 TTY_DRIVER_MAGIC      0x5402           tty_driver               ``include/linux/tty_driver.h``
 MGSLPC_MAGIC          0x5402           mgslpc_info              ``drivers/char/pcmcia/synclink_cs.c``
-TTY_LDISC_MAGIC       0x5403           tty_ldisc                ``include/linux/tty_ldisc.h``
 USB_SERIAL_MAGIC      0x6702           usb_serial               ``drivers/usb/serial/usb-serial.h``
 FULL_DUPLEX_MAGIC     0x6969                                    ``drivers/net/ethernet/dec/tulip/de2104x.c``
 USB_BLUETOOTH_MAGIC   0x6d02           usb_bluetooth            ``drivers/usb/class/bluetty.c``
