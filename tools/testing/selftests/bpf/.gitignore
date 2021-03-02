@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
+bpf-helpers*
 test_verifier
 test_maps
 test_lru_map
