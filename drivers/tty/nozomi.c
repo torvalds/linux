@@ -359,12 +359,6 @@ struct nozomi {
 	u32 open_ttys;
 };
 
-/* This is a data packet that is read or written to/from card */
-struct buffer {
-	u32 size;		/* size is the length of the data buffer */
-	u8 *data;
-} __attribute__ ((packed));
-
 /* Global variables */
 static const struct pci_device_id nozomi_pci_tbl[] = {
 	{PCI_DEVICE(0x1931, 0x000c)},	/* Nozomi HSDPA */
