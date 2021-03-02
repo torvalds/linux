@@ -47,9 +47,6 @@
 
 #include <linux/delay.h>
 
-
-#define VERSION_STRING DRIVER_DESC " 2.1d"
-
 /* Default debug printout level */
 #define NOZOMI_DEBUG_LEVEL 0x00
 static int debug = NOZOMI_DEBUG_LEVEL;
@@ -89,7 +86,6 @@ do {							\
 /*    Defines */
 #define NOZOMI_NAME		"nozomi"
 #define NOZOMI_NAME_TTY		"nozomi_tty"
-#define DRIVER_DESC		"Nozomi driver"
 
 #define NTTY_TTY_MAXMINORS	256
 #define NTTY_FIFO_BUFFER_SIZE	8192
@@ -1841,8 +1837,6 @@ static __init int nozomi_init(void)
 {
 	int ret;
 
-	printk(KERN_INFO "Initializing %s\n", VERSION_STRING);
-
 	ntty_driver = alloc_tty_driver(NTTY_TTY_MAXMINORS);
 	if (!ntty_driver)
 		return -ENOMEM;
@@ -1882,7 +1876,6 @@ free_tty:
 
 static __exit void nozomi_exit(void)
 {
-	printk(KERN_INFO "Unloading %s\n", DRIVER_DESC);
 	pci_unregister_driver(&nozomi_driver);
 	tty_unregister_driver(ntty_driver);
 	put_tty_driver(ntty_driver);
@@ -1892,4 +1885,4 @@ module_init(nozomi_init);
 module_exit(nozomi_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_DESCRIPTION("Nozomi driver");
