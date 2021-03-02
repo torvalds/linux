@@ -15,6 +15,7 @@
 #include <linux/can/rx-offload.h>
 #include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
+#include <linux/netdevice.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
