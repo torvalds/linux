@@ -31,21 +31,18 @@
 #define SERIAL_MAX_NUM_LINES 1
 #define SERIAL_TIMER_VALUE (HZ / 10)
 
+static void rs_poll(struct timer_list *);
+
 static struct tty_driver *serial_driver;
 static struct tty_port serial_port;
-static struct timer_list serial_timer;
-
+static DEFINE_TIMER(serial_timer, rs_poll);
 static DEFINE_SPINLOCK(timer_lock);
-
-static void rs_poll(struct timer_list *);
 
 static int rs_open(struct tty_struct *tty, struct file * filp)
 {
 	spin_lock_bh(&timer_lock);
-	if (tty->count == 1) {
-		timer_setup(&serial_timer, rs_poll, 0);
+	if (tty->count == 1)
 		mod_timer(&serial_timer, jiffies + SERIAL_TIMER_VALUE);
-	}
 	spin_unlock_bh(&timer_lock);
 
 	return 0;
