@@ -4568,8 +4568,8 @@ static int rt5677_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 	regmap_write(rt5677->regmap, RT5677_PLL1_CTRL1,
 		pll_code.n_code << RT5677_PLL_N_SFT | pll_code.k_code);
 	regmap_write(rt5677->regmap, RT5677_PLL1_CTRL2,
-		(pll_code.m_bp ? 0 : pll_code.m_code) << RT5677_PLL_M_SFT |
-		pll_code.m_bp << RT5677_PLL_M_BP_SFT);
+		((pll_code.m_bp ? 0 : pll_code.m_code) << RT5677_PLL_M_SFT) |
+		(pll_code.m_bp << RT5677_PLL_M_BP_SFT));
 
 	rt5677->pll_in = freq_in;
 	rt5677->pll_out = freq_out;
