@@ -91,27 +91,6 @@ int __weak remove_section_mapping(unsigned long start, unsigned long end)
 	return -ENODEV;
 }
 
-#define FLUSH_CHUNK_SIZE SZ_1G
-/**
- * flush_dcache_range_chunked(): Write any modified data cache blocks out to
- * memory and invalidate them, in chunks of up to FLUSH_CHUNK_SIZE
- * Does not invalidate the corresponding instruction cache blocks.
- *
- * @start: the start address
- * @stop: the stop address (exclusive)
- * @chunk: the max size of the chunks
- */
-static void flush_dcache_range_chunked(unsigned long start, unsigned long stop,
-				       unsigned long chunk)
-{
-	unsigned long i;
-
-	for (i = start; i < stop; i += chunk) {
-		flush_dcache_range(i, min(stop, i + chunk));
-		cond_resched();
-	}
-}
-
 int __ref arch_create_linear_mapping(int nid, u64 start, u64 size,
 				     struct mhp_params *params)
 {
@@ -136,7 +115,6 @@ void __ref arch_remove_linear_mapping(u64 start, u64 size)
 
 	/* Remove htab bolted mappings for this section of memory */
 	start = (unsigned long)__va(start);
-	flush_dcache_range_chunked(start, start + size, FLUSH_CHUNK_SIZE);
 
 	mutex_lock(&linear_mapping_mutex);
 	ret = remove_section_mapping(start, start + size);
@@ -489,19 +467,35 @@ void flush_dcache_page(struct page *page)
 	if (cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
 		return;
 	/* avoid an atomic op if possible */
-	if (test_bit(PG_arch_1, &page->flags))
-		clear_bit(PG_arch_1, &page->flags);
+	if (test_bit(PG_dcache_clean, &page->flags))
+		clear_bit(PG_dcache_clean, &page->flags);
 }
 EXPORT_SYMBOL(flush_dcache_page);
 
+static void flush_dcache_icache_hugepage(struct page *page)
+{
+	int i;
+	void *start;
+
+	BUG_ON(!PageCompound(page));
+
+	for (i = 0; i < compound_nr(page); i++) {
+		if (!PageHighMem(page)) {
+			__flush_dcache_icache(page_address(page+i));
+		} else {
+			start = kmap_atomic(page+i);
+			__flush_dcache_icache(start);
+			kunmap_atomic(start);
+		}
+	}
+}
+
 void flush_dcache_icache_page(struct page *page)
 {
-#ifdef CONFIG_HUGETLB_PAGE
-	if (PageCompound(page)) {
-		flush_dcache_icache_hugepage(page);
-		return;
-	}
-#endif
+
+	if (PageCompound(page))
+		return flush_dcache_icache_hugepage(page);
+
 #if defined(CONFIG_PPC_8xx) || defined(CONFIG_PPC64)
 	/* On 8xx there is no need to kmap since highmem is not supported */
 	__flush_dcache_icache(page_address(page));

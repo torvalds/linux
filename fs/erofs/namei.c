@@ -234,8 +234,8 @@ static struct dentry *erofs_lookup(struct inode *dir,
 	} else if (err) {
 		inode = ERR_PTR(err);
 	} else {
-		erofs_dbg("%s, %s (nid %llu) found, d_type %u", __func__,
-			  dentry->d_name.name, nid, d_type);
+		erofs_dbg("%s, %pd (nid %llu) found, d_type %u", __func__,
+			  dentry, nid, d_type);
 		inode = erofs_iget(dir->i_sb, nid, d_type == FT_DIR);
 	}
 	return d_splice_alias(inode, dentry);

@@ -68,8 +68,8 @@ gm107_therm = {
 };
 
 int
-gm107_therm_new(struct nvkm_device *device, int index,
+gm107_therm_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		struct nvkm_therm **ptherm)
 {
-	return nvkm_therm_new_(&gm107_therm, device, index, ptherm);
+	return nvkm_therm_new_(&gm107_therm, device, type, inst, ptherm);
 }

@@ -10,7 +10,7 @@ DT_SCHEMA_MIN_VERSION = 2020.8.1
 PHONY += check_dtschema_version
 check_dtschema_version:
 	@{ echo $(DT_SCHEMA_MIN_VERSION); \
-	$(DT_DOC_CHECKER) --version 2>/dev/null || echo 0; } | sort -VC || \
+	$(DT_DOC_CHECKER) --version 2>/dev/null || echo 0; } | sort -Vc >/dev/null || \
 	{ echo "ERROR: dtschema minimum version is v$(DT_SCHEMA_MIN_VERSION)" >&2; false; }
 
 quiet_cmd_extract_ex = DTEX    $@
@@ -78,10 +78,10 @@ $(obj)/processed-schema.json: $(DT_SCHEMA_FILES) check_dtschema_version FORCE
 
 endif
 
-extra-$(CHECK_DT_BINDING) += processed-schema-examples.json
-extra-$(CHECK_DTBS) += processed-schema.json
-extra-$(CHECK_DT_BINDING) += $(patsubst $(src)/%.yaml,%.example.dts, $(DT_SCHEMA_FILES))
-extra-$(CHECK_DT_BINDING) += $(patsubst $(src)/%.yaml,%.example.dt.yaml, $(DT_SCHEMA_FILES))
+always-$(CHECK_DT_BINDING) += processed-schema-examples.json
+always-$(CHECK_DTBS)       += processed-schema.json
+always-$(CHECK_DT_BINDING) += $(patsubst $(src)/%.yaml,%.example.dts, $(DT_SCHEMA_FILES))
+always-$(CHECK_DT_BINDING) += $(patsubst $(src)/%.yaml,%.example.dt.yaml, $(DT_SCHEMA_FILES))
 
 # Hack: avoid 'Argument list too long' error for 'make clean'. Remove most of
 # build artifacts here before they are processed by scripts/Makefile.clean

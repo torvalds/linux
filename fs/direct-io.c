@@ -462,7 +462,7 @@ static inline void dio_cleanup(struct dio *dio, struct dio_submit *sdio)
  * Wait for the next BIO to complete.  Remove it and return it.  NULL is
  * returned once all BIOs have been completed.  This must only be called once
  * all bios have been issued so that dio->refcount can only decrease.  This
- * requires that that the caller hold a reference on the dio.
+ * requires that the caller hold a reference on the dio.
  */
 static struct bio *dio_await_one(struct dio *dio)
 {
@@ -695,7 +695,7 @@ static inline int dio_new_bio(struct dio *dio, struct dio_submit *sdio,
 	if (ret)
 		goto out;
 	sector = start_sector << (sdio->blkbits - 9);
-	nr_pages = min(sdio->pages_in_io, BIO_MAX_PAGES);
+	nr_pages = bio_max_segs(sdio->pages_in_io);
 	BUG_ON(nr_pages <= 0);
 	dio_bio_alloc(dio, sdio, map_bh->b_bdev, sector, nr_pages);
 	sdio->boundary = 0;
@@ -1279,7 +1279,7 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	if (retval == -ENOTBLK) {
 		/*
 		 * The remaining part of the request will be
-		 * be handled by buffered I/O when we return
+		 * handled by buffered I/O when we return
 		 */
 		retval = 0;
 	}

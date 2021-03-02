@@ -731,9 +731,9 @@ err_out:
 	mmc_request_done(mmc, mrq);
 }
 
-static void tifm_sd_end_cmd(unsigned long data)
+static void tifm_sd_end_cmd(struct tasklet_struct *t)
 {
-	struct tifm_sd *host = (struct tifm_sd*)data;
+	struct tifm_sd *host = from_tasklet(host, t, finish_tasklet);
 	struct tifm_dev *sock = host->dev;
 	struct mmc_host *mmc = tifm_get_drvdata(sock);
 	struct mmc_request *mrq;
@@ -968,8 +968,7 @@ static int tifm_sd_probe(struct tifm_dev *sock)
 	 */
 	mmc->max_busy_timeout = TIFM_MMCSD_REQ_TIMEOUT_MS;
 
-	tasklet_init(&host->finish_tasklet, tifm_sd_end_cmd,
-		     (unsigned long)host);
+	tasklet_setup(&host->finish_tasklet, tifm_sd_end_cmd);
 	timer_setup(&host->timer, tifm_sd_abort, 0);
 
 	mmc->ops = &tifm_sd_ops;

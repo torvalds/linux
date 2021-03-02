@@ -926,9 +926,6 @@ static __init void svm_set_cpu_caps(void)
 	if (boot_cpu_has(X86_FEATURE_LS_CFG_SSBD) ||
 	    boot_cpu_has(X86_FEATURE_AMD_SSBD))
 		kvm_cpu_cap_set(X86_FEATURE_VIRT_SSBD);
-
-	/* Enable INVPCID feature */
-	kvm_cpu_cap_check_and_set(X86_FEATURE_INVPCID);
 }
 
 static __init int svm_hardware_setup(void)
@@ -1103,12 +1100,12 @@ static u64 svm_write_l1_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 static void svm_check_invpcid(struct vcpu_svm *svm)
 {
 	/*
-	 * Intercept INVPCID instruction only if shadow page table is
-	 * enabled. Interception is not required with nested page table
-	 * enabled.
+	 * Intercept INVPCID if shadow paging is enabled to sync/free shadow
+	 * roots, or if INVPCID is disabled in the guest to inject #UD.
 	 */
 	if (kvm_cpu_cap_has(X86_FEATURE_INVPCID)) {
-		if (!npt_enabled)
+		if (!npt_enabled ||
+		    !guest_cpuid_has(&svm->vcpu, X86_FEATURE_INVPCID))
 			svm_set_intercept(svm, INTERCEPT_INVPCID);
 		else
 			svm_clr_intercept(svm, INTERCEPT_INVPCID);
@@ -2214,15 +2211,20 @@ static int emulate_svm_instr(struct kvm_vcpu *vcpu, int opcode)
 		[SVM_INSTR_VMSAVE] = vmsave_interception,
 	};
 	struct vcpu_svm *svm = to_svm(vcpu);
+	int ret;
 
 	if (is_guest_mode(vcpu)) {
 		svm->vmcb->control.exit_code = guest_mode_exit_codes[opcode];
 		svm->vmcb->control.exit_info_1 = 0;
 		svm->vmcb->control.exit_info_2 = 0;
 
-		return nested_svm_vmexit(svm);
-	} else
-		return svm_instr_handlers[opcode](svm);
+		/* Returns '1' or -errno on failure, '0' on success. */
+		ret = nested_svm_vmexit(svm);
+		if (ret)
+			return ret;
+		return 1;
+	}
+	return svm_instr_handlers[opcode](svm);
 }
 
 /*

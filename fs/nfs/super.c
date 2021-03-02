@@ -523,6 +523,13 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 		seq_puts(m, ",local_lock=flock");
 	else
 		seq_puts(m, ",local_lock=posix");
+
+	if (nfss->flags & NFS_MOUNT_WRITE_EAGER) {
+		if (nfss->flags & NFS_MOUNT_WRITE_WAIT)
+			seq_puts(m, ",write=wait");
+		else
+			seq_puts(m, ",write=eager");
+	}
 }
 
 /*

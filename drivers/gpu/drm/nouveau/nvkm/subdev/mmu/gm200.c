@@ -90,9 +90,10 @@ gm200_mmu_fixed = {
 };
 
 int
-gm200_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
+gm200_mmu_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_mmu **pmmu)
 {
 	if (device->fb->page)
-		return nvkm_mmu_new_(&gm200_mmu_fixed, device, index, pmmu);
-	return nvkm_mmu_new_(&gm200_mmu, device, index, pmmu);
+		return nvkm_mmu_new_(&gm200_mmu_fixed, device, type, inst, pmmu);
+	return nvkm_mmu_new_(&gm200_mmu, device, type, inst, pmmu);
 }

@@ -50,7 +50,7 @@ parse_edp(struct drm_psb_private *dev_priv, struct bdb_header *bdb)
 	uint8_t	panel_type;
 
 	edp = find_section(bdb, BDB_EDP);
-	
+
 	dev_priv->edp.bpp = 18;
 	if (!edp) {
 		if (dev_priv->edp.support) {
@@ -80,7 +80,7 @@ parse_edp(struct drm_psb_private *dev_priv, struct bdb_header *bdb)
 	dev_priv->edp.pps = *edp_pps;
 
 	DRM_DEBUG_KMS("EDP timing in vbt t1_t3 %d t8 %d t9 %d t10 %d t11_t12 %d\n",
-				dev_priv->edp.pps.t1_t3, dev_priv->edp.pps.t8, 
+				dev_priv->edp.pps.t1_t3, dev_priv->edp.pps.t8,
 				dev_priv->edp.pps.t9, dev_priv->edp.pps.t10,
 				dev_priv->edp.pps.t11_t12);
 
@@ -516,7 +516,7 @@ parse_device_mapping(struct drm_psb_private *dev_priv,
 int psb_intel_init_bios(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct pci_dev *pdev = dev->pdev;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct vbt_header *vbt = NULL;
 	struct bdb_header *bdb = NULL;
 	u8 __iomem *bios = NULL;
@@ -574,7 +574,7 @@ int psb_intel_init_bios(struct drm_device *dev)
 	return 0;
 }
 
-/**
+/*
  * Destroy and free VBT data
  */
 void psb_intel_destroy_bios(struct drm_device *dev)

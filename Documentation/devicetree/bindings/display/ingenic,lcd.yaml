@@ -39,18 +39,18 @@ properties:
     minItems: 1
 
   port:
-    description: OF graph bindings (specified in bindings/graph.txt).
+    $ref: /schemas/graph.yaml#/properties/port
 
   ports:
-    description: OF graph bindings (specified in bindings/graph.txt).
-    type: object
+    $ref: /schemas/graph.yaml#/properties/ports
+
     properties:
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: DPI output, to interface with TFT panels.
 
       port@8:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: Link to the Image Processing Unit (IPU).
           (See ingenic,ipu.yaml).
 

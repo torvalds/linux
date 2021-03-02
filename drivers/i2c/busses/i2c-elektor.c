@@ -49,7 +49,7 @@ static int mmapped;
 
 static wait_queue_head_t pcf_wait;
 static int pcf_pending;
-static spinlock_t lock;
+static DEFINE_SPINLOCK(lock);
 
 static struct i2c_adapter pcf_isa_ops;
 
@@ -132,7 +132,6 @@ static irqreturn_t pcf_isa_handler(int this_irq, void *dev_id) {
 
 static int pcf_isa_init(void)
 {
-	spin_lock_init(&lock);
 	if (!mmapped) {
 		if (!request_region(base, 2, pcf_isa_ops.name)) {
 			printk(KERN_ERR "%s: requested I/O region (%#x:2) is "

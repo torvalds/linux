@@ -635,10 +635,12 @@ struct hl_cb *hl_cb_kernel_create(struct hl_device *hdev, u32 cb_size,
 
 	cb_handle >>= PAGE_SHIFT;
 	cb = hl_cb_get(hdev, &hdev->kernel_cb_mgr, (u32) cb_handle);
-	/* hl_cb_get should never fail here so use kernel WARN */
-	WARN(!cb, "Kernel CB handle invalid 0x%x\n", (u32) cb_handle);
-	if (!cb)
+	/* hl_cb_get should never fail here */
+	if (!cb) {
+		dev_crit(hdev->dev, "Kernel CB handle invalid 0x%x\n",
+				(u32) cb_handle);
 		goto destroy_cb;
+	}
 
 	return cb;
 

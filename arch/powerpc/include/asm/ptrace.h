@@ -70,6 +70,9 @@ struct pt_regs
 };
 #endif
 
+
+#define STACK_FRAME_WITH_PT_REGS (STACK_FRAME_OVERHEAD + sizeof(struct pt_regs))
+
 #ifdef __powerpc64__
 
 /*
@@ -227,6 +230,11 @@ static inline void set_trap(struct pt_regs *regs, unsigned long val)
 static inline bool trap_is_scv(struct pt_regs *regs)
 {
 	return (IS_ENABLED(CONFIG_PPC_BOOK3S_64) && TRAP(regs) == 0x3000);
+}
+
+static inline bool trap_is_unsupported_scv(struct pt_regs *regs)
+{
+	return IS_ENABLED(CONFIG_PPC_BOOK3S_64) && TRAP(regs) == 0x7ff0;
 }
 
 static inline bool trap_is_syscall(struct pt_regs *regs)

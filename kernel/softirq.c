@@ -26,6 +26,8 @@
 #include <linux/tick.h>
 #include <linux/irq.h>
 
+#include <asm/softirq_stack.h>
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/irq.h>
 

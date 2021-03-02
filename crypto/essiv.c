@@ -30,6 +30,7 @@
 
 #include <crypto/authenc.h>
 #include <crypto/internal/aead.h>
+#include <crypto/internal/cipher.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
@@ -643,3 +644,4 @@ module_exit(essiv_module_exit);
 MODULE_DESCRIPTION("ESSIV skcipher/aead wrapper for block encryption");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS_CRYPTO("essiv");
+MODULE_IMPORT_NS(CRYPTO_INTERNAL);

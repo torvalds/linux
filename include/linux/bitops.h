@@ -214,7 +214,7 @@ static inline int get_count_order_long(unsigned long l)
  * __ffs64 - find first set bit in a 64 bit word
  * @word: The 64 bit word
  *
- * On 64 bit arches this is a synomyn for __ffs
+ * On 64 bit arches this is a synonym for __ffs
  * The result is not defined if no bits are set, so check that @word
  * is non-zero before calling this.
  */

@@ -72,10 +72,11 @@ tu102_sec2_fwif[] = {
 };
 
 int
-tu102_sec2_new(struct nvkm_device *device, int index, struct nvkm_sec2 **psec2)
+tu102_sec2_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	       struct nvkm_sec2 **psec2)
 {
 	/* TOP info wasn't updated on Turing to reflect the PRI
 	 * address change for some reason.  We override it here.
 	 */
-	return nvkm_sec2_new_(tu102_sec2_fwif, device, index, 0x840000, psec2);
+	return nvkm_sec2_new_(tu102_sec2_fwif, device, type, inst, 0x840000, psec2);
 }

@@ -54,7 +54,7 @@ corec37d_update(struct nv50_core *core, u32 *interlock, bool ntfy)
 	struct nvif_push *push = core->chan.push;
 	int ret;
 
-	if ((ret = PUSH_WAIT(push, 9)))
+	if ((ret = PUSH_WAIT(push, (ntfy ? 2 * 2 : 0) + 5)))
 		return ret;
 
 	if (ntfy) {

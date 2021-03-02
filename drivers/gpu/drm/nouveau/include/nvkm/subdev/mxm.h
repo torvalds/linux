@@ -3,5 +3,5 @@
 #define __NVKM_MXM_H__
 #include <core/subdev.h>
 
-int nv50_mxm_new(struct nvkm_device *, int, struct nvkm_subdev **);
+int nv50_mxm_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_subdev **);
 #endif

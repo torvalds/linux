@@ -452,7 +452,7 @@ static void keyring_describe(const struct key *keyring, struct seq_file *m)
 struct keyring_read_iterator_context {
 	size_t			buflen;
 	size_t			count;
-	key_serial_t __user	*buffer;
+	key_serial_t		*buffer;
 };
 
 static int keyring_read_iterator(const void *object, void *data)
@@ -479,7 +479,7 @@ static int keyring_read_iterator(const void *object, void *data)
  * times.
  */
 static long keyring_read(const struct key *keyring,
-			 char __user *buffer, size_t buflen)
+			 char *buffer, size_t buflen)
 {
 	struct keyring_read_iterator_context ctx;
 	long ret;
@@ -491,7 +491,7 @@ static long keyring_read(const struct key *keyring,
 
 	/* Copy as many key IDs as fit into the buffer */
 	if (buffer && buflen) {
-		ctx.buffer = (key_serial_t __user *)buffer;
+		ctx.buffer = (key_serial_t *)buffer;
 		ctx.buflen = buflen;
 		ctx.count = 0;
 		ret = assoc_array_iterate(&keyring->keys,
@@ -881,7 +881,7 @@ found:
  *
  * Keys are matched to the type provided and are then filtered by the match
  * function, which is given the description to use in any way it sees fit.  The
- * match function may use any attributes of a key that it wishes to to
+ * match function may use any attributes of a key that it wishes to
  * determine the match.  Normally the match function from the key type would be
  * used.
  *
@@ -1204,7 +1204,7 @@ static int keyring_detect_cycle_iterator(const void *object,
 }
 
 /*
- * See if a cycle will will be created by inserting acyclic tree B in acyclic
+ * See if a cycle will be created by inserting acyclic tree B in acyclic
  * tree A at the topmost level (ie: as a direct child of A).
  *
  * Since we are adding B to A at the top level, checking for cycles should just

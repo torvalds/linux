@@ -26,21 +26,29 @@
 
 /**
  * generic_fillattr - Fill in the basic attributes from the inode struct
- * @inode: Inode to use as the source
- * @stat: Where to fill in the attributes
+ * @mnt_userns:	user namespace of the mount the inode was found from
+ * @inode:	Inode to use as the source
+ * @stat:	Where to fill in the attributes
  *
  * Fill in the basic attributes in the kstat structure from data that's to be
  * found on the VFS inode structure.  This is the default if no getattr inode
  * operation is supplied.
+ *
+ * If the inode has been found through an idmapped mount the user namespace of
+ * the vfsmount must be passed through @mnt_userns. This function will then
+ * take care to map the inode according to @mnt_userns before filling in the
+ * uid and gid filds. On non-idmapped mounts or if permission checking is to be
+ * performed on the raw inode simply passs init_user_ns.
  */
-void generic_fillattr(struct inode *inode, struct kstat *stat)
+void generic_fillattr(struct user_namespace *mnt_userns, struct inode *inode,
+		      struct kstat *stat)
 {
 	stat->dev = inode->i_sb->s_dev;
 	stat->ino = inode->i_ino;
 	stat->mode = inode->i_mode;
 	stat->nlink = inode->i_nlink;
-	stat->uid = inode->i_uid;
-	stat->gid = inode->i_gid;
+	stat->uid = i_uid_into_mnt(mnt_userns, inode);
+	stat->gid = i_gid_into_mnt(mnt_userns, inode);
 	stat->rdev = inode->i_rdev;
 	stat->size = i_size_read(inode);
 	stat->atime = inode->i_atime;
@@ -67,6 +75,7 @@ EXPORT_SYMBOL(generic_fillattr);
 int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
 		      u32 request_mask, unsigned int query_flags)
 {
+	struct user_namespace *mnt_userns;
 	struct inode *inode = d_backing_inode(path->dentry);
 
 	memset(stat, 0, sizeof(*stat));
@@ -83,11 +92,12 @@ int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
 	if (IS_DAX(inode))
 		stat->attributes |= STATX_ATTR_DAX;
 
+	mnt_userns = mnt_user_ns(path->mnt);
 	if (inode->i_op->getattr)
-		return inode->i_op->getattr(path, stat, request_mask,
-					    query_flags);
+		return inode->i_op->getattr(mnt_userns, path, stat,
+					    request_mask, query_flags);
 
-	generic_fillattr(inode, stat);
+	generic_fillattr(mnt_userns, inode, stat);
 	return 0;
 }
 EXPORT_SYMBOL(vfs_getattr_nosec);

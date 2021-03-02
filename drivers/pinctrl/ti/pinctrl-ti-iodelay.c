@@ -704,10 +704,9 @@ static void ti_iodelay_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 		u32 reg = 0;
 
 		cfg = &group->cfg[i];
-		regmap_read(iod->regmap, cfg->offset, &reg),
-			seq_printf(s, "\n\t0x%08x = 0x%08x (%3d, %3d)",
-				   cfg->offset, reg, cfg->a_delay,
-				   cfg->g_delay);
+		regmap_read(iod->regmap, cfg->offset, &reg);
+		seq_printf(s, "\n\t0x%08x = 0x%08x (%3d, %3d)",
+			cfg->offset, reg, cfg->a_delay, cfg->g_delay);
 	}
 }
 #endif

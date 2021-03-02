@@ -1,0 +1,25 @@
+What:		/sys/bus/dfl/devices/dfl_dev.X/infX_cal_fail
+Date:		Oct 2020
+KernelVersion:	5.12
+Contact:	Xu Yilun <yilun.xu@intel.com>
+Description:	Read-only. It indicates if the calibration failed on this
+		memory interface. "1" for calibration failure, "0" for OK.
+		Format: %u
+
+What:		/sys/bus/dfl/devices/dfl_dev.X/infX_init_done
+Date:		Oct 2020
+KernelVersion:	5.12
+Contact:	Xu Yilun <yilun.xu@intel.com>
+Description:	Read-only. It indicates if the initialization completed on
+		this memory interface. "1" for initialization complete, "0"
+		for not yet.
+		Format: %u
+
+What:		/sys/bus/dfl/devices/dfl_dev.X/infX_clear
+Date:		Oct 2020
+KernelVersion:	5.12
+Contact:	Xu Yilun <yilun.xu@intel.com>
+Description:	Write-only. Writing "1" to this file will zero out all memory
+		data in this memory interface. Writing of other values is
+		invalid.
+		Format: %u

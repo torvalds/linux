@@ -40,9 +40,9 @@
 
 /**
  * qib_format_hwmsg - format a single hwerror message
- * @msg message buffer
- * @msgl length of message buffer
- * @hwmsg message to add to message buffer
+ * @msg: message buffer
+ * @msgl: length of message buffer
+ * @hwmsg: message to add to message buffer
  */
 static void qib_format_hwmsg(char *msg, size_t msgl, const char *hwmsg)
 {
@@ -53,11 +53,11 @@ static void qib_format_hwmsg(char *msg, size_t msgl, const char *hwmsg)
 
 /**
  * qib_format_hwerrors - format hardware error messages for display
- * @hwerrs hardware errors bit vector
- * @hwerrmsgs hardware error descriptions
- * @nhwerrmsgs number of hwerrmsgs
- * @msg message buffer
- * @msgl message buffer length
+ * @hwerrs: hardware errors bit vector
+ * @hwerrmsgs: hardware error descriptions
+ * @nhwerrmsgs: number of hwerrmsgs
+ * @msg: message buffer
+ * @msgl: message buffer length
  */
 void qib_format_hwerrors(u64 hwerrs, const struct qib_hwerror_msgs *hwerrmsgs,
 			 size_t nhwerrmsgs, char *msg, size_t msgl)

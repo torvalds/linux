@@ -44,15 +44,13 @@ static int microread_mei_probe(struct mei_cl_device *cldev,
 	return 0;
 }
 
-static int microread_mei_remove(struct mei_cl_device *cldev)
+static void microread_mei_remove(struct mei_cl_device *cldev)
 {
 	struct nfc_mei_phy *phy = mei_cldev_get_drvdata(cldev);
 
 	microread_remove(phy->hdev);
 
 	nfc_mei_phy_free(phy);
-
-	return 0;
 }
 
 static struct mei_cl_device_id microread_mei_tbl[] = {

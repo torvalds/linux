@@ -543,6 +543,19 @@ static void b53_port_set_mcast_flood(struct b53_device *dev, int port,
 	b53_write16(dev, B53_CTRL_PAGE, B53_IPMC_FLOOD_MASK, mc);
 }
 
+static void b53_port_set_learning(struct b53_device *dev, int port,
+				  bool learning)
+{
+	u16 reg;
+
+	b53_read16(dev, B53_CTRL_PAGE, B53_DIS_LEARNING, &reg);
+	if (learning)
+		reg &= ~BIT(port);
+	else
+		reg |= BIT(port);
+	b53_write16(dev, B53_CTRL_PAGE, B53_DIS_LEARNING, reg);
+}
+
 int b53_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 {
 	struct b53_device *dev = ds->priv;
@@ -557,6 +570,7 @@ int b53_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 
 	b53_port_set_ucast_flood(dev, port, true);
 	b53_port_set_mcast_flood(dev, port, true);
+	b53_port_set_learning(dev, port, false);
 
 	if (dev->ops->irq_enable)
 		ret = dev->ops->irq_enable(dev, port);
@@ -691,6 +705,7 @@ static void b53_enable_cpu_port(struct b53_device *dev, int port)
 
 	b53_port_set_ucast_flood(dev, port, true);
 	b53_port_set_mcast_flood(dev, port, true);
+	b53_port_set_learning(dev, port, false);
 }
 
 static void b53_enable_mib(struct b53_device *dev)
@@ -1953,19 +1968,20 @@ void b53_br_fast_age(struct dsa_switch *ds, int port)
 }
 EXPORT_SYMBOL(b53_br_fast_age);
 
-static int b53_br_flags_pre(struct dsa_switch *ds, int port,
-			    struct switchdev_brport_flags flags,
-			    struct netlink_ext_ack *extack)
+int b53_br_flags_pre(struct dsa_switch *ds, int port,
+		     struct switchdev_brport_flags flags,
+		     struct netlink_ext_ack *extack)
 {
-	if (flags.mask & ~(BR_FLOOD | BR_MCAST_FLOOD))
+	if (flags.mask & ~(BR_FLOOD | BR_MCAST_FLOOD | BR_LEARNING))
 		return -EINVAL;
 
 	return 0;
 }
+EXPORT_SYMBOL(b53_br_flags_pre);
 
-static int b53_br_flags(struct dsa_switch *ds, int port,
-			struct switchdev_brport_flags flags,
-			struct netlink_ext_ack *extack)
+int b53_br_flags(struct dsa_switch *ds, int port,
+		 struct switchdev_brport_flags flags,
+		 struct netlink_ext_ack *extack)
 {
 	if (flags.mask & BR_FLOOD)
 		b53_port_set_ucast_flood(ds->priv, port,
@@ -1973,17 +1989,22 @@ static int b53_br_flags(struct dsa_switch *ds, int port,
 	if (flags.mask & BR_MCAST_FLOOD)
 		b53_port_set_mcast_flood(ds->priv, port,
 					 !!(flags.val & BR_MCAST_FLOOD));
+	if (flags.mask & BR_LEARNING)
+		b53_port_set_learning(ds->priv, port,
+				      !!(flags.val & BR_LEARNING));
 
 	return 0;
 }
+EXPORT_SYMBOL(b53_br_flags);
 
-static int b53_set_mrouter(struct dsa_switch *ds, int port, bool mrouter,
-			   struct netlink_ext_ack *extack)
+int b53_set_mrouter(struct dsa_switch *ds, int port, bool mrouter,
+		    struct netlink_ext_ack *extack)
 {
 	b53_port_set_mcast_flood(ds->priv, port, mrouter);
 
 	return 0;
 }
+EXPORT_SYMBOL(b53_set_mrouter);
 
 static bool b53_possible_cpu_port(struct dsa_switch *ds, int port)
 {

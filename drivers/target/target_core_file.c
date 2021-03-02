@@ -267,7 +267,7 @@ fd_execute_rw_aio(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	struct fd_dev *fd_dev = FD_DEV(dev);
 	struct file *file = fd_dev->fd_file;
 	struct target_core_file_cmd *aio_cmd;
-	struct iov_iter iter = {};
+	struct iov_iter iter;
 	struct scatterlist *sg;
 	ssize_t len = 0;
 	int ret = 0, i;

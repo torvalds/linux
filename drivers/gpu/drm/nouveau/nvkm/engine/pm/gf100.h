@@ -9,8 +9,8 @@ struct gf100_pm_func {
 	const struct nvkm_specdom *doms_part;
 };
 
-int gf100_pm_new_(const struct gf100_pm_func *, struct nvkm_device *,
-		  int index, struct nvkm_pm **);
+int gf100_pm_new_(const struct gf100_pm_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		  struct nvkm_pm **);
 
 extern const struct nvkm_funcdom gf100_perfctr_func;
 extern const struct nvkm_specdom gf100_pm_gpc[];

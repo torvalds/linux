@@ -10,6 +10,5 @@ obj-y	+= intel-mid/
 obj-y	+= intel-quark/
 obj-y	+= olpc/
 obj-y	+= scx200/
-obj-y	+= sfi/
 obj-y	+= ts5500/
 obj-y	+= uv/

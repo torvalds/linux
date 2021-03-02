@@ -143,6 +143,10 @@ struct intel_community {
 /* Additional features supported by the hardware */
 #define PINCTRL_FEATURE_DEBOUNCE	BIT(0)
 #define PINCTRL_FEATURE_1K_PD		BIT(1)
+#define PINCTRL_FEATURE_GPIO_HW_INFO	BIT(2)
+#define PINCTRL_FEATURE_PWM		BIT(3)
+#define PINCTRL_FEATURE_BLINK		BIT(4)
+#define PINCTRL_FEATURE_EXP		BIT(5)
 
 /**
  * PIN_GROUP - Declare a pin group

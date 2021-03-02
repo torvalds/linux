@@ -43,7 +43,7 @@ gp10b_mc = {
 };
 
 int
-gp10b_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
+gp10b_mc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_mc **pmc)
 {
-	return gp100_mc_new_(&gp10b_mc, device, index, pmc);
+	return gp100_mc_new_(&gp10b_mc, device, type, inst, pmc);
 }

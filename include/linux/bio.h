@@ -20,7 +20,12 @@
 #define BIO_BUG_ON
 #endif
 
-#define BIO_MAX_PAGES		256
+#define BIO_MAX_PAGES		256U
+
+static inline unsigned int bio_max_segs(unsigned int nr_segs)
+{
+	return min(nr_segs, BIO_MAX_PAGES);
+}
 
 #define bio_prio(bio)			(bio)->bi_ioprio
 #define bio_set_prio(bio, prio)		((bio)->bi_ioprio = prio)

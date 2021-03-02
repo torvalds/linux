@@ -23,6 +23,7 @@ config ARM
 	select ARCH_HAS_TEARDOWN_DMA_OPS if MMU
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_HAVE_CUSTOM_GPIO_H
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG if CPU_V7 || CPU_V7M || CPU_V6K
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_KEEP_MEMBLOCK
 	select ARCH_MIGHT_HAVE_PC_PARPORT
@@ -1856,9 +1857,10 @@ config AUTO_ZRELADDR
 	help
 	  ZRELADDR is the physical address where the decompressed kernel
 	  image will be placed. If AUTO_ZRELADDR is selected, the address
-	  will be determined at run-time by masking the current IP with
-	  0xf8000000. This assumes the zImage being placed in the first 128MB
-	  from start of memory.
+	  will be determined at run-time, either by masking the current IP
+	  with 0xf8000000, or, if invalid, from the DTB passed in r2.
+	  This assumes the zImage being placed in the first 128MB from
+	  start of memory.
 
 config EFI_STUB
 	bool

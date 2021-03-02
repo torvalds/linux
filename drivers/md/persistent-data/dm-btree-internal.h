@@ -100,7 +100,7 @@ struct dm_block *shadow_parent(struct shadow_spine *s);
 
 int shadow_has_parent(struct shadow_spine *s);
 
-int shadow_root(struct shadow_spine *s);
+dm_block_t shadow_root(struct shadow_spine *s);
 
 /*
  * Some inlines.

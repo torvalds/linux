@@ -896,8 +896,6 @@ union ahc_bus_softc {
 
 typedef void (*ahc_bus_intr_t)(struct ahc_softc *);
 typedef int (*ahc_bus_chip_init_t)(struct ahc_softc *);
-typedef int (*ahc_bus_suspend_t)(struct ahc_softc *);
-typedef int (*ahc_bus_resume_t)(struct ahc_softc *);
 typedef void ahc_callback_t (void *);
 
 struct ahc_softc {

@@ -108,6 +108,13 @@ static uint32_t axi_clkgen_lookup_lock(unsigned int m)
 	return 0x1f1f00fa;
 }
 
+static const struct axi_clkgen_limits axi_clkgen_zynqmp_default_limits = {
+	.fpfd_min = 10000,
+	.fpfd_max = 450000,
+	.fvco_min = 800000,
+	.fvco_max = 1600000,
+};
+
 static const struct axi_clkgen_limits axi_clkgen_zynq_default_limits = {
 	.fpfd_min = 10000,
 	.fpfd_max = 300000,
@@ -503,7 +510,6 @@ static int axi_clkgen_probe(struct platform_device *pdev)
 	struct clk_init_data init;
 	const char *parent_names[2];
 	const char *clk_name;
-	struct resource *mem;
 	unsigned int i;
 	int ret;
 
@@ -515,8 +521,7 @@ static int axi_clkgen_probe(struct platform_device *pdev)
 	if (!axi_clkgen)
 		return -ENOMEM;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	axi_clkgen->base = devm_ioremap_resource(&pdev->dev, mem);
+	axi_clkgen->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(axi_clkgen->base))
 		return PTR_ERR(axi_clkgen->base);
 
@@ -560,6 +565,10 @@ static int axi_clkgen_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id axi_clkgen_ids[] = {
+	{
+		.compatible = "adi,zynqmp-axi-clkgen-2.00.a",
+		.data = &axi_clkgen_zynqmp_default_limits,
+	},
 	{
 		.compatible = "adi,axi-clkgen-2.00.a",
 		.data = &axi_clkgen_zynq_default_limits,

@@ -43,12 +43,6 @@
 #define mttbl(v)	asm volatile("mttbl %0":: "r"(v))
 #define mttbu(v)	asm volatile("mttbu %0":: "r"(v))
 
-/* For compatibility, get_tbl() is defined as get_tb() on ppc64 */
-static inline unsigned long get_tbl(void)
-{
-	return mftb();
-}
-
 static __always_inline u64 get_tb(void)
 {
 	unsigned int tbhi, tblo, tbhi2;
