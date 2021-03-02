@@ -948,8 +948,6 @@ static int tty3215_write(struct tty_struct * tty,
 	struct raw3215_info *raw;
 	int i, written;
 
-	if (!tty)
-		return 0;
 	raw = (struct raw3215_info *) tty->driver_data;
 	written = count;
 	while (count > 0) {
@@ -975,8 +973,6 @@ static int tty3215_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	struct raw3215_info *raw;
 
-	if (!tty)
-		return 0;
 	raw = (struct raw3215_info *) tty->driver_data;
 	raw3215_putchar(raw, ch);
 	return 1;
