@@ -1,7 +1,8 @@
 * Microchip I2S Multi-Channel Controller
 
 Required properties:
-- compatible:     Should be "microchip,sam9x60-i2smcc".
+- compatible:     Should be "microchip,sam9x60-i2smcc" or
+		  "microchip,sama7g5-i2smcc".
 - reg:            Should be the physical base address of the controller and the
                   length of memory mapped region.
 - interrupts:     Should contain the interrupt for the controller.
@@ -18,7 +19,12 @@ Required properties:
 Optional properties:
 - pinctrl-0:      Should specify pin control groups used for this controller.
 - princtrl-names: Should contain only one value - "default".
-
+- microchip,tdm-data-pair: 8 bit value that represents the DIN/DOUT pair pins
+			   which are used to receive/send TDM data. It is optional
+			   and it is only needed if the controller uses the TDM
+			   mode. Not available for "microchip,sam9x60-i2smcc"
+			   compatible. If it's not present, the default value is 0,
+			   so the DIN/DOUT 0 pins are used.
 
 (1) : Only the peripheral clock is required. The generated clock is optional
       and should be set mostly when Master Mode is required.
