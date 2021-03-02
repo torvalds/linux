@@ -66,9 +66,9 @@ static struct tty_driver *vcc_tty_driver;
 static struct vcc_port *vcc_table[VCC_MAX_PORTS];
 static DEFINE_SPINLOCK(vcc_table_lock);
 
-int vcc_dbg;
-int vcc_dbg_ldc;
-int vcc_dbg_vio;
+static unsigned int vcc_dbg;
+static unsigned int vcc_dbg_ldc;
+static unsigned int vcc_dbg_vio;
 
 module_param(vcc_dbg, uint, 0664);
 module_param(vcc_dbg_ldc, uint, 0664);
