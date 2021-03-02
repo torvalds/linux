@@ -53,7 +53,7 @@ static int parse_fixed_partitions(struct mtd_info *master,
 		return 0;
 
 	ofpart_node = of_get_child_by_name(mtd_node, "partitions");
-	if (!ofpart_node) {
+	if (!ofpart_node && !master->parent) {
 		/*
 		 * We might get here even when ofpart isn't used at all (e.g.,
 		 * when using another parser), so don't be louder than
@@ -64,6 +64,8 @@ static int parse_fixed_partitions(struct mtd_info *master,
 		ofpart_node = mtd_node;
 		dedicated = false;
 	}
+	if (!ofpart_node)
+		return 0;
 
 	of_id = of_match_node(parse_ofpart_match_table, ofpart_node);
 	if (dedicated && !of_id) {
