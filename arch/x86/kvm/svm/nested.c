@@ -247,11 +247,9 @@ static bool nested_vmcb_check_controls(struct vmcb_control_area *control)
 	return true;
 }
 
-static bool nested_vmcb_check_cr3_cr4(struct vcpu_svm *svm,
+static bool nested_vmcb_check_cr3_cr4(struct kvm_vcpu *vcpu,
 				      struct vmcb_save_area *save)
 {
-	struct kvm_vcpu *vcpu = &svm->vcpu;
-
 	/*
 	 * These checks are also performed by KVM_SET_SREGS,
 	 * except that EFER.LMA is not checked by SVM against
@@ -271,7 +269,7 @@ static bool nested_vmcb_check_cr3_cr4(struct vcpu_svm *svm,
 }
 
 /* Common checks that apply to both L1 and L2 state.  */
-static bool nested_vmcb_valid_sregs(struct vcpu_svm *svm,
+static bool nested_vmcb_valid_sregs(struct kvm_vcpu *vcpu,
 				    struct vmcb_save_area *save)
 {
 	if (CC(!(save->efer & EFER_SVME)))
@@ -284,18 +282,18 @@ static bool nested_vmcb_valid_sregs(struct vcpu_svm *svm,
 	if (CC(!kvm_dr6_valid(save->dr6)) || CC(!kvm_dr7_valid(save->dr7)))
 		return false;
 
-	if (!nested_vmcb_check_cr3_cr4(svm, save))
+	if (!nested_vmcb_check_cr3_cr4(vcpu, save))
 		return false;
 
-	if (CC(!kvm_valid_efer(&svm->vcpu, save->efer)))
+	if (CC(!kvm_valid_efer(vcpu, save->efer)))
 		return false;
 
 	return true;
 }
 
-static bool nested_vmcb_checks(struct vcpu_svm *svm, struct vmcb *vmcb12)
+static bool nested_vmcb_checks(struct kvm_vcpu *vcpu, struct vmcb *vmcb12)
 {
-	if (!nested_vmcb_valid_sregs(svm, &vmcb12->save))
+	if (!nested_vmcb_valid_sregs(vcpu, &vmcb12->save))
 		return false;
 
 	return nested_vmcb_check_controls(&vmcb12->control);
@@ -514,9 +512,10 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	recalc_intercepts(svm);
 }
 
-int enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb12_gpa,
+int enter_svm_guest_mode(struct kvm_vcpu *vcpu, u64 vmcb12_gpa,
 			 struct vmcb *vmcb12)
 {
+	struct vcpu_svm *svm = to_svm(vcpu);
 	int ret;
 
 	trace_kvm_nested_vmrun(svm->vmcb->save.rip, vmcb12_gpa,
@@ -550,44 +549,45 @@ int enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb12_gpa,
 		return ret;
 
 	if (!npt_enabled)
-		svm->vcpu.arch.mmu->inject_page_fault = svm_inject_page_fault_nested;
+		vcpu->arch.mmu->inject_page_fault = svm_inject_page_fault_nested;
 
 	svm_set_gif(svm, true);
 
 	return 0;
 }
 
-int nested_svm_vmrun(struct vcpu_svm *svm)
+int nested_svm_vmrun(struct kvm_vcpu *vcpu)
 {
+	struct vcpu_svm *svm = to_svm(vcpu);
 	int ret;
 	struct vmcb *vmcb12;
 	struct kvm_host_map map;
 	u64 vmcb12_gpa;
 
-	++svm->vcpu.stat.nested_run;
+	++vcpu->stat.nested_run;
 
-	if (is_smm(&svm->vcpu)) {
-		kvm_queue_exception(&svm->vcpu, UD_VECTOR);
+	if (is_smm(vcpu)) {
+		kvm_queue_exception(vcpu, UD_VECTOR);
 		return 1;
 	}
 
 	vmcb12_gpa = svm->vmcb->save.rax;
-	ret = kvm_vcpu_map(&svm->vcpu, gpa_to_gfn(vmcb12_gpa), &map);
+	ret = kvm_vcpu_map(vcpu, gpa_to_gfn(vmcb12_gpa), &map);
 	if (ret == -EINVAL) {
-		kvm_inject_gp(&svm->vcpu, 0);
+		kvm_inject_gp(vcpu, 0);
 		return 1;
 	} else if (ret) {
-		return kvm_skip_emulated_instruction(&svm->vcpu);
+		return kvm_skip_emulated_instruction(vcpu);
 	}
 
-	ret = kvm_skip_emulated_instruction(&svm->vcpu);
+	ret = kvm_skip_emulated_instruction(vcpu);
 
 	vmcb12 = map.hva;
 
 	if (WARN_ON_ONCE(!svm->nested.initialized))
 		return -EINVAL;
 
-	if (!nested_vmcb_checks(svm, vmcb12)) {
+	if (!nested_vmcb_checks(vcpu, vmcb12)) {
 		vmcb12->control.exit_code    = SVM_EXIT_ERR;
 		vmcb12->control.exit_code_hi = 0;
 		vmcb12->control.exit_info_1  = 0;
@@ -597,25 +597,25 @@ int nested_svm_vmrun(struct vcpu_svm *svm)
 
 
 	/* Clear internal status */
-	kvm_clear_exception_queue(&svm->vcpu);
-	kvm_clear_interrupt_queue(&svm->vcpu);
+	kvm_clear_exception_queue(vcpu);
+	kvm_clear_interrupt_queue(vcpu);
 
 	/*
 	 * Since vmcb01 is not in use, we can use it to store some of the L1
 	 * state.
 	 */
-	svm->vmcb01.ptr->save.efer   = svm->vcpu.arch.efer;
-	svm->vmcb01.ptr->save.cr0    = kvm_read_cr0(&svm->vcpu);
-	svm->vmcb01.ptr->save.cr4    = svm->vcpu.arch.cr4;
-	svm->vmcb01.ptr->save.rflags = kvm_get_rflags(&svm->vcpu);
-	svm->vmcb01.ptr->save.rip    = kvm_rip_read(&svm->vcpu);
+	svm->vmcb01.ptr->save.efer   = vcpu->arch.efer;
+	svm->vmcb01.ptr->save.cr0    = kvm_read_cr0(vcpu);
+	svm->vmcb01.ptr->save.cr4    = vcpu->arch.cr4;
+	svm->vmcb01.ptr->save.rflags = kvm_get_rflags(vcpu);
+	svm->vmcb01.ptr->save.rip    = kvm_rip_read(vcpu);
 
 	if (!npt_enabled)
-		svm->vmcb01.ptr->save.cr3 = kvm_read_cr3(&svm->vcpu);
+		svm->vmcb01.ptr->save.cr3 = kvm_read_cr3(vcpu);
 
 	svm->nested.nested_run_pending = 1;
 
-	if (enter_svm_guest_mode(svm, vmcb12_gpa, vmcb12))
+	if (enter_svm_guest_mode(vcpu, vmcb12_gpa, vmcb12))
 		goto out_exit_err;
 
 	if (nested_svm_vmrun_msrpm(svm))
@@ -632,7 +632,7 @@ out_exit_err:
 	nested_svm_vmexit(svm);
 
 out:
-	kvm_vcpu_unmap(&svm->vcpu, &map, true);
+	kvm_vcpu_unmap(vcpu, &map, true);
 
 	return ret;
 }
@@ -655,26 +655,27 @@ void nested_svm_vmloadsave(struct vmcb *from_vmcb, struct vmcb *to_vmcb)
 
 int nested_svm_vmexit(struct vcpu_svm *svm)
 {
-	int rc;
+	struct kvm_vcpu *vcpu = &svm->vcpu;
 	struct vmcb *vmcb12;
 	struct vmcb *vmcb = svm->vmcb;
 	struct kvm_host_map map;
+	int rc;
 
-	rc = kvm_vcpu_map(&svm->vcpu, gpa_to_gfn(svm->nested.vmcb12_gpa), &map);
+	rc = kvm_vcpu_map(vcpu, gpa_to_gfn(svm->nested.vmcb12_gpa), &map);
 	if (rc) {
 		if (rc == -EINVAL)
-			kvm_inject_gp(&svm->vcpu, 0);
+			kvm_inject_gp(vcpu, 0);
 		return 1;
 	}
 
 	vmcb12 = map.hva;
 
 	/* Exit Guest-Mode */
-	leave_guest_mode(&svm->vcpu);
+	leave_guest_mode(vcpu);
 	svm->nested.vmcb12_gpa = 0;
 	WARN_ON_ONCE(svm->nested.nested_run_pending);
 
-	kvm_clear_request(KVM_REQ_GET_NESTED_STATE_PAGES, &svm->vcpu);
+	kvm_clear_request(KVM_REQ_GET_NESTED_STATE_PAGES, vcpu);
 
 	/* in case we halted in L2 */
 	svm->vcpu.arch.mp_state = KVM_MP_STATE_RUNNABLE;
@@ -688,14 +689,14 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	vmcb12->save.gdtr   = vmcb->save.gdtr;
 	vmcb12->save.idtr   = vmcb->save.idtr;
 	vmcb12->save.efer   = svm->vcpu.arch.efer;
-	vmcb12->save.cr0    = kvm_read_cr0(&svm->vcpu);
-	vmcb12->save.cr3    = kvm_read_cr3(&svm->vcpu);
+	vmcb12->save.cr0    = kvm_read_cr0(vcpu);
+	vmcb12->save.cr3    = kvm_read_cr3(vcpu);
 	vmcb12->save.cr2    = vmcb->save.cr2;
 	vmcb12->save.cr4    = svm->vcpu.arch.cr4;
-	vmcb12->save.rflags = kvm_get_rflags(&svm->vcpu);
-	vmcb12->save.rip    = kvm_rip_read(&svm->vcpu);
-	vmcb12->save.rsp    = kvm_rsp_read(&svm->vcpu);
-	vmcb12->save.rax    = kvm_rax_read(&svm->vcpu);
+	vmcb12->save.rflags = kvm_get_rflags(vcpu);
+	vmcb12->save.rip    = kvm_rip_read(vcpu);
+	vmcb12->save.rsp    = kvm_rsp_read(vcpu);
+	vmcb12->save.rax    = kvm_rax_read(vcpu);
 	vmcb12->save.dr7    = vmcb->save.dr7;
 	vmcb12->save.dr6    = svm->vcpu.arch.dr6;
 	vmcb12->save.cpl    = vmcb->save.cpl;
@@ -744,13 +745,13 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	/*
 	 * Restore processor state that had been saved in vmcb01
 	 */
-	kvm_set_rflags(&svm->vcpu, svm->vmcb->save.rflags);
-	svm_set_efer(&svm->vcpu, svm->vmcb->save.efer);
-	svm_set_cr0(&svm->vcpu, svm->vmcb->save.cr0 | X86_CR0_PE);
-	svm_set_cr4(&svm->vcpu, svm->vmcb->save.cr4);
-	kvm_rax_write(&svm->vcpu, svm->vmcb->save.rax);
-	kvm_rsp_write(&svm->vcpu, svm->vmcb->save.rsp);
-	kvm_rip_write(&svm->vcpu, svm->vmcb->save.rip);
+	kvm_set_rflags(vcpu, svm->vmcb->save.rflags);
+	svm_set_efer(vcpu, svm->vmcb->save.efer);
+	svm_set_cr0(vcpu, svm->vmcb->save.cr0 | X86_CR0_PE);
+	svm_set_cr4(vcpu, svm->vmcb->save.cr4);
+	kvm_rax_write(vcpu, svm->vmcb->save.rax);
+	kvm_rsp_write(vcpu, svm->vmcb->save.rsp);
+	kvm_rip_write(vcpu, svm->vmcb->save.rip);
 
 	svm->vcpu.arch.dr7 = DR7_FIXED_1;
 	kvm_update_dr7(&svm->vcpu);
@@ -762,11 +763,11 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 				       vmcb12->control.exit_int_info_err,
 				       KVM_ISA_SVM);
 
-	kvm_vcpu_unmap(&svm->vcpu, &map, true);
+	kvm_vcpu_unmap(vcpu, &map, true);
 
-	nested_svm_uninit_mmu_context(&svm->vcpu);
+	nested_svm_uninit_mmu_context(vcpu);
 
-	rc = nested_svm_load_cr3(&svm->vcpu, svm->vmcb->save.cr3, false);
+	rc = nested_svm_load_cr3(vcpu, svm->vmcb->save.cr3, false);
 	if (rc)
 		return 1;
 
@@ -775,8 +776,8 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	 * doesn't end up in L1.
 	 */
 	svm->vcpu.arch.nmi_injected = false;
-	kvm_clear_exception_queue(&svm->vcpu);
-	kvm_clear_interrupt_queue(&svm->vcpu);
+	kvm_clear_exception_queue(vcpu);
+	kvm_clear_interrupt_queue(vcpu);
 
 	return 0;
 }
@@ -826,17 +827,19 @@ void svm_free_nested(struct vcpu_svm *svm)
  */
 void svm_leave_nested(struct vcpu_svm *svm)
 {
-	if (is_guest_mode(&svm->vcpu)) {
+	struct kvm_vcpu *vcpu = &svm->vcpu;
+
+	if (is_guest_mode(vcpu)) {
 		svm->nested.nested_run_pending = 0;
-		leave_guest_mode(&svm->vcpu);
+		leave_guest_mode(vcpu);
 
 		svm_switch_vmcb(svm, &svm->nested.vmcb02);
 
-		nested_svm_uninit_mmu_context(&svm->vcpu);
+		nested_svm_uninit_mmu_context(vcpu);
 		vmcb_mark_all_dirty(svm->vmcb);
 	}
 
-	kvm_clear_request(KVM_REQ_GET_NESTED_STATE_PAGES, &svm->vcpu);
+	kvm_clear_request(KVM_REQ_GET_NESTED_STATE_PAGES, vcpu);
 }
 
 static int nested_svm_exit_handled_msr(struct vcpu_svm *svm)
@@ -945,16 +948,15 @@ int nested_svm_exit_handled(struct vcpu_svm *svm)
 	return vmexit;
 }
 
-int nested_svm_check_permissions(struct vcpu_svm *svm)
+int nested_svm_check_permissions(struct kvm_vcpu *vcpu)
 {
-	if (!(svm->vcpu.arch.efer & EFER_SVME) ||
-	    !is_paging(&svm->vcpu)) {
-		kvm_queue_exception(&svm->vcpu, UD_VECTOR);
+	if (!(vcpu->arch.efer & EFER_SVME) || !is_paging(vcpu)) {
+		kvm_queue_exception(vcpu, UD_VECTOR);
 		return 1;
 	}
 
-	if (svm->vmcb->save.cpl) {
-		kvm_inject_gp(&svm->vcpu, 0);
+	if (to_svm(vcpu)->vmcb->save.cpl) {
+		kvm_inject_gp(vcpu, 0);
 		return 1;
 	}
 
@@ -1265,7 +1267,7 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 	if (!(save->cr0 & X86_CR0_PG) ||
 	    !(save->cr0 & X86_CR0_PE) ||
 	    (save->rflags & X86_EFLAGS_VM) ||
-	    !nested_vmcb_valid_sregs(svm, save))
+	    !nested_vmcb_valid_sregs(vcpu, save))
 		goto out_free;
 
 	/*
