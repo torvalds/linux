@@ -3516,6 +3516,31 @@ static void intel_dp_get_dsc_sink_cap(struct intel_dp *intel_dp)
 	}
 }
 
+static void intel_edp_mso_mode_fixup(struct intel_connector *connector,
+				     struct drm_display_mode *mode)
+{
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	int n = intel_dp->mso_link_count;
+	int overlap = intel_dp->mso_pixel_overlap;
+
+	if (!mode || !n)
+		return;
+
+	mode->hdisplay = (mode->hdisplay - overlap) * n;
+	mode->hsync_start = (mode->hsync_start - overlap) * n;
+	mode->hsync_end = (mode->hsync_end - overlap) * n;
+	mode->htotal = (mode->htotal - overlap) * n;
+	mode->clock *= n;
+
+	drm_mode_set_name(mode);
+
+	drm_dbg_kms(&i915->drm,
+		    "[CONNECTOR:%d:%s] using generated MSO mode: ",
+		    connector->base.base.id, connector->base.name);
+	drm_mode_debug_printmodeline(mode);
+}
+
 static void intel_edp_mso_init(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
@@ -6492,6 +6517,10 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	fixed_mode = intel_panel_edid_fixed_mode(intel_connector);
 	if (fixed_mode)
 		downclock_mode = intel_dp_drrs_init(intel_connector, fixed_mode);
+
+	/* multiply the mode clock and horizontal timings for MSO */
+	intel_edp_mso_mode_fixup(intel_connector, fixed_mode);
+	intel_edp_mso_mode_fixup(intel_connector, downclock_mode);
 
 	/* fallback to VBT if available for eDP */
 	if (!fixed_mode)
