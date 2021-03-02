@@ -373,9 +373,7 @@ int kgdb_unregister_nmi_console(void)
 	if (ret)
 		return ret;
 
-	ret = tty_unregister_driver(kgdb_nmi_tty_driver);
-	if (ret)
-		return ret;
+	tty_unregister_driver(kgdb_nmi_tty_driver);
 	put_tty_driver(kgdb_nmi_tty_driver);
 
 	return 0;

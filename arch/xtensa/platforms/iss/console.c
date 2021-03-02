@@ -171,11 +171,7 @@ static int __init rs_init(void)
 
 static __exit void rs_exit(void)
 {
-	int error;
-
-	if ((error = tty_unregister_driver(serial_driver)))
-		pr_err("ISS_SERIAL: failed to unregister serial driver (%d)\n",
-		       error);
+	tty_unregister_driver(serial_driver);
 	put_tty_driver(serial_driver);
 	tty_port_destroy(&serial_port);
 }

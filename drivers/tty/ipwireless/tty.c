@@ -596,13 +596,8 @@ int ipwireless_tty_init(void)
 
 void ipwireless_tty_release(void)
 {
-	int ret;
-
-	ret = tty_unregister_driver(ipw_tty_driver);
+	tty_unregister_driver(ipw_tty_driver);
 	put_tty_driver(ipw_tty_driver);
-	if (ret != 0)
-		printk(KERN_ERR IPWIRELESS_PCCARD_NAME
-			": tty_unregister_driver failed with code %d\n", ret);
 }
 
 int ipwireless_tty_is_modem(struct ipw_tty *tty)
