@@ -123,3 +123,44 @@ or simply starting the virtual machine
 .. code-block:: shell
 
    ~/src/linux/tools/labs$ make boot
+
+Using Docker containers
+-----------------------
+
+If your setup doesn't allow the installation of the packages required for the
+laboratory setup, you can build and run a container that has all the setup
+already prepared for the virtual machine environment.
+
+In order to run the containerized setup, you need to install the following
+packages:
+
+* ``docker``
+* ``docker-compose``
+
+In order to run the container infrastructure run the following command in the
+``tools/labs/`` directory:
+
+.. code-block::
+
+    make docker-kernel
+    ...
+    ubuntu@so2:~$
+
+The first time you run the command above, it will take a long time, because you
+will have to build the container environment and install the required
+applications.
+
+Every time you run the ``make docker-kernel`` command, another shell will
+connect to the container. This will allow you to work with multiple tabs.
+
+All the commands that you would use in the regular environment can be used in
+the containerized environment.
+
+The linux repository is mounted in the ``/linux`` directory. All changes
+you will make here will also be seen on your local instance.
+
+In order to stop the container use the following command:
+
+.. code-block::
+
+    make stop-docker-kernel
