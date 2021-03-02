@@ -48,7 +48,6 @@ static void rs_poll(struct timer_list *);
 
 static int rs_open(struct tty_struct *tty, struct file * filp)
 {
-	tty->port = &serial_port;
 	spin_lock_bh(&timer_lock);
 	if (tty->count == 1) {
 		timer_setup(&serial_timer, rs_poll, 0);
