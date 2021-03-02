@@ -29,6 +29,8 @@ struct virtio_pcm_msg;
  * @hw_ptr: Substream hardware pointer value in bytes [0 ... buffer_bytes).
  * @xfer_enabled: Data transfer state (0 - off, 1 - on).
  * @xfer_xrun: Data underflow/overflow state (0 - no xrun, 1 - xrun).
+ * @stopped: True if the substream is stopped and must be released on the device
+ *           side.
  * @msgs: Allocated I/O messages.
  * @nmsgs: Number of allocated I/O messages.
  * @msg_last_enqueued: Index of the last I/O message added to the virtqueue.
@@ -49,6 +51,7 @@ struct virtio_pcm_substream {
 	size_t hw_ptr;
 	bool xfer_enabled;
 	bool xfer_xrun;
+	bool stopped;
 	struct virtio_pcm_msg **msgs;
 	unsigned int nmsgs;
 	int msg_last_enqueued;
@@ -79,6 +82,8 @@ struct virtio_pcm {
 	struct snd_pcm *pcm;
 	struct virtio_pcm_stream streams[SNDRV_PCM_STREAM_LAST + 1];
 };
+
+extern const struct snd_pcm_ops virtsnd_pcm_ops;
 
 int virtsnd_pcm_validate(struct virtio_device *vdev);
 
