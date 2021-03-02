@@ -35,7 +35,7 @@ man7: $(DOC_MAN7)
 RST2MAN_DEP := $(shell command -v rst2man 2>/dev/null)
 
 $(OUTPUT)$(HELPERS_RST): $(UP2DIR)../../include/uapi/linux/bpf.h
-	$(QUIET_GEN)$(UP2DIR)../../scripts/bpf_helpers_doc.py --filename $< > $@
+	$(QUIET_GEN)$(UP2DIR)../../scripts/bpf_doc.py --filename $< > $@
 
 $(OUTPUT)%.7: $(OUTPUT)%.rst
 ifndef RST2MAN_DEP

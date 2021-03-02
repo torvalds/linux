@@ -1439,7 +1439,7 @@ union bpf_attr {
  * parsed and used to produce a manual page. The workflow is the following,
  * and requires the rst2man utility:
  *
- *     $ ./scripts/bpf_helpers_doc.py \
+ *     $ ./scripts/bpf_doc.py \
  *             --filename include/uapi/linux/bpf.h > /tmp/bpf-helpers.rst
  *     $ rst2man /tmp/bpf-helpers.rst > /tmp/bpf-helpers.7
  *     $ man /tmp/bpf-helpers.7
