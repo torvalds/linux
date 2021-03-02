@@ -2869,7 +2869,7 @@ void kvm_apic_accept_events(struct kvm_vcpu *vcpu)
 		return;
 
 	if (is_guest_mode(vcpu)) {
-		r = kvm_x86_ops.nested_ops->check_events(vcpu);
+		r = kvm_check_nested_events(vcpu);
 		if (r < 0)
 			return;
 		/*
