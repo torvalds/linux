@@ -3926,13 +3926,13 @@ ice_get_module_eeprom(struct net_device *netdev,
 	u8 value = 0;
 	u8 page = 0;
 
-	status = ice_aq_sff_eeprom(hw, 0, addr, offset, page, 0,
-				   &value, 1, 0, NULL);
-	if (status)
-		return -EIO;
-
 	if (!ee || !ee->len || !data)
 		return -EINVAL;
+
+	status = ice_aq_sff_eeprom(hw, 0, addr, offset, page, 0, &value, 1, 0,
+				   NULL);
+	if (status)
+		return -EIO;
 
 	if (value == ICE_MODULE_TYPE_SFP)
 		is_sfp = true;
