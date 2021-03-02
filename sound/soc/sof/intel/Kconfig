@@ -9,14 +9,6 @@ config SND_SOC_SOF_INTEL_TOPLEVEL
 
 if SND_SOC_SOF_INTEL_TOPLEVEL
 
-config SND_SOC_SOF_INTEL_ACPI
-	def_tristate SND_SOC_SOF_ACPI
-	select SND_SOC_SOF_BAYTRAIL  if SND_SOC_SOF_BAYTRAIL_SUPPORT
-	select SND_SOC_SOF_BROADWELL if SND_SOC_SOF_BROADWELL_SUPPORT
-	help
-	  This option is not user-selectable but automagically handled by
-	  'select' statements at a higher level.
-
 config SND_SOC_SOF_INTEL_PCI
 	def_tristate SND_SOC_SOF_PCI
 	select SND_SOC_SOF_MERRIFIELD  if SND_SOC_SOF_MERRIFIELD_SUPPORT
@@ -50,18 +42,25 @@ config SND_SOC_SOF_INTEL_ATOM_HIFI_EP
 
 config SND_SOC_SOF_INTEL_COMMON
 	tristate
+	select SND_SOC_SOF
 	select SND_SOC_ACPI_INTEL_MATCH
 	select SND_SOC_SOF_XTENSA
 	select SND_SOC_INTEL_MACH
 	select SND_SOC_ACPI if ACPI
+	select SND_INTEL_DSP_CONFIG
 	help
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level.
 
-if SND_SOC_SOF_INTEL_ACPI
+if SND_SOC_SOF_ACPI
 
-config SND_SOC_SOF_BAYTRAIL_SUPPORT
-	bool "SOF support for Baytrail, Braswell and Cherrytrail"
+config SND_SOC_SOF_BAYTRAIL
+	tristate "SOF support for Baytrail, Braswell and Cherrytrail"
+	default SND_SOC_SOF_ACPI
+	select SND_SOC_SOF_INTEL_COMMON
+	select SND_SOC_SOF_INTEL_ATOM_HIFI_EP
+	select SND_SOC_SOF_ACPI_DEV
+	select IOSF_MBI if X86 && PCI
 	help
 	  This adds support for Sound Open Firmware for Intel(R) platforms
 	  using the Baytrail, Braswell or Cherrytrail processors.
@@ -75,17 +74,12 @@ config SND_SOC_SOF_BAYTRAIL_SUPPORT
 	  Say Y if you want to enable SOF on Baytrail/Cherrytrail.
 	  If unsure select "N".
 
-config SND_SOC_SOF_BAYTRAIL
-	tristate
-	select SND_SOC_SOF_INTEL_ATOM_HIFI_EP
-	select SND_INTEL_DSP_CONFIG
-	help
-	  This option is not user-selectable but automagically handled by
-	  'select' statements at a higher level.
-
-config SND_SOC_SOF_BROADWELL_SUPPORT
-	bool "SOF support for Broadwell"
-	select SND_INTEL_DSP_CONFIG
+config SND_SOC_SOF_BROADWELL
+	tristate "SOF support for Broadwell"
+	default SND_SOC_SOF_ACPI
+	select SND_SOC_SOF_INTEL_COMMON
+	select SND_SOC_SOF_INTEL_HIFI_EP_IPC
+	select SND_SOC_SOF_ACPI_DEV
 	help
 	  This adds support for Sound Open Firmware for Intel(R) platforms
 	  using the Broadwell processors.
@@ -100,15 +94,7 @@ config SND_SOC_SOF_BROADWELL_SUPPORT
 	  Say Y if you want to enable SOF on Broadwell.
 	  If unsure select "N".
 
-config SND_SOC_SOF_BROADWELL
-	tristate
-	select SND_SOC_SOF_INTEL_COMMON
-	select SND_SOC_SOF_INTEL_HIFI_EP_IPC
-	help
-	  This option is not user-selectable but automagically handled by
-	  'select' statements at a higher level.
-
-endif ## SND_SOC_SOF_INTEL_ACPI
+endif ## SND_SOC_SOF_ACPI
 
 if SND_SOC_SOF_INTEL_PCI
 
