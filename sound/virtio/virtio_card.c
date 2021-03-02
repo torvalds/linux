@@ -231,6 +231,10 @@ static int virtsnd_build_devs(struct virtio_snd *snd)
 	if (rc)
 		return rc;
 
+	rc = virtsnd_chmap_parse_cfg(snd);
+	if (rc)
+		return rc;
+
 	if (snd->njacks) {
 		rc = virtsnd_jack_build_devs(snd);
 		if (rc)
@@ -239,6 +243,12 @@ static int virtsnd_build_devs(struct virtio_snd *snd)
 
 	if (snd->nsubstreams) {
 		rc = virtsnd_pcm_build_devs(snd);
+		if (rc)
+			return rc;
+	}
+
+	if (snd->nchmaps) {
+		rc = virtsnd_chmap_build_devs(snd);
 		if (rc)
 			return rc;
 	}
