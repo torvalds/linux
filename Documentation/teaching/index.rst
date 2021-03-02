@@ -74,5 +74,6 @@ tools/labs/docs/Dockerfile for dependencies):
    :caption: Useful info
 
    info/vm.rst
+   info/extra-vm.rst
    info/contributing.rst
 
