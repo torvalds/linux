@@ -13,7 +13,7 @@ a more complete image is required, such as ``core-image-sato-dev-qemu``.
 To use the new image, update the ``YOCTO_IMAGE`` variable in
 ``tools/labs/qemu/Makefile``:
 
-.. code-block::
+.. code-block:: shell
 
    YOCTO_IMAGE = core-image-sato-qemu$(ARCH).ext4
 
@@ -106,7 +106,7 @@ The kernel image is built the first time the VM is started. To rebuild the
 kernel remove the kernel image file defined by the ``ZIMAGE`` variable in
 ``tools/labs/qemu/Makefile``:
 
-.. code-block::
+.. code-block:: shell
 
    ZIMAGE = $(KDIR)/arch/$(ARCH)/boot/$(b)zImage
 
@@ -140,9 +140,9 @@ packages:
 In order to run the container infrastructure run the following command in the
 ``tools/labs/`` directory:
 
-.. code-block::
+.. code-block:: shell
 
-    make docker-kernel
+    sergiu@local:~/src/linux/tools/labs$ make docker-kernel
     ...
     ubuntu@so2:~$
 
@@ -161,6 +161,6 @@ you will make here will also be seen on your local instance.
 
 In order to stop the container use the following command:
 
-.. code-block::
+.. code-block:: shell
 
     make stop-docker-kernel
