@@ -1113,6 +1113,11 @@ static inline bool is_migration_disabled(struct task_struct *p)
 #endif
 }
 
+static inline bool sched_core_disabled(void)
+{
+	return true;
+}
+
 static inline raw_spinlock_t *rq_lockp(struct rq *rq)
 {
 	return &rq->__lock;
@@ -2231,10 +2236,17 @@ unsigned long arch_scale_freq_capacity(int cpu)
 }
 #endif
 
-#ifdef CONFIG_SMP
-#ifdef CONFIG_PREEMPTION
 
-static inline void double_rq_lock(struct rq *rq1, struct rq *rq2);
+#ifdef CONFIG_SMP
+
+static inline bool rq_order_less(struct rq *rq1, struct rq *rq2)
+{
+	return rq1->cpu < rq2->cpu;
+}
+
+extern void double_rq_lock(struct rq *rq1, struct rq *rq2);
+
+#ifdef CONFIG_PREEMPTION
 
 /*
  * fair double_lock_balance: Safely acquires both rq->locks in a fair
@@ -2274,14 +2286,13 @@ static inline int _double_lock_balance(struct rq *this_rq, struct rq *busiest)
 	if (likely(raw_spin_rq_trylock(busiest)))
 		return 0;
 
-	if (rq_lockp(busiest) >= rq_lockp(this_rq)) {
+	if (rq_order_less(this_rq, busiest)) {
 		raw_spin_rq_lock_nested(busiest, SINGLE_DEPTH_NESTING);
 		return 0;
 	}
 
 	raw_spin_rq_unlock(this_rq);
-	raw_spin_rq_lock(busiest);
-	raw_spin_rq_lock_nested(this_rq, SINGLE_DEPTH_NESTING);
+	double_rq_lock(this_rq, busiest);
 
 	return 1;
 }
@@ -2334,31 +2345,6 @@ static inline void double_raw_lock(raw_spinlock_t *l1, raw_spinlock_t *l2)
 }
 
 /*
- * double_rq_lock - safely lock two runqueues
- *
- * Note this does not disable interrupts like task_rq_lock,
- * you need to do so manually before calling.
- */
-static inline void double_rq_lock(struct rq *rq1, struct rq *rq2)
-	__acquires(rq1->lock)
-	__acquires(rq2->lock)
-{
-	BUG_ON(!irqs_disabled());
-	if (rq_lockp(rq1) == rq_lockp(rq2)) {
-		raw_spin_rq_lock(rq1);
-		__acquire(rq2->lock);	/* Fake it out ;) */
-	} else {
-		if (rq_lockp(rq1) < rq_lockp(rq2)) {
-			raw_spin_rq_lock(rq1);
-			raw_spin_rq_lock_nested(rq2, SINGLE_DEPTH_NESTING);
-		} else {
-			raw_spin_rq_lock(rq2);
-			raw_spin_rq_lock_nested(rq1, SINGLE_DEPTH_NESTING);
-		}
-	}
-}
-
-/*
  * double_rq_unlock - safely unlock two runqueues
  *
  * Note this does not restore interrupts like task_rq_unlock,
@@ -2368,11 +2354,11 @@ static inline void double_rq_unlock(struct rq *rq1, struct rq *rq2)
 	__releases(rq1->lock)
 	__releases(rq2->lock)
 {
-	raw_spin_rq_unlock(rq1);
 	if (rq_lockp(rq1) != rq_lockp(rq2))
 		raw_spin_rq_unlock(rq2);
 	else
 		__release(rq2->lock);
+	raw_spin_rq_unlock(rq1);
 }
 
 extern void set_rq_online (struct rq *rq);
