@@ -292,7 +292,7 @@ static void fadump_show_config(void)
  * that is required for a kernel to boot successfully.
  *
  */
-static inline u64 fadump_calculate_reserve_size(void)
+static __init u64 fadump_calculate_reserve_size(void)
 {
 	u64 base, size, bootmem_min;
 	int ret;
