@@ -1723,6 +1723,7 @@ intel_dp_drrs_compute_config(struct intel_dp *intel_dp,
 {
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	int pixel_clock;
 
 	if (pipe_config->vrr.enable)
 		return;
@@ -1741,10 +1742,18 @@ intel_dp_drrs_compute_config(struct intel_dp *intel_dp,
 		return;
 
 	pipe_config->has_drrs = true;
-	intel_link_compute_m_n(output_bpp, pipe_config->lane_count,
-			       intel_connector->panel.downclock_mode->clock,
+
+	pixel_clock = intel_connector->panel.downclock_mode->clock;
+	if (pipe_config->splitter.enable)
+		pixel_clock /= pipe_config->splitter.link_count;
+
+	intel_link_compute_m_n(output_bpp, pipe_config->lane_count, pixel_clock,
 			       pipe_config->port_clock, &pipe_config->dp_m2_n2,
 			       constant_n, pipe_config->fec_enable);
+
+	/* FIXME: abstract this better */
+	if (pipe_config->splitter.enable)
+		pipe_config->dp_m2_n2.gmch_m *= pipe_config->splitter.link_count;
 }
 
 int
@@ -1819,12 +1828,36 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		output_bpp = intel_dp_output_bpp(pipe_config->output_format,
 						 pipe_config->pipe_bpp);
 
+	if (intel_dp->mso_link_count) {
+		int n = intel_dp->mso_link_count;
+		int overlap = intel_dp->mso_pixel_overlap;
+
+		pipe_config->splitter.enable = true;
+		pipe_config->splitter.link_count = n;
+		pipe_config->splitter.pixel_overlap = overlap;
+
+		drm_dbg_kms(&dev_priv->drm, "MSO link count %d, pixel overlap %d\n",
+			    n, overlap);
+
+		adjusted_mode->crtc_hdisplay = adjusted_mode->crtc_hdisplay / n + overlap;
+		adjusted_mode->crtc_hblank_start = adjusted_mode->crtc_hblank_start / n + overlap;
+		adjusted_mode->crtc_hblank_end = adjusted_mode->crtc_hblank_end / n + overlap;
+		adjusted_mode->crtc_hsync_start = adjusted_mode->crtc_hsync_start / n + overlap;
+		adjusted_mode->crtc_hsync_end = adjusted_mode->crtc_hsync_end / n + overlap;
+		adjusted_mode->crtc_htotal = adjusted_mode->crtc_htotal / n + overlap;
+		adjusted_mode->crtc_clock /= n;
+	}
+
 	intel_link_compute_m_n(output_bpp,
 			       pipe_config->lane_count,
 			       adjusted_mode->crtc_clock,
 			       pipe_config->port_clock,
 			       &pipe_config->dp_m_n,
 			       constant_n, pipe_config->fec_enable);
+
+	/* FIXME: abstract this better */
+	if (pipe_config->splitter.enable)
+		pipe_config->dp_m_n.gmch_m *= pipe_config->splitter.link_count;
 
 	if (!HAS_DDI(dev_priv))
 		intel_dp_set_clock(encoder, pipe_config);
@@ -3564,8 +3597,10 @@ static void intel_edp_mso_init(struct intel_dp *intel_dp)
 	if (mso) {
 		drm_dbg_kms(&i915->drm, "Sink MSO %ux%u configuration\n",
 			    mso, drm_dp_max_lane_count(intel_dp->dpcd) / mso);
-		drm_err(&i915->drm, "No source MSO support, disabling\n");
-		mso = 0;
+		if (!HAS_MSO(i915)) {
+			drm_err(&i915->drm, "No source MSO support, disabling\n");
+			mso = 0;
+		}
 	}
 
 	intel_dp->mso_link_count = mso;

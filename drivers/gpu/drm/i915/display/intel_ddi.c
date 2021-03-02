@@ -2175,6 +2175,34 @@ static void intel_ddi_mso_get_config(struct intel_encoder *encoder,
 	pipe_config->splitter.pixel_overlap = REG_FIELD_GET(OVERLAP_PIXELS_MASK, dss1);
 }
 
+static void intel_ddi_mso_configure(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+	u32 dss1 = 0;
+
+	if (!HAS_MSO(i915))
+		return;
+
+	if (crtc_state->splitter.enable) {
+		/* Splitter enable is supported for pipe A only. */
+		if (drm_WARN_ON(&i915->drm, pipe != PIPE_A))
+			return;
+
+		dss1 |= SPLITTER_ENABLE;
+		dss1 |= OVERLAP_PIXELS(crtc_state->splitter.pixel_overlap);
+		if (crtc_state->splitter.link_count == 2)
+			dss1 |= SPLITTER_CONFIGURATION_2_SEGMENT;
+		else
+			dss1 |= SPLITTER_CONFIGURATION_4_SEGMENT;
+	}
+
+	intel_de_rmw(i915, ICL_PIPE_DSS_CTL1(pipe),
+		     SPLITTER_ENABLE | SPLITTER_CONFIGURATION_MASK |
+		     OVERLAP_PIXELS_MASK, dss1);
+}
+
 static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 				  struct intel_encoder *encoder,
 				  const struct intel_crtc_state *crtc_state,
@@ -2267,6 +2295,11 @@ static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	 * the used lanes of the DDI.
 	 */
 	intel_ddi_power_up_lanes(encoder, crtc_state);
+
+	/*
+	 * 7.g Program CoG/MSO configuration bits in DSS_CTL1 if selected.
+	 */
+	intel_ddi_mso_configure(crtc_state);
 
 	/*
 	 * 7.g Configure and enable DDI_BUF_CTL
@@ -4200,6 +4233,10 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 			goto err;
 
 		dig_port->hpd_pulse = intel_dp_hpd_pulse;
+
+		/* Splitter enable for eDP MSO is supported for pipe A only. */
+		if (dig_port->dp.mso_link_count)
+			encoder->pipe_mask = BIT(PIPE_A);
 	}
 
 	/* In theory we don't need the encoder->type check, but leave it just in
