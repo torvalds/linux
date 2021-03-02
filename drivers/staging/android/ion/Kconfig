@@ -10,6 +10,14 @@ menuconfig ION
 	  If you're not using Android its probably safe to
 	  say N here.
 
+config ION_PROTECTED_HEAP
+	bool "Ion protected heap"
+	depends on ION
+	help
+	  Choose this option to enable the Ion protected heap. The protected
+	  heap is backed by pages from the gen pool allocator.
+	  If in doubt, say Y.
+
 config ION_SYSTEM_HEAP
 	bool "Ion system heap"
 	depends on ION

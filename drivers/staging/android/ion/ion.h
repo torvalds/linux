@@ -343,6 +343,7 @@ int ion_query_heaps(struct ion_heap_query *query);
 
 #ifdef CONFIG_ION_MODULE
 int ion_add_cma_heaps(void);
+int ion_protected_heap_create(void);
 int ion_system_heap_create(void);
 int ion_system_contig_heap_create(void);
 #endif

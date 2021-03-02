@@ -871,6 +871,12 @@ int ion_module_init(void)
 
 	ret = ion_add_cma_heaps();
 #endif
+#ifdef CONFIG_ION_PROTECTED_HEAP
+	if (ret)
+		return ret;
+
+	ret = ion_protected_heap_create();
+#endif
 	return ret;
 }
 
