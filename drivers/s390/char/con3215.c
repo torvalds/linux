@@ -911,9 +911,8 @@ static int tty3215_open(struct tty_struct *tty, struct file * filp)
  */
 static void tty3215_close(struct tty_struct *tty, struct file * filp)
 {
-	struct raw3215_info *raw;
+	struct raw3215_info *raw = tty->driver_data;
 
-	raw = (struct raw3215_info *) tty->driver_data;
 	if (raw == NULL || tty->count > 1)
 		return;
 	tty->closing = 1;
@@ -928,9 +927,7 @@ static void tty3215_close(struct tty_struct *tty, struct file * filp)
  */
 static int tty3215_write_room(struct tty_struct *tty)
 {
-	struct raw3215_info *raw;
-
-	raw = (struct raw3215_info *) tty->driver_data;
+	struct raw3215_info *raw = tty->driver_data;
 
 	/* Subtract TAB_STOP_SIZE to allow for a tab, 8 <<< 64K */
 	if ((RAW3215_BUFFER_SIZE - raw->count - TAB_STOP_SIZE) >= 0)
@@ -945,10 +942,9 @@ static int tty3215_write_room(struct tty_struct *tty)
 static int tty3215_write(struct tty_struct * tty,
 			 const unsigned char *buf, int count)
 {
-	struct raw3215_info *raw;
+	struct raw3215_info *raw = tty->driver_data;
 	int i, written;
 
-	raw = (struct raw3215_info *) tty->driver_data;
 	written = count;
 	while (count > 0) {
 		for (i = 0; i < count; i++)
@@ -971,10 +967,10 @@ static int tty3215_write(struct tty_struct * tty,
  */
 static int tty3215_put_char(struct tty_struct *tty, unsigned char ch)
 {
-	struct raw3215_info *raw;
+	struct raw3215_info *raw = tty->driver_data;
 
-	raw = (struct raw3215_info *) tty->driver_data;
 	raw3215_putchar(raw, ch);
+
 	return 1;
 }
 
@@ -987,17 +983,15 @@ static void tty3215_flush_chars(struct tty_struct *tty)
  */
 static int tty3215_chars_in_buffer(struct tty_struct *tty)
 {
-	struct raw3215_info *raw;
+	struct raw3215_info *raw = tty->driver_data;
 
-	raw = (struct raw3215_info *) tty->driver_data;
 	return raw->count;
 }
 
 static void tty3215_flush_buffer(struct tty_struct *tty)
 {
-	struct raw3215_info *raw;
+	struct raw3215_info *raw = tty->driver_data;
 
-	raw = (struct raw3215_info *) tty->driver_data;
 	raw3215_flush_buffer(raw);
 	tty_wakeup(tty);
 }
@@ -1007,9 +1001,8 @@ static void tty3215_flush_buffer(struct tty_struct *tty)
  */
 static void tty3215_throttle(struct tty_struct * tty)
 {
-	struct raw3215_info *raw;
+	struct raw3215_info *raw = tty->driver_data;
 
-	raw = (struct raw3215_info *) tty->driver_data;
 	raw->flags |= RAW3215_THROTTLED;
 }
 
@@ -1018,10 +1011,9 @@ static void tty3215_throttle(struct tty_struct * tty)
  */
 static void tty3215_unthrottle(struct tty_struct * tty)
 {
-	struct raw3215_info *raw;
+	struct raw3215_info *raw = tty->driver_data;
 	unsigned long flags;
 
-	raw = (struct raw3215_info *) tty->driver_data;
 	if (raw->flags & RAW3215_THROTTLED) {
 		spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
 		raw->flags &= ~RAW3215_THROTTLED;
@@ -1035,9 +1027,8 @@ static void tty3215_unthrottle(struct tty_struct * tty)
  */
 static void tty3215_stop(struct tty_struct *tty)
 {
-	struct raw3215_info *raw;
+	struct raw3215_info *raw = tty->driver_data;
 
-	raw = (struct raw3215_info *) tty->driver_data;
 	raw->flags |= RAW3215_STOPPED;
 }
 
@@ -1046,10 +1037,9 @@ static void tty3215_stop(struct tty_struct *tty)
  */
 static void tty3215_start(struct tty_struct *tty)
 {
-	struct raw3215_info *raw;
+	struct raw3215_info *raw = tty->driver_data;
 	unsigned long flags;
 
-	raw = (struct raw3215_info *) tty->driver_data;
 	if (raw->flags & RAW3215_STOPPED) {
 		spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
 		raw->flags &= ~RAW3215_STOPPED;
