@@ -198,7 +198,7 @@ static int jz4760_codec_startup(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *codec = dai->component;
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(codec);
-	int ret;
+	int ret = 0;
 
 	/*
 	 * SYSCLK output from the codec to the AIC is required to keep the
@@ -207,7 +207,7 @@ static int jz4760_codec_startup(struct snd_pcm_substream *substream,
 	 */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		ret = snd_soc_dapm_force_enable_pin(dapm, "SYSCLK");
-	return 0;
+	return ret;
 }
 
 static void jz4760_codec_shutdown(struct snd_pcm_substream *substream,
