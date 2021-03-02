@@ -36,6 +36,19 @@ DECLARE_HOOK(android_vh_ufs_compl_command,
 	TP_PROTO(struct ufs_hba *hba, struct ufshcd_lrb *lrbp),
 	TP_ARGS(hba, lrbp));
 
+struct uic_command;
+DECLARE_HOOK(android_vh_ufs_send_uic_command,
+	TP_PROTO(struct ufs_hba *hba, struct uic_command *ucmd, int str_t),
+	TP_ARGS(hba, ucmd, str_t));
+
+DECLARE_HOOK(android_vh_ufs_send_tm_command,
+	TP_PROTO(struct ufs_hba *hba, int tag, int str_t),
+	TP_ARGS(hba, tag, str_t));
+
+DECLARE_HOOK(android_vh_ufs_check_int_errors,
+	TP_PROTO(struct ufs_hba *hba, bool queue_eh_work),
+	TP_ARGS(hba, queue_eh_work));
+
 #endif /* _TRACE_HOOK_UFSHCD_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>
