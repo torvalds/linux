@@ -141,7 +141,7 @@ static const struct tty_operations serial_ops = {
 	.proc_show = rs_proc_show,
 };
 
-int __init rs_init(void)
+static int __init rs_init(void)
 {
 	tty_port_init(&serial_port);
 
