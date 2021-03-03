@@ -124,7 +124,7 @@ extern u64 timecounter_read(struct timecounter *tc);
  * This allows conversion of cycle counter values which were generated
  * in the past.
  */
-extern u64 timecounter_cyc2time(struct timecounter *tc,
+extern u64 timecounter_cyc2time(const struct timecounter *tc,
 				u64 cycle_tstamp);
 
 #endif
