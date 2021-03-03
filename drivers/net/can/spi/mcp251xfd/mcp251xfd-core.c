@@ -1597,12 +1597,6 @@ static int mcp251xfd_handle_rxif(struct mcp251xfd_priv *priv)
 	return 0;
 }
 
-static inline int mcp251xfd_get_timestamp(const struct mcp251xfd_priv *priv,
-					  u32 *timestamp)
-{
-	return regmap_read(priv->map_reg, MCP251XFD_REG_TBC, timestamp);
-}
-
 static struct sk_buff *
 mcp251xfd_alloc_can_err_skb(const struct mcp251xfd_priv *priv,
 			    struct can_frame **cf, u32 *timestamp)

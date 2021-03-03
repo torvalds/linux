@@ -728,6 +728,12 @@ mcp251xfd_spi_cmd_write(const struct mcp251xfd_priv *priv,
 	return data;
 }
 
+static inline int mcp251xfd_get_timestamp(const struct mcp251xfd_priv *priv,
+					  u32 *timestamp)
+{
+	return regmap_read(priv->map_reg, MCP251XFD_REG_TBC, timestamp);
+}
+
 static inline u16 mcp251xfd_get_tef_obj_addr(u8 n)
 {
 	return MCP251XFD_RAM_START +
