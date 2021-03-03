@@ -129,6 +129,17 @@ struct io_wq {
 
 static enum cpuhp_state io_wq_online;
 
+struct io_cb_cancel_data {
+	work_cancel_fn *fn;
+	void *data;
+	int nr_running;
+	int nr_pending;
+	bool cancel_all;
+};
+
+static void io_wqe_cancel_pending_work(struct io_wqe *wqe,
+				       struct io_cb_cancel_data *match);
+
 static bool io_worker_get(struct io_worker *worker)
 {
 	return refcount_inc_not_zero(&worker->ref);
@@ -713,6 +724,23 @@ static void io_wq_check_workers(struct io_wq *wq)
 	}
 }
 
+static bool io_wq_work_match_all(struct io_wq_work *work, void *data)
+{
+	return true;
+}
+
+static void io_wq_cancel_pending(struct io_wq *wq)
+{
+	struct io_cb_cancel_data match = {
+		.fn		= io_wq_work_match_all,
+		.cancel_all	= true,
+	};
+	int node;
+
+	for_each_node(node)
+		io_wqe_cancel_pending_work(wq->wqes[node], &match);
+}
+
 /*
  * Manager thread. Tasked with creating new workers, if we need them.
  */
@@ -748,6 +776,8 @@ static int io_wq_manager(void *data)
 	/* we might not ever have created any workers */
 	if (atomic_read(&wq->worker_refs))
 		wait_for_completion(&wq->worker_done);
+
+	io_wq_cancel_pending(wq);
 	complete(&wq->exited);
 	do_exit(0);
 }
@@ -809,7 +839,8 @@ static void io_wqe_enqueue(struct io_wqe *wqe, struct io_wq_work *work)
 	unsigned long flags;
 
 	/* Can only happen if manager creation fails after exec */
-	if (unlikely(io_wq_fork_manager(wqe->wq))) {
+	if (io_wq_fork_manager(wqe->wq) ||
+	    test_bit(IO_WQ_BIT_EXIT, &wqe->wq->state)) {
 		work->flags |= IO_WQ_WORK_CANCEL;
 		wqe->wq->do_work(work);
 		return;
@@ -844,14 +875,6 @@ void io_wq_hash_work(struct io_wq_work *work, void *val)
 	bit = hash_ptr(val, IO_WQ_HASH_ORDER);
 	work->flags |= (IO_WQ_WORK_HASHED | (bit << IO_WQ_HASH_SHIFT));
 }
-
-struct io_cb_cancel_data {
-	work_cancel_fn *fn;
-	void *data;
-	int nr_running;
-	int nr_pending;
-	bool cancel_all;
-};
 
 static bool io_wq_worker_cancel(struct io_worker *worker, void *data)
 {
@@ -1086,6 +1109,7 @@ static void io_wq_destroy(struct io_wq *wq)
 		struct io_wqe *wqe = wq->wqes[node];
 
 		list_del_init(&wqe->wait.entry);
+		WARN_ON_ONCE(!wq_list_empty(&wqe->work_list));
 		kfree(wqe);
 	}
 	spin_unlock_irq(&wq->hash->wait.lock);
