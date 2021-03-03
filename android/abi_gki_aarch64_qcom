@@ -937,6 +937,7 @@
   get_unused_fd_flags
   get_user_pages
   get_zeroed_page
+  gfp_zone
   gic_nonsecure_priorities
   gov_attr_set_init
   gov_attr_set_put
@@ -1111,13 +1112,6 @@
   iommu_put_dma_cookie
   iommu_set_fault_handler
   iommu_unmap
-  ion_alloc
-  ion_buffer_zero
-  __ion_device_add_heap
-  ion_free
-  ion_heap_map_kernel
-  ion_heap_map_user
-  ion_heap_unmap_kernel
   __ioread32_copy
   __ioremap
   iounmap
@@ -1390,6 +1384,7 @@
   __netlink_kernel_create
   netlink_kernel_release
   netlink_unicast
+  __next_zones_zonelist
   nla_find
   nla_memcpy
   __nla_parse
@@ -1801,6 +1796,7 @@
   refcount_dec_and_lock
   refcount_dec_not_one
   refcount_warn_saturate
+  __refrigerator
   regcache_cache_only
   regcache_mark_dirty
   regcache_sync
@@ -2653,3 +2649,5 @@
   xa_find_after
   xa_load
   xa_store
+  zone_watermark_ok
+  zone_watermark_ok_safe
