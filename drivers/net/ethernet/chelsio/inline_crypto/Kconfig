@@ -42,6 +42,7 @@ config CHELSIO_TLS_DEVICE
         depends on CHELSIO_T4
         depends on TLS
         depends on TLS_DEVICE
+	select CRYPTO_LIB_AES
         help
           This flag enables support for kernel tls offload over Chelsio T6
           crypto accelerator. CONFIG_CHELSIO_TLS_DEVICE flag can be enabled

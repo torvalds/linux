@@ -194,3 +194,17 @@ Description:	The "tpm_version_major" property shows the TCG spec major version
 		Example output::
 
 		  2
+
+What:		/sys/class/tpm/tpmX/pcr-H/N
+Date:		March 2021
+KernelVersion:	5.12
+Contact:	linux-integrity@vger.kernel.org
+Description:	produces output in compact hex representation for PCR
+		number N from hash bank H.  N is the numeric value of
+		the PCR number and H is the crypto string
+		representation of the hash
+
+		Example output::
+
+		  cat /sys/class/tpm/tpm0/pcr-sha256/7
+		  2ED93F199692DC6788EFA6A1FE74514AB9760B2A6CEEAEF6C808C13E4ABB0D42
