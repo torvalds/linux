@@ -981,6 +981,7 @@ void pm8001_open_reject_retry(
 }
 
 /**
+ * pm8001_I_T_nexus_reset()
   * Standard mandates link reset for ATA  (type 0) and hard reset for
   * SSP (type 1) , only for RECOVERY
   * @dev: the device structure for the device to reset.
