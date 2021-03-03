@@ -579,7 +579,7 @@
 			maxim,rcomp = /bits/ 8 <0x4d>;
 
 			interrupt-parent = <&msmgpio>;
-			interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
+			interrupts = <9 IRQ_TYPE_LEVEL_LOW>;
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&fuelgauge_pin>;
