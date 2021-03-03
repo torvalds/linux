@@ -746,7 +746,6 @@ static int bch2_set_quota(struct super_block *sb, struct kqid qid,
 			  struct qc_dqblk *qdq)
 {
 	struct bch_fs *c = sb->s_fs_info;
-	struct btree_trans trans;
 	struct bkey_i_quota new_quota;
 	int ret;
 
@@ -756,13 +755,9 @@ static int bch2_set_quota(struct super_block *sb, struct kqid qid,
 	bkey_quota_init(&new_quota.k_i);
 	new_quota.k.p = POS(qid.type, from_kqid(&init_user_ns, qid));
 
-	bch2_trans_init(&trans, c, 0, 0);
-
 	ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_NOUNLOCK,
 			    bch2_set_quota_trans(&trans, &new_quota, qdq)) ?:
 		__bch2_quota_set(c, bkey_i_to_s_c(&new_quota.k_i));
-
-	bch2_trans_exit(&trans);
 
 	return ret;
 }
