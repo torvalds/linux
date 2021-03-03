@@ -485,7 +485,7 @@ megasas_read_fw_status_reg_xscale(struct megasas_instance *instance)
 	return readl(&instance->reg_set->outbound_msg_0);
 }
 /**
- * megasas_clear_interrupt_xscale -	Check & clear interrupt
+ * megasas_clear_intr_xscale -	Check & clear interrupt
  * @instance:	Adapter soft state
  */
 static int
@@ -668,7 +668,7 @@ megasas_read_fw_status_reg_ppc(struct megasas_instance *instance)
 }
 
 /**
- * megasas_clear_interrupt_ppc -	Check & clear interrupt
+ * megasas_clear_intr_ppc -	Check & clear interrupt
  * @instance:	Adapter soft state
  */
 static int
@@ -797,7 +797,7 @@ megasas_read_fw_status_reg_skinny(struct megasas_instance *instance)
 }
 
 /**
- * megasas_clear_interrupt_skinny -	Check & clear interrupt
+ * megasas_clear_intr_skinny -	Check & clear interrupt
  * @instance:	Adapter soft state
  */
 static int
@@ -945,7 +945,7 @@ megasas_read_fw_status_reg_gen2(struct megasas_instance *instance)
 }
 
 /**
- * megasas_clear_interrupt_gen2 -      Check & clear interrupt
+ * megasas_clear_intr_gen2 -      Check & clear interrupt
  * @instance:	Adapter soft state
  */
 static int
@@ -4918,6 +4918,7 @@ megasas_ld_list_query(struct megasas_instance *instance, u8 query_type)
 }
 
 /**
+ * megasas_host_device_list_query
  * dcmd.opcode            - MR_DCMD_CTRL_DEVICE_LIST_GET
  * dcmd.mbox              - reserved
  * dcmd.sge IN            - ptr to return MR_HOST_DEVICE_LIST structure
@@ -5195,7 +5196,7 @@ void megasas_get_snapdump_properties(struct megasas_instance *instance)
 }
 
 /**
- * megasas_get_controller_info -	Returns FW's controller structure
+ * megasas_get_ctrl_info -	Returns FW's controller structure
  * @instance:				Adapter soft state
  *
  * Issues an internal command (DCMD) to get the FW's controller structure.
