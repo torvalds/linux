@@ -36,7 +36,9 @@ union intel_x86_pebs_dse {
 		unsigned int ld_dse:4;
 		unsigned int ld_stlb_miss:1;
 		unsigned int ld_locked:1;
-		unsigned int ld_reserved:26;
+		unsigned int ld_data_blk:1;
+		unsigned int ld_addr_blk:1;
+		unsigned int ld_reserved:24;
 	};
 	struct {
 		unsigned int st_l1d_hit:1;
@@ -44,6 +46,12 @@ union intel_x86_pebs_dse {
 		unsigned int st_stlb_miss:1;
 		unsigned int st_locked:1;
 		unsigned int st_reserved2:26;
+	};
+	struct {
+		unsigned int st_lat_dse:4;
+		unsigned int st_lat_stlb_miss:1;
+		unsigned int st_lat_locked:1;
+		unsigned int ld_reserved3:26;
 	};
 };
 
@@ -197,6 +205,63 @@ static u64 load_latency_data(u64 status)
 	 */
 	if (dse.ld_locked)
 		val |= P(LOCK, LOCKED);
+
+	/*
+	 * Ice Lake and earlier models do not support block infos.
+	 */
+	if (!x86_pmu.pebs_block) {
+		val |= P(BLK, NA);
+		return val;
+	}
+	/*
+	 * bit 6: load was blocked since its data could not be forwarded
+	 *        from a preceding store
+	 */
+	if (dse.ld_data_blk)
+		val |= P(BLK, DATA);
+
+	/*
+	 * bit 7: load was blocked due to potential address conflict with
+	 *        a preceding store
+	 */
+	if (dse.ld_addr_blk)
+		val |= P(BLK, ADDR);
+
+	if (!dse.ld_data_blk && !dse.ld_addr_blk)
+		val |= P(BLK, NA);
+
+	return val;
+}
+
+static u64 store_latency_data(u64 status)
+{
+	union intel_x86_pebs_dse dse;
+	u64 val;
+
+	dse.val = status;
+
+	/*
+	 * use the mapping table for bit 0-3
+	 */
+	val = pebs_data_source[dse.st_lat_dse];
+
+	/*
+	 * bit 4: TLB access
+	 * 0 = did not miss 2nd level TLB
+	 * 1 = missed 2nd level TLB
+	 */
+	if (dse.st_lat_stlb_miss)
+		val |= P(TLB, MISS) | P(TLB, L2);
+	else
+		val |= P(TLB, HIT) | P(TLB, L1) | P(TLB, L2);
+
+	/*
+	 * bit 5: locked prefix
+	 */
+	if (dse.st_lat_locked)
+		val |= P(LOCK, LOCKED);
+
+	val |= P(BLK, NA);
 
 	return val;
 }
@@ -870,6 +935,28 @@ struct event_constraint intel_icl_pebs_event_constraints[] = {
 	EVENT_CONSTRAINT_END
 };
 
+struct event_constraint intel_spr_pebs_event_constraints[] = {
+	INTEL_FLAGS_UEVENT_CONSTRAINT(0x1c0, 0x100000000ULL),
+	INTEL_FLAGS_UEVENT_CONSTRAINT(0x0400, 0x800000000ULL),
+
+	INTEL_FLAGS_EVENT_CONSTRAINT(0xc0, 0xfe),
+	INTEL_PLD_CONSTRAINT(0x1cd, 0xfe),
+	INTEL_PSD_CONSTRAINT(0x2cd, 0x1),
+	INTEL_FLAGS_UEVENT_CONSTRAINT_DATALA_LD(0x1d0, 0xf),
+	INTEL_FLAGS_UEVENT_CONSTRAINT_DATALA_ST(0x2d0, 0xf),
+
+	INTEL_FLAGS_EVENT_CONSTRAINT_DATALA_LD_RANGE(0xd1, 0xd4, 0xf),
+
+	INTEL_FLAGS_EVENT_CONSTRAINT(0xd0, 0xf),
+
+	/*
+	 * Everything else is handled by PMU_FL_PEBS_ALL, because we
+	 * need the full constraints from the main table.
+	 */
+
+	EVENT_CONSTRAINT_END
+};
+
 struct event_constraint *intel_pebs_constraints(struct perf_event *event)
 {
 	struct event_constraint *c;
@@ -960,7 +1047,8 @@ static void adaptive_pebs_record_size_update(void)
 }
 
 #define PERF_PEBS_MEMINFO_TYPE	(PERF_SAMPLE_ADDR | PERF_SAMPLE_DATA_SRC |   \
-				PERF_SAMPLE_PHYS_ADDR | PERF_SAMPLE_WEIGHT | \
+				PERF_SAMPLE_PHYS_ADDR |			     \
+				PERF_SAMPLE_WEIGHT_TYPE |		     \
 				PERF_SAMPLE_TRANSACTION |		     \
 				PERF_SAMPLE_DATA_PAGE_SIZE)
 
@@ -987,7 +1075,7 @@ static u64 pebs_update_adaptive_cfg(struct perf_event *event)
 	gprs = (sample_type & PERF_SAMPLE_REGS_INTR) &&
 	       (attr->sample_regs_intr & PEBS_GP_REGS);
 
-	tsx_weight = (sample_type & PERF_SAMPLE_WEIGHT) &&
+	tsx_weight = (sample_type & PERF_SAMPLE_WEIGHT_TYPE) &&
 		     ((attr->config & INTEL_ARCH_EVENT_MASK) ==
 		      x86_pmu.rtm_abort_event);
 
@@ -1331,6 +1419,8 @@ static u64 get_data_src(struct perf_event *event, u64 aux)
 
 	if (fl & PERF_X86_EVENT_PEBS_LDLAT)
 		val = load_latency_data(aux);
+	else if (fl & PERF_X86_EVENT_PEBS_STLAT)
+		val = store_latency_data(aux);
 	else if (fst && (fl & PERF_X86_EVENT_PEBS_HSW_PREC))
 		val = precise_datala_hsw(event, aux);
 	else if (fst)
@@ -1369,8 +1459,8 @@ static void setup_pebs_fixed_sample_data(struct perf_event *event,
 	/*
 	 * Use latency for weight (only avail with PEBS-LL)
 	 */
-	if (fll && (sample_type & PERF_SAMPLE_WEIGHT))
-		data->weight = pebs->lat;
+	if (fll && (sample_type & PERF_SAMPLE_WEIGHT_TYPE))
+		data->weight.full = pebs->lat;
 
 	/*
 	 * data.data_src encodes the data source
@@ -1462,8 +1552,8 @@ static void setup_pebs_fixed_sample_data(struct perf_event *event,
 
 	if (x86_pmu.intel_cap.pebs_format >= 2) {
 		/* Only set the TSX weight when no memory weight. */
-		if ((sample_type & PERF_SAMPLE_WEIGHT) && !fll)
-			data->weight = intel_get_tsx_weight(pebs->tsx_tuning);
+		if ((sample_type & PERF_SAMPLE_WEIGHT_TYPE) && !fll)
+			data->weight.full = intel_get_tsx_weight(pebs->tsx_tuning);
 
 		if (sample_type & PERF_SAMPLE_TRANSACTION)
 			data->txn = intel_get_tsx_transaction(pebs->tsx_tuning,
@@ -1506,6 +1596,9 @@ static void adaptive_pebs_save_regs(struct pt_regs *regs,
 	regs->r15 = gprs->r15;
 #endif
 }
+
+#define PEBS_LATENCY_MASK			0xffff
+#define PEBS_CACHE_LATENCY_OFFSET		32
 
 /*
  * With adaptive PEBS the layout depends on what fields are configured.
@@ -1577,9 +1670,27 @@ static void setup_pebs_adaptive_sample_data(struct perf_event *event,
 	}
 
 	if (format_size & PEBS_DATACFG_MEMINFO) {
-		if (sample_type & PERF_SAMPLE_WEIGHT)
-			data->weight = meminfo->latency ?:
-				intel_get_tsx_weight(meminfo->tsx_tuning);
+		if (sample_type & PERF_SAMPLE_WEIGHT_TYPE) {
+			u64 weight = meminfo->latency;
+
+			if (x86_pmu.flags & PMU_FL_INSTR_LATENCY) {
+				data->weight.var2_w = weight & PEBS_LATENCY_MASK;
+				weight >>= PEBS_CACHE_LATENCY_OFFSET;
+			}
+
+			/*
+			 * Although meminfo::latency is defined as a u64,
+			 * only the lower 32 bits include the valid data
+			 * in practice on Ice Lake and earlier platforms.
+			 */
+			if (sample_type & PERF_SAMPLE_WEIGHT) {
+				data->weight.full = weight ?:
+					intel_get_tsx_weight(meminfo->tsx_tuning);
+			} else {
+				data->weight.var1_dw = (u32)(weight & PEBS_LATENCY_MASK) ?:
+					intel_get_tsx_weight(meminfo->tsx_tuning);
+			}
+		}
 
 		if (sample_type & PERF_SAMPLE_DATA_SRC)
 			data->data_src.val = get_data_src(event, meminfo->aux);

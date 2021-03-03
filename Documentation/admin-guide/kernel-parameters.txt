@@ -373,6 +373,12 @@
 	arcrimi=	[HW,NET] ARCnet - "RIM I" (entirely mem-mapped) cards
 			Format: <io>,<irq>,<nodeID>
 
+	arm64.nobti	[ARM64] Unconditionally disable Branch Target
+			Identification support
+
+	arm64.nopauth	[ARM64] Unconditionally disable Pointer Authentication
+			support
+
 	ataflop=	[HW,M68k]
 
 	atarimouse=	[HW,MOUSE] Atari Mouse
@@ -944,12 +950,6 @@
 			disable BSP to wake up multiple CPUs without
 			causing system reset or hang due to sending
 			INIT from AP to BSP.
-
-	perf_v4_pmi=	[X86,INTEL]
-			Format: <bool>
-			Disable Intel PMU counter freezing feature.
-			The feature only exists starting from
-			Arch Perfmon v4 (Skylake and newer).
 
 	disable_ddw	[PPC/PSERIES]
 			Disable Dynamic DMA Window support. Use this
@@ -2261,6 +2261,9 @@
 
 	kvm-arm.mode=
 			[KVM,ARM] Select one of KVM/arm64's modes of operation.
+
+			nvhe: Standard nVHE-based mode, without support for
+			      protected guests.
 
 			protected: nVHE-based mode with support for guests whose
 				   state is kept private from the host.

@@ -199,12 +199,6 @@ extern void __vgic_v3_init_lrs(void);
 
 extern u32 __kvm_get_mdcr_el2(void);
 
-#if defined(GCC_VERSION) && GCC_VERSION < 50000
-#define SYM_CONSTRAINT	"i"
-#else
-#define SYM_CONSTRAINT	"S"
-#endif
-
 /*
  * Obtain the PC-relative address of a kernel symbol
  * s: symbol
@@ -221,7 +215,7 @@ extern u32 __kvm_get_mdcr_el2(void);
 		typeof(s) *addr;					\
 		asm("adrp	%0, %1\n"				\
 		    "add	%0, %0, :lo12:%1\n"			\
-		    : "=r" (addr) : SYM_CONSTRAINT (&s));		\
+		    : "=r" (addr) : "S" (&s));				\
 		addr;							\
 	})
 
