@@ -2876,6 +2876,7 @@ static void mmc_blk_remove_debugfs(struct mmc_card *card,
 static int mmc_blk_probe(struct mmc_card *card)
 {
 	struct mmc_blk_data *md, *part_md;
+	int ret = 0;
 
 	/*
 	 * Check that the card supports the command class(es) we need.
@@ -2893,19 +2894,24 @@ static int mmc_blk_probe(struct mmc_card *card)
 	}
 
 	md = mmc_blk_alloc(card);
-	if (IS_ERR(md))
-		return PTR_ERR(md);
+	if (IS_ERR(md)) {
+		ret = PTR_ERR(md);
+		goto out_free;
+	}
 
-	if (mmc_blk_alloc_parts(card, md))
+	ret = mmc_blk_alloc_parts(card, md);
+	if (ret)
 		goto out;
 
 	dev_set_drvdata(&card->dev, md);
 
-	if (mmc_add_disk(md))
+	ret = mmc_add_disk(md);
+	if (ret)
 		goto out;
 
 	list_for_each_entry(part_md, &md->part, part) {
-		if (mmc_add_disk(part_md))
+		ret = mmc_add_disk(part_md);
+		if (ret)
 			goto out;
 	}
 
@@ -2926,10 +2932,12 @@ static int mmc_blk_probe(struct mmc_card *card)
 
 	return 0;
 
- out:
+out:
 	mmc_blk_remove_parts(card, md);
 	mmc_blk_remove_req(md);
-	return 0;
+out_free:
+	destroy_workqueue(card->complete_wq);
+	return ret;
 }
 
 static void mmc_blk_remove(struct mmc_card *card)
