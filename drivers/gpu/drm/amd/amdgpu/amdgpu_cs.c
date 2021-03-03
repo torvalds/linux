@@ -559,7 +559,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 					sizeof(struct page *),
 					GFP_KERNEL | __GFP_ZERO);
 		if (!e->user_pages) {
-			DRM_ERROR("calloc failure\n");
+			DRM_ERROR("kvmalloc_array failure\n");
 			return -ENOMEM;
 		}
 
