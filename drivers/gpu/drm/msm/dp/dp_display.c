@@ -503,7 +503,6 @@ static int dp_display_usbpd_attention_cb(struct device *dev)
 	int rc = 0;
 	u32 sink_request;
 	struct dp_display_private *dp;
-	struct dp_usbpd *hpd;
 
 	if (!dev) {
 		DRM_ERROR("invalid dev\n");
@@ -516,8 +515,6 @@ static int dp_display_usbpd_attention_cb(struct device *dev)
 		DRM_ERROR("no driver data found\n");
 		return -ENODEV;
 	}
-
-	hpd = dp->usbpd;
 
 	/* check for any test request issued by sink */
 	rc = dp_link_process_request(dp->link);
