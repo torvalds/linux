@@ -7575,6 +7575,10 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 			event_type, cause);
 		break;
 
+	case GAUDI_EVENT_BMC_RESET_CMD:
+		gaudi_print_irq_info(hdev, event_type, false);
+		goto reset_device;
+
 	case GAUDI_EVENT_PKT_QUEUE_OUT_SYNC:
 		gaudi_print_irq_info(hdev, event_type, false);
 		gaudi_print_out_of_sync_info(hdev, &eq_entry->pkt_sync_err);

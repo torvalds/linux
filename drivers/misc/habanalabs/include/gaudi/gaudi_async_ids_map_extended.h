@@ -670,7 +670,7 @@ static struct gaudi_async_events_ids_map gaudi_irq_map_table[] = {
 	{ .fc_id = 643, .cpu_id = 492, .valid = 0, .name = "" },
 	{ .fc_id = 644, .cpu_id = 493, .valid = 0, .name = "" },
 	{ .fc_id = 645, .cpu_id = 494, .valid = 0, .name = "" },
-	{ .fc_id = 646, .cpu_id = 495, .valid = 0, .name = "" },
+	{ .fc_id = 646, .cpu_id = 495, .valid = 1, .name = "BMC_RST_CMD" },
 	{ .fc_id = 647, .cpu_id = 496, .valid = 0, .name = "" },
 	{ .fc_id = 648, .cpu_id = 497, .valid = 0, .name = "" },
 	{ .fc_id = 649, .cpu_id = 498, .valid = 0, .name = "" },
