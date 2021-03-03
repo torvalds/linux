@@ -502,6 +502,7 @@ u32 aarch32_insn_mcr_extract_crm(u32 insn);
 
 typedef bool (pstate_check_t)(unsigned long);
 extern pstate_check_t * const aarch32_opcode_cond_checks[16];
+
 #endif /* __ASSEMBLY__ */
 
 #endif	/* __ASM_INSN_H */
