@@ -676,34 +676,23 @@ struct spi_device *spi_new_device(struct spi_controller *ctlr,
 	proxy->controller_data = chip->controller_data;
 	proxy->controller_state = NULL;
 
-	if (chip->properties) {
-		status = device_add_properties(&proxy->dev, chip->properties);
-		if (status) {
-			dev_err(&ctlr->dev,
-				"failed to add properties to '%s': %d\n",
-				chip->modalias, status);
-			goto err_dev_put;
-		}
-	}
-
 	if (chip->swnode) {
 		status = device_add_software_node(&proxy->dev, chip->swnode);
 		if (status) {
 			dev_err(&ctlr->dev, "failed to add softwade node to '%s': %d\n",
 				chip->modalias, status);
-			goto err_remove_props;
+			goto err_dev_put;
 		}
 	}
 
 	status = spi_add_device(proxy);
 	if (status < 0)
-		goto err_remove_props;
+		goto err_dev_put;
 
 	return proxy;
 
-err_remove_props:
-	device_remove_software_node(&proxy->dev);
 err_dev_put:
+	device_remove_software_node(&proxy->dev);
 	spi_dev_put(proxy);
 	return NULL;
 }
@@ -764,7 +753,6 @@ static void spi_match_controller_to_boardinfo(struct spi_controller *ctlr,
  *
  * The board info passed can safely be __initdata ... but be careful of
  * any embedded pointers (platform_data, etc), they're copied as-is.
- * Device properties are deep-copied though.
  *
  * Return: zero on success, else a negative error code.
  */
@@ -784,12 +772,6 @@ int spi_register_board_info(struct spi_board_info const *info, unsigned n)
 		struct spi_controller *ctlr;
 
 		memcpy(&bi->board_info, info, sizeof(*info));
-		if (info->properties) {
-			bi->board_info.properties =
-					property_entries_dup(info->properties);
-			if (IS_ERR(bi->board_info.properties))
-				return PTR_ERR(bi->board_info.properties);
-		}
 
 		mutex_lock(&board_lock);
 		list_add_tail(&bi->list, &board_list);
