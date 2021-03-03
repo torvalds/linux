@@ -25,6 +25,7 @@ static int mt7915_start(struct ieee80211_hw *hw)
 	struct mt7915_dev *dev = mt7915_hw_dev(hw);
 	struct mt7915_phy *phy = mt7915_hw_phy(hw);
 	bool running;
+	int ret;
 
 	flush_work(&dev->init_work);
 
@@ -33,21 +34,44 @@ static int mt7915_start(struct ieee80211_hw *hw)
 	running = mt7915_dev_running(dev);
 
 	if (!running) {
-		mt7915_mcu_set_pm(dev, 0, 0);
-		mt7915_mcu_set_mac(dev, 0, true, true);
-		mt7915_mcu_set_scs(dev, 0, true);
+		ret = mt7915_mcu_set_pm(dev, 0, 0);
+		if (ret)
+			goto out;
+
+		ret = mt7915_mcu_set_mac(dev, 0, true, true);
+		if (ret)
+			goto out;
+
+		ret = mt7915_mcu_set_scs(dev, 0, true);
+		if (ret)
+			goto out;
+
 		mt7915_mac_enable_nf(dev, 0);
 	}
 
 	if (phy != &dev->phy) {
-		mt7915_mcu_set_pm(dev, 1, 0);
-		mt7915_mcu_set_mac(dev, 1, true, true);
-		mt7915_mcu_set_scs(dev, 1, true);
+		ret = mt7915_mcu_set_pm(dev, 1, 0);
+		if (ret)
+			goto out;
+
+		ret = mt7915_mcu_set_mac(dev, 1, true, true);
+		if (ret)
+			goto out;
+
+		ret = mt7915_mcu_set_scs(dev, 1, true);
+		if (ret)
+			goto out;
+
 		mt7915_mac_enable_nf(dev, 1);
 	}
 
-	mt7915_mcu_set_sku_en(phy, true);
-	mt7915_mcu_set_chan_info(phy, MCU_EXT_CMD(SET_RX_PATH));
+	ret = mt7915_mcu_set_sku_en(phy, true);
+	if (ret)
+		goto out;
+
+	ret = mt7915_mcu_set_chan_info(phy, MCU_EXT_CMD(SET_RX_PATH));
+	if (ret)
+		goto out;
 
 	set_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 
@@ -58,9 +82,10 @@ static int mt7915_start(struct ieee80211_hw *hw)
 	if (!running)
 		mt7915_mac_reset_counters(phy);
 
+out:
 	mutex_unlock(&dev->mt76.mutex);
 
-	return 0;
+	return ret;
 }
 
 static void mt7915_stop(struct ieee80211_hw *hw)
@@ -631,12 +656,13 @@ static int mt7915_set_rts_threshold(struct ieee80211_hw *hw, u32 val)
 {
 	struct mt7915_dev *dev = mt7915_hw_dev(hw);
 	struct mt7915_phy *phy = mt7915_hw_phy(hw);
+	int ret;
 
 	mutex_lock(&dev->mt76.mutex);
-	mt7915_mcu_set_rts_thresh(phy, val);
+	ret = mt7915_mcu_set_rts_thresh(phy, val);
 	mutex_unlock(&dev->mt76.mutex);
 
-	return 0;
+	return ret;
 }
 
 static int
@@ -663,22 +689,22 @@ mt7915_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	case IEEE80211_AMPDU_RX_START:
 		mt76_rx_aggr_start(&dev->mt76, &msta->wcid, tid, ssn,
 				   params->buf_size);
-		mt7915_mcu_add_rx_ba(dev, params, true);
+		ret = mt7915_mcu_add_rx_ba(dev, params, true);
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
 		mt76_rx_aggr_stop(&dev->mt76, &msta->wcid, tid);
-		mt7915_mcu_add_rx_ba(dev, params, false);
+		ret = mt7915_mcu_add_rx_ba(dev, params, false);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		mtxq->aggr = true;
 		mtxq->send_bar = false;
-		mt7915_mcu_add_tx_ba(dev, params, true);
+		ret = mt7915_mcu_add_tx_ba(dev, params, true);
 		break;
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		mtxq->aggr = false;
 		clear_bit(tid, &msta->ampdu_state);
-		mt7915_mcu_add_tx_ba(dev, params, false);
+		ret = mt7915_mcu_add_tx_ba(dev, params, false);
 		break;
 	case IEEE80211_AMPDU_TX_START:
 		set_bit(tid, &msta->ampdu_state);
@@ -687,7 +713,7 @@ mt7915_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	case IEEE80211_AMPDU_TX_STOP_CONT:
 		mtxq->aggr = false;
 		clear_bit(tid, &msta->ampdu_state);
-		mt7915_mcu_add_tx_ba(dev, params, false);
+		ret = mt7915_mcu_add_tx_ba(dev, params, false);
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 	}
