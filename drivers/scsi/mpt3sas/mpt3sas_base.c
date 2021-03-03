@@ -4172,7 +4172,7 @@ _base_put_smid_hi_priority_atomic(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 }
 
 /**
- * _base_put_smid_default - Default, primarily used for config pages
+ * _base_put_smid_default_atomic - Default, primarily used for config pages
  * use Atomic Request Descriptor
  * @ioc: per adapter object
  * @smid: system request message index
