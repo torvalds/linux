@@ -508,7 +508,7 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 
 		// Initialize outbox1 ring buffer
 		rb_params.ctx = dmub;
-		rb_params.base_address = (void *) ((uint64_t) (mail_fb->cpu_addr) + DMUB_RB_SIZE);
+		rb_params.base_address = (void *) ((uint8_t *) (mail_fb->cpu_addr) + DMUB_RB_SIZE);
 		rb_params.capacity = DMUB_RB_SIZE;
 		dmub_rb_init(&dmub->outbox1_rb, &rb_params);
 
