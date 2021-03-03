@@ -404,9 +404,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 	rq->hw_mtu  = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 	rq->xdpsq   = &c->rq_xdpsq;
 	rq->xsk_pool = xsk_pool;
-	rq->ptp_cyc2time = mlx5_is_real_time_rq(mdev) ?
-			   mlx5_real_time_cyc2time :
-			   mlx5_timecounter_cyc2time;
+	rq->ptp_cyc2time = mlx5_rq_ts_translator(mdev);
 
 	if (rq->xsk_pool)
 		rq->stats = &c->priv->channel_stats[c->ix].xskrq;
@@ -1141,9 +1139,7 @@ static int mlx5e_alloc_txqsq(struct mlx5e_channel *c,
 	if (param->is_mpw)
 		set_bit(MLX5E_SQ_STATE_MPWQE, &sq->state);
 	sq->stop_room = param->stop_room;
-	sq->ptp_cyc2time = mlx5_is_real_time_sq(mdev) ?
-			   mlx5_real_time_cyc2time :
-			   mlx5_timecounter_cyc2time;
+	sq->ptp_cyc2time = mlx5_sq_ts_translator(mdev);
 
 	param->wq.db_numa_node = cpu_to_node(c->cpu);
 	err = mlx5_wq_cyc_create(mdev, &param->wq, sqc_wq, wq, &sq->wq_ctrl);
