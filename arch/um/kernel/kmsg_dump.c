@@ -10,6 +10,7 @@
 static void kmsg_dumper_stdout(struct kmsg_dumper *dumper,
 				enum kmsg_dump_reason reason)
 {
+	static struct kmsg_dump_iter iter;
 	static DEFINE_SPINLOCK(lock);
 	static char line[1024];
 	struct console *con;
@@ -35,8 +36,10 @@ static void kmsg_dumper_stdout(struct kmsg_dumper *dumper,
 	if (!spin_trylock_irqsave(&lock, flags))
 		return;
 
+	kmsg_dump_rewind(&iter);
+
 	printf("kmsg_dump:\n");
-	while (kmsg_dump_get_line(dumper, true, line, sizeof(line), &len)) {
+	while (kmsg_dump_get_line(&iter, true, line, sizeof(line), &len)) {
 		line[len] = '\0';
 		printf("%s", line);
 	}
