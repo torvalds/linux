@@ -532,7 +532,7 @@ static int visornic_disable_with_timeout(struct net_device *netdev,
 		return err;
 
 	/* wait for ack to arrive before we try to free rcv buffers
-	 * NOTE: the other end automatically unposts the rcv buffers when
+	 * NOTE: the other end automatically unposts the rcv buffers
 	 * when it gets a disable.
 	 */
 	spin_lock_irqsave(&devdata->priv_lock, flags);
