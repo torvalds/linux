@@ -364,54 +364,62 @@ mt7915_mcu_rx_radar_detected(struct mt7915_dev *dev, struct sk_buff *skb)
 	dev->hw_pattern++;
 }
 
-static void
+static int
 mt7915_mcu_tx_rate_parse(struct mt76_phy *mphy, struct mt7915_mcu_ra_info *ra,
 			 struct rate_info *rate, u16 r)
 {
 	struct ieee80211_supported_band *sband;
 	u16 ru_idx = le16_to_cpu(ra->ru_idx);
-	u16 flags = 0;
+	bool cck = false;
 
 	rate->mcs = FIELD_GET(MT_RA_RATE_MCS, r);
 	rate->nss = FIELD_GET(MT_RA_RATE_NSS, r) + 1;
 
 	switch (FIELD_GET(MT_RA_RATE_TX_MODE, r)) {
 	case MT_PHY_TYPE_CCK:
+		cck = true;
+		fallthrough;
 	case MT_PHY_TYPE_OFDM:
 		if (mphy->chandef.chan->band == NL80211_BAND_5GHZ)
 			sband = &mphy->sband_5g.sband;
 		else
 			sband = &mphy->sband_2g.sband;
 
+		rate->mcs = mt76_get_rate(mphy->dev, sband, rate->mcs, cck);
 		rate->legacy = sband->bitrates[rate->mcs].bitrate;
 		break;
 	case MT_PHY_TYPE_HT:
 	case MT_PHY_TYPE_HT_GF:
 		rate->mcs += (rate->nss - 1) * 8;
-		flags |= RATE_INFO_FLAGS_MCS;
+		if (rate->mcs > 31)
+			return -EINVAL;
 
+		rate->flags = RATE_INFO_FLAGS_MCS;
 		if (ra->gi)
-			flags |= RATE_INFO_FLAGS_SHORT_GI;
+			rate->flags |= RATE_INFO_FLAGS_SHORT_GI;
 		break;
 	case MT_PHY_TYPE_VHT:
-		flags |= RATE_INFO_FLAGS_VHT_MCS;
+		if (rate->mcs > 9)
+			return -EINVAL;
 
+		rate->flags = RATE_INFO_FLAGS_VHT_MCS;
 		if (ra->gi)
-			flags |= RATE_INFO_FLAGS_SHORT_GI;
+			rate->flags |= RATE_INFO_FLAGS_SHORT_GI;
 		break;
 	case MT_PHY_TYPE_HE_SU:
 	case MT_PHY_TYPE_HE_EXT_SU:
 	case MT_PHY_TYPE_HE_TB:
 	case MT_PHY_TYPE_HE_MU:
+		if (ra->gi > NL80211_RATE_INFO_HE_GI_3_2 || rate->mcs > 11)
+			return -EINVAL;
+
 		rate->he_gi = ra->gi;
 		rate->he_dcm = FIELD_GET(MT_RA_RATE_DCM_EN, r);
-
-		flags |= RATE_INFO_FLAGS_HE_MCS;
+		rate->flags = RATE_INFO_FLAGS_HE_MCS;
 		break;
 	default:
-		break;
+		return -EINVAL;
 	}
-	rate->flags = flags;
 
 	if (ru_idx) {
 		switch (ru_idx) {
@@ -448,6 +456,8 @@ mt7915_mcu_tx_rate_parse(struct mt76_phy *mphy, struct mt7915_mcu_ra_info *ra,
 			break;
 		}
 	}
+
+	return 0;
 }
 
 static void
@@ -478,12 +488,12 @@ mt7915_mcu_tx_rate_report(struct mt7915_dev *dev, struct sk_buff *skb)
 		mphy = dev->mt76.phy2;
 
 	/* current rate */
-	mt7915_mcu_tx_rate_parse(mphy, ra, &rate, curr);
-	stats->tx_rate = rate;
+	if (!mt7915_mcu_tx_rate_parse(mphy, ra, &rate, curr))
+		stats->tx_rate = rate;
 
 	/* probing rate */
-	mt7915_mcu_tx_rate_parse(mphy, ra, &prob_rate, probe);
-	stats->prob_rate = prob_rate;
+	if (!mt7915_mcu_tx_rate_parse(mphy, ra, &prob_rate, probe))
+		stats->prob_rate = prob_rate;
 
 	if (attempts) {
 		u16 success = le16_to_cpu(ra->success);
