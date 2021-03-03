@@ -31,6 +31,7 @@
 #include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/dmi.h>
+#include <linux/acpi.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include <sound/pcm.h>
@@ -1580,6 +1581,9 @@ int snd_soc_set_dmi_name(struct snd_soc_card *card, const char *flavour)
 
 	if (card->long_name)
 		return 0; /* long name already set by driver or from DMI */
+
+	if (!is_acpi_device_node(card->dev->fwnode))
+		return 0;
 
 	/* make up dmi long name as: vendor-product-version-board */
 	vendor = dmi_get_system_info(DMI_BOARD_VENDOR);
