@@ -7432,6 +7432,7 @@ static u32 get_supported_adv_flags(struct hci_dev *hdev)
 	flags |= MGMT_ADV_PARAM_TIMEOUT;
 	flags |= MGMT_ADV_PARAM_INTERVALS;
 	flags |= MGMT_ADV_PARAM_TX_POWER;
+	flags |= MGMT_ADV_PARAM_SCAN_RSP;
 
 	/* In extended adv TX_POWER returned from Set Adv Param
 	 * will be always valid.
