@@ -698,7 +698,7 @@ void dm_helpers_free_gpu_mem(
 	}
 }
 
-bool dm_helpes_dmub_outbox0_interrupt_control(struct dc_context *ctx, bool enable)
+bool dm_helpers_dmub_outbox0_interrupt_control(struct dc_context *ctx, bool enable)
 {
 	// TODO
 	return true;
