@@ -184,6 +184,7 @@
 #define WLED5_SINK_BRIGHTNESS_SLEW_RATE_CTL_REG	0xb8
 #define WLED5_EN_SLEW_CTL		BIT(7)
 #define WLED5_EN_EXP_LUT		BIT(6)
+#define WLED5_SLEW_RAMP_TIME_SEL	GENMASK(3, 0)
 
 #define WLED5_SINK_DIMMING_EXP_LUT0_LSB_REG	0xc0
 #define WLED5_SINK_DIMMING_EXP_LUT0_MSB_REG	0xc1
@@ -224,6 +225,7 @@ struct wled_config {
 	int string_cfg;
 	int mod_sel;
 	int cabc_sel;
+	int slew_ramp_time;
 	bool en_cabc;
 	bool ext_pfet_sc_pro_en;
 	bool auto_calib_enabled;
@@ -525,6 +527,16 @@ static int wled_set_brightness(struct wled *wled, u16 brightness)
 	return 0;
 }
 
+static bool wled_exp_dimming_supported(struct wled *wled)
+{
+	if (*wled->version == WLED_PM7325B)
+		return true;
+
+	dev_dbg(&wled->pdev->dev, "Exponential dimming not supported for WLED version %d\n",
+				*wled->version);
+	return false;
+}
+
 static int wled_update_status(struct backlight_device *bl)
 {
 	struct wled *wled = bl_get_data(bl);
@@ -559,6 +571,17 @@ static int wled_update_status(struct backlight_device *bl)
 				pr_err("wled enable failed rc:%d\n", rc);
 				goto unlock_mutex;
 			}
+
+			if (wled_exp_dimming_supported(wled)) {
+				rc = regmap_update_bits(wled->regmap,
+					wled->sink_addr + WLED5_SINK_BRIGHTNESS_SLEW_RATE_CTL_REG,
+					WLED5_SLEW_RAMP_TIME_SEL,
+					wled->cfg.slew_ramp_time);
+				if (rc < 0) {
+					pr_err("Failed to write to SLEW_RATE_REGISTER rc:%d\n", rc);
+					goto unlock_mutex;
+				}
+			}
 		}
 
 		if (is_wled5(wled)) {
@@ -570,6 +593,16 @@ static int wled_update_status(struct backlight_device *bl)
 			}
 		}
 	} else {
+		if (wled_exp_dimming_supported(wled)) {
+			rc = regmap_update_bits(wled->regmap,
+					wled->sink_addr + WLED5_SINK_BRIGHTNESS_SLEW_RATE_CTL_REG,
+					WLED5_SLEW_RAMP_TIME_SEL, 0);
+			if (rc < 0) {
+				pr_err("Failed to write to SLEW_RATE_REGISTER rc:%d\n", rc);
+				goto unlock_mutex;
+			}
+		}
+
 		rc = wled_module_enable(wled, brightness);
 		if (rc < 0) {
 			pr_err("wled disable failed rc:%d\n", rc);
@@ -1134,16 +1167,6 @@ static inline u8 get_wled_safety_time(int time_ms)
 	return 0;
 }
 
-static bool wled_exp_dimming_supported(struct wled *wled)
-{
-	if (*wled->version == WLED_PM7325B)
-		return true;
-
-	dev_dbg(&wled->pdev->dev, "Exponential dimming not supported for WLED version %d\n",
-				*wled->version);
-	return false;
-}
-
 static int wled_read_exp_dimming_map(struct device_node *node, struct wled *wled)
 {
 	int rc, len;
@@ -1314,6 +1337,17 @@ static int wled5_setup(struct wled *wled)
 	rc = wled_auto_calibrate_at_init(wled);
 	if (rc < 0)
 		return rc;
+
+	if (wled_exp_dimming_supported(wled)) {
+		val = WLED5_EN_SLEW_CTL | wled->cfg.slew_ramp_time;
+		rc = regmap_update_bits(wled->regmap,
+			wled->sink_addr +
+			WLED5_SINK_BRIGHTNESS_SLEW_RATE_CTL_REG,
+			WLED5_EN_SLEW_CTL | WLED5_SLEW_RAMP_TIME_SEL,
+			val);
+		if (rc < 0)
+			return rc;
+	}
 
 	if (wled->cfg.use_exp_dimming) {
 		rc = wled_program_exp_dimming(wled);
@@ -1496,6 +1530,7 @@ static const struct wled_config wled4_config_defaults = {
 	.string_cfg = 0xf,
 	.mod_sel = -EINVAL,
 	.cabc_sel = -EINVAL,
+	.slew_ramp_time = -EINVAL,
 	.en_cabc = 0,
 	.ext_pfet_sc_pro_en = 0,
 	.auto_calib_enabled = 0,
@@ -1509,6 +1544,7 @@ static const struct wled_config wled5_config_defaults = {
 	.string_cfg = 0xf,
 	.mod_sel = 0,
 	.cabc_sel = 0,
+	.slew_ramp_time = 6,	/* 256 ms */
 	.en_cabc = 0,
 	.ext_pfet_sc_pro_en = 0,
 	.auto_calib_enabled = 0,
@@ -1593,6 +1629,17 @@ static const struct wled_var_cfg wled5_mod_sel_cfg = {
 
 static const struct wled_var_cfg wled5_cabc_sel_cfg = {
 	.size = 4,
+};
+
+/* Applicable only for PM7325B */
+static const u32 wled5_slew_ramp_time_values[] = {
+	2, 4, 8, 64, 128, 192, 256, 320, 384, 448, 512, 704,
+	896, 1024, 2048, 4096,
+};
+
+static const struct wled_var_cfg wled5_slew_ramp_time_cfg = {
+	.values = wled5_slew_ramp_time_values,
+	.size = ARRAY_SIZE(wled5_slew_ramp_time_values),
 };
 
 static u32 wled_values(const struct wled_var_cfg *cfg, u32 idx)
@@ -2367,6 +2414,11 @@ static int wled_configure(struct wled *wled, struct device *dev)
 			.name = "qcom,cabc-sel",
 			.val_ptr = &cfg->cabc_sel,
 			.cfg = &wled5_cabc_sel_cfg,
+		},
+		{
+			.name = "qcom,slew-ramp-time",
+			.val_ptr = &cfg->slew_ramp_time,
+			.cfg = &wled5_slew_ramp_time_cfg,
 		},
 	};
 
