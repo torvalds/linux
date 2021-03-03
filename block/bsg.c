@@ -157,10 +157,8 @@ static int bsg_sg_io(struct request_queue *q, fmode_t mode, void __user *uarg)
 		return PTR_ERR(rq);
 
 	ret = q->bsg_dev.ops->fill_hdr(rq, &hdr, mode);
-	if (ret) {
-		blk_put_request(rq);
+	if (ret)
 		return ret;
-	}
 
 	rq->timeout = msecs_to_jiffies(hdr.timeout);
 	if (!rq->timeout)
@@ -183,7 +181,7 @@ static int bsg_sg_io(struct request_queue *q, fmode_t mode, void __user *uarg)
 
 	bio = rq->bio;
 
-	blk_execute_rq(NULL, rq, !(hdr.flags & BSG_FLAG_Q_AT_TAIL));
+	blk_execute_rq(q, NULL, rq, !(hdr.flags & BSG_FLAG_Q_AT_TAIL));
 	ret = rq->q->bsg_dev.ops->complete_rq(rq, &hdr);
 	blk_rq_unmap_user(bio);
 
