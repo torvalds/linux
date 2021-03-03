@@ -299,7 +299,7 @@ static DEVICE_ATTR(sas_spec_support, S_IRUGO,
 		   pm8001_ctl_sas_spec_support_show, NULL);
 
 /**
- * pm8001_ctl_sas_address_show - sas address
+ * pm8001_ctl_host_sas_address_show - sas address
  * @cdev: pointer to embedded class device
  * @attr: device attribute (unused)
  * @buf: the buffer returned
@@ -518,7 +518,7 @@ static ssize_t event_log_size_show(struct device *cdev,
 }
 static DEVICE_ATTR_RO(event_log_size);
 /**
- * pm8001_ctl_aap_log_show - IOP event log
+ * pm8001_ctl_iop_log_show - IOP event log
  * @cdev: pointer to embedded class device
  * @attr: device attribute (unused)
  * @buf: the buffer returned
