@@ -104,7 +104,7 @@ static int parse_qcomsmem_part(struct mtd_info *mtd,
 	 * complete partition table
 	 */
 	ptable = qcom_smem_get(SMEM_APPS, SMEM_AARM_PARTITION_TABLE, &len);
-	if (IS_ERR_OR_NULL(ptable)) {
+	if (IS_ERR(ptable)) {
 		pr_err("Error reading partition table\n");
 		return PTR_ERR(ptable);
 	}
