@@ -20,6 +20,7 @@
 
 struct dma_chan;
 struct property_entry;
+struct software_node;
 struct spi_controller;
 struct spi_transfer;
 struct spi_controller_mem_ops;
@@ -1409,7 +1410,8 @@ static inline ssize_t spi_w8r16be(struct spi_device *spi, u8 cmd)
  * @modalias: Initializes spi_device.modalias; identifies the driver.
  * @platform_data: Initializes spi_device.platform_data; the particular
  *	data stored there is driver-specific.
- * @properties: Additional device properties for the device.
+ * @properties: Deprecated - use software node instead.
+ * @swnode: Software node for the device.
  * @controller_data: Initializes spi_device.controller_data; some
  *	controllers need hints about hardware setup, e.g. for DMA.
  * @irq: Initializes spi_device.irq; depends on how the board is wired.
@@ -1448,6 +1450,7 @@ struct spi_board_info {
 	char		modalias[SPI_NAME_SIZE];
 	const void	*platform_data;
 	const struct property_entry *properties;
+	const struct software_node *swnode;
 	void		*controller_data;
 	int		irq;
 

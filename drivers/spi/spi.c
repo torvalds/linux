@@ -686,6 +686,15 @@ struct spi_device *spi_new_device(struct spi_controller *ctlr,
 		}
 	}
 
+	if (chip->swnode) {
+		status = device_add_software_node(&proxy->dev, chip->swnode);
+		if (status) {
+			dev_err(&ctlr->dev, "failed to add softwade node to '%s': %d\n",
+				chip->modalias, status);
+			goto err_remove_props;
+		}
+	}
+
 	status = spi_add_device(proxy);
 	if (status < 0)
 		goto err_remove_props;
@@ -693,8 +702,7 @@ struct spi_device *spi_new_device(struct spi_controller *ctlr,
 	return proxy;
 
 err_remove_props:
-	if (chip->properties)
-		device_remove_properties(&proxy->dev);
+	device_remove_software_node(&proxy->dev);
 err_dev_put:
 	spi_dev_put(proxy);
 	return NULL;
@@ -719,6 +727,7 @@ void spi_unregister_device(struct spi_device *spi)
 	}
 	if (ACPI_COMPANION(&spi->dev))
 		acpi_device_clear_enumerated(ACPI_COMPANION(&spi->dev));
+	device_remove_software_node(&spi->dev);
 	device_unregister(&spi->dev);
 }
 EXPORT_SYMBOL_GPL(spi_unregister_device);
