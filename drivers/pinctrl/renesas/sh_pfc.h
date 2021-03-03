@@ -188,9 +188,9 @@ struct pinmux_drive_reg {
 	.reg = r, \
 	.fields =
 
-struct pinmux_bias_reg {
+struct pinmux_bias_reg {	/* At least one of puen/pud must exist */
 	u32 puen;		/* Pull-enable or pull-up control register */
-	u32 pud;		/* Pull-up/down control register (optional) */
+	u32 pud;		/* Pull-up/down or pull-down control register */
 	const u16 pins[32];
 };
 
