@@ -1458,8 +1458,8 @@ static bool dev_extent_hole_check_zoned(struct btrfs_device *device,
 		/* Given hole range was invalid (outside of device) */
 		if (ret == -ERANGE) {
 			*hole_start += *hole_size;
-			*hole_size = 0;
-			return 1;
+			*hole_size = false;
+			return true;
 		}
 
 		*hole_start += zone_size;
