@@ -395,6 +395,29 @@ done:
 	hci_dev_unlock(hdev);
 }
 
+static void hci_cc_set_event_filter(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *)skb->data);
+	struct hci_cp_set_event_filter *cp;
+	void *sent;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (status)
+		return;
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_SET_EVENT_FLT);
+	if (!sent)
+		return;
+
+	cp = (struct hci_cp_set_event_filter *)sent;
+
+	if (cp->flt_type == HCI_FLT_CLEAR_ALL)
+		hci_dev_clear_flag(hdev, HCI_EVENT_FILTER_CONFIGURED);
+	else
+		hci_dev_set_flag(hdev, HCI_EVENT_FILTER_CONFIGURED);
+}
+
 static void hci_cc_read_class_of_dev(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_rp_read_class_of_dev *rp = (void *) skb->data;
@@ -3326,6 +3349,10 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb,
 
 	case HCI_OP_WRITE_SCAN_ENABLE:
 		hci_cc_write_scan_enable(hdev, skb);
+		break;
+
+	case HCI_OP_SET_EVENT_FLT:
+		hci_cc_set_event_filter(hdev, skb);
 		break;
 
 	case HCI_OP_READ_CLASS_OF_DEV:
