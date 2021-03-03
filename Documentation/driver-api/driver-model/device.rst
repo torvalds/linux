@@ -63,8 +63,14 @@ Attributes are declared using a macro called DEVICE_ATTR::
 
 Example:::
 
-  static DEVICE_ATTR(type, 0444, show_type, NULL);
-  static DEVICE_ATTR(power, 0644, show_power, store_power);
+  static DEVICE_ATTR(type, 0444, type_show, NULL);
+  static DEVICE_ATTR(power, 0644, power_show, power_store);
+
+Helper macros are available for common values of mode, so the above examples
+can be simplified to:::
+
+  static DEVICE_ATTR_RO(type);
+  static DEVICE_ATTR_RW(power);
 
 This declares two structures of type struct device_attribute with respective
 names 'dev_attr_type' and 'dev_attr_power'. These two attributes can be
