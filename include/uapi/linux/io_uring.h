@@ -285,11 +285,21 @@ enum {
 	IORING_REGISTER_LAST
 };
 
+/* deprecated, see struct io_uring_rsrc_update */
 struct io_uring_files_update {
 	__u32 offset;
 	__u32 resv;
 	__aligned_u64 /* __s32 * */ fds;
 };
+
+struct io_uring_rsrc_update {
+	__u32 offset;
+	__u32 resv;
+	__aligned_u64 data;
+};
+
+/* Skip updating fd indexes set to this value in the fd table */
+#define IORING_REGISTER_FILES_SKIP	(-2)
 
 #define IO_URING_OP_SUPPORTED	(1U << 0)
 

@@ -22,7 +22,6 @@ obj-$(CONFIG_BLK_DEV_LOOP)	+= loop.o
 obj-$(CONFIG_XILINX_SYSACE)	+= xsysace.o
 obj-$(CONFIG_CDROM_PKTCDVD)	+= pktcdvd.o
 obj-$(CONFIG_SUNVDC)		+= sunvdc.o
-obj-$(CONFIG_BLK_DEV_SKD)	+= skd.o
 
 obj-$(CONFIG_BLK_DEV_UMEM)	+= umem.o
 obj-$(CONFIG_BLK_DEV_NBD)	+= nbd.o
@@ -43,5 +42,4 @@ obj-$(CONFIG_BLK_DEV_RNBD)	+= rnbd/
 
 obj-$(CONFIG_BLK_DEV_NULL_BLK)	+= null_blk/
 
-skd-y		:= skd_main.o
 swim_mod-y	:= swim.o swim_asm.o

@@ -64,9 +64,7 @@ struct io_worker {
 #endif
 	const struct cred *cur_creds;
 	const struct cred *saved_creds;
-	struct files_struct *restore_files;
 	struct nsproxy *restore_nsproxy;
-	struct fs_struct *restore_fs;
 };
 
 #if BITS_PER_LONG == 64
@@ -156,19 +154,19 @@ static bool __io_worker_unuse(struct io_wqe *wqe, struct io_worker *worker)
 		worker->cur_creds = worker->saved_creds = NULL;
 	}
 
-	if (current->files != worker->restore_files) {
+	if (current->files) {
 		__acquire(&wqe->lock);
 		raw_spin_unlock_irq(&wqe->lock);
 		dropped_lock = true;
 
 		task_lock(current);
-		current->files = worker->restore_files;
+		current->files = NULL;
 		current->nsproxy = worker->restore_nsproxy;
 		task_unlock(current);
 	}
 
-	if (current->fs != worker->restore_fs)
-		current->fs = worker->restore_fs;
+	if (current->fs)
+		current->fs = NULL;
 
 	/*
 	 * If we have an active mm, we need to drop the wq lock before unusing
@@ -329,11 +327,11 @@ static void io_worker_start(struct io_wqe *wqe, struct io_worker *worker)
 	allow_kernel_signal(SIGINT);
 
 	current->flags |= PF_IO_WORKER;
+	current->fs = NULL;
+	current->files = NULL;
 
 	worker->flags |= (IO_WORKER_F_UP | IO_WORKER_F_RUNNING);
-	worker->restore_files = current->files;
 	worker->restore_nsproxy = current->nsproxy;
-	worker->restore_fs = current->fs;
 	io_wqe_inc_running(wqe, worker);
 }
 
@@ -555,23 +553,21 @@ get_next:
 
 		/* handle a whole dependent link */
 		do {
-			struct io_wq_work *old_work, *next_hashed, *linked;
+			struct io_wq_work *next_hashed, *linked;
 			unsigned int hash = io_get_work_hash(work);
 
 			next_hashed = wq_next_work(work);
 			io_impersonate_work(worker, work);
+			wq->do_work(work);
+			io_assign_current_work(worker, NULL);
 
-			old_work = work;
-			linked = wq->do_work(work);
-
+			linked = wq->free_work(work);
 			work = next_hashed;
 			if (!work && linked && !io_wq_is_hashed(linked)) {
 				work = linked;
 				linked = NULL;
 			}
 			io_assign_current_work(worker, work);
-			wq->free_work(old_work);
-
 			if (linked)
 				io_wqe_enqueue(wqe, linked);
 
@@ -850,11 +846,9 @@ static void io_run_cancel(struct io_wq_work *work, struct io_wqe *wqe)
 	struct io_wq *wq = wqe->wq;
 
 	do {
-		struct io_wq_work *old_work = work;
-
 		work->flags |= IO_WQ_WORK_CANCEL;
-		work = wq->do_work(work);
-		wq->free_work(old_work);
+		wq->do_work(work);
+		work = wq->free_work(work);
 	} while (work);
 }
 
@@ -944,7 +938,6 @@ static bool io_wq_worker_cancel(struct io_worker *worker, void *data)
 	 */
 	spin_lock_irqsave(&worker->lock, flags);
 	if (worker->cur_work &&
-	    !(worker->cur_work->flags & IO_WQ_WORK_NO_CANCEL) &&
 	    match->fn(worker->cur_work, match->data)) {
 		send_sig(SIGINT, worker->task, 1);
 		match->nr_running++;
