@@ -184,7 +184,7 @@ static void pm8001_free(struct pm8001_hba_info *pm8001_ha)
 #ifdef PM8001_USE_TASKLET
 
 /**
- * tasklet for 64 msi-x interrupt handler
+ * pm8001_tasklet() - tasklet for 64 msi-x interrupt handler
  * @opaque: the passed general host adapter struct
  * Note: pm8001_tasklet is common for pm8001 & pm80xx
  */
@@ -864,7 +864,7 @@ void pm8001_get_phy_mask(struct pm8001_hba_info *pm8001_ha, int *phymask)
 }
 
 /**
- * pm8001_set_phy_settings_ven_117c_12Gb : Configure ATTO 12Gb PHY settings
+ * pm8001_set_phy_settings_ven_117c_12G() : Configure ATTO 12Gb PHY settings
  * @pm8001_ha : our adapter
  */
 static
