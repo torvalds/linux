@@ -14,8 +14,6 @@
 #include <linux/slab.h>
 #include "blk.h"
 
-#define BIP_INLINE_VECS	4
-
 static struct kmem_cache *bip_slab;
 static struct workqueue_struct *kintegrityd_wq;
 
@@ -30,7 +28,7 @@ static void __bio_integrity_free(struct bio_set *bs,
 	if (bs && mempool_initialized(&bs->bio_integrity_pool)) {
 		if (bip->bip_vec)
 			bvec_free(&bs->bvec_integrity_pool, bip->bip_vec,
-				  bip->bip_slab);
+				  bip->bip_max_vcnt);
 		mempool_free(bip, &bs->bio_integrity_pool);
 	} else {
 		kfree(bip);
@@ -63,7 +61,7 @@ struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
 		inline_vecs = nr_vecs;
 	} else {
 		bip = mempool_alloc(&bs->bio_integrity_pool, gfp_mask);
-		inline_vecs = BIP_INLINE_VECS;
+		inline_vecs = BIO_INLINE_VECS;
 	}
 
 	if (unlikely(!bip))
@@ -72,14 +70,11 @@ struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
 	memset(bip, 0, sizeof(*bip));
 
 	if (nr_vecs > inline_vecs) {
-		unsigned long idx = 0;
-
-		bip->bip_vec = bvec_alloc(gfp_mask, nr_vecs, &idx,
-					  &bs->bvec_integrity_pool);
+		bip->bip_max_vcnt = nr_vecs;
+		bip->bip_vec = bvec_alloc(&bs->bvec_integrity_pool,
+					  &bip->bip_max_vcnt, gfp_mask);
 		if (!bip->bip_vec)
 			goto err;
-		bip->bip_max_vcnt = bvec_nr_vecs(idx);
-		bip->bip_slab = idx;
 	} else {
 		bip->bip_vec = bip->bip_inline_vecs;
 		bip->bip_max_vcnt = inline_vecs;
@@ -470,6 +465,6 @@ void __init bio_integrity_init(void)
 
 	bip_slab = kmem_cache_create("bio_integrity_payload",
 				     sizeof(struct bio_integrity_payload) +
-				     sizeof(struct bio_vec) * BIP_INLINE_VECS,
+				     sizeof(struct bio_vec) * BIO_INLINE_VECS,
 				     0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
 }
