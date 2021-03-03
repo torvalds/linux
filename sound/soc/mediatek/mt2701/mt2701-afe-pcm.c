@@ -655,7 +655,7 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 
 		},
 		.ops = &mt2701_afe_i2s_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.name = "I2S1",
@@ -679,7 +679,7 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 				| SNDRV_PCM_FMTBIT_S32_LE)
 			},
 		.ops = &mt2701_afe_i2s_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.name = "I2S2",
@@ -703,7 +703,7 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 				| SNDRV_PCM_FMTBIT_S32_LE)
 			},
 		.ops = &mt2701_afe_i2s_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.name = "I2S3",
@@ -727,7 +727,7 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 				| SNDRV_PCM_FMTBIT_S32_LE)
 			},
 		.ops = &mt2701_afe_i2s_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.name = "MRG BT",
@@ -749,7 +749,7 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 			.formats = SNDRV_PCM_FMTBIT_S16_LE,
 		},
 		.ops = &mt2701_btmrg_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	}
 };
 

@@ -530,7 +530,7 @@ static int add_jack_kctl(struct hda_codec *codec, hda_nid_t nid,
 		       !is_jack_detectable(codec, nid);
 
 	if (base_name)
-		strlcpy(name, base_name, sizeof(name));
+		strscpy(name, base_name, sizeof(name));
 	else
 		snd_hda_get_pin_label(codec, nid, cfg, name, sizeof(name), NULL);
 	if (phantom_jack)

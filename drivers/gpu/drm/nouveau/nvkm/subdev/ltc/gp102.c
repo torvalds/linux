@@ -45,7 +45,8 @@ gp102_ltc = {
 };
 
 int
-gp102_ltc_new(struct nvkm_device *device, int index, struct nvkm_ltc **pltc)
+gp102_ltc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_ltc **pltc)
 {
-	return nvkm_ltc_new_(&gp102_ltc, device, index, pltc);
+	return nvkm_ltc_new_(&gp102_ltc, device, type, inst, pltc);
 }

@@ -103,6 +103,8 @@ struct dc_link {
 	bool lttpr_non_transparent_mode;
 	bool is_internal_display;
 
+	bool edp_sink_present;
+
 	/* caps is the same as reported_link_cap. link_traing use
 	 * reported_link_cap. Will clean up.  TODO
 	 */
@@ -259,6 +261,13 @@ enum dc_status dc_link_reallocate_mst_payload(struct dc_link *link);
 bool dc_link_handle_hpd_rx_irq(struct dc_link *dc_link,
 		union hpd_irq_data *hpd_irq_dpcd_data, bool *out_link_loss);
 
+/*
+ * On eDP links this function call will stall until T12 has elapsed.
+ * If the panel is not in power off state, this function will return
+ * immediately.
+ */
+bool dc_link_wait_for_t12(struct dc_link *link);
+
 enum dc_status read_hpd_rx_irq_data(
 	struct dc_link *link,
 	union hpd_irq_data *irq_data);
@@ -369,5 +378,6 @@ uint32_t dc_bandwidth_in_kbps_from_timing(
 	const struct dc_crtc_timing *timing);
 
 bool dc_link_is_fec_supported(const struct dc_link *link);
+bool dc_link_should_enable_fec(const struct dc_link *link);
 
 #endif /* DC_LINK_H_ */

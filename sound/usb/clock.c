@@ -298,6 +298,11 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 	if (selector) {
 		int ret, i, cur;
 
+		if (selector->bNrInPins == 1) {
+			ret = 1;
+			goto find_source;
+		}
+
 		/* the entity ID we are looking for is a selector.
 		 * find out what it currently selects */
 		ret = uac_clock_selector_get_val(chip, selector->bClockID);
@@ -314,6 +319,7 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 			return -EINVAL;
 		}
 
+	find_source:
 		cur = ret;
 		ret = __uac_clock_find_source(chip, fmt,
 					      selector->baCSourceID[ret - 1],

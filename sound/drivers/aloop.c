@@ -219,7 +219,7 @@ static int loopback_jiffies_timer_start(struct loopback_pcm *dpcm)
 		dpcm->period_update_pending = 1;
 	}
 	tick = dpcm->period_size_frac - dpcm->irq_pos;
-	tick = (tick + dpcm->pcm_bps - 1) / dpcm->pcm_bps;
+	tick = DIV_ROUND_UP(tick, dpcm->pcm_bps);
 	mod_timer(&dpcm->timer, jiffies + tick);
 
 	return 0;

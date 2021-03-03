@@ -23,11 +23,11 @@ static void kvm_pmu_stop_counter(struct kvm_vcpu *vcpu, struct kvm_pmc *pmc);
 static u32 kvm_pmu_event_mask(struct kvm *kvm)
 {
 	switch (kvm->arch.pmuver) {
-	case 1:			/* ARMv8.0 */
+	case ID_AA64DFR0_PMUVER_8_0:
 		return GENMASK(9, 0);
-	case 4:			/* ARMv8.1 */
-	case 5:			/* ARMv8.4 */
-	case 6:			/* ARMv8.5 */
+	case ID_AA64DFR0_PMUVER_8_1:
+	case ID_AA64DFR0_PMUVER_8_4:
+	case ID_AA64DFR0_PMUVER_8_5:
 		return GENMASK(15, 0);
 	default:		/* Shouldn't be here, just for sanity */
 		WARN_ONCE(1, "Unknown PMU version %d\n", kvm->arch.pmuver);
@@ -795,6 +795,12 @@ u64 kvm_pmu_get_pmceid(struct kvm_vcpu *vcpu, bool pmceid1)
 		base = 0;
 	} else {
 		val = read_sysreg(pmceid1_el0);
+		/*
+		 * Don't advertise STALL_SLOT, as PMMIR_EL0 is handled
+		 * as RAZ
+		 */
+		if (vcpu->kvm->arch.pmuver >= ID_AA64DFR0_PMUVER_8_4)
+			val &= ~BIT_ULL(ARMV8_PMUV3_PERFCTR_STALL_SLOT - 32);
 		base = 32;
 	}
 

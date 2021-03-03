@@ -68,14 +68,6 @@ static const char *smu_get_message_name(struct smu_context *smu,
 	return __smu_message_names[type];
 }
 
-static void smu_cmn_send_msg_without_waiting(struct smu_context *smu,
-					     uint16_t msg)
-{
-	struct amdgpu_device *adev = smu->adev;
-
-	WREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_66, msg);
-}
-
 static void smu_cmn_read_arg(struct smu_context *smu,
 			     uint32_t *arg)
 {
@@ -92,7 +84,7 @@ static int smu_cmn_wait_for_response(struct smu_context *smu)
 	for (i = 0; i < timeout; i++) {
 		cur_value = RREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_90);
 		if ((cur_value & MP1_C2PMSG_90__CONTENT_MASK) != 0)
-			return cur_value == 0x1 ? 0 : -EIO;
+			return cur_value;
 
 		udelay(1);
 	}
@@ -101,7 +93,29 @@ static int smu_cmn_wait_for_response(struct smu_context *smu)
 	if (i == timeout)
 		return -ETIME;
 
-	return RREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_90) == 0x1 ? 0 : -EIO;
+	return RREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_90);
+}
+
+int smu_cmn_send_msg_without_waiting(struct smu_context *smu,
+				     uint16_t msg, uint32_t param)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int ret;
+
+	ret = smu_cmn_wait_for_response(smu);
+	if (ret != 0x1) {
+		dev_err(adev->dev, "Msg issuing pre-check failed and "
+		       "SMU may be not in the right state!\n");
+		if (ret != -ETIME)
+			ret = -EIO;
+		return ret;
+	}
+
+	WREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
+	WREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_82, param);
+	WREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_66, msg);
+
+	return 0;
 }
 
 int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
@@ -122,29 +136,28 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 		return index == -EACCES ? 0 : index;
 
 	mutex_lock(&smu->message_lock);
-	ret = smu_cmn_wait_for_response(smu);
-	if (ret) {
-		dev_err(adev->dev, "Msg issuing pre-check failed and "
-		       "SMU may be not in the right state!\n");
+	ret = smu_cmn_send_msg_without_waiting(smu, (uint16_t)index, param);
+	if (ret)
 		goto out;
-	}
-
-	WREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
-
-	WREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_82, param);
-
-	smu_cmn_send_msg_without_waiting(smu, (uint16_t)index);
 
 	ret = smu_cmn_wait_for_response(smu);
-	if (ret) {
-		dev_err(adev->dev, "failed send message: %10s (%d) \tparam: 0x%08x response %#x\n",
-		       smu_get_message_name(smu, msg), index, param, ret);
+	if (ret != 0x1) {
+		if (ret == -ETIME) {
+			dev_err(adev->dev, "message: %15s (%d) \tparam: 0x%08x is timeout (no response)\n",
+				smu_get_message_name(smu, msg), index, param);
+		} else {
+			dev_err(adev->dev, "failed send message: %15s (%d) \tparam: 0x%08x response %#x\n",
+				smu_get_message_name(smu, msg), index, param,
+				ret);
+			ret = -EIO;
+		}
 		goto out;
 	}
 
 	if (read_arg)
 		smu_cmn_read_arg(smu, read_arg);
 
+	ret = 0; /* 0 as driver return value */
 out:
 	mutex_unlock(&smu->message_lock);
 	return ret;
@@ -269,11 +282,13 @@ int smu_cmn_feature_is_enabled(struct smu_context *smu,
 			       enum smu_feature_mask mask)
 {
 	struct smu_feature *feature = &smu->smu_feature;
+	struct amdgpu_device *adev = smu->adev;
 	int feature_id;
 	int ret = 0;
 
-	if (smu->is_apu)
+	if (smu->is_apu && adev->family < AMDGPU_FAMILY_VGH)
 		return 1;
+
 	feature_id = smu_cmn_to_asic_specific_index(smu,
 						    CMN2ASIC_MAPPING_FEATURE,
 						    mask);
@@ -730,4 +745,32 @@ int smu_cmn_get_metrics_table(struct smu_context *smu,
 	mutex_unlock(&smu->metrics_lock);
 
 	return ret;
+}
+
+void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev)
+{
+	struct metrics_table_header *header = (struct metrics_table_header *)table;
+	uint16_t structure_size;
+
+#define METRICS_VERSION(a, b)	((a << 16) | b )
+
+	switch (METRICS_VERSION(frev, crev)) {
+	case METRICS_VERSION(1, 0):
+		structure_size = sizeof(struct gpu_metrics_v1_0);
+		break;
+	case METRICS_VERSION(2, 0):
+		structure_size = sizeof(struct gpu_metrics_v2_0);
+		break;
+	default:
+		break;
+	}
+
+#undef METRICS_VERSION
+
+	memset(header, 0xFF, structure_size);
+
+	header->format_revision = frev;
+	header->content_revision = crev;
+	header->structure_size = structure_size;
+
 }

@@ -130,6 +130,14 @@ union stream_update_flags {
 	uint32_t raw;
 };
 
+struct test_pattern {
+	enum dp_test_pattern type;
+	enum dp_test_pattern_color_space color_space;
+	struct link_training_settings const *p_link_settings;
+	unsigned char const *p_custom_pattern;
+	unsigned int cust_pattern_size;
+};
+
 struct dc_stream_state {
 	// sink is deprecated, new code should not reference
 	// this pointer
@@ -227,6 +235,8 @@ struct dc_stream_state {
 
 	uint32_t stream_id;
 	bool is_dsc_enabled;
+
+	struct test_pattern test_pattern;
 	union stream_update_flags update_flags;
 };
 
@@ -261,6 +271,7 @@ struct dc_stream_update {
 	struct dc_dsc_config *dsc_config;
 	struct dc_transfer_func *func_shaper;
 	struct dc_3dlut *lut3d_func;
+	struct test_pattern *pending_test_pattern;
 };
 
 bool dc_is_stream_unchanged(

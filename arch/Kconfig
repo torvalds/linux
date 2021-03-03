@@ -295,6 +295,10 @@ config ARCH_32BIT_OFF_T
 	  still support 32-bit off_t. This option is enabled for all such
 	  architectures explicitly.
 
+# Selected by 64 bit architectures which have a 32 bit f_tinode in struct ustat
+config ARCH_32BIT_USTAT_F_TINODE
+	bool
+
 config HAVE_ASM_MODVERSIONS
 	bool
 	help

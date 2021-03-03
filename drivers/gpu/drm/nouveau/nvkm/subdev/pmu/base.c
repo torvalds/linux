@@ -148,6 +148,7 @@ nvkm_pmu_dtor(struct nvkm_subdev *subdev)
 	nvkm_falcon_cmdq_del(&pmu->hpq);
 	nvkm_falcon_qmgr_del(&pmu->qmgr);
 	nvkm_falcon_dtor(&pmu->falcon);
+	mutex_destroy(&pmu->send.mutex);
 	return nvkm_pmu(subdev);
 }
 
@@ -162,11 +163,13 @@ nvkm_pmu = {
 
 int
 nvkm_pmu_ctor(const struct nvkm_pmu_fwif *fwif, struct nvkm_device *device,
-	      int index, struct nvkm_pmu *pmu)
+	      enum nvkm_subdev_type type, int inst, struct nvkm_pmu *pmu)
 {
 	int ret;
 
-	nvkm_subdev_ctor(&nvkm_pmu, device, index, &pmu->subdev);
+	nvkm_subdev_ctor(&nvkm_pmu, device, type, inst, &pmu->subdev);
+
+	mutex_init(&pmu->send.mutex);
 
 	INIT_WORK(&pmu->recv.work, nvkm_pmu_recv);
 	init_waitqueue_head(&pmu->recv.wait);
@@ -177,9 +180,8 @@ nvkm_pmu_ctor(const struct nvkm_pmu_fwif *fwif, struct nvkm_device *device,
 
 	pmu->func = fwif->func;
 
-	ret = nvkm_falcon_ctor(pmu->func->flcn, &pmu->subdev,
-			       nvkm_subdev_name[pmu->subdev.index], 0x10a000,
-			       &pmu->falcon);
+	ret = nvkm_falcon_ctor(pmu->func->flcn, &pmu->subdev, pmu->subdev.name,
+			       0x10a000, &pmu->falcon);
 	if (ret)
 		return ret;
 
@@ -195,10 +197,10 @@ nvkm_pmu_ctor(const struct nvkm_pmu_fwif *fwif, struct nvkm_device *device,
 
 int
 nvkm_pmu_new_(const struct nvkm_pmu_fwif *fwif, struct nvkm_device *device,
-	      int index, struct nvkm_pmu **ppmu)
+	      enum nvkm_subdev_type type, int inst, struct nvkm_pmu **ppmu)
 {
 	struct nvkm_pmu *pmu;
 	if (!(pmu = *ppmu = kzalloc(sizeof(*pmu), GFP_KERNEL)))
 		return -ENOMEM;
-	return nvkm_pmu_ctor(fwif, device, index, *ppmu);
+	return nvkm_pmu_ctor(fwif, device, type, inst, *ppmu);
 }

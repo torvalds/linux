@@ -259,14 +259,6 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 
 		setup_storage_lists(q, irq_ptr,
 				    qdio_init->input_sbal_addr_array[i], i);
-
-		if (is_thinint_irq(irq_ptr)) {
-			tasklet_init(&q->tasklet, tiqdio_inbound_processing,
-				     (unsigned long) q);
-		} else {
-			tasklet_init(&q->tasklet, qdio_inbound_processing,
-				     (unsigned long) q);
-		}
 	}
 
 	for_each_output_queue(irq_ptr, q, i) {
@@ -280,8 +272,7 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 		setup_storage_lists(q, irq_ptr,
 				    qdio_init->output_sbal_addr_array[i], i);
 
-		tasklet_init(&q->tasklet, qdio_outbound_processing,
-			     (unsigned long) q);
+		tasklet_setup(&q->u.out.tasklet, qdio_outbound_tasklet);
 		timer_setup(&q->u.out.timer, qdio_outbound_timer, 0);
 	}
 }
@@ -483,12 +474,8 @@ int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 	ccw_device_get_schid(cdev, &irq_ptr->schid);
 	setup_queues(irq_ptr, init_data);
 
-	if (init_data->irq_poll) {
-		irq_ptr->irq_poll = init_data->irq_poll;
-		set_bit(QDIO_IRQ_DISABLED, &irq_ptr->poll_state);
-	} else {
-		irq_ptr->irq_poll = NULL;
-	}
+	irq_ptr->irq_poll = init_data->irq_poll;
+	set_bit(QDIO_IRQ_DISABLED, &irq_ptr->poll_state);
 
 	setup_qib(irq_ptr, init_data);
 	set_impl_params(irq_ptr, init_data->qib_param_field_format,

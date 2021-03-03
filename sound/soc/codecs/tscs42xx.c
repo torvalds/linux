@@ -1397,9 +1397,9 @@ static struct snd_soc_dai_driver tscs42xx_dai = {
 		.rates = TSCS42XX_RATES,
 		.formats = TSCS42XX_FORMATS,},
 	.ops = &tscs42xx_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 	.symmetric_channels = 1,
-	.symmetric_samplebits = 1,
+	.symmetric_sample_bits = 1,
 };
 
 static const struct reg_sequence tscs42xx_patch[] = {

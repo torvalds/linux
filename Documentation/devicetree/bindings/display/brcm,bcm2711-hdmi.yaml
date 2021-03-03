@@ -53,6 +53,24 @@ properties:
       - const: audio
       - const: cec
 
+  interrupts:
+    items:
+      - description: CEC TX interrupt
+      - description: CEC RX interrupt
+      - description: CEC stuck at low interrupt
+      - description: Wake-up interrupt
+      - description: Hotplug connected interrupt
+      - description: Hotplug removed interrupt
+
+  interrupt-names:
+    items:
+      - const: cec-tx
+      - const: cec-rx
+      - const: cec-low
+      - const: wakeup
+      - const: hpd-connected
+      - const: hpd-removed
+
   ddc:
     allOf:
       - $ref: /schemas/types.yaml#/definitions/phandle
@@ -90,7 +108,7 @@ required:
   - resets
   - ddc
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

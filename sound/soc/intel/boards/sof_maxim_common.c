@@ -63,6 +63,7 @@ int max98373_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *codec_dai;
+	struct snd_soc_dai *cpu_dai;
 	int j;
 	int ret = 0;
 
@@ -70,10 +71,10 @@ int max98373_trigger(struct snd_pcm_substream *substream, int cmd)
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 		return 0;
 
+	cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	for_each_rtd_codec_dais(rtd, j, codec_dai) {
-		struct snd_soc_component *component = codec_dai->component;
 		struct snd_soc_dapm_context *dapm =
-				snd_soc_component_get_dapm(component);
+				snd_soc_component_get_dapm(cpu_dai->component);
 		char pin_name[MAX_98373_PIN_NAME];
 
 		snprintf(pin_name, ARRAY_SIZE(pin_name), "%s Spk",

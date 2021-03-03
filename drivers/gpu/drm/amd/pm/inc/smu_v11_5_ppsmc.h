@@ -104,7 +104,11 @@
 #define PPSMC_MSG_DramLogSetDramBufferSize             0x46
 #define PPSMC_MSG_RequestActiveWgp                     0x47
 #define PPSMC_MSG_QueryActiveWgp                       0x48
-#define PPSMC_Message_Count                            0x49
+#define PPSMC_MSG_SetFastPPTLimit                      0x49
+#define PPSMC_MSG_SetSlowPPTLimit                      0x4A
+#define PPSMC_MSG_GetFastPPTLimit                      0x4B
+#define PPSMC_MSG_GetSlowPPTLimit                      0x4C
+#define PPSMC_Message_Count                            0x4D
 
 //Argument for PPSMC_MSG_GfxDeviceDriverReset
 enum {

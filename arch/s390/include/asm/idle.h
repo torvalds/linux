@@ -20,11 +20,13 @@ struct s390_idle_data {
 	unsigned long long clock_idle_exit;
 	unsigned long long timer_idle_enter;
 	unsigned long long timer_idle_exit;
+	unsigned long mt_cycles_enter[8];
 };
 
 extern struct device_attribute dev_attr_idle_count;
 extern struct device_attribute dev_attr_idle_time_us;
 
-void psw_idle(struct s390_idle_data *, unsigned long);
+void psw_idle(struct s390_idle_data *data, unsigned long psw_mask);
+void psw_idle_exit(void);
 
 #endif /* _S390_IDLE_H */

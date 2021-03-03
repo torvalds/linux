@@ -19,6 +19,7 @@
 #include <asm/macints.h>
 #include <asm/mac_iop.h>
 #include <asm/adb_iop.h>
+#include <asm/unaligned.h>
 
 #include <linux/adb.h>
 
@@ -249,7 +250,7 @@ static void adb_iop_set_ap_complete(struct iop_msg *msg)
 {
 	struct adb_iopmsg *amsg = (struct adb_iopmsg *)msg->message;
 
-	autopoll_devs = (amsg->data[1] << 8) | amsg->data[0];
+	autopoll_devs = get_unaligned_be16(amsg->data);
 	if (autopoll_devs & (1 << autopoll_addr))
 		return;
 	autopoll_addr = autopoll_devs ? (ffs(autopoll_devs) - 1) : 0;
@@ -266,8 +267,7 @@ static int adb_iop_autopoll(int devs)
 	amsg.flags = ADB_IOP_SET_AUTOPOLL | (mask ? ADB_IOP_AUTOPOLL : 0);
 	amsg.count = 2;
 	amsg.cmd = 0;
-	amsg.data[0] = mask & 0xFF;
-	amsg.data[1] = (mask >> 8) & 0xFF;
+	put_unaligned_be16(mask, amsg.data);
 
 	iop_send_message(ADB_IOP, ADB_CHAN, NULL, sizeof(amsg), (__u8 *)&amsg,
 			 adb_iop_set_ap_complete);

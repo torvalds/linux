@@ -26,69 +26,13 @@
 #include <core/option.h>
 #include <subdev/mc.h>
 
-static struct lock_class_key nvkm_subdev_lock_class[NVKM_SUBDEV_NR];
-
 const char *
-nvkm_subdev_name[NVKM_SUBDEV_NR] = {
-	[NVKM_SUBDEV_ACR     ] = "acr",
-	[NVKM_SUBDEV_BAR     ] = "bar",
-	[NVKM_SUBDEV_VBIOS   ] = "bios",
-	[NVKM_SUBDEV_BUS     ] = "bus",
-	[NVKM_SUBDEV_CLK     ] = "clk",
-	[NVKM_SUBDEV_DEVINIT ] = "devinit",
-	[NVKM_SUBDEV_FAULT   ] = "fault",
-	[NVKM_SUBDEV_FB      ] = "fb",
-	[NVKM_SUBDEV_FUSE    ] = "fuse",
-	[NVKM_SUBDEV_GPIO    ] = "gpio",
-	[NVKM_SUBDEV_GSP     ] = "gsp",
-	[NVKM_SUBDEV_I2C     ] = "i2c",
-	[NVKM_SUBDEV_IBUS    ] = "priv",
-	[NVKM_SUBDEV_ICCSENSE] = "iccsense",
-	[NVKM_SUBDEV_INSTMEM ] = "imem",
-	[NVKM_SUBDEV_LTC     ] = "ltc",
-	[NVKM_SUBDEV_MC      ] = "mc",
-	[NVKM_SUBDEV_MMU     ] = "mmu",
-	[NVKM_SUBDEV_MXM     ] = "mxm",
-	[NVKM_SUBDEV_PCI     ] = "pci",
-	[NVKM_SUBDEV_PMU     ] = "pmu",
-	[NVKM_SUBDEV_THERM   ] = "therm",
-	[NVKM_SUBDEV_TIMER   ] = "tmr",
-	[NVKM_SUBDEV_TOP     ] = "top",
-	[NVKM_SUBDEV_VOLT    ] = "volt",
-	[NVKM_ENGINE_BSP     ] = "bsp",
-	[NVKM_ENGINE_CE0     ] = "ce0",
-	[NVKM_ENGINE_CE1     ] = "ce1",
-	[NVKM_ENGINE_CE2     ] = "ce2",
-	[NVKM_ENGINE_CE3     ] = "ce3",
-	[NVKM_ENGINE_CE4     ] = "ce4",
-	[NVKM_ENGINE_CE5     ] = "ce5",
-	[NVKM_ENGINE_CE6     ] = "ce6",
-	[NVKM_ENGINE_CE7     ] = "ce7",
-	[NVKM_ENGINE_CE8     ] = "ce8",
-	[NVKM_ENGINE_CIPHER  ] = "cipher",
-	[NVKM_ENGINE_DISP    ] = "disp",
-	[NVKM_ENGINE_DMAOBJ  ] = "dma",
-	[NVKM_ENGINE_FIFO    ] = "fifo",
-	[NVKM_ENGINE_GR      ] = "gr",
-	[NVKM_ENGINE_IFB     ] = "ifb",
-	[NVKM_ENGINE_ME      ] = "me",
-	[NVKM_ENGINE_MPEG    ] = "mpeg",
-	[NVKM_ENGINE_MSENC   ] = "msenc",
-	[NVKM_ENGINE_MSPDEC  ] = "mspdec",
-	[NVKM_ENGINE_MSPPP   ] = "msppp",
-	[NVKM_ENGINE_MSVLD   ] = "msvld",
-	[NVKM_ENGINE_NVENC0  ] = "nvenc0",
-	[NVKM_ENGINE_NVENC1  ] = "nvenc1",
-	[NVKM_ENGINE_NVENC2  ] = "nvenc2",
-	[NVKM_ENGINE_NVDEC0  ] = "nvdec0",
-	[NVKM_ENGINE_NVDEC1  ] = "nvdec1",
-	[NVKM_ENGINE_NVDEC2  ] = "nvdec2",
-	[NVKM_ENGINE_PM      ] = "pm",
-	[NVKM_ENGINE_SEC     ] = "sec",
-	[NVKM_ENGINE_SEC2    ] = "sec2",
-	[NVKM_ENGINE_SW      ] = "sw",
-	[NVKM_ENGINE_VIC     ] = "vic",
-	[NVKM_ENGINE_VP      ] = "vp",
+nvkm_subdev_type[NVKM_SUBDEV_NR] = {
+#define NVKM_LAYOUT_ONCE(type,data,ptr,...) [type] = #ptr,
+#define NVKM_LAYOUT_INST(A...) NVKM_LAYOUT_ONCE(A)
+#include <core/layout.h>
+#undef NVKM_LAYOUT_ONCE
+#undef NVKM_LAYOUT_INST
 };
 
 void
@@ -125,7 +69,7 @@ nvkm_subdev_fini(struct nvkm_subdev *subdev, bool suspend)
 		}
 	}
 
-	nvkm_mc_reset(device, subdev->index);
+	nvkm_mc_reset(device, subdev->type, subdev->inst);
 
 	time = ktime_to_us(ktime_get()) - time;
 	nvkm_trace(subdev, "%s completed in %lldus\n", action, time);
@@ -199,6 +143,7 @@ nvkm_subdev_del(struct nvkm_subdev **psubdev)
 	if (subdev && !WARN_ON(!subdev->func)) {
 		nvkm_trace(subdev, "destroy running...\n");
 		time = ktime_to_us(ktime_get());
+		list_del(&subdev->head);
 		if (subdev->func->dtor)
 			*psubdev = subdev->func->dtor(subdev);
 		time = ktime_to_us(ktime_get()) - time;
@@ -209,26 +154,41 @@ nvkm_subdev_del(struct nvkm_subdev **psubdev)
 }
 
 void
-nvkm_subdev_ctor(const struct nvkm_subdev_func *func,
-		 struct nvkm_device *device, int index,
-		 struct nvkm_subdev *subdev)
+nvkm_subdev_disable(struct nvkm_device *device, enum nvkm_subdev_type type, int inst)
 {
-	const char *name = nvkm_subdev_name[index];
+	struct nvkm_subdev *subdev;
+	list_for_each_entry(subdev, &device->subdev, head) {
+		if (subdev->type == type && subdev->inst == inst) {
+			*subdev->pself = NULL;
+			nvkm_subdev_del(&subdev);
+			break;
+		}
+	}
+}
+
+void
+nvkm_subdev_ctor(const struct nvkm_subdev_func *func, struct nvkm_device *device,
+		 enum nvkm_subdev_type type, int inst, struct nvkm_subdev *subdev)
+{
 	subdev->func = func;
 	subdev->device = device;
-	subdev->index = index;
+	subdev->type = type;
+	subdev->inst = inst < 0 ? 0 : inst;
 
-	__mutex_init(&subdev->mutex, name, &nvkm_subdev_lock_class[index]);
-	subdev->debug = nvkm_dbgopt(device->dbgopt, name);
+	if (inst >= 0)
+		snprintf(subdev->name, sizeof(subdev->name), "%s%d", nvkm_subdev_type[type], inst);
+	else
+		strscpy(subdev->name, nvkm_subdev_type[type], sizeof(subdev->name));
+	subdev->debug = nvkm_dbgopt(device->dbgopt, subdev->name);
+	list_add_tail(&subdev->head, &device->subdev);
 }
 
 int
-nvkm_subdev_new_(const struct nvkm_subdev_func *func,
-		 struct nvkm_device *device, int index,
-		 struct nvkm_subdev **psubdev)
+nvkm_subdev_new_(const struct nvkm_subdev_func *func, struct nvkm_device *device,
+		 enum nvkm_subdev_type type, int inst, struct nvkm_subdev **psubdev)
 {
 	if (!(*psubdev = kzalloc(sizeof(**psubdev), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_subdev_ctor(func, device, index, *psubdev);
+	nvkm_subdev_ctor(func, device, type, inst, *psubdev);
 	return 0;
 }

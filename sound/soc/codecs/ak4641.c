@@ -499,7 +499,7 @@ static struct snd_soc_dai_driver ak4641_dai[] = {
 		.formats = AK4641_FORMATS,
 	},
 	.ops = &ak4641_i2s_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 },
 {
 	.name = "ak4641-voice",
@@ -519,7 +519,7 @@ static struct snd_soc_dai_driver ak4641_dai[] = {
 		.formats = AK4641_FORMATS,
 	},
 	.ops = &ak4641_pcm_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 },
 };
 

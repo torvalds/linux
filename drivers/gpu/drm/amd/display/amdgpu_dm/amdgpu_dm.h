@@ -58,10 +58,10 @@
 /* Forward declarations */
 struct amdgpu_device;
 struct drm_device;
-struct amdgpu_dm_irq_handler_data;
 struct dc;
 struct amdgpu_bo;
 struct dmub_srv;
+struct dc_plane_state;
 
 struct common_irq_params {
 	struct amdgpu_device *adev;
@@ -337,6 +337,13 @@ struct amdgpu_display_manager {
 	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;
 
 	/**
+	 * @active_vblank_irq_count:
+	 *
+	 * number of currently active vblank irqs
+	 */
+	uint32_t active_vblank_irq_count;
+
+	/**
 	 * @mst_encoders:
 	 *
 	 * fake encoders used for DP MST.
@@ -411,11 +418,6 @@ struct amdgpu_dm_connector {
 #define to_amdgpu_dm_connector(x) container_of(x, struct amdgpu_dm_connector, base)
 
 extern const struct amdgpu_ip_block_version dm_ip_block;
-
-struct amdgpu_framebuffer;
-struct amdgpu_display_manager;
-struct dc_validation_set;
-struct dc_plane_state;
 
 struct dm_plane_state {
 	struct drm_plane_state base;

@@ -338,7 +338,7 @@ static struct snd_soc_dai_driver rockchip_pdm_dai = {
 		.formats = ROCKCHIP_PDM_FORMATS,
 	},
 	.ops = &rockchip_pdm_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static const struct snd_soc_component_driver rockchip_pdm_component = {

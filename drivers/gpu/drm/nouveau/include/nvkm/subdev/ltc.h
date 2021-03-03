@@ -13,6 +13,7 @@ struct nvkm_ltc {
 	u32 ltc_nr;
 	u32 lts_nr;
 
+	struct mutex mutex; /* serialises CBC operations */
 	u32 num_tags;
 	u32 tag_base;
 	struct nvkm_memory *tag_ram;
@@ -33,12 +34,11 @@ int nvkm_ltc_zbc_stencil_get(struct nvkm_ltc *, int index, const u32);
 void nvkm_ltc_invalidate(struct nvkm_ltc *);
 void nvkm_ltc_flush(struct nvkm_ltc *);
 
-int gf100_ltc_new(struct nvkm_device *, int, struct nvkm_ltc **);
-int gk104_ltc_new(struct nvkm_device *, int, struct nvkm_ltc **);
-int gk20a_ltc_new(struct nvkm_device *, int, struct nvkm_ltc **);
-int gm107_ltc_new(struct nvkm_device *, int, struct nvkm_ltc **);
-int gm200_ltc_new(struct nvkm_device *, int, struct nvkm_ltc **);
-int gp100_ltc_new(struct nvkm_device *, int, struct nvkm_ltc **);
-int gp102_ltc_new(struct nvkm_device *, int, struct nvkm_ltc **);
-int gp10b_ltc_new(struct nvkm_device *, int, struct nvkm_ltc **);
+int gf100_ltc_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_ltc **);
+int gk104_ltc_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_ltc **);
+int gm107_ltc_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_ltc **);
+int gm200_ltc_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_ltc **);
+int gp100_ltc_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_ltc **);
+int gp102_ltc_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_ltc **);
+int gp10b_ltc_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_ltc **);
 #endif

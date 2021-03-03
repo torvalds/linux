@@ -949,7 +949,7 @@ sh_css_set_black_frame(struct ia_css_stream *stream,
 
 	params = stream->isp_params_configs;
 	height = raw_black_frame->info.res.height;
-	width = raw_black_frame->info.padded_width,
+	width = raw_black_frame->info.padded_width;
 
 	ptr = raw_black_frame->data
 	+ raw_black_frame->planes.raw.offset;
@@ -1442,8 +1442,8 @@ static int sh_css_params_default_morph_table(
 
 	IA_CSS_ENTER_PRIVATE("");
 
-	step = (ISP_VEC_NELEMS / 16) * 128,
-	width = binary->morph_tbl_width,
+	step = (ISP_VEC_NELEMS / 16) * 128;
+	width = binary->morph_tbl_width;
 	height = binary->morph_tbl_height;
 
 	tab = ia_css_morph_table_allocate(width, height);

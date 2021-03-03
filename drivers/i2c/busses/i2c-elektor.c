@@ -282,7 +282,7 @@ static int elektor_probe(struct device *dev, unsigned int id)
 	return -ENODEV;
 }
 
-static int elektor_remove(struct device *dev, unsigned int id)
+static void elektor_remove(struct device *dev, unsigned int id)
 {
 	i2c_del_adapter(&pcf_isa_ops);
 
@@ -298,8 +298,6 @@ static int elektor_remove(struct device *dev, unsigned int id)
 		iounmap(base_iomem);
 		release_mem_region(base, 2);
 	}
-
-	return 0;
 }
 
 static struct isa_driver i2c_elektor_driver = {

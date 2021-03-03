@@ -23,7 +23,6 @@
 #include <asm/mipsmtregs.h>
 #include <asm/mmzone.h>
 #include <asm/unroll.h>
-#include <linux/uaccess.h> /* for uaccess_kernel() */
 
 extern void (*r4k_blast_dcache)(void);
 extern void (*r4k_blast_icache)(void);
@@ -102,30 +101,9 @@ static inline void flush_scache_line(unsigned long addr)
 	cache_op(Hit_Writeback_Inv_SD, addr);
 }
 
-#define protected_cache_op(op,addr)				\
-({								\
-	int __err = 0;						\
-	__asm__ __volatile__(					\
-	"	.set	push			\n"		\
-	"	.set	noreorder		\n"		\
-	"	.set "MIPS_ISA_ARCH_LEVEL"	\n"		\
-	"1:	cache	%1, (%2)		\n"		\
-	"2:	.insn				\n"		\
-	"	.set	pop			\n"		\
-	"	.section .fixup,\"ax\"		\n"		\
-	"3:	li	%0, %3			\n"		\
-	"	j	2b			\n"		\
-	"	.previous			\n"		\
-	"	.section __ex_table,\"a\"	\n"		\
-	"	"STR(PTR)" 1b, 3b		\n"		\
-	"	.previous"					\
-	: "+r" (__err)						\
-	: "i" (op), "r" (addr), "i" (-EFAULT));			\
-	__err;							\
-})
+#ifdef CONFIG_EVA
 
-
-#define protected_cachee_op(op,addr)				\
+#define protected_cache_op(op, addr)				\
 ({								\
 	int __err = 0;						\
 	__asm__ __volatile__(					\
@@ -147,6 +125,30 @@ static inline void flush_scache_line(unsigned long addr)
 	: "i" (op), "r" (addr), "i" (-EFAULT));			\
 	__err;							\
 })
+#else
+
+#define protected_cache_op(op, addr)				\
+({								\
+	int __err = 0;						\
+	__asm__ __volatile__(					\
+	"	.set	push			\n"		\
+	"	.set	noreorder		\n"		\
+	"	.set "MIPS_ISA_ARCH_LEVEL"	\n"		\
+	"1:	cache	%1, (%2)		\n"		\
+	"2:	.insn				\n"		\
+	"	.set	pop			\n"		\
+	"	.section .fixup,\"ax\"		\n"		\
+	"3:	li	%0, %3			\n"		\
+	"	j	2b			\n"		\
+	"	.previous			\n"		\
+	"	.section __ex_table,\"a\"	\n"		\
+	"	"STR(PTR)" 1b, 3b		\n"		\
+	"	.previous"					\
+	: "+r" (__err)						\
+	: "i" (op), "r" (addr), "i" (-EFAULT));			\
+	__err;							\
+})
+#endif
 
 /*
  * The next two are for badland addresses like signal trampolines.
@@ -158,11 +160,7 @@ static inline int protected_flush_icache_line(unsigned long addr)
 		return protected_cache_op(Hit_Invalidate_I_Loongson2, addr);
 
 	default:
-#ifdef CONFIG_EVA
-		return protected_cachee_op(Hit_Invalidate_I, addr);
-#else
 		return protected_cache_op(Hit_Invalidate_I, addr);
-#endif
 	}
 }
 
@@ -174,20 +172,12 @@ static inline int protected_flush_icache_line(unsigned long addr)
  */
 static inline int protected_writeback_dcache_line(unsigned long addr)
 {
-#ifdef CONFIG_EVA
-	return protected_cachee_op(Hit_Writeback_Inv_D, addr);
-#else
 	return protected_cache_op(Hit_Writeback_Inv_D, addr);
-#endif
 }
 
 static inline int protected_writeback_scache_line(unsigned long addr)
 {
-#ifdef CONFIG_EVA
-	return protected_cachee_op(Hit_Writeback_Inv_SD, addr);
-#else
 	return protected_cache_op(Hit_Writeback_Inv_SD, addr);
-#endif
 }
 
 /*
@@ -307,43 +297,8 @@ static inline void prot##extra##blast_##pfx##cache##_range(unsigned long start, 
 	}								\
 }
 
-#ifndef CONFIG_EVA
-
 __BUILD_BLAST_CACHE_RANGE(d, dcache, Hit_Writeback_Inv_D, protected_, )
 __BUILD_BLAST_CACHE_RANGE(i, icache, Hit_Invalidate_I, protected_, )
-
-#else
-
-#define __BUILD_PROT_BLAST_CACHE_RANGE(pfx, desc, hitop)		\
-static inline void protected_blast_##pfx##cache##_range(unsigned long start,\
-							unsigned long end) \
-{									\
-	unsigned long lsize = cpu_##desc##_line_size();			\
-	unsigned long addr = start & ~(lsize - 1);			\
-	unsigned long aend = (end - 1) & ~(lsize - 1);			\
-									\
-	if (!uaccess_kernel()) {					\
-		while (1) {						\
-			protected_cachee_op(hitop, addr);		\
-			if (addr == aend)				\
-				break;					\
-			addr += lsize;					\
-		}							\
-	} else {							\
-		while (1) {						\
-			protected_cache_op(hitop, addr);		\
-			if (addr == aend)				\
-				break;					\
-			addr += lsize;					\
-		}                                                       \
-									\
-	}								\
-}
-
-__BUILD_PROT_BLAST_CACHE_RANGE(d, dcache, Hit_Writeback_Inv_D)
-__BUILD_PROT_BLAST_CACHE_RANGE(i, icache, Hit_Invalidate_I)
-
-#endif
 __BUILD_BLAST_CACHE_RANGE(s, scache, Hit_Writeback_Inv_SD, protected_, )
 __BUILD_BLAST_CACHE_RANGE(i, icache, Hit_Invalidate_I_Loongson2, \
 	protected_, loongson2_)

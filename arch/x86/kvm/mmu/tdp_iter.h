@@ -7,6 +7,8 @@
 
 #include "mmu.h"
 
+typedef u64 __rcu *tdp_ptep_t;
+
 /*
  * A TDP iterator performs a pre-order walk over a TDP paging structure.
  */
@@ -15,11 +17,17 @@ struct tdp_iter {
 	 * The iterator will traverse the paging structure towards the mapping
 	 * for this GFN.
 	 */
-	gfn_t goal_gfn;
+	gfn_t next_last_level_gfn;
+	/*
+	 * The next_last_level_gfn at the time when the thread last
+	 * yielded. Only yielding when the next_last_level_gfn !=
+	 * yielded_gfn helps ensure forward progress.
+	 */
+	gfn_t yielded_gfn;
 	/* Pointers to the page tables traversed to reach the current SPTE */
-	u64 *pt_path[PT64_ROOT_MAX_LEVEL];
+	tdp_ptep_t pt_path[PT64_ROOT_MAX_LEVEL];
 	/* A pointer to the current SPTE */
-	u64 *sptep;
+	tdp_ptep_t sptep;
 	/* The lowest GFN mapped by the current SPTE */
 	gfn_t gfn;
 	/* The level of the root page given to the iterator */
@@ -49,12 +57,11 @@ struct tdp_iter {
 #define for_each_tdp_pte(iter, root, root_level, start, end) \
 	for_each_tdp_pte_min_level(iter, root, root_level, PG_LEVEL_4K, start, end)
 
-u64 *spte_to_child_pt(u64 pte, int level);
+tdp_ptep_t spte_to_child_pt(u64 pte, int level);
 
 void tdp_iter_start(struct tdp_iter *iter, u64 *root_pt, int root_level,
-		    int min_level, gfn_t goal_gfn);
+		    int min_level, gfn_t next_last_level_gfn);
 void tdp_iter_next(struct tdp_iter *iter);
-void tdp_iter_refresh_walk(struct tdp_iter *iter);
-u64 *tdp_iter_root_pt(struct tdp_iter *iter);
+tdp_ptep_t tdp_iter_root_pt(struct tdp_iter *iter);
 
 #endif /* __KVM_X86_MMU_TDP_ITER_H */

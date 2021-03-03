@@ -321,6 +321,18 @@ static const struct config_entry config_table[] = {
 	},
 #endif
 
+/* Alder Lake */
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_ALDERLAKE)
+	{
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
+		.device = 0x7ad0,
+	},
+	{
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
+		.device = 0x51c8,
+	},
+#endif
+
 };
 
 static const struct config_entry *snd_intel_dsp_find_config
@@ -452,35 +464,30 @@ int snd_intel_dsp_driver_probe(struct pci_dev *pci)
 }
 EXPORT_SYMBOL_GPL(snd_intel_dsp_driver_probe);
 
+/* Should we default to SOF or SST for BYT/CHT ? */
+#if IS_ENABLED(CONFIG_SND_INTEL_BYT_PREFER_SOF) || \
+    !IS_ENABLED(CONFIG_SND_SST_ATOM_HIFI2_PLATFORM_ACPI)
+#define FLAG_SST_OR_SOF_BYT	FLAG_SOF
+#else
+#define FLAG_SST_OR_SOF_BYT	FLAG_SST
+#endif
+
 /*
  * configuration table
  * - the order of similar ACPI ID entries is important!
  * - the first successful match will win
  */
 static const struct config_entry acpi_config_table[] = {
+#if IS_ENABLED(CONFIG_SND_SST_ATOM_HIFI2_PLATFORM_ACPI) || \
+    IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
 /* BayTrail */
-#if IS_ENABLED(CONFIG_SND_SST_ATOM_HIFI2_PLATFORM_ACPI)
 	{
-		.flags = FLAG_SST,
+		.flags = FLAG_SST_OR_SOF_BYT,
 		.acpi_hid = "80860F28",
 	},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
-	{
-		.flags = FLAG_SOF,
-		.acpi_hid = "80860F28",
-	},
-#endif
 /* CherryTrail */
-#if IS_ENABLED(CONFIG_SND_SST_ATOM_HIFI2_PLATFORM_ACPI)
 	{
-		.flags = FLAG_SST,
-		.acpi_hid = "808622A8",
-	},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
-	{
-		.flags = FLAG_SOF,
+		.flags = FLAG_SST_OR_SOF_BYT,
 		.acpi_hid = "808622A8",
 	},
 #endif

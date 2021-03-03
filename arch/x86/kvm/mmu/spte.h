@@ -131,6 +131,25 @@ extern u64 __read_mostly shadow_nonpresent_or_rsvd_mask;
 #define SHADOW_ACC_TRACK_SAVED_BITS_SHIFT PT64_SECOND_AVAIL_BITS_SHIFT
 
 /*
+ * If a thread running without exclusive control of the MMU lock must perform a
+ * multi-part operation on an SPTE, it can set the SPTE to REMOVED_SPTE as a
+ * non-present intermediate value. Other threads which encounter this value
+ * should not modify the SPTE.
+ *
+ * This constant works because it is considered non-present on both AMD and
+ * Intel CPUs and does not create a L1TF vulnerability because the pfn section
+ * is zeroed out.
+ *
+ * Only used by the TDP MMU.
+ */
+#define REMOVED_SPTE (1ull << 59)
+
+static inline bool is_removed_spte(u64 spte)
+{
+	return spte == REMOVED_SPTE;
+}
+
+/*
  * In some cases, we need to preserve the GFN of a non-present or reserved
  * SPTE when we usurp the upper five bits of the physical address space to
  * defend against L1TF, e.g. for MMIO SPTEs.  To preserve the GFN, we'll
@@ -185,23 +204,19 @@ static inline bool is_access_track_spte(u64 spte)
 	return !spte_ad_enabled(spte) && (spte & shadow_acc_track_mask) == 0;
 }
 
-static inline int is_shadow_present_pte(u64 pte)
+static inline bool is_shadow_present_pte(u64 pte)
 {
-	return (pte != 0) && !is_mmio_spte(pte);
+	return (pte != 0) && !is_mmio_spte(pte) && !is_removed_spte(pte);
 }
 
-static inline int is_large_pte(u64 pte)
+static inline bool is_large_pte(u64 pte)
 {
 	return pte & PT_PAGE_SIZE_MASK;
 }
 
-static inline int is_last_spte(u64 pte, int level)
+static inline bool is_last_spte(u64 pte, int level)
 {
-	if (level == PG_LEVEL_4K)
-		return 1;
-	if (is_large_pte(pte))
-		return 1;
-	return 0;
+	return (level == PG_LEVEL_4K) || is_large_pte(pte);
 }
 
 static inline bool is_executable_pte(u64 spte)

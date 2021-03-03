@@ -172,16 +172,15 @@ int asoc_simple_parse_clk(struct device *dev,
 	 *  or device's module clock.
 	 */
 	clk = devm_get_clk_from_child(dev, node, NULL);
-	if (!IS_ERR(clk)) {
-		simple_dai->sysclk = clk_get_rate(clk);
-
-		simple_dai->clk = clk;
-	} else if (!of_property_read_u32(node, "system-clock-frequency", &val)) {
-		simple_dai->sysclk = val;
-	} else {
+	if (IS_ERR(clk))
 		clk = devm_get_clk_from_child(dev, dlc->of_node, NULL);
-		if (!IS_ERR(clk))
-			simple_dai->sysclk = clk_get_rate(clk);
+
+	if (!IS_ERR(clk)) {
+		simple_dai->clk = clk;
+		simple_dai->sysclk = clk_get_rate(clk);
+	} else if (!of_property_read_u32(node, "system-clock-frequency",
+					 &val)) {
+		simple_dai->sysclk = val;
 	}
 
 	if (of_property_read_bool(node, "system-clock-direction-out"))

@@ -173,7 +173,7 @@ void __weak __init prom_cleanup(void)
 {
 }
 
-void __weak __init prom_free_prom_memory(void)
+void __init prom_free_prom_memory(void)
 {
 	int i;
 

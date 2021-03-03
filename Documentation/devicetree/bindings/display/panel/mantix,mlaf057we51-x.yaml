@@ -20,6 +20,7 @@ properties:
   compatible:
     enum:
       - mantix,mlaf057we51-x
+      - ys,ys57pss36bh5gq
 
   port: true
   reg:

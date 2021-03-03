@@ -14,7 +14,7 @@ typedef u32 __kernel_dev_t;
 
 typedef __kernel_fd_set		fd_set;
 typedef __kernel_dev_t		dev_t;
-typedef __kernel_ino_t		ino_t;
+typedef __kernel_ulong_t	ino_t;
 typedef __kernel_mode_t		mode_t;
 typedef unsigned short		umode_t;
 typedef u32			nlink_t;
@@ -189,7 +189,11 @@ struct hlist_node {
 
 struct ustat {
 	__kernel_daddr_t	f_tfree;
-	__kernel_ino_t		f_tinode;
+#ifdef CONFIG_ARCH_32BIT_USTAT_F_TINODE
+	unsigned int		f_tinode;
+#else
+	unsigned long		f_tinode;
+#endif
 	char			f_fname[6];
 	char			f_fpack[6];
 };

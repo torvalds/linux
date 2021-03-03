@@ -17,6 +17,16 @@ struct drm_i915_private;
 struct intel_crtc_state;
 struct intel_plane_state;
 
+/*
+ * FIXME: We should instead only take spinlocks once for the entire update
+ * instead of once per mmio.
+ */
+#if IS_ENABLED(CONFIG_PROVE_LOCKING)
+#define VBLANK_EVASION_TIME_US 250
+#else
+#define VBLANK_EVASION_TIME_US 100
+#endif
+
 int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 			     int usecs);
 struct intel_plane *intel_sprite_plane_create(struct drm_i915_private *dev_priv,

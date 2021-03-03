@@ -187,6 +187,23 @@ int v4l2_event_pending(struct v4l2_fh *fh)
 }
 EXPORT_SYMBOL_GPL(v4l2_event_pending);
 
+void v4l2_event_wake_all(struct video_device *vdev)
+{
+	struct v4l2_fh *fh;
+	unsigned long flags;
+
+	if (!vdev)
+		return;
+
+	spin_lock_irqsave(&vdev->fh_lock, flags);
+
+	list_for_each_entry(fh, &vdev->fh_list, list)
+		wake_up_all(&fh->wait);
+
+	spin_unlock_irqrestore(&vdev->fh_lock, flags);
+}
+EXPORT_SYMBOL_GPL(v4l2_event_wake_all);
+
 static void __v4l2_event_unsubscribe(struct v4l2_subscribed_event *sev)
 {
 	struct v4l2_fh *fh = sev->fh;

@@ -289,13 +289,3 @@ os_hpmc_6:
 	b .
 	nop
 	.align 16	/* make function length multiple of 16 bytes */
-.os_hpmc_end:
-
-
-	__INITRODATA
-.globl os_hpmc_size
-	.align 4
-	.type   os_hpmc_size, @object
-	.size   os_hpmc_size, 4
-os_hpmc_size:
-	.word .os_hpmc_end-.os_hpmc

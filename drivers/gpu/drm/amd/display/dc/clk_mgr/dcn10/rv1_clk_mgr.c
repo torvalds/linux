@@ -187,17 +187,6 @@ static void ramp_up_dispclk_with_dpp(
 	clk_mgr->base.clks.max_supported_dppclk_khz = new_clocks->max_supported_dppclk_khz;
 }
 
-static bool is_mpo_enabled(struct dc_state *context)
-{
-	int i;
-
-	for (i = 0; i < context->stream_count; i++) {
-		if (context->stream_status[i].plane_count > 1)
-			return true;
-	}
-	return false;
-}
-
 static void rv1_update_clocks(struct clk_mgr *clk_mgr_base,
 			struct dc_state *context,
 			bool safe_to_lower)
@@ -295,22 +284,9 @@ static void rv1_update_clocks(struct clk_mgr *clk_mgr_base,
 		if (pp_smu->set_hard_min_fclk_by_freq &&
 				pp_smu->set_hard_min_dcfclk_by_freq &&
 				pp_smu->set_min_deep_sleep_dcfclk) {
-			// Only increase clocks when display is active and MPO is enabled
-			if (display_count && is_mpo_enabled(context)) {
-				pp_smu->set_hard_min_fclk_by_freq(&pp_smu->pp_smu,
-						((new_clocks->fclk_khz / 1000) *  101) / 100);
-				pp_smu->set_hard_min_dcfclk_by_freq(&pp_smu->pp_smu,
-						((new_clocks->dcfclk_khz / 1000) * 101) / 100);
-				pp_smu->set_min_deep_sleep_dcfclk(&pp_smu->pp_smu,
-						(new_clocks->dcfclk_deep_sleep_khz + 999) / 1000);
-			} else {
-				pp_smu->set_hard_min_fclk_by_freq(&pp_smu->pp_smu,
-						new_clocks->fclk_khz / 1000);
-				pp_smu->set_hard_min_dcfclk_by_freq(&pp_smu->pp_smu,
-						new_clocks->dcfclk_khz / 1000);
-				pp_smu->set_min_deep_sleep_dcfclk(&pp_smu->pp_smu,
-						(new_clocks->dcfclk_deep_sleep_khz + 999) / 1000);
-			}
+			pp_smu->set_hard_min_fclk_by_freq(&pp_smu->pp_smu, new_clocks->fclk_khz / 1000);
+			pp_smu->set_hard_min_dcfclk_by_freq(&pp_smu->pp_smu, new_clocks->dcfclk_khz / 1000);
+			pp_smu->set_min_deep_sleep_dcfclk(&pp_smu->pp_smu, (new_clocks->dcfclk_deep_sleep_khz + 999) / 1000);
 		}
 	}
 }

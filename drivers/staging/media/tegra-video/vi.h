@@ -21,6 +21,10 @@
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-v4l2.h>
 
+#include "csi.h"
+
+#define V4L2_CID_TEGRA_SYNCPT_TIMEOUT_RETRY	(V4L2_CTRL_CLASS_CAMERA | 0x1001)
+
 #define TEGRA_MIN_WIDTH		32U
 #define TEGRA_MAX_WIDTH		32768U
 #define TEGRA_MIN_HEIGHT	32U
@@ -31,6 +35,7 @@
 #define TEGRA_IMAGE_FORMAT_DEF	32
 
 #define MAX_FORMAT_NUM		64
+#define SURFACE_ALIGN_BYTES	64
 
 enum tegra_vi_pg_mode {
 	TEGRA_VI_PG_DISABLED = 0,
@@ -151,10 +156,13 @@ struct tegra_vi_graph_entity {
  * @done: list of capture done queued buffers
  * @done_lock: protects the capture done queue list
  *
- * @portno: VI channel port number
+ * @portnos: VI channel port numbers
+ * @totalports: total number of ports used for this channel
+ * @numgangports: number of ports combined together as a gang for capture
  * @of_node: device node of VI channel
  *
  * @ctrl_handler: V4L2 control handler of this video channel
+ * @syncpt_timeout_retry: syncpt timeout retry count for the capture
  * @fmts_bitmap: a bitmap for supported formats matching v4l2 subdev formats
  * @tpg_fmts_bitmap: a bitmap for supported TPG formats
  * @pg_mode: test pattern generator mode (disabled/direct/patch)
@@ -168,10 +176,10 @@ struct tegra_vi_channel {
 	struct media_pad pad;
 
 	struct tegra_vi *vi;
-	struct host1x_syncpt *frame_start_sp;
-	struct host1x_syncpt *mw_ack_sp;
+	struct host1x_syncpt *frame_start_sp[GANG_PORTS_MAX];
+	struct host1x_syncpt *mw_ack_sp[GANG_PORTS_MAX];
 	/* protects the cpu syncpoint increment */
-	spinlock_t sp_incr_lock;
+	spinlock_t sp_incr_lock[GANG_PORTS_MAX];
 
 	struct task_struct *kthread_start_capture;
 	wait_queue_head_t start_wait;
@@ -190,10 +198,13 @@ struct tegra_vi_channel {
 	/* protects the capture done queue list */
 	spinlock_t done_lock;
 
-	unsigned char portno;
+	unsigned char portnos[GANG_PORTS_MAX];
+	u8 totalports;
+	u8 numgangports;
 	struct device_node *of_node;
 
 	struct v4l2_ctrl_handler ctrl_handler;
+	unsigned int syncpt_timeout_retry;
 	DECLARE_BITMAP(fmts_bitmap, MAX_FORMAT_NUM);
 	DECLARE_BITMAP(tpg_fmts_bitmap, MAX_FORMAT_NUM);
 	enum tegra_vi_pg_mode pg_mode;
@@ -216,7 +227,7 @@ struct tegra_channel_buffer {
 	struct list_head queue;
 	struct tegra_vi_channel *chan;
 	dma_addr_t addr;
-	u32 mw_ack_sp_thresh;
+	u32 mw_ack_sp_thresh[GANG_PORTS_MAX];
 };
 
 /*

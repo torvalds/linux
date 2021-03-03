@@ -95,8 +95,8 @@ static int snd_ad1848_probe(struct device *dev, unsigned int n)
 	if (error < 0)
 		goto out;
 
-	strlcpy(card->driver, "AD1848", sizeof(card->driver));
-	strlcpy(card->shortname, chip->pcm->name, sizeof(card->shortname));
+	strscpy(card->driver, "AD1848", sizeof(card->driver));
+	strscpy(card->shortname, chip->pcm->name, sizeof(card->shortname));
 
 	if (!thinkpad[n])
 		snprintf(card->longname, sizeof(card->longname),
@@ -118,10 +118,9 @@ out:	snd_card_free(card);
 	return error;
 }
 
-static int snd_ad1848_remove(struct device *dev, unsigned int n)
+static void snd_ad1848_remove(struct device *dev, unsigned int n)
 {
 	snd_card_free(dev_get_drvdata(dev));
-	return 0;
 }
 
 #ifdef CONFIG_PM

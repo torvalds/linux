@@ -75,7 +75,7 @@ static void dce110_timing_generator_apply_front_porch_workaround(
 	}
 }
 
-/**
+/*
  *****************************************************************************
  *  Function: is_in_vertical_blank
  *
@@ -116,7 +116,7 @@ void dce110_timing_generator_set_early_control(
 	dm_write_reg(tg->ctx, address, regval);
 }
 
-/**
+/*
  * Enable CRTC
  * Enable CRTC - call ASIC Control Object to enable Timing generator.
  */
@@ -175,7 +175,7 @@ void dce110_timing_generator_program_blank_color(
 	dm_write_reg(tg->ctx, addr, value);
 }
 
-/**
+/*
  *****************************************************************************
  *  Function: disable_stereo
  *
@@ -226,7 +226,7 @@ static void disable_stereo(struct timing_generator *tg)
 }
 #endif
 
-/**
+/*
  * disable_crtc - call ASIC Control Object to disable Timing generator.
  */
 bool dce110_timing_generator_disable_crtc(struct timing_generator *tg)
@@ -247,11 +247,10 @@ bool dce110_timing_generator_disable_crtc(struct timing_generator *tg)
 	return result == BP_RESULT_OK;
 }
 
-/**
-* program_horz_count_by_2
-* Programs DxCRTC_HORZ_COUNT_BY2_EN - 1 for DVI 30bpp mode, 0 otherwise
-*
-*/
+/*
+ * program_horz_count_by_2
+ * Programs DxCRTC_HORZ_COUNT_BY2_EN - 1 for DVI 30bpp mode, 0 otherwise
+ */
 static void program_horz_count_by_2(
 	struct timing_generator *tg,
 	const struct dc_crtc_timing *timing)
@@ -273,7 +272,7 @@ static void program_horz_count_by_2(
 			CRTC_REG(mmCRTC_COUNT_CONTROL), regval);
 }
 
-/**
+/*
  * program_timing_generator
  * Program CRTC Timing Registers - DxCRTC_H_*, DxCRTC_V_*, Pixel repetition.
  * Call ASIC Control Object to program Timings.
@@ -352,7 +351,7 @@ bool dce110_timing_generator_program_timing_generator(
 	return result == BP_RESULT_OK;
 }
 
-/**
+/*
  *****************************************************************************
  *  Function: set_drr
  *
@@ -521,7 +520,7 @@ uint32_t dce110_timing_generator_get_vblank_counter(struct timing_generator *tg)
 	return field;
 }
 
-/**
+/*
  *****************************************************************************
  *  Function: dce110_timing_generator_get_position
  *
@@ -557,7 +556,7 @@ void dce110_timing_generator_get_position(struct timing_generator *tg,
 			CRTC_VERT_COUNT_NOM);
 }
 
-/**
+/*
  *****************************************************************************
  *  Function: get_crtc_scanoutpos
  *
@@ -1106,11 +1105,11 @@ void dce110_timing_generator_set_test_pattern(
 	}
 }
 
-/**
-* dce110_timing_generator_validate_timing
-* The timing generators support a maximum display size of is 8192 x 8192 pixels,
-* including both active display and blanking periods. Check H Total and V Total.
-*/
+/*
+ * dce110_timing_generator_validate_timing
+ * The timing generators support a maximum display size of is 8192 x 8192 pixels,
+ * including both active display and blanking periods. Check H Total and V Total.
+ */
 bool dce110_timing_generator_validate_timing(
 	struct timing_generator *tg,
 	const struct dc_crtc_timing *timing,
@@ -1167,9 +1166,9 @@ bool dce110_timing_generator_validate_timing(
 	return true;
 }
 
-/**
-* Wait till we are at the beginning of VBlank.
-*/
+/*
+ * Wait till we are at the beginning of VBlank.
+ */
 void dce110_timing_generator_wait_for_vblank(struct timing_generator *tg)
 {
 	/* We want to catch beginning of VBlank here, so if the first try are
@@ -1191,9 +1190,9 @@ void dce110_timing_generator_wait_for_vblank(struct timing_generator *tg)
 	}
 }
 
-/**
-* Wait till we are in VActive (anywhere in VActive)
-*/
+/*
+ * Wait till we are in VActive (anywhere in VActive)
+ */
 void dce110_timing_generator_wait_for_vactive(struct timing_generator *tg)
 {
 	while (dce110_timing_generator_is_in_vertical_blank(tg)) {
@@ -1204,7 +1203,7 @@ void dce110_timing_generator_wait_for_vactive(struct timing_generator *tg)
 	}
 }
 
-/**
+/*
  *****************************************************************************
  *  Function: dce110_timing_generator_setup_global_swap_lock
  *
@@ -1215,7 +1214,6 @@ void dce110_timing_generator_wait_for_vactive(struct timing_generator *tg)
  *  @param [in] gsl_params: setup data
  *****************************************************************************
  */
-
 void dce110_timing_generator_setup_global_swap_lock(
 	struct timing_generator *tg,
 	const struct dcp_gsl_params *gsl_params)
@@ -1351,10 +1349,7 @@ void dce110_timing_generator_tear_down_global_swap_lock(
 
 	/* Restore DCP_GSL_PURPOSE_SURFACE_FLIP */
 	{
-		uint32_t value_crtc_vtotal;
-
-		value_crtc_vtotal = dm_read_reg(tg->ctx,
-				CRTC_REG(mmCRTC_V_TOTAL));
+		dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_V_TOTAL));
 
 		set_reg_field_value(value,
 				0,
@@ -1385,7 +1380,7 @@ void dce110_timing_generator_tear_down_global_swap_lock(
 
 	dm_write_reg(tg->ctx, address, value);
 }
-/**
+/*
  *****************************************************************************
  *  Function: is_counter_moving
  *
@@ -1767,7 +1762,7 @@ void dce110_timing_generator_disable_reset_trigger(
 	dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_TRIGB_CNTL), value);
 }
 
-/**
+/*
  *****************************************************************************
  *  @brief
  *     Checks whether CRTC triggered reset occurred
@@ -1794,7 +1789,7 @@ bool dce110_timing_generator_did_triggered_reset_occur(
 	return (force || vert_sync);
 }
 
-/**
+/*
  * dce110_timing_generator_disable_vga
  * Turn OFF VGA Mode and Timing  - DxVGA_CONTROL
  * VGA Mode and VGA Timing is used by VBIOS on CRT Monitors;
@@ -1840,14 +1835,13 @@ void dce110_timing_generator_disable_vga(
 	dm_write_reg(tg->ctx, addr, value);
 }
 
-/**
-* set_overscan_color_black
-*
-* @param :black_color is one of the color space
-*    :this routine will set overscan black color according to the color space.
-* @return none
-*/
-
+/*
+ * set_overscan_color_black
+ *
+ * @param :black_color is one of the color space
+ *    :this routine will set overscan black color according to the color space.
+ * @return none
+ */
 void dce110_timing_generator_set_overscan_color_black(
 	struct timing_generator *tg,
 	const struct tg_color *color)

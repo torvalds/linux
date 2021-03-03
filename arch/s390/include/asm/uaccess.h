@@ -18,7 +18,7 @@
 #include <asm/extable.h>
 #include <asm/facility.h>
 
-void debug_user_asce(void);
+void debug_user_asce(int exit);
 
 static inline int __range_ok(unsigned long addr, unsigned long size)
 {
