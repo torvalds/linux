@@ -15,7 +15,7 @@ static ssize_t recovery_show(struct device *dev,
 {
 	struct rproc *rproc = to_rproc(dev);
 
-	return sprintf(buf, "%s", rproc->recovery_disabled ? "disabled\n" : "enabled\n");
+	return sysfs_emit(buf, "%s", rproc->recovery_disabled ? "disabled\n" : "enabled\n");
 }
 
 /*
@@ -82,7 +82,7 @@ static ssize_t coredump_show(struct device *dev,
 {
 	struct rproc *rproc = to_rproc(dev);
 
-	return sprintf(buf, "%s\n", rproc_coredump_str[rproc->dump_conf]);
+	return sysfs_emit(buf, "%s\n", rproc_coredump_str[rproc->dump_conf]);
 }
 
 /*
