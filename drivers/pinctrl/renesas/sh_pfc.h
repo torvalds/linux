@@ -479,9 +479,13 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 	PORT_GP_CFG_1(bank, 5,  fn, sfx, cfg)
 #define PORT_GP_6(bank, fn, sfx)	PORT_GP_CFG_6(bank, fn, sfx, 0)
 
-#define PORT_GP_CFG_8(bank, fn, sfx, cfg)				\
+#define PORT_GP_CFG_7(bank, fn, sfx, cfg)				\
 	PORT_GP_CFG_6(bank, fn, sfx, cfg),				\
-	PORT_GP_CFG_1(bank, 6,  fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 6,  fn, sfx, cfg)
+#define PORT_GP_7(bank, fn, sfx)	PORT_GP_CFG_7(bank, fn, sfx, 0)
+
+#define PORT_GP_CFG_8(bank, fn, sfx, cfg)				\
+	PORT_GP_CFG_7(bank, fn, sfx, cfg),				\
 	PORT_GP_CFG_1(bank, 7,  fn, sfx, cfg)
 #define PORT_GP_8(bank, fn, sfx)	PORT_GP_CFG_8(bank, fn, sfx, 0)
 
