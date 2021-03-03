@@ -81,7 +81,7 @@ static void dmub_psr_get_state(struct dmub_psr *dmub, enum dc_psr_state *state)
 {
 	struct dmub_srv *srv = dmub->ctx->dmub_srv->dmub;
 	uint32_t raw_state;
-	enum dmub_status status = DMUB_STATUS_INVALID;
+	enum dmub_status status;
 
 	// Send gpint command and wait for ack
 	status = dmub_srv_send_gpint_command(srv, DMUB_GPINT__GET_PSR_STATE, 0, 30);
