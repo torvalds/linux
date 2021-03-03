@@ -618,7 +618,7 @@ static umode_t qla4_attr_is_visible(int param_type, int param)
 }
 
 /**
- * qla4xxx_create chap_list - Create CHAP list from FLASH
+ * qla4xxx_create_chap_list - Create CHAP list from FLASH
  * @ha: pointer to adapter structure
  *
  * Read flash and make a list of CHAP entries, during login when a CHAP entry
@@ -9633,7 +9633,7 @@ qla4xxx_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 }
 
 /**
- * qla4xxx_pci_mmio_enabled() gets called if
+ * qla4xxx_pci_mmio_enabled() - gets called if
  * qla4xxx_pci_error_detected() returns PCI_ERS_RESULT_CAN_RECOVER
  * and read/write to the device still works.
  * @pdev: PCI device pointer
