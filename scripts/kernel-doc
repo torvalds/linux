@@ -1412,9 +1412,14 @@ sub dump_enum($$) {
 
     if ($members) {
 	if ($identifier ne $declaration_name) {
-	    print STDERR "${file}:$.: warning: expecting prototype for enum $identifier. Prototype was for enum $declaration_name instead\n";
+	    if ($identifier eq "") {
+		print STDERR "${file}:$.: warning: wrong kernel-doc identifier on line:\n";
+	    } else {
+		print STDERR "${file}:$.: warning: expecting prototype for enum $identifier. Prototype was for enum $declaration_name instead\n";
+	    }
 	    return;
 	}
+	$declaration_name = "(anonymous)" if ($declaration_name eq "");
 
 	my %_members;
 
@@ -2134,7 +2139,7 @@ sub process_name($$) {
 	    ++$warnings;
 	}
 
-	if ($identifier eq "") {
+	if ($identifier eq "" && $decl_type ne "enum") {
 	    print STDERR "${file}:$.: warning: wrong kernel-doc identifier on line:\n";
 	    print STDERR $_;
 	    ++$warnings;
