@@ -520,9 +520,7 @@ static void amdgpu_dm_irq_schedule_work(struct amdgpu_device *adev,
 		return;
 
 	list_for_each_entry (handler_data, handler_list, list) {
-		if (!queue_work(system_highpri_wq, &handler_data->work)) {
-			continue;
-		} else {
+		if (queue_work(system_highpri_wq, &handler_data->work)) {
 			work_queued = true;
 			break;
 		}
