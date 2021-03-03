@@ -487,7 +487,6 @@ static struct z2_battery_info batt_chip_info = {
 	.batt_I2C_bus	= 0,
 	.batt_I2C_addr	= 0x55,
 	.batt_I2C_reg	= 2,
-	.charge_gpio	= GPIO0_ZIPITZ2_AC_DETECT,
 	.min_voltage	= 3475000,
 	.max_voltage	= 4190000,
 	.batt_div	= 59,
@@ -496,9 +495,19 @@ static struct z2_battery_info batt_chip_info = {
 	.batt_name	= "Z2",
 };
 
+static struct gpiod_lookup_table z2_battery_gpio_table = {
+	.dev_id = "aer915",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO0_ZIPITZ2_AC_DETECT,
+			    NULL, GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static struct i2c_board_info __initdata z2_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("aer915", 0x55),
+		.dev_name = "aer915",
 		.platform_data	= &batt_chip_info,
 	}, {
 		I2C_BOARD_INFO("wm8750", 0x1b),
@@ -509,6 +518,7 @@ static struct i2c_board_info __initdata z2_i2c_board_info[] = {
 static void __init z2_i2c_init(void)
 {
 	pxa_set_i2c_info(NULL);
+	gpiod_add_lookup_table(&z2_battery_gpio_table);
 	i2c_register_board_info(0, ARRAY_AND_SIZE(z2_i2c_board_info));
 }
 #else

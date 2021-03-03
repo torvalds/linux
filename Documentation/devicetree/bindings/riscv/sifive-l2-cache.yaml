@@ -63,6 +63,7 @@ properties:
   next-level-cache: true
 
   memory-region:
+    maxItems: 1
     description: |
       The reference to the reserved-memory for the L2 Loosely Integrated Memory region.
       The reserved memory node should be defined as per the bindings in reserved-memory.txt.

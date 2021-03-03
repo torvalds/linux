@@ -28,6 +28,8 @@ properties:
     const: 1
 
   ranges:
+    minItems: 1
+    maxItems: 4
     description: |
       Reflects the memory layout with four integer values per bank. Format:
       <bank-number> 0 <parent address of bank> <size>

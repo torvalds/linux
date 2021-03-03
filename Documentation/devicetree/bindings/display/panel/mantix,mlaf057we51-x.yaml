@@ -38,7 +38,8 @@ properties:
 
   reset-gpios: true
 
-  'mantix,tp-rstn-gpios':
+  mantix,tp-rstn-gpios:
+    maxItems: 1
     description: second reset line that triggers DSI config load
 
   backlight: true

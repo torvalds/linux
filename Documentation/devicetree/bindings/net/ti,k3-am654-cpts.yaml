@@ -59,6 +59,7 @@ properties:
       - const: cpts
 
   clocks:
+    maxItems: 1
     description: CPTS reference clock
 
   clock-names:
