@@ -1486,7 +1486,7 @@ lpfc_copy_fcf_record(struct lpfc_fcf_rec *fcf_rec,
 }
 
 /**
- * lpfc_update_fcf_record - Update driver fcf record
+ * __lpfc_update_fcf_record - Update driver fcf record
  * @phba: pointer to lpfc hba data structure.
  * @fcf_rec: pointer to driver fcf record.
  * @new_fcf_record: pointer to hba fcf record.
