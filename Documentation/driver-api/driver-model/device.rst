@@ -82,19 +82,24 @@ organized as follows into a group::
 	NULL,
   };
 
-  static struct attribute_group dev_attr_group = {
+  static struct attribute_group dev_group = {
 	.attrs = dev_attrs,
   };
 
-  static const struct attribute_group *dev_attr_groups[] = {
-	&dev_attr_group,
+  static const struct attribute_group *dev_groups[] = {
+	&dev_group,
 	NULL,
   };
+
+A helper macro is available for the common case of a single group, so the
+above two structures can be declared using:::
+
+  ATTRIBUTE_GROUPS(dev);
 
 This array of groups can then be associated with a device by setting the
 group pointer in struct device before device_register() is invoked::
 
-        dev->groups = dev_attr_groups;
+        dev->groups = dev_groups;
         device_register(dev);
 
 The device_register() function will use the 'groups' pointer to create the
