@@ -1420,7 +1420,7 @@ static int pm80xx_encrypt_update(struct pm8001_hba_info *pm8001_ha)
 }
 
 /**
- * pm8001_chip_init - the main init function that initialize whole PM8001 chip.
+ * pm80xx_chip_init - the main init function that initialize whole PM8001 chip.
  * @pm8001_ha: our hba card information
  */
 static int pm80xx_chip_init(struct pm8001_hba_info *pm8001_ha)
@@ -1574,7 +1574,7 @@ pm80xx_fatal_errors(struct pm8001_hba_info *pm8001_ha)
 }
 
 /**
- * pm8001_chip_soft_rst - soft reset the PM8001 chip, so that the clear all
+ * pm80xx_chip_soft_rst - soft reset the PM8001 chip, so that the clear all
  * the FW register status to the originated status.
  * @pm8001_ha: our hba card information
  */
@@ -1703,7 +1703,7 @@ static void pm80xx_hw_chip_rst(struct pm8001_hba_info *pm8001_ha)
 }
 
 /**
- * pm8001_chip_interrupt_enable - enable PM8001 chip interrupt
+ * pm80xx_chip_intx_interrupt_enable - enable PM8001 chip interrupt
  * @pm8001_ha: our hba card information
  */
 static void
@@ -1714,7 +1714,7 @@ pm80xx_chip_intx_interrupt_enable(struct pm8001_hba_info *pm8001_ha)
 }
 
 /**
- * pm8001_chip_intx_interrupt_disable- disable PM8001 chip interrupt
+ * pm80xx_chip_intx_interrupt_disable - disable PM8001 chip interrupt
  * @pm8001_ha: our hba card information
  */
 static void
@@ -1724,7 +1724,7 @@ pm80xx_chip_intx_interrupt_disable(struct pm8001_hba_info *pm8001_ha)
 }
 
 /**
- * pm8001_chip_interrupt_enable - enable PM8001 chip interrupt
+ * pm80xx_chip_interrupt_enable - enable PM8001 chip interrupt
  * @pm8001_ha: our hba card information
  * @vec: interrupt number to enable
  */
@@ -1743,7 +1743,7 @@ pm80xx_chip_interrupt_enable(struct pm8001_hba_info *pm8001_ha, u8 vec)
 }
 
 /**
- * pm8001_chip_interrupt_disable- disable PM8001 chip interrupt
+ * pm80xx_chip_interrupt_disable - disable PM8001 chip interrupt
  * @pm8001_ha: our hba card information
  * @vec: interrupt number to disable
  */
@@ -4183,7 +4183,7 @@ static void build_smp_cmd(u32 deviceID, __le32 hTag,
 }
 
 /**
- * pm8001_chip_smp_req - send a SMP task to FW
+ * pm80xx_chip_smp_req - send a SMP task to FW
  * @pm8001_ha: our hba card information.
  * @ccb: the ccb information this request used.
  */
@@ -4766,7 +4766,7 @@ pm80xx_chip_phy_start_req(struct pm8001_hba_info *pm8001_ha, u8 phy_id)
 }
 
 /**
- * pm8001_chip_phy_stop_req - start phy via PHY_STOP COMMAND
+ * pm80xx_chip_phy_stop_req - start phy via PHY_STOP COMMAND
  * @pm8001_ha: our hba card information.
  * @phy_id: the phy id which we wanted to start up.
  */
@@ -4898,7 +4898,7 @@ static u32 pm80xx_chip_is_our_interrupt(struct pm8001_hba_info *pm8001_ha)
 }
 
 /**
- * pm8001_chip_isr - PM8001 isr handler.
+ * pm80xx_chip_isr - PM8001 isr handler.
  * @pm8001_ha: our hba card information.
  * @vec: irq number.
  */
