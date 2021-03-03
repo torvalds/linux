@@ -663,6 +663,8 @@ void analogix_dp_set_lane_link_training(struct analogix_dp_device *dp)
 		}
 
 		phy_cfg.dp.lanes = dp->link_train.lane_count;
+		phy_cfg.dp.link_rate =
+			drm_dp_bw_code_to_link_rate(dp->link_train.link_rate) / 100;
 		phy_cfg.dp.set_lanes = false;
 		phy_cfg.dp.set_rate = false;
 		phy_cfg.dp.set_voltages = true;
@@ -1043,6 +1045,7 @@ void analogix_dp_phy_power_on(struct analogix_dp_device *dp)
 	if (dp->phy_enabled)
 		return;
 
+	phy_set_mode(dp->phy, PHY_MODE_DP);
 	phy_power_on(dp->phy);
 
 	dp->phy_enabled = true;

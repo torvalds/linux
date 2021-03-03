@@ -53,12 +53,14 @@ struct rockchip_grf_reg_field {
 /**
  * struct rockchip_dp_chip_data - splite the grf setting of kind of chips
  * @lcdc_sel: grf register field of lcdc_sel
+ * @edp_mode: grf register field of edp_mode
  * @chip_type: specific chip type
  * @ssc: check if SSC is supported by source
  * @audio: check if audio is supported by source
  */
 struct rockchip_dp_chip_data {
 	const struct rockchip_grf_reg_field lcdc_sel;
+	const struct rockchip_grf_reg_field edp_mode;
 	u32	chip_type;
 	bool	ssc;
 	bool	audio;
@@ -167,12 +169,14 @@ static int rockchip_dp_poweron_start(struct analogix_dp_plat_data *plat_data)
 		return ret;
 	}
 
-	return ret;
+	return rockchip_grf_field_write(dp->grf, &dp->data->edp_mode, 1);
 }
 
 static int rockchip_dp_powerdown(struct analogix_dp_plat_data *plat_data)
 {
-	return 0;
+	struct rockchip_dp_device *dp = to_dp(plat_data);
+
+	return rockchip_grf_field_write(dp->grf, &dp->data->edp_mode, 0);
 }
 
 static int rockchip_dp_get_modes(struct analogix_dp_plat_data *plat_data,
@@ -610,10 +614,25 @@ static const struct rockchip_dp_chip_data rk3568_edp[] = {
 	{ /* sentinel */ }
 };
 
+static const struct rockchip_dp_chip_data rk3588_edp[] = {
+	{
+		.chip_type = RK3588_EDP,
+		.edp_mode = GRF_REG_FIELD(0x0000, 0, 0),
+		.ssc = true,
+	},
+	{
+		.chip_type = RK3588_EDP,
+		.edp_mode = GRF_REG_FIELD(0x0004, 0, 0),
+		.ssc = true,
+	},
+	{ /* sentinel */ }
+};
+
 static const struct of_device_id rockchip_dp_dt_ids[] = {
 	{.compatible = "rockchip,rk3288-dp", .data = &rk3288_dp },
 	{.compatible = "rockchip,rk3399-edp", .data = &rk3399_edp },
 	{.compatible = "rockchip,rk3568-edp", .data = &rk3568_edp },
+	{.compatible = "rockchip,rk3588-edp", .data = &rk3588_edp },
 	{}
 };
 MODULE_DEVICE_TABLE(of, rockchip_dp_dt_ids);
