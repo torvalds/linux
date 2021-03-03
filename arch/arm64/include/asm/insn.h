@@ -31,6 +31,7 @@
  */
 enum aarch64_insn_encoding_class {
 	AARCH64_INSN_CLS_UNKNOWN,	/* UNALLOCATED */
+	AARCH64_INSN_CLS_SVE,		/* SVE instructions */
 	AARCH64_INSN_CLS_DP_IMM,	/* Data processing - immediate */
 	AARCH64_INSN_CLS_DP_REG,	/* Data processing - register */
 	AARCH64_INSN_CLS_DP_FPSIMD,	/* Data processing - SIMD and FP */
