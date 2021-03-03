@@ -9632,7 +9632,7 @@ lpfc_sli4_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 }
 
 /**
- * lpfc_sli_iocb2wqe - Convert the IOCB to a work queue entry.
+ * lpfc_sli4_iocb2wqe - Convert the IOCB to a work queue entry.
  * @phba: Pointer to HBA context object.
  * @iocbq: Pointer to command iocb.
  * @wqe: Pointer to the work queue entry.
@@ -10418,7 +10418,7 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 	return 0;
 }
 
-/**
+/*
  * lpfc_sli_issue_fcp_io - Wrapper func for issuing fcp i/o
  *
  * This routine wraps the actual fcp i/o function for issusing WQE for sli-4
@@ -14167,7 +14167,7 @@ rearm_and_exit:
 }
 
 /**
- * lpfc_sli4_sp_process_cq - Process a slow-path event queue entry
+ * __lpfc_sli4_sp_process_cq - Process a slow-path event queue entry
  * @cq: pointer to CQ to process
  *
  * This routine calls the cq processing routine with a handler specific
@@ -14741,7 +14741,7 @@ lpfc_sli4_hba_process_cq(struct work_struct *work)
 }
 
 /**
- * lpfc_sli4_hba_process_cq - fast-path work handler when started by timer
+ * lpfc_sli4_dly_hba_process_cq - fast-path work handler when started by timer
  * @work: pointer to work element
  *
  * translates from the work handler and calls the fast-path handler.
@@ -17215,7 +17215,7 @@ lpfc_sli4_alloc_xri(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_sli4_free_xri - Release an xri for reuse.
+ * __lpfc_sli4_free_xri - Release an xri for reuse.
  * @phba: pointer to lpfc hba data structure.
  * @xri: xri to release.
  *
@@ -18935,7 +18935,7 @@ lpfc_sli4_alloc_rpi(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_sli4_free_rpi - Release an rpi for reuse.
+ * __lpfc_sli4_free_rpi - Release an rpi for reuse.
  * @phba: pointer to lpfc hba data structure.
  * @rpi: rpi to free
  *
