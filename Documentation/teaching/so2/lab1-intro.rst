@@ -48,7 +48,7 @@ Lab objectives
 .. note::
 
     If you want to learn how to easily browse through the Linux source code
-    and how to debug kernel code, read the `Good to know <#good_to_know>`__
+    and how to debug kernel code, read the `Good to know <#good-to-know>`__
     section.
 
 Exercises
@@ -95,7 +95,7 @@ Exercises
     :start-after: [EXERCISE7-BEGIN]
     :end-before: [EXERCISE7-END]
 
-.. _good_to_know:
+.. _good-to-know:
 
 Good to know
 ============
