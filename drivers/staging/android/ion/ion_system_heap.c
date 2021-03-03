@@ -5,7 +5,6 @@
  * Copyright (C) 2011 Google, Inc.
  */
 
-#include <asm/cacheflush.h>
 #include <asm/page.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
@@ -190,17 +189,6 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 	}
 
 	buffer->sg_table = table;
-
-	if (!(buffer->flags & ION_FLAG_CACHED)) {
-		for_each_sg(table->sgl, sg, table->orig_nents, i) {
-			void *start;
-
-			page = sg_page(sg);
-			start = page_address(page);
-			dmac_flush_range(start, start + sg->length);
-		}
-	}
-
 	return 0;
 
 free_table:
