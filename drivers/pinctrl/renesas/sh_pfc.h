@@ -273,6 +273,7 @@ struct sh_pfc_soc_operations {
 	void (*set_bias)(struct sh_pfc *pfc, unsigned int pin,
 			 unsigned int bias);
 	int (*pin_to_pocctrl)(struct sh_pfc *pfc, unsigned int pin, u32 *pocctrl);
+	void __iomem * (*pin_to_portcr)(struct sh_pfc *pfc, unsigned int pin);
 };
 
 struct sh_pfc_soc_info {
@@ -779,5 +780,9 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 unsigned int rcar_pinmux_get_bias(struct sh_pfc *pfc, unsigned int pin);
 void rcar_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
 			  unsigned int bias);
+
+unsigned int rmobile_pinmux_get_bias(struct sh_pfc *pfc, unsigned int pin);
+void rmobile_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
+			     unsigned int bias);
 
 #endif /* __SH_PFC_H */
