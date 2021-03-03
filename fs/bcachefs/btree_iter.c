@@ -1904,6 +1904,14 @@ struct bkey_s_c bch2_btree_iter_next_slot(struct btree_iter *iter)
 	return bch2_btree_iter_peek_slot(iter);
 }
 
+struct bkey_s_c bch2_btree_iter_prev_slot(struct btree_iter *iter)
+{
+	if (!bch2_btree_iter_rewind_pos(iter))
+		return bkey_s_c_null;
+
+	return bch2_btree_iter_peek_slot(iter);
+}
+
 struct bkey_s_c bch2_btree_iter_peek_cached(struct btree_iter *iter)
 {
 	struct bkey_cached *ck;

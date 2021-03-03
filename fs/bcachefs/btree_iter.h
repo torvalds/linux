@@ -171,6 +171,7 @@ struct bkey_s_c bch2_btree_iter_prev(struct btree_iter *);
 
 struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *);
 struct bkey_s_c bch2_btree_iter_next_slot(struct btree_iter *);
+struct bkey_s_c bch2_btree_iter_prev_slot(struct btree_iter *);
 
 struct bkey_s_c bch2_btree_iter_peek_cached(struct btree_iter *);
 
