@@ -577,7 +577,6 @@ static struct platform_driver pcc_mbox_driver = {
 	.probe = pcc_mbox_probe,
 	.driver = {
 		.name = "PCCT",
-		.owner = THIS_MODULE,
 	},
 };
 
