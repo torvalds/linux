@@ -62,7 +62,7 @@ bool kmsg_dump_get_line(struct kmsg_dumper *dumper, bool syslog,
 			char *line, size_t size, size_t *len);
 
 bool kmsg_dump_get_buffer(struct kmsg_dumper *dumper, bool syslog,
-			  char *buf, size_t size, size_t *len);
+			  char *buf, size_t size, size_t *len_out);
 
 void kmsg_dump_rewind_nolock(struct kmsg_dumper *dumper);
 
