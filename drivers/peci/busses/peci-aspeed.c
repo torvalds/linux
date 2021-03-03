@@ -201,9 +201,13 @@ static int aspeed_peci_xfer(struct peci_adapter *adapter,
 
 	/* Check command sts and bus idle state */
 	ret = aspeed_peci_check_idle(priv);
-	if (ret)
-		return ret; /* -ETIMEDOUT */
-
+	if (ret) {
+		dev_warn(priv->dev, "Check idle timeout!\n");
+		reset_control_assert(priv->rst);
+		reset_control_deassert(priv->rst);
+		aspeed_peci_init_ctrl(priv);
+		return ret;
+	}
 	spin_lock_irqsave(&priv->lock, flags);
 	reinit_completion(&priv->xfer_complete);
 
@@ -247,7 +251,7 @@ static int aspeed_peci_xfer(struct peci_adapter *adapter,
 			ret = (int)err;
 			goto err_irqrestore;
 		} else if (err == 0) {
-			dev_dbg(priv->dev, "Timeout waiting for a response!\n");
+			dev_warn(priv->dev, "Xfer timeout!\n");
 			reset_control_assert(priv->rst);
 			reset_control_deassert(priv->rst);
 			aspeed_peci_init_ctrl(priv);
@@ -381,7 +385,7 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 			}
 		}
 	addr_timing = msg_timing;
-	dev_info(priv->dev, "Expect frequency: %d Real frequency is about: %lu",
+	dev_dbg(priv->dev, "Expect frequency: %d Real frequency is about: %lu",
 		clk_freq,
 		bus_clk_rate /
 		(4 * (1 << clk_div_val) * (msg_timing * 4 + 1)));
