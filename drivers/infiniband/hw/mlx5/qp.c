@@ -1078,7 +1078,7 @@ static int _create_kernel_qp(struct mlx5_ib_dev *dev,
 
 	qpc = MLX5_ADDR_OF(create_qp_in, *in, qpc);
 	MLX5_SET(qpc, qpc, uar_page, uar_index);
-	MLX5_SET(qpc, qpc, ts_format, MLX5_QPC_TIMESTAMP_FORMAT_DEFAULT);
+	MLX5_SET(qpc, qpc, ts_format, mlx5_get_qp_default_ts(dev->mdev));
 	MLX5_SET(qpc, qpc, log_page_size, qp->buf.page_shift - MLX5_ADAPTER_PAGE_SHIFT);
 
 	/* Set "fast registration enabled" for all kernel QPs */
@@ -1188,7 +1188,8 @@ static int get_rq_ts_format(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *send_cq)
 		}
 		return MLX5_RQC_TIMESTAMP_FORMAT_FREE_RUNNING;
 	}
-	return MLX5_RQC_TIMESTAMP_FORMAT_DEFAULT;
+	return fr_supported ? MLX5_RQC_TIMESTAMP_FORMAT_FREE_RUNNING :
+			      MLX5_RQC_TIMESTAMP_FORMAT_DEFAULT;
 }
 
 static int get_sq_ts_format(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *send_cq)
@@ -1206,7 +1207,8 @@ static int get_sq_ts_format(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *send_cq)
 		}
 		return MLX5_SQC_TIMESTAMP_FORMAT_FREE_RUNNING;
 	}
-	return MLX5_SQC_TIMESTAMP_FORMAT_DEFAULT;
+	return fr_supported ? MLX5_SQC_TIMESTAMP_FORMAT_FREE_RUNNING :
+			      MLX5_SQC_TIMESTAMP_FORMAT_DEFAULT;
 }
 
 static int get_qp_ts_format(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *send_cq,
@@ -1217,7 +1219,8 @@ static int get_qp_ts_format(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *send_cq,
 			MLX5_QP_TIMESTAMP_FORMAT_CAP_FREE_RUNNING ||
 		MLX5_CAP_ROCE(dev->mdev, qp_ts_format) ==
 			MLX5_QP_TIMESTAMP_FORMAT_CAP_FREE_RUNNING_AND_REAL_TIME;
-	int ts_format = MLX5_QPC_TIMESTAMP_FORMAT_DEFAULT;
+	int ts_format = fr_supported ? MLX5_QPC_TIMESTAMP_FORMAT_FREE_RUNNING :
+				       MLX5_QPC_TIMESTAMP_FORMAT_DEFAULT;
 
 	if (recv_cq &&
 	    recv_cq->create_flags & IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION)
@@ -1930,6 +1933,7 @@ static int create_xrc_tgt_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if (qp->flags & IB_QP_CREATE_MANAGED_RECV)
 		MLX5_SET(qpc, qpc, cd_slave_receive, 1);
 
+	MLX5_SET(qpc, qpc, ts_format, mlx5_get_qp_default_ts(dev->mdev));
 	MLX5_SET(qpc, qpc, rq_type, MLX5_SRQ_RQ);
 	MLX5_SET(qpc, qpc, no_sq, 1);
 	MLX5_SET(qpc, qpc, cqn_rcv, to_mcq(devr->c0)->mcq.cqn);
@@ -4873,6 +4877,7 @@ static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 	struct mlx5_ib_dev *dev;
 	int has_net_offloads;
 	__be64 *rq_pas0;
+	int ts_format;
 	void *in;
 	void *rqc;
 	void *wq;
@@ -4880,6 +4885,10 @@ static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 	int err;
 
 	dev = to_mdev(pd->device);
+
+	ts_format = get_rq_ts_format(dev, to_mcq(init_attr->cq));
+	if (ts_format < 0)
+		return ts_format;
 
 	inlen = MLX5_ST_SZ_BYTES(create_rq_in) + sizeof(u64) * rwq->rq_num_pas;
 	in = kvzalloc(inlen, GFP_KERNEL);
@@ -4890,6 +4899,7 @@ static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 	rqc = MLX5_ADDR_OF(create_rq_in, in, ctx);
 	MLX5_SET(rqc,  rqc, mem_rq_type,
 		 MLX5_RQC_MEM_RQ_TYPE_MEMORY_RQ_INLINE);
+	MLX5_SET(rqc, rqc, ts_format, ts_format);
 	MLX5_SET(rqc, rqc, user_index, rwq->user_index);
 	MLX5_SET(rqc,  rqc, cqn, to_mcq(init_attr->cq)->mcq.cqn);
 	MLX5_SET(rqc,  rqc, state, MLX5_RQC_STATE_RST);
