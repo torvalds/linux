@@ -142,7 +142,7 @@ struct vsp1_dl_body_pool {
 };
 
 /**
- * struct vsp1_cmd_pool - Display List commands pool
+ * struct vsp1_dl_cmd_pool - Display List commands pool
  * @dma: DMA address of the entries
  * @size: size of the full DMA memory pool in bytes
  * @mem: CPU memory pointer for the pool

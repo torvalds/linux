@@ -697,7 +697,7 @@ static inline int imx274_write_reg(struct stimx274 *priv, u16 addr, u8 val)
 }
 
 /**
- * Read a multibyte register.
+ * imx274_read_mbreg - Read a multibyte register.
  *
  * Uses a bulk read where possible.
  *
@@ -732,7 +732,7 @@ static int imx274_read_mbreg(struct stimx274 *priv, u16 addr, u32 *val,
 }
 
 /**
- * Write a multibyte register.
+ * imx274_write_mbreg - Write a multibyte register.
  *
  * Uses a bulk write where possible.
  *
@@ -980,7 +980,8 @@ static int imx274_binning_goodness(struct stimx274 *imx274,
 }
 
 /**
- * Helper function to change binning and set both compose and format.
+ * __imx274_change_compose - Helper function to change binning and set both
+ *	compose and format.
  *
  * We have two entry points to change binning: set_fmt and
  * set_selection(COMPOSE). Both have to compute the new output size
