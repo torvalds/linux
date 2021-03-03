@@ -3318,9 +3318,13 @@ static void check_buffer(struct ring_buffer_per_cpu *cpu_buffer,
 			goto out;
 		}
 		atomic_inc(&cpu_buffer->record_disabled);
-		pr_warn("[CPU: %d]TIME DOES NOT MATCH expected:%lld actual:%lld delta:%lld after:%lld\n",
-		       cpu_buffer->cpu,
-		       ts + info->delta, info->ts, info->delta, info->after);
+		/* There's some cases in boot up that this can happen */
+		WARN_ON_ONCE(system_state != SYSTEM_BOOTING);
+		pr_warn("[CPU: %d]TIME DOES NOT MATCH expected:%lld actual:%lld delta:%lld before:%lld after:%lld%s\n",
+			cpu_buffer->cpu,
+			ts + info->delta, info->ts, info->delta,
+			info->before, info->after,
+			full ? " (full)" : "");
 		dump_buffer_page(bpage, info, tail);
 		atomic_dec(&ts_dump);
 		/* Do not re-enable checking */
