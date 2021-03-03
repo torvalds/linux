@@ -203,20 +203,26 @@ static void cros_typec_unregister_altmodes(struct cros_typec_data *typec, int po
 	}
 }
 
-static void cros_typec_remove_partner(struct cros_typec_data *typec,
-				     int port_num)
+static int cros_typec_usb_disconnect_state(struct cros_typec_port *port)
 {
-	struct cros_typec_port *port = typec->ports[port_num];
-
-	cros_typec_unregister_altmodes(typec, port_num, true);
-
 	port->state.alt = NULL;
 	port->state.mode = TYPEC_STATE_USB;
 	port->state.data = NULL;
 
 	usb_role_switch_set_role(port->role_sw, USB_ROLE_NONE);
 	typec_switch_set(port->ori_sw, TYPEC_ORIENTATION_NONE);
-	typec_mux_set(port->mux, &port->state);
+
+	return typec_mux_set(port->mux, &port->state);
+}
+
+static void cros_typec_remove_partner(struct cros_typec_data *typec,
+				      int port_num)
+{
+	struct cros_typec_port *port = typec->ports[port_num];
+
+	cros_typec_unregister_altmodes(typec, port_num, true);
+
+	cros_typec_usb_disconnect_state(port);
 
 	typec_unregister_partner(port->partner);
 	port->partner = NULL;
@@ -536,8 +542,10 @@ static int cros_typec_configure_mux(struct cros_typec_data *typec, int port_num,
 	enum typec_orientation orientation;
 	int ret;
 
-	if (!port->partner)
-		return 0;
+	if (mux_flags == USB_PD_MUX_NONE) {
+		ret = cros_typec_usb_disconnect_state(port);
+		goto mux_ack;
+	}
 
 	if (mux_flags & USB_PD_MUX_POLARITY_INVERTED)
 		orientation = TYPEC_ORIENTATION_REVERSE;
@@ -572,6 +580,7 @@ static int cros_typec_configure_mux(struct cros_typec_data *typec, int port_num,
 			mux_flags);
 	}
 
+mux_ack:
 	if (!typec->needs_mux_ack)
 		return ret;
 
@@ -638,9 +647,8 @@ static void cros_typec_set_port_params_v1(struct cros_typec_data *typec,
 				 "Failed to register partner on port: %d\n",
 				 port_num);
 	} else {
-		if (!typec->ports[port_num]->partner)
-			return;
-		cros_typec_remove_partner(typec, port_num);
+		if (typec->ports[port_num]->partner)
+			cros_typec_remove_partner(typec, port_num);
 
 		if (typec->ports[port_num]->cable)
 			cros_typec_remove_cable(typec, port_num);
@@ -1060,6 +1068,7 @@ static int cros_ec_typec_event(struct notifier_block *nb,
 {
 	struct cros_typec_data *typec = container_of(nb, struct cros_typec_data, nb);
 
+	flush_work(&typec->port_work);
 	schedule_work(&typec->port_work);
 
 	return NOTIFY_OK;

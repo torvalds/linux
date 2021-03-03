@@ -1110,7 +1110,7 @@ clear_caseopen(struct device *dev, struct w83627ehf_data *data, int channel,
 static umode_t w83627ehf_attrs_visible(struct kobject *kobj,
 				       struct attribute *a, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
 	struct device_attribute *devattr;
 	struct sensor_device_attribute *sda;
