@@ -84,11 +84,25 @@ void intel_crtc_vblank_on(const struct intel_crtc_state *crtc_state)
 	drm_crtc_set_max_vblank_count(&crtc->base,
 				      intel_crtc_max_vblank_count(crtc_state));
 	drm_crtc_vblank_on(&crtc->base);
+
+	/*
+	 * Should really happen exactly when we enable the pipe
+	 * but we want the frame counters in the trace, and that
+	 * requires vblank support on some platforms/outputs.
+	 */
+	trace_intel_pipe_enable(crtc);
 }
 
 void intel_crtc_vblank_off(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	/*
+	 * Should really happen exactly when we disable the pipe
+	 * but we want the frame counters in the trace, and that
+	 * requires vblank support on some platforms/outputs.
+	 */
+	trace_intel_pipe_disable(crtc);
 
 	drm_crtc_vblank_off(&crtc->base);
 	assert_vblank_disabled(&crtc->base);

@@ -28,7 +28,6 @@
 #include <drm/drm_scdc_helper.h>
 
 #include "i915_drv.h"
-#include "i915_trace.h"
 #include "intel_audio.h"
 #include "intel_combo_phy.h"
 #include "intel_connector.h"
@@ -2656,7 +2655,6 @@ static void intel_ddi_post_disable(struct intel_atomic_state *state,
 			intel_atomic_get_old_crtc_state(state, slave);
 
 		intel_crtc_vblank_off(old_slave_crtc_state);
-		trace_intel_pipe_disable(slave);
 
 		intel_dsc_disable(old_slave_crtc_state);
 		skl_scaler_disable(old_slave_crtc_state);

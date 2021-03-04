@@ -67,7 +67,6 @@
 #include "gt/intel_rps.h"
 
 #include "i915_drv.h"
-#include "i915_trace.h"
 #include "intel_acpi.h"
 #include "intel_atomic.h"
 #include "intel_atomic_plane.h"
@@ -794,8 +793,6 @@ void intel_enable_pipe(const struct intel_crtc_state *new_crtc_state)
 		/* FIXME: assert CPU port conditions for SNB+ */
 	}
 
-	trace_intel_pipe_enable(crtc);
-
 	reg = PIPECONF(cpu_transcoder);
 	val = intel_de_read(dev_priv, reg);
 	if (val & PIPECONF_ENABLE) {
@@ -834,8 +831,6 @@ void intel_disable_pipe(const struct intel_crtc_state *old_crtc_state)
 	 * or we might hang the display.
 	 */
 	assert_planes_disabled(crtc);
-
-	trace_intel_pipe_disable(crtc);
 
 	reg = PIPECONF(cpu_transcoder);
 	val = intel_de_read(dev_priv, reg);
@@ -4026,10 +4021,8 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 	if (INTEL_GEN(dev_priv) >= 11)
 		icl_pipe_mbus_enable(crtc);
 
-	if (new_crtc_state->bigjoiner_slave) {
-		trace_intel_pipe_enable(crtc);
+	if (new_crtc_state->bigjoiner_slave)
 		intel_crtc_vblank_on(new_crtc_state);
-	}
 
 	intel_encoders_enable(state, crtc);
 
