@@ -1479,19 +1479,25 @@ static void write_proc(struct seq_file *s, struct dma_proc *proc)
 
 	seq_printf(s, "\n%s (PID %d) size: %zu\nDMA Buffers:\n",
 		proc->name, proc->pid, proc->size);
-	seq_printf(s, "%-8s\t%-60s\t%-8s\t%-8s\n",
-		"Name", "Exp_name", "Size (KB)", "Time Alive (sec)");
+	seq_printf(s, "%-8s\t%-60s\t%-8s\t%-8s\t%s\n",
+		"Name", "Exp_name", "Size (KB)", "Alive (sec)", "Attached Devices");
 
 	hash_for_each(proc->dma_bufs, i, tmp, head) {
 		struct dma_buf *dmabuf = tmp->dmabuf;
+		struct dma_buf_attachment *a;
 		ktime_t elapmstime = ktime_ms_delta(ktime_get(), dmabuf->ktime);
 
 		elapmstime = ktime_divns(elapmstime, MSEC_PER_SEC);
-		seq_printf(s, "%-8s\t%-60s\t%-8zu\t%-8lld\n",
+		seq_printf(s, "%-8s\t%-60s\t%-8zu\t%-8lld",
 				dmabuf->name,
 				dmabuf->exp_name,
 				dmabuf->size / SZ_1K,
 				elapmstime);
+
+		list_for_each_entry(a, &dmabuf->attachments, node) {
+			seq_printf(s, "\t%s", dev_name(a->dev));
+		}
+		seq_printf(s, "\n");
 	}
 }
 
