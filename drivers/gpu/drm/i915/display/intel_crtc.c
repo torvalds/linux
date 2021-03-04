@@ -51,8 +51,6 @@ u32 intel_crtc_get_vblank_counter(struct intel_crtc *crtc)
 u32 intel_crtc_max_vblank_count(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	u32 mode_flags = crtc->mode_flags;
 
 	/*
 	 * From Gen 11, In case of dsi cmd mode, frame counter wouldnt
@@ -60,7 +58,8 @@ u32 intel_crtc_max_vblank_count(const struct intel_crtc_state *crtc_state)
 	 * the hw counter, then we would find it updated in only
 	 * the next TE, hence switching to sw counter.
 	 */
-	if (mode_flags & (I915_MODE_FLAG_DSI_USE_TE0 | I915_MODE_FLAG_DSI_USE_TE1))
+	if (crtc_state->mode_flags & (I915_MODE_FLAG_DSI_USE_TE0 |
+				      I915_MODE_FLAG_DSI_USE_TE1))
 		return 0;
 
 	/*
