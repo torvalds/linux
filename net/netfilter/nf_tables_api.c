@@ -9083,13 +9083,12 @@ static void __nft_release_table(struct net *net, struct nft_table *table)
 	nf_tables_table_destroy(&ctx);
 }
 
-static void __nft_release_tables(struct net *net, u32 nlpid)
+static void __nft_release_tables(struct net *net)
 {
 	struct nft_table *table, *nt;
 
 	list_for_each_entry_safe(table, nt, &net->nft.tables, list) {
-		if (nft_table_has_owner(table) &&
-		    nlpid != table->nlpid)
+		if (nft_table_has_owner(table))
 			continue;
 
 		__nft_release_table(net, table);
@@ -9155,7 +9154,7 @@ static void __net_exit nf_tables_exit_net(struct net *net)
 	mutex_lock(&net->nft.commit_mutex);
 	if (!list_empty(&net->nft.commit_list))
 		__nf_tables_abort(net, NFNL_ABORT_NONE);
-	__nft_release_tables(net, 0);
+	__nft_release_tables(net);
 	mutex_unlock(&net->nft.commit_mutex);
 	WARN_ON_ONCE(!list_empty(&net->nft.tables));
 	WARN_ON_ONCE(!list_empty(&net->nft.module_list));
