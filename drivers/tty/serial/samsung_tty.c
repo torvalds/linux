@@ -827,7 +827,7 @@ static irqreturn_t s3c24xx_serial_rx_chars_pio(void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t s3c24xx_serial_rx_chars(int irq, void *dev_id)
+static irqreturn_t s3c24xx_serial_rx_irq(int irq, void *dev_id)
 {
 	struct s3c24xx_uart_port *ourport = dev_id;
 
@@ -836,15 +836,11 @@ static irqreturn_t s3c24xx_serial_rx_chars(int irq, void *dev_id)
 	return s3c24xx_serial_rx_chars_pio(dev_id);
 }
 
-static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
+static void s3c24xx_serial_tx_chars(struct s3c24xx_uart_port *ourport)
 {
-	struct s3c24xx_uart_port *ourport = id;
 	struct uart_port *port = &ourport->port;
 	struct circ_buf *xmit = &port->state->xmit;
-	unsigned long flags;
 	int count, dma_count = 0;
-
-	spin_lock_irqsave(&port->lock, flags);
 
 	count = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
 
@@ -862,7 +858,7 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 		wr_reg(port, S3C2410_UTXH, port->x_char);
 		port->icount.tx++;
 		port->x_char = 0;
-		goto out;
+		return;
 	}
 
 	/* if there isn't anything more to transmit, or the uart is now
@@ -871,7 +867,7 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
 		s3c24xx_serial_stop_tx(port);
-		goto out;
+		return;
 	}
 
 	/* try and drain the buffer... */
@@ -893,7 +889,7 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 
 	if (!count && dma_count) {
 		s3c24xx_serial_start_tx_dma(ourport, dma_count);
-		goto out;
+		return;
 	}
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS) {
@@ -904,8 +900,18 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 
 	if (uart_circ_empty(xmit))
 		s3c24xx_serial_stop_tx(port);
+}
 
-out:
+static irqreturn_t s3c24xx_serial_tx_irq(int irq, void *id)
+{
+	struct s3c24xx_uart_port *ourport = id;
+	struct uart_port *port = &ourport->port;
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
+
+	s3c24xx_serial_tx_chars(ourport);
+
 	spin_unlock_irqrestore(&port->lock, flags);
 	return IRQ_HANDLED;
 }
@@ -919,11 +925,11 @@ static irqreturn_t s3c64xx_serial_handle_irq(int irq, void *id)
 	irqreturn_t ret = IRQ_HANDLED;
 
 	if (pend & S3C64XX_UINTM_RXD_MSK) {
-		ret = s3c24xx_serial_rx_chars(irq, id);
+		ret = s3c24xx_serial_rx_irq(irq, id);
 		wr_regl(port, S3C64XX_UINTP, S3C64XX_UINTM_RXD_MSK);
 	}
 	if (pend & S3C64XX_UINTM_TXD_MSK) {
-		ret = s3c24xx_serial_tx_chars(irq, id);
+		ret = s3c24xx_serial_tx_irq(irq, id);
 		wr_regl(port, S3C64XX_UINTP, S3C64XX_UINTM_TXD_MSK);
 	}
 	return ret;
@@ -1155,7 +1161,7 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 
 	ourport->rx_enabled = 1;
 
-	ret = request_irq(ourport->rx_irq, s3c24xx_serial_rx_chars, 0,
+	ret = request_irq(ourport->rx_irq, s3c24xx_serial_rx_irq, 0,
 			  s3c24xx_serial_portname(port), ourport);
 
 	if (ret != 0) {
@@ -1169,7 +1175,7 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 
 	ourport->tx_enabled = 1;
 
-	ret = request_irq(ourport->tx_irq, s3c24xx_serial_tx_chars, 0,
+	ret = request_irq(ourport->tx_irq, s3c24xx_serial_tx_irq, 0,
 			  s3c24xx_serial_portname(port), ourport);
 
 	if (ret) {
