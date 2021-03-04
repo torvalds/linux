@@ -20,6 +20,7 @@
    process/index
    filesystems/index
    arm64/index
+   sound/index
 
 目录和表格
 ----------
