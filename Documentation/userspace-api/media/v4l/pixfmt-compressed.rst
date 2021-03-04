@@ -164,11 +164,6 @@ Compressed Formats
 	of macroblocks to decode a full corresponding frame to the matching
 	capture buffer.
 
-	.. note::
-
-	   This format is not yet part of the public kernel API and it
-	   is expected to change.
-
     * .. _V4L2-PIX-FMT-VP9:
 
       - ``V4L2_PIX_FMT_VP9``
