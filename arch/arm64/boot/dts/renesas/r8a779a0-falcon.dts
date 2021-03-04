@@ -8,6 +8,7 @@
 /dts-v1/;
 #include "r8a779a0-falcon-cpu.dtsi"
 #include "r8a779a0-falcon-csi-dsi.dtsi"
+#include "r8a779a0-falcon-ethernet.dtsi"
 
 / {
 	model = "Renesas Falcon CPU and Breakout boards based on r8a779a0";
