@@ -2261,14 +2261,58 @@ static void mptcp_check_fastclose(struct mptcp_sock *msk)
 	mptcp_close_wake_up(sk);
 }
 
-static void mptcp_worker(struct work_struct *work)
+static void __mptcp_retrans(struct sock *sk)
 {
-	struct mptcp_sock *msk = container_of(work, struct mptcp_sock, work);
-	struct sock *ssk, *sk = &msk->sk.icsk_inet.sk;
+	struct mptcp_sock *msk = mptcp_sk(sk);
 	struct mptcp_sendmsg_info info = {};
 	struct mptcp_data_frag *dfrag;
 	size_t copied = 0;
-	int state, ret;
+	struct sock *ssk;
+	int ret;
+
+	__mptcp_clean_una(sk);
+	dfrag = mptcp_rtx_head(sk);
+	if (!dfrag)
+		return;
+
+	ssk = mptcp_subflow_get_retrans(msk);
+	if (!ssk)
+		goto reset_timer;
+
+	lock_sock(ssk);
+
+	/* limit retransmission to the bytes already sent on some subflows */
+	info.sent = 0;
+	info.limit = dfrag->already_sent;
+	while (info.sent < dfrag->already_sent) {
+		if (!mptcp_alloc_tx_skb(sk, ssk))
+			break;
+
+		ret = mptcp_sendmsg_frag(sk, ssk, dfrag, &info);
+		if (ret <= 0)
+			break;
+
+		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_RETRANSSEGS);
+		copied += ret;
+		info.sent += ret;
+	}
+	if (copied)
+		tcp_push(ssk, 0, info.mss_now, tcp_sk(ssk)->nonagle,
+			 info.size_goal);
+
+	mptcp_set_timeout(sk, ssk);
+	release_sock(ssk);
+
+reset_timer:
+	if (!mptcp_timer_pending(sk))
+		mptcp_reset_timer(sk);
+}
+
+static void mptcp_worker(struct work_struct *work)
+{
+	struct mptcp_sock *msk = container_of(work, struct mptcp_sock, work);
+	struct sock *sk = &msk->sk.icsk_inet.sk;
+	int state;
 
 	lock_sock(sk);
 	state = sk->sk_state;
@@ -2303,45 +2347,8 @@ static void mptcp_worker(struct work_struct *work)
 	if (test_and_clear_bit(MPTCP_WORK_CLOSE_SUBFLOW, &msk->flags))
 		__mptcp_close_subflow(msk);
 
-	if (!test_and_clear_bit(MPTCP_WORK_RTX, &msk->flags))
-		goto unlock;
-
-	__mptcp_clean_una(sk);
-	dfrag = mptcp_rtx_head(sk);
-	if (!dfrag)
-		goto unlock;
-
-	ssk = mptcp_subflow_get_retrans(msk);
-	if (!ssk)
-		goto reset_unlock;
-
-	lock_sock(ssk);
-
-	/* limit retransmission to the bytes already sent on some subflows */
-	info.sent = 0;
-	info.limit = dfrag->already_sent;
-	while (info.sent < dfrag->already_sent) {
-		if (!mptcp_alloc_tx_skb(sk, ssk))
-			break;
-
-		ret = mptcp_sendmsg_frag(sk, ssk, dfrag, &info);
-		if (ret <= 0)
-			break;
-
-		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_RETRANSSEGS);
-		copied += ret;
-		info.sent += ret;
-	}
-	if (copied)
-		tcp_push(ssk, 0, info.mss_now, tcp_sk(ssk)->nonagle,
-			 info.size_goal);
-
-	mptcp_set_timeout(sk, ssk);
-	release_sock(ssk);
-
-reset_unlock:
-	if (!mptcp_timer_pending(sk))
-		mptcp_reset_timer(sk);
+	if (test_and_clear_bit(MPTCP_WORK_RTX, &msk->flags))
+		__mptcp_retrans(sk);
 
 unlock:
 	release_sock(sk);
