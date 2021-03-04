@@ -264,7 +264,7 @@ static bool cqspi_is_idle(struct cqspi_st *cqspi)
 {
 	u32 reg = readl(cqspi->iobase + CQSPI_REG_CONFIG);
 
-	return reg & (1 << CQSPI_REG_CONFIG_IDLE_LSB);
+	return reg & (1UL << CQSPI_REG_CONFIG_IDLE_LSB);
 }
 
 static u32 cqspi_get_rd_sram_level(struct cqspi_st *cqspi)
