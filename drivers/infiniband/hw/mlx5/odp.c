@@ -227,7 +227,6 @@ static void free_implicit_child_mr(struct mlx5_ib_mr *mr, bool need_imr_xlt)
 
 	dma_fence_odp_mr(mr);
 
-	mr->parent = NULL;
 	mlx5_mr_cache_free(mr_to_mdev(mr), mr);
 	ib_umem_odp_release(odp);
 }

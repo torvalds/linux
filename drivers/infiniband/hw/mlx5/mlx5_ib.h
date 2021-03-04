@@ -547,11 +547,6 @@ static inline const struct mlx5_umr_wr *umr_wr(const struct ib_send_wr *wr)
 	return container_of(wr, struct mlx5_umr_wr, wr);
 }
 
-struct mlx5_shared_mr_info {
-	int mr_id;
-	struct ib_umem		*umem;
-};
-
 enum mlx5_ib_cq_pr_flags {
 	MLX5_IB_CQ_PR_FLAGS_CQE_128_PAD	= 1 << 0,
 };
@@ -654,46 +649,68 @@ struct mlx5_ib_dm {
 	atomic64_add(value, &((mr)->odp_stats.counter_name))
 
 struct mlx5_ib_mr {
-	struct ib_mr		ibmr;
-	void			*descs;
-	dma_addr_t		desc_map;
-	int			ndescs;
-	int			data_length;
-	int			meta_ndescs;
-	int			meta_length;
-	int			max_descs;
-	int			desc_size;
-	int			access_mode;
-	unsigned int		page_shift;
-	struct mlx5_core_mkey	mmkey;
-	struct ib_umem	       *umem;
-	struct mlx5_shared_mr_info	*smr_info;
-	struct list_head	list;
-	struct mlx5_cache_ent  *cache_ent;
-	u32 out[MLX5_ST_SZ_DW(create_mkey_out)];
-	struct mlx5_core_sig_ctx    *sig;
-	void			*descs_alloc;
-	int			access_flags; /* Needed for rereg MR */
+	struct ib_mr ibmr;
+	struct mlx5_core_mkey mmkey;
 
-	struct mlx5_ib_mr      *parent;
-	/* Needed for IB_MR_TYPE_INTEGRITY */
-	struct mlx5_ib_mr      *pi_mr;
-	struct mlx5_ib_mr      *klm_mr;
-	struct mlx5_ib_mr      *mtt_mr;
-	u64			data_iova;
-	u64			pi_iova;
+	/* User MR data */
+	struct mlx5_cache_ent *cache_ent;
+	struct ib_umem *umem;
 
-	/* For ODP and implicit */
-	struct xarray		implicit_children;
-	union {
-		struct list_head elm;
-		struct work_struct work;
-	} odp_destroy;
-	struct ib_odp_counters	odp_stats;
-	bool			is_odp_implicit;
+	/* This is zero'd when the MR is allocated */
+	struct {
+		/* Used only while the MR is in the cache */
+		struct {
+			u32 out[MLX5_ST_SZ_DW(create_mkey_out)];
+			struct mlx5_async_work cb_work;
+			/* Cache list element */
+			struct list_head list;
+		};
 
-	struct mlx5_async_work  cb_work;
+		/* Used only by kernel MRs (umem == NULL) */
+		struct {
+			void *descs;
+			void *descs_alloc;
+			dma_addr_t desc_map;
+			int max_descs;
+			int ndescs;
+			int desc_size;
+			int access_mode;
+
+			/* For Kernel IB_MR_TYPE_INTEGRITY */
+			struct mlx5_core_sig_ctx *sig;
+			struct mlx5_ib_mr *pi_mr;
+			struct mlx5_ib_mr *klm_mr;
+			struct mlx5_ib_mr *mtt_mr;
+			u64 data_iova;
+			u64 pi_iova;
+			int meta_ndescs;
+			int meta_length;
+			int data_length;
+		};
+
+		/* Used only by User MRs (umem != NULL) */
+		struct {
+			unsigned int page_shift;
+			/* Current access_flags */
+			int access_flags;
+
+			/* For User ODP */
+			struct mlx5_ib_mr *parent;
+			struct xarray implicit_children;
+			union {
+				struct work_struct work;
+			} odp_destroy;
+			struct ib_odp_counters odp_stats;
+			bool is_odp_implicit;
+		};
+	};
 };
+
+/* Zero the fields in the mr that are variant depending on usage */
+static inline void mlx5_clear_mr(struct mlx5_ib_mr *mr)
+{
+	memset(mr->out, 0, sizeof(*mr) - offsetof(struct mlx5_ib_mr, out));
+}
 
 static inline bool is_odp_mr(struct mlx5_ib_mr *mr)
 {
