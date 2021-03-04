@@ -54,7 +54,6 @@ struct io_worker {
 	spinlock_t lock;
 
 	struct completion ref_done;
-	struct completion started;
 
 	struct rcu_head rcu;
 };
@@ -116,7 +115,6 @@ struct io_wq {
 	struct io_wq_hash *hash;
 
 	refcount_t refs;
-	struct completion started;
 	struct completion exited;
 
 	atomic_t worker_refs;
@@ -199,6 +197,7 @@ static void io_worker_exit(struct io_worker *worker)
 	kfree_rcu(worker, rcu);
 	if (atomic_dec_and_test(&wqe->wq->worker_refs))
 		complete(&wqe->wq->worker_done);
+	do_exit(0);
 }
 
 static inline bool io_wqe_run_queue(struct io_wqe *wqe)
@@ -271,14 +270,6 @@ static void io_wqe_dec_running(struct io_worker *worker)
 
 	if (atomic_dec_and_test(&acct->nr_running) && io_wqe_run_queue(wqe))
 		io_wqe_wake_worker(wqe, acct);
-}
-
-static void io_worker_start(struct io_worker *worker)
-{
-	current->flags |= PF_NOFREEZE;
-	worker->flags |= (IO_WORKER_F_UP | IO_WORKER_F_RUNNING);
-	io_wqe_inc_running(worker);
-	complete(&worker->started);
 }
 
 /*
@@ -489,8 +480,13 @@ static int io_wqe_worker(void *data)
 	struct io_worker *worker = data;
 	struct io_wqe *wqe = worker->wqe;
 	struct io_wq *wq = wqe->wq;
+	char buf[TASK_COMM_LEN];
 
-	io_worker_start(worker);
+	worker->flags |= (IO_WORKER_F_UP | IO_WORKER_F_RUNNING);
+	io_wqe_inc_running(worker);
+
+	sprintf(buf, "iou-wrk-%d", wq->task_pid);
+	set_task_comm(current, buf);
 
 	while (!test_bit(IO_WQ_BIT_EXIT, &wq->state)) {
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -565,67 +561,11 @@ void io_wq_worker_sleeping(struct task_struct *tsk)
 	raw_spin_unlock_irq(&worker->wqe->lock);
 }
 
-static int task_thread(void *data, int index)
-{
-	struct io_worker *worker = data;
-	struct io_wqe *wqe = worker->wqe;
-	struct io_wqe_acct *acct = &wqe->acct[index];
-	struct io_wq *wq = wqe->wq;
-	char buf[TASK_COMM_LEN];
-
-	sprintf(buf, "iou-wrk-%d", wq->task_pid);
-	set_task_comm(current, buf);
-
-	current->pf_io_worker = worker;
-	worker->task = current;
-
-	set_cpus_allowed_ptr(current, cpumask_of_node(wqe->node));
-	current->flags |= PF_NO_SETAFFINITY;
-
-	raw_spin_lock_irq(&wqe->lock);
-	hlist_nulls_add_head_rcu(&worker->nulls_node, &wqe->free_list);
-	list_add_tail_rcu(&worker->all_list, &wqe->all_list);
-	worker->flags |= IO_WORKER_F_FREE;
-	if (index == IO_WQ_ACCT_BOUND)
-		worker->flags |= IO_WORKER_F_BOUND;
-	if (!acct->nr_workers && (worker->flags & IO_WORKER_F_BOUND))
-		worker->flags |= IO_WORKER_F_FIXED;
-	acct->nr_workers++;
-	raw_spin_unlock_irq(&wqe->lock);
-
-	io_wqe_worker(data);
-	do_exit(0);
-}
-
-static int task_thread_bound(void *data)
-{
-	return task_thread(data, IO_WQ_ACCT_BOUND);
-}
-
-static int task_thread_unbound(void *data)
-{
-	return task_thread(data, IO_WQ_ACCT_UNBOUND);
-}
-
-pid_t io_wq_fork_thread(int (*fn)(void *), void *arg)
-{
-	unsigned long flags = CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|
-				CLONE_IO|SIGCHLD;
-	struct kernel_clone_args args = {
-		.flags		= ((lower_32_bits(flags) | CLONE_VM |
-				    CLONE_UNTRACED) & ~CSIGNAL),
-		.exit_signal	= (lower_32_bits(flags) & CSIGNAL),
-		.stack		= (unsigned long)fn,
-		.stack_size	= (unsigned long)arg,
-	};
-
-	return kernel_clone(&args);
-}
-
 static bool create_io_worker(struct io_wq *wq, struct io_wqe *wqe, int index)
 {
+	struct io_wqe_acct *acct = &wqe->acct[index];
 	struct io_worker *worker;
-	pid_t pid;
+	struct task_struct *tsk;
 
 	__set_current_state(TASK_RUNNING);
 
@@ -638,21 +578,33 @@ static bool create_io_worker(struct io_wq *wq, struct io_wqe *wqe, int index)
 	worker->wqe = wqe;
 	spin_lock_init(&worker->lock);
 	init_completion(&worker->ref_done);
-	init_completion(&worker->started);
 
 	atomic_inc(&wq->worker_refs);
 
-	if (index == IO_WQ_ACCT_BOUND)
-		pid = io_wq_fork_thread(task_thread_bound, worker);
-	else
-		pid = io_wq_fork_thread(task_thread_unbound, worker);
-	if (pid < 0) {
+	tsk = create_io_thread(io_wqe_worker, worker, wqe->node);
+	if (IS_ERR(tsk)) {
 		if (atomic_dec_and_test(&wq->worker_refs))
 			complete(&wq->worker_done);
 		kfree(worker);
 		return false;
 	}
-	wait_for_completion(&worker->started);
+
+	tsk->pf_io_worker = worker;
+	worker->task = tsk;
+	set_cpus_allowed_ptr(tsk, cpumask_of_node(wqe->node));
+	tsk->flags |= PF_NOFREEZE | PF_NO_SETAFFINITY;
+
+	raw_spin_lock_irq(&wqe->lock);
+	hlist_nulls_add_head_rcu(&worker->nulls_node, &wqe->free_list);
+	list_add_tail_rcu(&worker->all_list, &wqe->all_list);
+	worker->flags |= IO_WORKER_F_FREE;
+	if (index == IO_WQ_ACCT_BOUND)
+		worker->flags |= IO_WORKER_F_BOUND;
+	if (!acct->nr_workers && (worker->flags & IO_WORKER_F_BOUND))
+		worker->flags |= IO_WORKER_F_FIXED;
+	acct->nr_workers++;
+	raw_spin_unlock_irq(&wqe->lock);
+	wake_up_new_task(tsk);
 	return true;
 }
 
@@ -696,6 +648,7 @@ static bool io_wq_for_each_worker(struct io_wqe *wqe,
 
 static bool io_wq_worker_wake(struct io_worker *worker, void *data)
 {
+	set_notify_signal(worker->task);
 	wake_up_process(worker->task);
 	return false;
 }
@@ -752,10 +705,6 @@ static int io_wq_manager(void *data)
 
 	sprintf(buf, "iou-mgr-%d", wq->task_pid);
 	set_task_comm(current, buf);
-	current->flags |= PF_IO_WORKER;
-	wq->manager = get_task_struct(current);
-
-	complete(&wq->started);
 
 	do {
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -815,21 +764,20 @@ append:
 
 static int io_wq_fork_manager(struct io_wq *wq)
 {
-	int ret;
+	struct task_struct *tsk;
 
 	if (wq->manager)
 		return 0;
 
 	reinit_completion(&wq->worker_done);
-	current->flags |= PF_IO_WORKER;
-	ret = io_wq_fork_thread(io_wq_manager, wq);
-	current->flags &= ~PF_IO_WORKER;
-	if (ret >= 0) {
-		wait_for_completion(&wq->started);
+	tsk = create_io_thread(io_wq_manager, wq, NUMA_NO_NODE);
+	if (!IS_ERR(tsk)) {
+		wq->manager = get_task_struct(tsk);
+		wake_up_new_task(tsk);
 		return 0;
 	}
 
-	return ret;
+	return PTR_ERR(tsk);
 }
 
 static void io_wqe_enqueue(struct io_wqe *wqe, struct io_wq_work *work)
@@ -1062,7 +1010,6 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 	}
 
 	wq->task_pid = current->pid;
-	init_completion(&wq->started);
 	init_completion(&wq->exited);
 	refcount_set(&wq->refs, 1);
 

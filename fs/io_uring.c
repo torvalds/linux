@@ -6668,7 +6668,6 @@ static int io_sq_thread(void *data)
 
 	sprintf(buf, "iou-sqp-%d", sqd->task_pid);
 	set_task_comm(current, buf);
-	sqd->thread = current;
 	current->pf_io_worker = NULL;
 
 	if (sqd->sq_cpu != -1)
@@ -6676,8 +6675,6 @@ static int io_sq_thread(void *data)
 	else
 		set_cpus_allowed_ptr(current, cpu_online_mask);
 	current->flags |= PF_NO_SETAFFINITY;
-
-	complete(&sqd->completion);
 
 	wait_for_completion(&sqd->startup);
 
@@ -7818,21 +7815,22 @@ void __io_uring_free(struct task_struct *tsk)
 
 static int io_sq_thread_fork(struct io_sq_data *sqd, struct io_ring_ctx *ctx)
 {
+	struct task_struct *tsk;
 	int ret;
 
 	clear_bit(IO_SQ_THREAD_SHOULD_STOP, &sqd->state);
 	reinit_completion(&sqd->completion);
 	ctx->sqo_exec = 0;
 	sqd->task_pid = current->pid;
-	current->flags |= PF_IO_WORKER;
-	ret = io_wq_fork_thread(io_sq_thread, sqd);
-	current->flags &= ~PF_IO_WORKER;
-	if (ret < 0) {
-		sqd->thread = NULL;
-		return ret;
-	}
-	wait_for_completion(&sqd->completion);
-	return io_uring_alloc_task_context(sqd->thread, ctx);
+	tsk = create_io_thread(io_sq_thread, sqd, NUMA_NO_NODE);
+	if (IS_ERR(tsk))
+		return PTR_ERR(tsk);
+	ret = io_uring_alloc_task_context(tsk, ctx);
+	if (ret)
+		set_bit(IO_SQ_THREAD_SHOULD_STOP, &sqd->state);
+	sqd->thread = tsk;
+	wake_up_new_task(tsk);
+	return ret;
 }
 
 static int io_sq_offload_create(struct io_ring_ctx *ctx,
@@ -7855,6 +7853,7 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 		fdput(f);
 	}
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
+		struct task_struct *tsk;
 		struct io_sq_data *sqd;
 
 		ret = -EPERM;
@@ -7896,15 +7895,16 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 		}
 
 		sqd->task_pid = current->pid;
-		current->flags |= PF_IO_WORKER;
-		ret = io_wq_fork_thread(io_sq_thread, sqd);
-		current->flags &= ~PF_IO_WORKER;
-		if (ret < 0) {
-			sqd->thread = NULL;
+		tsk = create_io_thread(io_sq_thread, sqd, NUMA_NO_NODE);
+		if (IS_ERR(tsk)) {
+			ret = PTR_ERR(tsk);
 			goto err;
 		}
-		wait_for_completion(&sqd->completion);
-		ret = io_uring_alloc_task_context(sqd->thread, ctx);
+		ret = io_uring_alloc_task_context(tsk, ctx);
+		if (ret)
+			set_bit(IO_SQ_THREAD_SHOULD_STOP, &sqd->state);
+		sqd->thread = tsk;
+		wake_up_new_task(tsk);
 		if (ret)
 			goto err;
 	} else if (p->flags & IORING_SETUP_SQ_AFF) {
