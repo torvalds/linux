@@ -160,6 +160,7 @@ struct cal_camerarx {
 	struct device_node	*sensor_ep_node;
 	struct device_node	*sensor_node;
 	struct v4l2_subdev	*sensor;
+	struct media_pipeline	pipe;
 
 	struct v4l2_subdev	subdev;
 	struct media_pad	pads[2];
@@ -224,6 +225,7 @@ struct cal_ctx {
 
 extern unsigned int cal_debug;
 extern int cal_video_nr;
+extern bool cal_mc_api;
 
 #define cal_dbg(level, cal, fmt, arg...)				\
 	do {								\
