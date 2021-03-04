@@ -347,7 +347,7 @@ static void cfg_parts(struct hantro_ctx *ctx,
 {
 	struct hantro_dev *vpu = ctx->dev;
 	struct vb2_v4l2_buffer *vb2_src;
-	u32 first_part_offset = VP8_FRAME_IS_KEY_FRAME(hdr) ? 10 : 3;
+	u32 first_part_offset = V4L2_VP8_FRAME_IS_KEY_FRAME(hdr) ? 10 : 3;
 	u32 mb_size, mb_offset_bytes, mb_offset_bits, mb_start_bits;
 	u32 dct_size_part_size, dct_part_offset;
 	dma_addr_t src_dma;
@@ -520,7 +520,7 @@ void rk3399_vpu_vp8_dec_run(struct hantro_ctx *ctx)
 		return;
 
 	/* Reset segment_map buffer in keyframe */
-	if (VP8_FRAME_IS_KEY_FRAME(hdr) && ctx->vp8_dec.segment_map.cpu)
+	if (V4L2_VP8_FRAME_IS_KEY_FRAME(hdr) && ctx->vp8_dec.segment_map.cpu)
 		memset(ctx->vp8_dec.segment_map.cpu, 0,
 		       ctx->vp8_dec.segment_map.size);
 
@@ -537,7 +537,7 @@ void rk3399_vpu_vp8_dec_run(struct hantro_ctx *ctx)
 
 	reg = VDPU_REG_CONFIG_DEC_TIMEOUT_E
 		| VDPU_REG_CONFIG_DEC_CLK_GATE_E;
-	if (!VP8_FRAME_IS_KEY_FRAME(hdr))
+	if (!V4L2_VP8_FRAME_IS_KEY_FRAME(hdr))
 		reg |= VDPU_REG_DEC_CTRL0_PIC_INTER_E;
 	vdpu_write_relaxed(vpu, reg, VDPU_REG_EN_FLAGS);
 

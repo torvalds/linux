@@ -526,7 +526,7 @@ static void cedrus_read_header(struct cedrus_dev *dev,
 {
 	int i, j;
 
-	if (VP8_FRAME_IS_KEY_FRAME(slice)) {
+	if (V4L2_VP8_FRAME_IS_KEY_FRAME(slice)) {
 		read_bits(dev, 1, VP8_PROB_HALF);
 		read_bits(dev, 1, VP8_PROB_HALF);
 	}
@@ -550,12 +550,12 @@ static void cedrus_read_header(struct cedrus_dev *dev,
 	for (i = 0; i < QUANT_DELTA_COUNT; i++)
 		get_delta_q(dev);
 
-	if (!VP8_FRAME_IS_KEY_FRAME(slice))
+	if (!V4L2_VP8_FRAME_IS_KEY_FRAME(slice))
 		process_ref_frame_info(dev);
 
 	read_bits(dev, 1, VP8_PROB_HALF);
 
-	if (!VP8_FRAME_IS_KEY_FRAME(slice))
+	if (!V4L2_VP8_FRAME_IS_KEY_FRAME(slice))
 		read_bits(dev, 1, VP8_PROB_HALF);
 
 	cedrus_write(dev, VE_H264_TRIGGER_TYPE, VE_H264_TRIGGER_TYPE_VP8_UPDATE_COEF);
@@ -565,7 +565,7 @@ static void cedrus_read_header(struct cedrus_dev *dev,
 	if (read_bits(dev, 1, VP8_PROB_HALF))
 		read_bits(dev, 8, VP8_PROB_HALF);
 
-	if (!VP8_FRAME_IS_KEY_FRAME(slice)) {
+	if (!V4L2_VP8_FRAME_IS_KEY_FRAME(slice)) {
 		read_bits(dev, 8, VP8_PROB_HALF);
 		read_bits(dev, 8, VP8_PROB_HALF);
 		read_bits(dev, 8, VP8_PROB_HALF);
@@ -672,7 +672,7 @@ static void cedrus_vp8_setup(struct cedrus_ctx *ctx,
 	reg = slice->first_part_size * 8;
 	cedrus_write(dev, VE_VP8_FIRST_DATA_PART_LEN, reg);
 
-	header_size = VP8_FRAME_IS_KEY_FRAME(slice) ? 10 : 3;
+	header_size = V4L2_VP8_FRAME_IS_KEY_FRAME(slice) ? 10 : 3;
 
 	reg = slice->first_part_size + header_size;
 	cedrus_write(dev, VE_VP8_PART_SIZE_OFFSET, reg);
@@ -850,7 +850,7 @@ static void cedrus_vp8_setup(struct cedrus_ctx *ctx,
 		ctx->codec.vp8.last_filter_type =
 			!!(slice->lf.flags & V4L2_VP8_LF_FILTER_TYPE_SIMPLE);
 		ctx->codec.vp8.last_frame_p_type =
-			!VP8_FRAME_IS_KEY_FRAME(slice);
+			!V4L2_VP8_FRAME_IS_KEY_FRAME(slice);
 		ctx->codec.vp8.last_sharpness_level =
 			slice->lf.sharpness_level;
 	}
