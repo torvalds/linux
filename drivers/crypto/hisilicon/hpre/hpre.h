@@ -84,6 +84,8 @@ enum hpre_alg_type {
 	HPRE_ALG_DH_G2 = 0x4,
 	HPRE_ALG_DH = 0x5,
 	HPRE_ALG_ECC_MUL = 0xD,
+	/* shared by x25519 and x448, but x448 is not supported now */
+	HPRE_ALG_CURVE25519_MUL = 0x10,
 };
 
 struct hpre_sqe {
