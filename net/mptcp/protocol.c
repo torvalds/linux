@@ -1189,6 +1189,7 @@ static bool mptcp_tx_cache_refill(struct sock *sk, int size,
 			 */
 			while (skbs->qlen > 1) {
 				skb = __skb_dequeue_tail(skbs);
+				*total_ts -= skb->truesize;
 				__kfree_skb(skb);
 			}
 			return skbs->qlen > 0;
