@@ -411,9 +411,7 @@ static int __maybe_unused pwm_imx_tpm_resume(struct device *dev)
 
 	ret = clk_prepare_enable(tpm->clk);
 	if (ret)
-		dev_err(dev,
-			"failed to prepare or enable clock: %d\n",
-			ret);
+		dev_err(dev, "failed to prepare or enable clock: %d\n", ret);
 
 	return ret;
 }
