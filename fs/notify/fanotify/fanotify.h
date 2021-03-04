@@ -135,19 +135,29 @@ enum fanotify_event_type {
 	FANOTIFY_EVENT_TYPE_PATH,
 	FANOTIFY_EVENT_TYPE_PATH_PERM,
 	FANOTIFY_EVENT_TYPE_OVERFLOW, /* struct fanotify_event */
+	__FANOTIFY_EVENT_TYPE_NUM
 };
+
+#define FANOTIFY_EVENT_TYPE_BITS \
+	(ilog2(__FANOTIFY_EVENT_TYPE_NUM - 1) + 1)
+#define FANOTIFY_EVENT_HASH_BITS \
+	(32 - FANOTIFY_EVENT_TYPE_BITS)
 
 struct fanotify_event {
 	struct fsnotify_event fse;
 	u32 mask;
-	enum fanotify_event_type type;
+	struct {
+		unsigned int type : FANOTIFY_EVENT_TYPE_BITS;
+		unsigned int hash : FANOTIFY_EVENT_HASH_BITS;
+	};
 	struct pid *pid;
 };
 
 static inline void fanotify_init_event(struct fanotify_event *event,
-				       unsigned long id, u32 mask)
+				       unsigned int hash, u32 mask)
 {
-	fsnotify_init_event(&event->fse, id);
+	fsnotify_init_event(&event->fse);
+	event->hash = hash;
 	event->mask = mask;
 	event->pid = NULL;
 }

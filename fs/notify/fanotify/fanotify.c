@@ -88,16 +88,12 @@ static bool fanotify_name_event_equal(struct fanotify_name_event *fne1,
 	return fanotify_info_equal(info1, info2);
 }
 
-static bool fanotify_should_merge(struct fsnotify_event *old_fsn,
-				  struct fsnotify_event *new_fsn)
+static bool fanotify_should_merge(struct fanotify_event *old,
+				  struct fanotify_event *new)
 {
-	struct fanotify_event *old, *new;
+	pr_debug("%s: old=%p new=%p\n", __func__, old, new);
 
-	pr_debug("%s: old=%p new=%p\n", __func__, old_fsn, new_fsn);
-	old = FANOTIFY_E(old_fsn);
-	new = FANOTIFY_E(new_fsn);
-
-	if (old_fsn->objectid != new_fsn->objectid ||
+	if (old->hash != new->hash ||
 	    old->type != new->type || old->pid != new->pid)
 		return false;
 
@@ -133,10 +129,9 @@ static bool fanotify_should_merge(struct fsnotify_event *old_fsn,
 static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 {
 	struct fsnotify_event *test_event;
-	struct fanotify_event *new;
+	struct fanotify_event *old, *new = FANOTIFY_E(event);
 
 	pr_debug("%s: list=%p event=%p\n", __func__, list, event);
-	new = FANOTIFY_E(event);
 
 	/*
 	 * Don't merge a permission event with any other event so that we know
@@ -147,8 +142,9 @@ static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 		return 0;
 
 	list_for_each_entry_reverse(test_event, list, list) {
-		if (fanotify_should_merge(test_event, event)) {
-			FANOTIFY_E(test_event)->mask |= new->mask;
+		old = FANOTIFY_E(test_event);
+		if (fanotify_should_merge(old, new)) {
+			old->mask |= new->mask;
 			return 1;
 		}
 	}
@@ -533,6 +529,7 @@ static struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 	struct mem_cgroup *old_memcg;
 	struct inode *child = NULL;
 	bool name_event = false;
+	unsigned int hash = 0;
 
 	if ((fid_mode & FAN_REPORT_DIR_FID) && dirid) {
 		/*
@@ -600,8 +597,10 @@ static struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
 	 * Use the victim inode instead of the watching inode as the id for
 	 * event queue, so event reported on parent is merged with event
 	 * reported on child when both directory and child watches exist.
+	 * Hash object id for queue merge.
 	 */
-	fanotify_init_event(event, (unsigned long)id, mask);
+	hash = hash_ptr(id, FANOTIFY_EVENT_HASH_BITS);
+	fanotify_init_event(event, hash, mask);
 	if (FAN_GROUP_FLAG(group, FAN_REPORT_TID))
 		event->pid = get_pid(task_pid(current));
 	else
