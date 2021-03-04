@@ -1672,10 +1672,10 @@ void snd_usb_ctl_msg_quirk(struct usb_device *dev, unsigned int pipe,
 		msleep(20);
 
 	/*
-	 * Plantronics C320-M needs a delay to avoid random
-	 * microhpone failures.
+	 * Plantronics headsets (C320, C320-M, etc) need a delay to avoid
+	 * random microhpone failures.
 	 */
-	if (chip->usb_id == USB_ID(0x047f, 0xc025)  &&
+	if (USB_ID_VENDOR(chip->usb_id) == 0x047f &&
 	    (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
 		msleep(20);
 
