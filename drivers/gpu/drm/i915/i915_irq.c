@@ -794,7 +794,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	int position, vtotal;
 
 	if (!crtc->active)
-		return -1;
+		return 0;
 
 	vblank = &crtc->base.dev->vblank[drm_crtc_index(&crtc->base)];
 	mode = &vblank->hwmode;
