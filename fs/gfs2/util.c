@@ -156,7 +156,7 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 				ret = 0;
 		}
 		if (!ret)
-			ret = gfs2_make_fs_ro(sdp);
+			gfs2_make_fs_ro(sdp);
 		gfs2_freeze_unlock(&freeze_gh);
 	}
 
