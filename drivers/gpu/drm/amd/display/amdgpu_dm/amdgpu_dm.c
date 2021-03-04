@@ -993,7 +993,7 @@ static void event_mall_stutter(struct work_struct *work)
 
 
 	dc_allow_idle_optimizations(
-		dm->dc, dm->active_vblank_irq_count == 0 ? true : false);
+		dm->dc, dm->active_vblank_irq_count == 0);
 
 	DRM_DEBUG_DRIVER("Allow idle optimizations (MALL): %d\n", dm->active_vblank_irq_count == 0);
 
