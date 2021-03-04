@@ -70,6 +70,7 @@ struct s3c24xx_uart_info {
 	unsigned long		num_clks;
 	unsigned long		clksel_mask;
 	unsigned long		clksel_shift;
+	unsigned long		ucon_mask;
 
 	/* uart port features */
 
@@ -1706,14 +1707,9 @@ static void s3c24xx_serial_resetport(struct uart_port *port,
 {
 	struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
 	unsigned long ucon = rd_regl(port, S3C2410_UCON);
-	unsigned int ucon_mask;
 
-	ucon_mask = info->clksel_mask;
-	if (info->type == PORT_S3C2440)
-		ucon_mask |= S3C2440_UCON0_DIVMASK;
-
-	ucon &= ucon_mask;
-	wr_regl(port, S3C2410_UCON,  ucon | cfg->ucon);
+	ucon &= (info->clksel_mask | info->ucon_mask);
+	wr_regl(port, S3C2410_UCON, ucon | cfg->ucon);
 
 	/* reset both fifos */
 	wr_regl(port, S3C2410_UFCON, cfg->ufcon | S3C2410_UFCON_RESETBOTH);
@@ -2449,6 +2445,7 @@ static struct s3c24xx_serial_drv_data s3c2440_serial_drv_data = {
 		.num_clks	= 4,
 		.clksel_mask	= S3C2412_UCON_CLKMASK,
 		.clksel_shift	= S3C2412_UCON_CLKSHIFT,
+		.ucon_mask	= S3C2440_UCON0_DIVMASK,
 	},
 	.def_cfg = &(struct s3c2410_uartcfg) {
 		.ucon		= S3C2410_UCON_DEFAULT,
