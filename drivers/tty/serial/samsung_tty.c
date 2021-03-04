@@ -56,9 +56,15 @@
 /* flag to ignore all characters coming in */
 #define RXSTAT_DUMMY_READ (0x10000000)
 
+enum s3c24xx_port_type {
+	TYPE_S3C24XX,
+	TYPE_S3C6400,
+};
+
 struct s3c24xx_uart_info {
 	char			*name;
-	unsigned int		type;
+	enum s3c24xx_port_type	type;
+	unsigned int		port_type;
 	unsigned int		fifosize;
 	unsigned long		rx_fifomask;
 	unsigned long		rx_fifoshift;
@@ -229,16 +235,6 @@ static int s3c24xx_serial_txempty_nofifo(struct uart_port *port)
 	return rd_regl(port, S3C2410_UTRSTAT) & S3C2410_UTRSTAT_TXE;
 }
 
-/*
- * s3c64xx and later SoC's include the interrupt mask and status registers in
- * the controller itself, unlike the s3c24xx SoC's which have these registers
- * in the interrupt controller. Check if the port type is s3c64xx or higher.
- */
-static int s3c24xx_serial_has_interrupt_mask(struct uart_port *port)
-{
-	return to_ourport(port)->info->type == PORT_S3C6400;
-}
-
 static void s3c24xx_serial_rx_enable(struct uart_port *port)
 {
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
@@ -290,10 +286,14 @@ static void s3c24xx_serial_stop_tx(struct uart_port *port)
 	if (!ourport->tx_enabled)
 		return;
 
-	if (s3c24xx_serial_has_interrupt_mask(port))
+	switch (ourport->info->type) {
+	case TYPE_S3C6400:
 		s3c24xx_set_bit(port, S3C64XX_UINTM_TXD, S3C64XX_UINTM);
-	else
+		break;
+	default:
 		disable_irq_nosync(ourport->tx_irq);
+		break;
+	}
 
 	if (dma && dma->tx_chan && ourport->tx_in_progress == S3C24XX_TX_DMA) {
 		dmaengine_pause(dma->tx_chan);
@@ -354,10 +354,14 @@ static void enable_tx_dma(struct s3c24xx_uart_port *ourport)
 	u32 ucon;
 
 	/* Mask Tx interrupt */
-	if (s3c24xx_serial_has_interrupt_mask(port))
+	switch (ourport->info->type) {
+	case TYPE_S3C6400:
 		s3c24xx_set_bit(port, S3C64XX_UINTM_TXD, S3C64XX_UINTM);
-	else
+		break;
+	default:
 		disable_irq_nosync(ourport->tx_irq);
+		break;
+	}
 
 	/* Enable tx dma mode */
 	ucon = rd_regl(port, S3C2410_UCON);
@@ -387,11 +391,15 @@ static void enable_tx_pio(struct s3c24xx_uart_port *ourport)
 	wr_regl(port,  S3C2410_UCON, ucon);
 
 	/* Unmask Tx interrupt */
-	if (s3c24xx_serial_has_interrupt_mask(port))
+	switch (ourport->info->type) {
+	case TYPE_S3C6400:
 		s3c24xx_clear_bit(port, S3C64XX_UINTM_TXD,
 				  S3C64XX_UINTM);
-	else
+		break;
+	default:
 		enable_irq(ourport->tx_irq);
+		break;
+	}
 
 	ourport->tx_mode = S3C24XX_TX_PIO;
 }
@@ -514,11 +522,15 @@ static void s3c24xx_serial_stop_rx(struct uart_port *port)
 
 	if (ourport->rx_enabled) {
 		dev_dbg(port->dev, "stopping rx\n");
-		if (s3c24xx_serial_has_interrupt_mask(port))
+		switch (ourport->info->type) {
+		case TYPE_S3C6400:
 			s3c24xx_set_bit(port, S3C64XX_UINTM_RXD,
 					S3C64XX_UINTM);
-		else
+			break;
+		default:
 			disable_irq_nosync(ourport->rx_irq);
+			break;
+		}
 		ourport->rx_enabled = 0;
 	}
 	if (dma && dma->rx_chan) {
@@ -1543,14 +1555,12 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 
 static const char *s3c24xx_serial_type(struct uart_port *port)
 {
-	switch (port->type) {
-	case PORT_S3C2410:
-		return "S3C2410";
-	case PORT_S3C2440:
-		return "S3C2440";
-	case PORT_S3C2412:
-		return "S3C2412";
-	case PORT_S3C6400:
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
+
+	switch (ourport->info->type) {
+	case TYPE_S3C24XX:
+		return "S3C24XX";
+	case TYPE_S3C6400:
 		return "S3C6400/10";
 	default:
 		return NULL;
@@ -1577,7 +1587,7 @@ static void s3c24xx_serial_config_port(struct uart_port *port, int flags)
 
 	if (flags & UART_CONFIG_TYPE &&
 	    s3c24xx_serial_request_port(port) == 0)
-		port->type = info->type;
+		port->type = info->port_type;
 }
 
 /*
@@ -1588,7 +1598,7 @@ s3c24xx_serial_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
 	struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
 
-	if (ser->type != PORT_UNKNOWN && ser->type != info->type)
+	if (ser->type != PORT_UNKNOWN && ser->type != info->port_type)
 		return -EINVAL;
 
 	return 0;
@@ -1927,11 +1937,16 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		ourport->tx_irq = ret + 1;
 	}
 
-	if (!s3c24xx_serial_has_interrupt_mask(port)) {
+	switch (ourport->info->type) {
+	case TYPE_S3C24XX:
 		ret = platform_get_irq(platdev, 1);
 		if (ret > 0)
 			ourport->tx_irq = ret;
+		break;
+	default:
+		break;
 	}
+
 	/*
 	 * DMA is currently supported only on DT platforms, if DMA properties
 	 * are specified.
@@ -1967,10 +1982,14 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		pr_warn("uart: failed to enable baudclk\n");
 
 	/* Keep all interrupts masked and cleared */
-	if (s3c24xx_serial_has_interrupt_mask(port)) {
+	switch (ourport->info->type) {
+	case TYPE_S3C6400:
 		wr_regl(port, S3C64XX_UINTM, 0xf);
 		wr_regl(port, S3C64XX_UINTP, 0xf);
 		wr_regl(port, S3C64XX_UINTSP, 0xf);
+		break;
+	default:
+		break;
 	}
 
 	dev_dbg(port->dev, "port: map=%pa, mem=%p, irq=%d (%d,%d), clock=%u\n",
@@ -2042,12 +2061,10 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 			ourport->drv_data->def_cfg;
 
 	switch (ourport->info->type) {
-	case PORT_S3C2410:
-	case PORT_S3C2412:
-	case PORT_S3C2440:
+	case TYPE_S3C24XX:
 		ourport->port.ops = &s3c24xx_serial_ops;
 		break;
-	case PORT_S3C6400:
+	case TYPE_S3C6400:
 		ourport->port.ops = &s3c64xx_serial_ops;
 		break;
 	}
@@ -2175,7 +2192,8 @@ static int s3c24xx_serial_resume_noirq(struct device *dev)
 
 	if (port) {
 		/* restore IRQ mask */
-		if (s3c24xx_serial_has_interrupt_mask(port)) {
+		switch (ourport->info->type) {
+		case TYPE_S3C6400: {
 			unsigned int uintm = 0xf;
 
 			if (ourport->tx_enabled)
@@ -2189,6 +2207,10 @@ static int s3c24xx_serial_resume_noirq(struct device *dev)
 			if (!IS_ERR(ourport->baudclk))
 				clk_disable_unprepare(ourport->baudclk);
 			clk_disable_unprepare(ourport->clk);
+			break;
+		}
+		default:
+			break;
 		}
 	}
 
@@ -2413,7 +2435,8 @@ static struct console s3c24xx_serial_console = {
 static struct s3c24xx_serial_drv_data s3c2410_serial_drv_data = {
 	.info = &(struct s3c24xx_uart_info) {
 		.name		= "Samsung S3C2410 UART",
-		.type		= PORT_S3C2410,
+		.type		= TYPE_S3C24XX,
+		.port_type	= PORT_S3C2410,
 		.fifosize	= 16,
 		.rx_fifomask	= S3C2410_UFSTAT_RXMASK,
 		.rx_fifoshift	= S3C2410_UFSTAT_RXSHIFT,
@@ -2440,7 +2463,8 @@ static struct s3c24xx_serial_drv_data s3c2410_serial_drv_data = {
 static struct s3c24xx_serial_drv_data s3c2412_serial_drv_data = {
 	.info = &(struct s3c24xx_uart_info) {
 		.name		= "Samsung S3C2412 UART",
-		.type		= PORT_S3C2412,
+		.type		= TYPE_S3C24XX,
+		.port_type	= PORT_S3C2412,
 		.fifosize	= 64,
 		.has_divslot	= 1,
 		.rx_fifomask	= S3C2440_UFSTAT_RXMASK,
@@ -2469,7 +2493,8 @@ static struct s3c24xx_serial_drv_data s3c2412_serial_drv_data = {
 static struct s3c24xx_serial_drv_data s3c2440_serial_drv_data = {
 	.info = &(struct s3c24xx_uart_info) {
 		.name		= "Samsung S3C2440 UART",
-		.type		= PORT_S3C2440,
+		.type		= TYPE_S3C24XX,
+		.port_type	= PORT_S3C2440,
 		.fifosize	= 64,
 		.has_divslot	= 1,
 		.rx_fifomask	= S3C2440_UFSTAT_RXMASK,
@@ -2498,7 +2523,8 @@ static struct s3c24xx_serial_drv_data s3c2440_serial_drv_data = {
 static struct s3c24xx_serial_drv_data s3c6400_serial_drv_data = {
 	.info = &(struct s3c24xx_uart_info) {
 		.name		= "Samsung S3C6400 UART",
-		.type		= PORT_S3C6400,
+		.type		= TYPE_S3C6400,
+		.port_type	= PORT_S3C6400,
 		.fifosize	= 64,
 		.has_divslot	= 1,
 		.rx_fifomask	= S3C2440_UFSTAT_RXMASK,
@@ -2526,7 +2552,8 @@ static struct s3c24xx_serial_drv_data s3c6400_serial_drv_data = {
 static struct s3c24xx_serial_drv_data s5pv210_serial_drv_data = {
 	.info = &(struct s3c24xx_uart_info) {
 		.name		= "Samsung S5PV210 UART",
-		.type		= PORT_S3C6400,
+		.type		= TYPE_S3C6400,
+		.port_type	= PORT_S3C6400,
 		.has_divslot	= 1,
 		.rx_fifomask	= S5PV210_UFSTAT_RXMASK,
 		.rx_fifoshift	= S5PV210_UFSTAT_RXSHIFT,
@@ -2554,7 +2581,8 @@ static struct s3c24xx_serial_drv_data s5pv210_serial_drv_data = {
 #define EXYNOS_COMMON_SERIAL_DRV_DATA				\
 	.info = &(struct s3c24xx_uart_info) {			\
 		.name		= "Samsung Exynos UART",	\
-		.type		= PORT_S3C6400,			\
+		.type		= TYPE_S3C6400,			\
+		.port_type	= PORT_S3C6400,			\
 		.has_divslot	= 1,				\
 		.rx_fifomask	= S5PV210_UFSTAT_RXMASK,	\
 		.rx_fifoshift	= S5PV210_UFSTAT_RXSHIFT,	\
