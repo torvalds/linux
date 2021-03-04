@@ -50,4 +50,11 @@ struct ecc_curve {
  */
 const struct ecc_curve *ecc_get_curve(unsigned int curve_id);
 
+/**
+ * ecc_get_curve25519() - get curve25519 curve;
+ *
+ * Returns curve25519
+ */
+const struct ecc_curve *ecc_get_curve25519(void);
+
 #endif
