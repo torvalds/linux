@@ -181,63 +181,29 @@ void mlx5_odp_populate_xlt(void *xlt, size_t idx, size_t nentries,
 	}
 }
 
-static void dma_fence_odp_mr(struct mlx5_ib_mr *mr)
-{
-	struct ib_umem_odp *odp = to_ib_umem_odp(mr->umem);
-
-	/* Ensure mlx5_ib_invalidate_range() will not touch the MR any more */
-	mutex_lock(&odp->umem_mutex);
-	if (odp->npages) {
-		mlx5_mr_cache_invalidate(mr);
-		ib_umem_odp_unmap_dma_pages(odp, ib_umem_start(odp),
-					    ib_umem_end(odp));
-		WARN_ON(odp->npages);
-	}
-	odp->private = NULL;
-	mutex_unlock(&odp->umem_mutex);
-
-	if (!mr->cache_ent) {
-		mlx5_core_destroy_mkey(mr_to_mdev(mr)->mdev, &mr->mmkey);
-		WARN_ON(mr->descs);
-	}
-}
-
 /*
  * This must be called after the mr has been removed from implicit_children.
  * NOTE: The MR does not necessarily have to be
  * empty here, parallel page faults could have raced with the free process and
  * added pages to it.
  */
-static void free_implicit_child_mr(struct mlx5_ib_mr *mr, bool need_imr_xlt)
-{
-	struct mlx5_ib_mr *imr = mr->parent;
-	struct ib_umem_odp *odp_imr = to_ib_umem_odp(imr->umem);
-	struct ib_umem_odp *odp = to_ib_umem_odp(mr->umem);
-	unsigned long idx = ib_umem_start(odp) >> MLX5_IMR_MTT_SHIFT;
-
-	mlx5r_deref_wait_odp_mkey(&mr->mmkey);
-
-	if (need_imr_xlt) {
-		mutex_lock(&odp_imr->umem_mutex);
-		mlx5_ib_update_xlt(mr->parent, idx, 1, 0,
-				   MLX5_IB_UPD_XLT_INDIRECT |
-				   MLX5_IB_UPD_XLT_ATOMIC);
-		mutex_unlock(&odp_imr->umem_mutex);
-	}
-
-	dma_fence_odp_mr(mr);
-
-	mlx5_mr_cache_free(mr_to_mdev(mr), mr);
-	ib_umem_odp_release(odp);
-}
-
 static void free_implicit_child_mr_work(struct work_struct *work)
 {
 	struct mlx5_ib_mr *mr =
 		container_of(work, struct mlx5_ib_mr, odp_destroy.work);
 	struct mlx5_ib_mr *imr = mr->parent;
+	struct ib_umem_odp *odp_imr = to_ib_umem_odp(imr->umem);
+	struct ib_umem_odp *odp = to_ib_umem_odp(mr->umem);
 
-	free_implicit_child_mr(mr, true);
+	mlx5r_deref_wait_odp_mkey(&mr->mmkey);
+
+	mutex_lock(&odp_imr->umem_mutex);
+	mlx5_ib_update_xlt(mr->parent, ib_umem_start(odp) >> MLX5_IMR_MTT_SHIFT,
+			   1, 0,
+			   MLX5_IB_UPD_XLT_INDIRECT | MLX5_IB_UPD_XLT_ATOMIC);
+	mutex_unlock(&odp_imr->umem_mutex);
+	mlx5_ib_dereg_mr(&mr->ibmr, NULL);
+
 	mlx5r_deref_odp_mkey(&imr->mmkey);
 }
 
@@ -454,8 +420,10 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 
 	ret = mr = mlx5_mr_cache_alloc(
 		mr_to_mdev(imr), MLX5_IMR_MTT_CACHE_ENTRY, imr->access_flags);
-	if (IS_ERR(mr))
-		goto out_umem;
+	if (IS_ERR(mr)) {
+		ib_umem_odp_release(odp);
+		return mr;
+	}
 
 	mr->ibmr.pd = imr->ibmr.pd;
 	mr->ibmr.device = &mr_to_mdev(imr)->ib_dev;
@@ -505,9 +473,7 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 out_lock:
 	xa_unlock(&imr->implicit_children);
 out_mr:
-	mlx5_mr_cache_free(mr_to_mdev(imr), mr);
-out_umem:
-	ib_umem_odp_release(odp);
+	mlx5_ib_dereg_mr(&mr->ibmr, NULL);
 	return ret;
 }
 
@@ -530,8 +496,8 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 
 	imr = mlx5_mr_cache_alloc(dev, MLX5_IMR_KSM_CACHE_ENTRY, access_flags);
 	if (IS_ERR(imr)) {
-		err = PTR_ERR(imr);
-		goto out_umem;
+		ib_umem_odp_release(umem_odp);
+		return imr;
 	}
 
 	imr->ibmr.pd = &pd->ibpd;
@@ -561,93 +527,22 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 	return imr;
 out_mr:
 	mlx5_ib_err(dev, "Failed to register MKEY %d\n", err);
-	mlx5_mr_cache_free(dev, imr);
-out_umem:
-	ib_umem_odp_release(umem_odp);
+	mlx5_ib_dereg_mr(&imr->ibmr, NULL);
 	return ERR_PTR(err);
 }
 
-void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *imr)
+void mlx5_ib_free_odp_mr(struct mlx5_ib_mr *mr)
 {
-	struct ib_umem_odp *odp_imr = to_ib_umem_odp(imr->umem);
-	struct mlx5_ib_dev *dev = mr_to_mdev(imr);
 	struct mlx5_ib_mr *mtt;
 	unsigned long idx;
 
-	xa_erase(&dev->odp_mkeys, mlx5_base_mkey(imr->mmkey.key));
 	/*
-	 * All work on the prefetch list must be completed, xa_erase() prevented
-	 * new work from being created.
+	 * If this is an implicit MR it is already invalidated so we can just
+	 * delete the children mkeys.
 	 */
-	mlx5r_deref_wait_odp_mkey(&imr->mmkey);
-	/*
-	 * At this point it is forbidden for any other thread to enter
-	 * pagefault_mr() on this imr. It is already forbidden to call
-	 * pagefault_mr() on an implicit child. Due to this additions to
-	 * implicit_children are prevented.
-	 * In addition, any new call to destroy_unused_implicit_child_mr()
-	 * may return immediately.
-	 */
-
-	/*
-	 * Fence the imr before we destroy the children. This allows us to
-	 * skip updating the XLT of the imr during destroy of the child mkey
-	 * the imr points to.
-	 */
-	mlx5_mr_cache_invalidate(imr);
-
-	xa_for_each(&imr->implicit_children, idx, mtt) {
-		xa_erase(&imr->implicit_children, idx);
-		free_implicit_child_mr(mtt, false);
-	}
-
-	mlx5_mr_cache_free(dev, imr);
-	ib_umem_odp_release(odp_imr);
-}
-
-/**
- * mlx5_ib_fence_odp_mr - Stop all access to the ODP MR
- * @mr: to fence
- *
- * On return no parallel threads will be touching this MR and no DMA will be
- * active.
- */
-void mlx5_ib_fence_odp_mr(struct mlx5_ib_mr *mr)
-{
-	/* Prevent new page faults and prefetch requests from succeeding */
-	xa_erase(&mr_to_mdev(mr)->odp_mkeys, mlx5_base_mkey(mr->mmkey.key));
-
-	/* Wait for all running page-fault handlers to finish. */
-	mlx5r_deref_wait_odp_mkey(&mr->mmkey);
-
-	dma_fence_odp_mr(mr);
-}
-
-/**
- * mlx5_ib_fence_dmabuf_mr - Stop all access to the dmabuf MR
- * @mr: to fence
- *
- * On return no parallel threads will be touching this MR and no DMA will be
- * active.
- */
-void mlx5_ib_fence_dmabuf_mr(struct mlx5_ib_mr *mr)
-{
-	struct ib_umem_dmabuf *umem_dmabuf = to_ib_umem_dmabuf(mr->umem);
-
-	/* Prevent new page faults and prefetch requests from succeeding */
-	xa_erase(&mr_to_mdev(mr)->odp_mkeys, mlx5_base_mkey(mr->mmkey.key));
-
-	mlx5r_deref_wait_odp_mkey(&mr->mmkey);
-
-	dma_resv_lock(umem_dmabuf->attach->dmabuf->resv, NULL);
-	mlx5_mr_cache_invalidate(mr);
-	umem_dmabuf->private = NULL;
-	ib_umem_dmabuf_unmap_pages(umem_dmabuf);
-	dma_resv_unlock(umem_dmabuf->attach->dmabuf->resv);
-
-	if (!mr->cache_ent) {
-		mlx5_core_destroy_mkey(mr_to_mdev(mr)->mdev, &mr->mmkey);
-		WARN_ON(mr->descs);
+	xa_for_each(&mr->implicit_children, idx, mtt) {
+		xa_erase(&mr->implicit_children, idx);
+		mlx5_ib_dereg_mr(&mtt->ibmr, NULL);
 	}
 }
 

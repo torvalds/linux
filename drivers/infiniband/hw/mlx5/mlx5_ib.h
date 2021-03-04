@@ -1285,8 +1285,7 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 					     struct ib_udata *udata,
 					     int access_flags);
 void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *mr);
-void mlx5_ib_fence_odp_mr(struct mlx5_ib_mr *mr);
-void mlx5_ib_fence_dmabuf_mr(struct mlx5_ib_mr *mr);
+void mlx5_ib_free_odp_mr(struct mlx5_ib_mr *mr);
 struct ib_mr *mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 				    u64 length, u64 virt_addr, int access_flags,
 				    struct ib_pd *pd, struct ib_udata *udata);
@@ -1334,8 +1333,6 @@ int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev);
 
 struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
 				       unsigned int entry, int access_flags);
-void mlx5_mr_cache_free(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr);
-int mlx5_mr_cache_invalidate(struct mlx5_ib_mr *mr);
 
 int mlx5_ib_check_mr_status(struct ib_mr *ibmr, u32 check_mask,
 			    struct ib_mr_status *mr_status);
