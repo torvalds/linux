@@ -197,3 +197,5 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_check_file_open);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_check_bpf_syscall);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_post_init_entity_util_avg);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_find_new_ilb);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_do_wake_up_sync);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_wake_flags);

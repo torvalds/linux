@@ -5,6 +5,7 @@
  * (C) 2004 Nadia Yvette Chambers, Oracle
  */
 #include "sched.h"
+#include <trace/hooks/sched.h>
 
 void __init_waitqueue_head(struct wait_queue_head *wq_head, const char *name, struct lock_class_key *key)
 {
@@ -199,10 +200,13 @@ EXPORT_SYMBOL_GPL(__wake_up_locked_key_bookmark);
 void __wake_up_sync_key(struct wait_queue_head *wq_head, unsigned int mode,
 			void *key)
 {
+	int wake_flags = WF_SYNC;
+
 	if (unlikely(!wq_head))
 		return;
 
-	__wake_up_common_lock(wq_head, mode, 1, WF_SYNC, key);
+	trace_android_vh_set_wake_flags(&wake_flags, &mode);
+	__wake_up_common_lock(wq_head, mode, 1, wake_flags, key);
 }
 EXPORT_SYMBOL_GPL(__wake_up_sync_key);
 
