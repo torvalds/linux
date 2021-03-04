@@ -41,8 +41,7 @@ struct c_can_pci_data {
 	void (*init)(const struct c_can_priv *priv, bool enable);
 };
 
-/*
- * 16-bit c_can registers can be arranged differently in the memory
+/* 16-bit c_can registers can be arranged differently in the memory
  * architecture of different implementations. For example: 16-bit
  * registers can be aligned to a 16-bit boundary or 32-bit boundary etc.
  * Handle the same by providing a common read/write interface.

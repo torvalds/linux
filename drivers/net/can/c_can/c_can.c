@@ -161,9 +161,7 @@
 
 #define IF_MCONT_TX		(IF_MCONT_TXIE | IF_MCONT_EOB)
 
-/*
- * Use IF1 for RX and IF2 for TX
- */
+/* Use IF1 for RX and IF2 for TX */
 #define IF_RX			0
 #define IF_TX			1
 
@@ -189,8 +187,7 @@ enum c_can_lec_type {
 	LEC_MASK = LEC_UNUSED,
 };
 
-/*
- * c_can error types:
+/* c_can error types:
  * Bus errors (BUS_OFF, ERROR_WARNING, ERROR_PASSIVE) are supported
  */
 enum c_can_bus_error_types {
@@ -268,8 +265,7 @@ static inline void c_can_object_put(struct net_device *dev, int iface,
 	c_can_obj_update(dev, iface, cmd | IF_COMM_WR, obj);
 }
 
-/*
- * Note: According to documentation clearing TXIE while MSGVAL is set
+/* Note: According to documentation clearing TXIE while MSGVAL is set
  * is not allowed, but works nicely on C/DCAN. And that lowers the I/O
  * load significantly.
  */
@@ -309,8 +305,7 @@ static void c_can_setup_tx_object(struct net_device *dev, int iface,
 	if (!rtr)
 		arb |= IF_ARB_TRANSMIT;
 
-	/*
-	 * If we change the DIR bit, we need to invalidate the buffer
+	/* If we change the DIR bit, we need to invalidate the buffer
 	 * first, i.e. clear the MSGVAL flag in the arbiter.
 	 */
 	if (rtr != (bool)test_bit(idx, &priv->tx_dir)) {
@@ -447,8 +442,7 @@ static netdev_tx_t c_can_start_xmit(struct sk_buff *skb,
 
 	if (can_dropped_invalid_skb(dev, skb))
 		return NETDEV_TX_OK;
-	/*
-	 * This is not a FIFO. C/D_CAN sends out the buffers
+	/* This is not a FIFO. C/D_CAN sends out the buffers
 	 * prioritized. The lowest buffer number wins.
 	 */
 	idx = fls(atomic_read(&priv->tx_active));
@@ -457,8 +451,7 @@ static netdev_tx_t c_can_start_xmit(struct sk_buff *skb,
 	/* If this is the last buffer, stop the xmit queue */
 	if (idx == C_CAN_MSG_OBJ_TX_NUM - 1)
 		netif_stop_queue(dev);
-	/*
-	 * Store the message in the interface so we can call
+	/* Store the message in the interface so we can call
 	 * can_put_echo_skb(). We must do this before we enable
 	 * transmit as we might race against do_tx().
 	 */
@@ -527,8 +520,7 @@ static int c_can_set_bittiming(struct net_device *dev)
 	return c_can_wait_for_ctrl_init(dev, priv, 0);
 }
 
-/*
- * Configure C_CAN message objects for Tx and Rx purposes:
+/* Configure C_CAN message objects for Tx and Rx purposes:
  * C_CAN provides a total of 32 message objects that can be configured
  * either for Tx or Rx purposes. Here the first 16 message objects are used as
  * a reception FIFO. The end of reception FIFO is signified by the EoB bit
@@ -572,8 +564,7 @@ static int c_can_software_reset(struct net_device *dev)
 	return 0;
 }
 
-/*
- * Configure C_CAN chip:
+/* Configure C_CAN chip:
  * - enable/disable auto-retransmission
  * - set operating mode
  * - configure message objects
@@ -739,8 +730,7 @@ static void c_can_do_tx(struct net_device *dev)
 	}
 }
 
-/*
- * If we have a gap in the pending bits, that means we either
+/* If we have a gap in the pending bits, that means we either
  * raced with the hardware or failed to readout all upper
  * objects in the last run due to quota limit.
  */
@@ -751,8 +741,7 @@ static u32 c_can_adjust_pending(u32 pend)
 	if (pend == RECEIVE_OBJECT_BITS)
 		return pend;
 
-	/*
-	 * If the last set bit is larger than the number of pending
+	/* If the last set bit is larger than the number of pending
 	 * bits we have a gap.
 	 */
 	weight = hweight32(pend);
@@ -762,8 +751,7 @@ static u32 c_can_adjust_pending(u32 pend)
 	if (lasts == weight)
 		return pend;
 
-	/*
-	 * Find the first set bit after the gap. We walk backwards
+	/* Find the first set bit after the gap. We walk backwards
 	 * from the last set bit.
 	 */
 	for (lasts--; pend & (1 << (lasts - 1)); lasts--);
@@ -803,8 +791,7 @@ static int c_can_read_objects(struct net_device *dev, struct c_can_priv *priv,
 			continue;
 		}
 
-		/*
-		 * This really should not happen, but this covers some
+		/* This really should not happen, but this covers some
 		 * odd HW behaviour. Do not remove that unless you
 		 * want to brick your machine.
 		 */
@@ -830,8 +817,7 @@ static inline u32 c_can_get_pending(struct c_can_priv *priv)
 	return pend;
 }
 
-/*
- * theory of operation:
+/* theory of operation:
  *
  * c_can core saves a received CAN message into the first free message
  * object it finds free (starting with the lowest). Bits NEWDAT and
@@ -848,8 +834,7 @@ static int c_can_do_rx_poll(struct net_device *dev, int quota)
 	struct c_can_priv *priv = netdev_priv(dev);
 	u32 pkts = 0, pend = 0, toread, n;
 
-	/*
-	 * It is faster to read only one 16bit register. This is only possible
+	/* It is faster to read only one 16bit register. This is only possible
 	 * for a maximum number of 16 objects.
 	 */
 	BUILD_BUG_ON_MSG(C_CAN_MSG_OBJ_RX_LAST > 16,
@@ -860,8 +845,7 @@ static int c_can_do_rx_poll(struct net_device *dev, int quota)
 			pend = c_can_get_pending(priv);
 			if (!pend)
 				break;
-			/*
-			 * If the pending field has a gap, handle the
+			/* If the pending field has a gap, handle the
 			 * bits above the gap first.
 			 */
 			toread = c_can_adjust_pending(pend);
@@ -979,8 +963,7 @@ static int c_can_handle_bus_err(struct net_device *dev,
 	struct can_frame *cf;
 	struct sk_buff *skb;
 
-	/*
-	 * early exit if no lec update or no error.
+	/* early exit if no lec update or no error.
 	 * no lec update means that no CAN bus event has been detected
 	 * since CPU wrote 0x7 value to status reg.
 	 */
@@ -999,8 +982,7 @@ static int c_can_handle_bus_err(struct net_device *dev,
 	if (unlikely(!skb))
 		return 0;
 
-	/*
-	 * check for 'last error code' which tells us the
+	/* check for 'last error code' which tells us the
 	 * type of the last error to occur on the CAN bus
 	 */
 	cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
