@@ -82,6 +82,13 @@
 
 	status = "okay";
 	clock-frequency = <400000>;
+
+	eeprom@50 {
+		compatible = "rohm,br24g01", "atmel,24c01";
+		label = "cpu-board";
+		reg = <0x50>;
+		pagesize = <8>;
+	};
 };
 
 &i2c1 {

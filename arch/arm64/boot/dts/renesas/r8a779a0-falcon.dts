@@ -22,6 +22,15 @@
 	};
 };
 
+&i2c0 {
+	eeprom@51 {
+		compatible = "rohm,br24g01", "atmel,24c01";
+		label = "breakout-board";
+		reg = <0x51>;
+		pagesize = <8>;
+	};
+};
+
 &rwdt {
 	timeout-sec = <60>;
 	status = "okay";
