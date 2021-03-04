@@ -42,6 +42,7 @@
 #include "counters.h"
 #include <linux/mlx5/accel.h>
 #include <rdma/uverbs_std_types.h>
+#include <rdma/uverbs_ioctl.h>
 #include <rdma/mlx5_user_ioctl_verbs.h>
 #include <rdma/mlx5_user_ioctl_cmds.h>
 #include <rdma/ib_umem_odp.h>
