@@ -1929,7 +1929,7 @@ err:
 static void
 mlx5_free_priv_descs(struct mlx5_ib_mr *mr)
 {
-	if (mr->descs) {
+	if (!mr->umem && mr->descs) {
 		struct ib_device *device = mr->ibmr.device;
 		int size = mr->max_descs * mr->desc_size;
 		struct mlx5_ib_dev *dev = to_mdev(device);
@@ -1943,7 +1943,7 @@ mlx5_free_priv_descs(struct mlx5_ib_mr *mr)
 
 static void clean_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 {
-	if (mr->sig) {
+	if (mr->ibmr.type == IB_MR_TYPE_INTEGRITY) {
 		if (mlx5_core_destroy_psv(dev->mdev,
 					  mr->sig->psv_memory.psv_idx))
 			mlx5_ib_warn(dev, "failed to destroy mem psv %d\n",

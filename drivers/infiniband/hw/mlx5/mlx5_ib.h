@@ -657,7 +657,7 @@ struct mlx5_ib_mr {
 	struct ib_umem *umem;
 
 	/* This is zero'd when the MR is allocated */
-	struct {
+	union {
 		/* Used only while the MR is in the cache */
 		struct {
 			u32 out[MLX5_ST_SZ_DW(create_mkey_out)];
