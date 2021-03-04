@@ -476,4 +476,19 @@
 			ti,cpts-periodic-outputs = <2>;
 		};
 	};
+
+	cpts@39000000 {
+		compatible = "ti,j721e-cpts";
+		reg = <0x0 0x39000000 0x0 0x400>;
+		reg-names = "cpts";
+		power-domains = <&k3_pds 84 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&k3_clks 84 0>;
+		clock-names = "cpts";
+		assigned-clocks = <&k3_clks 84 0>;
+		assigned-clock-parents = <&k3_clks 84 8>;
+		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "cpts";
+		ti,cpts-periodic-outputs = <6>;
+		ti,cpts-ext-ts-inputs = <8>;
+	};
 };
