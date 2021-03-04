@@ -16,7 +16,7 @@
 #include <linux/smp.h>
 #include <linux/irqchip/chained_irq.h>
 
-#include <boot_param.h>
+#include <loongson.h>
 
 #define LIOINTC_CHIP_IRQ	32
 #define LIOINTC_NUM_PARENT 4

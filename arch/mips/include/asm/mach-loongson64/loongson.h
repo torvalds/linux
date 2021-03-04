@@ -12,6 +12,24 @@
 #include <linux/irq.h>
 #include <boot_param.h>
 
+/* machine-specific boot configuration */
+struct loongson_system_configuration {
+	u32 nr_cpus;
+	u32 nr_nodes;
+	int cores_per_node;
+	int cores_per_package;
+	u16 boot_cpu_id;
+	u16 reserved_cpus_mask;
+	enum loongson_cpu_type cputype;
+	enum loongson_bridge_type bridgetype;
+	u64 restart_addr;
+	u64 poweroff_addr;
+	u64 suspend_addr;
+	u64 vgabios_addr;
+	u32 dma_mask_bits;
+	u64 workarounds;
+	void (*early_config)(void);
+};
 
 /* machine-specific reboot/halt operation */
 extern void mach_prepare_reboot(void);
