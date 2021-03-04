@@ -3,6 +3,7 @@
 #include <linux/path.h>
 #include <linux/slab.h>
 #include <linux/exportfs.h>
+#include <linux/hashtable.h>
 
 extern struct kmem_cache *fanotify_mark_cache;
 extern struct kmem_cache *fanotify_fid_event_cachep;
@@ -150,6 +151,7 @@ enum fanotify_event_type {
 
 struct fanotify_event {
 	struct fsnotify_event fse;
+	struct hlist_node merge_list;	/* List for hashed merge */
 	u32 mask;
 	struct {
 		unsigned int type : FANOTIFY_EVENT_TYPE_BITS;
@@ -162,6 +164,7 @@ static inline void fanotify_init_event(struct fanotify_event *event,
 				       unsigned int hash, u32 mask)
 {
 	fsnotify_init_event(&event->fse);
+	INIT_HLIST_NODE(&event->merge_list);
 	event->hash = hash;
 	event->mask = mask;
 	event->pid = NULL;
@@ -298,4 +301,26 @@ static inline struct path *fanotify_event_path(struct fanotify_event *event)
 		return &FANOTIFY_PERM(event)->path;
 	else
 		return NULL;
+}
+
+/*
+ * Use 128 size hash table to speed up events merge.
+ */
+#define FANOTIFY_HTABLE_BITS	(7)
+#define FANOTIFY_HTABLE_SIZE	(1 << FANOTIFY_HTABLE_BITS)
+#define FANOTIFY_HTABLE_MASK	(FANOTIFY_HTABLE_SIZE - 1)
+
+/*
+ * Permission events and overflow event do not get merged - don't hash them.
+ */
+static inline bool fanotify_is_hashed_event(u32 mask)
+{
+	return !fanotify_is_perm_event(mask) && !(mask & FS_Q_OVERFLOW);
+}
+
+static inline unsigned int fanotify_event_hash_bucket(
+						struct fsnotify_group *group,
+						struct fanotify_event *event)
+{
+	return event->hash & FANOTIFY_HTABLE_MASK;
 }

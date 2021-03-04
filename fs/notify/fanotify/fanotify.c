@@ -149,12 +149,15 @@ static bool fanotify_should_merge(struct fanotify_event *old,
 }
 
 /* and the list better be locked by something too! */
-static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
+static int fanotify_merge(struct fsnotify_group *group,
+			  struct fsnotify_event *event)
 {
-	struct fsnotify_event *test_event;
 	struct fanotify_event *old, *new = FANOTIFY_E(event);
+	unsigned int bucket = fanotify_event_hash_bucket(group, new);
+	struct hlist_head *hlist = &group->fanotify_data.merge_hash[bucket];
 
-	pr_debug("%s: list=%p event=%p\n", __func__, list, event);
+	pr_debug("%s: group=%p event=%p bucket=%u\n", __func__,
+		 group, event, bucket);
 
 	/*
 	 * Don't merge a permission event with any other event so that we know
@@ -164,8 +167,7 @@ static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 	if (fanotify_is_perm_event(new->mask))
 		return 0;
 
-	list_for_each_entry_reverse(test_event, list, list) {
-		old = FANOTIFY_E(test_event);
+	hlist_for_each_entry(old, hlist, merge_list) {
 		if (fanotify_should_merge(old, new)) {
 			old->mask |= new->mask;
 			return 1;
@@ -203,8 +205,11 @@ static int fanotify_get_response(struct fsnotify_group *group,
 			return ret;
 		}
 		/* Event not yet reported? Just remove it. */
-		if (event->state == FAN_EVENT_INIT)
+		if (event->state == FAN_EVENT_INIT) {
 			fsnotify_remove_queued_event(group, &event->fae.fse);
+			/* Permission events are not supposed to be hashed */
+			WARN_ON_ONCE(!hlist_unhashed(&event->fae.merge_list));
+		}
 		/*
 		 * Event may be also answered in case signal delivery raced
 		 * with wakeup. In that case we have nothing to do besides
@@ -679,6 +684,24 @@ static __kernel_fsid_t fanotify_get_fsid(struct fsnotify_iter_info *iter_info)
 	return fsid;
 }
 
+/*
+ * Add an event to hash table for faster merge.
+ */
+static void fanotify_insert_event(struct fsnotify_group *group,
+				  struct fsnotify_event *fsn_event)
+{
+	struct fanotify_event *event = FANOTIFY_E(fsn_event);
+	unsigned int bucket = fanotify_event_hash_bucket(group, event);
+	struct hlist_head *hlist = &group->fanotify_data.merge_hash[bucket];
+
+	assert_spin_locked(&group->notification_lock);
+
+	pr_debug("%s: group=%p event=%p bucket=%u\n", __func__,
+		 group, event, bucket);
+
+	hlist_add_head(&event->merge_list, hlist);
+}
+
 static int fanotify_handle_event(struct fsnotify_group *group, u32 mask,
 				 const void *data, int data_type,
 				 struct inode *dir,
@@ -749,7 +772,9 @@ static int fanotify_handle_event(struct fsnotify_group *group, u32 mask,
 	}
 
 	fsn_event = &event->fse;
-	ret = fsnotify_add_event(group, fsn_event, fanotify_merge);
+	ret = fsnotify_add_event(group, fsn_event, fanotify_merge,
+				 fanotify_is_hashed_event(mask) ?
+				 fanotify_insert_event : NULL);
 	if (ret) {
 		/* Permission events shouldn't be merged */
 		BUG_ON(ret == 1 && mask & FANOTIFY_PERM_EVENTS);
@@ -772,6 +797,7 @@ static void fanotify_free_group_priv(struct fsnotify_group *group)
 {
 	struct user_struct *user;
 
+	kfree(group->fanotify_data.merge_hash);
 	user = group->fanotify_data.user;
 	atomic_dec(&user->fanotify_listeners);
 	free_uid(user);

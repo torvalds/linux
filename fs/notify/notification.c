@@ -68,16 +68,22 @@ void fsnotify_destroy_event(struct fsnotify_group *group,
 }
 
 /*
- * Add an event to the group notification queue.  The group can later pull this
- * event off the queue to deal with.  The function returns 0 if the event was
- * added to the queue, 1 if the event was merged with some other queued event,
+ * Try to add an event to the notification queue.
+ * The group can later pull this event off the queue to deal with.
+ * The group can use the @merge hook to merge the event with a queued event.
+ * The group can use the @insert hook to insert the event into hash table.
+ * The function returns:
+ * 0 if the event was added to a queue
+ * 1 if the event was merged with some other queued event
  * 2 if the event was not queued - either the queue of events has overflown
- * or the group is shutting down.
+ *   or the group is shutting down.
  */
 int fsnotify_add_event(struct fsnotify_group *group,
 		       struct fsnotify_event *event,
-		       int (*merge)(struct list_head *,
-				    struct fsnotify_event *))
+		       int (*merge)(struct fsnotify_group *,
+				    struct fsnotify_event *),
+		       void (*insert)(struct fsnotify_group *,
+				      struct fsnotify_event *))
 {
 	int ret = 0;
 	struct list_head *list = &group->notification_list;
@@ -104,7 +110,7 @@ int fsnotify_add_event(struct fsnotify_group *group,
 	}
 
 	if (!list_empty(list) && merge) {
-		ret = merge(list, event);
+		ret = merge(group, event);
 		if (ret) {
 			spin_unlock(&group->notification_lock);
 			return ret;
@@ -114,6 +120,8 @@ int fsnotify_add_event(struct fsnotify_group *group,
 queue:
 	group->q_len++;
 	list_add_tail(&event->list, list);
+	if (insert)
+		insert(group, event);
 	spin_unlock(&group->notification_lock);
 
 	wake_up(&group->notification_waitq);

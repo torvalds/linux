@@ -90,6 +90,23 @@ static int fanotify_event_info_len(unsigned int fid_mode,
 }
 
 /*
+ * Remove an hashed event from merge hash table.
+ */
+static void fanotify_unhash_event(struct fsnotify_group *group,
+				  struct fanotify_event *event)
+{
+	assert_spin_locked(&group->notification_lock);
+
+	pr_debug("%s: group=%p event=%p bucket=%u\n", __func__,
+		 group, event, fanotify_event_hash_bucket(group, event));
+
+	if (WARN_ON_ONCE(hlist_unhashed(&event->merge_list)))
+		return;
+
+	hlist_del_init(&event->merge_list);
+}
+
+/*
  * Get an fanotify notification event if one exists and is small
  * enough to fit in "count". Return an error pointer if the count
  * is not large enough. When permission event is dequeued, its state is
@@ -126,6 +143,8 @@ static struct fanotify_event *get_one_event(struct fsnotify_group *group,
 	fsnotify_remove_first_event(group);
 	if (fanotify_is_perm_event(event->mask))
 		FANOTIFY_PERM(event)->state = FAN_EVENT_REPORTED;
+	if (fanotify_is_hashed_event(event->mask))
+		fanotify_unhash_event(group, event);
 out:
 	spin_unlock(&group->notification_lock);
 	return event;
@@ -925,6 +944,20 @@ static struct fsnotify_event *fanotify_alloc_overflow_event(void)
 	return &oevent->fse;
 }
 
+static struct hlist_head *fanotify_alloc_merge_hash(void)
+{
+	struct hlist_head *hash;
+
+	hash = kmalloc(sizeof(struct hlist_head) << FANOTIFY_HTABLE_BITS,
+		       GFP_KERNEL_ACCOUNT);
+	if (!hash)
+		return NULL;
+
+	__hash_init(hash, FANOTIFY_HTABLE_SIZE);
+
+	return hash;
+}
+
 /* fanotify syscalls */
 SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 {
@@ -992,6 +1025,12 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	group->fanotify_data.flags = flags;
 	atomic_inc(&user->fanotify_listeners);
 	group->memcg = get_mem_cgroup_from_mm(current->mm);
+
+	group->fanotify_data.merge_hash = fanotify_alloc_merge_hash();
+	if (!group->fanotify_data.merge_hash) {
+		fd = -ENOMEM;
+		goto out_destroy_group;
+	}
 
 	group->overflow_event = fanotify_alloc_overflow_event();
 	if (unlikely(!group->overflow_event)) {
