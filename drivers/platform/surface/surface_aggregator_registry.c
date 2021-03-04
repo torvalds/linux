@@ -302,7 +302,7 @@ struct ssam_base_hub {
 	struct ssam_event_notifier notif;
 };
 
-static SSAM_DEFINE_SYNC_REQUEST_R(ssam_bas_query_opmode, u8, {
+SSAM_DEFINE_SYNC_REQUEST_R(ssam_bas_query_opmode, u8, {
 	.target_category = SSAM_SSH_TC_BAS,
 	.target_id       = 0x01,
 	.command_id      = 0x0d,

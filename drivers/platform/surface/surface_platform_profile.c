@@ -32,12 +32,12 @@ struct ssam_tmp_profile_device {
 	struct platform_profile_handler handler;
 };
 
-static SSAM_DEFINE_SYNC_REQUEST_CL_R(__ssam_tmp_profile_get, struct ssam_tmp_profile_info, {
+SSAM_DEFINE_SYNC_REQUEST_CL_R(__ssam_tmp_profile_get, struct ssam_tmp_profile_info, {
 	.target_category = SSAM_SSH_TC_TMP,
 	.command_id      = 0x02,
 });
 
-static SSAM_DEFINE_SYNC_REQUEST_CL_W(__ssam_tmp_profile_set, __le32, {
+SSAM_DEFINE_SYNC_REQUEST_CL_W(__ssam_tmp_profile_set, __le32, {
 	.target_category = SSAM_SSH_TC_TMP,
 	.command_id      = 0x03,
 });
