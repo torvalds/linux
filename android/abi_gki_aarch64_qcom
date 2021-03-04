@@ -1320,6 +1320,12 @@
   memory_block_size_bytes
   memory_read_from_buffer
   memparse
+  mempool_alloc
+  mempool_alloc_slab
+  mempool_create
+  mempool_destroy
+  mempool_free
+  mempool_free_slab
   memremap
   memset
   memset64
