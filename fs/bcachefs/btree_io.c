@@ -488,12 +488,12 @@ enum btree_validate_ret {
 ({									\
 	__label__ out;							\
 	char _buf[300];							\
-	char *buf2 = _buf;						\
+	char *_buf2 = _buf;						\
 	struct printbuf out = PBUF(_buf);				\
 									\
-	buf2 = kmalloc(4096, GFP_ATOMIC);				\
-	if (buf2)							\
-		out = _PBUF(buf2, 4986);				\
+	_buf2 = kmalloc(4096, GFP_ATOMIC);				\
+	if (_buf2)							\
+		out = _PBUF(_buf2, 4986);				\
 									\
 	btree_err_msg(&out, c, ca, b, i, b->written, write);		\
 	pr_buf(&out, ": " msg, ##__VA_ARGS__);				\
@@ -501,13 +501,13 @@ enum btree_validate_ret {
 	if (type == BTREE_ERR_FIXABLE &&				\
 	    write == READ &&						\
 	    !test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags)) {		\
-		mustfix_fsck_err(c, "%s", buf2);			\
+		mustfix_fsck_err(c, "%s", _buf2);			\
 		goto out;						\
 	}								\
 									\
 	switch (write) {						\
 	case READ:							\
-		bch_err(c, "%s", buf2);					\
+		bch_err(c, "%s", _buf2);					\
 									\
 		switch (type) {						\
 		case BTREE_ERR_FIXABLE:					\
@@ -528,7 +528,7 @@ enum btree_validate_ret {
 		}							\
 		break;							\
 	case WRITE:							\
-		bch_err(c, "corrupt metadata before write: %s", buf2);	\
+		bch_err(c, "corrupt metadata before write: %s", _buf2);	\
 									\
 		if (bch2_fs_inconsistent(c)) {				\
 			ret = BCH_FSCK_ERRORS_NOT_FIXED;		\
@@ -537,8 +537,8 @@ enum btree_validate_ret {
 		break;							\
 	}								\
 out:									\
-	if (buf2 != _buf)						\
-		kfree(buf2);						\
+	if (_buf2 != _buf)						\
+		kfree(_buf2);						\
 	true;								\
 })
 
@@ -550,6 +550,8 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 {
 	unsigned version = le16_to_cpu(i->version);
 	const char *err;
+	char buf1[100];
+	char buf2[100];
 	int ret = 0;
 
 	btree_err_on((version != BCH_BSET_VERSION_OLD &&
@@ -613,37 +615,20 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 
 			btree_err_on(bkey_cmp(b->data->min_key, bp->min_key),
 				     BTREE_ERR_MUST_RETRY, c, ca, b, NULL,
-				     "incorrect min_key: got %llu:%llu should be %llu:%llu",
-				     b->data->min_key.inode,
-				     b->data->min_key.offset,
-				     bp->min_key.inode,
-				     bp->min_key.offset);
+				     "incorrect min_key: got %s should be %s",
+				     (bch2_bpos_to_text(&PBUF(buf1), bn->min_key), buf1),
+				     (bch2_bpos_to_text(&PBUF(buf2), bp->min_key), buf2));
 		}
 
 		btree_err_on(bkey_cmp(bn->max_key, b->key.k.p),
 			     BTREE_ERR_MUST_RETRY, c, ca, b, i,
-			     "incorrect max key %llu:%llu",
-			     bn->max_key.inode,
-			     bn->max_key.offset);
+			     "incorrect max key %s",
+			     (bch2_bpos_to_text(&PBUF(buf1), bn->max_key), buf1));
 
 		if (write)
 			compat_btree_node(b->c.level, b->c.btree_id, version,
 					  BSET_BIG_ENDIAN(i), write, bn);
 
-		/* XXX: ideally we would be validating min_key too */
-#if 0
-		/*
-		 * not correct anymore, due to btree node write error
-		 * handling
-		 *
-		 * need to add bn->seq to btree keys and verify
-		 * against that
-		 */
-		btree_err_on(!extent_contains_ptr(bkey_i_to_s_c_extent(&b->key),
-						  bn->ptr),
-			     BTREE_ERR_FATAL, c, b, i,
-			     "incorrect backpointer");
-#endif
 		err = bch2_bkey_format_validate(&bn->format);
 		btree_err_on(err,
 			     BTREE_ERR_FATAL, c, ca, b, i,

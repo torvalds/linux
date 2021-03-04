@@ -495,7 +495,7 @@ static void bch2_btree_iter_verify_level(struct btree_iter *iter,
 	struct btree_node_iter tmp = l->iter;
 	bool locked = btree_node_locked(iter, level);
 	struct bkey_packed *p, *k;
-	char buf1[100], buf2[100];
+	char buf1[100], buf2[100], buf3[100];
 	const char *msg;
 
 	if (!bch2_debug_check_iterators)
@@ -552,26 +552,26 @@ unlock:
 		btree_node_unlock(iter, level);
 	return;
 err:
-	strcpy(buf1, "(none)");
 	strcpy(buf2, "(none)");
+	strcpy(buf3, "(none)");
+
+	bch2_bpos_to_text(&PBUF(buf1), iter->real_pos);
 
 	if (p) {
 		struct bkey uk = bkey_unpack_key(l->b, p);
-		bch2_bkey_to_text(&PBUF(buf1), &uk);
+		bch2_bkey_to_text(&PBUF(buf2), &uk);
 	}
 
 	if (k) {
 		struct bkey uk = bkey_unpack_key(l->b, k);
-		bch2_bkey_to_text(&PBUF(buf2), &uk);
+		bch2_bkey_to_text(&PBUF(buf3), &uk);
 	}
 
 	panic("iterator should be %s key at level %u:\n"
-	      "iter pos %llu:%llu\n"
+	      "iter pos %s\n"
 	      "prev key %s\n"
 	      "cur  key %s\n",
-	      msg, level,
-	      iter->real_pos.inode, iter->real_pos.offset,
-	      buf1, buf2);
+	      msg, level, buf1, buf2, buf3);
 }
 
 static void bch2_btree_iter_verify(struct btree_iter *iter)
@@ -876,22 +876,23 @@ static void btree_iter_verify_new_node(struct btree_iter *iter, struct btree *b)
 	if (!k ||
 	    bkey_deleted(k) ||
 	    bkey_cmp_left_packed(l->b, k, &b->key.k.p)) {
-		char buf[100];
+		char buf1[100];
+		char buf2[100];
+		char buf3[100];
+		char buf4[100];
 		struct bkey uk = bkey_unpack_key(b, k);
 
 		bch2_dump_btree_node(iter->trans->c, l->b);
-		bch2_bkey_to_text(&PBUF(buf), &uk);
+		bch2_bpos_to_text(&PBUF(buf1), iter->real_pos);
+		bch2_bkey_to_text(&PBUF(buf2), &uk);
+		bch2_bpos_to_text(&PBUF(buf3), b->data->min_key);
+		bch2_bpos_to_text(&PBUF(buf3), b->data->max_key);
 		panic("parent iter doesn't point to new node:\n"
-		      "iter pos %s %llu:%llu\n"
+		      "iter pos %s %s\n"
 		      "iter key %s\n"
-		      "new node %llu:%llu-%llu:%llu\n",
-		      bch2_btree_ids[iter->btree_id],
-		      iter->pos.inode,
-		      iter->pos.offset,
-		      buf,
-		      b->data->min_key.inode,
-		      b->data->min_key.offset,
-		      b->key.k.p.inode, b->key.k.p.offset);
+		      "new node %s-%s\n",
+		      bch2_btree_ids[iter->btree_id], buf1,
+		      buf2, buf3, buf4);
 	}
 
 	if (!parent_locked)
@@ -2011,12 +2012,12 @@ static void btree_trans_iter_alloc_fail(struct btree_trans *trans)
 
 	struct btree_iter *iter;
 	struct btree_insert_entry *i;
+	char buf[100];
 
 	trans_for_each_iter(trans, iter)
-		printk(KERN_ERR "iter: btree %s pos %llu:%llu%s%s%s %ps\n",
+		printk(KERN_ERR "iter: btree %s pos %s%s%s%s %ps\n",
 		       bch2_btree_ids[iter->btree_id],
-		       iter->pos.inode,
-		       iter->pos.offset,
+		       (bch2_bpos_to_text(&PBUF(buf), iter->pos), buf),
 		       btree_iter_live(trans, iter) ? " live" : "",
 		       (trans->iters_touched & (1ULL << iter->idx)) ? " touched" : "",
 		       iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT ? " keep" : "",

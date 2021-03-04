@@ -73,12 +73,13 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 	if (cur.k->k.type == KEY_TYPE_btree_ptr_v2) {
 		struct bkey_i_btree_ptr_v2 *bp = bkey_i_to_btree_ptr_v2(cur.k);
 
-		if (bkey_deleted(&prev->k->k))
-			scnprintf(buf1, sizeof(buf1), "start of node: %llu:%llu",
-				  node_start.inode,
-				  node_start.offset);
-		else
+		if (bkey_deleted(&prev->k->k)) {
+			struct printbuf out = PBUF(buf1);
+			pr_buf(&out, "start of node: ");
+			bch2_bpos_to_text(&out, node_start);
+		} else {
 			bch2_bkey_val_to_text(&PBUF(buf1), c, bkey_i_to_s_c(prev->k));
+		}
 
 		if (fsck_err_on(bkey_cmp(expected_start, bp->v.min_key), c,
 				"btree node with incorrect min_key at btree %s level %u:\n"
@@ -554,6 +555,7 @@ static int bch2_gc_btree_init(struct bch_fs *c,
 		: !btree_node_type_needs_gc(btree_id)	? 1
 		: 0;
 	u8 max_stale = 0;
+	char buf[100];
 	int ret = 0;
 
 	b = c->btree_roots[btree_id].b;
@@ -563,16 +565,14 @@ static int bch2_gc_btree_init(struct bch_fs *c,
 
 	six_lock_read(&b->c.lock, NULL, NULL);
 	if (fsck_err_on(bkey_cmp(b->data->min_key, POS_MIN), c,
-			"btree root with incorrect min_key: %llu:%llu",
-			b->data->min_key.inode,
-			b->data->min_key.offset)) {
+			"btree root with incorrect min_key: %s",
+			(bch2_bpos_to_text(&PBUF(buf), b->data->min_key), buf))) {
 		BUG();
 	}
 
 	if (fsck_err_on(bkey_cmp(b->data->max_key, POS_MAX), c,
-			"btree root with incorrect min_key: %llu:%llu",
-			b->data->max_key.inode,
-			b->data->max_key.offset)) {
+			"btree root with incorrect max_key: %s",
+			(bch2_bpos_to_text(&PBUF(buf), b->data->max_key), buf))) {
 		BUG();
 	}
 

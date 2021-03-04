@@ -35,6 +35,7 @@ static void btree_node_interior_verify(struct bch_fs *c, struct btree *b)
 	struct bkey_s_c k;
 	struct bkey_s_c_btree_ptr_v2 bp;
 	struct bkey unpacked;
+	char buf1[100], buf2[100];
 
 	BUG_ON(!b->c.level);
 
@@ -51,24 +52,19 @@ static void btree_node_interior_verify(struct bch_fs *c, struct btree *b)
 
 		if (bkey_cmp(next_node, bp.v->min_key)) {
 			bch2_dump_btree_node(c, b);
-			panic("expected next min_key %llu:%llu got %llu:%llu\n",
-			      next_node.inode,
-			      next_node.offset,
-			      bp.v->min_key.inode,
-			      bp.v->min_key.offset);
+			panic("expected next min_key %s got %s\n",
+			      (bch2_bpos_to_text(&PBUF(buf1), next_node), buf1),
+			      (bch2_bpos_to_text(&PBUF(buf2), bp.v->min_key), buf2));
 		}
 
 		bch2_btree_node_iter_advance(&iter, b);
 
 		if (bch2_btree_node_iter_end(&iter)) {
-
 			if (bkey_cmp(k.k->p, b->key.k.p)) {
 				bch2_dump_btree_node(c, b);
-				panic("expected end %llu:%llu got %llu:%llu\n",
-				      b->key.k.p.inode,
-				      b->key.k.p.offset,
-				      k.k->p.inode,
-				      k.k->p.offset);
+				panic("expected end %s got %s\n",
+				      (bch2_bpos_to_text(&PBUF(buf1), b->key.k.p), buf1),
+				      (bch2_bpos_to_text(&PBUF(buf2), k.k->p), buf2));
 			}
 			break;
 		}

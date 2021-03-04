@@ -281,10 +281,10 @@ void bch2_rebalance_work_to_text(struct printbuf *out, struct bch_fs *c)
 		       h1);
 		break;
 	case REBALANCE_RUNNING:
-		pr_buf(out, "running\n");
-		pr_buf(out, "pos %llu:%llu\n",
-		       r->move_stats.pos.inode,
-		       r->move_stats.pos.offset);
+		pr_buf(out, "running\n"
+		       "pos ");
+		bch2_bpos_to_text(out, r->move_stats.pos);
+		pr_buf(out, "\n");
 		break;
 	}
 }

@@ -1064,15 +1064,14 @@ void bch2_btree_node_to_text(struct printbuf *out, struct bch_fs *c,
 
 	bch2_btree_keys_stats(b, &stats);
 
-	pr_buf(out,
-	       "l %u %llu:%llu - %llu:%llu:\n"
-	       "    ptrs: ",
-	       b->c.level,
-	       b->data->min_key.inode,
-	       b->data->min_key.offset,
-	       b->data->max_key.inode,
-	       b->data->max_key.offset);
+	pr_buf(out, "l %u ", b->c.level);
+	bch2_bpos_to_text(out, b->data->min_key);
+	pr_buf(out, " - ");
+	bch2_bpos_to_text(out, b->data->max_key);
+	pr_buf(out, ":\n"
+	       "    ptrs: ");
 	bch2_val_to_text(out, c, bkey_i_to_s_c(&b->key));
+
 	pr_buf(out, "\n"
 	       "    format: u64s %u fields %u %u %u %u %u\n"
 	       "    unpack fn len: %u\n"

@@ -1717,9 +1717,10 @@ void bch2_bfloat_to_text(struct printbuf *out, struct btree *b,
 		uk = bkey_unpack_key(b, k);
 		pr_buf(out,
 		       "    failed unpacked at depth %u\n"
-		       "\t%llu:%llu\n",
-		       ilog2(j),
-		       uk.p.inode, uk.p.offset);
+		       "\t",
+		       ilog2(j));
+		bch2_bpos_to_text(out, uk.p);
+		pr_buf(out, "\n");
 		break;
 	}
 }
