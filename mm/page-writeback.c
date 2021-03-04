@@ -2889,7 +2889,7 @@ void folio_wait_writeback(struct folio *folio)
 {
 	while (folio_test_writeback(folio)) {
 		trace_wait_on_page_writeback(&folio->page, folio_mapping(folio));
-		wait_on_page_bit(&folio->page, PG_writeback);
+		folio_wait_bit(folio, PG_writeback);
 	}
 }
 EXPORT_SYMBOL_GPL(folio_wait_writeback);
@@ -2911,7 +2911,7 @@ int folio_wait_writeback_killable(struct folio *folio)
 {
 	while (folio_test_writeback(folio)) {
 		trace_wait_on_page_writeback(&folio->page, folio_mapping(folio));
-		if (wait_on_page_bit_killable(&folio->page, PG_writeback))
+		if (folio_wait_bit_killable(folio, PG_writeback))
 			return -EINTR;
 	}
 

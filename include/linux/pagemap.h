@@ -728,11 +728,11 @@ static inline bool lock_page_or_retry(struct page *page, struct mm_struct *mm,
 }
 
 /*
- * This is exported only for wait_on_page_locked/wait_on_page_writeback, etc.,
+ * This is exported only for folio_wait_locked/folio_wait_writeback, etc.,
  * and should not be used directly.
  */
-extern void wait_on_page_bit(struct page *page, int bit_nr);
-extern int wait_on_page_bit_killable(struct page *page, int bit_nr);
+void folio_wait_bit(struct folio *folio, int bit_nr);
+int folio_wait_bit_killable(struct folio *folio, int bit_nr);
 
 /* 
  * Wait for a folio to be unlocked.
@@ -744,14 +744,14 @@ extern int wait_on_page_bit_killable(struct page *page, int bit_nr);
 static inline void folio_wait_locked(struct folio *folio)
 {
 	if (folio_test_locked(folio))
-		wait_on_page_bit(&folio->page, PG_locked);
+		folio_wait_bit(folio, PG_locked);
 }
 
 static inline int folio_wait_locked_killable(struct folio *folio)
 {
 	if (!folio_test_locked(folio))
 		return 0;
-	return wait_on_page_bit_killable(&folio->page, PG_locked);
+	return folio_wait_bit_killable(folio, PG_locked);
 }
 
 static inline void wait_on_page_locked(struct page *page)
