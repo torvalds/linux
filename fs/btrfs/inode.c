@@ -8207,8 +8207,9 @@ static void btrfs_invalidatepage(struct page *page, unsigned int offset,
 
 	if (!inode_evicting)
 		lock_extent_bits(tree, page_start, page_end, &cached_state);
-again:
+
 	start = page_start;
+again:
 	ordered = btrfs_lookup_ordered_range(inode, start, page_end - start + 1);
 	if (ordered) {
 		end = min(page_end,

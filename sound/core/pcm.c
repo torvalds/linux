@@ -1111,6 +1111,10 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 		}
 	}
 
+	for (cidx = 0; cidx < 2; cidx++)
+		for (substream = pcm->streams[cidx].substream; substream; substream = substream->next)
+			snd_pcm_sync_stop(substream, false);
+
 	pcm_call_notify(pcm, n_disconnect);
 	for (cidx = 0; cidx < 2; cidx++) {
 		snd_unregister_device(&pcm->streams[cidx].dev);

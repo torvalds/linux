@@ -2351,14 +2351,14 @@ static void r8168dp_hw_jumbo_disable(struct rtl8169_private *tp)
 
 static void r8168e_hw_jumbo_enable(struct rtl8169_private *tp)
 {
-	RTL_W8(tp, MaxTxPacketSize, 0x3f);
+	RTL_W8(tp, MaxTxPacketSize, 0x24);
 	RTL_W8(tp, Config3, RTL_R8(tp, Config3) | Jumbo_En0);
 	RTL_W8(tp, Config4, RTL_R8(tp, Config4) | 0x01);
 }
 
 static void r8168e_hw_jumbo_disable(struct rtl8169_private *tp)
 {
-	RTL_W8(tp, MaxTxPacketSize, 0x0c);
+	RTL_W8(tp, MaxTxPacketSize, 0x3f);
 	RTL_W8(tp, Config3, RTL_R8(tp, Config3) & ~Jumbo_En0);
 	RTL_W8(tp, Config4, RTL_R8(tp, Config4) & ~0x01);
 }

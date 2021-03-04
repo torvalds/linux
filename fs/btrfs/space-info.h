@@ -152,4 +152,21 @@ static inline void btrfs_space_info_free_bytes_may_use(
 int btrfs_reserve_data_bytes(struct btrfs_fs_info *fs_info, u64 bytes,
 			     enum btrfs_reserve_flush_enum flush);
 
+static inline void __btrfs_mod_total_bytes_pinned(
+					struct btrfs_space_info *space_info,
+					s64 mod)
+{
+	percpu_counter_add_batch(&space_info->total_bytes_pinned, mod,
+				 BTRFS_TOTAL_BYTES_PINNED_BATCH);
+}
+
+static inline void btrfs_mod_total_bytes_pinned(struct btrfs_fs_info *fs_info,
+						u64 flags, s64 mod)
+{
+	struct btrfs_space_info *space_info = btrfs_find_space_info(fs_info, flags);
+
+	ASSERT(space_info);
+	__btrfs_mod_total_bytes_pinned(space_info, mod);
+}
+
 #endif /* BTRFS_SPACE_INFO_H */

@@ -953,7 +953,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 	struct vchiq_service *service;
 	struct bulk_waiter_node *waiter = NULL;
 	bool found = false;
-	void *userdata = NULL;
+	void *userdata;
 	int status = 0;
 	int ret;
 
@@ -992,6 +992,8 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 			"found bulk_waiter %pK for pid %d", waiter,
 			current->pid);
 		userdata = &waiter->bulk_waiter;
+	} else {
+		userdata = args->userdata;
 	}
 
 	/*
@@ -1712,7 +1714,7 @@ vchiq_compat_ioctl_queue_bulk(struct file *file,
 {
 	struct vchiq_queue_bulk_transfer32 args32;
 	struct vchiq_queue_bulk_transfer args;
-	enum vchiq_bulk_dir dir = (cmd == VCHIQ_IOC_QUEUE_BULK_TRANSMIT) ?
+	enum vchiq_bulk_dir dir = (cmd == VCHIQ_IOC_QUEUE_BULK_TRANSMIT32) ?
 				  VCHIQ_BULK_TRANSMIT : VCHIQ_BULK_RECEIVE;
 
 	if (copy_from_user(&args32, argp, sizeof(args32)))

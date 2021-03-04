@@ -246,14 +246,14 @@ static int create_cq(struct rtrs_con *con, int cq_vector, u16 cq_size,
 }
 
 static int create_qp(struct rtrs_con *con, struct ib_pd *pd,
-		     u16 wr_queue_size, u32 max_sge)
+		     u32 max_send_wr, u32 max_recv_wr, u32 max_sge)
 {
 	struct ib_qp_init_attr init_attr = {NULL};
 	struct rdma_cm_id *cm_id = con->cm_id;
 	int ret;
 
-	init_attr.cap.max_send_wr = wr_queue_size;
-	init_attr.cap.max_recv_wr = wr_queue_size;
+	init_attr.cap.max_send_wr = max_send_wr;
+	init_attr.cap.max_recv_wr = max_recv_wr;
 	init_attr.cap.max_recv_sge = 1;
 	init_attr.event_handler = qp_event_handler;
 	init_attr.qp_context = con;
@@ -275,8 +275,9 @@ static int create_qp(struct rtrs_con *con, struct ib_pd *pd,
 }
 
 int rtrs_cq_qp_create(struct rtrs_sess *sess, struct rtrs_con *con,
-		       u32 max_send_sge, int cq_vector, u16 cq_size,
-		       u16 wr_queue_size, enum ib_poll_context poll_ctx)
+		       u32 max_send_sge, int cq_vector, int cq_size,
+		       u32 max_send_wr, u32 max_recv_wr,
+		       enum ib_poll_context poll_ctx)
 {
 	int err;
 
@@ -284,7 +285,8 @@ int rtrs_cq_qp_create(struct rtrs_sess *sess, struct rtrs_con *con,
 	if (err)
 		return err;
 
-	err = create_qp(con, sess->dev->ib_pd, wr_queue_size, max_send_sge);
+	err = create_qp(con, sess->dev->ib_pd, max_send_wr, max_recv_wr,
+			max_send_sge);
 	if (err) {
 		ib_free_cq(con->cq);
 		con->cq = NULL;

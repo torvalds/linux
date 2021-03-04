@@ -149,6 +149,16 @@ EXPORT_SYMBOL_GPL(dm_bio_get_target_bio_nr);
 #define DM_NUMA_NODE NUMA_NO_NODE
 static int dm_numa_node = DM_NUMA_NODE;
 
+#define DEFAULT_SWAP_BIOS	(8 * 1048576 / PAGE_SIZE)
+static int swap_bios = DEFAULT_SWAP_BIOS;
+static int get_swap_bios(void)
+{
+	int latch = READ_ONCE(swap_bios);
+	if (unlikely(latch <= 0))
+		latch = DEFAULT_SWAP_BIOS;
+	return latch;
+}
+
 /*
  * For mempools pre-allocation at the table loading time.
  */
@@ -967,6 +977,11 @@ void disable_write_zeroes(struct mapped_device *md)
 	limits->max_write_zeroes_sectors = 0;
 }
 
+static bool swap_bios_limit(struct dm_target *ti, struct bio *bio)
+{
+	return unlikely((bio->bi_opf & REQ_SWAP) != 0) && unlikely(ti->limit_swap_bios);
+}
+
 static void clone_endio(struct bio *bio)
 {
 	blk_status_t error = bio->bi_status;
@@ -1015,6 +1030,11 @@ static void clone_endio(struct bio *bio)
 			DMWARN("unimplemented target endio return value: %d", r);
 			BUG();
 		}
+	}
+
+	if (unlikely(swap_bios_limit(tio->ti, bio))) {
+		struct mapped_device *md = io->md;
+		up(&md->swap_bios_semaphore);
 	}
 
 	free_tio(tio);
@@ -1126,7 +1146,7 @@ static bool dm_dax_supported(struct dax_device *dax_dev, struct block_device *bd
 	if (!map)
 		goto out;
 
-	ret = dm_table_supports_dax(map, device_supports_dax, &blocksize);
+	ret = dm_table_supports_dax(map, device_not_dax_capable, &blocksize);
 
 out:
 	dm_put_live_table(md, srcu_idx);
@@ -1250,6 +1270,22 @@ void dm_accept_partial_bio(struct bio *bio, unsigned n_sectors)
 }
 EXPORT_SYMBOL_GPL(dm_accept_partial_bio);
 
+static noinline void __set_swap_bios_limit(struct mapped_device *md, int latch)
+{
+	mutex_lock(&md->swap_bios_lock);
+	while (latch < md->swap_bios) {
+		cond_resched();
+		down(&md->swap_bios_semaphore);
+		md->swap_bios--;
+	}
+	while (latch > md->swap_bios) {
+		cond_resched();
+		up(&md->swap_bios_semaphore);
+		md->swap_bios++;
+	}
+	mutex_unlock(&md->swap_bios_lock);
+}
+
 static blk_qc_t __map_bio(struct dm_target_io *tio)
 {
 	int r;
@@ -1269,6 +1305,14 @@ static blk_qc_t __map_bio(struct dm_target_io *tio)
 	atomic_inc(&io->io_count);
 	sector = clone->bi_iter.bi_sector;
 
+	if (unlikely(swap_bios_limit(ti, clone))) {
+		struct mapped_device *md = io->md;
+		int latch = get_swap_bios();
+		if (unlikely(latch != md->swap_bios))
+			__set_swap_bios_limit(md, latch);
+		down(&md->swap_bios_semaphore);
+	}
+
 	r = ti->type->map(ti, clone);
 	switch (r) {
 	case DM_MAPIO_SUBMITTED:
@@ -1280,10 +1324,18 @@ static blk_qc_t __map_bio(struct dm_target_io *tio)
 		ret = submit_bio_noacct(clone);
 		break;
 	case DM_MAPIO_KILL:
+		if (unlikely(swap_bios_limit(ti, clone))) {
+			struct mapped_device *md = io->md;
+			up(&md->swap_bios_semaphore);
+		}
 		free_tio(tio);
 		dec_pending(io, BLK_STS_IOERR);
 		break;
 	case DM_MAPIO_REQUEUE:
+		if (unlikely(swap_bios_limit(ti, clone))) {
+			struct mapped_device *md = io->md;
+			up(&md->swap_bios_semaphore);
+		}
 		free_tio(tio);
 		dec_pending(io, BLK_STS_DM_REQUEUE);
 		break;
@@ -1772,6 +1824,7 @@ static void cleanup_mapped_device(struct mapped_device *md)
 	mutex_destroy(&md->suspend_lock);
 	mutex_destroy(&md->type_lock);
 	mutex_destroy(&md->table_devices_lock);
+	mutex_destroy(&md->swap_bios_lock);
 
 	dm_mq_cleanup_mapped_device(md);
 }
@@ -1838,6 +1891,10 @@ static struct mapped_device *alloc_dev(int minor)
 	INIT_WORK(&md->work, dm_wq_work);
 	init_waitqueue_head(&md->eventq);
 	init_completion(&md->kobj_holder.completion);
+
+	md->swap_bios = get_swap_bios();
+	sema_init(&md->swap_bios_semaphore, md->swap_bios);
+	mutex_init(&md->swap_bios_lock);
 
 	md->disk->major = _major;
 	md->disk->first_minor = minor;
@@ -3126,6 +3183,9 @@ MODULE_PARM_DESC(reserved_bio_based_ios, "Reserved IOs in bio-based mempools");
 
 module_param(dm_numa_node, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(dm_numa_node, "NUMA node for DM device memory allocations");
+
+module_param(swap_bios, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(swap_bios, "Maximum allowed inflight swap IOs");
 
 MODULE_DESCRIPTION(DM_NAME " driver");
 MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");

@@ -88,7 +88,6 @@
 	pinctrl-names = "default";
 	uart-has-rtscts;
 	status = "okay";
-	max-speed = <4000000>;
 
 	bluetooth {
 		compatible = "brcm,bcm43438-bt";
@@ -97,6 +96,7 @@
 		device-wakeup-gpios = <&pca9654 5 GPIO_ACTIVE_HIGH>;
 		clocks = <&osc_32k>;
 		clock-names = "extclk";
+		max-speed = <4000000>;
 	};
 };
 
@@ -147,7 +147,7 @@
 	};
 
 	eeprom@50 {
-		compatible = "microchip,at24c64", "atmel,24c64";
+		compatible = "microchip,24c64", "atmel,24c64";
 		pagesize = <32>;
 		read-only;	/* Manufacturing EEPROM programmed at factory */
 		reg = <0x50>;

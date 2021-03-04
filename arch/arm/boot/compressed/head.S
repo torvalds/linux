@@ -1175,9 +1175,9 @@ __armv4_mmu_cache_off:
 __armv7_mmu_cache_off:
 		mrc	p15, 0, r0, c1, c0
 #ifdef CONFIG_MMU
-		bic	r0, r0, #0x000d
+		bic	r0, r0, #0x0005
 #else
-		bic	r0, r0, #0x000c
+		bic	r0, r0, #0x0004
 #endif
 		mcr	p15, 0, r0, c1, c0	@ turn MMU and cache off
 		mov	r0, #0

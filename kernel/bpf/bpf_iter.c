@@ -273,7 +273,7 @@ int bpf_iter_reg_target(const struct bpf_iter_reg *reg_info)
 {
 	struct bpf_iter_target_info *tinfo;
 
-	tinfo = kmalloc(sizeof(*tinfo), GFP_KERNEL);
+	tinfo = kzalloc(sizeof(*tinfo), GFP_KERNEL);
 	if (!tinfo)
 		return -ENOMEM;
 

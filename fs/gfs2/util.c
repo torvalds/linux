@@ -93,9 +93,10 @@ out_unlock:
 
 static void signal_our_withdraw(struct gfs2_sbd *sdp)
 {
-	struct gfs2_glock *gl = sdp->sd_live_gh.gh_gl;
+	struct gfs2_glock *live_gl = sdp->sd_live_gh.gh_gl;
 	struct inode *inode = sdp->sd_jdesc->jd_inode;
 	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_glock *i_gl = ip->i_gl;
 	u64 no_formal_ino = ip->i_no_formal_ino;
 	int ret = 0;
 	int tries;
@@ -141,7 +142,8 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 		atomic_set(&sdp->sd_freeze_state, SFS_FROZEN);
 		thaw_super(sdp->sd_vfs);
 	} else {
-		wait_on_bit(&gl->gl_flags, GLF_DEMOTE, TASK_UNINTERRUPTIBLE);
+		wait_on_bit(&i_gl->gl_flags, GLF_DEMOTE,
+			    TASK_UNINTERRUPTIBLE);
 	}
 
 	/*
@@ -161,15 +163,15 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	 * on other nodes to be successful, otherwise we remain the owner of
 	 * the glock as far as dlm is concerned.
 	 */
-	if (gl->gl_ops->go_free) {
-		set_bit(GLF_FREEING, &gl->gl_flags);
-		wait_on_bit(&gl->gl_flags, GLF_FREEING, TASK_UNINTERRUPTIBLE);
+	if (i_gl->gl_ops->go_free) {
+		set_bit(GLF_FREEING, &i_gl->gl_flags);
+		wait_on_bit(&i_gl->gl_flags, GLF_FREEING, TASK_UNINTERRUPTIBLE);
 	}
 
 	/*
 	 * Dequeue the "live" glock, but keep a reference so it's never freed.
 	 */
-	gfs2_glock_hold(gl);
+	gfs2_glock_hold(live_gl);
 	gfs2_glock_dq_wait(&sdp->sd_live_gh);
 	/*
 	 * We enqueue the "live" glock in EX so that all other nodes
@@ -208,7 +210,7 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 		gfs2_glock_nq(&sdp->sd_live_gh);
 	}
 
-	gfs2_glock_queue_put(gl); /* drop the extra reference we acquired */
+	gfs2_glock_queue_put(live_gl); /* drop extra reference we acquired */
 	clear_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags);
 
 	/*

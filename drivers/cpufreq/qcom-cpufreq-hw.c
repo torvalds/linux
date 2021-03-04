@@ -32,6 +32,7 @@ struct qcom_cpufreq_soc_data {
 
 struct qcom_cpufreq_data {
 	void __iomem *base;
+	struct resource *res;
 	const struct qcom_cpufreq_soc_data *soc_data;
 };
 
@@ -280,6 +281,7 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 	struct of_phandle_args args;
 	struct device_node *cpu_np;
 	struct device *cpu_dev;
+	struct resource *res;
 	void __iomem *base;
 	struct qcom_cpufreq_data *data;
 	int ret, index;
@@ -303,18 +305,33 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 
 	index = args.args[0];
 
-	base = devm_platform_ioremap_resource(pdev, index);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, index);
+	if (!res) {
+		dev_err(dev, "failed to get mem resource %d\n", index);
+		return -ENODEV;
+	}
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	if (!request_mem_region(res->start, resource_size(res), res->name)) {
+		dev_err(dev, "failed to request resource %pR\n", res);
+		return -EBUSY;
+	}
+
+	base = ioremap(res->start, resource_size(res));
+	if (IS_ERR(base)) {
+		dev_err(dev, "failed to map resource %pR\n", res);
+		ret = PTR_ERR(base);
+		goto release_region;
+	}
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
-		goto error;
+		goto unmap_base;
 	}
 
 	data->soc_data = of_device_get_match_data(&pdev->dev);
 	data->base = base;
+	data->res = res;
 
 	/* HW should be in enabled state to proceed */
 	if (!(readl_relaxed(base + data->soc_data->reg_enable) & 0x1)) {
@@ -349,7 +366,11 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 
 	return 0;
 error:
-	devm_iounmap(dev, base);
+	kfree(data);
+unmap_base:
+	iounmap(data->base);
+release_region:
+	release_mem_region(res->start, resource_size(res));
 	return ret;
 }
 
@@ -357,12 +378,15 @@ static int qcom_cpufreq_hw_cpu_exit(struct cpufreq_policy *policy)
 {
 	struct device *cpu_dev = get_cpu_device(policy->cpu);
 	struct qcom_cpufreq_data *data = policy->driver_data;
-	struct platform_device *pdev = cpufreq_get_driver_data();
+	struct resource *res = data->res;
+	void __iomem *base = data->base;
 
 	dev_pm_opp_remove_all_dynamic(cpu_dev);
 	dev_pm_opp_of_cpumask_remove_table(policy->related_cpus);
 	kfree(policy->freq_table);
-	devm_iounmap(&pdev->dev, data->base);
+	kfree(data);
+	iounmap(base);
+	release_mem_region(res->start, resource_size(res));
 
 	return 0;
 }

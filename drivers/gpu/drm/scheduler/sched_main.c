@@ -890,6 +890,9 @@ void drm_sched_fini(struct drm_gpu_scheduler *sched)
 	if (sched->thread)
 		kthread_stop(sched->thread);
 
+	/* Confirm no work left behind accessing device structures */
+	cancel_delayed_work_sync(&sched->work_tdr);
+
 	sched->ready = false;
 }
 EXPORT_SYMBOL(drm_sched_fini);

@@ -1212,13 +1212,14 @@ spi_nor_find_best_erase_type(const struct spi_nor_erase_map *map,
 
 		erase = &map->erase_type[i];
 
+		/* Alignment is not mandatory for overlaid regions */
+		if (region->offset & SNOR_OVERLAID_REGION &&
+		    region->size <= len)
+			return erase;
+
 		/* Don't erase more than what the user has asked for. */
 		if (erase->size > len)
 			continue;
-
-		/* Alignment is not mandatory for overlaid regions */
-		if (region->offset & SNOR_OVERLAID_REGION)
-			return erase;
 
 		spi_nor_div_by_erase_size(erase, addr, &rem);
 		if (rem)
@@ -1363,6 +1364,7 @@ static int spi_nor_init_erase_cmd_list(struct spi_nor *nor,
 			goto destroy_erase_cmd_list;
 
 		if (prev_erase != erase ||
+		    erase->size != cmd->size ||
 		    region->offset & SNOR_OVERLAID_REGION) {
 			cmd = spi_nor_init_erase_cmd(region, erase);
 			if (IS_ERR(cmd)) {

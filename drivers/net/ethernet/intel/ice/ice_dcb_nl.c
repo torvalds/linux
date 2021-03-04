@@ -136,7 +136,7 @@ ice_dcbnl_getnumtcs(struct net_device *dev, int __always_unused tcid, u8 *num)
 	if (!test_bit(ICE_FLAG_DCB_CAPABLE, pf->flags))
 		return -EINVAL;
 
-	*num = IEEE_8021QAZ_MAX_TCS;
+	*num = pf->hw.func_caps.common_cap.maxtc;
 	return 0;
 }
 
@@ -159,6 +159,10 @@ static u8 ice_dcbnl_getdcbx(struct net_device *netdev)
 static u8 ice_dcbnl_setdcbx(struct net_device *netdev, u8 mode)
 {
 	struct ice_pf *pf = ice_netdev_to_pf(netdev);
+
+	/* if FW LLDP agent is running, DCBNL not allowed to change mode */
+	if (test_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags))
+		return ICE_DCB_NO_HW_CHG;
 
 	/* No support for LLD_MANAGED modes or CEE+IEEE */
 	if ((mode & DCB_CAP_DCBX_LLD_MANAGED) ||

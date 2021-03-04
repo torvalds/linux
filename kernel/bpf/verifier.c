@@ -4786,8 +4786,9 @@ static int check_func_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 					subprog);
 			clear_caller_saved_regs(env, caller->regs);
 
-			/* All global functions return SCALAR_VALUE */
+			/* All global functions return a 64-bit SCALAR_VALUE */
 			mark_reg_unknown(env, caller->regs, BPF_REG_0);
+			caller->regs[BPF_REG_0].subreg_def = DEF_NOT_SUBREG;
 
 			/* continue with next insn after call */
 			return 0;

@@ -53,6 +53,7 @@
 #include <linux/of_clk.h>
 #include <linux/suspend.h>
 #include <linux/sched/cputime.h>
+#include <linux/sched/clock.h>
 #include <linux/processor.h>
 #include <asm/trace.h>
 
@@ -1095,6 +1096,7 @@ void __init time_init(void)
 	tick_setup_hrtimer_broadcast();
 
 	of_clk_init(NULL);
+	enable_sched_clock_irqtime();
 }
 
 /*

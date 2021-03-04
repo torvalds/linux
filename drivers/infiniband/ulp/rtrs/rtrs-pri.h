@@ -188,7 +188,9 @@ struct rtrs_msg_conn_req {
 	__le16		recon_cnt;
 	uuid_t		sess_uuid;
 	uuid_t		paths_uuid;
-	u8		reserved[12];
+	u8		first_conn : 1;
+	u8		reserved_bits : 7;
+	u8		reserved[11];
 };
 
 /**
@@ -304,8 +306,9 @@ int rtrs_post_rdma_write_imm_empty(struct rtrs_con *con, struct ib_cqe *cqe,
 				   struct ib_send_wr *head);
 
 int rtrs_cq_qp_create(struct rtrs_sess *rtrs_sess, struct rtrs_con *con,
-		      u32 max_send_sge, int cq_vector, u16 cq_size,
-		      u16 wr_queue_size, enum ib_poll_context poll_ctx);
+		      u32 max_send_sge, int cq_vector, int cq_size,
+		      u32 max_send_wr, u32 max_recv_wr,
+		      enum ib_poll_context poll_ctx);
 void rtrs_cq_qp_destroy(struct rtrs_con *con);
 
 void rtrs_init_hb(struct rtrs_sess *sess, struct ib_cqe *cqe,

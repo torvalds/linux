@@ -1264,12 +1264,12 @@ static int cpcap_voice_hw_params(struct snd_pcm_substream *substream,
 
 	if (direction == SNDRV_PCM_STREAM_CAPTURE) {
 		mask = 0x0000;
-		mask |= CPCAP_BIT_MIC1_RX_TIMESLOT0;
-		mask |= CPCAP_BIT_MIC1_RX_TIMESLOT1;
-		mask |= CPCAP_BIT_MIC1_RX_TIMESLOT2;
-		mask |= CPCAP_BIT_MIC2_TIMESLOT0;
-		mask |= CPCAP_BIT_MIC2_TIMESLOT1;
-		mask |= CPCAP_BIT_MIC2_TIMESLOT2;
+		mask |= BIT(CPCAP_BIT_MIC1_RX_TIMESLOT0);
+		mask |= BIT(CPCAP_BIT_MIC1_RX_TIMESLOT1);
+		mask |= BIT(CPCAP_BIT_MIC1_RX_TIMESLOT2);
+		mask |= BIT(CPCAP_BIT_MIC2_TIMESLOT0);
+		mask |= BIT(CPCAP_BIT_MIC2_TIMESLOT1);
+		mask |= BIT(CPCAP_BIT_MIC2_TIMESLOT2);
 		val = 0x0000;
 		if (channels >= 2)
 			val = BIT(CPCAP_BIT_MIC1_RX_TIMESLOT0);

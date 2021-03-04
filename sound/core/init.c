@@ -14,6 +14,7 @@
 #include <linux/ctype.h>
 #include <linux/pm.h>
 #include <linux/completion.h>
+#include <linux/interrupt.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
@@ -417,6 +418,9 @@ int snd_card_disconnect(struct snd_card *card)
 
 	/* notify all devices that we are disconnected */
 	snd_device_disconnect_all(card);
+
+	if (card->sync_irq > 0)
+		synchronize_irq(card->sync_irq);
 
 	snd_info_card_disconnect(card);
 	if (card->registered) {

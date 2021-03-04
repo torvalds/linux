@@ -2937,6 +2937,7 @@ static void __bfq_set_in_service_queue(struct bfq_data *bfqd,
 	}
 
 	bfqd->in_service_queue = bfqq;
+	bfqd->in_serv_last_pos = 0;
 }
 
 /*

@@ -1150,7 +1150,7 @@ static int arm_cmn_commit_txn(struct pmu *pmu)
 static int arm_cmn_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 {
 	struct arm_cmn *cmn;
-	unsigned int target;
+	unsigned int i, target;
 
 	cmn = hlist_entry_safe(node, struct arm_cmn, cpuhp_node);
 	if (cpu != cmn->cpu)
@@ -1161,6 +1161,8 @@ static int arm_cmn_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 		return 0;
 
 	perf_pmu_migrate_context(&cmn->pmu, cpu, target);
+	for (i = 0; i < cmn->num_dtcs; i++)
+		irq_set_affinity_hint(cmn->dtc[i].irq, cpumask_of(target));
 	cmn->cpu = target;
 	return 0;
 }
@@ -1502,7 +1504,7 @@ static int arm_cmn_probe(struct platform_device *pdev)
 	struct arm_cmn *cmn;
 	const char *name;
 	static atomic_t id;
-	int err, rootnode, this_id;
+	int err, rootnode;
 
 	cmn = devm_kzalloc(&pdev->dev, sizeof(*cmn), GFP_KERNEL);
 	if (!cmn)
@@ -1549,14 +1551,9 @@ static int arm_cmn_probe(struct platform_device *pdev)
 		.cancel_txn = arm_cmn_end_txn,
 	};
 
-	this_id = atomic_fetch_inc(&id);
-	if (this_id == 0) {
-		name = "arm_cmn";
-	} else {
-		name = devm_kasprintf(cmn->dev, GFP_KERNEL, "arm_cmn_%d", this_id);
-		if (!name)
-			return -ENOMEM;
-	}
+	name = devm_kasprintf(cmn->dev, GFP_KERNEL, "arm_cmn_%d", atomic_fetch_inc(&id));
+	if (!name)
+		return -ENOMEM;
 
 	err = cpuhp_state_add_instance(arm_cmn_hp_state, &cmn->cpuhp_node);
 	if (err)

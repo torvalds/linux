@@ -142,7 +142,7 @@ LIST_HEAD(tty_drivers);			/* linked list of tty drivers */
 /* Mutex to protect creating and releasing a tty */
 DEFINE_MUTEX(tty_mutex);
 
-static ssize_t tty_read(struct file *, char __user *, size_t, loff_t *);
+static ssize_t tty_read(struct kiocb *, struct iov_iter *);
 static ssize_t tty_write(struct kiocb *, struct iov_iter *);
 static __poll_t tty_poll(struct file *, poll_table *);
 static int tty_open(struct inode *, struct file *);
@@ -473,8 +473,9 @@ static void tty_show_fdinfo(struct seq_file *m, struct file *file)
 
 static const struct file_operations tty_fops = {
 	.llseek		= no_llseek,
-	.read		= tty_read,
+	.read_iter	= tty_read,
 	.write_iter	= tty_write,
+	.splice_read	= generic_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.poll		= tty_poll,
 	.unlocked_ioctl	= tty_ioctl,
@@ -487,8 +488,9 @@ static const struct file_operations tty_fops = {
 
 static const struct file_operations console_fops = {
 	.llseek		= no_llseek,
-	.read		= tty_read,
+	.read_iter	= tty_read,
 	.write_iter	= redirected_tty_write,
+	.splice_read	= generic_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.poll		= tty_poll,
 	.unlocked_ioctl	= tty_ioctl,
@@ -830,6 +832,65 @@ static void tty_update_time(struct timespec64 *time)
 		time->tv_sec = sec;
 }
 
+/*
+ * Iterate on the ldisc ->read() function until we've gotten all
+ * the data the ldisc has for us.
+ *
+ * The "cookie" is something that the ldisc read function can fill
+ * in to let us know that there is more data to be had.
+ *
+ * We promise to continue to call the ldisc until it stops returning
+ * data or clears the cookie. The cookie may be something that the
+ * ldisc maintains state for and needs to free.
+ */
+static int iterate_tty_read(struct tty_ldisc *ld, struct tty_struct *tty,
+		struct file *file, struct iov_iter *to)
+{
+	int retval = 0;
+	void *cookie = NULL;
+	unsigned long offset = 0;
+	char kernel_buf[64];
+	size_t count = iov_iter_count(to);
+
+	do {
+		int size, copied;
+
+		size = count > sizeof(kernel_buf) ? sizeof(kernel_buf) : count;
+		size = ld->ops->read(tty, file, kernel_buf, size, &cookie, offset);
+		if (!size)
+			break;
+
+		/*
+		 * A ldisc read error return will override any previously copied
+		 * data (eg -EOVERFLOW from HDLC)
+		 */
+		if (size < 0) {
+			memzero_explicit(kernel_buf, sizeof(kernel_buf));
+			return size;
+		}
+
+		copied = copy_to_iter(kernel_buf, size, to);
+		offset += copied;
+		count -= copied;
+
+		/*
+		 * If the user copy failed, we still need to do another ->read()
+		 * call if we had a cookie to let the ldisc clear up.
+		 *
+		 * But make sure size is zeroed.
+		 */
+		if (unlikely(copied != size)) {
+			count = 0;
+			retval = -EFAULT;
+		}
+	} while (cookie);
+
+	/* We always clear tty buffer in case they contained passwords */
+	memzero_explicit(kernel_buf, sizeof(kernel_buf));
+	return offset ? offset : retval;
+}
+
+
 /**
  *	tty_read	-	read method for tty device files
  *	@file: pointer to tty file
@@ -845,10 +906,10 @@ static void tty_update_time(struct timespec64 *time)
  *	read calls may be outstanding in parallel.
  */
 
-static ssize_t tty_read(struct file *file, char __user *buf, size_t count,
-			loff_t *ppos)
+static ssize_t tty_read(struct kiocb *iocb, struct iov_iter *to)
 {
 	int i;
+	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	struct tty_struct *tty = file_tty(file);
 	struct tty_ldisc *ld;
@@ -861,12 +922,9 @@ static ssize_t tty_read(struct file *file, char __user *buf, size_t count,
 	/* We want to wait for the line discipline to sort out in this
 	   situation */
 	ld = tty_ldisc_ref_wait(tty);
-	if (!ld)
-		return hung_up_tty_read(file, buf, count, ppos);
-	if (ld->ops->read)
-		i = ld->ops->read(tty, file, buf, count);
-	else
-		i = -EIO;
+	i = -EIO;
+	if (ld && ld->ops->read)
+		i = iterate_tty_read(ld, tty, file, to);
 	tty_ldisc_deref(ld);
 
 	if (i > 0)
@@ -2885,7 +2943,7 @@ static long tty_compat_ioctl(struct file *file, unsigned int cmd,
 
 static int this_tty(const void *t, struct file *file, unsigned fd)
 {
-	if (likely(file->f_op->read != tty_read))
+	if (likely(file->f_op->read_iter != tty_read))
 		return 0;
 	return file_tty(file) != t ? 0 : fd + 1;
 }

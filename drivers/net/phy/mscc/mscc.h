@@ -102,6 +102,7 @@ enum rgmii_clock_delay {
 #define PHY_MCB_S6G_READ		  BIT(30)
 
 #define PHY_S6G_PLL5G_CFG0		  0x06
+#define PHY_S6G_PLL5G_CFG2		  0x08
 #define PHY_S6G_LCPLL_CFG		  0x11
 #define PHY_S6G_PLL_CFG			  0x2b
 #define PHY_S6G_COMMON_CFG		  0x2c
@@ -120,6 +121,9 @@ enum rgmii_clock_delay {
 #define PHY_S6G_PLL_ENA_OFFS_POS	  21
 #define PHY_S6G_PLL_FSM_CTRL_DATA_POS	  8
 #define PHY_S6G_PLL_FSM_ENA_POS		  7
+
+#define PHY_S6G_CFG2_FSM_DIS              1
+#define PHY_S6G_CFG2_FSM_CLK_BP          23
 
 #define MSCC_EXT_PAGE_ACCESS		  31
 #define MSCC_PHY_PAGE_STANDARD		  0x0000 /* Standard registers */
@@ -411,6 +415,10 @@ struct vsc8531_edge_rate_table {
 	u32 slowdown[8];
 };
 #endif /* CONFIG_OF_MDIO */
+
+enum csr_target {
+	MACRO_CTRL  = 0x07,
+};
 
 #if IS_ENABLED(CONFIG_MACSEC)
 int vsc8584_macsec_init(struct phy_device *phydev);

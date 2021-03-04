@@ -896,12 +896,10 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 	if (cmd_ver == 3) {
 		len = sizeof(cmd.v3);
 		n_bands = ARRAY_SIZE(cmd.v3.table[0]);
-		cmd.v3.table_revision = cpu_to_le32(mvm->fwrt.geo_rev);
 	} else if (fw_has_api(&mvm->fwrt.fw->ucode_capa,
 			      IWL_UCODE_TLV_API_SAR_TABLE_VER)) {
 		len = sizeof(cmd.v2);
 		n_bands = ARRAY_SIZE(cmd.v2.table[0]);
-		cmd.v2.table_revision = cpu_to_le32(mvm->fwrt.geo_rev);
 	} else {
 		len = sizeof(cmd.v1);
 		n_bands = ARRAY_SIZE(cmd.v1.table[0]);
@@ -921,6 +919,16 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 	if (ret)
 		return 0;
 
+	/*
+	 * Set the revision on versions that contain it.
+	 * This must be done after calling iwl_sar_geo_init().
+	 */
+	if (cmd_ver == 3)
+		cmd.v3.table_revision = cpu_to_le32(mvm->fwrt.geo_rev);
+	else if (fw_has_api(&mvm->fwrt.fw->ucode_capa,
+			    IWL_UCODE_TLV_API_SAR_TABLE_VER))
+		cmd.v2.table_revision = cpu_to_le32(mvm->fwrt.geo_rev);
+
 	return iwl_mvm_send_cmd_pdu(mvm,
 				    WIDE_ID(PHY_OPS_GROUP, GEO_TX_POWER_LIMIT),
 				    0, len, &cmd);
@@ -929,7 +937,6 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 static int iwl_mvm_get_ppag_table(struct iwl_mvm *mvm)
 {
 	union acpi_object *wifi_pkg, *data, *enabled;
-	union iwl_ppag_table_cmd ppag_table;
 	int i, j, ret, tbl_rev, num_sub_bands;
 	int idx = 2;
 	s8 *gain;
@@ -983,8 +990,8 @@ read_table:
 		goto out_free;
 	}
 
-	ppag_table.v1.enabled = cpu_to_le32(enabled->integer.value);
-	if (!ppag_table.v1.enabled) {
+	mvm->fwrt.ppag_table.v1.enabled = cpu_to_le32(enabled->integer.value);
+	if (!mvm->fwrt.ppag_table.v1.enabled) {
 		ret = 0;
 		goto out_free;
 	}
@@ -999,16 +1006,23 @@ read_table:
 			union acpi_object *ent;
 
 			ent = &wifi_pkg->package.elements[idx++];
-			if (ent->type != ACPI_TYPE_INTEGER ||
-			    (j == 0 && ent->integer.value > ACPI_PPAG_MAX_LB) ||
-			    (j == 0 && ent->integer.value < ACPI_PPAG_MIN_LB) ||
-			    (j != 0 && ent->integer.value > ACPI_PPAG_MAX_HB) ||
-			    (j != 0 && ent->integer.value < ACPI_PPAG_MIN_HB)) {
-				ppag_table.v1.enabled = cpu_to_le32(0);
+			if (ent->type != ACPI_TYPE_INTEGER) {
 				ret = -EINVAL;
 				goto out_free;
 			}
+
 			gain[i * num_sub_bands + j] = ent->integer.value;
+
+			if ((j == 0 &&
+			     (gain[i * num_sub_bands + j] > ACPI_PPAG_MAX_LB ||
+			      gain[i * num_sub_bands + j] < ACPI_PPAG_MIN_LB)) ||
+			    (j != 0 &&
+			     (gain[i * num_sub_bands + j] > ACPI_PPAG_MAX_HB ||
+			      gain[i * num_sub_bands + j] < ACPI_PPAG_MIN_HB))) {
+				mvm->fwrt.ppag_table.v1.enabled = cpu_to_le32(0);
+				ret = -EINVAL;
+				goto out_free;
+			}
 		}
 	}
 	ret = 0;
@@ -1021,7 +1035,6 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 {
 	u8 cmd_ver;
 	int i, j, ret, num_sub_bands, cmd_size;
-	union iwl_ppag_table_cmd ppag_table;
 	s8 *gain;
 
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_SET_PPAG)) {
@@ -1040,7 +1053,7 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 	if (cmd_ver == 1) {
 		num_sub_bands = IWL_NUM_SUB_BANDS;
 		gain = mvm->fwrt.ppag_table.v1.gain[0];
-		cmd_size = sizeof(ppag_table.v1);
+		cmd_size = sizeof(mvm->fwrt.ppag_table.v1);
 		if (mvm->fwrt.ppag_ver == 2) {
 			IWL_DEBUG_RADIO(mvm,
 					"PPAG table is v2 but FW supports v1, sending truncated table\n");
@@ -1048,7 +1061,7 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 	} else if (cmd_ver == 2) {
 		num_sub_bands = IWL_NUM_SUB_BANDS_V2;
 		gain = mvm->fwrt.ppag_table.v2.gain[0];
-		cmd_size = sizeof(ppag_table.v2);
+		cmd_size = sizeof(mvm->fwrt.ppag_table.v2);
 		if (mvm->fwrt.ppag_ver == 1) {
 			IWL_DEBUG_RADIO(mvm,
 					"PPAG table is v1 but FW supports v2, sending padded table\n");
@@ -1068,7 +1081,7 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 	IWL_DEBUG_RADIO(mvm, "Sending PER_PLATFORM_ANT_GAIN_CMD\n");
 	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(PHY_OPS_GROUP,
 						PER_PLATFORM_ANT_GAIN_CMD),
-				   0, cmd_size, &ppag_table);
+				   0, cmd_size, &mvm->fwrt.ppag_table);
 	if (ret < 0)
 		IWL_ERR(mvm, "failed to send PER_PLATFORM_ANT_GAIN_CMD (%d)\n",
 			ret);

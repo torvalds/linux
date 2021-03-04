@@ -150,7 +150,7 @@
 		regulator-name = "audio-1.8V";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
-		gpio = <&gpio_exp2 7 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio_exp4 1 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
 

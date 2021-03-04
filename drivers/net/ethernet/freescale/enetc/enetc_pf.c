@@ -1164,13 +1164,14 @@ static void enetc_pf_remove(struct pci_dev *pdev)
 	struct enetc_ndev_priv *priv;
 
 	priv = netdev_priv(si->ndev);
-	enetc_phylink_destroy(priv);
-	enetc_mdiobus_destroy(pf);
 
 	if (pf->num_vfs)
 		enetc_sriov_configure(pdev, 0);
 
 	unregister_netdev(si->ndev);
+
+	enetc_phylink_destroy(priv);
+	enetc_mdiobus_destroy(pf);
 
 	enetc_free_msix(priv);
 
