@@ -39,6 +39,9 @@ u32 intel_crtc_get_vblank_counter(struct intel_crtc *crtc)
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_vblank_crtc *vblank = &dev->vblank[drm_crtc_index(&crtc->base)];
 
+	if (!crtc->active)
+		return 0;
+
 	if (!vblank->max_vblank_count)
 		return (u32)drm_crtc_accurate_vblank_count(&crtc->base);
 
