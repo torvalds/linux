@@ -240,11 +240,11 @@ EPERM
 	There are no horizontal syncs/porches at all in this format.
 	Total blanking timings must be set in hsync or vsync fields only.
 
-_dv-bt-flags:
-
 .. tabularcolumns:: |p{7.7cm}|p{9.8cm}|
 
 .. cssclass:: longtable
+
+.. _dv-bt-flags:
 
 .. flat-table:: DV BT Timing flags
     :header-rows:  0

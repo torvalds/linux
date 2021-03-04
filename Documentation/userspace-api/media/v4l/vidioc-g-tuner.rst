@@ -296,9 +296,9 @@ To change the radio frequency the
 	instead of 62.5 kHz.
 
 
-.. _tuner-rxsubchans:
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
+
+.. _tuner-rxsubchans:
 
 .. flat-table:: Tuner Audio Reception Flags
     :header-rows:  0

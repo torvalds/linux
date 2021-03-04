@@ -129,11 +129,11 @@ introduced in Linux 3.3. They are, however, mandatory for stateful mem2mem decod
       -
 
 
-.. _decoder-cmds:
-
 .. tabularcolumns:: |p{5.6cm}|p{0.6cm}|p{11.1cm}|
 
 .. cssclass:: longtable
+
+.. _decoder-cmds:
 
 .. flat-table:: Decoder Commands
     :header-rows:  0

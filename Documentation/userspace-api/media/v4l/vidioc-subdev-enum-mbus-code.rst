@@ -79,13 +79,13 @@ information about the try formats.
 
 
 
-.. _v4l2-subdev-mbus-code-flags:
-
 .. raw:: latex
 
    \footnotesize
 
 .. tabularcolumns:: |p{8.8cm}|p{2.2cm}|p{6.3cm}|
+
+.. _v4l2-subdev-mbus-code-flags:
 
 .. flat-table:: Subdev Media Bus Code Enumerate Flags
     :header-rows:  0

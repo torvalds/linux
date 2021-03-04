@@ -119,11 +119,11 @@ To change the radio frequency the
 
 	Drivers and applications must set the array to zero.
 
-.. _modulator-txsubchans:
-
 .. tabularcolumns:: |p{6.0cm}|p{2.0cm}|p{9.3cm}|
 
 .. cssclass:: longtable
+
+.. _modulator-txsubchans:
 
 .. flat-table:: Modulator Audio Transmission Flags
     :header-rows:  0

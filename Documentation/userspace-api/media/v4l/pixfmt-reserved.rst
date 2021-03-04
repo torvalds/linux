@@ -19,11 +19,11 @@ please make a proposal on the linux-media mailing list.
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
-.. _reserved-formats:
-
 .. raw:: latex
 
     \small
+
+.. _reserved-formats:
 
 .. flat-table:: Reserved Image Formats
     :header-rows:  1

@@ -342,11 +342,11 @@ still cause this situation.
 
 	Ignored if ``count`` equals zero.
 
-.. _ctrl-class:
-
 .. tabularcolumns:: |p{7.3cm}|p{2.0cm}|p{8.0cm}|
 
 .. cssclass:: longtable
+
+.. _ctrl-class:
 
 .. flat-table:: Control classes
     :header-rows:  0

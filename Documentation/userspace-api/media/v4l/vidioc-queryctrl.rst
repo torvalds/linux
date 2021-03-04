@@ -494,11 +494,11 @@ See also the examples in :ref:`control`.
 
    \normalsize
 
-.. _control-flags:
-
 .. tabularcolumns:: |p{7.3cm}|p{1.8cm}|p{8.2cm}|
 
 .. cssclass:: longtable
+
+.. _control-flags:
 
 .. flat-table:: Control Flags
     :header-rows:  0
