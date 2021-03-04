@@ -591,15 +591,21 @@ static int cal_ctx_v4l2_init_formats(struct cal_ctx *ctx)
 				       sizeof(*ctx->active_fmt), GFP_KERNEL);
 	ctx->num_active_fmt = 0;
 
-	for (j = 0, i = 0; ret != -EINVAL; ++j) {
+	for (j = 0, i = 0; ; ++j) {
 
 		memset(&mbus_code, 0, sizeof(mbus_code));
 		mbus_code.index = j;
 		mbus_code.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 		ret = v4l2_subdev_call(ctx->phy->sensor, pad, enum_mbus_code,
 				       NULL, &mbus_code);
-		if (ret)
-			continue;
+		if (ret == -EINVAL)
+			break;
+
+		if (ret) {
+			ctx_err(ctx, "Error enumerating mbus codes in subdev %s: %d\n",
+				ctx->phy->sensor->name, ret);
+			return ret;
+		}
 
 		ctx_dbg(2, ctx,
 			"subdev %s: code: %04x idx: %u\n",
