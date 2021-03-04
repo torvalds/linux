@@ -219,7 +219,6 @@ MODULE_DEVICE_TABLE(of, imx_hdmi_dt_ids);
 static struct platform_driver imx_hdmi_driver = {
 	.driver = {
 		.name = "imx-hdmi",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 		.of_match_table = imx_hdmi_dt_ids,
 	},
