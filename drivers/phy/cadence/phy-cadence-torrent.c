@@ -174,6 +174,7 @@
 #define XCVR_DIAG_PLLDRC_CTRL		0x00E5U
 #define XCVR_DIAG_HSCLK_SEL		0x00E6U
 #define XCVR_DIAG_HSCLK_DIV		0x00E7U
+#define XCVR_DIAG_RXCLK_CTRL		0x00E9U
 #define XCVR_DIAG_BIDI_CTRL		0x00EAU
 #define XCVR_DIAG_PSC_OVRD		0x00EBU
 #define TX_PSC_A0			0x0100U
@@ -2856,6 +2857,15 @@ static struct cdns_reg_pairs sgmii_100_no_ssc_tx_ln_regs[] = {
 	{0x00B3, DRV_DIAG_TX_DRV}
 };
 
+static struct cdns_reg_pairs ti_sgmii_100_no_ssc_tx_ln_regs[] = {
+	{0x00F3, TX_PSC_A0},
+	{0x04A2, TX_PSC_A2},
+	{0x04A2, TX_PSC_A3},
+	{0x0000, TX_TXCC_CPOST_MULT_00},
+	{0x00B3, DRV_DIAG_TX_DRV},
+	{0x4000, XCVR_DIAG_RXCLK_CTRL},
+};
+
 static struct cdns_reg_pairs sgmii_100_no_ssc_rx_ln_regs[] = {
 	{0x091D, RX_PSC_A0},
 	{0x0900, RX_PSC_A2},
@@ -2882,6 +2892,11 @@ static struct cdns_torrent_vals sgmii_100_no_ssc_cmn_vals = {
 static struct cdns_torrent_vals sgmii_100_no_ssc_tx_ln_vals = {
 	.reg_pairs = sgmii_100_no_ssc_tx_ln_regs,
 	.num_regs = ARRAY_SIZE(sgmii_100_no_ssc_tx_ln_regs),
+};
+
+static struct cdns_torrent_vals ti_sgmii_100_no_ssc_tx_ln_vals = {
+	.reg_pairs = ti_sgmii_100_no_ssc_tx_ln_regs,
+	.num_regs = ARRAY_SIZE(ti_sgmii_100_no_ssc_tx_ln_regs),
 };
 
 static struct cdns_torrent_vals sgmii_100_no_ssc_rx_ln_vals = {
@@ -2974,6 +2989,16 @@ static struct cdns_reg_pairs qsgmii_100_no_ssc_tx_ln_regs[] = {
 	{0x0003, DRV_DIAG_TX_DRV}
 };
 
+static struct cdns_reg_pairs ti_qsgmii_100_no_ssc_tx_ln_regs[] = {
+	{0x00F3, TX_PSC_A0},
+	{0x04A2, TX_PSC_A2},
+	{0x04A2, TX_PSC_A3},
+	{0x0000, TX_TXCC_CPOST_MULT_00},
+	{0x0011, TX_TXCC_MGNFS_MULT_100},
+	{0x0003, DRV_DIAG_TX_DRV},
+	{0x4000, XCVR_DIAG_RXCLK_CTRL},
+};
+
 static struct cdns_reg_pairs qsgmii_100_no_ssc_rx_ln_regs[] = {
 	{0x091D, RX_PSC_A0},
 	{0x0900, RX_PSC_A2},
@@ -3000,6 +3025,11 @@ static struct cdns_torrent_vals qsgmii_100_no_ssc_cmn_vals = {
 static struct cdns_torrent_vals qsgmii_100_no_ssc_tx_ln_vals = {
 	.reg_pairs = qsgmii_100_no_ssc_tx_ln_regs,
 	.num_regs = ARRAY_SIZE(qsgmii_100_no_ssc_tx_ln_regs),
+};
+
+static struct cdns_torrent_vals ti_qsgmii_100_no_ssc_tx_ln_vals = {
+	.reg_pairs = ti_qsgmii_100_no_ssc_tx_ln_regs,
+	.num_regs = ARRAY_SIZE(ti_qsgmii_100_no_ssc_tx_ln_regs),
 };
 
 static struct cdns_torrent_vals qsgmii_100_no_ssc_rx_ln_vals = {
@@ -3908,32 +3938,32 @@ static const struct cdns_torrent_data ti_j721e_map_torrent = {
 		},
 		[TYPE_SGMII] = {
 			[TYPE_NONE] = {
-				[NO_SSC] = &sgmii_100_no_ssc_tx_ln_vals,
+				[NO_SSC] = &ti_sgmii_100_no_ssc_tx_ln_vals,
 			},
 			[TYPE_PCIE] = {
-				[NO_SSC] = &sgmii_100_no_ssc_tx_ln_vals,
-				[EXTERNAL_SSC] = &sgmii_100_no_ssc_tx_ln_vals,
-				[INTERNAL_SSC] = &sgmii_100_no_ssc_tx_ln_vals,
+				[NO_SSC] = &ti_sgmii_100_no_ssc_tx_ln_vals,
+				[EXTERNAL_SSC] = &ti_sgmii_100_no_ssc_tx_ln_vals,
+				[INTERNAL_SSC] = &ti_sgmii_100_no_ssc_tx_ln_vals,
 			},
 			[TYPE_USB] = {
-				[NO_SSC] = &sgmii_100_no_ssc_tx_ln_vals,
-				[EXTERNAL_SSC] = &sgmii_100_no_ssc_tx_ln_vals,
-				[INTERNAL_SSC] = &sgmii_100_no_ssc_tx_ln_vals,
+				[NO_SSC] = &ti_sgmii_100_no_ssc_tx_ln_vals,
+				[EXTERNAL_SSC] = &ti_sgmii_100_no_ssc_tx_ln_vals,
+				[INTERNAL_SSC] = &ti_sgmii_100_no_ssc_tx_ln_vals,
 			},
 		},
 		[TYPE_QSGMII] = {
 			[TYPE_NONE] = {
-				[NO_SSC] = &qsgmii_100_no_ssc_tx_ln_vals,
+				[NO_SSC] = &ti_qsgmii_100_no_ssc_tx_ln_vals,
 			},
 			[TYPE_PCIE] = {
-				[NO_SSC] = &qsgmii_100_no_ssc_tx_ln_vals,
-				[EXTERNAL_SSC] = &qsgmii_100_no_ssc_tx_ln_vals,
-				[INTERNAL_SSC] = &qsgmii_100_no_ssc_tx_ln_vals,
+				[NO_SSC] = &ti_qsgmii_100_no_ssc_tx_ln_vals,
+				[EXTERNAL_SSC] = &ti_qsgmii_100_no_ssc_tx_ln_vals,
+				[INTERNAL_SSC] = &ti_qsgmii_100_no_ssc_tx_ln_vals,
 			},
 			[TYPE_USB] = {
-				[NO_SSC] = &qsgmii_100_no_ssc_tx_ln_vals,
-				[EXTERNAL_SSC] = &qsgmii_100_no_ssc_tx_ln_vals,
-				[INTERNAL_SSC] = &qsgmii_100_no_ssc_tx_ln_vals,
+				[NO_SSC] = &ti_qsgmii_100_no_ssc_tx_ln_vals,
+				[EXTERNAL_SSC] = &ti_qsgmii_100_no_ssc_tx_ln_vals,
+				[INTERNAL_SSC] = &ti_qsgmii_100_no_ssc_tx_ln_vals,
 			},
 		},
 		[TYPE_USB] = {
