@@ -2641,8 +2641,6 @@ static struct cdns_reg_pairs usb_100_int_ssc_cmn_regs[] = {
 	{0x0C5E, CMN_PLL1_VCOCAL_REFTIM_START},
 	{0x0C56, CMN_PLL0_VCOCAL_PLLCNT_START},
 	{0x0C56, CMN_PLL1_VCOCAL_PLLCNT_START},
-	{0x0003, CMN_PLL0_VCOCAL_TCTRL},
-	{0x0003, CMN_PLL1_VCOCAL_TCTRL},
 	{0x00C7, CMN_PLL0_LOCK_REFCNT_START},
 	{0x00C7, CMN_PLL1_LOCK_REFCNT_START},
 	{0x00C7, CMN_PLL0_LOCK_PLLCNT_START},
@@ -2650,7 +2648,9 @@ static struct cdns_reg_pairs usb_100_int_ssc_cmn_regs[] = {
 	{0x0005, CMN_PLL0_LOCK_PLLCNT_THR},
 	{0x0005, CMN_PLL1_LOCK_PLLCNT_THR},
 	{0x8200, CMN_CDIAG_CDB_PWRI_OVRD},
-	{0x8200, CMN_CDIAG_XCVRC_PWRI_OVRD}
+	{0x8200, CMN_CDIAG_XCVRC_PWRI_OVRD},
+	{0x007F, CMN_TXPUCAL_TUNE},
+	{0x007F, CMN_TXPDCAL_TUNE}
 };
 
 static struct cdns_torrent_vals usb_100_int_ssc_cmn_vals = {
@@ -2693,11 +2693,26 @@ static struct cdns_torrent_vals usb_phy_pcs_cmn_vals = {
 };
 
 /* USB 100 MHz Ref clk, no SSC */
-static struct cdns_reg_pairs usb_100_no_ssc_cmn_regs[] = {
+static struct cdns_reg_pairs sl_usb_100_no_ssc_cmn_regs[] = {
+	{0x0028, CMN_PDIAG_PLL1_CP_PADJ_M0},
+	{0x001E, CMN_PLL1_DSM_FBH_OVRD_M0},
+	{0x000C, CMN_PLL1_DSM_FBL_OVRD_M0},
 	{0x0003, CMN_PLL0_VCOCAL_TCTRL},
 	{0x0003, CMN_PLL1_VCOCAL_TCTRL},
 	{0x8200, CMN_CDIAG_CDB_PWRI_OVRD},
 	{0x8200, CMN_CDIAG_XCVRC_PWRI_OVRD}
+};
+
+static struct cdns_torrent_vals sl_usb_100_no_ssc_cmn_vals = {
+	.reg_pairs = sl_usb_100_no_ssc_cmn_regs,
+	.num_regs = ARRAY_SIZE(sl_usb_100_no_ssc_cmn_regs),
+};
+
+static struct cdns_reg_pairs usb_100_no_ssc_cmn_regs[] = {
+	{0x8200, CMN_CDIAG_CDB_PWRI_OVRD},
+	{0x8200, CMN_CDIAG_XCVRC_PWRI_OVRD},
+	{0x007F, CMN_TXPUCAL_TUNE},
+	{0x007F, CMN_TXPDCAL_TUNE}
 };
 
 static struct cdns_reg_pairs usb_100_no_ssc_tx_ln_regs[] = {
@@ -3483,8 +3498,8 @@ static const struct cdns_torrent_data cdns_map_torrent = {
 		},
 		[TYPE_USB] = {
 			[TYPE_NONE] = {
-				[NO_SSC] = &usb_100_no_ssc_cmn_vals,
-				[EXTERNAL_SSC] = &usb_100_no_ssc_cmn_vals,
+				[NO_SSC] = &sl_usb_100_no_ssc_cmn_vals,
+				[EXTERNAL_SSC] = &sl_usb_100_no_ssc_cmn_vals,
 				[INTERNAL_SSC] = &sl_usb_100_int_ssc_cmn_vals,
 			},
 			[TYPE_PCIE] = {
@@ -3493,13 +3508,13 @@ static const struct cdns_torrent_data cdns_map_torrent = {
 				[INTERNAL_SSC] = &usb_100_int_ssc_cmn_vals,
 			},
 			[TYPE_SGMII] = {
-				[NO_SSC] = &usb_100_no_ssc_cmn_vals,
-				[EXTERNAL_SSC] = &usb_100_no_ssc_cmn_vals,
+				[NO_SSC] = &sl_usb_100_no_ssc_cmn_vals,
+				[EXTERNAL_SSC] = &sl_usb_100_no_ssc_cmn_vals,
 				[INTERNAL_SSC] = &sl_usb_100_int_ssc_cmn_vals,
 			},
 			[TYPE_QSGMII] = {
-				[NO_SSC] = &usb_100_no_ssc_cmn_vals,
-				[EXTERNAL_SSC] = &usb_100_no_ssc_cmn_vals,
+				[NO_SSC] = &sl_usb_100_no_ssc_cmn_vals,
+				[EXTERNAL_SSC] = &sl_usb_100_no_ssc_cmn_vals,
 				[INTERNAL_SSC] = &sl_usb_100_int_ssc_cmn_vals,
 			},
 		},
@@ -3892,8 +3907,8 @@ static const struct cdns_torrent_data ti_j721e_map_torrent = {
 		},
 		[TYPE_USB] = {
 			[TYPE_NONE] = {
-				[NO_SSC] = &usb_100_no_ssc_cmn_vals,
-				[EXTERNAL_SSC] = &usb_100_no_ssc_cmn_vals,
+				[NO_SSC] = &sl_usb_100_no_ssc_cmn_vals,
+				[EXTERNAL_SSC] = &sl_usb_100_no_ssc_cmn_vals,
 				[INTERNAL_SSC] = &sl_usb_100_int_ssc_cmn_vals,
 			},
 			[TYPE_PCIE] = {
@@ -3902,13 +3917,13 @@ static const struct cdns_torrent_data ti_j721e_map_torrent = {
 				[INTERNAL_SSC] = &usb_100_int_ssc_cmn_vals,
 			},
 			[TYPE_SGMII] = {
-				[NO_SSC] = &usb_100_no_ssc_cmn_vals,
-				[EXTERNAL_SSC] = &usb_100_no_ssc_cmn_vals,
+				[NO_SSC] = &sl_usb_100_no_ssc_cmn_vals,
+				[EXTERNAL_SSC] = &sl_usb_100_no_ssc_cmn_vals,
 				[INTERNAL_SSC] = &sl_usb_100_int_ssc_cmn_vals,
 			},
 			[TYPE_QSGMII] = {
-				[NO_SSC] = &usb_100_no_ssc_cmn_vals,
-				[EXTERNAL_SSC] = &usb_100_no_ssc_cmn_vals,
+				[NO_SSC] = &sl_usb_100_no_ssc_cmn_vals,
+				[EXTERNAL_SSC] = &sl_usb_100_no_ssc_cmn_vals,
 				[INTERNAL_SSC] = &sl_usb_100_int_ssc_cmn_vals,
 			},
 		},
