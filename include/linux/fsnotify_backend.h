@@ -206,9 +206,6 @@ struct fsnotify_group {
 
 	/* stores all fastpath marks assoc with this group so they can be cleaned on unregister */
 	struct mutex mark_mutex;	/* protect marks_list */
-	atomic_t num_marks;		/* 1 for each mark and 1 for not being
-					 * past the point of no return when freeing
-					 * a group */
 	atomic_t user_waits;		/* Number of tasks waiting for user
 					 * response */
 	struct list_head marks_list;	/* all inode marks for this group */
@@ -240,8 +237,7 @@ struct fsnotify_group {
 			wait_queue_head_t access_waitq;
 			int flags;           /* flags from fanotify_init() */
 			int f_flags; /* event_f_flags from fanotify_init() */
-			unsigned int max_marks;
-			struct user_struct *user;
+			struct ucounts *ucounts;
 		} fanotify_data;
 #endif /* CONFIG_FANOTIFY */
 	};

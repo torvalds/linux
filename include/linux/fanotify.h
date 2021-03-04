@@ -2,7 +2,10 @@
 #ifndef _LINUX_FANOTIFY_H
 #define _LINUX_FANOTIFY_H
 
+#include <linux/sysctl.h>
 #include <uapi/linux/fanotify.h>
+
+extern struct ctl_table fanotify_table[]; /* for sysctl */
 
 #define FAN_GROUP_FLAG(group, flag) \
 	((group)->fanotify_data.flags & (flag))

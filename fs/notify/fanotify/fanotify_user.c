@@ -27,8 +27,61 @@
 #include "fanotify.h"
 
 #define FANOTIFY_DEFAULT_MAX_EVENTS	16384
-#define FANOTIFY_DEFAULT_MAX_MARKS	8192
-#define FANOTIFY_DEFAULT_MAX_LISTENERS	128
+#define FANOTIFY_OLD_DEFAULT_MAX_MARKS	8192
+#define FANOTIFY_DEFAULT_MAX_GROUPS	128
+
+/*
+ * Legacy fanotify marks limits (8192) is per group and we introduced a tunable
+ * limit of marks per user, similar to inotify.  Effectively, the legacy limit
+ * of fanotify marks per user is <max marks per group> * <max groups per user>.
+ * This default limit (1M) also happens to match the increased limit of inotify
+ * max_user_watches since v5.10.
+ */
+#define FANOTIFY_DEFAULT_MAX_USER_MARKS	\
+	(FANOTIFY_OLD_DEFAULT_MAX_MARKS * FANOTIFY_DEFAULT_MAX_GROUPS)
+
+/*
+ * Most of the memory cost of adding an inode mark is pinning the marked inode.
+ * The size of the filesystem inode struct is not uniform across filesystems,
+ * so double the size of a VFS inode is used as a conservative approximation.
+ */
+#define INODE_MARK_COST	(2 * sizeof(struct inode))
+
+/* configurable via /proc/sys/fs/fanotify/ */
+static int fanotify_max_queued_events __read_mostly;
+
+#ifdef CONFIG_SYSCTL
+
+#include <linux/sysctl.h>
+
+struct ctl_table fanotify_table[] = {
+	{
+		.procname	= "max_user_groups",
+		.data	= &init_user_ns.ucount_max[UCOUNT_FANOTIFY_GROUPS],
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+	},
+	{
+		.procname	= "max_user_marks",
+		.data	= &init_user_ns.ucount_max[UCOUNT_FANOTIFY_MARKS],
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+	},
+	{
+		.procname	= "max_queued_events",
+		.data		= &fanotify_max_queued_events,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO
+	},
+	{ }
+};
+#endif /* CONFIG_SYSCTL */
 
 /*
  * All flags that may be specified in parameter event_f_flags of fanotify_init.
@@ -847,24 +900,38 @@ static struct fsnotify_mark *fanotify_add_new_mark(struct fsnotify_group *group,
 						   unsigned int type,
 						   __kernel_fsid_t *fsid)
 {
+	struct ucounts *ucounts = group->fanotify_data.ucounts;
 	struct fsnotify_mark *mark;
 	int ret;
 
-	if (atomic_read(&group->num_marks) > group->fanotify_data.max_marks)
+	/*
+	 * Enforce per user marks limits per user in all containing user ns.
+	 * A group with FAN_UNLIMITED_MARKS does not contribute to mark count
+	 * in the limited groups account.
+	 */
+	if (!FAN_GROUP_FLAG(group, FAN_UNLIMITED_MARKS) &&
+	    !inc_ucount(ucounts->ns, ucounts->uid, UCOUNT_FANOTIFY_MARKS))
 		return ERR_PTR(-ENOSPC);
 
 	mark = kmem_cache_alloc(fanotify_mark_cache, GFP_KERNEL);
-	if (!mark)
-		return ERR_PTR(-ENOMEM);
+	if (!mark) {
+		ret = -ENOMEM;
+		goto out_dec_ucounts;
+	}
 
 	fsnotify_init_mark(mark, group);
 	ret = fsnotify_add_mark_locked(mark, connp, type, 0, fsid);
 	if (ret) {
 		fsnotify_put_mark(mark);
-		return ERR_PTR(ret);
+		goto out_dec_ucounts;
 	}
 
 	return mark;
+
+out_dec_ucounts:
+	if (!FAN_GROUP_FLAG(group, FAN_UNLIMITED_MARKS))
+		dec_ucount(ucounts, UCOUNT_FANOTIFY_MARKS);
+	return ERR_PTR(ret);
 }
 
 
@@ -963,7 +1030,6 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 {
 	struct fsnotify_group *group;
 	int f_flags, fd;
-	struct user_struct *user;
 	unsigned int fid_mode = flags & FANOTIFY_FID_BITS;
 	unsigned int class = flags & FANOTIFY_CLASS_BITS;
 
@@ -1002,12 +1068,6 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	if ((fid_mode & FAN_REPORT_NAME) && !(fid_mode & FAN_REPORT_DIR_FID))
 		return -EINVAL;
 
-	user = get_current_user();
-	if (atomic_read(&user->fanotify_listeners) > FANOTIFY_DEFAULT_MAX_LISTENERS) {
-		free_uid(user);
-		return -EMFILE;
-	}
-
 	f_flags = O_RDWR | FMODE_NONOTIFY;
 	if (flags & FAN_CLOEXEC)
 		f_flags |= O_CLOEXEC;
@@ -1017,13 +1077,19 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	/* fsnotify_alloc_group takes a ref.  Dropped in fanotify_release */
 	group = fsnotify_alloc_user_group(&fanotify_fsnotify_ops);
 	if (IS_ERR(group)) {
-		free_uid(user);
 		return PTR_ERR(group);
 	}
 
-	group->fanotify_data.user = user;
+	/* Enforce groups limits per user in all containing user ns */
+	group->fanotify_data.ucounts = inc_ucount(current_user_ns(),
+						  current_euid(),
+						  UCOUNT_FANOTIFY_GROUPS);
+	if (!group->fanotify_data.ucounts) {
+		fd = -EMFILE;
+		goto out_destroy_group;
+	}
+
 	group->fanotify_data.flags = flags;
-	atomic_inc(&user->fanotify_listeners);
 	group->memcg = get_mem_cgroup_from_mm(current->mm);
 
 	group->fanotify_data.merge_hash = fanotify_alloc_merge_hash();
@@ -1064,16 +1130,13 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 			goto out_destroy_group;
 		group->max_events = UINT_MAX;
 	} else {
-		group->max_events = FANOTIFY_DEFAULT_MAX_EVENTS;
+		group->max_events = fanotify_max_queued_events;
 	}
 
 	if (flags & FAN_UNLIMITED_MARKS) {
 		fd = -EPERM;
 		if (!capable(CAP_SYS_ADMIN))
 			goto out_destroy_group;
-		group->fanotify_data.max_marks = UINT_MAX;
-	} else {
-		group->fanotify_data.max_marks = FANOTIFY_DEFAULT_MAX_MARKS;
 	}
 
 	if (flags & FAN_ENABLE_AUDIT) {
@@ -1357,6 +1420,21 @@ SYSCALL32_DEFINE6(fanotify_mark,
  */
 static int __init fanotify_user_setup(void)
 {
+	struct sysinfo si;
+	int max_marks;
+
+	si_meminfo(&si);
+	/*
+	 * Allow up to 1% of addressable memory to be accounted for per user
+	 * marks limited to the range [8192, 1048576]. mount and sb marks are
+	 * a lot cheaper than inode marks, but there is no reason for a user
+	 * to have many of those, so calculate by the cost of inode marks.
+	 */
+	max_marks = (((si.totalram - si.totalhigh) / 100) << PAGE_SHIFT) /
+		    INODE_MARK_COST;
+	max_marks = clamp(max_marks, FANOTIFY_OLD_DEFAULT_MAX_MARKS,
+				     FANOTIFY_DEFAULT_MAX_USER_MARKS);
+
 	BUILD_BUG_ON(HWEIGHT32(FANOTIFY_INIT_FLAGS) != 10);
 	BUILD_BUG_ON(HWEIGHT32(FANOTIFY_MARK_FLAGS) != 9);
 
@@ -1370,6 +1448,11 @@ static int __init fanotify_user_setup(void)
 		fanotify_perm_event_cachep =
 			KMEM_CACHE(fanotify_perm_event, SLAB_PANIC);
 	}
+
+	fanotify_max_queued_events = FANOTIFY_DEFAULT_MAX_EVENTS;
+	init_user_ns.ucount_max[UCOUNT_FANOTIFY_GROUPS] =
+					FANOTIFY_DEFAULT_MAX_GROUPS;
+	init_user_ns.ucount_max[UCOUNT_FANOTIFY_MARKS] = max_marks;
 
 	return 0;
 }
