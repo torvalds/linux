@@ -340,9 +340,7 @@ alloc_new:
 				goto out;
 		}
 		args->bio = mpage_alloc(bdev, blocks[0] << (blkbits - 9),
-					min_t(int, args->nr_pages,
-					      BIO_MAX_PAGES),
-					gfp);
+					bio_max_segs(args->nr_pages), gfp);
 		if (args->bio == NULL)
 			goto confused;
 	}
