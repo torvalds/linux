@@ -83,6 +83,7 @@ enum hpre_alg_type {
 	HPRE_ALG_KG_CRT = 0x3,
 	HPRE_ALG_DH_G2 = 0x4,
 	HPRE_ALG_DH = 0x5,
+	HPRE_ALG_ECC_MUL = 0xD,
 };
 
 struct hpre_sqe {
@@ -103,6 +104,5 @@ struct hpre_sqe {
 struct hisi_qp *hpre_create_qp(u8 type);
 int hpre_algs_register(struct hisi_qm *qm);
 void hpre_algs_unregister(struct hisi_qm *qm);
-
 
 #endif
