@@ -9,6 +9,7 @@
 #ifndef __ARCH_X86_KVM_XEN_H__
 #define __ARCH_X86_KVM_XEN_H__
 
+#ifdef CONFIG_KVM_XEN
 #include <linux/jump_label_ratelimit.h>
 
 extern struct static_key_false_deferred kvm_xen_enabled;
@@ -18,10 +19,15 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 int kvm_xen_vcpu_get_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data);
 int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data);
 int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data);
-int kvm_xen_hypercall(struct kvm_vcpu *vcpu);
 int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data);
 int kvm_xen_hvm_config(struct kvm *kvm, struct kvm_xen_hvm_config *xhc);
 void kvm_xen_destroy_vm(struct kvm *kvm);
+
+static inline bool kvm_xen_msr_enabled(struct kvm *kvm)
+{
+	return static_branch_unlikely(&kvm_xen_enabled.key) &&
+		kvm->arch.xen_hvm_config.msr;
+}
 
 static inline bool kvm_xen_hypercall_enabled(struct kvm *kvm)
 {
@@ -38,11 +44,59 @@ static inline int kvm_xen_has_interrupt(struct kvm_vcpu *vcpu)
 
 	return 0;
 }
+#else
+static inline int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data)
+{
+	return 1;
+}
 
-/* 32-bit compatibility definitions, also used natively in 32-bit build */
+static inline void kvm_xen_destroy_vm(struct kvm *kvm)
+{
+}
+
+static inline bool kvm_xen_msr_enabled(struct kvm *kvm)
+{
+	return false;
+}
+
+static inline bool kvm_xen_hypercall_enabled(struct kvm *kvm)
+{
+	return false;
+}
+
+static inline int kvm_xen_has_interrupt(struct kvm_vcpu *vcpu)
+{
+	return 0;
+}
+#endif
+
+int kvm_xen_hypercall(struct kvm_vcpu *vcpu);
+
 #include <asm/pvclock-abi.h>
 #include <asm/xen/interface.h>
+#include <xen/interface/vcpu.h>
 
+void kvm_xen_update_runstate_guest(struct kvm_vcpu *vcpu, int state);
+
+static inline void kvm_xen_runstate_set_running(struct kvm_vcpu *vcpu)
+{
+	kvm_xen_update_runstate_guest(vcpu, RUNSTATE_running);
+}
+
+static inline void kvm_xen_runstate_set_preempted(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * If the vCPU wasn't preempted but took a normal exit for
+	 * some reason (hypercalls, I/O, etc.), that is accounted as
+	 * still RUNSTATE_running, as the VMM is still operating on
+	 * behalf of the vCPU. Only if the VMM does actually block
+	 * does it need to enter RUNSTATE_blocked.
+	 */
+	if (vcpu->preempted)
+		kvm_xen_update_runstate_guest(vcpu, RUNSTATE_runnable);
+}
+
+/* 32-bit compatibility definitions, also used natively in 32-bit build */
 struct compat_arch_vcpu_info {
 	unsigned int cr2;
 	unsigned int pad[5];
@@ -74,5 +128,11 @@ struct compat_shared_info {
 	struct pvclock_wall_clock wc;
 	struct compat_arch_shared_info arch;
 };
+
+struct compat_vcpu_runstate_info {
+    int state;
+    uint64_t state_entry_time;
+    uint64_t time[4];
+} __attribute__((packed));
 
 #endif /* __ARCH_X86_KVM_XEN_H__ */
