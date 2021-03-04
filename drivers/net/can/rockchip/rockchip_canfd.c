@@ -200,6 +200,8 @@ enum rockchip_canfd_reg {
 #define CAN_TXEFRD_OFFSET(n)	(CAN_TXEFRD + CAN_TEF_SIZE * (n))
 #define CAN_RXFRD_OFFSET(n)	(CAN_RXFRD + CAN_RF_SIZE * (n))
 
+#define CAN_RX_FILTER_MASK	0x1fffffff
+
 #define DRV_NAME	"rockchip_canfd"
 
 /* rockchip_canfd private data structure */
@@ -380,17 +382,17 @@ static int rockchip_canfd_start(struct net_device *ndev)
 
 	/* RECEIVING FILTER, accept all */
 	rockchip_canfd_write(rcan, CAN_IDCODE, 0);
-	rockchip_canfd_write(rcan, CAN_IDMASK, 0xfffffff);
+	rockchip_canfd_write(rcan, CAN_IDMASK, CAN_RX_FILTER_MASK);
 	rockchip_canfd_write(rcan, CAN_IDCODE0, 0);
-	rockchip_canfd_write(rcan, CAN_IDMASK0, 0xfffffff);
+	rockchip_canfd_write(rcan, CAN_IDMASK0, CAN_RX_FILTER_MASK);
 	rockchip_canfd_write(rcan, CAN_IDCODE1, 0);
-	rockchip_canfd_write(rcan, CAN_IDMASK1, 0xfffffff);
+	rockchip_canfd_write(rcan, CAN_IDMASK1, CAN_RX_FILTER_MASK);
 	rockchip_canfd_write(rcan, CAN_IDCODE2, 0);
-	rockchip_canfd_write(rcan, CAN_IDMASK2, 0xfffffff);
+	rockchip_canfd_write(rcan, CAN_IDMASK2, CAN_RX_FILTER_MASK);
 	rockchip_canfd_write(rcan, CAN_IDCODE3, 0);
-	rockchip_canfd_write(rcan, CAN_IDMASK3, 0xfffffff);
+	rockchip_canfd_write(rcan, CAN_IDMASK3, CAN_RX_FILTER_MASK);
 	rockchip_canfd_write(rcan, CAN_IDCODE4, 0);
-	rockchip_canfd_write(rcan, CAN_IDMASK4, 0xfffffff);
+	rockchip_canfd_write(rcan, CAN_IDMASK4, CAN_RX_FILTER_MASK);
 
 	/* set mode */
 	val = rockchip_canfd_read(rcan, CAN_MODE);

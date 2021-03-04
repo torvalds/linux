@@ -101,6 +101,8 @@
 
 #define CAN_RX_DATA2		0x6c
 
+#define CAN_RX_FILTER_MASK	0x1fffffff
+
 #define CAN_VERSION		0x70
 
 struct rockchip_can {
@@ -209,7 +211,7 @@ static int rockchip_can_start(struct net_device *ndev)
 
 	/* RECEIVING FILTER, accept all */
 	writel(0, rcan->base + CAN_ID);
-	writel(0xfffffff, rcan->base + CAN_ID_MASK);
+	writel(CAN_RX_FILTER_MASK, rcan->base + CAN_ID_MASK);
 
 	rockchip_can_set_bittiming(ndev);
 
