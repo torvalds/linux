@@ -381,3 +381,4 @@
 440	n32	process_madvise			sys_process_madvise
 441	n32	epoll_pwait2			compat_sys_epoll_pwait2
 442	n32	mount_setattr			sys_mount_setattr
+443	n32	quotactl_path			sys_quotactl_path

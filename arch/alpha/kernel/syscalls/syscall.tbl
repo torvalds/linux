@@ -482,3 +482,4 @@
 550	common	process_madvise			sys_process_madvise
 551	common	epoll_pwait2			sys_epoll_pwait2
 552	common	mount_setattr			sys_mount_setattr
+553	common	quotactl_path			sys_quotactl_path
