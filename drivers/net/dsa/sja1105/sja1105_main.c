@@ -3369,14 +3369,14 @@ static int sja1105_port_ucast_bcast_flood(struct sja1105_private *priv, int to,
 		if (flags.val & BR_FLOOD)
 			priv->ucast_egress_floods |= BIT(to);
 		else
-			priv->ucast_egress_floods |= BIT(to);
+			priv->ucast_egress_floods &= ~BIT(to);
 	}
 
 	if (flags.mask & BR_BCAST_FLOOD) {
 		if (flags.val & BR_BCAST_FLOOD)
 			priv->bcast_egress_floods |= BIT(to);
 		else
-			priv->bcast_egress_floods |= BIT(to);
+			priv->bcast_egress_floods &= ~BIT(to);
 	}
 
 	return sja1105_manage_flood_domains(priv);
