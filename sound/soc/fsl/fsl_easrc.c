@@ -380,7 +380,7 @@ static int fsl_easrc_resampler_config(struct fsl_asrc *easrc)
 }
 
 /**
- *  Scale filter coefficients (64 bits float)
+ *  fsl_easrc_normalize_filter - Scale filter coefficients (64 bits float)
  *  For input float32 normalized range (1.0,-1.0) -> output int[16,24,32]:
  *      scale it by multiplying filter coefficients by 2^31
  *  For input int[16, 24, 32] -> output float32

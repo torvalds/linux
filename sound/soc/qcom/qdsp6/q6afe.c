@@ -1448,7 +1448,7 @@ int q6afe_i2s_port_prepare(struct q6afe_port *port, struct q6afe_i2s_cfg *cfg)
 EXPORT_SYMBOL_GPL(q6afe_i2s_port_prepare);
 
 /**
- * q6afe_dam_port_prepare() - Prepare dma afe port.
+ * q6afe_cdc_dma_port_prepare() - Prepare dma afe port.
  *
  * @port: Instance of afe port
  * @cfg: DMA configuration for the afe port
