@@ -69,7 +69,6 @@
 #include "setup.h"
 
 #ifdef DEBUG
-#include <asm/udbg.h>
 #define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)

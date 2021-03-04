@@ -38,7 +38,6 @@
 #ifndef __ASSEMBLY__
 #include <linux/cache.h>
 #include <asm/processor.h>
-#include <asm/page.h>
 #include <asm/accounting.h>
 
 #define SLB_PRELOAD_NR	16U
