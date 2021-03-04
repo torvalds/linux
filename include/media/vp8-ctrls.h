@@ -14,7 +14,6 @@
 #include <linux/types.h>
 
 #define V4L2_CID_MPEG_VIDEO_VP8_FRAME (V4L2_CID_CODEC_BASE + 2000)
-#define V4L2_CTRL_TYPE_VP8_FRAME 0x301
 
 #define V4L2_VP8_SEGMENT_FLAG_ENABLED              0x01
 #define V4L2_VP8_SEGMENT_FLAG_UPDATE_MAP           0x02
