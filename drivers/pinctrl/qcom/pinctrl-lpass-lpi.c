@@ -392,7 +392,7 @@ static int lpi_config_set(struct pinctrl_dev *pctldev, unsigned int group,
 			  unsigned long *configs, unsigned int nconfs)
 {
 	struct lpi_pinctrl *pctrl = dev_get_drvdata(pctldev->dev);
-	unsigned int param, arg, pullup, strength;
+	unsigned int param, arg, pullup = LPI_GPIO_BIAS_DISABLE, strength = 2;
 	bool value, output_enabled = false;
 	const struct lpi_pingroup *g;
 	unsigned long sval;
