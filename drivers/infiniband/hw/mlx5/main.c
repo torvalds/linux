@@ -499,7 +499,7 @@ static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 	translate_eth_proto_oper(eth_prot_oper, &props->active_speed,
 				 &props->active_width, ext);
 
-	if (!dev->is_rep && mlx5_is_roce_enabled(mdev)) {
+	if (!dev->is_rep && dev->mdev->roce.roce_en) {
 		u16 qkey_viol_cntr;
 
 		props->port_cap_flags |= IB_PORT_CM_SUP;
@@ -4174,7 +4174,7 @@ static int mlx5_ib_roce_init(struct mlx5_ib_dev *dev)
 
 		/* Register only for native ports */
 		err = mlx5_add_netdev_notifier(dev, port_num);
-		if (err || dev->is_rep || !mlx5_is_roce_enabled(mdev))
+		if (err || dev->is_rep || !mlx5_is_roce_init_enabled(mdev))
 			/*
 			 * We don't enable ETH interface for
 			 * 1. IB representors
@@ -4711,7 +4711,7 @@ static int mlx5r_probe(struct auxiliary_device *adev,
 	dev->mdev = mdev;
 	dev->num_ports = num_ports;
 
-	if (ll == IB_LINK_LAYER_ETHERNET && !mlx5_is_roce_enabled(mdev))
+	if (ll == IB_LINK_LAYER_ETHERNET && !mlx5_is_roce_init_enabled(mdev))
 		profile = &raw_eth_profile;
 	else
 		profile = &pf_profile;
