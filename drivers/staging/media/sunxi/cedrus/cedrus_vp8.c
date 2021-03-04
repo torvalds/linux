@@ -423,7 +423,8 @@ static const u8 prob_table_init[] = {
  * This table is a copy of k_mv_entropy_update_probs from the VP8
  * specification.
  *
- * FIXME: If any other driver uses it, move this table to media/vp8-ctrls.h
+ * FIXME: If any other driver uses it, we can consider moving
+ * this table so it can be shared.
  */
 static const u8 k_mv_entropy_update_probs[2][V4L2_VP8_MV_PROB_CNT] = {
 	{ 237, 246, 253, 253, 254, 254, 254, 254, 254,

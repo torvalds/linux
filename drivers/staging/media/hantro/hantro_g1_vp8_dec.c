@@ -10,7 +10,6 @@
  */
 
 #include <media/v4l2-mem2mem.h>
-#include <media/vp8-ctrls.h>
 
 #include "hantro_hw.h"
 #include "hantro.h"
@@ -437,7 +436,7 @@ void hantro_g1_vp8_dec_run(struct hantro_ctx *ctx)
 
 	hantro_start_prepare_run(ctx);
 
-	hdr = hantro_get_ctrl(ctx, V4L2_CID_MPEG_VIDEO_VP8_FRAME);
+	hdr = hantro_get_ctrl(ctx, V4L2_CID_STATELESS_VP8_FRAME);
 	if (WARN_ON(!hdr))
 		return;
 

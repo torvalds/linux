@@ -1738,6 +1738,7 @@ struct v4l2_ext_control {
 		struct v4l2_ctrl_h264_slice_params __user *p_h264_slice_params;
 		struct v4l2_ctrl_h264_decode_params __user *p_h264_decode_params;
 		struct v4l2_ctrl_fwht_params __user *p_fwht_params;
+		struct v4l2_ctrl_vp8_frame __user *p_vp8_frame;
 		void __user *ptr;
 	};
 } __attribute__ ((packed));
