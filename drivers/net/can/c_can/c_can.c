@@ -703,7 +703,8 @@ static void c_can_do_tx(struct net_device *dev)
 	struct net_device_stats *stats = &dev->stats;
 	u32 idx, obj, pkts = 0, bytes = 0, pend, clr;
 
-	clr = pend = priv->read_reg(priv, C_CAN_INTPND2_REG);
+	pend = priv->read_reg(priv, C_CAN_INTPND2_REG);
+	clr = pend;
 
 	while ((idx = ffs(pend))) {
 		idx--;
@@ -1029,7 +1030,8 @@ static int c_can_poll(struct napi_struct *napi, int quota)
 
 	/* Only read the status register if a status interrupt was pending */
 	if (atomic_xchg(&priv->sie_pending, 0)) {
-		priv->last_status = curr = priv->read_reg(priv, C_CAN_STS_REG);
+		priv->last_status = priv->read_reg(priv, C_CAN_STS_REG);
+		curr = priv->last_status;
 		/* Ack status on C_CAN. D_CAN is self clearing */
 		if (priv->type != BOSCH_D_CAN)
 			priv->write_reg(priv, C_CAN_STS_REG, LEC_UNUSED);
