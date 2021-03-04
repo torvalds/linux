@@ -5367,6 +5367,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 {
 	bool new_sd_dp;
 	bool inject = false;
+	bool hipri = (cmnd->request->cmd_flags & REQ_HIPRI);
 	int k, num_in_q, qdepth;
 	unsigned long iflags;
 	u64 ns_from_boot = 0;
@@ -5453,7 +5454,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 	if (sdebug_host_max_queue)
 		sd_dp->hc_idx = get_tag(cmnd);
 
-	if (ndelay > 0 && ndelay < INCLUSIVE_TIMING_MAX_NS)
+	if (hipri)
 		ns_from_boot = ktime_get_boottime_ns();
 
 	/* one of the resp_*() response functions is called here */
@@ -5513,8 +5514,8 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 				kt -= d;
 			}
 		}
-		sd_dp->cmpl_ts = ktime_add(ns_to_ktime(ns_from_boot), kt);
-		if (cmnd->request->cmd_flags & REQ_HIPRI) {
+		if (hipri) {
+			sd_dp->cmpl_ts = ktime_add(ns_to_ktime(ns_from_boot), kt);
 			spin_lock_irqsave(&sqp->qc_lock, iflags);
 			if (!sd_dp->init_poll) {
 				sd_dp->init_poll = true;
@@ -5544,8 +5545,8 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		if (unlikely((sdebug_opts & SDEBUG_OPT_CMD_ABORT) &&
 			     atomic_read(&sdeb_inject_pending)))
 			sd_dp->aborted = true;
-		sd_dp->cmpl_ts = ns_to_ktime(ns_from_boot);
-		if (cmnd->request->cmd_flags & REQ_HIPRI) {
+		if (hipri) {
+			sd_dp->cmpl_ts = ns_to_ktime(ns_from_boot);
 			spin_lock_irqsave(&sqp->qc_lock, iflags);
 			if (!sd_dp->init_poll) {
 				sd_dp->init_poll = true;
