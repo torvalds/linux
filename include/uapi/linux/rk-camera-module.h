@@ -25,6 +25,25 @@
 #define RKMODULE_CAMERA_MODULE_NAME	"rockchip,camera-module-name"
 #define RKMODULE_CAMERA_LENS_NAME	"rockchip,camera-module-lens-name"
 
+/* BT.656 & BT.1120 multi channel
+ * On which channels it can send video data
+ * related with struct rkmodule_bt656_mbus_info
+ */
+#define RKMODULE_CAMERA_BT656_ID_EN_BITS_1		(0x1)
+#define RKMODULE_CAMERA_BT656_ID_EN_BITS_2		(0x3)
+#define RKMODULE_CAMERA_BT656_ID_EN_BITS_3		(0x7)
+#define RKMODULE_CAMERA_BT656_ID_EN_BITS_4		(0xf)
+#define RKMODULE_CAMERA_BT656_PARSE_ID_LSB		BIT(0)
+#define RKMODULE_CAMERA_BT656_PARSE_ID_MSB		BIT(1)
+#define RKMODULE_CAMERA_BT656_CHANNEL_0			BIT(2)
+#define RKMODULE_CAMERA_BT656_CHANNEL_1			BIT(3)
+#define RKMODULE_CAMERA_BT656_CHANNEL_2			BIT(4)
+#define RKMODULE_CAMERA_BT656_CHANNEL_3			BIT(5)
+#define RKMODULE_CAMERA_BT656_CHANNELS			(RKMODULE_CAMERA_BT656_CHANNEL_0 | \
+							 RKMODULE_CAMERA_BT656_CHANNEL_1 | \
+							 RKMODULE_CAMERA_BT656_CHANNEL_2 | \
+							 RKMODULE_CAMERA_BT656_CHANNEL_3)
+
 #define RKMODULE_GET_MODULE_INFO	\
 	_IOR('V', BASE_VIDIOC_PRIVATE + 0, struct rkmodule_inf)
 
@@ -76,6 +95,8 @@
 #define RKMODULE_SET_VICAP_RST_INFO	\
 	_IOR('V', BASE_VIDIOC_PRIVATE + 16, struct rkmodule_vicap_reset_info)
 
+#define RKMODULE_GET_BT656_MBUS_INFO	\
+	_IOR('V', BASE_VIDIOC_PRIVATE + 17, struct rkmodule_bt656_mbus_info)
 /**
  * struct rkmodule_base_inf - module base information
  *
@@ -393,5 +414,11 @@ struct rkmodule_vicap_reset_info {
 	__u32 is_reset;
 	enum rkmodule_reset_src src;
 } __attribute__ ((packed));
+
+struct rkmodule_bt656_mbus_info {
+	__u32 flags;
+	__u32 id_en_bits;
+} __attribute__ ((packed));
+
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */

@@ -148,6 +148,7 @@ enum cif_reg_index {
 	CIF_REG_MMU_AUTO_GATING,
 	/* reg belowed is in grf */
 	CIF_REG_GRF_CIFIO_CON,
+	CIF_REG_GRF_CIFIO_CON1,
 	CIF_REG_INDEX_MAX
 };
 
@@ -314,6 +315,9 @@ enum cif_reg_index {
 #define PRE_INF_FRAME_END_EN		(0x1 << 8)
 #define PST_INF_FRAME_END_EN		(0x1 << 9)
 #define LINE_INT_EN			(0x1 << 10)
+#define DVP_CHANNEL1_FRM_END_EN		(0x1 << 11)
+#define DVP_CHANNEL2_FRM_END_EN		(0x1 << 12)
+#define DVP_CHANNEL3_FRM_END_EN		(0x1 << 13)
 
 /* CIF INTSTAT */
 #define INTSTAT_CLS			(0x3FF)
@@ -331,6 +335,39 @@ enum cif_reg_index {
 #define PST_INF_FRAME_END_CLR		(0x01 << 9)
 #define INTSTAT_ERR			(0xFC)
 #define DVP_ALL_OVERFLOW		(IFIFO_OVERFLOW | DFIFO_OVERFLOW)
+
+#define DVP_DMA_END_INTEN(id)	\
+	({ \
+	unsigned int mask; \
+	switch (id) { \
+	case 0: \
+		mask = 0x1 << 0; \
+		break; \
+	default: \
+		mask = 0x1 << (id  + 10); \
+		break; \
+	} \
+	mask; \
+	})
+
+#define DVP_LINE_INTEN		(0x01 << 10)
+
+#define DVP_DMA_END_INTSTAT(id)		\
+	({ \
+	unsigned int mask; \
+	switch (id) { \
+	case 0: \
+		mask = 0x1 << 0; \
+		break; \
+	default: \
+		mask = 0x1 << (id  + 10); \
+		break; \
+	} \
+	mask; \
+	})
+
+#define DVP_PST_INTSTAT		PST_INF_FRAME_END
+#define DVP_LINE_INTSTAT	(0x01 << 10)
 
 /* FRAME STATUS */
 #define FRAME_STAT_CLS			0x00
@@ -390,6 +427,10 @@ enum cif_reg_index {
 #define BT656_1120_MULTI_ID_MODE_1	(0x00 << 30)
 #define BT656_1120_MULTI_ID_MODE_2	(0x01 << 30)
 #define BT656_1120_MULTI_ID_MODE_4	(0x02 << 30)
+#define BT656_1120_MULTI_ID_0_MASK	~(0x03 << 4)
+#define BT656_1120_MULTI_ID_1_MASK	~(0x03 << 12)
+#define BT656_1120_MULTI_ID_2_MASK	~(0x03 << 20)
+#define BT656_1120_MULTI_ID_3_MASK	~(0x03 << 28)
 
 /* CIF_SCL_CTRL */
 #define ENABLE_SCL_DOWN			(0x01 << 0)
@@ -403,9 +444,52 @@ enum cif_reg_index {
 #define ENABLE_32BIT_BYPASS		(0x01 << 6)
 #define DISABLE_32BIT_BYPASS		(0x00 << 6)
 
-/* CIF_INTSTAT */
+/* CIF_FRAME_INTSTAT */
 #define CIF_F0_READY			(0x01 << 0)
 #define CIF_F1_READY			(0x01 << 1)
+#define DVP_CHANNEL0_FRM_READ		(CIF_F0_READY | CIF_F1_READY)
+#define DVP_CHANNEL1_F0_READY		(0x01 << 4)
+#define DVP_CHANNEL1_F1_READY		(0x01 << 5)
+#define DVP_CHANNEL1_FRM_READ		(DVP_CHANNEL1_F0_READY | DVP_CHANNEL1_F1_READY)
+#define DVP_CHANNEL2_F0_READY		(0x01 << 8)
+#define DVP_CHANNEL2_F1_READY		(0x01 << 9)
+#define DVP_CHANNEL2_FRM_READ		(DVP_CHANNEL2_F0_READY | DVP_CHANNEL2_F1_READY)
+#define DVP_CHANNEL3_F0_READY		(0x01 << 12)
+#define DVP_CHANNEL3_F1_READY		(0x01 << 13)
+#define DVP_CHANNEL3_FRM_READ		(DVP_CHANNEL3_F0_READY | DVP_CHANNEL3_F1_READY)
+
+#define DVP_FRAME_END_ID0		(0x1 << 0)
+#define DVP_FRAME_END_ID1		(0x1 << 11)
+#define DVP_FRAME_END_ID2		(0x1 << 12)
+#define DVP_FRAME_END_ID3		(0x1 << 13)
+
+#define DVP_FRM_STS_ID0(x)		(((x) & (0x3 << 0)) >> 0)
+#define DVP_FRM_STS_ID1(x)		(((x) & (0x3 << 4)) >> 4)
+#define DVP_FRM_STS_ID2(x)		(((x) & (0x3 << 8)) >> 8)
+#define DVP_FRM_STS_ID3(x)		(((x) & (0x3 << 12)) >> 12)
+
+#define DVP_SW_MULTI_ID(channel, id, bits)	\
+	({ \
+		unsigned int mask; \
+		switch (channel) { \
+		case 0: \
+			mask = ((bits) << 4) | ((id) << 0); \
+			break; \
+		case 1: \
+			mask = ((bits) << 12) | ((id) << 8); \
+			break; \
+		case 2: \
+			mask = ((bits) << 20) | ((id) << 16); \
+			break; \
+		case 3: \
+			mask = ((bits) << 28) | ((id) << 24); \
+			break; \
+		default: \
+			mask = ((bits) << 4) | ((id) << 0); \
+			break; \
+		} \
+		mask; \
+	})
 
 /* CIF CROP */
 #define CIF_CROP_Y_SHIFT		16
@@ -594,9 +678,12 @@ enum cif_reg_index {
 #define CIF_PCLK_DELAY_DISABLE		(0x02000000)
 #define CIF_SAMPLING_EDGE_DOUBLE	(0x01000100)
 #define CIF_SAMPLING_EDGE_SINGLE	(0x01000000)
-#define CIF_PCLK_DELAY_NUM(num)	(0x00ff0000 | ((num) & 0xff))
+#define CIF_PCLK_DELAY_NUM(num)		(0x00ff0000 | ((num) & 0xff))
 #define CIF_GRF_VI_CON0			(0x340)
+#define CIF_GRF_VI_CON1			(0x344)
 #define RK3568_CIF_PCLK_SAMPLING_EDGE_RISING	(0x10000000)
 #define RK3568_CIF_PCLK_SAMPLING_EDGE_FALLING	(0x10001000)
+#define RK3568_CIF_PCLK_SINGLE_EDGE		(0x02000000)
+#define RK3568_CIF_PCLK_DUAL_EDGE		(0x02000200)
 
 #endif

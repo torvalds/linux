@@ -57,6 +57,8 @@
  *5. modify reset mechanism drivered by real-time frame rate
  *6. support rk356x iommu uses vb2 sg type
  *7. register cif sd itf when pipeline completed
+ *v0.1.10
+ *1. rv1126/rk356x support bt656/bt1120 multi channels function
  */
 
 #define RKCIF_DRIVER_VERSION RKCIF_API_VERSION
