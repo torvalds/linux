@@ -409,7 +409,7 @@ static int rfkill_rk_pm_prepare(struct device *dev)
 #endif
 
 	// enable bt wakeup host
-	if (gpio_is_valid(wake_host_irq->gpio.io)) {
+	if (gpio_is_valid(wake_host_irq->gpio.io) && bt_power_state) {
 		DBG("enable irq for bt wakeup host\n");
 		enable_irq(wake_host_irq->irq);
 	}
@@ -437,7 +437,7 @@ static void rfkill_rk_pm_complete(struct device *dev)
 	wake_host_irq = &rfkill->pdata->wake_host_irq;
 	rts = &rfkill->pdata->rts_gpio;
 
-	if (gpio_is_valid(wake_host_irq->gpio.io)) {
+	if (gpio_is_valid(wake_host_irq->gpio.io) && bt_power_state) {
 		LOG("** disable irq\n");
 		disable_irq(wake_host_irq->irq);
 	}
@@ -493,6 +493,8 @@ static ssize_t bluesleep_write_proc_btwrite(struct file *file,
 	/* HCI_DEV_WRITE */
 	if (b != '0')
 		rfkill_rk_sleep_bt(BT_WAKEUP);
+	else
+		rfkill_rk_sleep_bt(BT_SLEEP);
 
 	return count;
 }
