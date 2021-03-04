@@ -1087,8 +1087,6 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 	if (ret)
 		goto done;
 
-	cli->base.super = false;
-
 	fpriv->driver_priv = cli;
 
 	mutex_lock(&drm->client.mutex);
