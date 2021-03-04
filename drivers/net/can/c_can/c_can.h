@@ -201,16 +201,16 @@ struct c_can_priv {
 	atomic_t sie_pending;
 	unsigned long tx_dir;
 	int last_status;
-	u16 (*read_reg) (const struct c_can_priv *priv, enum reg index);
-	void (*write_reg) (const struct c_can_priv *priv, enum reg index, u16 val);
-	u32 (*read_reg32) (const struct c_can_priv *priv, enum reg index);
-	void (*write_reg32) (const struct c_can_priv *priv, enum reg index, u32 val);
+	u16 (*read_reg)(const struct c_can_priv *priv, enum reg index);
+	void (*write_reg)(const struct c_can_priv *priv, enum reg index, u16 val);
+	u32 (*read_reg32)(const struct c_can_priv *priv, enum reg index);
+	void (*write_reg32)(const struct c_can_priv *priv, enum reg index, u32 val);
 	void __iomem *base;
 	const u16 *regs;
 	void *priv;		/* for board-specific data */
 	enum c_can_dev_id type;
 	struct c_can_raminit raminit_sys;	/* RAMINIT via syscon regmap */
-	void (*raminit) (const struct c_can_priv *priv, bool enable);
+	void (*raminit)(const struct c_can_priv *priv, bool enable);
 	u32 comm_rcv_high;
 	u32 rxmasked;
 	u32 dlc[C_CAN_MSG_OBJ_TX_NUM];

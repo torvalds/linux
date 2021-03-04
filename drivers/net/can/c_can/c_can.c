@@ -502,7 +502,7 @@ static int c_can_set_bittiming(struct net_device *dev)
 	reg_brpe = brpe & BRP_EXT_BRPE_MASK;
 
 	netdev_info(dev,
-		"setting BTR=%04x BRPE=%04x\n", reg_btr, reg_brpe);
+		    "setting BTR=%04x BRPE=%04x\n", reg_btr, reg_brpe);
 
 	ctrl_save = priv->read_reg(priv, C_CAN_CTRL_REG);
 	ctrl_save &= ~CONTROL_INIT;
@@ -836,7 +836,7 @@ static int c_can_do_rx_poll(struct net_device *dev, int quota)
 	 * for a maximum number of 16 objects.
 	 */
 	BUILD_BUG_ON_MSG(C_CAN_MSG_OBJ_RX_LAST > 16,
-			"Implementation does not support more message objects than 16");
+			 "Implementation does not support more message objects than 16");
 
 	while (quota > 0) {
 		if (!pend) {
@@ -865,7 +865,7 @@ static int c_can_do_rx_poll(struct net_device *dev, int quota)
 }
 
 static int c_can_handle_state_change(struct net_device *dev,
-				enum c_can_bus_error_types error_type)
+				     enum c_can_bus_error_types error_type)
 {
 	unsigned int reg_err_counter;
 	unsigned int rx_err_passive;
@@ -1127,7 +1127,7 @@ static int c_can_open(struct net_device *dev)
 
 	/* register interrupt handler */
 	err = request_irq(dev->irq, &c_can_isr, IRQF_SHARED, dev->name,
-				dev);
+			  dev);
 	if (err < 0) {
 		netdev_err(dev, "failed to request interrupt\n");
 		goto exit_irq_fail;
@@ -1219,7 +1219,7 @@ int c_can_power_down(struct net_device *dev)
 	/* Wait for the PDA bit to get set */
 	time_out = jiffies + msecs_to_jiffies(INIT_WAIT_MS);
 	while (!(priv->read_reg(priv, C_CAN_STS_REG) & STATUS_PDA) &&
-				time_after(time_out, jiffies))
+	       time_after(time_out, jiffies))
 		cpu_relax();
 
 	if (time_after(jiffies, time_out))
@@ -1260,7 +1260,7 @@ int c_can_power_up(struct net_device *dev)
 	/* Wait for the PDA bit to get clear */
 	time_out = jiffies + msecs_to_jiffies(INIT_WAIT_MS);
 	while ((priv->read_reg(priv, C_CAN_STS_REG) & STATUS_PDA) &&
-				time_after(time_out, jiffies))
+	       time_after(time_out, jiffies))
 		cpu_relax();
 
 	if (time_after(jiffies, time_out)) {
