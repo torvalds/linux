@@ -141,8 +141,7 @@ static int c_can_pci_probe(struct pci_dev *pdev,
 			 pci_resource_len(pdev, c_can_pci_data->bar));
 	if (!addr) {
 		dev_err(&pdev->dev,
-			"device has no PCI memory resources, "
-			"failing adapter\n");
+			"device has no PCI memory resources, failing adapter\n");
 		ret = -ENOMEM;
 		goto out_release_regions;
 	}
