@@ -264,3 +264,83 @@ int exfat_count_used_clusters(struct super_block *sb, unsigned int *ret_count)
 	*ret_count = count;
 	return 0;
 }
+
+int exfat_trim_fs(struct inode *inode, struct fstrim_range *range)
+{
+	unsigned int trim_begin, trim_end, count, next_free_clu;
+	u64 clu_start, clu_end, trim_minlen, trimmed_total = 0;
+	struct super_block *sb = inode->i_sb;
+	struct exfat_sb_info *sbi = EXFAT_SB(sb);
+	int err = 0;
+
+	clu_start = max_t(u64, range->start >> sbi->cluster_size_bits,
+				EXFAT_FIRST_CLUSTER);
+	clu_end = clu_start + (range->len >> sbi->cluster_size_bits) - 1;
+	trim_minlen = range->minlen >> sbi->cluster_size_bits;
+
+	if (clu_start >= sbi->num_clusters || range->len < sbi->cluster_size)
+		return -EINVAL;
+
+	if (clu_end >= sbi->num_clusters)
+		clu_end = sbi->num_clusters - 1;
+
+	mutex_lock(&sbi->bitmap_lock);
+
+	trim_begin = trim_end = exfat_find_free_bitmap(sb, clu_start);
+	if (trim_begin == EXFAT_EOF_CLUSTER)
+		goto unlock;
+
+	next_free_clu = exfat_find_free_bitmap(sb, trim_end + 1);
+	if (next_free_clu == EXFAT_EOF_CLUSTER)
+		goto unlock;
+
+	do {
+		if (next_free_clu == trim_end + 1) {
+			/* extend trim range for continuous free cluster */
+			trim_end++;
+		} else {
+			/* trim current range if it's larger than trim_minlen */
+			count = trim_end - trim_begin + 1;
+			if (count >= trim_minlen) {
+				err = sb_issue_discard(sb,
+					exfat_cluster_to_sector(sbi, trim_begin),
+					count * sbi->sect_per_clus, GFP_NOFS, 0);
+				if (err)
+					goto unlock;
+
+				trimmed_total += count;
+			}
+
+			/* set next start point of the free hole */
+			trim_begin = trim_end = next_free_clu;
+		}
+
+		if (next_free_clu >= clu_end)
+			break;
+
+		if (fatal_signal_pending(current)) {
+			err = -ERESTARTSYS;
+			goto unlock;
+		}
+
+		next_free_clu = exfat_find_free_bitmap(sb, next_free_clu + 1);
+	} while (next_free_clu != EXFAT_EOF_CLUSTER &&
+			next_free_clu > trim_end);
+
+	/* try to trim remainder */
+	count = trim_end - trim_begin + 1;
+	if (count >= trim_minlen) {
+		err = sb_issue_discard(sb, exfat_cluster_to_sector(sbi, trim_begin),
+			count * sbi->sect_per_clus, GFP_NOFS, 0);
+		if (err)
+			goto unlock;
+
+		trimmed_total += count;
+	}
+
+unlock:
+	mutex_unlock(&sbi->bitmap_lock);
+	range->len = trimmed_total << sbi->cluster_size_bits;
+
+	return err;
+}
