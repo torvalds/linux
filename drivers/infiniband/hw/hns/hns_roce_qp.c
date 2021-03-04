@@ -98,7 +98,9 @@ void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type)
 	if (hr_dev->hw_rev != HNS_ROCE_HW_VER1 &&
 	    (event_type == HNS_ROCE_EVENT_TYPE_WQ_CATAS_ERROR ||
 	     event_type == HNS_ROCE_EVENT_TYPE_INV_REQ_LOCAL_WQ_ERROR ||
-	     event_type == HNS_ROCE_EVENT_TYPE_LOCAL_WQ_ACCESS_ERROR)) {
+	     event_type == HNS_ROCE_EVENT_TYPE_LOCAL_WQ_ACCESS_ERROR ||
+	     event_type == HNS_ROCE_EVENT_TYPE_XRCD_VIOLATION ||
+	     event_type == HNS_ROCE_EVENT_TYPE_INVALID_XRCETH)) {
 		qp->state = IB_QPS_ERR;
 		if (!test_and_set_bit(HNS_ROCE_FLUSH_FLAG, &qp->flush_flag))
 			init_flush_work(hr_dev, qp);
@@ -142,6 +144,8 @@ static void hns_roce_ib_qp_event(struct hns_roce_qp *hr_qp,
 			event.event = IB_EVENT_QP_REQ_ERR;
 			break;
 		case HNS_ROCE_EVENT_TYPE_LOCAL_WQ_ACCESS_ERROR:
+		case HNS_ROCE_EVENT_TYPE_XRCD_VIOLATION:
+		case HNS_ROCE_EVENT_TYPE_INVALID_XRCETH:
 			event.event = IB_EVENT_QP_ACCESS_ERR;
 			break;
 		default:
@@ -366,8 +370,13 @@ void hns_roce_qp_remove(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 	unsigned long flags;
 
 	list_del(&hr_qp->node);
-	list_del(&hr_qp->sq_node);
-	list_del(&hr_qp->rq_node);
+
+	if (hr_qp->ibqp.qp_type != IB_QPT_XRC_TGT)
+		list_del(&hr_qp->sq_node);
+
+	if (hr_qp->ibqp.qp_type != IB_QPT_XRC_INI &&
+	    hr_qp->ibqp.qp_type != IB_QPT_XRC_TGT)
+		list_del(&hr_qp->rq_node);
 
 	xa_lock_irqsave(xa, flags);
 	__xa_erase(xa, hr_qp->qpn & (hr_dev->caps.num_qps - 1));
@@ -1105,11 +1114,16 @@ static int check_qp_type(struct hns_roce_dev *hr_dev, enum ib_qp_type type,
 			 bool is_user)
 {
 	switch (type) {
+	case IB_QPT_XRC_INI:
+	case IB_QPT_XRC_TGT:
+		if (!(hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC))
+			goto out;
+		break;
 	case IB_QPT_UD:
 		if (hr_dev->pci_dev->revision <= PCI_REVISION_ID_HIP08 &&
 		    is_user)
 			goto out;
-		fallthrough;
+		break;
 	case IB_QPT_RC:
 	case IB_QPT_GSI:
 		break;
@@ -1129,8 +1143,8 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 				 struct ib_qp_init_attr *init_attr,
 				 struct ib_udata *udata)
 {
-	struct hns_roce_dev *hr_dev = to_hr_dev(pd->device);
-	struct ib_device *ibdev = &hr_dev->ib_dev;
+	struct ib_device *ibdev = pd ? pd->device : init_attr->xrcd->device;
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibdev);
 	struct hns_roce_qp *hr_qp;
 	int ret;
 
@@ -1141,6 +1155,15 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 	hr_qp = kzalloc(sizeof(*hr_qp), GFP_KERNEL);
 	if (!hr_qp)
 		return ERR_PTR(-ENOMEM);
+
+	if (init_attr->qp_type == IB_QPT_XRC_INI)
+		init_attr->recv_cq = NULL;
+
+	if (init_attr->qp_type == IB_QPT_XRC_TGT) {
+		hr_qp->xrcdn = to_hr_xrcd(init_attr->xrcd)->xrcdn;
+		init_attr->recv_cq = NULL;
+		init_attr->send_cq = NULL;
+	}
 
 	if (init_attr->qp_type == IB_QPT_GSI) {
 		hr_qp->port = init_attr->port_num - 1;
@@ -1161,20 +1184,20 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 
 int to_hr_qp_type(int qp_type)
 {
-	int transport_type;
-
-	if (qp_type == IB_QPT_RC)
-		transport_type = SERV_TYPE_RC;
-	else if (qp_type == IB_QPT_UC)
-		transport_type = SERV_TYPE_UC;
-	else if (qp_type == IB_QPT_UD)
-		transport_type = SERV_TYPE_UD;
-	else if (qp_type == IB_QPT_GSI)
-		transport_type = SERV_TYPE_UD;
-	else
-		transport_type = -1;
-
-	return transport_type;
+	switch (qp_type) {
+	case IB_QPT_RC:
+		return SERV_TYPE_RC;
+	case IB_QPT_UC:
+		return SERV_TYPE_UC;
+	case IB_QPT_UD:
+	case IB_QPT_GSI:
+		return SERV_TYPE_UD;
+	case IB_QPT_XRC_INI:
+	case IB_QPT_XRC_TGT:
+		return SERV_TYPE_XRC;
+	default:
+		return -1;
+	}
 }
 
 static int check_mtu_validate(struct hns_roce_dev *hr_dev,

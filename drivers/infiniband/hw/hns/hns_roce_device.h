@@ -137,6 +137,7 @@ enum {
 	SERV_TYPE_UC,
 	SERV_TYPE_RD,
 	SERV_TYPE_UD,
+	SERV_TYPE_XRC = 5,
 };
 
 enum hns_roce_qp_state {
@@ -168,6 +169,8 @@ enum hns_roce_event {
 	HNS_ROCE_EVENT_TYPE_DB_OVERFLOW               = 0x12,
 	HNS_ROCE_EVENT_TYPE_MB                        = 0x13,
 	HNS_ROCE_EVENT_TYPE_FLR			      = 0x15,
+	HNS_ROCE_EVENT_TYPE_XRCD_VIOLATION	      = 0x16,
+	HNS_ROCE_EVENT_TYPE_INVALID_XRCETH	      = 0x17,
 };
 
 #define HNS_ROCE_CAP_FLAGS_EX_SHIFT 12
@@ -179,6 +182,7 @@ enum {
 	HNS_ROCE_CAP_FLAG_RECORD_DB		= BIT(3),
 	HNS_ROCE_CAP_FLAG_SQ_RECORD_DB		= BIT(4),
 	HNS_ROCE_CAP_FLAG_SRQ			= BIT(5),
+	HNS_ROCE_CAP_FLAG_XRC			= BIT(6),
 	HNS_ROCE_CAP_FLAG_MW			= BIT(7),
 	HNS_ROCE_CAP_FLAG_FRMR                  = BIT(8),
 	HNS_ROCE_CAP_FLAG_QP_FLOW_CTRL		= BIT(9),
@@ -242,6 +246,11 @@ struct hns_roce_ucontext {
 struct hns_roce_pd {
 	struct ib_pd		ibpd;
 	unsigned long		pdn;
+};
+
+struct hns_roce_xrcd {
+	struct ib_xrcd ibxrcd;
+	u32 xrcdn;
 };
 
 struct hns_roce_bitmap {
@@ -467,6 +476,7 @@ struct hns_roce_srq {
 	u32			rsv_sge;
 	int			wqe_shift;
 	u32			cqn;
+	u32			xrcdn;
 	void __iomem		*db_reg_l;
 
 	atomic_t		refcount;
@@ -640,6 +650,8 @@ struct hns_roce_qp {
 					 enum hns_roce_event event_type);
 	unsigned long		qpn;
 
+	u32			xrcdn;
+
 	atomic_t		refcount;
 	struct completion	free;
 
@@ -766,6 +778,8 @@ struct hns_roce_caps {
 	int		reserved_uars;
 	int		num_pds;
 	int		reserved_pds;
+	u32		num_xrcds;
+	u32		reserved_xrcds;
 	u32		mtt_entry_sz;
 	u32		cqe_sz;
 	u32		page_size_cap;
@@ -963,6 +977,7 @@ struct hns_roce_dev {
 
 	struct hns_roce_cmdq	cmd;
 	struct hns_roce_bitmap    pd_bitmap;
+	struct hns_roce_bitmap xrcd_bitmap;
 	struct hns_roce_uar_table uar_table;
 	struct hns_roce_mr_table  mr_table;
 	struct hns_roce_cq_table  cq_table;
@@ -1002,6 +1017,11 @@ static inline struct hns_roce_ucontext
 static inline struct hns_roce_pd *to_hr_pd(struct ib_pd *ibpd)
 {
 	return container_of(ibpd, struct hns_roce_pd, ibpd);
+}
+
+static inline struct hns_roce_xrcd *to_hr_xrcd(struct ib_xrcd *ibxrcd)
+{
+	return container_of(ibxrcd, struct hns_roce_xrcd, ibxrcd);
 }
 
 static inline struct hns_roce_ah *to_hr_ah(struct ib_ah *ibah)
@@ -1136,6 +1156,7 @@ int hns_roce_init_mr_table(struct hns_roce_dev *hr_dev);
 void hns_roce_init_cq_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_srq_table(struct hns_roce_dev *hr_dev);
+int hns_roce_init_xrcd_table(struct hns_roce_dev *hr_dev);
 
 void hns_roce_cleanup_pd_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_mr_table(struct hns_roce_dev *hr_dev);
@@ -1143,6 +1164,7 @@ void hns_roce_cleanup_eq_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_cq_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_qp_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_srq_table(struct hns_roce_dev *hr_dev);
+void hns_roce_cleanup_xrcd_table(struct hns_roce_dev *hr_dev);
 
 int hns_roce_bitmap_alloc(struct hns_roce_bitmap *bitmap, unsigned long *obj);
 void hns_roce_bitmap_free(struct hns_roce_bitmap *bitmap, unsigned long obj,
@@ -1206,6 +1228,9 @@ int hns_roce_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr,
 			enum ib_srq_attr_mask srq_attr_mask,
 			struct ib_udata *udata);
 int hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata);
+
+int hns_roce_alloc_xrcd(struct ib_xrcd *ib_xrcd, struct ib_udata *udata);
+int hns_roce_dealloc_xrcd(struct ib_xrcd *ib_xrcd, struct ib_udata *udata);
 
 struct ib_qp *hns_roce_create_qp(struct ib_pd *ib_pd,
 				 struct ib_qp_init_attr *init_attr,

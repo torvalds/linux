@@ -314,6 +314,9 @@ static void set_srq_ext_param(struct hns_roce_srq *srq,
 {
 	srq->cqn = ib_srq_has_cq(init_attr->srq_type) ?
 		   to_hr_cq(init_attr->ext.cq)->cqn : 0;
+
+	srq->xrcdn = (init_attr->srq_type == IB_SRQT_XRC) ?
+		     to_hr_xrcd(init_attr->ext.xrc.xrcd)->xrcdn : 0;
 }
 
 static int set_srq_param(struct hns_roce_srq *srq,

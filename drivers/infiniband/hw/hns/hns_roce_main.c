@@ -207,6 +207,9 @@ static int hns_roce_query_device(struct ib_device *ib_dev,
 		props->max_fast_reg_page_list_len = HNS_ROCE_FRMR_MAX_PA;
 	}
 
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC)
+		props->device_cap_flags |= IB_DEVICE_XRC;
+
 	return 0;
 }
 
@@ -300,6 +303,7 @@ static int hns_roce_alloc_ucontext(struct ib_ucontext *uctx,
 		return -EAGAIN;
 
 	resp.qp_tab_size = hr_dev->caps.num_qps;
+	resp.srq_tab_size = hr_dev->caps.num_srqs;
 
 	ret = hns_roce_uar_alloc(hr_dev, &context->uar);
 	if (ret)
@@ -461,6 +465,13 @@ static const struct ib_device_ops hns_roce_dev_srq_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_srq, hns_roce_srq, ibsrq),
 };
 
+static const struct ib_device_ops hns_roce_dev_xrcd_ops = {
+	.alloc_xrcd = hns_roce_alloc_xrcd,
+	.dealloc_xrcd = hns_roce_dealloc_xrcd,
+
+	INIT_RDMA_OBJ_SIZE(ib_xrcd, hns_roce_xrcd, ibxrcd),
+};
+
 static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 {
 	int ret;
@@ -484,19 +495,19 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_REREG_MR)
 		ib_set_device_ops(ib_dev, &hns_roce_dev_mr_ops);
 
-	/* MW */
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_MW)
 		ib_set_device_ops(ib_dev, &hns_roce_dev_mw_ops);
 
-	/* FRMR */
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_FRMR)
 		ib_set_device_ops(ib_dev, &hns_roce_dev_frmr_ops);
 
-	/* SRQ */
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ) {
 		ib_set_device_ops(ib_dev, &hns_roce_dev_srq_ops);
 		ib_set_device_ops(ib_dev, hr_dev->hw->hns_roce_dev_srq_ops);
 	}
+
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC)
+		ib_set_device_ops(ib_dev, &hns_roce_dev_xrcd_ops);
 
 	ib_set_device_ops(ib_dev, hr_dev->hw->hns_roce_dev_ops);
 	ib_set_device_ops(ib_dev, &hns_roce_dev_ops);
@@ -727,10 +738,19 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 		goto err_uar_alloc_free;
 	}
 
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC) {
+		ret = hns_roce_init_xrcd_table(hr_dev);
+		if (ret) {
+			dev_err(dev, "failed to init xrcd table, ret = %d.\n",
+				ret);
+			goto err_pd_table_free;
+		}
+	}
+
 	ret = hns_roce_init_mr_table(hr_dev);
 	if (ret) {
 		dev_err(dev, "Failed to init memory region table.\n");
-		goto err_pd_table_free;
+		goto err_xrcd_table_free;
 	}
 
 	hns_roce_init_cq_table(hr_dev);
@@ -758,6 +778,10 @@ err_qp_table_free:
 err_cq_table_free:
 	hns_roce_cleanup_cq_table(hr_dev);
 	hns_roce_cleanup_mr_table(hr_dev);
+
+err_xrcd_table_free:
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC)
+		hns_roce_cleanup_xrcd_table(hr_dev);
 
 err_pd_table_free:
 	hns_roce_cleanup_pd_table(hr_dev);
