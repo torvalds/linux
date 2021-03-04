@@ -60,6 +60,7 @@ Todolist:
 
    clearing-warn-once
    cpu-load
+   unicode
 
 Todolist:
 
@@ -115,7 +116,6 @@ Todolist:
    sysrq
    thunderbolt
    ufs
-   unicode
    vga-softcursor
    video-output
    xfs
