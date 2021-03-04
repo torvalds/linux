@@ -738,8 +738,9 @@ static void stm32_usart_set_termios(struct uart_port *port,
 	unsigned int baud, bits;
 	u32 usartdiv, mantissa, fraction, oversampling;
 	tcflag_t cflag = termios->c_cflag;
-	u32 cr1, cr2, cr3;
+	u32 cr1, cr2, cr3, isr;
 	unsigned long flags;
+	int ret;
 
 	if (!stm32_port->hw_flow_control)
 		cflag &= ~CRTSCTS;
@@ -747,6 +748,15 @@ static void stm32_usart_set_termios(struct uart_port *port,
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk / 8);
 
 	spin_lock_irqsave(&port->lock, flags);
+
+	ret = readl_relaxed_poll_timeout_atomic(port->membase + ofs->isr,
+						isr,
+						(isr & USART_SR_TC),
+						10, 100000);
+
+	/* Send the TC error message only when ISR_TC is not set. */
+	if (ret)
+		dev_err(port->dev, "Transmission is not complete\n");
 
 	/* Stop serial port and reset value */
 	writel_relaxed(0, port->membase + ofs->cr1);
