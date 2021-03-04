@@ -100,24 +100,30 @@ static struct fanotify_event *get_one_event(struct fsnotify_group *group,
 {
 	size_t event_size = FAN_EVENT_METADATA_LEN;
 	struct fanotify_event *event = NULL;
+	struct fsnotify_event *fsn_event;
 	unsigned int fid_mode = FAN_GROUP_FLAG(group, FANOTIFY_FID_BITS);
 
 	pr_debug("%s: group=%p count=%zd\n", __func__, group, count);
 
 	spin_lock(&group->notification_lock);
-	if (fsnotify_notify_queue_is_empty(group))
+	fsn_event = fsnotify_peek_first_event(group);
+	if (!fsn_event)
 		goto out;
 
-	if (fid_mode) {
-		event_size += fanotify_event_info_len(fid_mode,
-			FANOTIFY_E(fsnotify_peek_first_event(group)));
-	}
+	event = FANOTIFY_E(fsn_event);
+	if (fid_mode)
+		event_size += fanotify_event_info_len(fid_mode, event);
 
 	if (event_size > count) {
 		event = ERR_PTR(-EINVAL);
 		goto out;
 	}
-	event = FANOTIFY_E(fsnotify_remove_first_event(group));
+
+	/*
+	 * Held the notification_lock the whole time, so this is the
+	 * same event we peeked above.
+	 */
+	fsnotify_remove_first_event(group);
 	if (fanotify_is_perm_event(event->mask))
 		FANOTIFY_PERM(event)->state = FAN_EVENT_REPORTED;
 out:
@@ -573,6 +579,7 @@ static ssize_t fanotify_write(struct file *file, const char __user *buf, size_t 
 static int fanotify_release(struct inode *ignored, struct file *file)
 {
 	struct fsnotify_group *group = file->private_data;
+	struct fsnotify_event *fsn_event;
 
 	/*
 	 * Stop new events from arriving in the notification queue. since
@@ -601,13 +608,12 @@ static int fanotify_release(struct inode *ignored, struct file *file)
 	 * dequeue them and set the response. They will be freed once the
 	 * response is consumed and fanotify_get_response() returns.
 	 */
-	while (!fsnotify_notify_queue_is_empty(group)) {
-		struct fanotify_event *event;
+	while ((fsn_event = fsnotify_remove_first_event(group))) {
+		struct fanotify_event *event = FANOTIFY_E(fsn_event);
 
-		event = FANOTIFY_E(fsnotify_remove_first_event(group));
 		if (!(event->mask & FANOTIFY_PERM_EVENTS)) {
 			spin_unlock(&group->notification_lock);
-			fsnotify_destroy_event(group, &event->fse);
+			fsnotify_destroy_event(group, fsn_event);
 		} else {
 			finish_permission_event(group, FANOTIFY_PERM(event),
 						FAN_ALLOW);

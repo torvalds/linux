@@ -495,7 +495,13 @@ static inline void fsnotify_queue_overflow(struct fsnotify_group *group)
 	fsnotify_add_event(group, group->overflow_event, NULL);
 }
 
-/* true if the group notification queue is empty */
+static inline bool fsnotify_notify_queue_is_empty(struct fsnotify_group *group)
+{
+	assert_spin_locked(&group->notification_lock);
+
+	return list_empty(&group->notification_list);
+}
+
 extern bool fsnotify_notify_queue_is_empty(struct fsnotify_group *group);
 /* return, but do not dequeue the first event on the notification queue */
 extern struct fsnotify_event *fsnotify_peek_first_event(struct fsnotify_group *group);
