@@ -1429,6 +1429,11 @@ smbd_connected:
 	tcp_ses->min_offload = ctx->min_offload;
 	tcp_ses->tcpStatus = CifsNeedNegotiate;
 
+	if ((ctx->max_credits < 20) || (ctx->max_credits > 60000))
+		tcp_ses->max_credits = SMB2_MAX_CREDITS_AVAILABLE;
+	else
+		tcp_ses->max_credits = ctx->max_credits;
+
 	tcp_ses->nr_targets = 1;
 	tcp_ses->ignore_signature = ctx->ignore_signature;
 	/* thread spawned, put it on the list */
@@ -2831,11 +2836,6 @@ static int mount_get_conns(struct smb3_fs_context *ctx, struct cifs_sb_info *cif
 	}
 
 	*nserver = server;
-
-	if ((ctx->max_credits < 20) || (ctx->max_credits > 60000))
-		server->max_credits = SMB2_MAX_CREDITS_AVAILABLE;
-	else
-		server->max_credits = ctx->max_credits;
 
 	/* get a reference to a SMB session */
 	ses = cifs_get_smb_ses(server, ctx);
