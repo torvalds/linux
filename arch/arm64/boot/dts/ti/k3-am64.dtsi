@@ -28,6 +28,8 @@
 		serial6 = &main_uart4;
 		serial7 = &main_uart5;
 		serial8 = &main_uart6;
+		ethernet0 = &cpsw_port1;
+		ethernet1 = &cpsw_port2;
 	};
 
 	chosen { };
