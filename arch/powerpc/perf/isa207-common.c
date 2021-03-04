@@ -275,11 +275,39 @@ void isa207_get_mem_data_src(union perf_mem_data_src *dsrc, u32 flags,
 
 	sier = mfspr(SPRN_SIER);
 	val = (sier & ISA207_SIER_TYPE_MASK) >> ISA207_SIER_TYPE_SHIFT;
-	if (val == 1 || val == 2) {
-		idx = (sier & ISA207_SIER_LDST_MASK) >> ISA207_SIER_LDST_SHIFT;
-		sub_idx = (sier & ISA207_SIER_DATA_SRC_MASK) >> ISA207_SIER_DATA_SRC_SHIFT;
+	if (val != 1 && val != 2 && !(val == 7 && cpu_has_feature(CPU_FTR_ARCH_31)))
+		return;
 
-		dsrc->val = isa207_find_source(idx, sub_idx);
+	idx = (sier & ISA207_SIER_LDST_MASK) >> ISA207_SIER_LDST_SHIFT;
+	sub_idx = (sier & ISA207_SIER_DATA_SRC_MASK) >> ISA207_SIER_DATA_SRC_SHIFT;
+
+	dsrc->val = isa207_find_source(idx, sub_idx);
+	if (val == 7) {
+		u64 mmcra;
+		u32 op_type;
+
+		/*
+		 * Type 0b111 denotes either larx or stcx instruction. Use the
+		 * MMCRA sampling bits [57:59] along with the type value
+		 * to determine the exact instruction type. If the sampling
+		 * criteria is neither load or store, set the type as default
+		 * to NA.
+		 */
+		mmcra = mfspr(SPRN_MMCRA);
+
+		op_type = (mmcra >> MMCRA_SAMP_ELIG_SHIFT) & MMCRA_SAMP_ELIG_MASK;
+		switch (op_type) {
+		case 5:
+			dsrc->val |= P(OP, LOAD);
+			break;
+		case 7:
+			dsrc->val |= P(OP, STORE);
+			break;
+		default:
+			dsrc->val |= P(OP, NA);
+			break;
+		}
+	} else {
 		dsrc->val |= (val == 1) ? P(OP, LOAD) : P(OP, STORE);
 	}
 }
@@ -297,7 +325,7 @@ void isa207_get_mem_weight(u64 *weight, u64 type)
 	if (cpu_has_feature(CPU_FTR_ARCH_31))
 		mantissa = P10_MMCRA_THR_CTR_MANT(mmcra);
 
-	if (val == 0 || val == 7)
+	if (val == 0 || (val == 7 && !cpu_has_feature(CPU_FTR_ARCH_31)))
 		weight_lat = 0;
 	else
 		weight_lat = mantissa << (2 * exp);
