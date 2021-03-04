@@ -1640,14 +1640,14 @@ err_dereg_mr:
 }
 
 /**
- * mlx5_mr_cache_invalidate - Fence all DMA on the MR
+ * revoke_mr - Fence all DMA on the MR
  * @mr: The MR to fence
  *
  * Upon return the NIC will not be doing any DMA to the pages under the MR,
- * and any DMA inprogress will be completed. Failure of this function
+ * and any DMA in progress will be completed. Failure of this function
  * indicates the HW has failed catastrophically.
  */
-static int mlx5_mr_cache_invalidate(struct mlx5_ib_mr *mr)
+static int revoke_mr(struct mlx5_ib_mr *mr)
 {
 	struct mlx5_umr_wr umrwr = {};
 
@@ -1741,7 +1741,7 @@ static int umr_rereg_pas(struct mlx5_ib_mr *mr, struct ib_pd *pd,
 	 * with it. This ensure the change is atomic relative to any use of the
 	 * MR.
 	 */
-	err = mlx5_mr_cache_invalidate(mr);
+	err = revoke_mr(mr);
 	if (err)
 		return err;
 
@@ -1820,7 +1820,7 @@ struct ib_mr *mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 		 * Only one active MR can refer to a umem at one time, revoke
 		 * the old MR before assigning the umem to the new one.
 		 */
-		err = mlx5_mr_cache_invalidate(mr);
+		err = revoke_mr(mr);
 		if (err)
 			return ERR_PTR(err);
 		umem = mr->umem;
@@ -1965,7 +1965,7 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 
 	/* Stop DMA */
 	if (mr->cache_ent) {
-		if (mlx5_mr_cache_invalidate(mr)) {
+		if (revoke_mr(mr)) {
 			spin_lock_irq(&mr->cache_ent->lock);
 			mr->cache_ent->total_mrs--;
 			spin_unlock_irq(&mr->cache_ent->lock);
