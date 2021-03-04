@@ -3001,6 +3001,23 @@ OF_EARLYCON_DECLARE(s5pv210, "samsung,s5pv210-uart",
 			s5pv210_early_console_setup);
 OF_EARLYCON_DECLARE(exynos4210, "samsung,exynos4210-uart",
 			s5pv210_early_console_setup);
+
+/* Apple S5L */
+static int __init apple_s5l_early_console_setup(struct earlycon_device *device,
+						const char *opt)
+{
+	/* Close enough to S3C2410 for earlycon... */
+	device->port.private_data = &s3c2410_early_console_data;
+
+#ifdef CONFIG_ARM64
+	/* ... but we need to override the existing fixmap entry as nGnRnE */
+	__set_fixmap(FIX_EARLYCON_MEM_BASE, device->port.mapbase,
+		     __pgprot(PROT_DEVICE_nGnRnE));
+#endif
+	return samsung_early_console_setup(device, opt);
+}
+
+OF_EARLYCON_DECLARE(s5l, "apple,s5l-uart", apple_s5l_early_console_setup);
 #endif
 
 MODULE_ALIAS("platform:samsung-uart");
