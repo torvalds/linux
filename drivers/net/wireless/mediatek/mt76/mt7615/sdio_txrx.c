@@ -225,6 +225,8 @@ static int mt7663s_tx_run_queue(struct mt76_dev *dev, struct mt76_queue *q)
 		struct mt76_queue_entry *e = &q->entry[q->first];
 		struct sk_buff *iter;
 
+		smp_rmb();
+
 		if (!test_bit(MT76_STATE_MCU_RUNNING, &dev->phy.state)) {
 			__skb_put_zero(e->skb, 4);
 			err = __mt7663s_xmit_queue(dev, e->skb->data,
