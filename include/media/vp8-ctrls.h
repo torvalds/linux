@@ -34,7 +34,7 @@ struct v4l2_vp8_segment {
 #define V4L2_VP8_LF_ADJ_ENABLE	0x01
 #define V4L2_VP8_LF_DELTA_UPDATE	0x02
 #define V4L2_VP8_LF_FILTER_TYPE_SIMPLE	0x04
-struct v4l2_vp8_loopfilter {
+struct v4l2_vp8_loop_filter {
 	__s8 ref_frm_delta[4];
 	__s8 mb_mode_delta[4];
 	__u8 sharpness_level;
@@ -82,7 +82,7 @@ struct v4l2_vp8_entropy_coder_state {
 
 struct v4l2_ctrl_vp8_frame {
 	struct v4l2_vp8_segment segment;
-	struct v4l2_vp8_loopfilter lf;
+	struct v4l2_vp8_loop_filter lf;
 	struct v4l2_vp8_quantization quant;
 	struct v4l2_vp8_entropy entropy;
 	struct v4l2_vp8_entropy_coder_state coder_state;

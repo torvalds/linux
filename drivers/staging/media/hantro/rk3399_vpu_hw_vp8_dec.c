@@ -277,7 +277,7 @@ static void cfg_lf(struct hantro_ctx *ctx,
 		   const struct v4l2_ctrl_vp8_frame *hdr)
 {
 	const struct v4l2_vp8_segment *seg = &hdr->segment;
-	const struct v4l2_vp8_loopfilter *lf = &hdr->lf;
+	const struct v4l2_vp8_loop_filter *lf = &hdr->lf;
 	struct hantro_dev *vpu = ctx->dev;
 	unsigned int i;
 	u32 reg;

@@ -1829,7 +1829,7 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     * - struct :c:type:`v4l2_vp8_segment`
       - ``segment``
       - Structure with segment-based adjustments metadata.
-    * - struct :c:type:`v4l2_vp8_loopfilter`
+    * - struct :c:type:`v4l2_vp8_loop_filter`
       - ``lf``
       - Structure with loop filter level adjustments metadata.
     * - struct :c:type:`v4l2_vp8_quantization`
@@ -2027,13 +2027,13 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
 
     \normalsize
 
-.. c:type:: v4l2_vp8_loopfilter
+.. c:type:: v4l2_vp8_loop_filter
 
 .. cssclass:: longtable
 
 .. tabularcolumns:: |p{1.5cm}|p{3.9cm}|p{11.9cm}|
 
-.. flat-table:: struct v4l2_vp8_loopfilter
+.. flat-table:: struct v4l2_vp8_loop_filter
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 2
@@ -2055,11 +2055,11 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
       - Applications and drivers must set this to zero.
     * - __u32
       - ``flags``
-      - See :ref:`Loopfilter Flags <vp8_loopfilter_flags>`
+      - See :ref:`Loop Filter Flags <vp8_loop_filter_flags>`
 
-.. _vp8_loopfilter_flags:
+.. _vp8_loop_filter_flags:
 
-``Loopfilter Flags``
+``Loop Filter Flags``
 
 .. tabularcolumns:: |p{7.0cm}|p{1.2cm}|p{9.1cm}|
 
