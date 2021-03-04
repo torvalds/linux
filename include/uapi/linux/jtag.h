@@ -6,6 +6,9 @@
 #ifndef __UAPI_LINUX_JTAG_H
 #define __UAPI_LINUX_JTAG_H
 
+#include <linux/types.h>
+#include <linux/ioctl.h>
+
 /*
  * JTAG_XFER_MODE: JTAG transfer mode. Used to set JTAG controller transfer mode
  * This is bitmask for feature param in jtag_mode for ioctl JTAG_SIOCMODE

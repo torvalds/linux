@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/rtnetlink.h>
 #include <linux/spinlock.h>
-#include <linux/types.h>
 #include <uapi/linux/jtag.h>
 
 struct jtag {
@@ -89,6 +88,10 @@ static long jtag_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case JTAG_IOCXFER:
+	{
+		u8 ubit_mask = GENMASK(7, 0);
+		u8 remaining_bits = 0x0;
+
 		if (copy_from_user(&xfer, (const void __user *)arg,
 				   sizeof(struct jtag_xfer)))
 			return -EFAULT;
@@ -110,6 +113,14 @@ static long jtag_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		data_size = DIV_ROUND_UP(xfer.length, BITS_PER_BYTE);
 		xfer_data = memdup_user(u64_to_user_ptr(xfer.tdio), data_size);
+
+		/* Save unused remaining bits in this transfer */
+		if ((xfer.length % BITS_PER_BYTE)) {
+			ubit_mask = GENMASK((xfer.length % BITS_PER_BYTE) - 1,
+					    0);
+			remaining_bits = xfer_data[data_size - 1] & ~ubit_mask;
+		}
+
 		if (IS_ERR(xfer_data))
 			return -EFAULT;
 
@@ -118,6 +129,10 @@ static long jtag_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			kfree(xfer_data);
 			return err;
 		}
+
+		/* Restore unused remaining bits in this transfer */
+		xfer_data[data_size - 1] = (xfer_data[data_size - 1]
+					    & ubit_mask) | remaining_bits;
 
 		err = copy_to_user(u64_to_user_ptr(xfer.tdio),
 				   (void *)xfer_data, data_size);
@@ -129,6 +144,7 @@ static long jtag_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				 sizeof(struct jtag_xfer)))
 			return -EFAULT;
 		break;
+	}
 
 	case JTAG_GIOCSTATUS:
 		err = jtag->ops->status_get(jtag, &value);
