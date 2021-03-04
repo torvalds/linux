@@ -17,8 +17,6 @@
 #include <linux/delay.h>
 #include <uapi/linux/jtag.h>
 
-#define ASPEED_SCU_RESET_JTAG		BIT(22)
-
 #define ASPEED_JTAG_DATA		0x00
 #define ASPEED_JTAG_INST		0x04
 #define ASPEED_JTAG_CTRL		0x08
@@ -218,6 +216,7 @@ struct jtag_low_level_functions {
 	int (*xfer_hw)(struct aspeed_jtag *aspeed_jtag, struct jtag_xfer *xfer,
 		       u32 *data);
 	void (*xfer_hw_fifo_delay)(void);
+	irqreturn_t (*jtag_interrupt)(s32 this_irq, void *dev_id);
 };
 
 struct aspeed_jtag_functions {
@@ -490,11 +489,6 @@ static inline void aspeed_jtag_master_26xx(struct aspeed_jtag *aspeed_jtag)
 				  ASPEED_JTAG_GBLCTRL_ENG_MODE_EN |
 					  ASPEED_JTAG_GBLCTRL_ENG_OUT_EN,
 				  ASPEED_JTAG_GBLCTRL);
-
-		aspeed_jtag_write(aspeed_jtag,
-				  ASPEED_JTAG_INTCTRL_SHCPL_IRQ_EN |
-					  ASPEED_JTAG_INTCTRL_SHCPL_IRQ_STAT,
-				  ASPEED_JTAG_INTCTRL); /* Enable Interrupt */
 	} else {
 		aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_GBLCTRL);
 		aspeed_jtag_write(aspeed_jtag,
@@ -506,17 +500,22 @@ static inline void aspeed_jtag_master_26xx(struct aspeed_jtag *aspeed_jtag)
 				  ASPEED_JTAG_SW_MODE_EN |
 					  ASPEED_JTAG_SW_MODE_TDIO,
 				  ASPEED_JTAG_SW);
-		aspeed_jtag_write(aspeed_jtag,
-				  ASPEED_JTAG_ISR_INST_PAUSE |
-					  ASPEED_JTAG_ISR_INST_COMPLETE |
-					  ASPEED_JTAG_ISR_DATA_PAUSE |
-					  ASPEED_JTAG_ISR_DATA_COMPLETE |
-					  ASPEED_JTAG_ISR_INST_PAUSE_EN |
-					  ASPEED_JTAG_ISR_INST_COMPLETE_EN |
-					  ASPEED_JTAG_ISR_DATA_PAUSE_EN |
-					  ASPEED_JTAG_ISR_DATA_COMPLETE_EN,
-				  ASPEED_JTAG_ISR); /* Enable Interrupt */
 	}
+	aspeed_jtag_write(aspeed_jtag,
+			  ASPEED_JTAG_INTCTRL_SHCPL_IRQ_EN |
+				  ASPEED_JTAG_INTCTRL_SHCPL_IRQ_STAT,
+			  ASPEED_JTAG_INTCTRL); /* Enable HW2 IRQ */
+
+	aspeed_jtag_write(aspeed_jtag,
+			  ASPEED_JTAG_ISR_INST_PAUSE |
+				  ASPEED_JTAG_ISR_INST_COMPLETE |
+				  ASPEED_JTAG_ISR_DATA_PAUSE |
+				  ASPEED_JTAG_ISR_DATA_COMPLETE |
+				  ASPEED_JTAG_ISR_INST_PAUSE_EN |
+				  ASPEED_JTAG_ISR_INST_COMPLETE_EN |
+				  ASPEED_JTAG_ISR_DATA_PAUSE_EN |
+				  ASPEED_JTAG_ISR_DATA_COMPLETE_EN,
+			  ASPEED_JTAG_ISR); /* Enable HW1 Interrupts */
 }
 
 static int aspeed_jtag_mode_set(struct jtag *jtag, struct jtag_mode *jtag_mode)
@@ -1377,11 +1376,10 @@ static int aspeed_jtag_status_get(struct jtag *jtag, u32 *status)
 	return 0;
 }
 
-#ifdef USE_INTERRUPTS
 static irqreturn_t aspeed_jtag_interrupt(s32 this_irq, void *dev_id)
 {
 	struct aspeed_jtag *aspeed_jtag = dev_id;
-	irqreturn_t ret = IRQ_HANDLED;
+	irqreturn_t ret;
 	u32 status;
 
 	status = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_ISR);
@@ -1404,7 +1402,31 @@ static irqreturn_t aspeed_jtag_interrupt(s32 this_irq, void *dev_id)
 	}
 	return ret;
 }
-#endif
+
+static irqreturn_t aspeed_jtag_interrupt_hw2(s32 this_irq, void *dev_id)
+{
+	struct aspeed_jtag *aspeed_jtag = dev_id;
+	irqreturn_t ret;
+	u32 status;
+
+	status = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_INTCTRL);
+
+	if (status & ASPEED_JTAG_INTCTRL_SHCPL_IRQ_STAT) {
+		aspeed_jtag_write(aspeed_jtag,
+				  status | ASPEED_JTAG_INTCTRL_SHCPL_IRQ_STAT,
+				  ASPEED_JTAG_INTCTRL);
+		aspeed_jtag->flag |= status & ASPEED_JTAG_INTCTRL_SHCPL_IRQ_STAT;
+	}
+
+	if (aspeed_jtag->flag) {
+		wake_up_interruptible(&aspeed_jtag->jtag_wq);
+		ret = IRQ_HANDLED;
+	} else {
+		dev_err(aspeed_jtag->dev, "irq status:%x\n", status);
+		ret = IRQ_NONE;
+	}
+	return ret;
+}
 
 static int aspeed_jtag_enable(struct jtag *jtag)
 {
@@ -1468,8 +1490,8 @@ static int aspeed_jtag_init(struct platform_device *pdev,
 
 #ifdef USE_INTERRUPTS
 	err = devm_request_irq(aspeed_jtag->dev, aspeed_jtag->irq,
-			       aspeed_jtag_interrupt, 0, "aspeed-jtag",
-			       aspeed_jtag);
+			       aspeed_jtag->llops->jtag_interrupt, 0,
+			       "aspeed-jtag", aspeed_jtag);
 	if (err) {
 		dev_err(aspeed_jtag->dev, "unable to get IRQ");
 		clk_disable_unprepare(aspeed_jtag->pclk);
@@ -1534,7 +1556,8 @@ static const struct jtag_low_level_functions ast25xx_llops = {
 	.xfer_push_data_last = aspeed_jtag_xfer_push_data_last,
 	.xfer_sw = aspeed_jtag_xfer_sw,
 	.xfer_hw = aspeed_jtag_xfer_hw,
-	.xfer_hw_fifo_delay = NULL
+	.xfer_hw_fifo_delay = NULL,
+	.jtag_interrupt = aspeed_jtag_interrupt
 };
 
 static const struct aspeed_jtag_functions ast25xx_functions = {
@@ -1550,7 +1573,8 @@ static const struct jtag_low_level_functions ast26xx_llops = {
 	.xfer_push_data_last = aspeed_jtag_xfer_push_data_last_26xx,
 	.xfer_sw = aspeed_jtag_xfer_sw,
 	.xfer_hw = aspeed_jtag_xfer_hw2,
-	.xfer_hw_fifo_delay = aspeed_jtag_xfer_hw_fifo_delay_26xx
+	.xfer_hw_fifo_delay = aspeed_jtag_xfer_hw_fifo_delay_26xx,
+	.jtag_interrupt = aspeed_jtag_interrupt_hw2
 #else
 	.master_enable = aspeed_jtag_master,
 	.output_disable = aspeed_jtag_output_disable,
@@ -1558,7 +1582,8 @@ static const struct jtag_low_level_functions ast26xx_llops = {
 	.xfer_push_data_last = aspeed_jtag_xfer_push_data_last_26xx,
 	.xfer_sw = aspeed_jtag_xfer_sw,
 	.xfer_hw = aspeed_jtag_xfer_hw,
-	.xfer_hw_fifo_delay = aspeed_jtag_xfer_hw_fifo_delay_26xx
+	.xfer_hw_fifo_delay = aspeed_jtag_xfer_hw_fifo_delay_26xx,
+	.jtag_interrupt = aspeed_jtag_interrupt
 #endif
 };
 
