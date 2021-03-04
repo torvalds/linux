@@ -244,6 +244,7 @@
   cpufreq_freq_attr_scaling_boost_freqs
   cpufreq_generic_frequency_table_verify
   cpufreq_get_policy
+  cpufreq_quick_get
   cpufreq_quick_get_max
   cpufreq_register_driver
   cpufreq_register_governor
@@ -2297,6 +2298,7 @@
   __tracepoint_android_rvh_can_migrate_task
   __tracepoint_android_rvh_check_preempt_wakeup
   __tracepoint_android_rvh_cpu_cgroup_attach
+  __tracepoint_android_rvh_cpufreq_transition
   __tracepoint_android_rvh_dequeue_task
   __tracepoint_android_rvh_enqueue_task
   __tracepoint_android_rvh_find_busiest_queue
