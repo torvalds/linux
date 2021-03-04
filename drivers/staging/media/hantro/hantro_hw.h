@@ -216,6 +216,6 @@ void rk3399_vpu_vp8_dec_run(struct hantro_ctx *ctx);
 int hantro_vp8_dec_init(struct hantro_ctx *ctx);
 void hantro_vp8_dec_exit(struct hantro_ctx *ctx);
 void hantro_vp8_prob_update(struct hantro_ctx *ctx,
-			    const struct v4l2_ctrl_vp8_frame_header *hdr);
+			    const struct v4l2_ctrl_vp8_frame *hdr);
 
 #endif /* HANTRO_HW_H_ */

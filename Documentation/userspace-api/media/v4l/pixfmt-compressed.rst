@@ -157,7 +157,7 @@ Compressed Formats
 	This format is adapted for stateless video decoders that implement a
 	VP8 pipeline (using the :ref:`mem2mem` and :ref:`media-request-api`).
 	Metadata associated with the frame to decode is required to be passed
-	through the ``V4L2_CID_MPEG_VIDEO_VP8_FRAME_HEADER`` control.
+	through the ``V4L2_CID_MPEG_VIDEO_VP8_FRAME`` control.
 	See the :ref:`associated Codec Control IDs <v4l2-mpeg-vp8>`.
 	Exactly one output and one capture buffer must be provided for use with
 	this pixel format. The output buffer must contain the appropriate number

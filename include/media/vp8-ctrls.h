@@ -15,15 +15,15 @@
 
 #define V4L2_PIX_FMT_VP8_FRAME v4l2_fourcc('V', 'P', '8', 'F')
 
-#define V4L2_CID_MPEG_VIDEO_VP8_FRAME_HEADER (V4L2_CID_CODEC_BASE + 2000)
-#define V4L2_CTRL_TYPE_VP8_FRAME_HEADER 0x301
+#define V4L2_CID_MPEG_VIDEO_VP8_FRAME (V4L2_CID_CODEC_BASE + 2000)
+#define V4L2_CTRL_TYPE_VP8_FRAME 0x301
 
-#define V4L2_VP8_SEGMENT_HEADER_FLAG_ENABLED              0x01
-#define V4L2_VP8_SEGMENT_HEADER_FLAG_UPDATE_MAP           0x02
-#define V4L2_VP8_SEGMENT_HEADER_FLAG_UPDATE_FEATURE_DATA  0x04
-#define V4L2_VP8_SEGMENT_HEADER_FLAG_DELTA_VALUE_MODE     0x08
+#define V4L2_VP8_SEGMENT_FLAG_ENABLED              0x01
+#define V4L2_VP8_SEGMENT_FLAG_UPDATE_MAP           0x02
+#define V4L2_VP8_SEGMENT_FLAG_UPDATE_FEATURE_DATA  0x04
+#define V4L2_VP8_SEGMENT_FLAG_DELTA_VALUE_MODE     0x08
 
-struct v4l2_vp8_segment_header {
+struct v4l2_vp8_segment {
 	__s8 quant_update[4];
 	__s8 lf_update[4];
 	__u8 segment_probs[3];
@@ -31,10 +31,10 @@ struct v4l2_vp8_segment_header {
 	__u32 flags;
 };
 
-#define V4L2_VP8_LF_HEADER_ADJ_ENABLE	0x01
-#define V4L2_VP8_LF_HEADER_DELTA_UPDATE	0x02
+#define V4L2_VP8_LF_ADJ_ENABLE	0x01
+#define V4L2_VP8_LF_DELTA_UPDATE	0x02
 #define V4L2_VP8_LF_FILTER_TYPE_SIMPLE	0x04
-struct v4l2_vp8_loopfilter_header {
+struct v4l2_vp8_loopfilter {
 	__s8 ref_frm_delta[4];
 	__s8 mb_mode_delta[4];
 	__u8 sharpness_level;
@@ -43,7 +43,7 @@ struct v4l2_vp8_loopfilter_header {
 	__u32 flags;
 };
 
-struct v4l2_vp8_quantization_header {
+struct v4l2_vp8_quantization {
 	__u8 y_ac_qi;
 	__s8 y_dc_delta;
 	__s8 y2_dc_delta;
@@ -55,7 +55,7 @@ struct v4l2_vp8_quantization_header {
 
 #define V4L2_VP8_COEFF_PROB_CNT 11
 #define V4L2_VP8_MV_PROB_CNT 19
-struct v4l2_vp8_entropy_header {
+struct v4l2_vp8_entropy {
 	__u8 coeff_probs[4][8][3][V4L2_VP8_COEFF_PROB_CNT];
 	__u8 y_mode_probs[4];
 	__u8 uv_mode_probs[3];
@@ -70,21 +70,21 @@ struct v4l2_vp8_entropy_coder_state {
 	__u8 padding;
 };
 
-#define V4L2_VP8_FRAME_HEADER_FLAG_KEY_FRAME		0x01
-#define V4L2_VP8_FRAME_HEADER_FLAG_EXPERIMENTAL		0x02
-#define V4L2_VP8_FRAME_HEADER_FLAG_SHOW_FRAME		0x04
-#define V4L2_VP8_FRAME_HEADER_FLAG_MB_NO_SKIP_COEFF	0x08
-#define V4L2_VP8_FRAME_HEADER_FLAG_SIGN_BIAS_GOLDEN	0x10
-#define V4L2_VP8_FRAME_HEADER_FLAG_SIGN_BIAS_ALT	0x20
+#define V4L2_VP8_FRAME_FLAG_KEY_FRAME		0x01
+#define V4L2_VP8_FRAME_FLAG_EXPERIMENTAL		0x02
+#define V4L2_VP8_FRAME_FLAG_SHOW_FRAME		0x04
+#define V4L2_VP8_FRAME_FLAG_MB_NO_SKIP_COEFF	0x08
+#define V4L2_VP8_FRAME_FLAG_SIGN_BIAS_GOLDEN	0x10
+#define V4L2_VP8_FRAME_FLAG_SIGN_BIAS_ALT	0x20
 
 #define VP8_FRAME_IS_KEY_FRAME(hdr) \
-	(!!((hdr)->flags & V4L2_VP8_FRAME_HEADER_FLAG_KEY_FRAME))
+	(!!((hdr)->flags & V4L2_VP8_FRAME_FLAG_KEY_FRAME))
 
-struct v4l2_ctrl_vp8_frame_header {
-	struct v4l2_vp8_segment_header segment_header;
-	struct v4l2_vp8_loopfilter_header lf_header;
-	struct v4l2_vp8_quantization_header quant_header;
-	struct v4l2_vp8_entropy_header entropy_header;
+struct v4l2_ctrl_vp8_frame {
+	struct v4l2_vp8_segment segment;
+	struct v4l2_vp8_loopfilter lf;
+	struct v4l2_vp8_quantization quant;
+	struct v4l2_vp8_entropy entropy;
 	struct v4l2_vp8_entropy_coder_state coder_state;
 
 	__u16 width;
