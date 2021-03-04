@@ -74,7 +74,11 @@ static int __init em_debug_init(void)
 
 	return 0;
 }
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+core_initcall_sync(em_debug_init);
+#else
 core_initcall(em_debug_init);
+#endif
 #else /* CONFIG_DEBUG_FS */
 static void em_debug_create_pd(struct em_perf_domain *pd, int cpu) {}
 #endif
