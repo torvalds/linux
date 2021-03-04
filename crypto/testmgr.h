@@ -2261,19 +2261,17 @@ static const struct kpp_testvec curve25519_tv_template[] = {
 }
 };
 
-static const struct kpp_testvec ecdh_tv_template[] = {
-	{
 #ifndef CONFIG_CRYPTO_FIPS
+static const struct kpp_testvec ecdh_p192_tv_template[] = {
+	{
 	.secret =
 #ifdef __LITTLE_ENDIAN
 	"\x02\x00" /* type */
-	"\x20\x00" /* len */
-	"\x01\x00" /* curve_id */
+	"\x1e\x00" /* len */
 	"\x18\x00" /* key_size */
 #else
 	"\x00\x02" /* type */
-	"\x00\x20" /* len */
-	"\x00\x01" /* curve_id */
+	"\x00\x1e" /* len */
 	"\x00\x18" /* key_size */
 #endif
 	"\xb5\x05\xb1\x71\x1e\xbf\x8c\xda"
@@ -2301,18 +2299,20 @@ static const struct kpp_testvec ecdh_tv_template[] = {
 	.b_public_size = 48,
 	.expected_a_public_size = 48,
 	.expected_ss_size = 24
-	}, {
+	}
+};
 #endif
+
+static const struct kpp_testvec ecdh_p256_tv_template[] = {
+	{
 	.secret =
 #ifdef __LITTLE_ENDIAN
 	"\x02\x00" /* type */
-	"\x28\x00" /* len */
-	"\x02\x00" /* curve_id */
+	"\x26\x00" /* len */
 	"\x20\x00" /* key_size */
 #else
 	"\x00\x02" /* type */
-	"\x00\x28" /* len */
-	"\x00\x02" /* curve_id */
+	"\x00\x26" /* len */
 	"\x00\x20" /* key_size */
 #endif
 	"\x24\xd1\x21\xeb\xe5\xcf\x2d\x83"
@@ -2350,25 +2350,21 @@ static const struct kpp_testvec ecdh_tv_template[] = {
 	.secret =
 #ifdef __LITTLE_ENDIAN
 	"\x02\x00" /* type */
-	"\x08\x00" /* len */
-	"\x02\x00" /* curve_id */
+	"\x06\x00" /* len */
 	"\x00\x00", /* key_size */
 #else
 	"\x00\x02" /* type */
-	"\x00\x08" /* len */
-	"\x00\x02" /* curve_id */
+	"\x00\x06" /* len */
 	"\x00\x00", /* key_size */
 #endif
 	.b_secret =
 #ifdef __LITTLE_ENDIAN
 	"\x02\x00" /* type */
-	"\x28\x00" /* len */
-	"\x02\x00" /* curve_id */
+	"\x26\x00" /* len */
 	"\x20\x00" /* key_size */
 #else
 	"\x00\x02" /* type */
-	"\x00\x28" /* len */
-	"\x00\x02" /* curve_id */
+	"\x00\x26" /* len */
 	"\x00\x20" /* key_size */
 #endif
 	"\x24\xd1\x21\xeb\xe5\xcf\x2d\x83"

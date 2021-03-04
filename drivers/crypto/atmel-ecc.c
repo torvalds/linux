@@ -34,7 +34,6 @@ static struct atmel_ecc_driver_data driver_data;
  *               of the user to not call set_secret() while
  *               generate_public_key() or compute_shared_secret() are in flight.
  * @curve_id   : elliptic curve id
- * @n_sz       : size in bytes of the n prime
  * @do_fallback: true when the device doesn't support the curve or when the user
  *               wants to use its own private key.
  */
@@ -43,7 +42,6 @@ struct atmel_ecdh_ctx {
 	struct crypto_kpp *fallback;
 	const u8 *public_key;
 	unsigned int curve_id;
-	size_t n_sz;
 	bool do_fallback;
 };
 
@@ -51,7 +49,6 @@ static void atmel_ecdh_done(struct atmel_i2c_work_data *work_data, void *areq,
 			    int status)
 {
 	struct kpp_request *req = areq;
-	struct atmel_ecdh_ctx *ctx = work_data->ctx;
 	struct atmel_i2c_cmd *cmd = &work_data->cmd;
 	size_t copied, n_sz;
 
@@ -59,7 +56,7 @@ static void atmel_ecdh_done(struct atmel_i2c_work_data *work_data, void *areq,
 		goto free_work_data;
 
 	/* might want less than we've got */
-	n_sz = min_t(size_t, ctx->n_sz, req->dst_len);
+	n_sz = min_t(size_t, ATMEL_ECC_NIST_P256_N_SIZE, req->dst_len);
 
 	/* copy the shared secret */
 	copied = sg_copy_from_buffer(req->dst, sg_nents_for_len(req->dst, n_sz),
@@ -71,14 +68,6 @@ static void atmel_ecdh_done(struct atmel_i2c_work_data *work_data, void *areq,
 free_work_data:
 	kfree_sensitive(work_data);
 	kpp_request_complete(req, status);
-}
-
-static unsigned int atmel_ecdh_supported_curve(unsigned int curve_id)
-{
-	if (curve_id == ECC_CURVE_NIST_P256)
-		return ATMEL_ECC_NIST_P256_N_SIZE;
-
-	return 0;
 }
 
 /*
@@ -104,8 +93,7 @@ static int atmel_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 		return -EINVAL;
 	}
 
-	ctx->n_sz = atmel_ecdh_supported_curve(params.curve_id);
-	if (!ctx->n_sz || params.key_size) {
+	if (params.key_size) {
 		/* fallback to ecdh software implementation */
 		ctx->do_fallback = true;
 		return crypto_kpp_set_secret(ctx->fallback, buf, len);
@@ -125,7 +113,6 @@ static int atmel_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 		goto free_cmd;
 
 	ctx->do_fallback = false;
-	ctx->curve_id = params.curve_id;
 
 	atmel_i2c_init_genkey_cmd(cmd, DATA_SLOT_2);
 
@@ -263,6 +250,7 @@ static int atmel_ecdh_init_tfm(struct crypto_kpp *tfm)
 	struct crypto_kpp *fallback;
 	struct atmel_ecdh_ctx *ctx = kpp_tfm_ctx(tfm);
 
+	ctx->curve_id = ECC_CURVE_NIST_P256;
 	ctx->client = atmel_ecc_i2c_client_alloc();
 	if (IS_ERR(ctx->client)) {
 		pr_err("tfm - i2c_client binding failed\n");
@@ -306,7 +294,7 @@ static unsigned int atmel_ecdh_max_size(struct crypto_kpp *tfm)
 	return ATMEL_ECC_PUBKEY_SIZE;
 }
 
-static struct kpp_alg atmel_ecdh = {
+static struct kpp_alg atmel_ecdh_nist_p256 = {
 	.set_secret = atmel_ecdh_set_secret,
 	.generate_public_key = atmel_ecdh_generate_public_key,
 	.compute_shared_secret = atmel_ecdh_compute_shared_secret,
@@ -315,7 +303,7 @@ static struct kpp_alg atmel_ecdh = {
 	.max_size = atmel_ecdh_max_size,
 	.base = {
 		.cra_flags = CRYPTO_ALG_NEED_FALLBACK,
-		.cra_name = "ecdh",
+		.cra_name = "ecdh-nist-p256",
 		.cra_driver_name = "atmel-ecdh",
 		.cra_priority = ATMEL_ECC_PRIORITY,
 		.cra_module = THIS_MODULE,
@@ -340,14 +328,14 @@ static int atmel_ecc_probe(struct i2c_client *client,
 		      &driver_data.i2c_client_list);
 	spin_unlock(&driver_data.i2c_list_lock);
 
-	ret = crypto_register_kpp(&atmel_ecdh);
+	ret = crypto_register_kpp(&atmel_ecdh_nist_p256);
 	if (ret) {
 		spin_lock(&driver_data.i2c_list_lock);
 		list_del(&i2c_priv->i2c_client_list_node);
 		spin_unlock(&driver_data.i2c_list_lock);
 
 		dev_err(&client->dev, "%s alg registration failed\n",
-			atmel_ecdh.base.cra_driver_name);
+			atmel_ecdh_nist_p256.base.cra_driver_name);
 	} else {
 		dev_info(&client->dev, "atmel ecc algorithms registered in /proc/crypto\n");
 	}
@@ -365,7 +353,7 @@ static int atmel_ecc_remove(struct i2c_client *client)
 		return -EBUSY;
 	}
 
-	crypto_unregister_kpp(&atmel_ecdh);
+	crypto_unregister_kpp(&atmel_ecdh_nist_p256);
 
 	spin_lock(&driver_data.i2c_list_lock);
 	list_del(&i2c_priv->i2c_client_list_node);
