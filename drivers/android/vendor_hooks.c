@@ -162,3 +162,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_update_topology_flags_workfn);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sched_balance_rt);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_pick_next_entity);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_check_preempt_wakeup);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_cpufreq_transition);
