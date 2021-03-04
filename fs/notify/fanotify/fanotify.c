@@ -148,6 +148,9 @@ static bool fanotify_should_merge(struct fanotify_event *old,
 	return false;
 }
 
+/* Limit event merges to limit CPU overhead per event */
+#define FANOTIFY_MAX_MERGE_EVENTS 128
+
 /* and the list better be locked by something too! */
 static int fanotify_merge(struct fsnotify_group *group,
 			  struct fsnotify_event *event)
@@ -155,6 +158,7 @@ static int fanotify_merge(struct fsnotify_group *group,
 	struct fanotify_event *old, *new = FANOTIFY_E(event);
 	unsigned int bucket = fanotify_event_hash_bucket(group, new);
 	struct hlist_head *hlist = &group->fanotify_data.merge_hash[bucket];
+	int i = 0;
 
 	pr_debug("%s: group=%p event=%p bucket=%u\n", __func__,
 		 group, event, bucket);
@@ -168,6 +172,8 @@ static int fanotify_merge(struct fsnotify_group *group,
 		return 0;
 
 	hlist_for_each_entry(old, hlist, merge_list) {
+		if (++i > FANOTIFY_MAX_MERGE_EVENTS)
+			break;
 		if (fanotify_should_merge(old, new)) {
 			old->mask |= new->mask;
 			return 1;
