@@ -2067,14 +2067,6 @@ static inline void btree_iter_copy(struct btree_iter *dst,
 	dst->flags &= ~BTREE_ITER_SET_POS_AFTER_COMMIT;
 }
 
-static inline struct bpos bpos_diff(struct bpos l, struct bpos r)
-{
-	if (bkey_cmp(l, r) > 0)
-		swap(l, r);
-
-	return POS(r.inode - l.inode, r.offset - l.offset);
-}
-
 static struct btree_iter *__btree_trans_get_iter(struct btree_trans *trans,
 						 unsigned btree_id, struct bpos pos,
 						 unsigned flags)

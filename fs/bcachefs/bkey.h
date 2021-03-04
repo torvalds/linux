@@ -183,6 +183,37 @@ static inline struct bpos bpos_max(struct bpos l, struct bpos r)
 	return bkey_cmp(l, r) > 0 ? l : r;
 }
 
+#define sbb(a, b, borrow)				\
+do {							\
+	typeof(a) d1, d2;				\
+							\
+	d1 = a - borrow;				\
+	borrow  = d1 > a;				\
+							\
+	d2 = d1 - b;					\
+	borrow += d2 > d1;				\
+	a = d2;						\
+} while (0)
+
+/* returns a - b: */
+static inline struct bpos bpos_sub(struct bpos a, struct bpos b)
+{
+	int borrow = 0;
+
+	sbb(a.snapshot, b.snapshot,	borrow);
+	sbb(a.offset,	b.offset,	borrow);
+	sbb(a.inode,	b.inode,	borrow);
+	return a;
+}
+
+static inline struct bpos bpos_diff(struct bpos l, struct bpos r)
+{
+	if (bkey_cmp(l, r) > 0)
+		swap(l, r);
+
+	return bpos_sub(r, l);
+}
+
 void bch2_bpos_swab(struct bpos *);
 void bch2_bkey_swab_key(const struct bkey_format *, struct bkey_packed *);
 
