@@ -278,6 +278,7 @@ static const struct pci_device_id c_can_pci_tbl[] = {
 		 c_can_pch),
 	{},
 };
+
 static struct pci_driver c_can_pci_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = c_can_pci_tbl,

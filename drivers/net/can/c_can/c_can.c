@@ -132,7 +132,6 @@
 /* For the high buffers we clear the interrupt bit and newdat */
 #define IF_COMM_RCV_HIGH	(IF_COMM_RCV_LOW | IF_COMM_CLR_NEWDAT)
 
-
 /* Receive setup of message objects */
 #define IF_COMM_RCV_SETUP	(IF_COMM_MASK | IF_COMM_ARB | IF_COMM_CONTROL)
 
@@ -250,7 +249,6 @@ static void c_can_obj_update(struct net_device *dev, int iface, u32 cmd, u32 obj
 		udelay(1);
 	}
 	netdev_err(dev, "Updating object timed out\n");
-
 }
 
 static inline void c_can_object_get(struct net_device *dev, int iface,
