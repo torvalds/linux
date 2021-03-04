@@ -84,7 +84,7 @@ static const char *rcdev_name(struct reset_controller_dev *rcdev)
  * without gaps.
  */
 static int of_reset_simple_xlate(struct reset_controller_dev *rcdev,
-			  const struct of_phandle_args *reset_spec)
+				 const struct of_phandle_args *reset_spec)
 {
 	if (reset_spec->args[0] >= rcdev->nr_resets)
 		return -EINVAL;
@@ -744,9 +744,9 @@ void reset_control_bulk_release(int num_rstcs,
 }
 EXPORT_SYMBOL_GPL(reset_control_bulk_release);
 
-static struct reset_control *__reset_control_get_internal(
-				struct reset_controller_dev *rcdev,
-				unsigned int index, bool shared, bool acquired)
+static struct reset_control *
+__reset_control_get_internal(struct reset_controller_dev *rcdev,
+			     unsigned int index, bool shared, bool acquired)
 {
 	struct reset_control *rstc;
 
@@ -806,9 +806,9 @@ static void __reset_control_put_internal(struct reset_control *rstc)
 	kref_put(&rstc->refcnt, __reset_control_release);
 }
 
-struct reset_control *__of_reset_control_get(struct device_node *node,
-				     const char *id, int index, bool shared,
-				     bool optional, bool acquired)
+struct reset_control *
+__of_reset_control_get(struct device_node *node, const char *id, int index,
+		       bool shared, bool optional, bool acquired)
 {
 	struct reset_control *rstc;
 	struct reset_controller_dev *r, *rcdev;
@@ -1027,9 +1027,9 @@ static void devm_reset_control_release(struct device *dev, void *res)
 	reset_control_put(*(struct reset_control **)res);
 }
 
-struct reset_control *__devm_reset_control_get(struct device *dev,
-				     const char *id, int index, bool shared,
-				     bool optional, bool acquired)
+struct reset_control *
+__devm_reset_control_get(struct device *dev, const char *id, int index,
+			 bool shared, bool optional, bool acquired)
 {
 	struct reset_control **ptr, *rstc;
 
