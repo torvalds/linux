@@ -267,7 +267,7 @@ static const struct c_can_pci_data c_can_pch = {
 
 #define C_CAN_ID(_vend, _dev, _driverdata) {		\
 	PCI_DEVICE(_vend, _dev),			\
-	.driver_data = (unsigned long)&_driverdata,	\
+	.driver_data = (unsigned long)&(_driverdata),	\
 }
 
 static const struct pci_device_id c_can_pci_tbl[] = {

@@ -753,7 +753,8 @@ static u32 c_can_adjust_pending(u32 pend)
 	/* Find the first set bit after the gap. We walk backwards
 	 * from the last set bit.
 	 */
-	for (lasts--; pend & (1 << (lasts - 1)); lasts--);
+	for (lasts--; pend & (1 << (lasts - 1)); lasts--)
+		;
 
 	return pend & ~((1 << lasts) - 1);
 }
