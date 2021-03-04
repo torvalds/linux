@@ -273,7 +273,7 @@ static ssize_t bch2_read_btree_formats(struct file *file, char __user *buf,
 	if (err)
 		return err;
 
-	if (!i->size || !bkey_cmp(POS_MAX, i->from))
+	if (!i->size || !bpos_cmp(POS_MAX, i->from))
 		return i->ret;
 
 	bch2_trans_init(&trans, i->c, 0, 0);
@@ -289,7 +289,7 @@ static ssize_t bch2_read_btree_formats(struct file *file, char __user *buf,
 		 * can't easily correctly restart a btree node traversal across
 		 * all nodes, meh
 		 */
-		i->from = bkey_cmp(POS_MAX, b->key.k.p)
+		i->from = bpos_cmp(POS_MAX, b->key.k.p)
 			? bkey_successor(b->key.k.p)
 			: b->key.k.p;
 

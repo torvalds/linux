@@ -148,29 +148,27 @@ static inline int bkey_cmp_left_packed_byval(const struct btree *b,
 	return bkey_cmp_left_packed(b, l, &r);
 }
 
-#if 1
+static __always_inline int bpos_cmp(struct bpos l, struct bpos r)
+{
+	return  cmp_int(l.inode,    r.inode) ?:
+		cmp_int(l.offset,   r.offset) ?:
+		cmp_int(l.snapshot, r.snapshot);
+}
+
 static __always_inline int bkey_cmp(struct bpos l, struct bpos r)
 {
-	if (l.inode != r.inode)
-		return l.inode < r.inode ? -1 : 1;
-	if (l.offset != r.offset)
-		return l.offset < r.offset ? -1 : 1;
-	if (l.snapshot != r.snapshot)
-		return l.snapshot < r.snapshot ? -1 : 1;
-	return 0;
+	return  cmp_int(l.inode,    r.inode) ?:
+		cmp_int(l.offset,   r.offset);
 }
-#else
-int bkey_cmp(struct bpos l, struct bpos r);
-#endif
 
 static inline struct bpos bpos_min(struct bpos l, struct bpos r)
 {
-	return bkey_cmp(l, r) < 0 ? l : r;
+	return bpos_cmp(l, r) < 0 ? l : r;
 }
 
 static inline struct bpos bpos_max(struct bpos l, struct bpos r)
 {
-	return bkey_cmp(l, r) > 0 ? l : r;
+	return bpos_cmp(l, r) > 0 ? l : r;
 }
 
 #define sbb(a, b, borrow)				\
@@ -198,7 +196,7 @@ static inline struct bpos bpos_sub(struct bpos a, struct bpos b)
 
 static inline struct bpos bpos_diff(struct bpos l, struct bpos r)
 {
-	if (bkey_cmp(l, r) > 0)
+	if (bpos_cmp(l, r) > 0)
 		swap(l, r);
 
 	return bpos_sub(r, l);

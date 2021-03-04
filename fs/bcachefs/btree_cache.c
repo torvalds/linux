@@ -821,9 +821,9 @@ lock_node:
 
 	EBUG_ON(b->c.btree_id != iter->btree_id);
 	EBUG_ON(BTREE_NODE_LEVEL(b->data) != level);
-	EBUG_ON(bkey_cmp(b->data->max_key, k->k.p));
+	EBUG_ON(bpos_cmp(b->data->max_key, k->k.p));
 	EBUG_ON(b->key.k.type == KEY_TYPE_btree_ptr_v2 &&
-		bkey_cmp(b->data->min_key,
+		bpos_cmp(b->data->min_key,
 			 bkey_i_to_btree_ptr_v2(&b->key)->v.min_key));
 
 	return b;
@@ -904,9 +904,9 @@ lock_node:
 
 	EBUG_ON(b->c.btree_id != btree_id);
 	EBUG_ON(BTREE_NODE_LEVEL(b->data) != level);
-	EBUG_ON(bkey_cmp(b->data->max_key, k->k.p));
+	EBUG_ON(bpos_cmp(b->data->max_key, k->k.p));
 	EBUG_ON(b->key.k.type == KEY_TYPE_btree_ptr_v2 &&
-		bkey_cmp(b->data->min_key,
+		bpos_cmp(b->data->min_key,
 			 bkey_i_to_btree_ptr_v2(&b->key)->v.min_key));
 out:
 	bch2_btree_cache_cannibalize_unlock(c);
@@ -1018,7 +1018,7 @@ out:
 		if (sib != btree_prev_sib)
 			swap(n1, n2);
 
-		if (bkey_cmp(bkey_successor(n1->key.k.p),
+		if (bpos_cmp(bkey_successor(n1->key.k.p),
 			     n2->data->min_key)) {
 			char buf1[200], buf2[200];
 

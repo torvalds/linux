@@ -45,13 +45,9 @@ static inline struct gc_pos gc_phase(enum gc_phase phase)
 
 static inline int gc_pos_cmp(struct gc_pos l, struct gc_pos r)
 {
-	if (l.phase != r.phase)
-		return l.phase < r.phase ? -1 : 1;
-	if (bkey_cmp(l.pos, r.pos))
-		return bkey_cmp(l.pos, r.pos);
-	if (l.level != r.level)
-		return l.level < r.level ? -1 : 1;
-	return 0;
+	return  cmp_int(l.phase, r.phase) ?:
+		bpos_cmp(l.pos, r.pos) ?:
+		cmp_int(l.level, r.level);
 }
 
 static inline enum gc_phase btree_id_to_gc_phase(enum btree_id id)

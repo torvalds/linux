@@ -48,14 +48,14 @@ static int __journal_key_cmp(enum btree_id	l_btree_id,
 {
 	return (cmp_int(l_btree_id,	r->btree_id) ?:
 		cmp_int(l_level,	r->level) ?:
-		bkey_cmp(l_pos,	r->k->k.p));
+		bpos_cmp(l_pos,	r->k->k.p));
 }
 
 static int journal_key_cmp(struct journal_key *l, struct journal_key *r)
 {
 	return (cmp_int(l->btree_id,	r->btree_id) ?:
 		cmp_int(l->level,	r->level) ?:
-		bkey_cmp(l->k->k.p,	r->k->k.p));
+		bpos_cmp(l->k->k.p,	r->k->k.p));
 }
 
 static size_t journal_key_search(struct journal_keys *journal_keys,
@@ -90,7 +90,7 @@ static void journal_iter_fix(struct bch_fs *c, struct journal_iter *iter, unsign
 	if (iter->idx > idx ||
 	    (iter->idx == idx &&
 	     biter->last &&
-	     bkey_cmp(n->k.p, biter->unpacked.p) <= 0))
+	     bpos_cmp(n->k.p, biter->unpacked.p) <= 0))
 		iter->idx++;
 }
 
@@ -238,7 +238,7 @@ struct bkey_s_c bch2_btree_and_journal_iter_peek(struct btree_and_journal_iter *
 			bkey_i_to_s_c(bch2_journal_iter_peek(&iter->journal));
 
 		if (btree_k.k && journal_k.k) {
-			int cmp = bkey_cmp(btree_k.k->p, journal_k.k->p);
+			int cmp = bpos_cmp(btree_k.k->p, journal_k.k->p);
 
 			if (!cmp)
 				bch2_journal_iter_advance_btree(iter);
@@ -256,7 +256,7 @@ struct bkey_s_c bch2_btree_and_journal_iter_peek(struct btree_and_journal_iter *
 		ret = iter->last == journal ? journal_k : btree_k;
 
 		if (iter->b &&
-		    bkey_cmp(ret.k->p, iter->b->data->max_key) > 0) {
+		    bpos_cmp(ret.k->p, iter->b->data->max_key) > 0) {
 			iter->journal.idx = iter->journal.keys->nr;
 			iter->last = none;
 			return bkey_s_c_null;
@@ -419,7 +419,7 @@ static int journal_sort_key_cmp(const void *_l, const void *_r)
 
 	return  cmp_int(l->btree_id,	r->btree_id) ?:
 		cmp_int(l->level,	r->level) ?:
-		bkey_cmp(l->k->k.p, r->k->k.p) ?:
+		bpos_cmp(l->k->k.p, r->k->k.p) ?:
 		cmp_int(l->journal_seq, r->journal_seq) ?:
 		cmp_int(l->journal_offset, r->journal_offset);
 }
@@ -490,7 +490,7 @@ static struct journal_keys journal_keys_sort(struct list_head *journal_entries)
 		while (src + 1 < keys.d + keys.nr &&
 		       src[0].btree_id	== src[1].btree_id &&
 		       src[0].level	== src[1].level &&
-		       !bkey_cmp(src[0].k->k.p, src[1].k->k.p))
+		       !bpos_cmp(src[0].k->k.p, src[1].k->k.p))
 			src++;
 
 		*dst++ = *src++;
@@ -581,7 +581,7 @@ static int journal_sort_seq_cmp(const void *_l, const void *_r)
 	return  cmp_int(r->level,	l->level) ?:
 		cmp_int(l->journal_seq, r->journal_seq) ?:
 		cmp_int(l->btree_id,	r->btree_id) ?:
-		bkey_cmp(l->k->k.p,	r->k->k.p);
+		bpos_cmp(l->k->k.p,	r->k->k.p);
 }
 
 static int bch2_journal_replay(struct bch_fs *c,

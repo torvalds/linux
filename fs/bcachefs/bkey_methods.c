@@ -138,10 +138,10 @@ const char *bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 
 const char *bch2_bkey_in_btree_node(struct btree *b, struct bkey_s_c k)
 {
-	if (bkey_cmp(k.k->p, b->data->min_key) < 0)
+	if (bpos_cmp(k.k->p, b->data->min_key) < 0)
 		return "key before start of btree node";
 
-	if (bkey_cmp(k.k->p, b->data->max_key) > 0)
+	if (bpos_cmp(k.k->p, b->data->max_key) > 0)
 		return "key past end of btree node";
 
 	return NULL;
@@ -165,9 +165,9 @@ void bch2_bkey_debugcheck(struct bch_fs *c, struct btree *b, struct bkey_s_c k)
 
 void bch2_bpos_to_text(struct printbuf *out, struct bpos pos)
 {
-	if (!bkey_cmp(pos, POS_MIN))
+	if (!bpos_cmp(pos, POS_MIN))
 		pr_buf(out, "POS_MIN");
-	else if (!bkey_cmp(pos, POS_MAX))
+	else if (!bpos_cmp(pos, POS_MAX))
 		pr_buf(out, "POS_MAX");
 	else {
 		if (pos.inode == U64_MAX)
@@ -256,7 +256,7 @@ enum merge_result bch2_bkey_merge(struct bch_fs *c,
 	    !ops->key_merge ||
 	    l.k->type != r.k->type ||
 	    bversion_cmp(l.k->version, r.k->version) ||
-	    bkey_cmp(l.k->p, bkey_start_pos(r.k)))
+	    bpos_cmp(l.k->p, bkey_start_pos(r.k)))
 		return BCH_MERGE_NOMERGE;
 
 	ret = ops->key_merge(c, l, r);

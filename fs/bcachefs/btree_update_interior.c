@@ -50,7 +50,7 @@ static void btree_node_interior_verify(struct bch_fs *c, struct btree *b)
 			break;
 		bp = bkey_s_c_to_btree_ptr_v2(k);
 
-		if (bkey_cmp(next_node, bp.v->min_key)) {
+		if (bpos_cmp(next_node, bp.v->min_key)) {
 			bch2_dump_btree_node(c, b);
 			panic("expected next min_key %s got %s\n",
 			      (bch2_bpos_to_text(&PBUF(buf1), next_node), buf1),
@@ -60,7 +60,7 @@ static void btree_node_interior_verify(struct bch_fs *c, struct btree *b)
 		bch2_btree_node_iter_advance(&iter, b);
 
 		if (bch2_btree_node_iter_end(&iter)) {
-			if (bkey_cmp(k.k->p, b->key.k.p)) {
+			if (bpos_cmp(k.k->p, b->key.k.p)) {
 				bch2_dump_btree_node(c, b);
 				panic("expected end %s got %s\n",
 				      (bch2_bpos_to_text(&PBUF(buf1), b->key.k.p), buf1),

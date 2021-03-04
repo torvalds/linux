@@ -582,6 +582,24 @@ void bch2_ptr_swab(struct bkey_s);
 
 /* Generic extent code: */
 
+enum bch_extent_overlap {
+	BCH_EXTENT_OVERLAP_ALL		= 0,
+	BCH_EXTENT_OVERLAP_BACK		= 1,
+	BCH_EXTENT_OVERLAP_FRONT	= 2,
+	BCH_EXTENT_OVERLAP_MIDDLE	= 3,
+};
+
+/* Returns how k overlaps with m */
+static inline enum bch_extent_overlap bch2_extent_overlap(const struct bkey *k,
+							  const struct bkey *m)
+{
+	int cmp1 = bkey_cmp(k->p, m->p) < 0;
+	int cmp2 = bkey_cmp(bkey_start_pos(k),
+			    bkey_start_pos(m)) > 0;
+
+	return (cmp1 << 1) + cmp2;
+}
+
 int bch2_cut_front_s(struct bpos, struct bkey_s);
 int bch2_cut_back_s(struct bpos, struct bkey_s);
 

@@ -1048,7 +1048,7 @@ int __bch2_bkey_cmp_packed_format_checked(const struct bkey_packed *l,
 			      high_word(f, r),
 			      b->nr_key_bits);
 
-	EBUG_ON(ret != bkey_cmp(bkey_unpack_pos(b, l),
+	EBUG_ON(ret != bpos_cmp(bkey_unpack_pos(b, l),
 				bkey_unpack_pos(b, r)));
 	return ret;
 }
@@ -1058,7 +1058,7 @@ int __bch2_bkey_cmp_left_packed_format_checked(const struct btree *b,
 					       const struct bkey_packed *l,
 					       const struct bpos *r)
 {
-	return bkey_cmp(bkey_unpack_pos_format_checked(b, l), *r);
+	return bpos_cmp(bkey_unpack_pos_format_checked(b, l), *r);
 }
 
 __pure __flatten
@@ -1079,7 +1079,7 @@ int bch2_bkey_cmp_packed(const struct btree *b,
 		r = (void*) &unpacked;
 	}
 
-	return bkey_cmp(((struct bkey *) l)->p, ((struct bkey *) r)->p);
+	return bpos_cmp(((struct bkey *) l)->p, ((struct bkey *) r)->p);
 }
 
 __pure __flatten
@@ -1090,7 +1090,7 @@ int __bch2_bkey_cmp_left_packed(const struct btree *b,
 	const struct bkey *l_unpacked;
 
 	return unlikely(l_unpacked = packed_to_bkey_c(l))
-		? bkey_cmp(l_unpacked->p, *r)
+		? bpos_cmp(l_unpacked->p, *r)
 		: __bch2_bkey_cmp_left_packed_format_checked(b, l, r);
 }
 

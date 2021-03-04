@@ -81,13 +81,13 @@ void bch2_dump_bset(struct bch_fs *c, struct btree *b,
 
 		n = bkey_unpack_key(b, _n);
 
-		if (bkey_cmp(bkey_start_pos(&n), k.k->p) < 0) {
+		if (bpos_cmp(n.p, k.k->p) < 0) {
 			printk(KERN_ERR "Key skipped backwards\n");
 			continue;
 		}
 
 		if (!bkey_deleted(k.k) &&
-		    !bkey_cmp(n.p, k.k->p))
+		    !bpos_cmp(n.p, k.k->p))
 			printk(KERN_ERR "Duplicate keys\n");
 	}
 }
@@ -522,7 +522,7 @@ static void bch2_bset_verify_rw_aux_tree(struct btree *b,
 	goto start;
 	while (1) {
 		if (rw_aux_to_bkey(b, t, j) == k) {
-			BUG_ON(bkey_cmp(rw_aux_tree(b, t)[j].k,
+			BUG_ON(bpos_cmp(rw_aux_tree(b, t)[j].k,
 					bkey_unpack_pos(b, k)));
 start:
 			if (++j == t->size)
@@ -1174,7 +1174,7 @@ static struct bkey_packed *bset_search_write_set(const struct btree *b,
 	while (l + 1 != r) {
 		unsigned m = (l + r) >> 1;
 
-		if (bkey_cmp(rw_aux_tree(b, t)[m].k, *search) < 0)
+		if (bpos_cmp(rw_aux_tree(b, t)[m].k, *search) < 0)
 			l = m;
 		else
 			r = m;
@@ -1306,7 +1306,7 @@ struct bkey_packed *__bch2_bset_search(struct btree *b,
 		 * start and end - handle that here:
 		 */
 
-		if (bkey_cmp(*search, t->max_key) > 0)
+		if (bpos_cmp(*search, t->max_key) > 0)
 			return btree_bkey_last(b, t);
 
 		return bset_search_tree(b, t, search, lossy_packed_search);
@@ -1456,7 +1456,7 @@ void bch2_btree_node_iter_init(struct btree_node_iter *iter,
 	struct bkey_packed *k[MAX_BSETS];
 	unsigned i;
 
-	EBUG_ON(bkey_cmp(*search, b->data->min_key) < 0);
+	EBUG_ON(bpos_cmp(*search, b->data->min_key) < 0);
 	bset_aux_tree_verify(b);
 
 	memset(iter, 0, sizeof(*iter));

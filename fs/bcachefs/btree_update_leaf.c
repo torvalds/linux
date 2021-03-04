@@ -26,7 +26,7 @@ static inline int btree_insert_entry_cmp(const struct btree_insert_entry *l,
 {
 	return   cmp_int(l->btree_id,	r->btree_id) ?:
 		 -cmp_int(l->level,	r->level) ?:
-		 bkey_cmp(l->k->k.p,	r->k->k.p);
+		 bpos_cmp(l->k->k.p,	r->k->k.p);
 }
 
 static inline bool same_leaf_as_prev(struct btree_trans *trans,
@@ -70,8 +70,8 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 	EBUG_ON(btree_node_just_written(b));
 	EBUG_ON(bset_written(b, btree_bset_last(b)));
 	EBUG_ON(bkey_deleted(&insert->k) && bkey_val_u64s(&insert->k));
-	EBUG_ON(bkey_cmp(insert->k.p, b->data->min_key) < 0);
-	EBUG_ON(bkey_cmp(insert->k.p, b->data->max_key) > 0);
+	EBUG_ON(bpos_cmp(insert->k.p, b->data->min_key) < 0);
+	EBUG_ON(bpos_cmp(insert->k.p, b->data->max_key) > 0);
 	EBUG_ON(insert->k.u64s >
 		bch_btree_keys_u64s_remaining(iter->trans->c, b));
 	EBUG_ON(iter->flags & BTREE_ITER_IS_EXTENTS);
@@ -225,7 +225,7 @@ static inline void btree_insert_entry_checks(struct btree_trans *trans,
 
 	BUG_ON(bch2_debug_check_bkeys &&
 	       bch2_bkey_invalid(c, bkey_i_to_s_c(i->k), i->bkey_type));
-	BUG_ON(bkey_cmp(i->k->k.p, i->iter->real_pos));
+	BUG_ON(bpos_cmp(i->k->k.p, i->iter->real_pos));
 	BUG_ON(i->level		!= i->iter->level);
 	BUG_ON(i->btree_id	!= i->iter->btree_id);
 }

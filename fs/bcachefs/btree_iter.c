@@ -37,13 +37,13 @@ static inline struct bpos btree_iter_search_key(struct btree_iter *iter)
 static inline bool btree_iter_pos_before_node(struct btree_iter *iter,
 					      struct btree *b)
 {
-	return bkey_cmp(iter->real_pos, b->data->min_key) < 0;
+	return bpos_cmp(iter->real_pos, b->data->min_key) < 0;
 }
 
 static inline bool btree_iter_pos_after_node(struct btree_iter *iter,
 					     struct btree *b)
 {
-	return bkey_cmp(b->key.k.p, iter->real_pos) < 0;
+	return bpos_cmp(b->key.k.p, iter->real_pos) < 0;
 }
 
 static inline bool btree_iter_pos_in_node(struct btree_iter *iter,
@@ -293,7 +293,7 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 
 		/* Must lock btree nodes in key order: */
 		if (btree_node_locked(linked, level) &&
-		    bkey_cmp(pos, btree_node_pos((void *) linked->l[level].b,
+		    bpos_cmp(pos, btree_node_pos((void *) linked->l[level].b,
 						 btree_iter_type(linked))) <= 0) {
 			deadlock_iter = linked;
 			reason = 7;
@@ -1392,7 +1392,7 @@ struct btree *bch2_btree_iter_peek_node(struct btree_iter *iter)
 	if (!b)
 		return NULL;
 
-	BUG_ON(bkey_cmp(b->key.k.p, iter->pos) < 0);
+	BUG_ON(bpos_cmp(b->key.k.p, iter->pos) < 0);
 
 	iter->pos = iter->real_pos = b->key.k.p;
 
@@ -1429,7 +1429,7 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 	if (!b)
 		return NULL;
 
-	if (bkey_cmp(iter->pos, b->key.k.p) < 0) {
+	if (bpos_cmp(iter->pos, b->key.k.p) < 0) {
 		/*
 		 * Haven't gotten to the end of the parent node: go back down to
 		 * the next child node
@@ -1461,7 +1461,7 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 
 static void btree_iter_set_search_pos(struct btree_iter *iter, struct bpos new_pos)
 {
-	int cmp = bkey_cmp(new_pos, iter->real_pos);
+	int cmp = bpos_cmp(new_pos, iter->real_pos);
 	unsigned l = iter->level;
 
 	if (!cmp)
@@ -1505,7 +1505,7 @@ out:
 inline bool bch2_btree_iter_advance(struct btree_iter *iter)
 {
 	struct bpos pos = iter->k.p;
-	bool ret = bkey_cmp(pos, POS_MAX) != 0;
+	bool ret = bpos_cmp(pos, POS_MAX) != 0;
 
 	if (ret && !(iter->flags & BTREE_ITER_IS_EXTENTS))
 		pos = bkey_successor(pos);
@@ -1516,7 +1516,7 @@ inline bool bch2_btree_iter_advance(struct btree_iter *iter)
 inline bool bch2_btree_iter_rewind(struct btree_iter *iter)
 {
 	struct bpos pos = bkey_start_pos(&iter->k);
-	bool ret = bkey_cmp(pos, POS_MIN) != 0;
+	bool ret = bpos_cmp(pos, POS_MIN) != 0;
 
 	if (ret && !(iter->flags & BTREE_ITER_IS_EXTENTS))
 		pos = bkey_predecessor(pos);
@@ -1527,7 +1527,7 @@ inline bool bch2_btree_iter_rewind(struct btree_iter *iter)
 static inline bool btree_iter_set_pos_to_next_leaf(struct btree_iter *iter)
 {
 	struct bpos next_pos = iter->l[0].b->key.k.p;
-	bool ret = bkey_cmp(next_pos, POS_MAX) != 0;
+	bool ret = bpos_cmp(next_pos, POS_MAX) != 0;
 
 	/*
 	 * Typically, we don't want to modify iter->pos here, since that
@@ -1545,7 +1545,7 @@ static inline bool btree_iter_set_pos_to_next_leaf(struct btree_iter *iter)
 static inline bool btree_iter_set_pos_to_prev_leaf(struct btree_iter *iter)
 {
 	struct bpos next_pos = iter->l[0].b->data->min_key;
-	bool ret = bkey_cmp(next_pos, POS_MIN) != 0;
+	bool ret = bpos_cmp(next_pos, POS_MIN) != 0;
 
 	if (ret)
 		btree_iter_set_search_pos(iter, bkey_predecessor(next_pos));

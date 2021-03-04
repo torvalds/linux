@@ -38,7 +38,7 @@ static void verify_no_dups(struct btree *b,
 		struct bkey l = bkey_unpack_key(b, p);
 		struct bkey r = bkey_unpack_key(b, k);
 
-		BUG_ON(bkey_cmp(l.p, bkey_start_pos(&r)) >= 0);
+		BUG_ON(bpos_cmp(l.p, bkey_start_pos(&r)) >= 0);
 	}
 #endif
 }
@@ -631,14 +631,14 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 				b->data->max_key = b->key.k.p;
 			}
 
-			btree_err_on(bkey_cmp(b->data->min_key, bp->min_key),
+			btree_err_on(bpos_cmp(b->data->min_key, bp->min_key),
 				     BTREE_ERR_MUST_RETRY, c, ca, b, NULL,
 				     "incorrect min_key: got %s should be %s",
 				     (bch2_bpos_to_text(&PBUF(buf1), bn->min_key), buf1),
 				     (bch2_bpos_to_text(&PBUF(buf2), bp->min_key), buf2));
 		}
 
-		btree_err_on(bkey_cmp(bn->max_key, b->key.k.p),
+		btree_err_on(bpos_cmp(bn->max_key, b->key.k.p),
 			     BTREE_ERR_MUST_RETRY, c, ca, b, i,
 			     "incorrect max key %s",
 			     (bch2_bpos_to_text(&PBUF(buf1), bn->max_key), buf1));
