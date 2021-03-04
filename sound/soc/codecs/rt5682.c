@@ -1225,7 +1225,7 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component =
 		snd_soc_dapm_to_component(w->dapm);
 	struct rt5682_priv *rt5682 = snd_soc_component_get_drvdata(component);
-	int idx = -EINVAL, dmic_clk_rate = 3072000;
+	int idx, dmic_clk_rate = 3072000;
 	static const int div[] = {2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128};
 
 	if (rt5682->pdata.dmic_clk_rate)
@@ -1245,7 +1245,7 @@ static int set_filter_clk(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component =
 		snd_soc_dapm_to_component(w->dapm);
 	struct rt5682_priv *rt5682 = snd_soc_component_get_drvdata(component);
-	int ref, val, reg, idx = -EINVAL;
+	int ref, val, reg, idx;
 	static const int div_f[] = {1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48};
 	static const int div_o[] = {1, 2, 4, 6, 8, 12, 16, 24, 32, 48};
 
@@ -2396,10 +2396,10 @@ static int rt5682_set_component_pll(struct snd_soc_component *component,
 			pll_code.n_code, pll_code.k_code);
 
 		snd_soc_component_write(component, RT5682_PLL_CTRL_1,
-			pll_code.n_code << RT5682_PLL_N_SFT | pll_code.k_code);
+			(pll_code.n_code << RT5682_PLL_N_SFT) | pll_code.k_code);
 		snd_soc_component_write(component, RT5682_PLL_CTRL_2,
-		    (pll_code.m_bp ? 0 : pll_code.m_code) << RT5682_PLL_M_SFT |
-		    pll_code.m_bp << RT5682_PLL_M_BP_SFT | RT5682_PLL_RST);
+			((pll_code.m_bp ? 0 : pll_code.m_code) << RT5682_PLL_M_SFT) |
+			(pll_code.m_bp << RT5682_PLL_M_BP_SFT | RT5682_PLL_RST));
 	}
 
 	rt5682->pll_in[pll_id] = freq_in;
@@ -2751,7 +2751,7 @@ static int rt5682_bclk_set_rate(struct clk_hw *hw, unsigned long rate,
 		container_of(hw, struct rt5682_priv,
 			     dai_clks_hw[RT5682_DAI_BCLK_IDX]);
 	struct snd_soc_component *component = rt5682->component;
-	struct snd_soc_dai *dai = NULL;
+	struct snd_soc_dai *dai;
 	unsigned long factor;
 
 	if (!rt5682_clk_check(rt5682))
