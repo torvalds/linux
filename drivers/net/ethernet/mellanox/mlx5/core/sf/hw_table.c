@@ -67,8 +67,8 @@ int mlx5_sf_hw_table_sf_alloc(struct mlx5_core_dev *dev, u32 usr_sfnum)
 		goto exist_err;
 	}
 
-	hw_fn_id = mlx5_sf_sw_to_hw_id(table->dev, sw_id);
-	err = mlx5_cmd_alloc_sf(table->dev, hw_fn_id);
+	hw_fn_id = mlx5_sf_sw_to_hw_id(dev, sw_id);
+	err = mlx5_cmd_alloc_sf(dev, hw_fn_id);
 	if (err)
 		goto err;
 
@@ -80,7 +80,7 @@ int mlx5_sf_hw_table_sf_alloc(struct mlx5_core_dev *dev, u32 usr_sfnum)
 	return sw_id;
 
 vhca_err:
-	mlx5_cmd_dealloc_sf(table->dev, hw_fn_id);
+	mlx5_cmd_dealloc_sf(dev, hw_fn_id);
 err:
 	table->sfs[i].allocated = false;
 exist_err:
@@ -93,8 +93,8 @@ static void _mlx5_sf_hw_id_free(struct mlx5_core_dev *dev, u16 id)
 	struct mlx5_sf_hw_table *table = dev->priv.sf_hw_table;
 	u16 hw_fn_id;
 
-	hw_fn_id = mlx5_sf_sw_to_hw_id(table->dev, id);
-	mlx5_cmd_dealloc_sf(table->dev, hw_fn_id);
+	hw_fn_id = mlx5_sf_sw_to_hw_id(dev, id);
+	mlx5_cmd_dealloc_sf(dev, hw_fn_id);
 	table->sfs[id].allocated = false;
 	table->sfs[id].pending_delete = false;
 }
@@ -123,7 +123,7 @@ void mlx5_sf_hw_table_sf_deferred_free(struct mlx5_core_dev *dev, u16 id)
 		goto err;
 	state = MLX5_GET(query_vhca_state_out, out, vhca_state_context.vhca_state);
 	if (state == MLX5_VHCA_STATE_ALLOCATED) {
-		mlx5_cmd_dealloc_sf(table->dev, hw_fn_id);
+		mlx5_cmd_dealloc_sf(dev, hw_fn_id);
 		table->sfs[id].allocated = false;
 	} else {
 		table->sfs[id].pending_delete = true;
@@ -216,7 +216,7 @@ int mlx5_sf_hw_table_create(struct mlx5_core_dev *dev)
 		return 0;
 
 	table->vhca_nb.notifier_call = mlx5_sf_hw_vhca_event;
-	return mlx5_vhca_event_notifier_register(table->dev, &table->vhca_nb);
+	return mlx5_vhca_event_notifier_register(dev, &table->vhca_nb);
 }
 
 void mlx5_sf_hw_table_destroy(struct mlx5_core_dev *dev)
@@ -226,7 +226,7 @@ void mlx5_sf_hw_table_destroy(struct mlx5_core_dev *dev)
 	if (!table)
 		return;
 
-	mlx5_vhca_event_notifier_unregister(table->dev, &table->vhca_nb);
+	mlx5_vhca_event_notifier_unregister(dev, &table->vhca_nb);
 	/* Dealloc SFs whose firmware event has been missed. */
 	mlx5_sf_hw_dealloc_all(table);
 }
