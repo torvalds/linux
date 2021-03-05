@@ -505,33 +505,26 @@ static int hv_remote_flush_tlb_with_range(struct kvm *kvm,
 
 	spin_lock(&kvm_vmx->ept_pointer_lock);
 
-	if (kvm_vmx->ept_pointers_match == EPT_POINTERS_CHECK) {
+	if (kvm_vmx->ept_pointers_match != EPT_POINTERS_MATCH) {
 		kvm_vmx->ept_pointers_match = EPT_POINTERS_MATCH;
 		kvm_vmx->hv_tlb_eptp = INVALID_PAGE;
 
 		kvm_for_each_vcpu(i, vcpu, kvm) {
 			tmp_eptp = to_vmx(vcpu)->ept_pointer;
-			if (!VALID_PAGE(tmp_eptp))
+			if (!VALID_PAGE(tmp_eptp) ||
+			    tmp_eptp == kvm_vmx->hv_tlb_eptp)
 				continue;
 
-			if (!VALID_PAGE(kvm_vmx->hv_tlb_eptp)) {
+			if (!VALID_PAGE(kvm_vmx->hv_tlb_eptp))
 				kvm_vmx->hv_tlb_eptp = tmp_eptp;
-			} else if (kvm_vmx->hv_tlb_eptp != tmp_eptp) {
-				kvm_vmx->hv_tlb_eptp = INVALID_PAGE;
+			else
 				kvm_vmx->ept_pointers_match
 					= EPT_POINTERS_MISMATCH;
-				break;
-			}
-		}
-	}
 
-	if (kvm_vmx->ept_pointers_match != EPT_POINTERS_MATCH) {
-		kvm_for_each_vcpu(i, vcpu, kvm) {
-			/* If ept_pointer is invalid pointer, bypass flush request. */
-			if (VALID_PAGE(to_vmx(vcpu)->ept_pointer))
-				ret |= hv_remote_flush_eptp(to_vmx(vcpu)->ept_pointer,
-							    range);
+			ret |= hv_remote_flush_eptp(tmp_eptp, range);
 		}
+		if (kvm_vmx->ept_pointers_match == EPT_POINTERS_MISMATCH)
+			kvm_vmx->hv_tlb_eptp = INVALID_PAGE;
 	} else if (VALID_PAGE(kvm_vmx->hv_tlb_eptp)) {
 		ret = hv_remote_flush_eptp(kvm_vmx->hv_tlb_eptp, range);
 	}
