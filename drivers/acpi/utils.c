@@ -512,6 +512,20 @@ EXPORT_SYMBOL(__acpi_handle_debug);
 #endif
 
 /**
+ * acpi_evaluation_failure_warn - Log evaluation failure warning.
+ * @handle: Parent object handle.
+ * @name: Name of the object whose evaluation has failed.
+ * @status: Status value returned by the failing object evaluation.
+ */
+void acpi_evaluation_failure_warn(acpi_handle handle, const char *name,
+				  acpi_status status)
+{
+	acpi_handle_warn(handle, "%s evaluation failed: %s\n", name,
+			 acpi_format_exception(status));
+}
+EXPORT_SYMBOL_GPL(acpi_evaluation_failure_warn);
+
+/**
  * acpi_has_method: Check whether @handle has a method named @name
  * @handle: ACPI device handle
  * @name: name of object or method

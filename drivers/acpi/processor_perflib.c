@@ -67,9 +67,7 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
 		acpi_processor_ppc_in_use = true;
 
 		if (ACPI_FAILURE(status)) {
-			acpi_handle_warn(pr->handle,
-					 "_PPC evaluation failed: %s\n",
-					 acpi_format_exception(status));
+			acpi_evaluation_failure_warn(pr->handle, "_PPC", status);
 			return -ENODEV;
 		}
 	}
@@ -199,8 +197,7 @@ static int acpi_processor_get_performance_control(struct acpi_processor *pr)
 
 	status = acpi_evaluate_object(pr->handle, "_PCT", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		acpi_handle_warn(pr->handle, "_PCT evaluation failed: %s\n",
-				 acpi_format_exception(status));
+		acpi_evaluation_failure_warn(pr->handle, "_PCT", status);
 		return -ENODEV;
 	}
 
@@ -300,8 +297,7 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 
 	status = acpi_evaluate_object(pr->handle, "_PSS", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		acpi_handle_warn(pr->handle, "_PSS evaluation failed: %s\n",
-				 acpi_format_exception(status));
+		acpi_evaluation_failure_warn(pr->handle, "_PSS", status);
 		return -ENODEV;
 	}
 
