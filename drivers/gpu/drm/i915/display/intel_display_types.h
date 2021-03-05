@@ -725,9 +725,9 @@ struct intel_pipe_wm {
 
 struct skl_wm_level {
 	u16 min_ddb_alloc;
-	u16 plane_res_b;
-	u8 plane_res_l;
-	bool plane_en;
+	u16 blocks;
+	u8 lines;
+	bool enable;
 	bool ignore_lines;
 	bool can_sagv;
 };

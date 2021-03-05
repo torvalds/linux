@@ -9216,12 +9216,12 @@ static void verify_wm_state(struct intel_crtc *crtc,
 			drm_err(&dev_priv->drm,
 				"[PLANE:%d:%s] mismatch in WM%d (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
 				plane->base.base.id, plane->base.name, level,
-				sw_wm_level->plane_en,
-				sw_wm_level->plane_res_b,
-				sw_wm_level->plane_res_l,
-				hw_wm_level->plane_en,
-				hw_wm_level->plane_res_b,
-				hw_wm_level->plane_res_l);
+				sw_wm_level->enable,
+				sw_wm_level->blocks,
+				sw_wm_level->lines,
+				hw_wm_level->enable,
+				hw_wm_level->blocks,
+				hw_wm_level->lines);
 		}
 
 		hw_wm_level = &hw->wm.planes[plane->id].trans_wm;
@@ -9231,12 +9231,12 @@ static void verify_wm_state(struct intel_crtc *crtc,
 			drm_err(&dev_priv->drm,
 				"[PLANE:%d:%s] mismatch in trans WM (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
 				plane->base.base.id, plane->base.name,
-				sw_wm_level->plane_en,
-				sw_wm_level->plane_res_b,
-				sw_wm_level->plane_res_l,
-				hw_wm_level->plane_en,
-				hw_wm_level->plane_res_b,
-				hw_wm_level->plane_res_l);
+				sw_wm_level->enable,
+				sw_wm_level->blocks,
+				sw_wm_level->lines,
+				hw_wm_level->enable,
+				hw_wm_level->blocks,
+				hw_wm_level->lines);
 		}
 
 		/* DDB */
