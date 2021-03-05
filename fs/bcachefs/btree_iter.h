@@ -260,6 +260,15 @@ static inline void bch2_btree_iter_set_pos_to_extent_start(struct btree_iter *it
 	iter->pos = bkey_start_pos(&iter->k);
 }
 
+static inline void bch2_btree_iter_set_snapshot(struct btree_iter *iter, u32 snapshot)
+{
+	struct bpos pos = iter->pos;
+
+	iter->snapshot = snapshot;
+	pos.snapshot = snapshot;
+	bch2_btree_iter_set_pos(iter, pos);
+}
+
 /*
  * Unlocks before scheduling
  * Note: does not revalidate iterator
