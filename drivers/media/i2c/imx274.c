@@ -1381,7 +1381,8 @@ static int imx274_s_frame_interval(struct v4l2_subdev *sd,
 		max = fi->interval.numerator * 1000000
 			/ fi->interval.denominator;
 		def = max;
-		if (__v4l2_ctrl_modify_range(ctrl, min, max, 1, def)) {
+		ret = __v4l2_ctrl_modify_range(ctrl, min, max, 1, def);
+		if (ret) {
 			dev_err(&imx274->client->dev,
 				"Exposure ctrl range update failed\n");
 			goto unlock;
