@@ -144,6 +144,7 @@ static const struct cpg_core_clk r8a779a0_core_clks[] __initconst = {
 	DEF_FIXED("vcbus",	R8A779A0_CLK_VCBUS,	CLK_PLL5_DIV4,	1, 1),
 	DEF_FIXED("cbfusa",	R8A779A0_CLK_CBFUSA,	CLK_EXTAL,	2, 1),
 	DEF_FIXED("cp",		R8A779A0_CLK_CP,	CLK_EXTAL,	2, 1),
+	DEF_FIXED("cl16mck",	R8A779A0_CLK_CL16MCK,	CLK_PLL1_DIV2,	64, 1),
 
 	DEF_SD("sd0",		R8A779A0_CLK_SD0,	CLK_SDSRC,	0x870),
 
@@ -192,6 +193,11 @@ static const struct mssr_mod_clk r8a779a0_mod_clks[] __initconst = {
 	DEF_MOD("sdhi0",	706,	R8A779A0_CLK_SD0),
 	DEF_MOD("sydm1",	709,	R8A779A0_CLK_S1D2),
 	DEF_MOD("sydm2",	710,	R8A779A0_CLK_S1D2),
+	DEF_MOD("tmu0",		713,	R8A779A0_CLK_CL16MCK),
+	DEF_MOD("tmu1",		714,	R8A779A0_CLK_S1D4),
+	DEF_MOD("tmu2",		715,	R8A779A0_CLK_S1D4),
+	DEF_MOD("tmu3",		716,	R8A779A0_CLK_S1D4),
+	DEF_MOD("tmu4",		717,	R8A779A0_CLK_S1D4),
 	DEF_MOD("vin00",	730,	R8A779A0_CLK_S1D1),
 	DEF_MOD("vin01",	731,	R8A779A0_CLK_S1D1),
 	DEF_MOD("vin02",	800,	R8A779A0_CLK_S1D1),
