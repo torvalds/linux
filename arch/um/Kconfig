@@ -27,6 +27,10 @@ config MMU
 	default y
 
 config NO_IOMEM
+	bool "disable IOMEM" if EXPERT
+	default y
+
+config NO_IOPORT_MAP
 	def_bool y
 
 config ISA
