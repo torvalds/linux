@@ -2555,7 +2555,12 @@ static int __btrfs_add_free_space_zoned(struct btrfs_block_group *block_group,
 	to_unusable = size - to_free;
 
 	ctl->free_space += to_free;
-	block_group->zone_unusable += to_unusable;
+	/*
+	 * If the block group is read-only, we should account freed space into
+	 * bytes_readonly.
+	 */
+	if (!block_group->ro)
+		block_group->zone_unusable += to_unusable;
 	spin_unlock(&ctl->tree_lock);
 	if (!used) {
 		spin_lock(&block_group->lock);

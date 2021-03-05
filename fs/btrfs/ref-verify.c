@@ -218,11 +218,11 @@ static void __print_stack_trace(struct btrfs_fs_info *fs_info,
 	stack_trace_print(ra->trace, ra->trace_len, 2);
 }
 #else
-static void inline __save_stack_trace(struct ref_action *ra)
+static inline void __save_stack_trace(struct ref_action *ra)
 {
 }
 
-static void inline __print_stack_trace(struct btrfs_fs_info *fs_info,
+static inline void __print_stack_trace(struct btrfs_fs_info *fs_info,
 				       struct ref_action *ra)
 {
 	btrfs_err(fs_info, "  ref-verify: no stacktrace support");
