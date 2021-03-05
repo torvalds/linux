@@ -2295,6 +2295,7 @@
   __tracepoint_android_rvh_account_irq
   __tracepoint_android_rvh_build_perf_domains
   __tracepoint_android_rvh_can_migrate_task
+  __tracepoint_android_rvh_check_preempt_wakeup
   __tracepoint_android_rvh_cpu_cgroup_attach
   __tracepoint_android_rvh_dequeue_task
   __tracepoint_android_rvh_enqueue_task
@@ -2305,6 +2306,7 @@
   __tracepoint_android_rvh_irqs_enable
   __tracepoint_android_rvh_migrate_queued_task
   __tracepoint_android_rvh_new_task_stats
+  __tracepoint_android_rvh_pick_next_entity
   __tracepoint_android_rvh_place_entity
   __tracepoint_android_rvh_preempt_disable
   __tracepoint_android_rvh_preempt_enable
