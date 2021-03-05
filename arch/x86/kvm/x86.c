@@ -10600,7 +10600,7 @@ void __user * __x86_set_memory_region(struct kvm *kvm, int id, gpa_t gpa,
 			return (void __user *)hva;
 	} else {
 		if (!slot || !slot->npages)
-			return 0;
+			return NULL;
 
 		old_npages = slot->npages;
 		hva = slot->userspace_addr;
