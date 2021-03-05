@@ -528,7 +528,15 @@ static int hv_remote_flush_tlb_with_range(struct kvm *kvm,
 			if (++nr_unique_valid_eptps == 1)
 				kvm_vmx->hv_tlb_eptp = tmp_eptp;
 
-			ret |= hv_remote_flush_eptp(tmp_eptp, range);
+			if (!ret)
+				ret = hv_remote_flush_eptp(tmp_eptp, range);
+
+			/*
+			 * Stop processing EPTPs if a failure occurred and
+			 * there is already a detected EPTP mismatch.
+			 */
+			if (ret && nr_unique_valid_eptps > 1)
+				break;
 		}
 
 		/*
