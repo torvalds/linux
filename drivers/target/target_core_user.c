@@ -518,7 +518,7 @@ static inline int tcmu_get_empty_block(struct tcmu_dev *udev,
 		if (!page)
 			goto err_alloc;
 
-		if (xa_store(&udev->data_blocks, dbi, page, GFP_KERNEL))
+		if (xa_store(&udev->data_blocks, dbi, page, GFP_NOIO))
 			goto err_insert;
 	}
 
@@ -1272,7 +1272,7 @@ tcmu_tmr_notify(struct se_device *se_dev, enum tcm_tmreq_table tmf,
 	pr_debug("TMR event %d on dev %s, aborted cmds %d, afflicted cmd_ids %d\n",
 		 tcmu_tmr_type(tmf), udev->name, i, cmd_cnt);
 
-	tmr = kmalloc(sizeof(*tmr) + cmd_cnt * sizeof(*cmd_ids), GFP_KERNEL);
+	tmr = kmalloc(sizeof(*tmr) + cmd_cnt * sizeof(*cmd_ids), GFP_NOIO);
 	if (!tmr)
 		goto unlock;
 
