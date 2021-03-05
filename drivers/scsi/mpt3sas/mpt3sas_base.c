@@ -5559,6 +5559,41 @@ _base_allocate_sense_dma_pool(struct MPT3SAS_ADAPTER *ioc, u32 sz)
 }
 
 /**
+ * _base_allocate_reply_pool - Allocating DMA'able memory
+ *			for reply pool.
+ * @ioc: Adapter object
+ * @sz: DMA Pool size
+ * Return: 0 for success, non-zero for failure.
+ */
+static int
+_base_allocate_reply_pool(struct MPT3SAS_ADAPTER *ioc, u32 sz)
+{
+	/* reply pool, 4 byte align */
+	ioc->reply_dma_pool = dma_pool_create("reply pool",
+	    &ioc->pdev->dev, sz, 4, 0);
+	if (!ioc->reply_dma_pool)
+		return -ENOMEM;
+	ioc->reply = dma_pool_alloc(ioc->reply_dma_pool, GFP_KERNEL,
+	    &ioc->reply_dma);
+	if (!ioc->reply)
+		return -EAGAIN;
+	if (!mpt3sas_check_same_4gb_region((long)ioc->reply_free, sz)) {
+		dinitprintk(ioc, pr_err(
+		    "Bad Reply Pool! Reply (0x%p) Reply dma = (0x%llx)\n",
+		    ioc->reply, (unsigned long long) ioc->reply_dma));
+		ioc->use_32bit_dma = true;
+		return -EAGAIN;
+	}
+	ioc->reply_dma_min_address = (u32)(ioc->reply_dma);
+	ioc->reply_dma_max_address = (u32)(ioc->reply_dma) + sz;
+	ioc_info(ioc,
+	    "reply pool(0x%p) - dma(0x%llx): depth(%d), frame_size(%d), pool_size(%d kB)\n",
+	    ioc->reply, (unsigned long long)ioc->reply_dma,
+	    ioc->reply_free_queue_depth, ioc->reply_sz, sz/1024);
+	return 0;
+}
+
+/**
  * base_alloc_rdpq_dma_pool - Allocating DMA'able memory
  *                     for reply queues.
  * @ioc: per adapter object
@@ -6007,32 +6042,14 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	    "element_size(%d), pool_size(%d kB)\n",
 	    ioc->sense, (unsigned long long)ioc->sense_dma, ioc->scsiio_depth,
 	    SCSI_SENSE_BUFFERSIZE, sz / 1024);
-
 	/* reply pool, 4 byte align */
 	sz = ioc->reply_free_queue_depth * ioc->reply_sz;
-	ioc->reply_dma_pool = dma_pool_create("reply pool", &ioc->pdev->dev, sz,
-					      4, 0);
-	if (!ioc->reply_dma_pool) {
-		ioc_err(ioc, "reply pool: dma_pool_create failed\n");
-		goto out;
-	}
-	ioc->reply = dma_pool_alloc(ioc->reply_dma_pool, GFP_KERNEL,
-	    &ioc->reply_dma);
-	if (!ioc->reply) {
-		ioc_err(ioc, "reply pool: dma_pool_alloc failed\n");
-		goto out;
-	}
-	ioc->reply_dma_min_address = (u32)(ioc->reply_dma);
-	ioc->reply_dma_max_address = (u32)(ioc->reply_dma) + sz;
-	dinitprintk(ioc,
-		    ioc_info(ioc, "reply pool(0x%p): depth(%d), frame_size(%d), pool_size(%d kB)\n",
-			     ioc->reply, ioc->reply_free_queue_depth,
-			     ioc->reply_sz, sz / 1024));
-	dinitprintk(ioc,
-		    ioc_info(ioc, "reply_dma(0x%llx)\n",
-			     (unsigned long long)ioc->reply_dma));
+	rc = _base_allocate_reply_pool(ioc, sz);
+	if (rc == -ENOMEM)
+		return -ENOMEM;
+	else if (rc == -EAGAIN)
+		goto try_32bit_dma;
 	total_sz += sz;
-
 	/* reply free queue, 16 byte align */
 	sz = ioc->reply_free_queue_depth * 4;
 	ioc->reply_free_dma_pool = dma_pool_create("reply_free pool",
