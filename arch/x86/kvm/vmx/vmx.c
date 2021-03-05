@@ -500,32 +500,44 @@ static int hv_remote_flush_tlb_with_range(struct kvm *kvm,
 {
 	struct kvm_vmx *kvm_vmx = to_kvm_vmx(kvm);
 	struct kvm_vcpu *vcpu;
-	int ret = 0, i;
+	int ret = 0, i, nr_unique_valid_eptps;
 	u64 tmp_eptp;
 
 	spin_lock(&kvm_vmx->ept_pointer_lock);
 
-	if (kvm_vmx->ept_pointers_match != EPT_POINTERS_MATCH) {
-		kvm_vmx->ept_pointers_match = EPT_POINTERS_MATCH;
-		kvm_vmx->hv_tlb_eptp = INVALID_PAGE;
+	if (!VALID_PAGE(kvm_vmx->hv_tlb_eptp)) {
+		nr_unique_valid_eptps = 0;
 
+		/*
+		 * Flush all valid EPTPs, and see if all vCPUs have converged
+		 * on a common EPTP, in which case future flushes can skip the
+		 * loop and flush the common EPTP.
+		 */
 		kvm_for_each_vcpu(i, vcpu, kvm) {
 			tmp_eptp = to_vmx(vcpu)->ept_pointer;
 			if (!VALID_PAGE(tmp_eptp) ||
 			    tmp_eptp == kvm_vmx->hv_tlb_eptp)
 				continue;
 
-			if (!VALID_PAGE(kvm_vmx->hv_tlb_eptp))
+			/*
+			 * Set the tracked EPTP to the first valid EPTP.  Keep
+			 * this EPTP for the entirety of the loop even if more
+			 * EPTPs are encountered as a low effort optimization
+			 * to avoid flushing the same (first) EPTP again.
+			 */
+			if (++nr_unique_valid_eptps == 1)
 				kvm_vmx->hv_tlb_eptp = tmp_eptp;
-			else
-				kvm_vmx->ept_pointers_match
-					= EPT_POINTERS_MISMATCH;
 
 			ret |= hv_remote_flush_eptp(tmp_eptp, range);
 		}
-		if (kvm_vmx->ept_pointers_match == EPT_POINTERS_MISMATCH)
+
+		/*
+		 * The optimized flush of a single EPTP can't be used if there
+		 * are multiple valid EPTPs (obviously).
+		 */
+		if (nr_unique_valid_eptps > 1)
 			kvm_vmx->hv_tlb_eptp = INVALID_PAGE;
-	} else if (VALID_PAGE(kvm_vmx->hv_tlb_eptp)) {
+	} else {
 		ret = hv_remote_flush_eptp(kvm_vmx->hv_tlb_eptp, range);
 	}
 
@@ -3105,8 +3117,7 @@ static void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa,
 		if (kvm_x86_ops.tlb_remote_flush) {
 			spin_lock(&to_kvm_vmx(kvm)->ept_pointer_lock);
 			to_vmx(vcpu)->ept_pointer = eptp;
-			to_kvm_vmx(kvm)->ept_pointers_match
-				= EPT_POINTERS_CHECK;
+			to_kvm_vmx(kvm)->hv_tlb_eptp = INVALID_PAGE;
 			spin_unlock(&to_kvm_vmx(kvm)->ept_pointer_lock);
 		}
 

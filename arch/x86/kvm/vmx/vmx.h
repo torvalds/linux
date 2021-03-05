@@ -338,12 +338,6 @@ struct vcpu_vmx {
 	} shadow_msr_intercept;
 };
 
-enum ept_pointers_status {
-	EPT_POINTERS_CHECK = 0,
-	EPT_POINTERS_MATCH = 1,
-	EPT_POINTERS_MISMATCH = 2
-};
-
 struct kvm_vmx {
 	struct kvm kvm;
 
@@ -352,7 +346,6 @@ struct kvm_vmx {
 	gpa_t ept_identity_map_addr;
 
 	hpa_t hv_tlb_eptp;
-	enum ept_pointers_status ept_pointers_match;
 	spinlock_t ept_pointer_lock;
 };
 
