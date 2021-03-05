@@ -3255,6 +3255,9 @@ static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 		root = mmu_alloc_root(vcpu, 0, 0, shadow_root_level, true);
 		mmu->root_hpa = root;
 	} else if (shadow_root_level == PT32E_ROOT_LEVEL) {
+		if (WARN_ON_ONCE(!mmu->pae_root))
+			return -EIO;
+
 		for (i = 0; i < 4; ++i) {
 			WARN_ON_ONCE(mmu->pae_root[i] &&
 				     VALID_PAGE(mmu->pae_root[i]));
@@ -3265,8 +3268,10 @@ static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 					   shadow_me_mask;
 		}
 		mmu->root_hpa = __pa(mmu->pae_root);
-	} else
-		BUG();
+	} else {
+		WARN_ONCE(1, "Bad TDP root level = %d\n", shadow_root_level);
+		return -EIO;
+	}
 
 	/* root_pgd is ignored for direct MMUs. */
 	mmu->root_pgd = 0;
@@ -3310,6 +3315,9 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 		goto set_root_pgd;
 	}
 
+	if (WARN_ON_ONCE(!mmu->pae_root))
+		return -EIO;
+
 	/*
 	 * We shadow a 32 bit page table. This may be a legacy 2-level
 	 * or a PAE 3-level page table. In either case we need to be aware that
@@ -3318,6 +3326,9 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 	pm_mask = PT_PRESENT_MASK | shadow_me_mask;
 	if (mmu->shadow_root_level == PT64_ROOT_4LEVEL) {
 		pm_mask |= PT_ACCESSED_MASK | PT_WRITABLE_MASK | PT_USER_MASK;
+
+		if (WARN_ON_ONCE(!mmu->lm_root))
+			return -EIO;
 
 		mmu->lm_root[0] = __pa(mmu->pae_root) | pm_mask;
 	}
