@@ -2339,32 +2339,31 @@ static void filemap_get_read_batch(struct address_space *mapping,
 		pgoff_t index, pgoff_t max, struct pagevec *pvec)
 {
 	XA_STATE(xas, &mapping->i_pages, index);
-	struct page *head;
+	struct folio *folio;
 
 	rcu_read_lock();
-	for (head = xas_load(&xas); head; head = xas_next(&xas)) {
-		if (xas_retry(&xas, head))
+	for (folio = xas_load(&xas); folio; folio = xas_next(&xas)) {
+		if (xas_retry(&xas, folio))
 			continue;
-		if (xas.xa_index > max || xa_is_value(head))
+		if (xas.xa_index > max || xa_is_value(folio))
 			break;
-		if (!page_cache_get_speculative(head))
+		if (!folio_try_get_rcu(folio))
 			goto retry;
 
-		/* Has the page moved or been split? */
-		if (unlikely(head != xas_reload(&xas)))
+		if (unlikely(folio != xas_reload(&xas)))
 			goto put_page;
 
-		if (!pagevec_add(pvec, head))
+		if (!pagevec_add(pvec, &folio->page))
 			break;
-		if (!PageUptodate(head))
+		if (!folio_test_uptodate(folio))
 			break;
-		if (PageReadahead(head))
+		if (folio_test_readahead(folio))
 			break;
-		xas.xa_index = head->index + thp_nr_pages(head) - 1;
+		xas.xa_index = folio->index + folio_nr_pages(folio) - 1;
 		xas.xa_offset = (xas.xa_index >> xas.xa_shift) & XA_CHUNK_MASK;
 		continue;
 put_page:
-		put_page(head);
+		folio_put(folio);
 retry:
 		xas_reset(&xas);
 	}
