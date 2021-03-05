@@ -62,7 +62,7 @@ static void sig_handler_common(int sig, struct siginfo *si, mcontext_t *mc)
 #define SIGALRM_BIT 1
 #define SIGALRM_MASK (1 << SIGALRM_BIT)
 
-static int signals_enabled;
+int signals_enabled;
 static unsigned int signals_pending;
 static unsigned int signals_active = 0;
 
@@ -332,11 +332,6 @@ void unblock_signals(void)
 		um_trace_signals_on();
 		signals_enabled = 1;
 	}
-}
-
-int get_signals(void)
-{
-	return signals_enabled;
 }
 
 int set_signals(int enable)
