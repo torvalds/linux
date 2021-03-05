@@ -4989,7 +4989,7 @@ skl_allocate_plane_ddb(struct intel_atomic_state *state,
 		if (wm->trans_wm.plane_res_b >= total[plane_id])
 			memset(&wm->trans_wm, 0, sizeof(wm->trans_wm));
 
-		if (wm->sagv.wm0.plane_res_b >= total[plane_id])
+		if (wm->sagv.wm0.min_ddb_alloc > total[plane_id])
 			memset(&wm->sagv.wm0, 0, sizeof(wm->sagv.wm0));
 
 		if (wm->sagv.trans_wm.plane_res_b >= total[plane_id])
