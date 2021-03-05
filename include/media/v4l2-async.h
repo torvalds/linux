@@ -295,7 +295,7 @@ int v4l2_async_register_subdev(struct v4l2_subdev *sd);
  *
  * This function is just like v4l2_async_register_subdev() with the exception
  * that calling it will also parse firmware interfaces for remote references
- * using v4l2_async_notifier_parse_fwnode_sensor_common() and registers the
+ * using v4l2_async_notifier_parse_fwnode_sensor() and registers the
  * async sub-devices. The sub-device is similarly unregistered by calling
  * v4l2_async_unregister_subdev().
  *
