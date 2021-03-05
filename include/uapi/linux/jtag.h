@@ -235,4 +235,135 @@ struct jtag_mode {
 #define JTAG_SIOCMODE	_IOW(__JTAG_IOCTL_MAGIC, 5, unsigned int)
 #define JTAG_IOCBITBANG	_IOW(__JTAG_IOCTL_MAGIC, 6, unsigned int)
 
+/**
+ * struct tms_cycle - This structure represents a tms cycle state.
+ *
+ * @tmsbits: is the bitwise representation of the needed tms transitions to
+ *           move from one state to another.
+ * @count:   number of jumps needed to move to the needed state.
+ *
+ */
+struct tms_cycle {
+	unsigned char tmsbits;
+	unsigned char count;
+};
+
+/*
+ * This is the complete set TMS cycles for going from any TAP state to any
+ * other TAP state, following a "shortest path" rule.
+ */
+static const struct tms_cycle _tms_cycle_lookup[][16] = {
+/*	    TLR        RTI        SelDR      CapDR      SDR        Ex1DR*/
+/* TLR  */{{0x00, 0}, {0x00, 1}, {0x02, 2}, {0x02, 3}, {0x02, 4}, {0x0a, 4},
+/*	    PDR        Ex2DR      UpdDR      SelIR      CapIR      SIR*/
+	    {0x0a, 5}, {0x2a, 6}, {0x1a, 5}, {0x06, 3}, {0x06, 4}, {0x06, 5},
+/*	    Ex1IR      PIR        Ex2IR      UpdIR*/
+	    {0x16, 5}, {0x16, 6}, {0x56, 7}, {0x36, 6} },
+
+/*	    TLR        RTI        SelDR      CapDR      SDR        Ex1DR*/
+/* RTI  */{{0x07, 3}, {0x00, 0}, {0x01, 1}, {0x01, 2}, {0x01, 3}, {0x05, 3},
+/*	    PDR        Ex2DR      UpdDR      SelIR      CapIR      SIR*/
+	    {0x05, 4}, {0x15, 5}, {0x0d, 4}, {0x03, 2}, {0x03, 3}, {0x03, 4},
+/*	    Ex1IR      PIR        Ex2IR      UpdIR*/
+	    {0x0b, 4}, {0x0b, 5}, {0x2b, 6}, {0x1b, 5} },
+
+/*	    TLR        RTI        SelDR      CapDR      SDR        Ex1DR*/
+/* SelDR*/{{0x03, 2}, {0x03, 3}, {0x00, 0}, {0x00, 1}, {0x00, 2}, {0x02, 2},
+/*	    PDR        Ex2DR      UpdDR      SelIR      CapIR      SIR*/
+	    {0x02, 3}, {0x0a, 4}, {0x06, 3}, {0x01, 1}, {0x01, 2}, {0x01, 3},
+/*	    Ex1IR      PIR        Ex2IR      UpdIR*/
+	    {0x05, 3}, {0x05, 4}, {0x15, 5}, {0x0d, 4} },
+
+/*	    TLR        RTI        SelDR      CapDR      SDR        Ex1DR*/
+/* CapDR*/{{0x1f, 5}, {0x03, 3}, {0x07, 3}, {0x00, 0}, {0x00, 1}, {0x01, 1},
+/*	    PDR        Ex2DR      UpdDR      SelIR      CapIR      SIR*/
+	    {0x01, 2}, {0x05, 3}, {0x03, 2}, {0x0f, 4}, {0x0f, 5}, {0x0f, 6},
+/*	    Ex1IR      PIR        Ex2IR      UpdIR*/
+	    {0x2f, 6}, {0x2f, 7}, {0xaf, 8}, {0x6f, 7} },
+
+/*	    TLR        RTI        SelDR      CapDR      SDR        Ex1DR*/
+/* SDR  */{{0x1f, 5}, {0x03, 3}, {0x07, 3}, {0x07, 4}, {0x00, 0}, {0x01, 1},
+/*	    PDR        Ex2DR      UpdDR      SelIR      CapIR      SIR*/
+	    {0x01, 2}, {0x05, 3}, {0x03, 2}, {0x0f, 4}, {0x0f, 5}, {0x0f, 6},
+/*	    Ex1IR      PIR        Ex2IR      UpdIR*/
+	    {0x2f, 6}, {0x2f, 7}, {0xaf, 8}, {0x6f, 7} },
+
+/*	    TLR        RTI        SelDR      CapDR      SDR        Ex1DR*/
+/* Ex1DR*/{{0x0f, 4}, {0x01, 2}, {0x03, 2}, {0x03, 3}, {0x02, 3}, {0x00, 0},
+/*	    PDR        Ex2DR      UpdDR      SelIR      CapIR      SIR*/
+	    {0x00, 1}, {0x02, 2}, {0x01, 1}, {0x07, 3}, {0x07, 4}, {0x07, 5},
+/*	    Ex1IR      PIR        Ex2IR      UpdIR*/
+	    {0x17, 5}, {0x17, 6}, {0x57, 7}, {0x37, 6} },
+
+/*	    TLR        RTI        SelDR      CapDR      SDR        Ex1DR*/
+/* PDR  */{{0x1f, 5}, {0x03, 3}, {0x07, 3}, {0x07, 4}, {0x01, 2}, {0x05, 3},
+/*	    PDR        Ex2DR      UpdDR      SelIR      CapIR      SIR*/
+	    {0x00, 0}, {0x01, 1}, {0x03, 2}, {0x0f, 4}, {0x0f, 5}, {0x0f, 6},
+/*	    Ex1IR      PIR        Ex2IR      UpdIR*/
+	    {0x2f, 6}, {0x2f, 7}, {0xaf, 8}, {0x6f, 7} },
+
+/*	    TLR        RTI        SelDR      CapDR      SDR        Ex1DR*/
+/* Ex2DR*/{{0x0f, 4}, {0x01, 2}, {0x03, 2}, {0x03, 3}, {0x00, 1}, {0x02, 2},
+/*	    PDR        Ex2DR      UpdDR      SelIR      CapIR      SIR*/
+	    {0x02, 3}, {0x00, 0}, {0x01, 1}, {0x07, 3}, {0x07, 4}, {0x07, 5},
+/*	    Ex1IR      PIR        Ex2IR      UpdIR*/
+	    {0x17, 5}, {0x17, 6}, {0x57, 7}, {0x37, 6} },
+
+/*	    TLR        RTI        SelDR      CapDR      SDR        Ex1DR*/
+/* UpdDR*/{{0x07, 3}, {0x00, 1}, {0x01, 1}, {0x01, 2}, {0x01, 3}, {0x05, 3},
+/*	    PDR        Ex2DR      UpdDR      SelIR      CapIR      SIR*/
+	    {0x05, 4}, {0x15, 5}, {0x00, 0}, {0x03, 2}, {0x03, 3}, {0x03, 4},
+/*	    Ex1IR      PIR        Ex2IR      UpdIR*/
+	    {0x0b, 4}, {0x0b, 5}, {0x2b, 6}, {0x1b, 5} },
+
+/*	    TLR        RTI        SelDR      CapDR      SDR        Ex1DR*/
+/* SelIR*/{{0x01, 1}, {0x01, 2}, {0x05, 3}, {0x05, 4}, {0x05, 5}, {0x15, 5},
+/*	    PDR        Ex2DR      UpdDR      SelIR      CapIR      SIR*/
+	    {0x15, 6}, {0x55, 7}, {0x35, 6}, {0x00, 0}, {0x00, 1}, {0x00, 2},
+/*	    Ex1IR      PIR        Ex2IR      UpdIR*/
+	    {0x02, 2}, {0x02, 3}, {0x0a, 4}, {0x06, 3} },
+
+/*	    TLR        RTI        SelDR      CapDR      SDR        Ex1DR*/
+/* CapIR*/{{0x1f, 5}, {0x03, 3}, {0x07, 3}, {0x07, 4}, {0x07, 5}, {0x17, 5},
+/*	    PDR        Ex2DR      UpdDR      SelIR      CapIR      SIR*/
+	    {0x17, 6}, {0x57, 7}, {0x37, 6}, {0x0f, 4}, {0x00, 0}, {0x00, 1},
+/*	    Ex1IR      PIR        Ex2IR      UpdIR*/
+	    {0x01, 1}, {0x01, 2}, {0x05, 3}, {0x03, 2} },
+
+/*	    TLR        RTI        SelDR      CapDR      SDR        Ex1DR*/
+/* SIR  */{{0x1f, 5}, {0x03, 3}, {0x07, 3}, {0x07, 4}, {0x07, 5}, {0x17, 5},
+/*	    PDR        Ex2DR      UpdDR      SelIR      CapIR      SIR*/
+	    {0x17, 6}, {0x57, 7}, {0x37, 6}, {0x0f, 4}, {0x0f, 5}, {0x00, 0},
+/*	    Ex1IR      PIR        Ex2IR      UpdIR*/
+	    {0x01, 1}, {0x01, 2}, {0x05, 3}, {0x03, 2} },
+
+/*	    TLR        RTI        SelDR      CapDR      SDR        Ex1DR*/
+/* Ex1IR*/{{0x0f, 4}, {0x01, 2}, {0x03, 2}, {0x03, 3}, {0x03, 4}, {0x0b, 4},
+/*	    PDR        Ex2DR      UpdDR      SelIR      CapIR      SIR*/
+	    {0x0b, 5}, {0x2b, 6}, {0x1b, 5}, {0x07, 3}, {0x07, 4}, {0x02, 3},
+/*	    Ex1IR      PIR        Ex2IR      UpdIR*/
+	    {0x00, 0}, {0x00, 1}, {0x02, 2}, {0x01, 1} },
+
+/*	    TLR        RTI        SelDR      CapDR      SDR        Ex1DR*/
+/* PIR  */{{0x1f, 5}, {0x03, 3}, {0x07, 3}, {0x07, 4}, {0x07, 5}, {0x17, 5},
+/*	    PDR        Ex2DR      UpdDR      SelIR      CapIR      SIR*/
+	    {0x17, 6}, {0x57, 7}, {0x37, 6}, {0x0f, 4}, {0x0f, 5}, {0x01, 2},
+/*	    Ex1IR      PIR        Ex2IR      UpdIR*/
+	    {0x05, 3}, {0x00, 0}, {0x01, 1}, {0x03, 2} },
+
+/*	    TLR        RTI        SelDR      CapDR      SDR        Ex1DR*/
+/* Ex2IR*/{{0x0f, 4}, {0x01, 2}, {0x03, 2}, {0x03, 3}, {0x03, 4}, {0x0b, 4},
+/*	    PDR        Ex2DR      UpdDR      SelIR      CapIR      SIR*/
+	    {0x0b, 5}, {0x2b, 6}, {0x1b, 5}, {0x07, 3}, {0x07, 4}, {0x00, 1},
+/*	    Ex1IR      PIR        Ex2IR      UpdIR*/
+	    {0x02, 2}, {0x02, 3}, {0x00, 0}, {0x01, 1} },
+
+/*	    TLR        RTI        SelDR      CapDR      SDR        Ex1DR*/
+/* UpdIR*/{{0x07, 3}, {0x00, 1}, {0x01, 1}, {0x01, 2}, {0x01, 3}, {0x05, 3},
+/*	    PDR        Ex2DR      UpdDR      SelIR      CapIR      SIR*/
+	    {0x05, 4}, {0x15, 5}, {0x0d, 4}, {0x03, 2}, {0x03, 3}, {0x03, 4},
+/*	    Ex1IR      PIR        Ex2IR      UpdIR*/
+	    {0x0b, 4}, {0x0b, 5}, {0x2b, 6}, {0x00, 0} },
+};
+
 #endif /* __UAPI_LINUX_JTAG_H */
