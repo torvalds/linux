@@ -10,6 +10,7 @@
 #include <linux/logic_iomem.h>
 #include <linux/irqdomain.h>
 #include <linux/virtio_pcidev.h>
+#include <linux/virtio-uml.h>
 #include <linux/delay.h>
 #include <linux/msi.h>
 #include <asm/unaligned.h>
@@ -133,6 +134,9 @@ static int um_pci_send_cmd(struct um_pci_device *dev,
 
 		if (completed == HANDLE_NO_FREE(cmd))
 			break;
+
+		if (completed && !HANDLE_IS_NO_FREE(completed))
+			kfree(completed);
 
 		if (WARN_ONCE(virtqueue_is_broken(dev->cmd_vq) ||
 			      ++delay_count > UM_VIRT_PCI_MAXDELAY,
@@ -549,6 +553,12 @@ static int um_pci_virtio_probe(struct virtio_device *vdev)
 	mutex_unlock(&um_pci_mtx);
 
 	device_set_wakeup_enable(&vdev->dev, true);
+
+	/*
+	 * In order to do suspend-resume properly, don't allow VQs
+	 * to be suspended.
+	 */
+	virtio_uml_set_no_vq_suspend(vdev, true);
 
 	um_pci_rescan();
 	return 0;
