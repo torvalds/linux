@@ -114,7 +114,7 @@ nfs4_do_check_delegation(struct inode *inode, fmode_t flags, bool mark)
 	return ret;
 }
 /**
- * nfs_have_delegation - check if inode has a delegation, mark it
+ * nfs4_have_delegation - check if inode has a delegation, mark it
  * NFS_DELEGATION_REFERENCED if there is one.
  * @inode: inode to check
  * @flags: delegation types to check for
@@ -674,7 +674,7 @@ void nfs_inode_evict_delegation(struct inode *inode)
 }
 
 /**
- * nfs_inode_return_delegation - synchronously return a delegation
+ * nfs4_inode_return_delegation - synchronously return a delegation
  * @inode: inode to process
  *
  * This routine will always flush any dirty data to disk on the
@@ -697,7 +697,7 @@ int nfs4_inode_return_delegation(struct inode *inode)
 }
 
 /**
- * nfs_inode_return_delegation_on_close - asynchronously return a delegation
+ * nfs4_inode_return_delegation_on_close - asynchronously return a delegation
  * @inode: inode to process
  *
  * This routine is called on file close in order to determine if the
@@ -811,7 +811,7 @@ void nfs_expire_all_delegations(struct nfs_client *clp)
 }
 
 /**
- * nfs_super_return_all_delegations - return delegations for one superblock
+ * nfs_server_return_all_delegations - return delegations for one superblock
  * @server: pointer to nfs_server to process
  *
  */
