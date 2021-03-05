@@ -472,28 +472,6 @@ static const u32 vmx_uret_msrs_list[] = {
 static bool __read_mostly enlightened_vmcs = true;
 module_param(enlightened_vmcs, bool, 0444);
 
-/* check_ept_pointer() should be under protection of ept_pointer_lock. */
-static void check_ept_pointer_match(struct kvm *kvm)
-{
-	struct kvm_vcpu *vcpu;
-	u64 tmp_eptp = INVALID_PAGE;
-	int i;
-
-	kvm_for_each_vcpu(i, vcpu, kvm) {
-		if (!VALID_PAGE(tmp_eptp)) {
-			tmp_eptp = to_vmx(vcpu)->ept_pointer;
-		} else if (tmp_eptp != to_vmx(vcpu)->ept_pointer) {
-			to_kvm_vmx(kvm)->hv_tlb_eptp = INVALID_PAGE;
-			to_kvm_vmx(kvm)->ept_pointers_match
-				= EPT_POINTERS_MISMATCH;
-			return;
-		}
-	}
-
-	to_kvm_vmx(kvm)->hv_tlb_eptp = tmp_eptp;
-	to_kvm_vmx(kvm)->ept_pointers_match = EPT_POINTERS_MATCH;
-}
-
 static int kvm_fill_hv_flush_list_func(struct hv_guest_mapping_flush_list *flush,
 		void *data)
 {
@@ -523,11 +501,29 @@ static int hv_remote_flush_tlb_with_range(struct kvm *kvm,
 	struct kvm_vmx *kvm_vmx = to_kvm_vmx(kvm);
 	struct kvm_vcpu *vcpu;
 	int ret = 0, i;
+	u64 tmp_eptp;
 
 	spin_lock(&kvm_vmx->ept_pointer_lock);
 
-	if (kvm_vmx->ept_pointers_match == EPT_POINTERS_CHECK)
-		check_ept_pointer_match(kvm);
+	if (kvm_vmx->ept_pointers_match == EPT_POINTERS_CHECK) {
+		kvm_vmx->ept_pointers_match = EPT_POINTERS_MATCH;
+		kvm_vmx->hv_tlb_eptp = INVALID_PAGE;
+
+		kvm_for_each_vcpu(i, vcpu, kvm) {
+			tmp_eptp = to_vmx(vcpu)->ept_pointer;
+			if (!VALID_PAGE(tmp_eptp))
+				continue;
+
+			if (!VALID_PAGE(kvm_vmx->hv_tlb_eptp)) {
+				kvm_vmx->hv_tlb_eptp = tmp_eptp;
+			} else if (kvm_vmx->hv_tlb_eptp != tmp_eptp) {
+				kvm_vmx->hv_tlb_eptp = INVALID_PAGE;
+				kvm_vmx->ept_pointers_match
+					= EPT_POINTERS_MISMATCH;
+				break;
+			}
+		}
+	}
 
 	if (kvm_vmx->ept_pointers_match != EPT_POINTERS_MATCH) {
 		kvm_for_each_vcpu(i, vcpu, kvm) {
