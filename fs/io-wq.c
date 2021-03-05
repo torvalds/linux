@@ -722,9 +722,9 @@ static int io_wq_manager(void *data)
 		io_wq_for_each_worker(wq->wqes[node], io_wq_worker_wake, NULL);
 	rcu_read_unlock();
 
-	/* we might not ever have created any workers */
-	if (atomic_read(&wq->worker_refs))
-		wait_for_completion(&wq->worker_done);
+	if (atomic_dec_and_test(&wq->worker_refs))
+		complete(&wq->worker_done);
+	wait_for_completion(&wq->worker_done);
 
 	spin_lock_irq(&wq->hash->wait.lock);
 	for_each_node(node)
@@ -774,13 +774,17 @@ static int io_wq_fork_manager(struct io_wq *wq)
 	if (wq->manager)
 		return 0;
 
-	reinit_completion(&wq->worker_done);
+	init_completion(&wq->worker_done);
+	atomic_set(&wq->worker_refs, 1);
 	tsk = create_io_thread(io_wq_manager, wq, NUMA_NO_NODE);
 	if (!IS_ERR(tsk)) {
 		wq->manager = get_task_struct(tsk);
 		wake_up_new_task(tsk);
 		return 0;
 	}
+
+	if (atomic_dec_and_test(&wq->worker_refs))
+		complete(&wq->worker_done);
 
 	return PTR_ERR(tsk);
 }
@@ -1018,13 +1022,9 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 	init_completion(&wq->exited);
 	refcount_set(&wq->refs, 1);
 
-	init_completion(&wq->worker_done);
-	atomic_set(&wq->worker_refs, 0);
-
 	ret = io_wq_fork_manager(wq);
 	if (!ret)
 		return wq;
-
 err:
 	io_wq_put_hash(data->hash);
 	cpuhp_state_remove_instance_nocalls(io_wq_online, &wq->cpuhp_node);
