@@ -1,0 +1,380 @@
+# The basic row format is:
+# LEAF, SUBLEAF, register_name, bits, short_name, long_description
+
+# Leaf 00H
+         0,    0,  EAX,   31:0, max_basic_leafs, Max input value for supported subleafs
+
+# Leaf 01H
+         1,    0,  EAX,    3:0, stepping, Stepping ID
+         1,    0,  EAX,    7:4, model, Model
+         1,    0,  EAX,   11:8, family, Family ID
+         1,    0,  EAX,  13:12, processor, Processor Type
+         1,    0,  EAX,  19:16, model_ext, Extended Model ID
+         1,    0,  EAX,  27:20, family_ext, Extended Family ID
+
+         1,    0,  EBX,    7:0, brand, Brand Index
+         1,    0,  EBX,   15:8, clflush_size, CLFLUSH line size (value * 8) in bytes
+         1,    0,  EBX,  23:16, max_cpu_id, Maxim number of addressable logic cpu in this package
+         1,    0,  EBX,  31:24, apic_id, Initial APIC ID
+
+         1,    0,  ECX,      0, sse3, Streaming SIMD Extensions 3(SSE3)
+         1,    0,  ECX,      1, pclmulqdq, PCLMULQDQ instruction supported
+         1,    0,  ECX,      2, dtes64, DS area uses 64-bit layout
+         1,    0,  ECX,      3, mwait, MONITOR/MWAIT supported
+         1,    0,  ECX,      4, ds_cpl, CPL Qualified Debug Store which allows for branch message storage qualified by CPL
+         1,    0,  ECX,      5, vmx, Virtual Machine Extensions supported
+         1,    0,  ECX,      6, smx, Safer Mode Extension supported
+         1,    0,  ECX,      7, eist, Enhanced Intel SpeedStep Technology
+         1,    0,  ECX,      8, tm2, Thermal Monitor 2
+         1,    0,  ECX,      9, ssse3, Supplemental Streaming SIMD Extensions 3 (SSSE3)
+         1,    0,  ECX,     10, l1_ctx_id, L1 data cache could be set to either adaptive mode or shared mode (check IA32_MISC_ENABLE bit 24 definition)
+         1,    0,  ECX,     11, sdbg, IA32_DEBUG_INTERFACE MSR for silicon debug supported
+         1,    0,  ECX,     12, fma, FMA extensions using YMM state supported
+         1,    0,  ECX,     13, cmpxchg16b, 'CMPXCHG16B - Compare and Exchange Bytes' supported
+         1,    0,  ECX,     14, xtpr_update, xTPR Update Control supported
+         1,    0,  ECX,     15, pdcm, Perfmon and Debug Capability present
+         1,    0,  ECX,     17, pcid, Process-Context Identifiers feature present
+         1,    0,  ECX,     18, dca, Prefetching data from a memory mapped device supported
+         1,    0,  ECX,     19, sse4_1, SSE4.1 feature present
+         1,    0,  ECX,     20, sse4_2, SSE4.2 feature present
+         1,    0,  ECX,     21, x2apic, x2APIC supported
+         1,    0,  ECX,     22, movbe, MOVBE instruction supported
+         1,    0,  ECX,     23, popcnt, POPCNT instruction supported
+         1,    0,  ECX,     24, tsc_deadline_timer, LAPIC supports one-shot operation using a TSC deadline value
+         1,    0,  ECX,     25, aesni, AESNI instruction supported
+         1,    0,  ECX,     26, xsave, XSAVE/XRSTOR processor extended states (XSETBV/XGETBV/XCR0)
+         1,    0,  ECX,     27, osxsave, OS has set CR4.OSXSAVE bit to enable XSETBV/XGETBV/XCR0
+         1,    0,  ECX,     28, avx, AVX instruction supported
+         1,    0,  ECX,     29, f16c, 16-bit floating-point conversion instruction supported
+         1,    0,  ECX,     30, rdrand, RDRAND instruction supported
+
+         1,    0,  EDX,      0, fpu, x87 FPU on chip
+         1,    0,  EDX,      1, vme, Virtual-8086 Mode Enhancement
+         1,    0,  EDX,      2, de, Debugging Extensions
+         1,    0,  EDX,      3, pse, Page Size Extensions
+         1,    0,  EDX,      4, tsc, Time Stamp Counter
+         1,    0,  EDX,      5, msr, RDMSR and WRMSR Support
+         1,    0,  EDX,      6, pae, Physical Address Extensions
+         1,    0,  EDX,      7, mce, Machine Check Exception
+         1,    0,  EDX,      8, cx8, CMPXCHG8B instr
+         1,    0,  EDX,      9, apic, APIC on Chip
+         1,    0,  EDX,     11, sep, SYSENTER and SYSEXIT instrs
+         1,    0,  EDX,     12, mtrr, Memory Type Range Registers
+         1,    0,  EDX,     13, pge, Page Global Bit
+         1,    0,  EDX,     14, mca, Machine Check Architecture
+         1,    0,  EDX,     15, cmov, Conditional Move Instrs
+         1,    0,  EDX,     16, pat, Page Attribute Table
+         1,    0,  EDX,     17, pse36, 36-Bit Page Size Extension
+         1,    0,  EDX,     18, psn, Processor Serial Number
+         1,    0,  EDX,     19, clflush, CLFLUSH instr
+#         1,    0,  EDX,     20,
+         1,    0,  EDX,     21, ds, Debug Store
+         1,    0,  EDX,     22, acpi, Thermal Monitor and Software Controlled Clock Facilities
+         1,    0,  EDX,     23, mmx, Intel MMX Technology
+         1,    0,  EDX,     24, fxsr, XSAVE and FXRSTOR Instrs
+         1,    0,  EDX,     25, sse, SSE
+         1,    0,  EDX,     26, sse2, SSE2
+         1,    0,  EDX,     27, ss, Self Snoop
+         1,    0,  EDX,     28, hit, Max APIC IDs
+         1,    0,  EDX,     29, tm, Thermal Monitor
+#         1,    0,  EDX,     30,
+         1,    0,  EDX,     31, pbe, Pending Break Enable
+
+# Leaf 02H
+# cache and TLB descriptor info
+
+# Leaf 03H
+# Precessor Serial Number, introduced on Pentium III, not valid for
+# latest models
+
+# Leaf 04H
+# thread/core and cache topology
+         4,    0,  EAX,    4:0, cache_type, Cache type like instr/data or unified
+         4,    0,  EAX,    7:5, cache_level, Cache Level (starts at 1)
+         4,    0,  EAX,      8, cache_self_init, Cache Self Initialization
+         4,    0,  EAX,      9, fully_associate, Fully Associative cache
+#         4,    0,  EAX,  13:10, resvd, resvd
+         4,    0,  EAX,  25:14, max_logical_id, Max number of addressable IDs for logical processors sharing the cache
+         4,    0,  EAX,  31:26, max_phy_id, Max number of addressable IDs for processors in phy package
+
+         4,    0,  EBX,   11:0, cache_linesize, Size of a cache line in bytes
+         4,    0,  EBX,  21:12, cache_partition, Physical Line partitions
+         4,    0,  EBX,  31:22, cache_ways, Ways of associativity
+         4,    0,  ECX,   31:0, cache_sets, Number of Sets - 1
+         4,    0,  EDX,      0, c_wbinvd, 1 means WBINVD/INVD is not ganranteed to act upon lower level caches of non-originating threads sharing this cache
+         4,    0,  EDX,      1, c_incl, Whether cache is inclusive of lower cache level
+         4,    0,  EDX,      2, c_comp_index, Complex Cache Indexing
+
+# Leaf 05H
+# MONITOR/MWAIT
+	 5,    0,  EAX,   15:0, min_mon_size, Smallest monitor line size in bytes
+	 5,    0,  EBX,   15:0, max_mon_size, Largest monitor line size in bytes
+	 5,    0,  ECX,      0, mwait_ext, Enum of Monitor-Mwait extensions supported
+	 5,    0,  ECX,      1, mwait_irq_break, Largest monitor line size in bytes
+	 5,    0,  EDX,    3:0, c0_sub_stats, Number of C0* sub C-states supported using MWAIT
+	 5,    0,  EDX,    7:4, c1_sub_stats, Number of C1* sub C-states supported using MWAIT
+	 5,    0,  EDX,   11:8, c2_sub_stats, Number of C2* sub C-states supported using MWAIT
+	 5,    0,  EDX,  15:12, c3_sub_stats, Number of C3* sub C-states supported using MWAIT
+	 5,    0,  EDX,  19:16, c4_sub_stats, Number of C4* sub C-states supported using MWAIT
+	 5,    0,  EDX,  23:20, c5_sub_stats, Number of C5* sub C-states supported using MWAIT
+	 5,    0,  EDX,  27:24, c6_sub_stats, Number of C6* sub C-states supported using MWAIT
+	 5,    0,  EDX,  31:28, c7_sub_stats, Number of C7* sub C-states supported using MWAIT
+
+# Leaf 06H
+# Thermal & Power Management
+
+	 6,    0,  EAX,      0, dig_temp, Digital temperature sensor supported
+	 6,    0,  EAX,      1, turbo, Intel Turbo Boost
+	 6,    0,  EAX,      2, arat, Always running APIC timer
+#	 6,    0,  EAX,      3, resv, Reserved
+	 6,    0,  EAX,      4, pln, Power limit notifications supported
+	 6,    0,  EAX,      5, ecmd, Clock modulation duty cycle extension supported
+	 6,    0,  EAX,      6, ptm, Package thermal management supported
+	 6,    0,  EAX,      7, hwp, HWP base register
+	 6,    0,  EAX,      8, hwp_notify, HWP notification
+	 6,    0,  EAX,      9, hwp_act_window, HWP activity window
+	 6,    0,  EAX,     10, hwp_energy, HWP energy performance preference
+	 6,    0,  EAX,     11, hwp_pkg_req, HWP package level request
+#	 6,    0,  EAX,     12, resv, Reserved
+	 6,    0,  EAX,     13, hdc, HDC base registers supported
+	 6,    0,  EAX,     14, turbo3, Turbo Boost Max 3.0
+	 6,    0,  EAX,     15, hwp_cap, Highest Performance change supported
+	 6,    0,  EAX,     16, hwp_peci, HWP PECI override is supported
+	 6,    0,  EAX,     17, hwp_flex, Flexible HWP is supported
+	 6,    0,  EAX,     18, hwp_fast, Fast access mode for the IA32_HWP_REQUEST MSR is supported
+#	 6,    0,  EAX,     19, resv, Reserved
+	 6,    0,  EAX,     20, hwp_ignr, Ignoring Idle Logical Processor HWP request is supported
+
+	 6,    0,  EBX,    3:0, therm_irq_thresh, Number of Interrupt Thresholds in Digital Thermal Sensor
+	 6,    0,  ECX,      0, aperfmperf, Presence of IA32_MPERF and IA32_APERF
+	 6,    0,  ECX,      3, energ_bias, Performance-energy bias preference supported
+
+# Leaf 07H
+#	ECX == 0
+# AVX512 refers to https://en.wikipedia.org/wiki/AVX-512
+# XXX: Do we really need to enumerate each and every AVX512 sub features
+
+	 7,    0,  EBX,      0, fsgsbase, RDFSBASE/RDGSBASE/WRFSBASE/WRGSBASE supported
+	 7,    0,  EBX,      1, tsc_adjust, TSC_ADJUST MSR supported
+	 7,    0,  EBX,      2, sgx, Software Guard Extensions
+	 7,    0,  EBX,      3, bmi1, BMI1
+	 7,    0,  EBX,      4, hle, Hardware Lock Elision
+	 7,    0,  EBX,      5, avx2, AVX2
+#	 7,    0,  EBX,      6, fdp_excp_only, x87 FPU Data Pointer updated only on x87 exceptions
+	 7,    0,  EBX,      7, smep, Supervisor-Mode Execution Prevention
+	 7,    0,  EBX,      8, bmi2, BMI2
+	 7,    0,  EBX,      9, rep_movsb, Enhanced REP MOVSB/STOSB
+	 7,    0,  EBX,     10, invpcid, INVPCID instruction
+	 7,    0,  EBX,     11, rtm, Restricted Transactional Memory
+	 7,    0,  EBX,     12, rdt_m, Intel RDT Monitoring capability
+	 7,    0,  EBX,     13, depc_fpu_cs_ds, Deprecates FPU CS and FPU DS
+	 7,    0,  EBX,     14, mpx, Memory Protection Extensions
+	 7,    0,  EBX,     15, rdt_a, Intel RDT Allocation capability
+	 7,    0,  EBX,     16, avx512f, AVX512 Foundation instr
+	 7,    0,  EBX,     17, avx512dq, AVX512 Double and Quadword AVX512 instr
+	 7,    0,  EBX,     18, rdseed, RDSEED instr
+	 7,    0,  EBX,     19, adx, ADX instr
+	 7,    0,  EBX,     20, smap, Supervisor Mode Access Prevention
+	 7,    0,  EBX,     21, avx512ifma, AVX512 Integer Fused Multiply Add
+#	 7,    0,  EBX,     22, resvd, resvd
+	 7,    0,  EBX,     23, clflushopt, CLFLUSHOPT instr
+	 7,    0,  EBX,     24, clwb, CLWB instr
+	 7,    0,  EBX,     25, intel_pt, Intel Processor Trace instr
+	 7,    0,  EBX,     26, avx512pf, Prefetch
+	 7,    0,  EBX,     27, avx512er, AVX512 Exponent Reciproca instr
+	 7,    0,  EBX,     28, avx512cd, AVX512 Conflict Detection instr
+	 7,    0,  EBX,     29, sha, Intel Secure Hash Algorithm Extensions instr
+	 7,    0,  EBX,     26, avx512bw, AVX512 Byte & Word instr
+	 7,    0,  EBX,     28, avx512vl, AVX512 Vector Length Extentions (VL)
+	 7,    0,  ECX,      0, prefetchwt1, X
+	 7,    0,  ECX,      1, avx512vbmi, AVX512 Vector Byte Manipulation Instructions
+	 7,    0,  ECX,      2, umip, User-mode Instruction Prevention
+
+	 7,    0,  ECX,      3, pku, Protection Keys for User-mode pages
+	 7,    0,  ECX,      4, ospke, CR4 PKE set to enable protection keys
+#	 7,    0,  ECX,   16:5, resvd, resvd
+	 7,    0,  ECX,  21:17, mawau, The value of MAWAU used by the BNDLDX and BNDSTX instructions in 64-bit mode
+	 7,    0,  ECX,     22, rdpid, RDPID and IA32_TSC_AUX
+#	 7,    0,  ECX,  29:23, resvd, resvd
+	 7,    0,  ECX,     30, sgx_lc, SGX Launch Configuration
+#	 7,    0,  ECX,     31, resvd, resvd
+
+# Leaf 08H
+#
+
+
+# Leaf 09H
+# Direct Cache Access (DCA) information
+	 9,    0,  ECX,   31:0, dca_cap, The value of IA32_PLATFORM_DCA_CAP
+
+# Leaf 0AH
+# Architectural Performance Monitoring
+#
+# Do we really need to print out the PMU related stuff?
+# Does normal user really care about it?
+#
+       0xA,    0,  EAX,    7:0, pmu_ver, Performance Monitoring Unit version
+       0xA,    0,  EAX,   15:8, pmu_gp_cnt_num, Numer of general-purose PMU counters per logical CPU
+       0xA,    0,  EAX,  23:16, pmu_cnt_bits, Bit wideth of PMU counter
+       0xA,    0,  EAX,  31:24, pmu_ebx_bits, Length of EBX bit vector to enumerate PMU events
+
+       0xA,    0,  EBX,      0, pmu_no_core_cycle_evt, Core cycle event not available
+       0xA,    0,  EBX,      1, pmu_no_instr_ret_evt, Instruction retired event not available
+       0xA,    0,  EBX,      2, pmu_no_ref_cycle_evt, Reference cycles event not available
+       0xA,    0,  EBX,      3, pmu_no_llc_ref_evt, Last-level cache reference event not available
+       0xA,    0,  EBX,      4, pmu_no_llc_mis_evt, Last-level cache misses event not available
+       0xA,    0,  EBX,      5, pmu_no_br_instr_ret_evt, Branch instruction retired event not available
+       0xA,    0,  EBX,      6, pmu_no_br_mispredict_evt, Branch mispredict retired event not available
+
+       0xA,    0,  ECX,    4:0, pmu_fixed_cnt_num, Performance Monitoring Unit version
+       0xA,    0,  ECX,   12:5, pmu_fixed_cnt_bits, Numer of PMU counters per logical CPU
+
+# Leaf 0BH
+# Extended Topology Enumeration Leaf
+#
+
+       0xB,    0,  EAX,    4:0, id_shift, Number of bits to shift right on x2APIC ID to get a unique topology ID of the next level type
+       0xB,    0,  EBX,   15:0, cpu_nr, Number of logical processors at this level type
+       0xB,    0,  ECX,   15:8, lvl_type, 0-Invalid 1-SMT 2-Core
+       0xB,    0,  EDX,   31:0, x2apic_id, x2APIC ID the current logical processor
+
+
+# Leaf 0DH
+# Processor Extended State
+
+       0xD,    0,  EAX,      0, x87, X87 state
+       0xD,    0,  EAX,      1, sse, SSE state
+       0xD,    0,  EAX,      2, avx, AVX state
+       0xD,    0,  EAX,    4:3, mpx, MPX state
+       0xD,    0,  EAX,    7:5, avx512, AVX-512 state
+       0xD,    0,  EAX,      9, pkru, PKRU state
+
+       0xD,    0,  EBX,   31:0, max_sz_xcr0, Maximum size (bytes) required by enabled features in XCR0
+       0xD,    0,  ECX,   31:0, max_sz_xsave, Maximum size (bytes) of the XSAVE/XRSTOR save area
+
+       0xD,    1,  EAX,      0, xsaveopt, XSAVEOPT available
+       0xD,    1,  EAX,      1, xsavec, XSAVEC and compacted form supported
+       0xD,    1,  EAX,      2, xgetbv, XGETBV supported
+       0xD,    1,  EAX,      3, xsaves, XSAVES/XRSTORS and IA32_XSS supported
+
+       0xD,    1,  EBX,   31:0, max_sz_xcr0, Maximum size (bytes) required by enabled features in XCR0
+       0xD,    1,  ECX,      8, pt, PT state
+       0xD,    1,  ECX,      11, cet_usr, CET user state
+       0xD,    1,  ECX,      12, cet_supv, CET supervisor state
+       0xD,    1,  ECX,      13, hdc, HDC state
+       0xD,    1,  ECX,      16, hwp, HWP state
+
+# Leaf 0FH
+# Intel RDT Monitoring
+
+       0xF,    0,  EBX,   31:0, rmid_range, Maximum range (zero-based) of RMID within this physical processor of all types
+       0xF,    0,  EDX,      1, l3c_rdt_mon, L3 Cache RDT Monitoring supported
+
+       0xF,    1,  ECX,   31:0, rmid_range, Maximum range (zero-based) of RMID of this types
+       0xF,    1,  EDX,      0, l3c_ocp_mon, L3 Cache occupancy Monitoring supported
+       0xF,    1,  EDX,      1, l3c_tbw_mon, L3 Cache Total Bandwidth Monitoring supported
+       0xF,    1,  EDX,      2, l3c_lbw_mon, L3 Cache Local Bandwidth Monitoring supported
+
+# Leaf 10H
+# Intel RDT Allocation
+
+      0x10,    0,  EBX,      1, l3c_rdt_alloc, L3 Cache Allocation supported
+      0x10,    0,  EBX,      2, l2c_rdt_alloc, L2 Cache Allocation supported
+      0x10,    0,  EBX,      3, mem_bw_alloc, Memory Bandwidth Allocation supported
+
+
+# Leaf 12H
+# SGX Capability
+#
+# Some detailed SGX features not added yet
+
+      0x12,    0,  EAX,      0, sgx1, L3 Cache Allocation supported
+      0x12,    1,  EAX,      0, sgx2, L3 Cache Allocation supported
+
+
+# Leaf 14H
+# Intel Processor Tracer
+#
+
+# Leaf 15H
+# Time Stamp Counter and Nominal Core Crystal Clock Information
+
+      0x15,    0,  EAX,   31:0, tsc_denominator, The denominator of the TSC/”core crystal clock” ratio
+      0x15,    0,  EBX,   31:0, tsc_numerator, The numerator of the TSC/”core crystal clock” ratio
+      0x15,    0,  ECX,   31:0, nom_freq, Nominal frequency of the core crystal clock in Hz
+
+# Leaf 16H
+# Processor Frequency Information
+
+      0x16,    0,  EAX,   15:0, cpu_base_freq, Processor Base Frequency in MHz
+      0x16,    0,  EBX,   15:0, cpu_max_freq, Maximum Frequency in MHz
+      0x16,    0,  ECX,   15:0, bus_freq, Bus (Reference) Frequency in MHz
+
+# Leaf 17H
+# System-On-Chip Vendor Attribute
+
+      0x17,    0,  EAX,   31:0, max_socid, Maximum input value of supported sub-leaf
+      0x17,    0,  EBX,   15:0, soc_vid, SOC Vendor ID
+      0x17,    0,  EBX,     16, std_vid, SOC Vendor ID is assigned via an industry standard scheme
+      0x17,    0,  ECX,   31:0, soc_pid, SOC Project ID assigned by vendor
+      0x17,    0,  EDX,   31:0, soc_sid, SOC Stepping ID
+
+# Leaf 18H
+# Deterministic Address Translation Parameters
+
+
+# Leaf 19H
+# Key Locker Leaf
+
+
+# Leaf 1AH
+# Hybrid Information
+
+      0x1A,    0,  EAX,  31:24, core_type, 20H-Intel_Atom 40H-Intel_Core
+
+
+# Leaf 1FH
+# V2 Extended Topology - A preferred superset to leaf 0BH
+
+
+# According to SDM
+# 40000000H - 4FFFFFFFH is invalid range
+
+
+# Leaf 80000001H
+# Extended Processor Signature and Feature Bits
+
+0x80000001,    0,  ECX,      0, lahf_lm, LAHF/SAHF available in 64-bit mode
+0x80000001,    0,  ECX,      5, lzcnt, LZCNT
+0x80000001,    0,  ECX,      8, prefetchw, PREFETCHW
+
+0x80000001,    0,  EDX,     11, sysret, SYSCALL/SYSRET supported
+0x80000001,    0,  EDX,     20, exec_dis, Execute Disable Bit available
+0x80000001,    0,  EDX,     26, 1gb_page, 1GB page supported
+0x80000001,    0,  EDX,     27, rdtscp, RDTSCP and IA32_TSC_AUX are available
+#0x80000001,    0,  EDX,     29, 64b, 64b Architecture supported
+
+# Leaf 80000002H/80000003H/80000004H
+# Processor Brand String
+
+# Leaf 80000005H
+# Reserved
+
+# Leaf 80000006H
+# Extended L2 Cache Features
+
+0x80000006,    0,  ECX,    7:0, clsize, Cache Line size in bytes
+0x80000006,    0,  ECX,  15:12, l2c_assoc, L2 Associativity
+0x80000006,    0,  ECX,  31:16, csize, Cache size in 1K units
+
+
+# Leaf 80000007H
+
+0x80000007,    0,  EDX,      8, nonstop_tsc, Invariant TSC available
+
+
+# Leaf 80000008H
+
+0x80000008,    0,  EAX,    7:0, phy_adr_bits, Physical Address Bits
+0x80000008,    0,  EAX,   15:8, lnr_adr_bits, Linear Address Bits
+0x80000007,    0,  EBX,      9, wbnoinvd, WBNOINVD
