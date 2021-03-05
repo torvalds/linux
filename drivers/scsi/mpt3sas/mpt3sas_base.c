@@ -5481,6 +5481,52 @@ _base_allocate_pcie_sgl_pool(struct MPT3SAS_ADAPTER *ioc, u32 sz)
 }
 
 /**
+ * _base_allocate_chain_dma_pool - Allocating DMA'able memory
+ *			for chain dma pool.
+ * @ioc: Adapter object
+ * @sz: DMA Pool size
+ * @ctr: Chain tracker
+ * Return: 0 for success, non-zero for failure.
+ */
+static int
+_base_allocate_chain_dma_pool(struct MPT3SAS_ADAPTER *ioc, u32 sz)
+{
+	int i = 0, j = 0;
+	struct chain_tracker *ctr;
+
+	ioc->chain_dma_pool = dma_pool_create("chain pool", &ioc->pdev->dev,
+	    ioc->chain_segment_sz, 16, 0);
+	if (!ioc->chain_dma_pool)
+		return -ENOMEM;
+
+	for (i = 0; i < ioc->scsiio_depth; i++) {
+		for (j = ioc->chains_per_prp_buffer;
+		    j < ioc->chains_needed_per_io; j++) {
+			ctr = &ioc->chain_lookup[i].chains_per_smid[j];
+			ctr->chain_buffer = dma_pool_alloc(ioc->chain_dma_pool,
+			    GFP_KERNEL, &ctr->chain_buffer_dma);
+			if (!ctr->chain_buffer)
+				return -EAGAIN;
+			if (!mpt3sas_check_same_4gb_region((long)
+			    ctr->chain_buffer, ioc->chain_segment_sz)) {
+				ioc_err(ioc,
+				    "Chain buffers are not in same 4G !!! Chain buff (0x%p) dma = (0x%llx)\n",
+				    ctr->chain_buffer,
+				    (unsigned long long)ctr->chain_buffer_dma);
+				ioc->use_32bit_dma = true;
+				return -EAGAIN;
+			}
+		}
+	}
+	dinitprintk(ioc, ioc_info(ioc,
+	    "chain_lookup depth (%d), frame_size(%d), pool_size(%d kB)\n",
+	    ioc->scsiio_depth, ioc->chain_segment_sz, ((ioc->scsiio_depth *
+	    (ioc->chains_needed_per_io - ioc->chains_per_prp_buffer) *
+	    ioc->chain_segment_sz))/1024));
+	return 0;
+}
+
+/**
  * base_alloc_rdpq_dma_pool - Allocating DMA'able memory
  *                     for reply queues.
  * @ioc: per adapter object
@@ -5577,9 +5623,8 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	u16 max_request_credit, nvme_blocks_needed;
 	unsigned short sg_tablesize;
 	u16 sge_size;
-	int i, j;
+	int i;
 	int ret = 0, rc = 0;
-	struct chain_tracker *ct;
 
 	dinitprintk(ioc, ioc_info(ioc, "%s\n", __func__));
 
@@ -5906,31 +5951,17 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 		total_sz += sz * ioc->scsiio_depth;
 	}
 
-	ioc->chain_dma_pool = dma_pool_create("chain pool", &ioc->pdev->dev,
-	    ioc->chain_segment_sz, 16, 0);
-	if (!ioc->chain_dma_pool) {
-		ioc_err(ioc, "chain_dma_pool: dma_pool_create failed\n");
-		goto out;
-	}
-	for (i = 0; i < ioc->scsiio_depth; i++) {
-		for (j = ioc->chains_per_prp_buffer;
-				j < ioc->chains_needed_per_io; j++) {
-			ct = &ioc->chain_lookup[i].chains_per_smid[j];
-			ct->chain_buffer = dma_pool_alloc(
-					ioc->chain_dma_pool, GFP_KERNEL,
-					&ct->chain_buffer_dma);
-			if (!ct->chain_buffer) {
-				ioc_err(ioc, "chain_lookup: pci_pool_alloc failed\n");
-				goto out;
-			}
-		}
-		total_sz += ioc->chain_segment_sz;
-	}
-
+	rc = _base_allocate_chain_dma_pool(ioc, ioc->chain_segment_sz);
+	if (rc == -ENOMEM)
+		return -ENOMEM;
+	else if (rc == -EAGAIN)
+		goto try_32bit_dma;
+	total_sz += ioc->chain_segment_sz * ((ioc->chains_needed_per_io -
+		ioc->chains_per_prp_buffer) * ioc->scsiio_depth);
 	dinitprintk(ioc,
-		    ioc_info(ioc, "chain pool depth(%d), frame_size(%d), pool_size(%d kB)\n",
-			     ioc->chain_depth, ioc->chain_segment_sz,
-			     (ioc->chain_depth * ioc->chain_segment_sz) / 1024));
+	    ioc_info(ioc, "chain pool depth(%d), frame_size(%d), pool_size(%d kB)\n",
+	    ioc->chain_depth, ioc->chain_segment_sz,
+	    (ioc->chain_depth * ioc->chain_segment_sz) / 1024));
 
 	/* sense buffers, 4 byte align */
 	sz = ioc->scsiio_depth * SCSI_SENSE_BUFFERSIZE;
