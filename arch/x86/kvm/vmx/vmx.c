@@ -3088,8 +3088,7 @@ static int vmx_get_max_tdp_level(void)
 	return 4;
 }
 
-u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa,
-		   int root_level)
+u64 construct_eptp(struct kvm_vcpu *vcpu, hpa_t root_hpa, int root_level)
 {
 	u64 eptp = VMX_EPTP_MT_WB;
 
@@ -3098,13 +3097,13 @@ u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa,
 	if (enable_ept_ad_bits &&
 	    (!is_guest_mode(vcpu) || nested_ept_ad_enabled(vcpu)))
 		eptp |= VMX_EPTP_AD_ENABLE_BIT;
-	eptp |= (root_hpa & PAGE_MASK);
+	eptp |= root_hpa;
 
 	return eptp;
 }
 
-static void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, unsigned long pgd,
-			     int pgd_level)
+static void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa,
+			     int root_level)
 {
 	struct kvm *kvm = vcpu->kvm;
 	bool update_guest_cr3 = true;
@@ -3112,7 +3111,7 @@ static void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, unsigned long pgd,
 	u64 eptp;
 
 	if (enable_ept) {
-		eptp = construct_eptp(vcpu, pgd, pgd_level);
+		eptp = construct_eptp(vcpu, root_hpa, root_level);
 		vmcs_write64(EPT_POINTER, eptp);
 
 		if (kvm_x86_ops.tlb_remote_flush) {
@@ -3131,7 +3130,7 @@ static void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, unsigned long pgd,
 			update_guest_cr3 = false;
 		vmx_ept_load_pdptrs(vcpu);
 	} else {
-		guest_cr3 = pgd;
+		guest_cr3 = root_hpa | kvm_get_active_pcid(vcpu);
 	}
 
 	if (update_guest_cr3)
