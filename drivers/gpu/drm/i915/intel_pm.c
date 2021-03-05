@@ -3876,6 +3876,7 @@ static bool skl_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum plane_id plane_id;
+	int max_level = INT_MAX;
 
 	if (!intel_has_sagv(dev_priv))
 		return false;
@@ -3900,12 +3901,23 @@ static bool skl_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 		     !wm->wm[level].plane_en; --level)
 		     { }
 
+		/* Highest common enabled wm level for all planes */
+		max_level = min(level, max_level);
+	}
+
+	/* No enabled planes? */
+	if (max_level == INT_MAX)
+		return true;
+
+	for_each_plane_id_on_crtc(crtc, plane_id) {
+		const struct skl_plane_wm *wm =
+			&crtc_state->wm.skl.optimal.planes[plane_id];
+
 		/*
-		 * If any of the planes on this pipe don't enable wm levels that
-		 * incur memory latencies higher than sagv_block_time_us we
-		 * can't enable SAGV.
+		 * All enabled planes must have enabled a common wm level that
+		 * can tolerate memory latencies higher than sagv_block_time_us
 		 */
-		if (!wm->wm[level].can_sagv)
+		if (wm->wm[0].plane_en && !wm->wm[max_level].can_sagv)
 			return false;
 	}
 
