@@ -40,6 +40,9 @@ static inline struct jset_entry *__jset_entry_type_next(struct jset *jset,
 	for_each_jset_entry_type(entry, jset, BCH_JSET_ENTRY_btree_keys)	\
 		vstruct_for_each_safe(entry, k, _n)
 
+int bch2_journal_entry_validate(struct bch_fs *, const char *, struct jset_entry *,
+				unsigned, int, int);
+
 int bch2_journal_read(struct bch_fs *, struct list_head *, u64 *, u64 *);
 
 void bch2_journal_write(struct closure *);

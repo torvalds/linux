@@ -908,9 +908,11 @@ static struct bch_sb_field_clean *read_superblock_clean(struct bch_fs *c)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	if (le16_to_cpu(c->disk_sb.sb->version) <
-	    bcachefs_metadata_version_bkey_renumber)
-		bch2_sb_clean_renumber(clean, READ);
+	ret = bch2_sb_clean_validate(c, clean, READ);
+	if (ret) {
+		mutex_unlock(&c->sb_lock);
+		return ERR_PTR(ret);
+	}
 
 	mutex_unlock(&c->sb_lock);
 

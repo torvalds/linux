@@ -9,6 +9,7 @@
 #include "error.h"
 #include "io.h"
 #include "journal.h"
+#include "journal_io.h"
 #include "journal_seq_blacklist.h"
 #include "replicas.h"
 #include "quota.h"
@@ -715,6 +716,8 @@ int bch2_write_super(struct bch_fs *c)
 	if (test_bit(BCH_FS_ERROR, &c->flags))
 		SET_BCH_SB_HAS_ERRORS(c->disk_sb.sb, 1);
 
+	SET_BCH_SB_BIG_ENDIAN(c->disk_sb.sb, CPU_BIG_ENDIAN);
+
 	for_each_online_member(ca, c, i)
 		bch2_sb_from_fs(c, ca);
 
@@ -938,14 +941,23 @@ static const struct bch_sb_field_ops bch_sb_field_ops_crypt = {
 
 /* BCH_SB_FIELD_clean: */
 
-void bch2_sb_clean_renumber(struct bch_sb_field_clean *clean, int write)
+int bch2_sb_clean_validate(struct bch_fs *c, struct bch_sb_field_clean *clean, int write)
 {
 	struct jset_entry *entry;
+	int ret;
 
 	for (entry = clean->start;
 	     entry < (struct jset_entry *) vstruct_end(&clean->field);
-	     entry = vstruct_next(entry))
-		bch2_bkey_renumber(BKEY_TYPE_btree, bkey_to_packed(entry->start), write);
+	     entry = vstruct_next(entry)) {
+		ret = bch2_journal_entry_validate(c, "superblock", entry,
+						  le16_to_cpu(c->disk_sb.sb->version),
+						  BCH_SB_BIG_ENDIAN(c->disk_sb.sb),
+						  write);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 int bch2_fs_mark_dirty(struct bch_fs *c)
@@ -1079,6 +1091,7 @@ void bch2_fs_mark_clean(struct bch_fs *c)
 	struct bch_sb_field_clean *sb_clean;
 	struct jset_entry *entry;
 	unsigned u64s;
+	int ret;
 
 	mutex_lock(&c->sb_lock);
 	if (BCH_SB_CLEAN(c->disk_sb.sb))
@@ -1113,9 +1126,15 @@ void bch2_fs_mark_clean(struct bch_fs *c)
 	memset(entry, 0,
 	       vstruct_end(&sb_clean->field) - (void *) entry);
 
-	if (le16_to_cpu(c->disk_sb.sb->version) <
-	    bcachefs_metadata_version_bkey_renumber)
-		bch2_sb_clean_renumber(sb_clean, WRITE);
+	/*
+	 * this should be in the write path, and we should be validating every
+	 * superblock section:
+	 */
+	ret = bch2_sb_clean_validate(c, sb_clean, WRITE);
+	if (ret) {
+		bch_err(c, "error writing marking filesystem clean: validate error");
+		goto out;
+	}
 
 	bch2_write_super(c);
 out:
