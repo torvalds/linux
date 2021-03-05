@@ -28,6 +28,12 @@ properties:
   clock-names:
     const: ipsec
 
+  resets:
+    maxItems: 1
+
+  reset-names:
+    const: ipsec
+
   interrupts:
     maxItems: 1
 
@@ -44,6 +50,8 @@ then:
   required:
     - clocks
     - clock-names
+    - resets
+    - reset-names
 
 additionalProperties: false
 
@@ -68,4 +76,7 @@ examples:
 
         clocks = <&periph_clk 18>;
         clock-names = "ipsec";
+
+        resets = <&periph_rst 4>;
+        reset-names = "ipsec";
     };
