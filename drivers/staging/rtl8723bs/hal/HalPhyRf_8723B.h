@@ -16,7 +16,7 @@
 #define	RF_T_METER_8723B					0x42	/*  */
 
 
-void ConfigureTxpowerTrack_8723B(PTXPWRTRACK_CFG	pConfig);
+void ConfigureTxpowerTrack_8723B(struct TXPWRTRACK_CFG * pConfig);
 
 void DoIQK_8723B(
 	PDM_ODM_T pDM_Odm,
@@ -27,7 +27,7 @@ void DoIQK_8723B(
 
 void ODM_TxPwrTrackSetPwr_8723B(
 	PDM_ODM_T pDM_Odm,
-	PWRTRACK_METHOD Method,
+	enum PWRTRACK_METHOD Method,
 	u8 RFPath,
 	u8 ChannelMappedIndex
 );

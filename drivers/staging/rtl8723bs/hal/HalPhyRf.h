@@ -8,23 +8,23 @@
  #ifndef __HAL_PHY_RF_H__
  #define __HAL_PHY_RF_H__
 
-typedef enum _SPUR_CAL_METHOD {
+enum SPUR_CAL_METHOD {
 	PLL_RESET,
 	AFE_PHASE_SEL
-} SPUR_CAL_METHOD;
+};
 
-typedef enum _PWRTRACK_CONTROL_METHOD {
+enum PWRTRACK_METHOD {
 	BBSWING,
 	TXAGC,
 	MIX_MODE
-} PWRTRACK_METHOD;
+};
 
-typedef void (*FuncSetPwr)(PDM_ODM_T, PWRTRACK_METHOD, u8, u8);
+typedef void (*FuncSetPwr)(PDM_ODM_T, enum PWRTRACK_METHOD, u8, u8);
 typedef void (*FuncIQK)(PDM_ODM_T, u8, u8, u8);
 typedef void (*FuncLCK)(PDM_ODM_T);
 typedef void (*FuncSwing)(PDM_ODM_T, u8 **, u8 **, u8 **, u8 **);
 
-typedef struct _TXPWRTRACK_CFG {
+struct TXPWRTRACK_CFG {
 	u8 SwingTableSize_CCK;
 	u8 SwingTableSize_OFDM;
 	u8 Threshold_IQK;
@@ -35,9 +35,9 @@ typedef struct _TXPWRTRACK_CFG {
 	FuncIQK DoIQK;
 	FuncLCK PHY_LCCalibrate;
 	FuncSwing GetDeltaSwingTable;
-} TXPWRTRACK_CFG, *PTXPWRTRACK_CFG;
+};
 
-void ConfigureTxpowerTrack(PDM_ODM_T pDM_Odm, PTXPWRTRACK_CFG pConfig);
+void ConfigureTxpowerTrack(PDM_ODM_T pDM_Odm, struct TXPWRTRACK_CFG * pConfig);
 
 
 void ODM_ClearTxPowerTrackingState(PDM_ODM_T pDM_Odm);
