@@ -4895,7 +4895,7 @@ static void gfx_v9_0_update_3d_clock_gating(struct amdgpu_device *adev,
 {
 	uint32_t data, def;
 
-	if (adev->asic_type == CHIP_ARCTURUS)
+	if (!adev->gfx.num_gfx_rings)
 		return;
 
 	amdgpu_gfx_rlc_enter_safe_mode(adev);
@@ -5142,6 +5142,7 @@ static int gfx_v9_0_set_clockgating_state(void *handle,
 	case CHIP_RAVEN:
 	case CHIP_ARCTURUS:
 	case CHIP_RENOIR:
+	case CHIP_ALDEBARAN:
 		gfx_v9_0_update_gfx_clock_gating(adev,
 						 state == AMD_CG_STATE_GATE);
 		break;

@@ -1487,7 +1487,16 @@ static int soc15_common_early_init(void *handle)
 		break;
 	case CHIP_ALDEBARAN:
 		adev->asic_funcs = &vega20_asic_funcs;
-		adev->cg_flags = 0;
+		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
+			AMD_CG_SUPPORT_GFX_MGLS |
+			AMD_CG_SUPPORT_GFX_CGCG |
+			AMD_CG_SUPPORT_GFX_CGLS |
+			AMD_CG_SUPPORT_GFX_CP_LS |
+			AMD_CG_SUPPORT_HDP_LS |
+			AMD_CG_SUPPORT_SDMA_MGCG |
+			AMD_CG_SUPPORT_SDMA_LS |
+			AMD_CG_SUPPORT_IH_CG;
+			/*AMD_CG_SUPPORT_VCN_MGCG |AMD_CG_SUPPORT_JPEG_MGCG;*/
 		adev->pg_flags = AMD_PG_SUPPORT_VCN_DPG;
 		adev->external_rev_id = adev->rev_id + 0x3c;
 		break;
@@ -1724,6 +1733,7 @@ static int soc15_common_set_clockgating_state(void *handle,
 				state == AMD_CG_STATE_GATE);
 		break;
 	case CHIP_ARCTURUS:
+	case CHIP_ALDEBARAN:
 		adev->hdp.funcs->update_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
 		break;
@@ -1745,15 +1755,18 @@ static void soc15_common_get_clockgating_state(void *handle, u32 *flags)
 
 	adev->hdp.funcs->get_clock_gating_state(adev, flags);
 
-	/* AMD_CG_SUPPORT_DRM_MGCG */
-	data = RREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_MISC_CGTT_CTRL0));
-	if (!(data & 0x01000000))
-		*flags |= AMD_CG_SUPPORT_DRM_MGCG;
+	if (adev->asic_type != CHIP_ALDEBARAN) {
 
-	/* AMD_CG_SUPPORT_DRM_LS */
-	data = RREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_MISC_LIGHT_SLEEP_CTRL));
-	if (data & 0x1)
-		*flags |= AMD_CG_SUPPORT_DRM_LS;
+		/* AMD_CG_SUPPORT_DRM_MGCG */
+		data = RREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_MISC_CGTT_CTRL0));
+		if (!(data & 0x01000000))
+			*flags |= AMD_CG_SUPPORT_DRM_MGCG;
+
+		/* AMD_CG_SUPPORT_DRM_LS */
+		data = RREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_MISC_LIGHT_SLEEP_CTRL));
+		if (data & 0x1)
+			*flags |= AMD_CG_SUPPORT_DRM_LS;
+	}
 
 	/* AMD_CG_SUPPORT_ROM_MGCG */
 	adev->smuio.funcs->get_clock_gating_state(adev, flags);
