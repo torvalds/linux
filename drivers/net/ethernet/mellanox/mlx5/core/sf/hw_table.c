@@ -19,18 +19,23 @@ struct mlx5_sf_hw_table {
 	struct mlx5_core_dev *dev;
 	struct mlx5_sf_hw *sfs;
 	int max_local_functions;
+	u16 start_fn_id;
 	struct mutex table_lock; /* Serializes sf deletion and vhca state change handler. */
 	struct notifier_block vhca_nb;
 };
 
 u16 mlx5_sf_sw_to_hw_id(const struct mlx5_core_dev *dev, u16 sw_id)
 {
-	return sw_id + mlx5_sf_start_function_id(dev);
+	struct mlx5_sf_hw_table *table = dev->priv.sf_hw_table;
+
+	return table->start_fn_id + sw_id;
 }
 
 static u16 mlx5_sf_hw_to_sw_id(const struct mlx5_core_dev *dev, u16 hw_id)
 {
-	return hw_id - mlx5_sf_start_function_id(dev);
+	struct mlx5_sf_hw_table *table = dev->priv.sf_hw_table;
+
+	return hw_id - table->start_fn_id;
 }
 
 int mlx5_sf_hw_table_sf_alloc(struct mlx5_core_dev *dev, u32 usr_sfnum)
@@ -164,6 +169,7 @@ int mlx5_sf_hw_table_init(struct mlx5_core_dev *dev)
 	table->dev = dev;
 	table->sfs = sfs;
 	table->max_local_functions = max_functions;
+	table->start_fn_id = mlx5_sf_start_function_id(dev);
 	dev->priv.sf_hw_table = table;
 	mlx5_core_dbg(dev, "SF HW table: max sfs = %d\n", max_functions);
 	return 0;
