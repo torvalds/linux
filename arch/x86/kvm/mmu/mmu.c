@@ -3241,7 +3241,8 @@ static hpa_t mmu_alloc_root(struct kvm_vcpu *vcpu, gfn_t gfn, gva_t gva,
 
 static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 {
-	u8 shadow_root_level = vcpu->arch.mmu->shadow_root_level;
+	struct kvm_mmu *mmu = vcpu->arch.mmu;
+	u8 shadow_root_level = mmu->shadow_root_level;
 	hpa_t root;
 	unsigned i;
 
@@ -3250,42 +3251,43 @@ static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 
 		if (!VALID_PAGE(root))
 			return -ENOSPC;
-		vcpu->arch.mmu->root_hpa = root;
+		mmu->root_hpa = root;
 	} else if (shadow_root_level >= PT64_ROOT_4LEVEL) {
 		root = mmu_alloc_root(vcpu, 0, 0, shadow_root_level,
 				      true);
 
 		if (!VALID_PAGE(root))
 			return -ENOSPC;
-		vcpu->arch.mmu->root_hpa = root;
+		mmu->root_hpa = root;
 	} else if (shadow_root_level == PT32E_ROOT_LEVEL) {
 		for (i = 0; i < 4; ++i) {
-			MMU_WARN_ON(VALID_PAGE(vcpu->arch.mmu->pae_root[i]));
+			MMU_WARN_ON(VALID_PAGE(mmu->pae_root[i]));
 
 			root = mmu_alloc_root(vcpu, i << (30 - PAGE_SHIFT),
 					      i << 30, PT32_ROOT_LEVEL, true);
 			if (!VALID_PAGE(root))
 				return -ENOSPC;
-			vcpu->arch.mmu->pae_root[i] = root | PT_PRESENT_MASK;
+			mmu->pae_root[i] = root | PT_PRESENT_MASK;
 		}
-		vcpu->arch.mmu->root_hpa = __pa(vcpu->arch.mmu->pae_root);
+		mmu->root_hpa = __pa(mmu->pae_root);
 	} else
 		BUG();
 
 	/* root_pgd is ignored for direct MMUs. */
-	vcpu->arch.mmu->root_pgd = 0;
+	mmu->root_pgd = 0;
 
 	return 0;
 }
 
 static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 {
+	struct kvm_mmu *mmu = vcpu->arch.mmu;
 	u64 pdptr, pm_mask;
 	gfn_t root_gfn, root_pgd;
 	hpa_t root;
 	int i;
 
-	root_pgd = vcpu->arch.mmu->get_guest_pgd(vcpu);
+	root_pgd = mmu->get_guest_pgd(vcpu);
 	root_gfn = root_pgd >> PAGE_SHIFT;
 
 	if (mmu_check_root(vcpu, root_gfn))
@@ -3295,14 +3297,14 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 	 * Do we shadow a long mode page table? If so we need to
 	 * write-protect the guests page table root.
 	 */
-	if (vcpu->arch.mmu->root_level >= PT64_ROOT_4LEVEL) {
-		MMU_WARN_ON(VALID_PAGE(vcpu->arch.mmu->root_hpa));
+	if (mmu->root_level >= PT64_ROOT_4LEVEL) {
+		MMU_WARN_ON(VALID_PAGE(mmu->root_hpa));
 
 		root = mmu_alloc_root(vcpu, root_gfn, 0,
-				      vcpu->arch.mmu->shadow_root_level, false);
+				      mmu->shadow_root_level, false);
 		if (!VALID_PAGE(root))
 			return -ENOSPC;
-		vcpu->arch.mmu->root_hpa = root;
+		mmu->root_hpa = root;
 		goto set_root_pgd;
 	}
 
@@ -3312,7 +3314,7 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 	 * the shadow page table may be a PAE or a long mode page table.
 	 */
 	pm_mask = PT_PRESENT_MASK;
-	if (vcpu->arch.mmu->shadow_root_level == PT64_ROOT_4LEVEL) {
+	if (mmu->shadow_root_level == PT64_ROOT_4LEVEL) {
 		pm_mask |= PT_ACCESSED_MASK | PT_WRITABLE_MASK | PT_USER_MASK;
 
 		/*
@@ -3320,21 +3322,21 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 		 * with 64-bit only when needed.  Unlike 32-bit NPT, it doesn't
 		 * need to be in low mem.  See also lm_root below.
 		 */
-		if (!vcpu->arch.mmu->pae_root) {
+		if (!mmu->pae_root) {
 			WARN_ON_ONCE(!tdp_enabled);
 
-			vcpu->arch.mmu->pae_root = (void *)get_zeroed_page(GFP_KERNEL_ACCOUNT);
-			if (!vcpu->arch.mmu->pae_root)
+			mmu->pae_root = (void *)get_zeroed_page(GFP_KERNEL_ACCOUNT);
+			if (!mmu->pae_root)
 				return -ENOMEM;
 		}
 	}
 
 	for (i = 0; i < 4; ++i) {
-		MMU_WARN_ON(VALID_PAGE(vcpu->arch.mmu->pae_root[i]));
-		if (vcpu->arch.mmu->root_level == PT32E_ROOT_LEVEL) {
-			pdptr = vcpu->arch.mmu->get_pdptr(vcpu, i);
+		MMU_WARN_ON(VALID_PAGE(mmu->pae_root[i]));
+		if (mmu->root_level == PT32E_ROOT_LEVEL) {
+			pdptr = mmu->get_pdptr(vcpu, i);
 			if (!(pdptr & PT_PRESENT_MASK)) {
-				vcpu->arch.mmu->pae_root[i] = 0;
+				mmu->pae_root[i] = 0;
 				continue;
 			}
 			root_gfn = pdptr >> PAGE_SHIFT;
@@ -3346,9 +3348,9 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 				      PT32_ROOT_LEVEL, false);
 		if (!VALID_PAGE(root))
 			return -ENOSPC;
-		vcpu->arch.mmu->pae_root[i] = root | pm_mask;
+		mmu->pae_root[i] = root | pm_mask;
 	}
-	vcpu->arch.mmu->root_hpa = __pa(vcpu->arch.mmu->pae_root);
+	mmu->root_hpa = __pa(mmu->pae_root);
 
 	/*
 	 * When shadowing 32-bit or PAE NPT with 64-bit NPT, the PML4 and PDP
@@ -3357,24 +3359,24 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 	 * on demand, as running a 32-bit L1 VMM is very rare.  The PDP is
 	 * handled above (to share logic with PAE), deal with the PML4 here.
 	 */
-	if (vcpu->arch.mmu->shadow_root_level == PT64_ROOT_4LEVEL) {
-		if (vcpu->arch.mmu->lm_root == NULL) {
+	if (mmu->shadow_root_level == PT64_ROOT_4LEVEL) {
+		if (mmu->lm_root == NULL) {
 			u64 *lm_root;
 
 			lm_root = (void*)get_zeroed_page(GFP_KERNEL_ACCOUNT);
 			if (!lm_root)
 				return -ENOMEM;
 
-			lm_root[0] = __pa(vcpu->arch.mmu->pae_root) | pm_mask;
+			lm_root[0] = __pa(mmu->pae_root) | pm_mask;
 
-			vcpu->arch.mmu->lm_root = lm_root;
+			mmu->lm_root = lm_root;
 		}
 
-		vcpu->arch.mmu->root_hpa = __pa(vcpu->arch.mmu->lm_root);
+		mmu->root_hpa = __pa(mmu->lm_root);
 	}
 
 set_root_pgd:
-	vcpu->arch.mmu->root_pgd = root_pgd;
+	mmu->root_pgd = root_pgd;
 
 	return 0;
 }
