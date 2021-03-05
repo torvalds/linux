@@ -1044,6 +1044,7 @@ struct amdgpu_device {
 
 	int asic_reset_res;
 	struct work_struct		xgmi_reset_work;
+	struct list_head		reset_list;
 
 	long				gfx_timeout;
 	long				sdma_timeout;

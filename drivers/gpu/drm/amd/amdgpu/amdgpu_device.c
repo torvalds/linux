@@ -3297,6 +3297,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	INIT_LIST_HEAD(&adev->shadow_list);
 	mutex_init(&adev->shadow_list_lock);
 
+	INIT_LIST_HEAD(&adev->reset_list);
+
 	INIT_DELAYED_WORK(&adev->delayed_init_work,
 			  amdgpu_device_delayed_init_work_handler);
 	INIT_DELAYED_WORK(&adev->gfx.gfx_off_delay_work,
@@ -4348,11 +4350,11 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 	int r = 0;
 
 	/*
-	 * ASIC reset has to be done on all HGMI hive nodes ASAP
+	 * ASIC reset has to be done on all XGMI hive nodes ASAP
 	 * to allow proper links negotiation in FW (within 1 sec)
 	 */
 	if (!skip_hw_reset && need_full_reset) {
-		list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
+		list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
 			/* For XGMI run all resets in parallel to speed up the process */
 			if (tmp_adev->gmc.xgmi.num_physical_nodes > 1) {
 				if (!queue_work(system_unbound_wq, &tmp_adev->xgmi_reset_work))
@@ -4369,8 +4371,7 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 
 		/* For XGMI wait for all resets to complete before proceed */
 		if (!r) {
-			list_for_each_entry(tmp_adev, device_list_handle,
-					    gmc.xgmi.head) {
+			list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
 				if (tmp_adev->gmc.xgmi.num_physical_nodes > 1) {
 					flush_work(&tmp_adev->xgmi_reset_work);
 					r = tmp_adev->asic_reset_res;
@@ -4382,7 +4383,7 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 	}
 
 	if (!r && amdgpu_ras_intr_triggered()) {
-		list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
+		list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
 			if (tmp_adev->mmhub.funcs &&
 			    tmp_adev->mmhub.funcs->reset_ras_error_count)
 				tmp_adev->mmhub.funcs->reset_ras_error_count(tmp_adev);
@@ -4391,7 +4392,7 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 		amdgpu_ras_intr_cleared();
 	}
 
-	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
+	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
 		if (need_full_reset) {
 			/* post card */
 			if (amdgpu_device_asic_init(tmp_adev))
@@ -4702,16 +4703,18 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	 */
 	INIT_LIST_HEAD(&device_list);
 	if (adev->gmc.xgmi.num_physical_nodes > 1) {
-		if (!list_is_first(&adev->gmc.xgmi.head, &hive->device_list))
-			list_rotate_to_front(&adev->gmc.xgmi.head, &hive->device_list);
-		device_list_handle = &hive->device_list;
+		list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head)
+			list_add_tail(&tmp_adev->reset_list, &device_list);
+		if (!list_is_first(&adev->reset_list, &device_list))
+			list_rotate_to_front(&adev->reset_list, &device_list);
+		device_list_handle = &device_list;
 	} else {
-		list_add_tail(&adev->gmc.xgmi.head, &device_list);
+		list_add_tail(&adev->reset_list, &device_list);
 		device_list_handle = &device_list;
 	}
 
 	/* block all schedulers and reset given job's ring */
-	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
+	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
 		/*
 		 * Try to put the audio codec into suspend state
 		 * before gpu reset started.
@@ -4776,7 +4779,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	}
 
 retry:	/* Rest of adevs pre asic reset from XGMI hive. */
-	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
+	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
 		r = amdgpu_device_pre_asic_reset(tmp_adev,
 						 (tmp_adev == adev) ? job : NULL,
 						 &need_full_reset);
@@ -4803,7 +4806,7 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 skip_hw_reset:
 
 	/* Post ASIC reset for all devs .*/
-	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
+	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
 
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			struct amdgpu_ring *ring = tmp_adev->rings[i];
@@ -4834,7 +4837,7 @@ skip_hw_reset:
 	}
 
 skip_sched_resume:
-	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
+	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
 		/* unlock kfd: SRIOV would do it separately */
 		if (!need_emergency_restart && !amdgpu_sriov_vf(tmp_adev))
 	                amdgpu_amdkfd_post_reset(tmp_adev);
@@ -5155,7 +5158,7 @@ pci_ers_result_t amdgpu_pci_slot_reset(struct pci_dev *pdev)
 	DRM_INFO("PCI error: slot reset callback!!\n");
 
 	INIT_LIST_HEAD(&device_list);
-	list_add_tail(&adev->gmc.xgmi.head, &device_list);
+	list_add_tail(&adev->reset_list, &device_list);
 
 	/* wait for asic to come out of reset */
 	msleep(500);
