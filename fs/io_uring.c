@@ -3501,6 +3501,7 @@ retry:
 		goto out_free;
 	} else if (ret > 0 && ret < io_size) {
 		/* we got some bytes, but not all. retry. */
+		kiocb->ki_flags &= ~IOCB_WAITQ;
 		goto retry;
 	}
 done:
