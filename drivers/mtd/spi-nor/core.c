@@ -2336,11 +2336,8 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 		 * If page_size is a power of two, the offset can be quickly
 		 * calculated with an AND operation. On the other cases we
 		 * need to do a modulus operation (more expensive).
-		 * Power of two numbers have only one bit set and we can use
-		 * the instruction hweight32 to detect if we need to do a
-		 * modulus (do_div()) or not.
 		 */
-		if (hweight32(nor->page_size) == 1) {
+		if (is_power_of_2(nor->page_size)) {
 			page_offset = addr & (nor->page_size - 1);
 		} else {
 			uint64_t aux = addr;
