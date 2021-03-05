@@ -1125,6 +1125,7 @@ struct kvm_vcpu_stat {
 	u64 req_event;
 	u64 halt_poll_success_ns;
 	u64 halt_poll_fail_ns;
+	u64 nested_run;
 };
 
 struct x86_instruction_info;

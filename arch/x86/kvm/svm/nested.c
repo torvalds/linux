@@ -494,6 +494,8 @@ int nested_svm_vmrun(struct vcpu_svm *svm)
 	struct kvm_host_map map;
 	u64 vmcb12_gpa;
 
+	++svm->vcpu.stat.nested_run;
+
 	if (is_smm(&svm->vcpu)) {
 		kvm_queue_exception(&svm->vcpu, UD_VECTOR);
 		return 1;

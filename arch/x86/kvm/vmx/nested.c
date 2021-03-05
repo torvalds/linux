@@ -3453,6 +3453,8 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	u32 interrupt_shadow = vmx_get_interrupt_shadow(vcpu);
 	enum nested_evmptrld_status evmptrld_status;
 
+	++vcpu->stat.nested_run;
+
 	if (!nested_vmx_check_permission(vcpu))
 		return 1;
 
