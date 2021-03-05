@@ -782,6 +782,7 @@ error:
 void zpci_release_device(struct kref *kref)
 {
 	struct zpci_dev *zdev = container_of(kref, struct zpci_dev, kref);
+	int ret;
 
 	if (zdev->zbus->bus)
 		zpci_remove_device(zdev, false);
@@ -790,6 +791,10 @@ void zpci_release_device(struct kref *kref)
 		zpci_disable_device(zdev);
 
 	switch (zdev->state) {
+	case ZPCI_FN_STATE_CONFIGURED:
+		ret = sclp_pci_deconfigure(zdev->fid);
+		zpci_dbg(3, "deconf fid:%x, rc:%d\n", zdev->fid, ret);
+		fallthrough;
 	case ZPCI_FN_STATE_STANDBY:
 		if (zdev->has_hp_slot)
 			zpci_exit_slot(zdev);
