@@ -243,11 +243,9 @@ static inline int bkey_err(struct bkey_s_c k)
 			   _start, _flags, _k, _ret)			\
 	for ((_iter) = bch2_trans_get_iter((_trans), (_btree_id),	\
 					   (_start), (_flags)),		\
-	     (_ret) = PTR_ERR_OR_ZERO(((_k) =				\
-			__bch2_btree_iter_peek(_iter, _flags)).k);	\
-	     !_ret && (_k).k;						\
-	     (_ret) = PTR_ERR_OR_ZERO(((_k) =				\
-			__bch2_btree_iter_next(_iter, _flags)).k))
+	     (_k) = __bch2_btree_iter_peek(_iter, _flags);		\
+	     !((_ret) = bkey_err(_k)) && (_k).k;			\
+	     (_k) = __bch2_btree_iter_next(_iter, _flags))
 
 #define for_each_btree_key_continue(_iter, _flags, _k, _ret)		\
 	for ((_k) = __bch2_btree_iter_peek(_iter, _flags);		\
