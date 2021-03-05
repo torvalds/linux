@@ -206,11 +206,9 @@ static int ceva_ahci_probe(struct platform_device *pdev)
 
 	cevapriv->rst = devm_reset_control_get_optional_exclusive(&pdev->dev,
 								  NULL);
-	if (IS_ERR(cevapriv->rst)) {
-		if (PTR_ERR(cevapriv->rst) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to get reset: %ld\n",
-				PTR_ERR(cevapriv->rst));
-	}
+	if (IS_ERR(cevapriv->rst))
+		dev_err_probe(&pdev->dev, PTR_ERR(cevapriv->rst),
+			      "failed to get reset\n");
 
 	hpriv = ahci_platform_get_resources(pdev, 0);
 	if (IS_ERR(hpriv))
