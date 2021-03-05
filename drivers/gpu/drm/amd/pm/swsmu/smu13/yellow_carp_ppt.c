@@ -458,10 +458,113 @@ static int yellow_carp_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM
 	return ret;
 }
 
+static int yellow_carp_get_current_clk_freq(struct smu_context *smu,
+						enum smu_clk_type clk_type,
+						uint32_t *value)
+{
+	MetricsMember_t member_type;
+
+	switch (clk_type) {
+	case SMU_SOCCLK:
+		member_type = METRICS_AVERAGE_SOCCLK;
+		break;
+	case SMU_VCLK:
+	    member_type = METRICS_AVERAGE_VCLK;
+		break;
+	case SMU_DCLK:
+		member_type = METRICS_AVERAGE_DCLK;
+		break;
+	case SMU_MCLK:
+		member_type = METRICS_AVERAGE_UCLK;
+		break;
+	case SMU_FCLK:
+		return smu_cmn_send_smc_msg_with_param(smu,
+				SMU_MSG_GetFclkFrequency, 0, value);
+	default:
+		break;
+	}
+
+	return yellow_carp_get_smu_metrics_data(smu, member_type, value);
+}
+
+static int yellow_carp_get_dpm_level_count(struct smu_context *smu,
+						enum smu_clk_type clk_type,
+						uint32_t *count)
+{
+	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
+
+	switch (clk_type) {
+	case SMU_SOCCLK:
+		*count = clk_table->NumSocClkLevelsEnabled;
+		break;
+	case SMU_VCLK:
+		*count = clk_table->VcnClkLevelsEnabled;
+		break;
+	case SMU_DCLK:
+		*count = clk_table->VcnClkLevelsEnabled;
+		break;
+	case SMU_MCLK:
+		*count = clk_table->NumDfPstatesEnabled;
+		break;
+	case SMU_FCLK:
+		*count = clk_table->NumDfPstatesEnabled;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int yellow_carp_get_dpm_freq_by_index(struct smu_context *smu,
+						enum smu_clk_type clk_type,
+						uint32_t dpm_level,
+						uint32_t *freq)
+{
+	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
+
+	if (!clk_table || clk_type >= SMU_CLK_COUNT)
+		return -EINVAL;
+
+	switch (clk_type) {
+	case SMU_SOCCLK:
+		if (dpm_level >= clk_table->NumSocClkLevelsEnabled)
+			return -EINVAL;
+		*freq = clk_table->SocClocks[dpm_level];
+		break;
+	case SMU_VCLK:
+		if (dpm_level >= clk_table->VcnClkLevelsEnabled)
+			return -EINVAL;
+		*freq = clk_table->VClocks[dpm_level];
+		break;
+	case SMU_DCLK:
+		if (dpm_level >= clk_table->VcnClkLevelsEnabled)
+			return -EINVAL;
+		*freq = clk_table->DClocks[dpm_level];
+		break;
+	case SMU_UCLK:
+	case SMU_MCLK:
+		if (dpm_level >= clk_table->NumDfPstatesEnabled)
+			return -EINVAL;
+		*freq = clk_table->DfPstateTable[dpm_level].MemClk;
+		break;
+	case SMU_FCLK:
+		if (dpm_level >= clk_table->NumDfPstatesEnabled)
+			return -EINVAL;
+		*freq = clk_table->DfPstateTable[dpm_level].FClk;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int yellow_carp_print_clk_levels(struct smu_context *smu,
 				enum smu_clk_type clk_type, char *buf)
 {
-	int size = 0;
+	int i, size = 0, ret = 0;
+	uint32_t cur_value = 0, value = 0, count = 0;
 
 	switch (clk_type) {
 	case SMU_OD_SCLK:
@@ -476,10 +579,33 @@ static int yellow_carp_print_clk_levels(struct smu_context *smu,
 		size += sprintf(buf + size, "SCLK: %7uMhz %10uMhz\n",
 						smu->gfx_default_hard_min_freq, smu->gfx_default_soft_max_freq);
 		break;
+	case SMU_SOCCLK:
+	case SMU_VCLK:
+	case SMU_DCLK:
+	case SMU_MCLK:
+	case SMU_FCLK:
+		ret = yellow_carp_get_current_clk_freq(smu, clk_type, &cur_value);
+		if (ret)
+			goto print_clk_out;
+
+		ret = yellow_carp_get_dpm_level_count(smu, clk_type, &count);
+		if (ret)
+			goto print_clk_out;
+
+		for (i = 0; i < count; i++) {
+			ret = yellow_carp_get_dpm_freq_by_index(smu, clk_type, i, &value);
+			if (ret)
+				goto print_clk_out;
+
+			size += sprintf(buf + size, "%d: %uMhz %s\n", i, value,
+					cur_value == value ? "*" : "");
+		}
+		break;
 	default:
 		break;
 	}
 
+print_clk_out:
 	return size;
 }
 
