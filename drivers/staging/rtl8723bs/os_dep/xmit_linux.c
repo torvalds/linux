@@ -212,9 +212,6 @@ int _rtw_xmit_entry(_pkt *pkt, _nic_hdl pnetdev)
 		&& check_fwstate(pmlmepriv, WIFI_AP_STATE) == true
 		&& (IP_MCAST_MAC(pkt->data)
 			|| ICMPV6_MCAST_MAC(pkt->data)
-			#ifdef CONFIG_TX_BCAST2UNI
-			|| is_broadcast_mac_addr(pkt->data)
-			#endif
 			)
 		&& padapter->registrypriv.wifi_spec == 0) {
 		if (pxmitpriv->free_xmitframe_cnt > (NR_XMITFRAME / 4)) {
