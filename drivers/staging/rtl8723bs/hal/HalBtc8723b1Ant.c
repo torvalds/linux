@@ -8,10 +8,10 @@
 #include "Mp_Precomp.h"
 
 /*  Global variables, these are static variables */
-static COEX_DM_8723B_1ANT GLCoexDm8723b1Ant;
-static PCOEX_DM_8723B_1ANT pCoexDm = &GLCoexDm8723b1Ant;
-static COEX_STA_8723B_1ANT GLCoexSta8723b1Ant;
-static PCOEX_STA_8723B_1ANT	pCoexSta = &GLCoexSta8723b1Ant;
+static struct COEX_DM_8723B_1ANT GLCoexDm8723b1Ant;
+static struct COEX_DM_8723B_1ANT * pCoexDm = &GLCoexDm8723b1Ant;
+static struct COEX_STA_8723B_1ANT GLCoexSta8723b1Ant;
+static struct COEX_STA_8723B_1ANT * pCoexSta = &GLCoexSta8723b1Ant;
 
 static const char *const GLBtInfoSrc8723b1Ant[] = {
 	"BT Info[wifi fw]",
