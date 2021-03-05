@@ -53,32 +53,39 @@
 #undef TRACE_HEADER_MULTI_READ
 #else /* TRACE_HEADER_MULTI_READ */
 
-#define DO_HOOK(name, proto, args, cond)				\
+#ifdef CONFIG_HAVE_STATIC_CALL
+#define __DO_RESTRICTED_HOOK_CALL(name, args)					\
 	do {								\
 		struct tracepoint_func *it_func_ptr;			\
 		void *__data;						\
-									\
-		if (!(cond))						\
-			return;						\
-									\
 		it_func_ptr = (&__tracepoint_##name)->funcs;		\
 		if (it_func_ptr) {					\
 			__data = (it_func_ptr)->data;			\
-			__DO_TRACE_CALL(name)(args);			\
+			static_call(tp_func_##name)(__data, args);	\
 		}							\
 	} while (0)
+#else
+#define __DO_RESTRICTED_HOOK_CALL(name, args)	__traceiter_##name(NULL, args)
+#endif
 
-#define __DECLARE_HOOK(name, proto, args, cond, data_proto, data_args)	\
+#define DO_RESTRICTED_HOOK(name, args, cond)					\
+	do {								\
+		if (!(cond))						\
+			return;						\
+									\
+		__DO_RESTRICTED_HOOK_CALL(name, TP_ARGS(args));		\
+	} while (0)
+
+#define __DECLARE_RESTRICTED_HOOK(name, proto, args, cond, data_proto)	\
 	extern int __traceiter_##name(data_proto);			\
 	DECLARE_STATIC_CALL(tp_func_##name, __traceiter_##name);	\
 	extern struct tracepoint __tracepoint_##name;			\
 	static inline void trace_##name(proto)				\
 	{								\
 		if (static_key_false(&__tracepoint_##name.key))		\
-			DO_HOOK(name,					\
-				TP_PROTO(data_proto),			\
-				TP_ARGS(data_args),			\
-				TP_CONDITION(cond));			\
+			DO_RESTRICTED_HOOK(name,			\
+					   TP_ARGS(args),		\
+					   TP_CONDITION(cond));		\
 	}								\
 	static inline bool						\
 	trace_##name##_enabled(void)					\
@@ -98,10 +105,9 @@
 
 #undef DECLARE_RESTRICTED_HOOK
 #define DECLARE_RESTRICTED_HOOK(name, proto, args, cond)		\
-	__DECLARE_HOOK(name, PARAMS(proto), PARAMS(args),		\
+	__DECLARE_RESTRICTED_HOOK(name, PARAMS(proto), PARAMS(args),	\
 			cond,						\
-			PARAMS(void *__data, proto),			\
-			PARAMS(__data, args))
+			PARAMS(void *__data, proto))
 
 #endif /* TRACE_HEADER_MULTI_READ */
 
