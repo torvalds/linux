@@ -179,7 +179,7 @@ int fuse_removexattr(struct inode *inode, const char *name)
 
 static int fuse_xattr_get(const struct xattr_handler *handler,
 			 struct dentry *dentry, struct inode *inode,
-			 const char *name, void *value, size_t size, int flags)
+			 const char *name, void *value, size_t size)
 {
 	if (fuse_is_bad(inode))
 		return -EIO;
@@ -208,7 +208,7 @@ static bool no_xattr_list(struct dentry *dentry)
 
 static int no_xattr_get(const struct xattr_handler *handler,
 			struct dentry *dentry, struct inode *inode,
-			const char *name, void *value, size_t size, int flags)
+			const char *name, void *value, size_t size)
 {
 	return -EOPNOTSUPP;
 }

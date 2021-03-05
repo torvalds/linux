@@ -839,8 +839,7 @@ end_removexattr:
 
 static int hfsplus_osx_getxattr(const struct xattr_handler *handler,
 				struct dentry *unused, struct inode *inode,
-				const char *name, void *buffer, size_t size,
-				int flags)
+				const char *name, void *buffer, size_t size)
 {
 	/*
 	 * Don't allow retrieving properly prefixed attributes

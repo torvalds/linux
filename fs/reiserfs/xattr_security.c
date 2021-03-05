@@ -11,8 +11,7 @@
 
 static int
 security_get(const struct xattr_handler *handler, struct dentry *unused,
-	     struct inode *inode, const char *name, void *buffer, size_t size,
-	     int flags)
+	     struct inode *inode, const char *name, void *buffer, size_t size)
 {
 	if (IS_PRIVATE(inode))
 		return -EPERM;

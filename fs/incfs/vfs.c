@@ -128,8 +128,7 @@ const struct inode_operations incfs_file_inode_ops = {
 
 static int incfs_handler_getxattr(const struct xattr_handler *xh,
 				  struct dentry *d, struct inode *inode,
-				  const char *name, void *buffer, size_t size,
-				  int flags)
+				  const char *name, void *buffer, size_t size)
 {
 	return incfs_getxattr(d, name, buffer, size);
 }

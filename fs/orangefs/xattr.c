@@ -541,8 +541,7 @@ static int orangefs_xattr_get_default(const struct xattr_handler *handler,
 				      struct inode *inode,
 				      const char *name,
 				      void *buffer,
-				      size_t size,
-				      int flags)
+				      size_t size)
 {
 	return orangefs_inode_getxattr(inode, name, buffer, size);
 

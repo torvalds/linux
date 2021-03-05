@@ -18,11 +18,8 @@
 #if __UAPI_DEF_XATTR
 #define __USE_KERNEL_XATTR_DEFS
 
-#define XATTR_CREATE	 0x1	/* set value, fail if attr already exists */
-#define XATTR_REPLACE	 0x2	/* set value, fail if attr does not exist */
-#ifdef __KERNEL__ /* following is kernel internal, colocated for maintenance */
-#define XATTR_NOSECURITY 0x4	/* get value, do not involve security check */
-#endif
+#define XATTR_CREATE	0x1	/* set value, fail if attr already exists */
+#define XATTR_REPLACE	0x2	/* set value, fail if attr does not exist */
 #endif
 
 /* Namespaces */
