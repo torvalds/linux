@@ -738,7 +738,7 @@ static int pm8001_exec_internal_tmf_task(struct domain_device *dev,
 		if (pm8001_ha->chip_id != chip_8001) {
 			pm8001_dev->setds_completion = &completion_setstate;
 			PM8001_CHIP_DISP->set_dev_state_req(pm8001_ha,
-				pm8001_dev, 0x01);
+				pm8001_dev, DS_OPERATIONAL);
 			wait_for_completion(&completion_setstate);
 		}
 		res = -TMF_RESP_FUNC_FAILED;
@@ -1110,7 +1110,7 @@ int pm8001_lu_reset(struct domain_device *dev, u8 *lun)
 		sas_put_local_phy(phy);
 		pm8001_dev->setds_completion = &completion_setstate;
 		rc = PM8001_CHIP_DISP->set_dev_state_req(pm8001_ha,
-			pm8001_dev, 0x01);
+			pm8001_dev, DS_OPERATIONAL);
 		wait_for_completion(&completion_setstate);
 	} else {
 		tmf_task.tmf = TMF_LU_RESET;
@@ -1229,7 +1229,7 @@ int pm8001_abort_task(struct sas_task *task)
 			/* 1. Set Device state as Recovery */
 			pm8001_dev->setds_completion = &completion;
 			PM8001_CHIP_DISP->set_dev_state_req(pm8001_ha,
-				pm8001_dev, 0x03);
+				pm8001_dev, DS_IN_RECOVERY);
 			wait_for_completion(&completion);
 
 			/* 2. Send Phy Control Hard Reset */
@@ -1300,7 +1300,7 @@ int pm8001_abort_task(struct sas_task *task)
 			reinit_completion(&completion);
 			pm8001_dev->setds_completion = &completion;
 			PM8001_CHIP_DISP->set_dev_state_req(pm8001_ha,
-				pm8001_dev, 0x01);
+				pm8001_dev, DS_OPERATIONAL);
 			wait_for_completion(&completion);
 		} else {
 			rc = pm8001_exec_internal_task_abort(pm8001_ha,
