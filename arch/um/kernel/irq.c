@@ -101,10 +101,12 @@ static bool irq_do_timetravel_handler(struct irq_entry *entry,
 	if (!reg->timetravel_handler)
 		return false;
 
-	/* prevent nesting - we'll get it again later when we SIGIO ourselves */
-	if (reg->pending_on_resume)
-		return true;
-
+	/*
+	 * Handle all messages - we might get multiple even while
+	 * interrupts are already suspended, due to suspend order
+	 * etc. Note that time_travel_add_irq_event() will not add
+	 * an event twice, if it's pending already "first wins".
+	 */
 	reg->timetravel_handler(reg->irq, entry->fd, reg->id, &reg->event);
 
 	if (!reg->event.pending)
