@@ -1296,10 +1296,10 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 					 void **table)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
-	struct gpu_metrics_v1_0 *gpu_metrics =
-		(struct gpu_metrics_v1_0 *)smu_table->gpu_metrics_table;
+	struct gpu_metrics_v1_1 *gpu_metrics =
+		(struct gpu_metrics_v1_1 *)smu_table->gpu_metrics_table;
 	SmuMetrics_t metrics;
-	int ret = 0;
+	int i, ret = 0;
 
 	ret = smu_cmn_get_metrics_table(smu,
 					&metrics,
@@ -1307,7 +1307,7 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 	if (ret)
 		return ret;
 
-	smu_v13_0_init_gpu_metrics_v1_0(gpu_metrics);
+	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 1);
 
 	gpu_metrics->temperature_edge = metrics.TemperatureEdge;
 	gpu_metrics->temperature_hotspot = metrics.TemperatureHotspot;
@@ -1318,12 +1318,16 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 
 	gpu_metrics->average_gfx_activity = metrics.AverageGfxActivity;
 	gpu_metrics->average_umc_activity = metrics.AverageUclkActivity;
+	gpu_metrics->average_mm_activity = 0;
 
 	gpu_metrics->average_socket_power = metrics.AverageSocketPower;
+	gpu_metrics->energy_accumulator = 0;
 
 	gpu_metrics->average_gfxclk_frequency = metrics.AverageGfxclkFrequency;
 	gpu_metrics->average_socclk_frequency = metrics.AverageSocclkFrequency;
 	gpu_metrics->average_uclk_frequency = metrics.AverageUclkFrequency;
+	gpu_metrics->average_vclk0_frequency = 0;
+	gpu_metrics->average_dclk0_frequency = 0;
 
 	gpu_metrics->current_gfxclk = metrics.CurrClock[PPCLK_GFXCLK];
 	gpu_metrics->current_socclk = metrics.CurrClock[PPCLK_SOCCLK];
@@ -1333,14 +1337,24 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 
 	gpu_metrics->throttle_status = metrics.ThrottlerStatus;
 
+	gpu_metrics->current_fan_speed = 0;
+
 	gpu_metrics->pcie_link_width =
 		smu_v13_0_get_current_pcie_link_width(smu);
 	gpu_metrics->pcie_link_speed =
 		aldebaran_get_current_pcie_link_speed(smu);
 
+	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
+
+	gpu_metrics->gfx_activity_acc = metrics.GfxBusyAcc;
+	gpu_metrics->mem_activity_acc = metrics.DramBusyAcc;
+
+	for (i = 0; i < NUM_HBM_INSTANCES; i++)
+		gpu_metrics->temperature_hbm[i] = metrics.TemperatureAllHBM[i];
+
 	*table = (void *)gpu_metrics;
 
-	return sizeof(struct gpu_metrics_v1_0);
+	return sizeof(struct gpu_metrics_v1_1);
 }
 
 static bool aldebaran_is_mode1_reset_supported(struct smu_context *smu)

@@ -231,6 +231,8 @@ enum pp_df_cstate {
 #define XGMI_MODE_PSTATE_D3 0
 #define XGMI_MODE_PSTATE_D0 1
 
+#define NUM_HBM_INSTANCES 4
+
 struct seq_file;
 enum amd_pp_clock_type;
 struct amd_pp_simple_clock_info;
@@ -449,6 +451,11 @@ struct gpu_metrics_v1_1 {
 	uint16_t			pcie_link_speed; // in 0.1 GT/s
 
 	uint16_t			padding;
+
+	uint32_t			gfx_activity_acc;
+	uint32_t			mem_activity_acc;
+
+	uint16_t			temperature_hbm[NUM_HBM_INSTANCES];
 };
 
 /*

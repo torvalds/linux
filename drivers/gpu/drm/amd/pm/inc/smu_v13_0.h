@@ -265,8 +265,6 @@ int smu_v13_0_get_current_pcie_link_speed_level(struct smu_context *smu);
 
 int smu_v13_0_get_current_pcie_link_speed(struct smu_context *smu);
 
-void smu_v13_0_init_gpu_metrics_v1_0(struct gpu_metrics_v1_0 *gpu_metrics);
-
 int smu_v13_0_gfx_ulv_control(struct smu_context *smu,
 			      bool enablement);
 
