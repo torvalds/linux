@@ -6920,8 +6920,9 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 	vmx->pi_desc.nv = POSTED_INTR_VECTOR;
 	vmx->pi_desc.sn = 1;
 
+#if IS_ENABLED(CONFIG_HYPERV)
 	vmx->ept_pointer = INVALID_PAGE;
-
+#endif
 	return 0;
 
 free_vmcs:
@@ -6938,7 +6939,9 @@ free_vpid:
 
 static int vmx_vm_init(struct kvm *kvm)
 {
+#if IS_ENABLED(CONFIG_HYPERV)
 	spin_lock_init(&to_kvm_vmx(kvm)->ept_pointer_lock);
+#endif
 
 	if (!ple_gap)
 		kvm->arch.pause_in_guest = true;

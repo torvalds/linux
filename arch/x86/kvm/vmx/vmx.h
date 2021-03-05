@@ -325,7 +325,9 @@ struct vcpu_vmx {
 	 */
 	u64 msr_ia32_feature_control;
 	u64 msr_ia32_feature_control_valid_bits;
+#if IS_ENABLED(CONFIG_HYPERV)
 	u64 ept_pointer;
+#endif
 
 	struct pt_desc pt_desc;
 	struct lbr_desc lbr_desc;
@@ -345,8 +347,10 @@ struct kvm_vmx {
 	bool ept_identity_pagetable_done;
 	gpa_t ept_identity_map_addr;
 
+#if IS_ENABLED(CONFIG_HYPERV)
 	hpa_t hv_tlb_eptp;
 	spinlock_t ept_pointer_lock;
+#endif
 };
 
 bool nested_vmx_allowed(struct kvm_vcpu *vcpu);
