@@ -29,7 +29,7 @@ then
 	echo "Usage: $scriptname /path/to/old/run [ options ]"
 	exit 1
 fi
-if ! cp "$oldrun/batches" $T/batches.oldrun
+if ! cp "$oldrun/scenarios" $T/scenarios.oldrun
 then
 	# Later on, can reconstitute this from console.log files.
 	echo Prior run batches file does not exist: $oldrun/batches
@@ -165,22 +165,12 @@ done
 grep '^#' $i | sed -e 's/^# //' > $T/qemu-cmd-settings
 . $T/qemu-cmd-settings
 
-grep -v '^#' $T/batches.oldrun | awk '
-BEGIN {
-	oldbatch = 1;
-}
-
+grep -v '^#' $T/scenarios.oldrun | awk '
 {
-	if (oldbatch != $1) {
-		print "kvm-test-1-run-batch.sh" curbatch;
-		curbatch = "";
-		oldbatch = $1;
-	}
-	curbatch = curbatch " " $2;
-}
-
-END {
-	print "kvm-test-1-run-batch.sh" curbatch
+	curbatch = "";
+	for (i = 2; i <= NF; i++)
+		curbatch = curbatch " " $i;
+	print "kvm-test-1-run-batch.sh" curbatch;
 }' > $T/runbatches.sh
 
 if test -n "$dryrun"
