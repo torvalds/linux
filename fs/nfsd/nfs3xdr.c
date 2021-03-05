@@ -14,9 +14,6 @@
 #include "netns.h"
 #include "vfs.h"
 
-#define NFSDDBG_FACILITY		NFSDDBG_XDR
-
-
 /*
  * Force construction of an empty post-op attr
  */
