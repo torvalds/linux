@@ -176,6 +176,15 @@
 	cpu-supply = <&vdd_cpu>;
 };
 
+&dfi {
+	status = "okay";
+};
+
+&dmc {
+	center-supply = <&vdd_fixed>;
+	status = "okay";
+};
+
 &gpu {
 	mali-supply = <&vdd_fixed>;
 	status = "okay";
