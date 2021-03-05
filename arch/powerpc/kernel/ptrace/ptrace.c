@@ -354,8 +354,6 @@ void __init pt_regs_check(void)
 		     offsetof(struct user_pt_regs, nip));
 	BUILD_BUG_ON(offsetof(struct pt_regs, msr) !=
 		     offsetof(struct user_pt_regs, msr));
-	BUILD_BUG_ON(offsetof(struct pt_regs, msr) !=
-		     offsetof(struct user_pt_regs, msr));
 	BUILD_BUG_ON(offsetof(struct pt_regs, orig_gpr3) !=
 		     offsetof(struct user_pt_regs, orig_gpr3));
 	BUILD_BUG_ON(offsetof(struct pt_regs, ctr) !=
