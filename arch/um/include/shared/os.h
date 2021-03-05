@@ -242,6 +242,9 @@ extern int set_signals_trace(int enable);
 extern int os_is_signal_stack(void);
 extern void deliver_alarm(void);
 extern void register_pm_wake_signal(void);
+extern void block_signals_hard(void);
+extern void unblock_signals_hard(void);
+extern void mark_sigio_pending(void);
 
 /* util.c */
 extern void stack_protections(unsigned long address);
