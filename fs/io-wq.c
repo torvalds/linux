@@ -726,6 +726,11 @@ static int io_wq_manager(void *data)
 	if (atomic_read(&wq->worker_refs))
 		wait_for_completion(&wq->worker_done);
 
+	spin_lock_irq(&wq->hash->wait.lock);
+	for_each_node(node)
+		list_del_init(&wq->wqes[node]->wait.entry);
+	spin_unlock_irq(&wq->hash->wait.lock);
+
 	io_wq_cancel_pending(wq);
 	complete(&wq->exited);
 	do_exit(0);
@@ -1051,15 +1056,11 @@ static void io_wq_destroy(struct io_wq *wq)
 	set_bit(IO_WQ_BIT_EXIT, &wq->state);
 	io_wq_destroy_manager(wq);
 
-	spin_lock_irq(&wq->hash->wait.lock);
 	for_each_node(node) {
 		struct io_wqe *wqe = wq->wqes[node];
-
-		list_del_init(&wqe->wait.entry);
 		WARN_ON_ONCE(!wq_list_empty(&wqe->work_list));
 		kfree(wqe);
 	}
-	spin_unlock_irq(&wq->hash->wait.lock);
 	io_wq_put_hash(wq->hash);
 	kfree(wq->wqes);
 	kfree(wq);
