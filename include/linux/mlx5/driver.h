@@ -307,13 +307,6 @@ struct mlx5_cmd {
 	struct mlx5_cmd_stats *stats;
 };
 
-struct mlx5_port_caps {
-	int	gid_table_len;
-	int	pkey_table_len;
-	u8	ext_port_cap;
-	bool	has_smi;
-};
-
 struct mlx5_cmd_mailbox {
 	void	       *buf;
 	dma_addr_t	dma;
@@ -375,6 +368,8 @@ struct mlx5_core_mkey {
 	u32			key;
 	u32			pd;
 	u32			type;
+	struct wait_queue_head wait;
+	refcount_t usecount;
 };
 
 #define MLX5_24BIT_MASK		((1 << 24) - 1)
@@ -713,7 +708,6 @@ struct mlx5_core_dev {
 	u8			rev_id;
 	char			board_id[MLX5_BOARD_ID_LEN];
 	struct mlx5_cmd		cmd;
-	struct mlx5_port_caps	port_caps[MLX5_MAX_PORTS];
 	struct {
 		u32 hca_cur[MLX5_CAP_NUM][MLX5_UN_SZ_DW(hca_cap_union)];
 		u32 hca_max[MLX5_CAP_NUM][MLX5_UN_SZ_DW(hca_cap_union)];

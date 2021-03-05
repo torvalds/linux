@@ -346,8 +346,8 @@ routine.
 Before inventing your own cache of often-used objects consider using a
 slab cache in ``include/linux/slab.h``
 
-:c:func:`current()`
--------------------
+:c:macro:`current`
+------------------
 
 Defined in ``include/asm/current.h``
 
