@@ -11,14 +11,19 @@ virtual machine.
 In order to run and use the virtual machine the following packages are required
 on a Debian/Ubuntu system:
 
+* ``flex``
+* ``bison``
 * ``build-essential``
 * ``gcc-multilib``
 * ``libncurses5-dev``
 * ``qemu-system-x86``
 * ``qemu-system-arm``
-* ``kvm``
 * ``python3``
 * ``minicom``
+
+The ``kvm`` package is not strictly required, but will make the virtual machine
+faster by using KVM support (with the ``-enable-kvm`` option to QEMU). If ``kvm``
+is absent, the virtual machine will still run (albeit slower) using emulation.
 
 The virtual machine setup uses prebuild Yocto images that it downloads and a
 kernel image that it builds itself. The following images are supported:
