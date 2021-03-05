@@ -527,22 +527,42 @@ struct ufs_vreg_info {
 };
 
 struct ufs_dev_info {
-	bool f_power_on_wp_en;
+	bool	f_power_on_wp_en;
 	/* Keeps information if any of the LU is power on write protected */
-	bool is_lu_power_on_wp;
+	bool	is_lu_power_on_wp;
 	/* Maximum number of general LU supported by the UFS device */
-	u8 max_lu_supported;
-	u8 wb_dedicated_lu;
-	u16 wmanufacturerid;
+	u8	max_lu_supported;
+	u16	wmanufacturerid;
 	/*UFS device Product Name */
-	u8 *model;
-	u16 wspecversion;
-	u32 clk_gating_wait_us;
-	u32 d_ext_ufs_feature_sup;
-	u8 b_wb_buffer_type;
-	u32 d_wb_alloc_units;
-	bool b_rpm_dev_flush_capable;
-	u8 b_presrv_uspc_en;
+	u8	*model;
+	u16	wspecversion;
+	u32	clk_gating_wait_us;
+
+	/* UFS WB related flags */
+	bool    wb_enabled;
+	bool    wb_buf_flush_enabled;
+	u8	wb_dedicated_lu;
+	u8      wb_buffer_type;
+
+	bool	b_rpm_dev_flush_capable;
+	u8	b_presrv_uspc_en;
+};
+
+/*
+ * This enum is used in string mapping in include/trace/events/ufs.h.
+ */
+enum ufs_trace_str_t {
+	UFS_CMD_SEND, UFS_CMD_COMP, UFS_DEV_COMP,
+	UFS_QUERY_SEND, UFS_QUERY_COMP, UFS_QUERY_ERR,
+	UFS_TM_SEND, UFS_TM_COMP, UFS_TM_ERR
+};
+
+/*
+ * Transaction Specific Fields (TSF) type in the UPIU package, this enum is
+ * used in include/trace/events/ufs.h for UFS command trace.
+ */
+enum ufs_trace_tsf_t {
+	UFS_TSF_CDB, UFS_TSF_OSF, UFS_TSF_TM_INPUT, UFS_TSF_TM_OUTPUT
 };
 
 /**
