@@ -1924,7 +1924,7 @@ static int imx_csi_async_register(struct csi_priv *priv)
 	unsigned int port;
 	int ret;
 
-	v4l2_async_notifier_init(&priv->notifier);
+	v4l2_async_nf_init(&priv->notifier);
 
 	/* get this CSI's port id */
 	ret = fwnode_property_read_u32(dev_fwnode(priv->dev), "reg", &port);
@@ -1935,8 +1935,8 @@ static int imx_csi_async_register(struct csi_priv *priv)
 					     port, 0,
 					     FWNODE_GRAPH_ENDPOINT_NEXT);
 	if (ep) {
-		asd = v4l2_async_notifier_add_fwnode_remote_subdev(
-			&priv->notifier, ep, struct v4l2_async_subdev);
+		asd = v4l2_async_nf_add_fwnode_remote(&priv->notifier, ep,
+						      struct v4l2_async_subdev);
 
 		fwnode_handle_put(ep);
 
@@ -1950,8 +1950,7 @@ static int imx_csi_async_register(struct csi_priv *priv)
 
 	priv->notifier.ops = &csi_notify_ops;
 
-	ret = v4l2_async_subdev_notifier_register(&priv->sd,
-						  &priv->notifier);
+	ret = v4l2_async_subdev_nf_register(&priv->sd, &priv->notifier);
 	if (ret)
 		return ret;
 
@@ -2040,8 +2039,8 @@ static int imx_csi_probe(struct platform_device *pdev)
 	return 0;
 
 cleanup:
-	v4l2_async_notifier_unregister(&priv->notifier);
-	v4l2_async_notifier_cleanup(&priv->notifier);
+	v4l2_async_nf_unregister(&priv->notifier);
+	v4l2_async_nf_cleanup(&priv->notifier);
 free:
 	v4l2_ctrl_handler_free(&priv->ctrl_hdlr);
 	mutex_destroy(&priv->lock);
@@ -2055,8 +2054,8 @@ static int imx_csi_remove(struct platform_device *pdev)
 
 	v4l2_ctrl_handler_free(&priv->ctrl_hdlr);
 	mutex_destroy(&priv->lock);
-	v4l2_async_notifier_unregister(&priv->notifier);
-	v4l2_async_notifier_cleanup(&priv->notifier);
+	v4l2_async_nf_unregister(&priv->notifier);
+	v4l2_async_nf_cleanup(&priv->notifier);
 	v4l2_async_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 

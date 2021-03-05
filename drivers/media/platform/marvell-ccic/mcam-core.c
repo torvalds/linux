@@ -1877,7 +1877,7 @@ int mccic_register(struct mcam_camera *cam)
 	cam->mbus_code = mcam_def_mbus_code;
 
 	cam->notifier.ops = &mccic_notify_ops;
-	ret = v4l2_async_notifier_register(&cam->v4l2_dev, &cam->notifier);
+	ret = v4l2_async_nf_register(&cam->v4l2_dev, &cam->notifier);
 	if (ret < 0) {
 		cam_warn(cam, "failed to register a sensor notifier");
 		goto out;
@@ -1914,9 +1914,9 @@ int mccic_register(struct mcam_camera *cam)
 	return 0;
 
 out:
-	v4l2_async_notifier_unregister(&cam->notifier);
+	v4l2_async_nf_unregister(&cam->notifier);
 	v4l2_device_unregister(&cam->v4l2_dev);
-	v4l2_async_notifier_cleanup(&cam->notifier);
+	v4l2_async_nf_cleanup(&cam->notifier);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mccic_register);
@@ -1936,9 +1936,9 @@ void mccic_shutdown(struct mcam_camera *cam)
 	if (cam->buffer_mode == B_vmalloc)
 		mcam_free_dma_bufs(cam);
 	v4l2_ctrl_handler_free(&cam->ctrl_handler);
-	v4l2_async_notifier_unregister(&cam->notifier);
+	v4l2_async_nf_unregister(&cam->notifier);
 	v4l2_device_unregister(&cam->v4l2_dev);
-	v4l2_async_notifier_cleanup(&cam->notifier);
+	v4l2_async_nf_cleanup(&cam->notifier);
 }
 EXPORT_SYMBOL_GPL(mccic_shutdown);
 

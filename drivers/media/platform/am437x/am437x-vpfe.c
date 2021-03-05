@@ -2297,7 +2297,7 @@ vpfe_get_pdata(struct vpfe_device *vpfe)
 
 	dev_dbg(dev, "vpfe_get_pdata\n");
 
-	v4l2_async_notifier_init(&vpfe->notifier);
+	v4l2_async_nf_init(&vpfe->notifier);
 
 	if (!IS_ENABLED(CONFIG_OF) || !dev->of_node)
 		return dev->platform_data;
@@ -2365,9 +2365,10 @@ vpfe_get_pdata(struct vpfe_device *vpfe)
 			goto cleanup;
 		}
 
-		pdata->asd[i] = v4l2_async_notifier_add_fwnode_subdev(
-			&vpfe->notifier, of_fwnode_handle(rem),
-			struct v4l2_async_subdev);
+		pdata->asd[i] = v4l2_async_nf_add_fwnode(&vpfe->notifier,
+							 of_fwnode_handle(rem),
+							 struct
+							 v4l2_async_subdev);
 		of_node_put(rem);
 		if (IS_ERR(pdata->asd[i]))
 			goto cleanup;
@@ -2377,7 +2378,7 @@ vpfe_get_pdata(struct vpfe_device *vpfe)
 	return pdata;
 
 cleanup:
-	v4l2_async_notifier_cleanup(&vpfe->notifier);
+	v4l2_async_nf_cleanup(&vpfe->notifier);
 	of_node_put(endpoint);
 	return NULL;
 }
@@ -2465,7 +2466,7 @@ static int vpfe_probe(struct platform_device *pdev)
 	}
 
 	vpfe->notifier.ops = &vpfe_async_ops;
-	ret = v4l2_async_notifier_register(&vpfe->v4l2_dev, &vpfe->notifier);
+	ret = v4l2_async_nf_register(&vpfe->v4l2_dev, &vpfe->notifier);
 	if (ret) {
 		vpfe_err(vpfe, "Error registering async notifier\n");
 		ret = -EINVAL;
@@ -2477,7 +2478,7 @@ static int vpfe_probe(struct platform_device *pdev)
 probe_out_v4l2_unregister:
 	v4l2_device_unregister(&vpfe->v4l2_dev);
 probe_out_cleanup:
-	v4l2_async_notifier_cleanup(&vpfe->notifier);
+	v4l2_async_nf_cleanup(&vpfe->notifier);
 	return ret;
 }
 
@@ -2490,8 +2491,8 @@ static int vpfe_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
-	v4l2_async_notifier_unregister(&vpfe->notifier);
-	v4l2_async_notifier_cleanup(&vpfe->notifier);
+	v4l2_async_nf_unregister(&vpfe->notifier);
+	v4l2_async_nf_cleanup(&vpfe->notifier);
 	v4l2_device_unregister(&vpfe->v4l2_dev);
 	video_unregister_device(&vpfe->video_dev);
 

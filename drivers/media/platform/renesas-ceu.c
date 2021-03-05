@@ -1513,12 +1513,12 @@ static int ceu_parse_platform_data(struct ceu_device *ceudev,
 
 		/* Setup the ceu subdevice and the async subdevice. */
 		async_sd = &pdata->subdevs[i];
-		ceu_sd = v4l2_async_notifier_add_i2c_subdev(&ceudev->notifier,
-				async_sd->i2c_adapter_id,
-				async_sd->i2c_address,
-				struct ceu_subdev);
+		ceu_sd = v4l2_async_nf_add_i2c(&ceudev->notifier,
+					       async_sd->i2c_adapter_id,
+					       async_sd->i2c_address,
+					       struct ceu_subdev);
 		if (IS_ERR(ceu_sd)) {
-			v4l2_async_notifier_cleanup(&ceudev->notifier);
+			v4l2_async_nf_cleanup(&ceudev->notifier);
 			return PTR_ERR(ceu_sd);
 		}
 		ceu_sd->mbus_flags = async_sd->flags;
@@ -1576,9 +1576,9 @@ static int ceu_parse_dt(struct ceu_device *ceudev)
 		}
 
 		/* Setup the ceu subdevice and the async subdevice. */
-		ceu_sd = v4l2_async_notifier_add_fwnode_remote_subdev(
-				&ceudev->notifier, of_fwnode_handle(ep),
-				struct ceu_subdev);
+		ceu_sd = v4l2_async_nf_add_fwnode_remote(&ceudev->notifier,
+							 of_fwnode_handle(ep),
+							 struct ceu_subdev);
 		if (IS_ERR(ceu_sd)) {
 			ret = PTR_ERR(ceu_sd);
 			goto error_cleanup;
@@ -1592,7 +1592,7 @@ static int ceu_parse_dt(struct ceu_device *ceudev)
 	return num_ep;
 
 error_cleanup:
-	v4l2_async_notifier_cleanup(&ceudev->notifier);
+	v4l2_async_nf_cleanup(&ceudev->notifier);
 	of_node_put(ep);
 	return ret;
 }
@@ -1669,7 +1669,7 @@ static int ceu_probe(struct platform_device *pdev)
 	if (ret)
 		goto error_pm_disable;
 
-	v4l2_async_notifier_init(&ceudev->notifier);
+	v4l2_async_nf_init(&ceudev->notifier);
 
 	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
 		ceu_data = of_device_get_match_data(dev);
@@ -1691,8 +1691,7 @@ static int ceu_probe(struct platform_device *pdev)
 
 	ceudev->notifier.v4l2_dev	= &ceudev->v4l2_dev;
 	ceudev->notifier.ops		= &ceu_notify_ops;
-	ret = v4l2_async_notifier_register(&ceudev->v4l2_dev,
-					   &ceudev->notifier);
+	ret = v4l2_async_nf_register(&ceudev->v4l2_dev, &ceudev->notifier);
 	if (ret)
 		goto error_cleanup;
 
@@ -1701,7 +1700,7 @@ static int ceu_probe(struct platform_device *pdev)
 	return 0;
 
 error_cleanup:
-	v4l2_async_notifier_cleanup(&ceudev->notifier);
+	v4l2_async_nf_cleanup(&ceudev->notifier);
 error_v4l2_unregister:
 	v4l2_device_unregister(&ceudev->v4l2_dev);
 error_pm_disable:
@@ -1718,9 +1717,9 @@ static int ceu_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(ceudev->dev);
 
-	v4l2_async_notifier_unregister(&ceudev->notifier);
+	v4l2_async_nf_unregister(&ceudev->notifier);
 
-	v4l2_async_notifier_cleanup(&ceudev->notifier);
+	v4l2_async_nf_cleanup(&ceudev->notifier);
 
 	v4l2_device_unregister(&ceudev->v4l2_dev);
 

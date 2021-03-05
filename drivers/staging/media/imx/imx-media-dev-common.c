@@ -379,7 +379,7 @@ struct imx_media_dev *imx_media_dev_init(struct device *dev,
 
 	INIT_LIST_HEAD(&imxmd->vdev_list);
 
-	v4l2_async_notifier_init(&imxmd->notifier);
+	v4l2_async_nf_init(&imxmd->notifier);
 
 	return imxmd;
 
@@ -403,11 +403,10 @@ int imx_media_dev_notifier_register(struct imx_media_dev *imxmd,
 
 	/* prepare the async subdev notifier and register it */
 	imxmd->notifier.ops = ops ? ops : &imx_media_notifier_ops;
-	ret = v4l2_async_notifier_register(&imxmd->v4l2_dev,
-					   &imxmd->notifier);
+	ret = v4l2_async_nf_register(&imxmd->v4l2_dev, &imxmd->notifier);
 	if (ret) {
 		v4l2_err(&imxmd->v4l2_dev,
-			 "v4l2_async_notifier_register failed with %d\n", ret);
+			 "v4l2_async_nf_register failed with %d\n", ret);
 		return ret;
 	}
 

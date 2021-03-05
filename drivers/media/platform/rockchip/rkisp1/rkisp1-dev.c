@@ -246,7 +246,7 @@ static int rkisp1_subdev_notifier(struct rkisp1_device *rkisp1)
 	unsigned int next_id = 0;
 	int ret;
 
-	v4l2_async_notifier_init(ntf);
+	v4l2_async_nf_init(ntf);
 
 	while (1) {
 		struct v4l2_fwnode_endpoint vep = {
@@ -265,8 +265,9 @@ static int rkisp1_subdev_notifier(struct rkisp1_device *rkisp1)
 		if (ret)
 			goto err_parse;
 
-		rk_asd = v4l2_async_notifier_add_fwnode_remote_subdev(ntf, ep,
-							struct rkisp1_sensor_async);
+		rk_asd = v4l2_async_nf_add_fwnode_remote(ntf, ep,
+							 struct
+							 rkisp1_sensor_async);
 		if (IS_ERR(rk_asd)) {
 			ret = PTR_ERR(rk_asd);
 			goto err_parse;
@@ -286,16 +287,16 @@ static int rkisp1_subdev_notifier(struct rkisp1_device *rkisp1)
 		continue;
 err_parse:
 		fwnode_handle_put(ep);
-		v4l2_async_notifier_cleanup(ntf);
+		v4l2_async_nf_cleanup(ntf);
 		return ret;
 	}
 
 	if (next_id == 0)
 		dev_dbg(rkisp1->dev, "no remote subdevice found\n");
 	ntf->ops = &rkisp1_subdev_notifier_ops;
-	ret = v4l2_async_notifier_register(&rkisp1->v4l2_dev, ntf);
+	ret = v4l2_async_nf_register(&rkisp1->v4l2_dev, ntf);
 	if (ret) {
-		v4l2_async_notifier_cleanup(ntf);
+		v4l2_async_nf_cleanup(ntf);
 		return ret;
 	}
 	return 0;
@@ -542,8 +543,8 @@ static int rkisp1_remove(struct platform_device *pdev)
 {
 	struct rkisp1_device *rkisp1 = platform_get_drvdata(pdev);
 
-	v4l2_async_notifier_unregister(&rkisp1->notifier);
-	v4l2_async_notifier_cleanup(&rkisp1->notifier);
+	v4l2_async_nf_unregister(&rkisp1->notifier);
+	v4l2_async_nf_cleanup(&rkisp1->notifier);
 
 	rkisp1_params_unregister(rkisp1);
 	rkisp1_stats_unregister(rkisp1);

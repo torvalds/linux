@@ -1506,7 +1506,7 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 	struct vpif_capture_chan_config *chan;
 	unsigned int i;
 
-	v4l2_async_notifier_init(&vpif_obj.notifier);
+	v4l2_async_nf_init(&vpif_obj.notifier);
 
 	/*
 	 * DT boot: OF node from parent device contains
@@ -1582,9 +1582,10 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "Remote device %pOF found\n", rem);
 		sdinfo->name = rem->full_name;
 
-		pdata->asd[i] = v4l2_async_notifier_add_fwnode_subdev(
-			&vpif_obj.notifier, of_fwnode_handle(rem),
-			struct v4l2_async_subdev);
+		pdata->asd[i] = v4l2_async_nf_add_fwnode(&vpif_obj.notifier,
+							 of_fwnode_handle(rem),
+							 struct
+							 v4l2_async_subdev);
 		if (IS_ERR(pdata->asd[i]))
 			goto err_cleanup;
 
@@ -1602,7 +1603,7 @@ done:
 err_cleanup:
 	of_node_put(rem);
 	of_node_put(endpoint);
-	v4l2_async_notifier_cleanup(&vpif_obj.notifier);
+	v4l2_async_nf_cleanup(&vpif_obj.notifier);
 
 	return NULL;
 }
@@ -1692,8 +1693,8 @@ static __init int vpif_probe(struct platform_device *pdev)
 			goto probe_subdev_out;
 	} else {
 		vpif_obj.notifier.ops = &vpif_async_ops;
-		err = v4l2_async_notifier_register(&vpif_obj.v4l2_dev,
-						   &vpif_obj.notifier);
+		err = v4l2_async_nf_register(&vpif_obj.v4l2_dev,
+					     &vpif_obj.notifier);
 		if (err) {
 			vpif_err("Error registering async notifier\n");
 			err = -EINVAL;
@@ -1711,7 +1712,7 @@ vpif_unregister:
 vpif_free:
 	free_vpif_objs();
 cleanup:
-	v4l2_async_notifier_cleanup(&vpif_obj.notifier);
+	v4l2_async_nf_cleanup(&vpif_obj.notifier);
 
 	return err;
 }
@@ -1727,8 +1728,8 @@ static int vpif_remove(struct platform_device *device)
 	struct channel_obj *ch;
 	int i;
 
-	v4l2_async_notifier_unregister(&vpif_obj.notifier);
-	v4l2_async_notifier_cleanup(&vpif_obj.notifier);
+	v4l2_async_nf_unregister(&vpif_obj.notifier);
+	v4l2_async_nf_cleanup(&vpif_obj.notifier);
 	v4l2_device_unregister(&vpif_obj.v4l2_dev);
 
 	kfree(vpif_obj.sd);

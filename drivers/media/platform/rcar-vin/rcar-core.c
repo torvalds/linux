@@ -337,9 +337,8 @@ static int rvin_group_parse_of(struct rvin_dev *vin, unsigned int port,
 		goto out;
 	}
 
-	asd = v4l2_async_notifier_add_fwnode_subdev(&vin->group->notifier,
-						    fwnode,
-						    struct v4l2_async_subdev);
+	asd = v4l2_async_nf_add_fwnode(&vin->group->notifier, fwnode,
+				       struct v4l2_async_subdev);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
 		goto out;
@@ -359,8 +358,8 @@ static void rvin_group_notifier_cleanup(struct rvin_dev *vin)
 {
 	mutex_lock(&vin->group->lock);
 	if (&vin->v4l2_dev == vin->group->notifier.v4l2_dev) {
-		v4l2_async_notifier_unregister(&vin->group->notifier);
-		v4l2_async_notifier_cleanup(&vin->group->notifier);
+		v4l2_async_nf_unregister(&vin->group->notifier);
+		v4l2_async_nf_cleanup(&vin->group->notifier);
 	}
 	mutex_unlock(&vin->group->lock);
 }
@@ -389,7 +388,7 @@ static int rvin_group_notifier_init(struct rvin_dev *vin, unsigned int port,
 
 	mutex_unlock(&vin->group->lock);
 
-	v4l2_async_notifier_init(&vin->group->notifier);
+	v4l2_async_nf_init(&vin->group->notifier);
 
 	/*
 	 * Some subdevices may overlap but the parser function can handle it and
@@ -413,11 +412,10 @@ static int rvin_group_notifier_init(struct rvin_dev *vin, unsigned int port,
 		return 0;
 
 	vin->group->notifier.ops = &rvin_group_notify_ops;
-	ret = v4l2_async_notifier_register(&vin->v4l2_dev,
-					   &vin->group->notifier);
+	ret = v4l2_async_nf_register(&vin->v4l2_dev, &vin->group->notifier);
 	if (ret < 0) {
 		vin_err(vin, "Notifier registration failed\n");
-		v4l2_async_notifier_cleanup(&vin->group->notifier);
+		v4l2_async_nf_cleanup(&vin->group->notifier);
 		return ret;
 	}
 
@@ -701,8 +699,8 @@ static int rvin_parallel_parse_of(struct rvin_dev *vin)
 		goto out;
 	}
 
-	asd = v4l2_async_notifier_add_fwnode_subdev(&vin->notifier, fwnode,
-						    struct v4l2_async_subdev);
+	asd = v4l2_async_nf_add_fwnode(&vin->notifier, fwnode,
+				       struct v4l2_async_subdev);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
 		goto out;
@@ -719,15 +717,15 @@ out:
 
 static void rvin_parallel_cleanup(struct rvin_dev *vin)
 {
-	v4l2_async_notifier_unregister(&vin->notifier);
-	v4l2_async_notifier_cleanup(&vin->notifier);
+	v4l2_async_nf_unregister(&vin->notifier);
+	v4l2_async_nf_cleanup(&vin->notifier);
 }
 
 static int rvin_parallel_init(struct rvin_dev *vin)
 {
 	int ret;
 
-	v4l2_async_notifier_init(&vin->notifier);
+	v4l2_async_nf_init(&vin->notifier);
 
 	ret = rvin_parallel_parse_of(vin);
 	if (ret)
@@ -740,10 +738,10 @@ static int rvin_parallel_init(struct rvin_dev *vin)
 		to_of_node(vin->parallel.asd->match.fwnode));
 
 	vin->notifier.ops = &rvin_parallel_notify_ops;
-	ret = v4l2_async_notifier_register(&vin->v4l2_dev, &vin->notifier);
+	ret = v4l2_async_nf_register(&vin->v4l2_dev, &vin->notifier);
 	if (ret < 0) {
 		vin_err(vin, "Notifier registration failed\n");
-		v4l2_async_notifier_cleanup(&vin->notifier);
+		v4l2_async_nf_cleanup(&vin->notifier);
 		return ret;
 	}
 

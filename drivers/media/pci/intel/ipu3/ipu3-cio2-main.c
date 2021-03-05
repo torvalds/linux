@@ -1478,8 +1478,9 @@ static int cio2_parse_firmware(struct cio2_device *cio2)
 		if (ret)
 			goto err_parse;
 
-		s_asd = v4l2_async_notifier_add_fwnode_remote_subdev(
-				&cio2->notifier, ep, struct sensor_async_subdev);
+		s_asd = v4l2_async_nf_add_fwnode_remote(&cio2->notifier, ep,
+							struct
+							sensor_async_subdev);
 		if (IS_ERR(s_asd)) {
 			ret = PTR_ERR(s_asd);
 			goto err_parse;
@@ -1502,7 +1503,7 @@ err_parse:
 	 * suspend.
 	 */
 	cio2->notifier.ops = &cio2_async_ops;
-	ret = v4l2_async_notifier_register(&cio2->v4l2_dev, &cio2->notifier);
+	ret = v4l2_async_nf_register(&cio2->v4l2_dev, &cio2->notifier);
 	if (ret)
 		dev_err(&cio2->pci_dev->dev,
 			"failed to register async notifier : %d\n", ret);
@@ -1804,7 +1805,7 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 	if (r)
 		goto fail_v4l2_device_unregister;
 
-	v4l2_async_notifier_init(&cio2->notifier);
+	v4l2_async_nf_init(&cio2->notifier);
 
 	/* Register notifier for subdevices we care */
 	r = cio2_parse_firmware(cio2);
@@ -1824,8 +1825,8 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 	return 0;
 
 fail_clean_notifier:
-	v4l2_async_notifier_unregister(&cio2->notifier);
-	v4l2_async_notifier_cleanup(&cio2->notifier);
+	v4l2_async_nf_unregister(&cio2->notifier);
+	v4l2_async_nf_cleanup(&cio2->notifier);
 	cio2_queues_exit(cio2);
 fail_v4l2_device_unregister:
 	v4l2_device_unregister(&cio2->v4l2_dev);
@@ -1844,8 +1845,8 @@ static void cio2_pci_remove(struct pci_dev *pci_dev)
 	struct cio2_device *cio2 = pci_get_drvdata(pci_dev);
 
 	media_device_unregister(&cio2->media_dev);
-	v4l2_async_notifier_unregister(&cio2->notifier);
-	v4l2_async_notifier_cleanup(&cio2->notifier);
+	v4l2_async_nf_unregister(&cio2->notifier);
+	v4l2_async_nf_cleanup(&cio2->notifier);
 	cio2_queues_exit(cio2);
 	cio2_fbpt_exit_dummy(cio2);
 	v4l2_device_unregister(&cio2->v4l2_dev);

@@ -717,8 +717,8 @@ static int sun6i_csi_fwnode_parse(struct device *dev,
 static void sun6i_csi_v4l2_cleanup(struct sun6i_csi *csi)
 {
 	media_device_unregister(&csi->media_dev);
-	v4l2_async_notifier_unregister(&csi->notifier);
-	v4l2_async_notifier_cleanup(&csi->notifier);
+	v4l2_async_nf_unregister(&csi->notifier);
+	v4l2_async_nf_cleanup(&csi->notifier);
 	sun6i_video_cleanup(&csi->video);
 	v4l2_device_unregister(&csi->v4l2_dev);
 	v4l2_ctrl_handler_free(&csi->ctrl_handler);
@@ -737,7 +737,7 @@ static int sun6i_csi_v4l2_init(struct sun6i_csi *csi)
 		 "platform:%s", dev_name(csi->dev));
 
 	media_device_init(&csi->media_dev);
-	v4l2_async_notifier_init(&csi->notifier);
+	v4l2_async_nf_init(&csi->notifier);
 
 	ret = v4l2_ctrl_handler_init(&csi->ctrl_handler, 0);
 	if (ret) {
@@ -759,16 +759,17 @@ static int sun6i_csi_v4l2_init(struct sun6i_csi *csi)
 	if (ret)
 		goto unreg_v4l2;
 
-	ret = v4l2_async_notifier_parse_fwnode_endpoints(csi->dev,
-							 &csi->notifier,
-							 sizeof(struct v4l2_async_subdev),
-							 sun6i_csi_fwnode_parse);
+	ret = v4l2_async_nf_parse_fwnode_endpoints(csi->dev,
+						   &csi->notifier,
+						   sizeof(struct
+							  v4l2_async_subdev),
+						   sun6i_csi_fwnode_parse);
 	if (ret)
 		goto clean_video;
 
 	csi->notifier.ops = &sun6i_csi_async_ops;
 
-	ret = v4l2_async_notifier_register(&csi->v4l2_dev, &csi->notifier);
+	ret = v4l2_async_nf_register(&csi->v4l2_dev, &csi->notifier);
 	if (ret) {
 		dev_err(csi->dev, "notifier registration failed\n");
 		goto clean_video;
@@ -783,7 +784,7 @@ unreg_v4l2:
 free_ctrl:
 	v4l2_ctrl_handler_free(&csi->ctrl_handler);
 clean_media:
-	v4l2_async_notifier_cleanup(&csi->notifier);
+	v4l2_async_nf_cleanup(&csi->notifier);
 	media_device_cleanup(&csi->media_dev);
 
 	return ret;

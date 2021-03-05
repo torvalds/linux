@@ -1026,19 +1026,18 @@ static int rcsi2_parse_dt(struct rcar_csi2 *priv)
 
 	dev_dbg(priv->dev, "Found '%pOF'\n", to_of_node(fwnode));
 
-	v4l2_async_notifier_init(&priv->notifier);
+	v4l2_async_nf_init(&priv->notifier);
 	priv->notifier.ops = &rcar_csi2_notify_ops;
 
-	asd = v4l2_async_notifier_add_fwnode_subdev(&priv->notifier, fwnode,
-						    struct v4l2_async_subdev);
+	asd = v4l2_async_nf_add_fwnode(&priv->notifier, fwnode,
+				       struct v4l2_async_subdev);
 	fwnode_handle_put(fwnode);
 	if (IS_ERR(asd))
 		return PTR_ERR(asd);
 
-	ret = v4l2_async_subdev_notifier_register(&priv->subdev,
-						  &priv->notifier);
+	ret = v4l2_async_subdev_nf_register(&priv->subdev, &priv->notifier);
 	if (ret)
-		v4l2_async_notifier_cleanup(&priv->notifier);
+		v4l2_async_nf_cleanup(&priv->notifier);
 
 	return ret;
 }
@@ -1464,8 +1463,8 @@ static int rcsi2_probe(struct platform_device *pdev)
 	return 0;
 
 error:
-	v4l2_async_notifier_unregister(&priv->notifier);
-	v4l2_async_notifier_cleanup(&priv->notifier);
+	v4l2_async_nf_unregister(&priv->notifier);
+	v4l2_async_nf_cleanup(&priv->notifier);
 
 	return ret;
 }
@@ -1474,8 +1473,8 @@ static int rcsi2_remove(struct platform_device *pdev)
 {
 	struct rcar_csi2 *priv = platform_get_drvdata(pdev);
 
-	v4l2_async_notifier_unregister(&priv->notifier);
-	v4l2_async_notifier_cleanup(&priv->notifier);
+	v4l2_async_nf_unregister(&priv->notifier);
+	v4l2_async_nf_cleanup(&priv->notifier);
 	v4l2_async_unregister_subdev(&priv->subdev);
 
 	pm_runtime_disable(&pdev->dev);

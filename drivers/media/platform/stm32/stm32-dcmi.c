@@ -1824,11 +1824,11 @@ static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 		return -EINVAL;
 	}
 
-	v4l2_async_notifier_init(&dcmi->notifier);
+	v4l2_async_nf_init(&dcmi->notifier);
 
-	asd = v4l2_async_notifier_add_fwnode_remote_subdev(
-		&dcmi->notifier, of_fwnode_handle(ep),
-		struct v4l2_async_subdev);
+	asd = v4l2_async_nf_add_fwnode_remote(&dcmi->notifier,
+					      of_fwnode_handle(ep),
+					      struct v4l2_async_subdev);
 
 	of_node_put(ep);
 
@@ -1839,10 +1839,10 @@ static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 
 	dcmi->notifier.ops = &dcmi_graph_notify_ops;
 
-	ret = v4l2_async_notifier_register(&dcmi->v4l2_dev, &dcmi->notifier);
+	ret = v4l2_async_nf_register(&dcmi->v4l2_dev, &dcmi->notifier);
 	if (ret < 0) {
 		dev_err(dcmi->dev, "Failed to register notifier\n");
-		v4l2_async_notifier_cleanup(&dcmi->notifier);
+		v4l2_async_nf_cleanup(&dcmi->notifier);
 		return ret;
 	}
 
@@ -2060,7 +2060,7 @@ static int dcmi_probe(struct platform_device *pdev)
 	return 0;
 
 err_cleanup:
-	v4l2_async_notifier_cleanup(&dcmi->notifier);
+	v4l2_async_nf_cleanup(&dcmi->notifier);
 err_media_entity_cleanup:
 	media_entity_cleanup(&dcmi->vdev->entity);
 err_device_release:
@@ -2080,8 +2080,8 @@ static int dcmi_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
-	v4l2_async_notifier_unregister(&dcmi->notifier);
-	v4l2_async_notifier_cleanup(&dcmi->notifier);
+	v4l2_async_nf_unregister(&dcmi->notifier);
+	v4l2_async_nf_cleanup(&dcmi->notifier);
 	media_entity_cleanup(&dcmi->vdev->entity);
 	v4l2_device_unregister(&dcmi->v4l2_dev);
 	media_device_cleanup(&dcmi->mdev);
