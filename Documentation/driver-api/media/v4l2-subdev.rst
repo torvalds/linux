@@ -208,7 +208,7 @@ the needs of the driver.
 :c:func:`v4l2_async_notifier_add_i2c_subdev` are for bridge and ISP drivers for
 registering their async sub-devices with the notifier.
 
-:c:func:`v4l2_async_register_subdev_sensor_common` is a helper function for
+:c:func:`v4l2_async_register_subdev_sensor` is a helper function for
 sensor drivers registering their own async sub-device, but it also registers a
 notifier and further registers async sub-devices for lens and flash devices
 found in firmware. The notifier for the sub-device is unregistered with the

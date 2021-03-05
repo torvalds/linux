@@ -3572,7 +3572,7 @@ static int ccs_probe(struct i2c_client *client)
 	pm_runtime_get_noresume(&client->dev);
 	pm_runtime_enable(&client->dev);
 
-	rval = v4l2_async_register_subdev_sensor_common(&sensor->src->sd);
+	rval = v4l2_async_register_subdev_sensor(&sensor->src->sd);
 	if (rval < 0)
 		goto out_disable_runtime_pm;
 

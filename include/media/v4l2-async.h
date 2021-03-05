@@ -286,10 +286,10 @@ void v4l2_async_notifier_cleanup(struct v4l2_async_notifier *notifier);
 int v4l2_async_register_subdev(struct v4l2_subdev *sd);
 
 /**
- * v4l2_async_register_subdev_sensor_common - registers a sensor sub-device to
- *					      the asynchronous sub-device
- *					      framework and parse set up common
- *					      sensor related devices
+ * v4l2_async_register_subdev_sensor - registers a sensor sub-device to the
+ *				       asynchronous sub-device framework and
+ *				       parse set up common sensor related
+ *				       devices
  *
  * @sd: pointer to struct &v4l2_subdev
  *
@@ -305,7 +305,7 @@ int v4l2_async_register_subdev(struct v4l2_subdev *sd);
  * to register it.
  */
 int __must_check
-v4l2_async_register_subdev_sensor_common(struct v4l2_subdev *sd);
+v4l2_async_register_subdev_sensor(struct v4l2_subdev *sd);
 
 /**
  * v4l2_async_unregister_subdev - unregisters a sub-device to the asynchronous
