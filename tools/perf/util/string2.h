@@ -38,4 +38,6 @@ char *asprintf__tp_filter_pids(size_t npids, pid_t *pids);
 char *strpbrk_esc(char *str, const char *stopset);
 char *strdup_esc(const char *str);
 
+unsigned int hex(char c);
+
 #endif /* PERF_STRING_H */

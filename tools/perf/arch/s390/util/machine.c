@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <inttypes.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
@@ -48,5 +49,5 @@ void arch__symbols__fixup_end(struct symbol *p, struct symbol *c)
 		p->end = roundup(p->end, page_size);
 	else
 		p->end = c->start;
-	pr_debug4("%s sym:%s end:%#lx\n", __func__, p->name, p->end);
+	pr_debug4("%s sym:%s end:%#" PRIx64 "\n", __func__, p->name, p->end);
 }
