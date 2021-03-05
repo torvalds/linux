@@ -56,7 +56,7 @@ struct irq_entry {
 
 static DEFINE_SPINLOCK(irq_lock);
 static LIST_HEAD(active_fds);
-static DECLARE_BITMAP(irqs_allocated, NR_IRQS);
+static DECLARE_BITMAP(irqs_allocated, UM_LAST_SIGNAL_IRQ);
 static bool irqs_suspended;
 
 static void irq_io_loop(struct irq_reg *irq, struct uml_pt_regs *regs)
@@ -419,7 +419,8 @@ unsigned int do_IRQ(int irq, struct uml_pt_regs *regs)
 
 void um_free_irq(int irq, void *dev)
 {
-	if (WARN(irq < 0 || irq > NR_IRQS, "freeing invalid irq %d", irq))
+	if (WARN(irq < 0 || irq > UM_LAST_SIGNAL_IRQ,
+		 "freeing invalid irq %d", irq))
 		return;
 
 	free_irq_by_irq_and_dev(irq, dev);
@@ -648,7 +649,7 @@ void __init init_IRQ(void)
 
 	irq_set_chip_and_handler(TIMER_IRQ, &alarm_irq_type, handle_edge_irq);
 
-	for (i = 1; i < NR_IRQS; i++)
+	for (i = 1; i < UM_LAST_SIGNAL_IRQ; i++)
 		irq_set_chip_and_handler(i, &normal_irq_type, handle_edge_irq);
 	/* Initialize EPOLL Loop */
 	os_setup_epoll();

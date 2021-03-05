@@ -15,7 +15,7 @@ config UML
 	select HAVE_FUTEX_CMPXCHG if FUTEX
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DEBUG_BUGVERBOSE
-	select NO_DMA
+	select NO_DMA if !UML_DMA_EMULATION
 	select GENERIC_IRQ_SHOW
 	select GENERIC_CPU_DEVICES
 	select HAVE_GCC_PLUGINS
@@ -26,9 +26,20 @@ config MMU
 	bool
 	default y
 
+config UML_DMA_EMULATION
+	bool
+
 config NO_IOMEM
 	bool "disable IOMEM" if EXPERT
+	depends on !INDIRECT_IOMEM
 	default y
+
+config UML_IOMEM_EMULATION
+	bool
+	select INDIRECT_IOMEM
+	select GENERIC_PCI_IOMAP
+	select GENERIC_IOMAP
+	select NO_GENERIC_PCI_IOPORT_MAP
 
 config NO_IOPORT_MAP
 	def_bool y

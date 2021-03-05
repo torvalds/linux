@@ -18,7 +18,6 @@ generic-y += mcs_spinlock.h
 generic-y += mmiowb.h
 generic-y += module.lds.h
 generic-y += param.h
-generic-y += pci.h
 generic-y += percpu.h
 generic-y += preempt.h
 generic-y += softirq_stack.h
