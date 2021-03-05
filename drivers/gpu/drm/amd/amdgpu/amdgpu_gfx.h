@@ -226,6 +226,8 @@ struct amdgpu_gfx_funcs {
 	void (*init_spm_golden)(struct amdgpu_device *adev);
 	void (*query_ras_error_status) (struct amdgpu_device *adev);
 	void (*update_perfmon_mgcg)(struct amdgpu_device *adev, bool enable);
+	void (*enable_watchdog_timer)(struct amdgpu_device *adev);
+	void (*query_sq_timeout_status)(struct amdgpu_device *adev);
 };
 
 struct sq_work {

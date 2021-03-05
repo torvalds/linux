@@ -35,4 +35,7 @@ int gfx_v9_4_2_ras_error_inject(struct amdgpu_device *adev, void *inject_if);
 void gfx_v9_4_2_query_ras_error_status(struct amdgpu_device *adev);
 int gfx_v9_4_2_query_ras_error_count(struct amdgpu_device *adev,
 				   void *ras_error_status);
+
+void gfx_v9_4_2_enable_watchdog_timer(struct amdgpu_device *adev);
+void gfx_v9_4_2_query_sq_timeout_status(struct amdgpu_device *adev);
 #endif /* __GFX_V9_4_2_H__ */

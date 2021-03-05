@@ -1467,6 +1467,9 @@ static void amdgpu_ras_error_status_query(struct amdgpu_device *adev,
 	case AMDGPU_RAS_BLOCK__GFX:
 		if (adev->gfx.funcs->query_ras_error_status)
 			adev->gfx.funcs->query_ras_error_status(adev);
+
+		if (adev->gfx.funcs->query_sq_timeout_status)
+			adev->gfx.funcs->query_sq_timeout_status(adev);
 		break;
 	case AMDGPU_RAS_BLOCK__MMHUB:
 		if (adev->mmhub.funcs->query_ras_error_status)
