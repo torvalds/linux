@@ -1078,7 +1078,6 @@ static int aldebaran_get_power_limit(struct smu_context *smu)
 			dev_err(smu->adev->dev, "Cannot get PPT limit due to pptable missing!");
 			return -EINVAL;
 		}
-
 		power_limit = pptable->PptLimit;
 	}
 
@@ -1103,7 +1102,19 @@ static int aldebaran_system_features_control(struct  smu_context *smu, bool enab
 static int aldebaran_set_performance_level(struct smu_context *smu,
 					   enum amd_dpm_forced_level level)
 {
+	struct smu_dpm_context *smu_dpm = &(smu->smu_dpm);
+
+	/* Disable determinism if switching to another mode */
+	if ((smu_dpm->dpm_level == AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM)
+			&& (level != AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM))
+		smu_cmn_send_smc_msg(smu, SMU_MSG_DisableDeterminism, NULL);
+
+
 	switch (level) {
+
+	case AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM:
+		return 0;
+
 	case AMD_DPM_FORCED_LEVEL_HIGH:
 	case AMD_DPM_FORCED_LEVEL_LOW:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
@@ -1115,6 +1126,50 @@ static int aldebaran_set_performance_level(struct smu_context *smu,
 	}
 
 	return smu_v13_0_set_performance_level(smu, level);
+}
+
+static int aldebaran_set_soft_freq_limited_range(struct smu_context *smu,
+					  enum smu_clk_type clk_type,
+					  uint32_t min,
+					  uint32_t max)
+{
+	struct smu_dpm_context *smu_dpm = &(smu->smu_dpm);
+	struct smu_13_0_dpm_context *dpm_context = smu_dpm->dpm_context;
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t min_clk;
+	uint32_t max_clk;
+	int ret = 0;
+
+	if (clk_type != SMU_GFXCLK && clk_type != SMU_SCLK)
+		return -EINVAL;
+
+	if (smu_dpm->dpm_level != AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM)
+		return -EINVAL;
+
+	if (smu_dpm->dpm_level == AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM) {
+		if (!max || (max < dpm_context->dpm_tables.gfx_table.min) ||
+			(max > dpm_context->dpm_tables.gfx_table.max)) {
+			dev_warn(adev->dev,
+					"Invalid max frequency %d MHz specified for determinism\n", max);
+			return -EINVAL;
+		}
+
+		/* Restore default min/max clocks and enable determinism */
+		min_clk = dpm_context->dpm_tables.gfx_table.min;
+		max_clk = dpm_context->dpm_tables.gfx_table.max;
+		ret = smu_v13_0_set_soft_freq_limited_range(smu, SMU_GFXCLK, min_clk, max_clk);
+		if (!ret) {
+			usleep_range(500, 1000);
+			ret = smu_cmn_send_smc_msg_with_param(smu,
+					SMU_MSG_EnableDeterminism,
+					max, NULL);
+			if (ret)
+				dev_err(adev->dev,
+						"Failed to enable determinism at GFX clock %d MHz\n", max);
+		}
+	}
+
+	return ret;
 }
 
 static bool aldebaran_is_dpm_running(struct smu_context *smu)
@@ -1351,7 +1406,7 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.get_max_sustainable_clocks_by_dc = smu_v13_0_get_max_sustainable_clocks_by_dc,
 	.baco_is_support= aldebaran_is_baco_supported,
 	.get_dpm_ultimate_freq = smu_v13_0_get_dpm_ultimate_freq,
-	.set_soft_freq_limited_range = smu_v13_0_set_soft_freq_limited_range,
+	.set_soft_freq_limited_range = aldebaran_set_soft_freq_limited_range,
 	.set_df_cstate = aldebaran_set_df_cstate,
 	.allow_xgmi_power_down = aldebaran_allow_xgmi_power_down,
 	.log_thermal_throttling_event = aldebaran_log_thermal_throttling_event,
