@@ -1111,7 +1111,9 @@ static void cmos_check_wkalrm(struct device *dev)
 	 * ACK the rtc irq here
 	 */
 	if (t_now >= cmos->alarm_expires && cmos_use_acpi_alarm()) {
+		local_irq_disable();
 		cmos_interrupt(0, (void *)cmos->rtc);
+		local_irq_enable();
 		return;
 	}
 
