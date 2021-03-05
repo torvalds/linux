@@ -78,6 +78,9 @@ MODULE_FIRMWARE("amdgpu/dimgrey_cavefish_smc.bin");
 #define PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE_MASK 0xC000
 #define PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT 0xE
 
+#define mmTHM_BACO_CNTL_ARCT			0xA7
+#define mmTHM_BACO_CNTL_ARCT_BASE_IDX		0
+
 static int link_width[] = {0, 1, 2, 4, 8, 12, 16};
 static int link_speed[] = {25, 50, 80, 160};
 
@@ -1532,9 +1535,15 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 			break;
 		default:
 			if (!ras || !ras->supported) {
-				data = RREG32_SOC15(THM, 0, mmTHM_BACO_CNTL);
-				data |= 0x80000000;
-				WREG32_SOC15(THM, 0, mmTHM_BACO_CNTL, data);
+				if (adev->asic_type == CHIP_ARCTURUS) {
+					data = RREG32_SOC15(THM, 0, mmTHM_BACO_CNTL_ARCT);
+					data |= 0x80000000;
+					WREG32_SOC15(THM, 0, mmTHM_BACO_CNTL_ARCT, data);
+				} else {
+					data = RREG32_SOC15(THM, 0, mmTHM_BACO_CNTL);
+					data |= 0x80000000;
+					WREG32_SOC15(THM, 0, mmTHM_BACO_CNTL, data);
+				}
 
 				ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_EnterBaco, 0, NULL);
 			} else {
