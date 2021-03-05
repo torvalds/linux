@@ -576,6 +576,21 @@ static int hv_enable_direct_tlbflush(struct kvm_vcpu *vcpu)
 
 #endif /* IS_ENABLED(CONFIG_HYPERV) */
 
+static void hv_load_mmu_eptp(struct kvm_vcpu *vcpu, u64 eptp)
+{
+#if IS_ENABLED(CONFIG_HYPERV)
+	struct kvm_vmx *kvm_vmx = to_kvm_vmx(vcpu->kvm);
+
+	if (kvm_x86_ops.tlb_remote_flush == hv_remote_flush_tlb) {
+		spin_lock(&kvm_vmx->ept_pointer_lock);
+		to_vmx(vcpu)->ept_pointer = eptp;
+		if (eptp != kvm_vmx->hv_tlb_eptp)
+			kvm_vmx->hv_tlb_eptp = INVALID_PAGE;
+		spin_unlock(&kvm_vmx->ept_pointer_lock);
+	}
+#endif
+}
+
 /*
  * Comment's format: document - errata name - stepping - processor name.
  * Refer from
@@ -3114,13 +3129,7 @@ static void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa,
 		eptp = construct_eptp(vcpu, root_hpa, root_level);
 		vmcs_write64(EPT_POINTER, eptp);
 
-		if (kvm_x86_ops.tlb_remote_flush) {
-			spin_lock(&to_kvm_vmx(kvm)->ept_pointer_lock);
-			to_vmx(vcpu)->ept_pointer = eptp;
-			if (eptp != to_kvm_vmx(kvm)->hv_tlb_eptp)
-				to_kvm_vmx(kvm)->hv_tlb_eptp = INVALID_PAGE;
-			spin_unlock(&to_kvm_vmx(kvm)->ept_pointer_lock);
-		}
+		hv_load_mmu_eptp(vcpu, eptp);
 
 		if (!enable_unrestricted_guest && !is_paging(vcpu))
 			guest_cr3 = to_kvm_vmx(kvm)->ept_identity_map_addr;
