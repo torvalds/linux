@@ -4782,6 +4782,36 @@ skl_plane_trans_wm(const struct skl_pipe_wm *pipe_wm,
 	return &wm->trans_wm;
 }
 
+/*
+ * We only disable the watermarks for each plane if
+ * they exceed the ddb allocation of said plane. This
+ * is done so that we don't end up touching cursor
+ * watermarks needlessly when some other plane reduces
+ * our max possible watermark level.
+ *
+ * Bspec has this to say about the PLANE_WM enable bit:
+ * "All the watermarks at this level for all enabled
+ *  planes must be enabled before the level will be used."
+ * So this is actually safe to do.
+ */
+static void
+skl_check_wm_level(struct skl_wm_level *wm, u64 total)
+{
+	if (wm->min_ddb_alloc > total)
+		memset(wm, 0, sizeof(*wm));
+}
+
+static void
+skl_check_nv12_wm_level(struct skl_wm_level *wm, struct skl_wm_level *uv_wm,
+			u64 total, u64 uv_total)
+{
+	if (wm->min_ddb_alloc > total ||
+	    uv_wm->min_ddb_alloc > uv_total) {
+		memset(wm, 0, sizeof(*wm));
+		memset(uv_wm, 0, sizeof(*uv_wm));
+	}
+}
+
 static int
 skl_allocate_plane_ddb(struct intel_atomic_state *state,
 		       struct intel_crtc *crtc)
@@ -4949,21 +4979,8 @@ skl_allocate_plane_ddb(struct intel_atomic_state *state,
 			struct skl_plane_wm *wm =
 				&crtc_state->wm.skl.optimal.planes[plane_id];
 
-			/*
-			 * We only disable the watermarks for each plane if
-			 * they exceed the ddb allocation of said plane. This
-			 * is done so that we don't end up touching cursor
-			 * watermarks needlessly when some other plane reduces
-			 * our max possible watermark level.
-			 *
-			 * Bspec has this to say about the PLANE_WM enable bit:
-			 * "All the watermarks at this level for all enabled
-			 *  planes must be enabled before the level will be used."
-			 * So this is actually safe to do.
-			 */
-			if (wm->wm[level].min_ddb_alloc > total[plane_id] ||
-			    wm->uv_wm[level].min_ddb_alloc > uv_total[plane_id])
-				memset(&wm->wm[level], 0, sizeof(wm->wm[level]));
+			skl_check_nv12_wm_level(&wm->wm[level], &wm->uv_wm[level],
+						total[plane_id], uv_total[plane_id]);
 
 			/*
 			 * Wa_1408961008:icl, ehl
@@ -4986,14 +5003,9 @@ skl_allocate_plane_ddb(struct intel_atomic_state *state,
 		struct skl_plane_wm *wm =
 			&crtc_state->wm.skl.optimal.planes[plane_id];
 
-		if (wm->trans_wm.min_ddb_alloc > total[plane_id])
-			memset(&wm->trans_wm, 0, sizeof(wm->trans_wm));
-
-		if (wm->sagv.wm0.min_ddb_alloc > total[plane_id])
-			memset(&wm->sagv.wm0, 0, sizeof(wm->sagv.wm0));
-
-		if (wm->sagv.trans_wm.min_ddb_alloc > total[plane_id])
-			memset(&wm->sagv.trans_wm, 0, sizeof(wm->sagv.trans_wm));
+		skl_check_wm_level(&wm->trans_wm, total[plane_id]);
+		skl_check_wm_level(&wm->sagv.wm0, total[plane_id]);
+		skl_check_wm_level(&wm->sagv.trans_wm, total[plane_id]);
 	}
 
 	return 0;
