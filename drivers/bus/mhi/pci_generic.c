@@ -14,6 +14,7 @@
 #include <linux/mhi.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pm_runtime.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 
@@ -274,6 +275,7 @@ MODULE_DEVICE_TABLE(pci, mhi_pci_id_table);
 
 enum mhi_pci_device_status {
 	MHI_PCI_DEV_STARTED,
+	MHI_PCI_DEV_SUSPENDED,
 };
 
 struct mhi_pci_device {
@@ -307,6 +309,10 @@ static void mhi_pci_status_cb(struct mhi_controller *mhi_cntrl,
 	case MHI_CB_FATAL_ERROR:
 	case MHI_CB_SYS_ERROR:
 		dev_warn(&pdev->dev, "firmware crashed (%u)\n", cb);
+		pm_runtime_forbid(&pdev->dev);
+		break;
+	case MHI_CB_EE_MISSION_MODE:
+		pm_runtime_allow(&pdev->dev);
 		break;
 	default:
 		break;
@@ -428,13 +434,19 @@ static int mhi_pci_get_irqs(struct mhi_controller *mhi_cntrl,
 
 static int mhi_pci_runtime_get(struct mhi_controller *mhi_cntrl)
 {
-	/* no PM for now */
-	return 0;
+	/* The runtime_get() MHI callback means:
+	 *    Do whatever is requested to leave M3.
+	 */
+	return pm_runtime_get(mhi_cntrl->cntrl_dev);
 }
 
 static void mhi_pci_runtime_put(struct mhi_controller *mhi_cntrl)
 {
-	/* no PM for now */
+	/* The runtime_put() MHI callback means:
+	 *    Device can be moved in M3 state.
+	 */
+	pm_runtime_mark_last_busy(mhi_cntrl->cntrl_dev);
+	pm_runtime_put(mhi_cntrl->cntrl_dev);
 }
 
 static void mhi_pci_recovery_work(struct work_struct *work)
@@ -448,6 +460,7 @@ static void mhi_pci_recovery_work(struct work_struct *work)
 	dev_warn(&pdev->dev, "device recovery started\n");
 
 	del_timer(&mhi_pdev->health_check_timer);
+	pm_runtime_forbid(&pdev->dev);
 
 	/* Clean up MHI state */
 	if (test_and_clear_bit(MHI_PCI_DEV_STARTED, &mhi_pdev->status)) {
@@ -455,7 +468,6 @@ static void mhi_pci_recovery_work(struct work_struct *work)
 		mhi_unprepare_after_power_down(mhi_cntrl);
 	}
 
-	/* Check if we can recover without full reset */
 	pci_set_power_state(pdev, PCI_D0);
 	pci_load_saved_state(pdev, mhi_pdev->pci_state);
 	pci_restore_state(pdev);
@@ -488,6 +500,10 @@ static void health_check(struct timer_list *t)
 {
 	struct mhi_pci_device *mhi_pdev = from_timer(mhi_pdev, t, health_check_timer);
 	struct mhi_controller *mhi_cntrl = &mhi_pdev->mhi_cntrl;
+
+	if (!test_bit(MHI_PCI_DEV_STARTED, &mhi_pdev->status) ||
+			test_bit(MHI_PCI_DEV_SUSPENDED, &mhi_pdev->status))
+		return;
 
 	if (!mhi_pci_is_alive(mhi_cntrl)) {
 		dev_err(mhi_cntrl->cntrl_dev, "Device died\n");
@@ -576,6 +592,14 @@ static int mhi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* start health check */
 	mod_timer(&mhi_pdev->health_check_timer, jiffies + HEALTH_CHECK_PERIOD);
 
+	/* Only allow runtime-suspend if PME capable (for wakeup) */
+	if (pci_pme_capable(pdev, PCI_D3hot)) {
+		pm_runtime_set_autosuspend_delay(&pdev->dev, 2000);
+		pm_runtime_use_autosuspend(&pdev->dev);
+		pm_runtime_mark_last_busy(&pdev->dev);
+		pm_runtime_put_noidle(&pdev->dev);
+	}
+
 	return 0;
 
 err_unprepare:
@@ -598,6 +622,10 @@ static void mhi_pci_remove(struct pci_dev *pdev)
 		mhi_power_down(mhi_cntrl, true);
 		mhi_unprepare_after_power_down(mhi_cntrl);
 	}
+
+	/* balancing probe put_noidle */
+	if (pci_pme_capable(pdev, PCI_D3hot))
+		pm_runtime_get_noresume(&pdev->dev);
 
 	mhi_unregister_controller(mhi_cntrl);
 }
@@ -709,30 +737,47 @@ static const struct pci_error_handlers mhi_pci_err_handler = {
 	.reset_done = mhi_pci_reset_done,
 };
 
-static int  __maybe_unused mhi_pci_suspend(struct device *dev)
+static int  __maybe_unused mhi_pci_runtime_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct mhi_pci_device *mhi_pdev = dev_get_drvdata(dev);
 	struct mhi_controller *mhi_cntrl = &mhi_pdev->mhi_cntrl;
+	int err;
+
+	if (test_and_set_bit(MHI_PCI_DEV_SUSPENDED, &mhi_pdev->status))
+		return 0;
 
 	del_timer(&mhi_pdev->health_check_timer);
 	cancel_work_sync(&mhi_pdev->recovery_work);
 
-	/* Transition to M3 state */
-	mhi_pm_suspend(mhi_cntrl);
+	if (!test_bit(MHI_PCI_DEV_STARTED, &mhi_pdev->status) ||
+			mhi_cntrl->ee != MHI_EE_AMSS)
+		goto pci_suspend; /* Nothing to do at MHI level */
 
+	/* Transition to M3 state */
+	err = mhi_pm_suspend(mhi_cntrl);
+	if (err) {
+		dev_err(&pdev->dev, "failed to suspend device: %d\n", err);
+		clear_bit(MHI_PCI_DEV_SUSPENDED, &mhi_pdev->status);
+		return -EBUSY;
+	}
+
+pci_suspend:
 	pci_disable_device(pdev);
 	pci_wake_from_d3(pdev, true);
 
 	return 0;
 }
 
-static int __maybe_unused mhi_pci_resume(struct device *dev)
+static int __maybe_unused mhi_pci_runtime_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct mhi_pci_device *mhi_pdev = dev_get_drvdata(dev);
 	struct mhi_controller *mhi_cntrl = &mhi_pdev->mhi_cntrl;
 	int err;
+
+	if (!test_and_clear_bit(MHI_PCI_DEV_SUSPENDED, &mhi_pdev->status))
+		return 0;
 
 	err = pci_enable_device(pdev);
 	if (err)
@@ -740,6 +785,10 @@ static int __maybe_unused mhi_pci_resume(struct device *dev)
 
 	pci_set_master(pdev);
 	pci_wake_from_d3(pdev, false);
+
+	if (!test_bit(MHI_PCI_DEV_STARTED, &mhi_pdev->status) ||
+			mhi_cntrl->ee != MHI_EE_AMSS)
+		return 0; /* Nothing to do at MHI level */
 
 	/* Exit M3, transition to M0 state */
 	err = mhi_pm_resume(mhi_cntrl);
@@ -751,16 +800,44 @@ static int __maybe_unused mhi_pci_resume(struct device *dev)
 	/* Resume health check */
 	mod_timer(&mhi_pdev->health_check_timer, jiffies + HEALTH_CHECK_PERIOD);
 
+	/* It can be a remote wakeup (no mhi runtime_get), update access time */
+	pm_runtime_mark_last_busy(dev);
+
 	return 0;
 
 err_recovery:
-	/* The device may have loose power or crashed, try recovering it */
+	/* Do not fail to not mess up our PCI device state, the device likely
+	 * lost power (d3cold) and we simply need to reset it from the recovery
+	 * procedure, trigger the recovery asynchronously to prevent system
+	 * suspend exit delaying.
+	 */
 	queue_work(system_long_wq, &mhi_pdev->recovery_work);
+	pm_runtime_mark_last_busy(dev);
 
-	return err;
+	return 0;
+}
+
+static int  __maybe_unused mhi_pci_suspend(struct device *dev)
+{
+	pm_runtime_disable(dev);
+	return mhi_pci_runtime_suspend(dev);
+}
+
+static int __maybe_unused mhi_pci_resume(struct device *dev)
+{
+	int ret;
+
+	/* Depending the platform, device may have lost power (d3cold), we need
+	 * to resume it now to check its state and recover when necessary.
+	 */
+	ret = mhi_pci_runtime_resume(dev);
+	pm_runtime_enable(dev);
+
+	return ret;
 }
 
 static const struct dev_pm_ops mhi_pci_pm_ops = {
+	SET_RUNTIME_PM_OPS(mhi_pci_runtime_suspend, mhi_pci_runtime_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(mhi_pci_suspend, mhi_pci_resume)
 };
 
