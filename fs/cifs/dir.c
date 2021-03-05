@@ -79,28 +79,32 @@ cifs_build_path_to_root(struct smb3_fs_context *ctx, struct cifs_sb_info *cifs_s
 
 /* Note: caller must free return buffer */
 const char *
-build_path_from_dentry(struct dentry *direntry)
+build_path_from_dentry(struct dentry *direntry, void *page)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 	bool prefix = tcon->Flags & SMB_SHARE_IS_IN_DFS;
 
-	return build_path_from_dentry_optional_prefix(direntry,
+	return build_path_from_dentry_optional_prefix(direntry, page,
 						      prefix);
 }
 
 char *
-build_path_from_dentry_optional_prefix(struct dentry *direntry, bool prefix)
+build_path_from_dentry_optional_prefix(struct dentry *direntry, void *page,
+				       bool prefix)
 {
 	struct dentry *temp;
 	int namelen;
 	int dfsplen;
 	int pplen = 0;
-	char *full_path;
+	char *full_path = page;
 	char dirsep;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 	unsigned seq;
+
+	if (unlikely(!page))
+		return ERR_PTR(-ENOMEM);
 
 	dirsep = CIFS_DIR_SEP(cifs_sb);
 	if (prefix)
@@ -118,17 +122,12 @@ cifs_bp_rename_retry:
 	for (temp = direntry; !IS_ROOT(temp);) {
 		namelen += (1 + temp->d_name.len);
 		temp = temp->d_parent;
-		if (temp == NULL) {
-			cifs_dbg(VFS, "corrupt dentry\n");
-			rcu_read_unlock();
-			return NULL;
-		}
 	}
 	rcu_read_unlock();
 
-	full_path = kmalloc(namelen+1, GFP_ATOMIC);
-	if (full_path == NULL)
-		return full_path;
+	if (namelen >= PAGE_SIZE)
+		return ERR_PTR(-ENAMETOOLONG);
+
 	full_path[namelen] = 0;	/* trailing null */
 	rcu_read_lock();
 	for (temp = direntry; !IS_ROOT(temp);) {
@@ -145,12 +144,6 @@ cifs_bp_rename_retry:
 		}
 		spin_unlock(&temp->d_lock);
 		temp = temp->d_parent;
-		if (temp == NULL) {
-			cifs_dbg(VFS, "corrupt dentry\n");
-			rcu_read_unlock();
-			kfree(full_path);
-			return NULL;
-		}
 	}
 	rcu_read_unlock();
 	if (namelen != dfsplen + pplen || read_seqretry(&rename_lock, seq)) {
@@ -159,7 +152,6 @@ cifs_bp_rename_retry:
 		/* presumably this is only possible if racing with a rename
 		of one of the parent directories  (we can not lock the dentries
 		above us to prevent this, but retrying should be harmless) */
-		kfree(full_path);
 		goto cifs_bp_rename_retry;
 	}
 	/* DIR_SEP already set for byte  0 / vs \ but not for
@@ -233,7 +225,8 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 	int desired_access;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifs_tcon *tcon = tlink_tcon(tlink);
-	const char *full_path = NULL;
+	const char *full_path;
+	void *page = alloc_dentry_path();
 	FILE_ALL_INFO *buf = NULL;
 	struct inode *newinode = NULL;
 	int disposition;
@@ -244,9 +237,11 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 	if (tcon->ses->server->oplocks)
 		*oplock = REQ_OPLOCK;
 
-	full_path = build_path_from_dentry(direntry);
-	if (!full_path)
-		return -ENOMEM;
+	full_path = build_path_from_dentry(direntry, page);
+	if (IS_ERR(full_path)) {
+		free_dentry_path(page);
+		return PTR_ERR(full_path);
+	}
 
 	if (tcon->unix_ext && cap_unix(tcon->ses) && !tcon->broken_posix_open &&
 	    (CIFS_UNIX_POSIX_PATH_OPS_CAP &
@@ -448,7 +443,7 @@ cifs_create_set_dentry:
 
 out:
 	kfree(buf);
-	kfree(full_path);
+	free_dentry_path(page);
 	return rc;
 
 out_err:
@@ -619,7 +614,8 @@ int cifs_mknod(struct user_namespace *mnt_userns, struct inode *inode,
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
 	struct cifs_tcon *tcon;
-	const char *full_path = NULL;
+	const char *full_path;
+	void *page;
 
 	if (!old_valid_dev(device_number))
 		return -EINVAL;
@@ -629,13 +625,13 @@ int cifs_mknod(struct user_namespace *mnt_userns, struct inode *inode,
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
 
+	page = alloc_dentry_path();
 	tcon = tlink_tcon(tlink);
-
 	xid = get_xid();
 
-	full_path = build_path_from_dentry(direntry);
-	if (full_path == NULL) {
-		rc = -ENOMEM;
+	full_path = build_path_from_dentry(direntry, page);
+	if (IS_ERR(full_path)) {
+		rc = PTR_ERR(full_path);
 		goto mknod_out;
 	}
 
@@ -644,7 +640,7 @@ int cifs_mknod(struct user_namespace *mnt_userns, struct inode *inode,
 					       device_number);
 
 mknod_out:
-	kfree(full_path);
+	free_dentry_path(page);
 	free_xid(xid);
 	cifs_put_tlink(tlink);
 	return rc;
@@ -660,7 +656,8 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	struct tcon_link *tlink;
 	struct cifs_tcon *pTcon;
 	struct inode *newInode = NULL;
-	const char *full_path = NULL;
+	const char *full_path;
+	void *page;
 
 	xid = get_xid();
 
@@ -687,11 +684,13 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	/* can not grab the rename sem here since it would
 	deadlock in the cases (beginning of sys_rename itself)
 	in which we already have the sb rename sem */
-	full_path = build_path_from_dentry(direntry);
-	if (full_path == NULL) {
+	page = alloc_dentry_path();
+	full_path = build_path_from_dentry(direntry, page);
+	if (IS_ERR(full_path)) {
 		cifs_put_tlink(tlink);
 		free_xid(xid);
-		return ERR_PTR(-ENOMEM);
+		free_dentry_path(page);
+		return ERR_CAST(full_path);
 	}
 
 	if (d_really_is_positive(direntry)) {
@@ -727,7 +726,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 		}
 		newInode = ERR_PTR(rc);
 	}
-	kfree(full_path);
+	free_dentry_path(page);
 	cifs_put_tlink(tlink);
 	free_xid(xid);
 	return d_splice_alias(newInode, direntry);
