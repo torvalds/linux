@@ -15,43 +15,55 @@ struct mlx5_sf_hw {
 	u8 pending_delete: 1;
 };
 
+struct mlx5_sf_hwc_table {
+	struct mlx5_sf_hw *sfs;
+	int max_fn;
+	u16 start_fn_id;
+};
+
+enum mlx5_sf_hwc_index {
+	MLX5_SF_HWC_LOCAL,
+	MLX5_SF_HWC_MAX,
+};
+
 struct mlx5_sf_hw_table {
 	struct mlx5_core_dev *dev;
-	struct mlx5_sf_hw *sfs;
-	int max_local_functions;
-	u16 start_fn_id;
 	struct mutex table_lock; /* Serializes sf deletion and vhca state change handler. */
 	struct notifier_block vhca_nb;
+	struct mlx5_sf_hwc_table hwc[MLX5_SF_HWC_MAX];
 };
 
 u16 mlx5_sf_sw_to_hw_id(const struct mlx5_core_dev *dev, u16 sw_id)
 {
-	struct mlx5_sf_hw_table *table = dev->priv.sf_hw_table;
+	struct mlx5_sf_hwc_table *hwc = &dev->priv.sf_hw_table->hwc[MLX5_SF_HWC_LOCAL];
 
-	return table->start_fn_id + sw_id;
+	return hwc->start_fn_id + sw_id;
 }
 
 static u16 mlx5_sf_hw_to_sw_id(const struct mlx5_core_dev *dev, u16 hw_id)
 {
-	struct mlx5_sf_hw_table *table = dev->priv.sf_hw_table;
+	struct mlx5_sf_hwc_table *hwc = &dev->priv.sf_hw_table->hwc[MLX5_SF_HWC_LOCAL];
 
-	return hw_id - table->start_fn_id;
+	return hw_id - hwc->start_fn_id;
 }
 
 static int mlx5_sf_hw_table_id_alloc(struct mlx5_sf_hw_table *table, u32 usr_sfnum)
 {
+	struct mlx5_sf_hwc_table *hwc;
 	int i;
 
+	hwc = &table->hwc[MLX5_SF_HWC_LOCAL];
+
 	/* Check if sf with same sfnum already exists or not. */
-	for (i = 0; i < table->max_local_functions; i++) {
-		if (table->sfs[i].allocated && table->sfs[i].usr_sfnum == usr_sfnum)
+	for (i = 0; i < hwc->max_fn; i++) {
+		if (hwc->sfs[i].allocated && hwc->sfs[i].usr_sfnum == usr_sfnum)
 			return -EEXIST;
 	}
 	/* Find the free entry and allocate the entry from the array */
-	for (i = 0; i < table->max_local_functions; i++) {
-		if (!table->sfs[i].allocated) {
-			table->sfs[i].usr_sfnum = usr_sfnum;
-			table->sfs[i].allocated = true;
+	for (i = 0; i < hwc->max_fn; i++) {
+		if (!hwc->sfs[i].allocated) {
+			hwc->sfs[i].usr_sfnum = usr_sfnum;
+			hwc->sfs[i].allocated = true;
 			return i;
 		}
 	}
@@ -60,8 +72,10 @@ static int mlx5_sf_hw_table_id_alloc(struct mlx5_sf_hw_table *table, u32 usr_sfn
 
 static void mlx5_sf_hw_table_id_free(struct mlx5_sf_hw_table *table, int id)
 {
-	table->sfs[id].allocated = false;
-	table->sfs[id].pending_delete = false;
+	struct mlx5_sf_hwc_table *hwc = &table->hwc[MLX5_SF_HWC_LOCAL];
+
+	hwc->sfs[id].allocated = false;
+	hwc->sfs[id].pending_delete = false;
 }
 
 int mlx5_sf_hw_table_sf_alloc(struct mlx5_core_dev *dev, u32 usr_sfnum)
@@ -125,11 +139,13 @@ void mlx5_sf_hw_table_sf_deferred_free(struct mlx5_core_dev *dev, u16 id)
 {
 	struct mlx5_sf_hw_table *table = dev->priv.sf_hw_table;
 	u32 out[MLX5_ST_SZ_DW(query_vhca_state_out)] = {};
+	struct mlx5_sf_hwc_table *hwc;
 	u16 hw_fn_id;
 	u8 state;
 	int err;
 
 	hw_fn_id = mlx5_sf_sw_to_hw_id(dev, id);
+	hwc = &table->hwc[MLX5_SF_HWC_LOCAL];
 	mutex_lock(&table->table_lock);
 	err = mlx5_cmd_query_vhca_state(dev, hw_fn_id, out, sizeof(out));
 	if (err)
@@ -137,25 +153,31 @@ void mlx5_sf_hw_table_sf_deferred_free(struct mlx5_core_dev *dev, u16 id)
 	state = MLX5_GET(query_vhca_state_out, out, vhca_state_context.vhca_state);
 	if (state == MLX5_VHCA_STATE_ALLOCATED) {
 		mlx5_cmd_dealloc_sf(dev, hw_fn_id);
-		table->sfs[id].allocated = false;
+		hwc->sfs[id].allocated = false;
 	} else {
-		table->sfs[id].pending_delete = true;
+		hwc->sfs[id].pending_delete = true;
 	}
 err:
 	mutex_unlock(&table->table_lock);
 }
 
-static void mlx5_sf_hw_dealloc_all(struct mlx5_sf_hw_table *table)
+static void mlx5_sf_hw_table_hwc_dealloc_all(struct mlx5_core_dev *dev,
+					     struct mlx5_sf_hwc_table *hwc)
 {
 	int i;
 
-	for (i = 0; i < table->max_local_functions; i++) {
-		if (table->sfs[i].allocated)
-			_mlx5_sf_hw_table_sf_free(table->dev, i);
+	for (i = 0; i < hwc->max_fn; i++) {
+		if (hwc->sfs[i].allocated)
+			_mlx5_sf_hw_table_sf_free(dev, i);
 	}
 }
 
-static int mlx5_sf_hw_table_alloc(struct mlx5_sf_hw_table *table, u16 max_fn, u16 base_id)
+static void mlx5_sf_hw_table_dealloc_all(struct mlx5_sf_hw_table *table)
+{
+	mlx5_sf_hw_table_hwc_dealloc_all(table->dev, &table->hwc[MLX5_SF_HWC_LOCAL]);
+}
+
+static int mlx5_sf_hw_table_hwc_init(struct mlx5_sf_hwc_table *hwc, u16 max_fn, u16 base_id)
 {
 	struct mlx5_sf_hw *sfs;
 
@@ -163,10 +185,15 @@ static int mlx5_sf_hw_table_alloc(struct mlx5_sf_hw_table *table, u16 max_fn, u1
 	if (!sfs)
 		return -ENOMEM;
 
-	table->sfs = sfs;
-	table->max_local_functions = max_fn;
-	table->start_fn_id = base_id;
+	hwc->sfs = sfs;
+	hwc->max_fn = max_fn;
+	hwc->start_fn_id = base_id;
 	return 0;
+}
+
+static void mlx5_sf_hw_table_hwc_cleanup(struct mlx5_sf_hwc_table *hwc)
+{
+	kfree(hwc->sfs);
 }
 
 int mlx5_sf_hw_table_init(struct mlx5_core_dev *dev)
@@ -189,7 +216,7 @@ int mlx5_sf_hw_table_init(struct mlx5_core_dev *dev)
 	dev->priv.sf_hw_table = table;
 
 	base_id = mlx5_sf_start_function_id(dev);
-	err = mlx5_sf_hw_table_alloc(table, max_fn, base_id);
+	err = mlx5_sf_hw_table_hwc_init(&table->hwc[MLX5_SF_HWC_LOCAL], max_fn, base_id);
 	if (err)
 		goto table_err;
 
@@ -210,7 +237,7 @@ void mlx5_sf_hw_table_cleanup(struct mlx5_core_dev *dev)
 		return;
 
 	mutex_destroy(&table->table_lock);
-	kfree(table->sfs);
+	mlx5_sf_hw_table_hwc_cleanup(&table->hwc[MLX5_SF_HWC_LOCAL]);
 	kfree(table);
 }
 
@@ -218,14 +245,16 @@ static int mlx5_sf_hw_vhca_event(struct notifier_block *nb, unsigned long opcode
 {
 	struct mlx5_sf_hw_table *table = container_of(nb, struct mlx5_sf_hw_table, vhca_nb);
 	const struct mlx5_vhca_state_event *event = data;
+	struct mlx5_sf_hwc_table *hwc;
 	struct mlx5_sf_hw *sf_hw;
 	u16 sw_id;
 
 	if (event->new_vhca_state != MLX5_VHCA_STATE_ALLOCATED)
 		return 0;
 
+	hwc = &table->hwc[MLX5_SF_HWC_LOCAL];
 	sw_id = mlx5_sf_hw_to_sw_id(table->dev, event->function_id);
-	sf_hw = &table->sfs[sw_id];
+	sf_hw = &hwc->sfs[sw_id];
 
 	mutex_lock(&table->table_lock);
 	/* SF driver notified through firmware that SF is finally detached.
@@ -257,7 +286,7 @@ void mlx5_sf_hw_table_destroy(struct mlx5_core_dev *dev)
 
 	mlx5_vhca_event_notifier_unregister(dev, &table->vhca_nb);
 	/* Dealloc SFs whose firmware event has been missed. */
-	mlx5_sf_hw_dealloc_all(table);
+	mlx5_sf_hw_table_dealloc_all(table);
 }
 
 bool mlx5_sf_hw_table_supported(const struct mlx5_core_dev *dev)
