@@ -5594,6 +5594,42 @@ _base_allocate_reply_pool(struct MPT3SAS_ADAPTER *ioc, u32 sz)
 }
 
 /**
+ * _base_allocate_reply_free_dma_pool - Allocating DMA'able memory
+ *			for reply free dma pool.
+ * @ioc: Adapter object
+ * @sz: DMA Pool size
+ * Return: 0 for success, non-zero for failure.
+ */
+static int
+_base_allocate_reply_free_dma_pool(struct MPT3SAS_ADAPTER *ioc, u32 sz)
+{
+	/* reply free queue, 16 byte align */
+	ioc->reply_free_dma_pool = dma_pool_create(
+	    "reply_free pool", &ioc->pdev->dev, sz, 16, 0);
+	if (!ioc->reply_free_dma_pool)
+		return -ENOMEM;
+	ioc->reply_free = dma_pool_alloc(ioc->reply_free_dma_pool,
+	    GFP_KERNEL, &ioc->reply_free_dma);
+	if (!ioc->reply_free)
+		return -EAGAIN;
+	if (!mpt3sas_check_same_4gb_region((long)ioc->reply_free, sz)) {
+		dinitprintk(ioc,
+		    pr_err("Bad Reply Free Pool! Reply Free (0x%p) Reply Free dma = (0x%llx)\n",
+		    ioc->reply_free, (unsigned long long) ioc->reply_free_dma));
+		ioc->use_32bit_dma = true;
+		return -EAGAIN;
+	}
+	memset(ioc->reply_free, 0, sz);
+	dinitprintk(ioc, ioc_info(ioc,
+	    "reply_free pool(0x%p): depth(%d), element_size(%d), pool_size(%d kB)\n",
+	    ioc->reply_free, ioc->reply_free_queue_depth, 4, sz/1024));
+	dinitprintk(ioc, ioc_info(ioc,
+	    "reply_free_dma (0x%llx)\n",
+	    (unsigned long long)ioc->reply_free_dma));
+	return 0;
+}
+
+/**
  * base_alloc_rdpq_dma_pool - Allocating DMA'able memory
  *                     for reply queues.
  * @ioc: per adapter object
@@ -6050,29 +6086,18 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	else if (rc == -EAGAIN)
 		goto try_32bit_dma;
 	total_sz += sz;
+
 	/* reply free queue, 16 byte align */
 	sz = ioc->reply_free_queue_depth * 4;
-	ioc->reply_free_dma_pool = dma_pool_create("reply_free pool",
-	    &ioc->pdev->dev, sz, 16, 0);
-	if (!ioc->reply_free_dma_pool) {
-		ioc_err(ioc, "reply_free pool: dma_pool_create failed\n");
-		goto out;
-	}
-	ioc->reply_free = dma_pool_zalloc(ioc->reply_free_dma_pool, GFP_KERNEL,
-	    &ioc->reply_free_dma);
-	if (!ioc->reply_free) {
-		ioc_err(ioc, "reply_free pool: dma_pool_alloc failed\n");
-		goto out;
-	}
-	dinitprintk(ioc,
-		    ioc_info(ioc, "reply_free pool(0x%p): depth(%d), element_size(%d), pool_size(%d kB)\n",
-			     ioc->reply_free, ioc->reply_free_queue_depth,
-			     4, sz / 1024));
+	rc = _base_allocate_reply_free_dma_pool(ioc, sz);
+	if (rc  == -ENOMEM)
+		return -ENOMEM;
+	else if (rc == -EAGAIN)
+		goto try_32bit_dma;
 	dinitprintk(ioc,
 		    ioc_info(ioc, "reply_free_dma (0x%llx)\n",
 			     (unsigned long long)ioc->reply_free_dma));
 	total_sz += sz;
-
 	if (ioc->rdpq_array_enable) {
 		reply_post_free_array_sz = ioc->reply_queue_count *
 		    sizeof(Mpi2IOCInitRDPQArrayEntry);
