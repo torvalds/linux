@@ -1538,6 +1538,15 @@ static void dwc3_rockchip_async_probe(void *data, async_cookie_t cookie)
 {
 	struct dwc3 *dwc = data;
 	struct device *dev = dwc->dev;
+	int id;
+
+	if (dwc->edev && !dwc->drd_connected) {
+		id = extcon_get_state(dwc->edev, EXTCON_USB_HOST);
+		if (id < 0)
+			id = 0;
+		dwc->current_dr_role = id ? DWC3_GCTL_PRTCAP_HOST :
+				       DWC3_GCTL_PRTCAP_DEVICE;
+	}
 
 	pm_runtime_put_sync_suspend(dev);
 }
