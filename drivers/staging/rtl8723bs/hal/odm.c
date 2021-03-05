@@ -1114,8 +1114,6 @@ void odm_RefreshRateAdaptiveMaskCE(PDM_ODM_T pDM_Odm)
 		if (IS_STA_VALID(pstat)) {
 			if (IS_MCAST(pstat->hwaddr))  /* if (psta->mac_id == 1) */
 				continue;
-			if (IS_MCAST(pstat->hwaddr))
-				continue;
 
 			if (true == ODM_RAStateCheck(pDM_Odm, pstat->rssi_stat.UndecoratedSmoothedPWDB, false, &pstat->rssi_level)) {
 				ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_LOUD, ("RSSI:%d, RSSI_LEVEL:%d\n", pstat->rssi_stat.UndecoratedSmoothedPWDB, pstat->rssi_level));
