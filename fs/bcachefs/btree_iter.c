@@ -1739,7 +1739,6 @@ struct bkey_s_c bch2_btree_iter_next_with_updates(struct btree_iter *iter)
  */
 struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 {
-	struct bpos pos = iter->pos;
 	struct btree_iter_level *l = &iter->l[0];
 	struct bkey_s_c k;
 	int ret;
@@ -1764,8 +1763,8 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 		k = __btree_iter_peek(iter, l);
 		if (!k.k ||
 		    ((iter->flags & BTREE_ITER_IS_EXTENTS)
-		     ? bkey_cmp(bkey_start_pos(k.k), pos) >= 0
-		     : bkey_cmp(bkey_start_pos(k.k), pos) > 0))
+		     ? bkey_cmp(bkey_start_pos(k.k), iter->pos) >= 0
+		     : bkey_cmp(bkey_start_pos(k.k), iter->pos) > 0))
 			k = __btree_iter_prev(iter, l);
 
 		if (likely(k.k))
@@ -1777,10 +1776,10 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 		}
 	}
 
-	EBUG_ON(bkey_cmp(bkey_start_pos(k.k), pos) > 0);
+	EBUG_ON(bkey_cmp(bkey_start_pos(k.k), iter->pos) > 0);
 
 	/* Extents can straddle iter->pos: */
-	if (bkey_cmp(k.k->p, pos) < 0)
+	if (bkey_cmp(k.k->p, iter->pos) < 0)
 		iter->pos = k.k->p;
 	iter->real_pos = k.k->p;
 	iter->uptodate = BTREE_ITER_UPTODATE;
@@ -1794,8 +1793,6 @@ no_key:
 	 * then we errored going to the previous leaf - make sure it's
 	 * consistent with iter->pos:
 	 */
-	BUG_ON(bkey_cmp(pos, iter->pos) &&
-	       bkey_cmp(iter->pos, POS_MIN));
 	bkey_init(&iter->k);
 	iter->k.p = iter->pos;
 	goto out;
