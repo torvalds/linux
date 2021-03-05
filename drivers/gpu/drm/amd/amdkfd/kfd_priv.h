@@ -1099,7 +1099,16 @@ struct kfd_criu_queue_priv_data {
 
 struct kfd_criu_event_priv_data {
 	uint32_t object_type;
-	uint32_t reserved;
+	uint64_t user_handle;
+	uint32_t event_id;
+	uint32_t auto_reset;
+	uint32_t type;
+	uint32_t signaled;
+
+	union {
+		struct kfd_hsa_memory_exception_data memory_exception_data;
+		struct kfd_hsa_hw_exception_data hw_exception_data;
+	};
 };
 
 int kfd_process_get_queue_info(struct kfd_process *p,
@@ -1111,6 +1120,16 @@ int kfd_criu_checkpoint_queues(struct kfd_process *p,
 			 uint64_t *priv_data_offset);
 
 int kfd_criu_restore_queue(struct kfd_process *p,
+			   uint8_t __user *user_priv_data,
+			   uint64_t *priv_data_offset,
+			   uint64_t max_priv_data_size);
+
+int kfd_criu_checkpoint_events(struct kfd_process *p,
+			 uint8_t __user *user_priv_data,
+			 uint64_t *priv_data_offset);
+
+int kfd_criu_restore_event(struct file *devkfd,
+			   struct kfd_process *p,
 			   uint8_t __user *user_priv_data,
 			   uint64_t *priv_data_offset,
 			   uint64_t max_priv_data_size);
@@ -1277,12 +1296,14 @@ void kfd_signal_iommu_event(struct kfd_dev *dev,
 void kfd_signal_hw_exception_event(u32 pasid);
 int kfd_set_event(struct kfd_process *p, uint32_t event_id);
 int kfd_reset_event(struct kfd_process *p, uint32_t event_id);
-int kfd_event_page_set(struct kfd_process *p, void *kernel_address,
-		       uint64_t size);
+int kfd_kmap_event_page(struct kfd_process *p, uint64_t event_page_offset);
+
 int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 		     uint32_t event_type, bool auto_reset, uint32_t node_id,
 		     uint32_t *event_id, uint32_t *event_trigger_data,
 		     uint64_t *event_page_offset, uint32_t *event_slot_index);
+
+int kfd_get_num_events(struct kfd_process *p);
 int kfd_event_destroy(struct kfd_process *p, uint32_t event_id);
 
 void kfd_signal_vm_fault_event(struct kfd_dev *dev, u32 pasid,

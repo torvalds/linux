@@ -1008,57 +1008,11 @@ static int kfd_ioctl_create_event(struct file *filp, struct kfd_process *p,
 	 * through the event_page_offset field.
 	 */
 	if (args->event_page_offset) {
-		struct kfd_dev *kfd;
-		struct kfd_process_device *pdd;
-		void *mem, *kern_addr;
-		uint64_t size;
-
-		kfd = kfd_device_by_id(GET_GPU_ID(args->event_page_offset));
-		if (!kfd) {
-			pr_err("Getting device by id failed in %s\n", __func__);
-			return -EINVAL;
-		}
-
 		mutex_lock(&p->mutex);
-
-		if (p->signal_page) {
-			pr_err("Event page is already set\n");
-			err = -EINVAL;
-			goto out_unlock;
-		}
-
-		pdd = kfd_bind_process_to_device(kfd, p);
-		if (IS_ERR(pdd)) {
-			err = PTR_ERR(pdd);
-			goto out_unlock;
-		}
-
-		mem = kfd_process_device_translate_handle(pdd,
-				GET_IDR_HANDLE(args->event_page_offset));
-		if (!mem) {
-			pr_err("Can't find BO, offset is 0x%llx\n",
-			       args->event_page_offset);
-			err = -EINVAL;
-			goto out_unlock;
-		}
-
-		err = amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel(kfd->adev,
-						mem, &kern_addr, &size);
-		if (err) {
-			pr_err("Failed to map event page to kernel\n");
-			goto out_unlock;
-		}
-
-		err = kfd_event_page_set(p, kern_addr, size);
-		if (err) {
-			pr_err("Failed to set event page\n");
-			amdgpu_amdkfd_gpuvm_unmap_gtt_bo_from_kernel(kfd->adev, mem);
-			goto out_unlock;
-		}
-
-		p->signal_handle = args->event_page_offset;
-
+		err = kfd_kmap_event_page(p, args->event_page_offset);
 		mutex_unlock(&p->mutex);
+		if (err)
+			return err;
 	}
 
 	err = kfd_event_create(filp, p, args->event_type,
@@ -1067,10 +1021,7 @@ static int kfd_ioctl_create_event(struct file *filp, struct kfd_process *p,
 				&args->event_page_offset,
 				&args->event_slot_index);
 
-	return err;
-
-out_unlock:
-	mutex_unlock(&p->mutex);
+	pr_debug("Created event (id:0x%08x) (%s)\n", args->event_id, __func__);
 	return err;
 }
 
@@ -2031,7 +1982,7 @@ static int criu_get_process_object_info(struct kfd_process *p,
 	if (ret)
 		return ret;
 
-	num_events = 0;     /* TODO: Implement Events */
+	num_events = kfd_get_num_events(p);
 	num_svm_ranges = 0; /* TODO: Implement SVM-Ranges */
 
 	*num_objects = num_queues + num_events + num_svm_ranges;
@@ -2040,7 +1991,7 @@ static int criu_get_process_object_info(struct kfd_process *p,
 		priv_size = sizeof(struct kfd_criu_process_priv_data);
 		priv_size += *num_bos * sizeof(struct kfd_criu_bo_priv_data);
 		priv_size += queues_priv_data_size;
-		/* TODO: Add Events priv size */
+		priv_size += num_events * sizeof(struct kfd_criu_event_priv_data);
 		/* TODO: Add SVM ranges priv size */
 		*objs_priv_size = priv_size;
 	}
@@ -2102,7 +2053,10 @@ static int criu_checkpoint(struct file *filep,
 		if (ret)
 			goto exit_unlock;
 
-		/* TODO: Dump Events */
+		ret = kfd_criu_checkpoint_events(p, (uint8_t __user *)args->priv_data,
+						 &priv_offset);
+		if (ret)
+			goto exit_unlock;
 
 		/* TODO: Dump SVM-Ranges */
 	}
@@ -2410,8 +2364,8 @@ static int criu_restore_objects(struct file *filep,
 				goto exit;
 			break;
 		case KFD_CRIU_OBJECT_TYPE_EVENT:
-			/* TODO: Implement Events */
-			*priv_offset += sizeof(struct kfd_criu_event_priv_data);
+			ret = kfd_criu_restore_event(filep, p, (uint8_t __user *)args->priv_data,
+						     priv_offset, max_priv_data_size);
 			if (ret)
 				goto exit;
 			break;
