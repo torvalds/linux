@@ -336,7 +336,7 @@ Example 3: A uart client node that supports 'default' and 'flow-control' states.
 		interrupts = <0 52 0>;
 		pinctrl-names = "default", "flow-control;
 		pinctrl-0 = <&uart0_data>;
-		pinctrl-1 = <&uart0_data &uart0_fctl>;
+		pinctrl-1 = <&uart0_data>, <&uart0_fctl>;
 	};
 
 Example 4: Set up the default pin state for uart controller.

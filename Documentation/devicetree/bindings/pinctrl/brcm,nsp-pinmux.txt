@@ -30,7 +30,7 @@ For example:
 		      <0x1803f408 0x04>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&pwm &gpio_b &nand_sel>;
+		pinctrl-0 = <&pwm>, <&gpio_b>, <&nand_sel>;
 
 		pwm: pwm {
 			function = "pwm";

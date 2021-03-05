@@ -1375,6 +1375,7 @@
 #define mtmsr(v)	asm volatile("mtmsr %0" : \
 				     : "r" ((unsigned long)(v)) \
 				     : "memory")
+#define __mtmsrd(v, l)	BUILD_BUG()
 #define __MTMSR		"mtmsr"
 #endif
 
@@ -1413,13 +1414,24 @@ static inline void msr_check_and_clear(unsigned long bits)
 }
 
 #ifdef CONFIG_PPC32
-#define mfsrin(v)	({unsigned int rval; \
-			asm volatile("mfsrin %0,%1" : "=r" (rval) : "r" (v)); \
-					rval;})
-
-static inline void mtsrin(u32 val, u32 idx)
+static inline u32 mfsr(u32 idx)
 {
-	asm volatile("mtsrin %0, %1" : : "r" (val), "r" (idx));
+	u32 val;
+
+	if (__builtin_constant_p(idx))
+		asm volatile("mfsr %0, %1" : "=r" (val): "i" (idx >> 28));
+	else
+		asm volatile("mfsrin %0, %1" : "=r" (val): "r" (idx));
+
+	return val;
+}
+
+static inline void mtsr(u32 val, u32 idx)
+{
+	if (__builtin_constant_p(idx))
+		asm volatile("mtsr %1, %0" : : "r" (val), "i" (idx >> 28));
+	else
+		asm volatile("mtsrin %0, %1" : : "r" (val), "r" (idx));
 }
 #endif
 
