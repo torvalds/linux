@@ -959,6 +959,10 @@ static void isst_print_extended_platform_info(void)
 		fprintf(outf, "Intel(R) SST-BF (feature base-freq) is not supported\n");
 
 	ret = isst_read_pm_config(i, &cp_state, &cp_cap);
+	if (ret) {
+		fprintf(outf, "Intel(R) SST-CP (feature core-power) status is unknown\n");
+		return;
+	}
 	if (cp_cap)
 		fprintf(outf, "Intel(R) SST-CP (feature core-power) is supported\n");
 	else
