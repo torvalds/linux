@@ -96,7 +96,8 @@ static inline __u32 xsk_prod_nb_free(struct xsk_ring_prod *r, __u32 nb)
 	 * this function. Without this optimization it whould have been
 	 * free_entries = r->cached_prod - r->cached_cons + r->size.
 	 */
-	r->cached_cons = *r->consumer + r->size;
+	r->cached_cons = libbpf_smp_load_acquire(r->consumer);
+	r->cached_cons += r->size;
 
 	return r->cached_cons - r->cached_prod;
 }
@@ -106,7 +107,7 @@ static inline __u32 xsk_cons_nb_avail(struct xsk_ring_cons *r, __u32 nb)
 	__u32 entries = r->cached_prod - r->cached_cons;
 
 	if (entries == 0) {
-		r->cached_prod = *r->producer;
+		r->cached_prod = libbpf_smp_load_acquire(r->producer);
 		entries = r->cached_prod - r->cached_cons;
 	}
 
@@ -129,9 +130,7 @@ static inline void xsk_ring_prod__submit(struct xsk_ring_prod *prod, __u32 nb)
 	/* Make sure everything has been written to the ring before indicating
 	 * this to the kernel by writing the producer pointer.
 	 */
-	libbpf_smp_wmb();
-
-	*prod->producer += nb;
+	libbpf_smp_store_release(prod->producer, *prod->producer + nb);
 }
 
 static inline __u32 xsk_ring_cons__peek(struct xsk_ring_cons *cons, __u32 nb, __u32 *idx)
@@ -139,11 +138,6 @@ static inline __u32 xsk_ring_cons__peek(struct xsk_ring_cons *cons, __u32 nb, __
 	__u32 entries = xsk_cons_nb_avail(cons, nb);
 
 	if (entries > 0) {
-		/* Make sure we do not speculatively read the data before
-		 * we have received the packet buffers from the ring.
-		 */
-		libbpf_smp_rmb();
-
 		*idx = cons->cached_cons;
 		cons->cached_cons += entries;
 	}
@@ -161,9 +155,8 @@ static inline void xsk_ring_cons__release(struct xsk_ring_cons *cons, __u32 nb)
 	/* Make sure data has been read before indicating we are done
 	 * with the entries by updating the consumer pointer.
 	 */
-	libbpf_smp_rwmb();
+	libbpf_smp_store_release(cons->consumer, *cons->consumer + nb);
 
-	*cons->consumer += nb;
 }
 
 static inline void *xsk_umem__get_data(void *umem_area, __u64 addr)
