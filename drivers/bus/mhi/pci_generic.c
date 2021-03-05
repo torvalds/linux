@@ -545,9 +545,12 @@ static int mhi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_drvdata(pdev, mhi_pdev);
 
-	/* Have stored pci confspace at hand for restore in sudden PCI error */
+	/* Have stored pci confspace at hand for restore in sudden PCI error.
+	 * cache the state locally and discard the PCI core one.
+	 */
 	pci_save_state(pdev);
 	mhi_pdev->pci_state = pci_store_saved_state(pdev);
+	pci_load_saved_state(pdev, NULL);
 
 	pci_enable_pcie_error_reporting(pdev);
 
@@ -718,10 +721,8 @@ static int  __maybe_unused mhi_pci_suspend(struct device *dev)
 	/* Transition to M3 state */
 	mhi_pm_suspend(mhi_cntrl);
 
-	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_wake_from_d3(pdev, true);
-	pci_set_power_state(pdev, PCI_D3hot);
 
 	return 0;
 }
@@ -733,13 +734,12 @@ static int __maybe_unused mhi_pci_resume(struct device *dev)
 	struct mhi_controller *mhi_cntrl = &mhi_pdev->mhi_cntrl;
 	int err;
 
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	pci_set_master(pdev);
-
 	err = pci_enable_device(pdev);
 	if (err)
 		goto err_recovery;
+
+	pci_set_master(pdev);
+	pci_wake_from_d3(pdev, false);
 
 	/* Exit M3, transition to M0 state */
 	err = mhi_pm_resume(mhi_cntrl);
