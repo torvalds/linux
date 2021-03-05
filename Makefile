@@ -1213,7 +1213,7 @@ cmd_link-vmlinux =                                                 \
 	$(if $(ARCH_POSTLINK), $(MAKE) -f $(ARCH_POSTLINK) $@, true)
 
 vmlinux: scripts/link-vmlinux.sh autoksyms_recursive $(vmlinux-deps) FORCE
-	+$(call if_changed,link-vmlinux)
+	+$(call if_changed_dep,link-vmlinux)
 
 targets := vmlinux
 
