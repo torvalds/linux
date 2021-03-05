@@ -483,12 +483,14 @@ static void check_ept_pointer_match(struct kvm *kvm)
 		if (!VALID_PAGE(tmp_eptp)) {
 			tmp_eptp = to_vmx(vcpu)->ept_pointer;
 		} else if (tmp_eptp != to_vmx(vcpu)->ept_pointer) {
+			to_kvm_vmx(kvm)->hv_tlb_eptp = INVALID_PAGE;
 			to_kvm_vmx(kvm)->ept_pointers_match
 				= EPT_POINTERS_MISMATCH;
 			return;
 		}
 	}
 
+	to_kvm_vmx(kvm)->hv_tlb_eptp = tmp_eptp;
 	to_kvm_vmx(kvm)->ept_pointers_match = EPT_POINTERS_MATCH;
 }
 
@@ -501,21 +503,18 @@ static int kvm_fill_hv_flush_list_func(struct hv_guest_mapping_flush_list *flush
 			range->pages);
 }
 
-static inline int __hv_remote_flush_tlb_with_range(struct kvm *kvm,
-		struct kvm_vcpu *vcpu, struct kvm_tlb_range *range)
+static inline int hv_remote_flush_eptp(u64 eptp, struct kvm_tlb_range *range)
 {
-	u64 ept_pointer = to_vmx(vcpu)->ept_pointer;
-
 	/*
 	 * FLUSH_GUEST_PHYSICAL_ADDRESS_SPACE hypercall needs address
 	 * of the base of EPT PML4 table, strip off EPT configuration
 	 * information.
 	 */
 	if (range)
-		return hyperv_flush_guest_mapping_range(ept_pointer & PAGE_MASK,
+		return hyperv_flush_guest_mapping_range(eptp & PAGE_MASK,
 				kvm_fill_hv_flush_list_func, (void *)range);
 	else
-		return hyperv_flush_guest_mapping(ept_pointer & PAGE_MASK);
+		return hyperv_flush_guest_mapping(eptp & PAGE_MASK);
 }
 
 static int hv_remote_flush_tlb_with_range(struct kvm *kvm,
@@ -533,12 +532,11 @@ static int hv_remote_flush_tlb_with_range(struct kvm *kvm,
 		kvm_for_each_vcpu(i, vcpu, kvm) {
 			/* If ept_pointer is invalid pointer, bypass flush request. */
 			if (VALID_PAGE(to_vmx(vcpu)->ept_pointer))
-				ret |= __hv_remote_flush_tlb_with_range(
-					kvm, vcpu, range);
+				ret |= hv_remote_flush_eptp(to_vmx(vcpu)->ept_pointer,
+							    range);
 		}
-	} else {
-		ret = __hv_remote_flush_tlb_with_range(kvm,
-				kvm_get_vcpu(kvm, 0), range);
+	} else if (VALID_PAGE(to_kvm_vmx(kvm)->hv_tlb_eptp)) {
+		ret = hv_remote_flush_eptp(to_kvm_vmx(kvm)->hv_tlb_eptp, range);
 	}
 
 	spin_unlock(&to_kvm_vmx(kvm)->ept_pointer_lock);

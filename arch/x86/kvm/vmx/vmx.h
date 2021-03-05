@@ -351,6 +351,7 @@ struct kvm_vmx {
 	bool ept_identity_pagetable_done;
 	gpa_t ept_identity_map_addr;
 
+	hpa_t hv_tlb_eptp;
 	enum ept_pointers_status ept_pointers_match;
 	spinlock_t ept_pointer_lock;
 };
