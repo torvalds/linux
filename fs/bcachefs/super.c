@@ -431,6 +431,9 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 
 	set_bit(BCH_FS_ALLOCATOR_RUNNING, &c->flags);
 
+	for_each_rw_member(ca, c, i)
+		bch2_wake_allocator(ca);
+
 	ret = bch2_journal_reclaim_start(&c->journal);
 	if (ret) {
 		bch_err(c, "error starting journal reclaim: %i", ret);
@@ -1008,6 +1011,8 @@ static void bch2_dev_release(struct kobject *kobj)
 
 static void bch2_dev_free(struct bch_dev *ca)
 {
+	bch2_dev_allocator_stop(ca);
+
 	cancel_work_sync(&ca->io_error_work);
 
 	if (ca->kobj.state_in_sysfs &&
@@ -1171,6 +1176,12 @@ static int bch2_dev_alloc(struct bch_fs *c, unsigned dev_idx)
 	ca = __bch2_dev_alloc(c, member);
 	if (!ca)
 		goto err;
+
+	if (ca->mi.state == BCH_MEMBER_STATE_RW &&
+	    bch2_dev_allocator_start(ca)) {
+		bch2_dev_free(ca);
+		goto err;
+	}
 
 	bch2_dev_attach(c, ca, dev_idx);
 out:

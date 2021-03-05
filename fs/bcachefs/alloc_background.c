@@ -1068,6 +1068,12 @@ static int discard_invalidated_buckets(struct bch_fs *c, struct bch_dev *ca)
 	return 0;
 }
 
+static inline bool allocator_thread_running(struct bch_dev *ca)
+{
+	return ca->mi.state == BCH_MEMBER_STATE_RW &&
+		test_bit(BCH_FS_ALLOCATOR_RUNNING, &ca->fs->flags);
+}
+
 /**
  * bch_allocator_thread - move buckets from free_inc to reserves
  *
@@ -1084,9 +1090,16 @@ static int bch2_allocator_thread(void *arg)
 	int ret;
 
 	set_freezable();
-	ca->allocator_state = ALLOCATOR_RUNNING;
 
 	while (1) {
+		if (!allocator_thread_running(ca)) {
+			ca->allocator_state = ALLOCATOR_STOPPED;
+			if (kthread_wait_freezable(allocator_thread_running(ca)))
+				break;
+		}
+
+		ca->allocator_state = ALLOCATOR_RUNNING;
+
 		cond_resched();
 		if (kthread_should_stop())
 			break;
