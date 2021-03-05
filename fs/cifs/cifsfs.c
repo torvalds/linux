@@ -305,7 +305,8 @@ static long cifs_fallocate(struct file *file, int mode, loff_t off, loff_t len)
 	return -EOPNOTSUPP;
 }
 
-static int cifs_permission(struct inode *inode, int mask)
+static int cifs_permission(struct user_namespace *mnt_userns,
+			   struct inode *inode, int mask)
 {
 	struct cifs_sb_info *cifs_sb;
 
@@ -320,7 +321,7 @@ static int cifs_permission(struct inode *inode, int mask)
 		on the client (above and beyond ACL on servers) for
 		servers which do not support setting and viewing mode bits,
 		so allowing client to check permissions is useful */
-		return generic_permission(inode, mask);
+		return generic_permission(&init_user_ns, inode, mask);
 }
 
 static struct kmem_cache *cifs_inode_cachep;

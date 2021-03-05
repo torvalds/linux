@@ -2201,7 +2201,8 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 /*
  * setattr
  */
-int ceph_setattr(struct dentry *dentry, struct iattr *attr)
+int ceph_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		 struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
@@ -2210,7 +2211,7 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
 
-	err = setattr_prepare(dentry, attr);
+	err = setattr_prepare(&init_user_ns, dentry, attr);
 	if (err != 0)
 		return err;
 
@@ -2225,7 +2226,7 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 	err = __ceph_setattr(inode, attr);
 
 	if (err >= 0 && (attr->ia_valid & ATTR_MODE))
-		err = posix_acl_chmod(inode, attr->ia_mode);
+		err = posix_acl_chmod(&init_user_ns, inode, attr->ia_mode);
 
 	return err;
 }
@@ -2284,7 +2285,8 @@ int __ceph_do_getattr(struct inode *inode, struct page *locked_page,
  * Check inode permissions.  We verify we have a valid value for
  * the AUTH cap, then call the generic handler.
  */
-int ceph_permission(struct inode *inode, int mask)
+int ceph_permission(struct user_namespace *mnt_userns, struct inode *inode,
+		    int mask)
 {
 	int err;
 
@@ -2294,7 +2296,7 @@ int ceph_permission(struct inode *inode, int mask)
 	err = ceph_do_getattr(inode, CEPH_CAP_AUTH_SHARED, false);
 
 	if (!err)
-		err = generic_permission(inode, mask);
+		err = generic_permission(&init_user_ns, inode, mask);
 	return err;
 }
 
@@ -2331,8 +2333,8 @@ static int statx_to_caps(u32 want, umode_t mode)
  * Get all the attributes. If we have sufficient caps for the requested attrs,
  * then we can avoid talking to the MDS at all.
  */
-int ceph_getattr(const struct path *path, struct kstat *stat,
-		 u32 request_mask, unsigned int flags)
+int ceph_getattr(struct user_namespace *mnt_userns, const struct path *path,
+		 struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	struct inode *inode = d_inode(path->dentry);
 	struct ceph_inode_info *ci = ceph_inode(inode);
@@ -2348,7 +2350,7 @@ int ceph_getattr(const struct path *path, struct kstat *stat,
 			return err;
 	}
 
-	generic_fillattr(inode, stat);
+	generic_fillattr(&init_user_ns, inode, stat);
 	stat->ino = ceph_present_inode(inode);
 
 	/*

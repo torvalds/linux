@@ -1060,7 +1060,8 @@ void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
 }
 EXPORT_SYMBOL_GPL(shmem_truncate_range);
 
-static int shmem_getattr(const struct path *path, struct kstat *stat,
+static int shmem_getattr(struct user_namespace *mnt_userns,
+			 const struct path *path, struct kstat *stat,
 			 u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = path->dentry->d_inode;
@@ -1072,7 +1073,7 @@ static int shmem_getattr(const struct path *path, struct kstat *stat,
 		shmem_recalc_inode(inode);
 		spin_unlock_irq(&info->lock);
 	}
-	generic_fillattr(inode, stat);
+	generic_fillattr(&init_user_ns, inode, stat);
 
 	if (is_huge_enabled(sb_info))
 		stat->blksize = HPAGE_PMD_SIZE;
@@ -1080,14 +1081,15 @@ static int shmem_getattr(const struct path *path, struct kstat *stat,
 	return 0;
 }
 
-static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
+static int shmem_setattr(struct user_namespace *mnt_userns,
+			 struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
 	int error;
 
-	error = setattr_prepare(dentry, attr);
+	error = setattr_prepare(&init_user_ns, dentry, attr);
 	if (error)
 		return error;
 
@@ -1141,9 +1143,9 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
 		}
 	}
 
-	setattr_copy(inode, attr);
+	setattr_copy(&init_user_ns, inode, attr);
 	if (attr->ia_valid & ATTR_MODE)
-		error = posix_acl_chmod(inode, inode->i_mode);
+		error = posix_acl_chmod(&init_user_ns, inode, inode->i_mode);
 	return error;
 }
 
@@ -2303,7 +2305,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode 
 	inode = new_inode(sb);
 	if (inode) {
 		inode->i_ino = ino;
-		inode_init_owner(inode, dir, mode);
+		inode_init_owner(&init_user_ns, inode, dir, mode);
 		inode->i_blocks = 0;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
 		inode->i_generation = prandom_u32();
@@ -2917,7 +2919,8 @@ static int shmem_statfs(struct dentry *dentry, struct kstatfs *buf)
  * File creation. Allocate an inode, and we're done..
  */
 static int
-shmem_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
+shmem_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+	    struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	struct inode *inode;
 	int error = -ENOSPC;
@@ -2946,7 +2949,8 @@ out_iput:
 }
 
 static int
-shmem_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
+shmem_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
+	      struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
 	int error = -ENOSPC;
@@ -2969,20 +2973,22 @@ out_iput:
 	return error;
 }
 
-static int shmem_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int shmem_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+		       struct dentry *dentry, umode_t mode)
 {
 	int error;
 
-	if ((error = shmem_mknod(dir, dentry, mode | S_IFDIR, 0)))
+	if ((error = shmem_mknod(&init_user_ns, dir, dentry,
+				 mode | S_IFDIR, 0)))
 		return error;
 	inc_nlink(dir);
 	return 0;
 }
 
-static int shmem_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-		bool excl)
+static int shmem_create(struct user_namespace *mnt_userns, struct inode *dir,
+			struct dentry *dentry, umode_t mode, bool excl)
 {
-	return shmem_mknod(dir, dentry, mode | S_IFREG, 0);
+	return shmem_mknod(&init_user_ns, dir, dentry, mode | S_IFREG, 0);
 }
 
 /*
@@ -3062,7 +3068,8 @@ static int shmem_exchange(struct inode *old_dir, struct dentry *old_dentry, stru
 	return 0;
 }
 
-static int shmem_whiteout(struct inode *old_dir, struct dentry *old_dentry)
+static int shmem_whiteout(struct user_namespace *mnt_userns,
+			  struct inode *old_dir, struct dentry *old_dentry)
 {
 	struct dentry *whiteout;
 	int error;
@@ -3071,7 +3078,7 @@ static int shmem_whiteout(struct inode *old_dir, struct dentry *old_dentry)
 	if (!whiteout)
 		return -ENOMEM;
 
-	error = shmem_mknod(old_dir, whiteout,
+	error = shmem_mknod(&init_user_ns, old_dir, whiteout,
 			    S_IFCHR | WHITEOUT_MODE, WHITEOUT_DEV);
 	dput(whiteout);
 	if (error)
@@ -3094,7 +3101,10 @@ static int shmem_whiteout(struct inode *old_dir, struct dentry *old_dentry)
  * it exists so that the VFS layer correctly free's it when it
  * gets overwritten.
  */
-static int shmem_rename2(struct inode *old_dir, struct dentry *old_dentry, struct inode *new_dir, struct dentry *new_dentry, unsigned int flags)
+static int shmem_rename2(struct user_namespace *mnt_userns,
+			 struct inode *old_dir, struct dentry *old_dentry,
+			 struct inode *new_dir, struct dentry *new_dentry,
+			 unsigned int flags)
 {
 	struct inode *inode = d_inode(old_dentry);
 	int they_are_dirs = S_ISDIR(inode->i_mode);
@@ -3111,7 +3121,7 @@ static int shmem_rename2(struct inode *old_dir, struct dentry *old_dentry, struc
 	if (flags & RENAME_WHITEOUT) {
 		int error;
 
-		error = shmem_whiteout(old_dir, old_dentry);
+		error = shmem_whiteout(&init_user_ns, old_dir, old_dentry);
 		if (error)
 			return error;
 	}
@@ -3135,7 +3145,8 @@ static int shmem_rename2(struct inode *old_dir, struct dentry *old_dentry, struc
 	return 0;
 }
 
-static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
+static int shmem_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+			 struct dentry *dentry, const char *symname)
 {
 	int error;
 	int len;
@@ -3273,6 +3284,7 @@ static int shmem_xattr_handler_get(const struct xattr_handler *handler,
 }
 
 static int shmem_xattr_handler_set(const struct xattr_handler *handler,
+				   struct user_namespace *mnt_userns,
 				   struct dentry *unused, struct inode *inode,
 				   const char *name, const void *value,
 				   size_t size, int flags)
