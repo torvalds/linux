@@ -97,6 +97,10 @@
 
 #define RKMODULE_GET_BT656_MBUS_INFO	\
 	_IOR('V', BASE_VIDIOC_PRIVATE + 17, struct rkmodule_bt656_mbus_info)
+
+#define RKMODULE_GET_DCG_RATIO	\
+	_IOR('V', BASE_VIDIOC_PRIVATE + 18, struct rkmodule_dcg_ratio)
+
 /**
  * struct rkmodule_base_inf - module base information
  *
@@ -420,5 +424,11 @@ struct rkmodule_bt656_mbus_info {
 	__u32 id_en_bits;
 } __attribute__ ((packed));
 
+/* DCG ratio (float) = integer + decimal / div_coeff */
+struct rkmodule_dcg_ratio {
+	u32 integer;
+	u32 decimal;
+	u32 div_coeff;
+};
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */
