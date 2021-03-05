@@ -38,37 +38,46 @@ static u16 mlx5_sf_hw_to_sw_id(const struct mlx5_core_dev *dev, u16 hw_id)
 	return hw_id - table->start_fn_id;
 }
 
-int mlx5_sf_hw_table_sf_alloc(struct mlx5_core_dev *dev, u32 usr_sfnum)
+static int mlx5_sf_hw_table_id_alloc(struct mlx5_sf_hw_table *table, u32 usr_sfnum)
 {
-	struct mlx5_sf_hw_table *table = dev->priv.sf_hw_table;
-	int sw_id = -ENOSPC;
-	u16 hw_fn_id;
-	int err;
 	int i;
 
-	if (!table || !table->max_local_functions)
-		return -EOPNOTSUPP;
-
-	mutex_lock(&table->table_lock);
 	/* Check if sf with same sfnum already exists or not. */
 	for (i = 0; i < table->max_local_functions; i++) {
-		if (table->sfs[i].allocated && table->sfs[i].usr_sfnum == usr_sfnum) {
-			err = -EEXIST;
-			goto exist_err;
-		}
+		if (table->sfs[i].allocated && table->sfs[i].usr_sfnum == usr_sfnum)
+			return -EEXIST;
 	}
-
 	/* Find the free entry and allocate the entry from the array */
 	for (i = 0; i < table->max_local_functions; i++) {
 		if (!table->sfs[i].allocated) {
 			table->sfs[i].usr_sfnum = usr_sfnum;
 			table->sfs[i].allocated = true;
-			sw_id = i;
-			break;
+			return i;
 		}
 	}
-	if (sw_id == -ENOSPC) {
-		err = -ENOSPC;
+	return -ENOSPC;
+}
+
+static void mlx5_sf_hw_table_id_free(struct mlx5_sf_hw_table *table, int id)
+{
+	table->sfs[id].allocated = false;
+	table->sfs[id].pending_delete = false;
+}
+
+int mlx5_sf_hw_table_sf_alloc(struct mlx5_core_dev *dev, u32 usr_sfnum)
+{
+	struct mlx5_sf_hw_table *table = dev->priv.sf_hw_table;
+	u16 hw_fn_id;
+	int sw_id;
+	int err;
+
+	if (!table)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&table->table_lock);
+	sw_id = mlx5_sf_hw_table_id_alloc(table, usr_sfnum);
+	if (sw_id < 0) {
+		err = sw_id;
 		goto exist_err;
 	}
 
@@ -87,21 +96,20 @@ int mlx5_sf_hw_table_sf_alloc(struct mlx5_core_dev *dev, u32 usr_sfnum)
 vhca_err:
 	mlx5_cmd_dealloc_sf(dev, hw_fn_id);
 err:
-	table->sfs[i].allocated = false;
+	mlx5_sf_hw_table_id_free(table, sw_id);
 exist_err:
 	mutex_unlock(&table->table_lock);
 	return err;
 }
 
-static void _mlx5_sf_hw_id_free(struct mlx5_core_dev *dev, u16 id)
+static void _mlx5_sf_hw_table_sf_free(struct mlx5_core_dev *dev, u16 id)
 {
 	struct mlx5_sf_hw_table *table = dev->priv.sf_hw_table;
 	u16 hw_fn_id;
 
 	hw_fn_id = mlx5_sf_sw_to_hw_id(dev, id);
 	mlx5_cmd_dealloc_sf(dev, hw_fn_id);
-	table->sfs[id].allocated = false;
-	table->sfs[id].pending_delete = false;
+	mlx5_sf_hw_table_id_free(table, id);
 }
 
 void mlx5_sf_hw_table_sf_free(struct mlx5_core_dev *dev, u16 id)
@@ -109,7 +117,7 @@ void mlx5_sf_hw_table_sf_free(struct mlx5_core_dev *dev, u16 id)
 	struct mlx5_sf_hw_table *table = dev->priv.sf_hw_table;
 
 	mutex_lock(&table->table_lock);
-	_mlx5_sf_hw_id_free(dev, id);
+	_mlx5_sf_hw_table_sf_free(dev, id);
 	mutex_unlock(&table->table_lock);
 }
 
@@ -143,40 +151,55 @@ static void mlx5_sf_hw_dealloc_all(struct mlx5_sf_hw_table *table)
 
 	for (i = 0; i < table->max_local_functions; i++) {
 		if (table->sfs[i].allocated)
-			_mlx5_sf_hw_id_free(table->dev, i);
+			_mlx5_sf_hw_table_sf_free(table->dev, i);
 	}
+}
+
+static int mlx5_sf_hw_table_alloc(struct mlx5_sf_hw_table *table, u16 max_fn, u16 base_id)
+{
+	struct mlx5_sf_hw *sfs;
+
+	sfs = kcalloc(max_fn, sizeof(*sfs), GFP_KERNEL);
+	if (!sfs)
+		return -ENOMEM;
+
+	table->sfs = sfs;
+	table->max_local_functions = max_fn;
+	table->start_fn_id = base_id;
+	return 0;
 }
 
 int mlx5_sf_hw_table_init(struct mlx5_core_dev *dev)
 {
 	struct mlx5_sf_hw_table *table;
-	struct mlx5_sf_hw *sfs;
-	int max_functions;
+	u16 base_id;
+	u16 max_fn;
+	int err;
 
 	if (!mlx5_sf_supported(dev) || !mlx5_vhca_event_supported(dev))
 		return 0;
 
-	max_functions = mlx5_sf_max_functions(dev);
+	max_fn = mlx5_sf_max_functions(dev);
 	table = kzalloc(sizeof(*table), GFP_KERNEL);
 	if (!table)
 		return -ENOMEM;
 
-	sfs = kcalloc(max_functions, sizeof(*sfs), GFP_KERNEL);
-	if (!sfs)
-		goto table_err;
-
 	mutex_init(&table->table_lock);
 	table->dev = dev;
-	table->sfs = sfs;
-	table->max_local_functions = max_functions;
-	table->start_fn_id = mlx5_sf_start_function_id(dev);
 	dev->priv.sf_hw_table = table;
-	mlx5_core_dbg(dev, "SF HW table: max sfs = %d\n", max_functions);
+
+	base_id = mlx5_sf_start_function_id(dev);
+	err = mlx5_sf_hw_table_alloc(table, max_fn, base_id);
+	if (err)
+		goto table_err;
+
+	mlx5_core_dbg(dev, "SF HW table: max sfs = %d\n", max_fn);
 	return 0;
 
 table_err:
+	mutex_destroy(&table->table_lock);
 	kfree(table);
-	return -ENOMEM;
+	return err;
 }
 
 void mlx5_sf_hw_table_cleanup(struct mlx5_core_dev *dev)
@@ -209,7 +232,7 @@ static int mlx5_sf_hw_vhca_event(struct notifier_block *nb, unsigned long opcode
 	 * Hence recycle the sf hardware id for reuse.
 	 */
 	if (sf_hw->allocated && sf_hw->pending_delete)
-		_mlx5_sf_hw_id_free(table->dev, sw_id);
+		_mlx5_sf_hw_table_sf_free(table->dev, sw_id);
 	mutex_unlock(&table->table_lock);
 	return 0;
 }
