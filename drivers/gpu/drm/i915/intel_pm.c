@@ -4986,13 +4986,13 @@ skl_allocate_plane_ddb(struct intel_atomic_state *state,
 		struct skl_plane_wm *wm =
 			&crtc_state->wm.skl.optimal.planes[plane_id];
 
-		if (wm->trans_wm.plane_res_b >= total[plane_id])
+		if (wm->trans_wm.min_ddb_alloc > total[plane_id])
 			memset(&wm->trans_wm, 0, sizeof(wm->trans_wm));
 
 		if (wm->sagv.wm0.min_ddb_alloc > total[plane_id])
 			memset(&wm->sagv.wm0, 0, sizeof(wm->sagv.wm0));
 
-		if (wm->sagv.trans_wm.plane_res_b >= total[plane_id])
+		if (wm->sagv.trans_wm.min_ddb_alloc > total[plane_id])
 			memset(&wm->sagv.trans_wm, 0, sizeof(wm->sagv.trans_wm));
 	}
 
@@ -5404,13 +5404,15 @@ static void skl_compute_transition_wm(struct drm_i915_private *dev_priv,
 	} else {
 		res_blocks = wm0_sel_res_b + trans_offset_b;
 	}
+	res_blocks++;
 
 	/*
 	 * Just assume we can enable the transition watermark.  After
 	 * computing the DDB we'll come back and disable it if that
 	 * assumption turns out to be false.
 	 */
-	trans_wm->plane_res_b = res_blocks + 1;
+	trans_wm->plane_res_b = res_blocks;
+	trans_wm->min_ddb_alloc = max_t(u16, wm0->min_ddb_alloc, res_blocks + 1);
 	trans_wm->plane_en = true;
 }
 
