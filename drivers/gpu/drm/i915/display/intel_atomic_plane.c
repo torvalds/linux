@@ -317,11 +317,12 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 	if (!new_plane_state->hw.crtc && !old_plane_state->hw.crtc)
 		return 0;
 
-	new_crtc_state->enabled_planes |= BIT(plane->id);
-
 	ret = plane->check_plane(new_crtc_state, new_plane_state);
 	if (ret)
 		return ret;
+
+	if (fb)
+		new_crtc_state->enabled_planes |= BIT(plane->id);
 
 	/* FIXME pre-g4x don't work like this */
 	if (new_plane_state->uapi.visible)
