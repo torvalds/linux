@@ -65,6 +65,10 @@ static int mt7915_start(struct ieee80211_hw *hw)
 		mt7915_mac_enable_nf(dev, 1);
 	}
 
+	ret = mt7915_mcu_set_rts_thresh(phy, 0x92b);
+	if (ret)
+		goto out;
+
 	ret = mt7915_mcu_set_sku_en(phy, true);
 	if (ret)
 		goto out;
