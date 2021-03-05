@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 # Copyright (C) 2018-2019 Netronome Systems, Inc.
+# Copyright (C) 2021 Isovalent, Inc.
 
 # In case user attempts to run with Python 2.
 from __future__ import print_function
@@ -13,6 +14,9 @@ import sys, os
 class NoHelperFound(BaseException):
     pass
 
+class NoSyscallCommandFound(BaseException):
+    pass
+
 class ParsingError(BaseException):
     def __init__(self, line='<line not provided>', reader=None):
         if reader:
@@ -22,18 +26,27 @@ class ParsingError(BaseException):
         else:
             BaseException.__init__(self, 'Error parsing line: %s' % line)
 
-class Helper(object):
+
+class APIElement(object):
     """
-    An object representing the description of an eBPF helper function.
-    @proto: function prototype of the helper function
-    @desc: textual description of the helper function
-    @ret: description of the return value of the helper function
+    An object representing the description of an aspect of the eBPF API.
+    @proto: prototype of the API symbol
+    @desc: textual description of the symbol
+    @ret: (optional) description of any associated return value
     """
     def __init__(self, proto='', desc='', ret=''):
         self.proto = proto
         self.desc = desc
         self.ret = ret
 
+
+class Helper(APIElement):
+    """
+    An object representing the description of an eBPF helper function.
+    @proto: function prototype of the helper function
+    @desc: textual description of the helper function
+    @ret: description of the return value of the helper function
+    """
     def proto_break_down(self):
         """
         Break down helper function protocol into smaller chunks: return type,
@@ -60,6 +73,7 @@ class Helper(object):
 
         return res
 
+
 class HeaderParser(object):
     """
     An object used to parse a file in order to extract the documentation of a
@@ -72,12 +86,31 @@ class HeaderParser(object):
         self.reader = open(filename, 'r')
         self.line = ''
         self.helpers = []
+        self.commands = []
+
+    def parse_element(self):
+        proto    = self.parse_symbol()
+        desc     = self.parse_desc()
+        ret      = self.parse_ret()
+        return APIElement(proto=proto, desc=desc, ret=ret)
 
     def parse_helper(self):
         proto    = self.parse_proto()
         desc     = self.parse_desc()
         ret      = self.parse_ret()
         return Helper(proto=proto, desc=desc, ret=ret)
+
+    def parse_symbol(self):
+        p = re.compile(' \* ?(.+)$')
+        capture = p.match(self.line)
+        if not capture:
+            raise NoSyscallCommandFound
+        end_re = re.compile(' \* ?NOTES$')
+        end = end_re.match(self.line)
+        if end:
+            raise NoSyscallCommandFound
+        self.line = self.reader.readline()
+        return capture.group(1)
 
     def parse_proto(self):
         # Argument can be of shape:
@@ -140,16 +173,29 @@ class HeaderParser(object):
                     break
         return ret
 
-    def run(self):
-        # Advance to start of helper function descriptions.
-        offset = self.reader.read().find('* Start of BPF helper function descriptions:')
+    def seek_to(self, target, help_message):
+        self.reader.seek(0)
+        offset = self.reader.read().find(target)
         if offset == -1:
-            raise Exception('Could not find start of eBPF helper descriptions list')
+            raise Exception(help_message)
         self.reader.seek(offset)
         self.reader.readline()
         self.reader.readline()
         self.line = self.reader.readline()
 
+    def parse_syscall(self):
+        self.seek_to('* DOC: eBPF Syscall Commands',
+                     'Could not find start of eBPF syscall descriptions list')
+        while True:
+            try:
+                command = self.parse_element()
+                self.commands.append(command)
+            except NoSyscallCommandFound:
+                break
+
+    def parse_helpers(self):
+        self.seek_to('* Start of BPF helper function descriptions:',
+                     'Could not find start of eBPF helper descriptions list')
         while True:
             try:
                 helper = self.parse_helper()
@@ -157,6 +203,9 @@ class HeaderParser(object):
             except NoHelperFound:
                 break
 
+    def run(self):
+        self.parse_syscall()
+        self.parse_helpers()
         self.reader.close()
 
 ###############################################################################
@@ -165,10 +214,11 @@ class Printer(object):
     """
     A generic class for printers. Printers should be created with an array of
     Helper objects, and implement a way to print them in the desired fashion.
-    @helpers: array of Helper objects to print to standard output
+    @parser: A HeaderParser with objects to print to standard output
     """
-    def __init__(self, helpers):
-        self.helpers = helpers
+    def __init__(self, parser):
+        self.parser = parser
+        self.elements = []
 
     def print_header(self):
         pass
@@ -181,19 +231,23 @@ class Printer(object):
 
     def print_all(self):
         self.print_header()
-        for helper in self.helpers:
-            self.print_one(helper)
+        for elem in self.elements:
+            self.print_one(elem)
         self.print_footer()
+
 
 class PrinterRST(Printer):
     """
-    A printer for dumping collected information about helpers as a ReStructured
-    Text page compatible with the rst2man program, which can be used to
-    generate a manual page for the helpers.
-    @helpers: array of Helper objects to print to standard output
+    A generic class for printers that print ReStructured Text. Printers should
+    be created with a HeaderParser object, and implement a way to print API
+    elements in the desired fashion.
+    @parser: A HeaderParser with objects to print to standard output
     """
-    def print_header(self):
-        header = '''\
+    def __init__(self, parser):
+        self.parser = parser
+
+    def print_license(self):
+        license = '''\
 .. Copyright (C) All BPF authors and contributors from 2014 to present.
 .. See git log include/uapi/linux/bpf.h in kernel tree for details.
 .. 
@@ -221,9 +275,39 @@ class PrinterRST(Printer):
 .. 
 .. Please do not edit this file. It was generated from the documentation
 .. located in file include/uapi/linux/bpf.h of the Linux kernel sources
-.. (helpers description), and from scripts/bpf_helpers_doc.py in the same
+.. (helpers description), and from scripts/bpf_doc.py in the same
 .. repository (header and footer).
+'''
+        print(license)
 
+    def print_elem(self, elem):
+        if (elem.desc):
+            print('\tDescription')
+            # Do not strip all newline characters: formatted code at the end of
+            # a section must be followed by a blank line.
+            for line in re.sub('\n$', '', elem.desc, count=1).split('\n'):
+                print('{}{}'.format('\t\t' if line else '', line))
+
+        if (elem.ret):
+            print('\tReturn')
+            for line in elem.ret.rstrip().split('\n'):
+                print('{}{}'.format('\t\t' if line else '', line))
+
+        print('')
+
+
+class PrinterHelpersRST(PrinterRST):
+    """
+    A printer for dumping collected information about helpers as a ReStructured
+    Text page compatible with the rst2man program, which can be used to
+    generate a manual page for the helpers.
+    @parser: A HeaderParser with Helper objects to print to standard output
+    """
+    def __init__(self, parser):
+        self.elements = parser.helpers
+
+    def print_header(self):
+        header = '''\
 ===========
 BPF-HELPERS
 ===========
@@ -264,6 +348,7 @@ kernel at the top).
 HELPERS
 =======
 '''
+        PrinterRST.print_license(self)
         print(header)
 
     def print_footer(self):
@@ -380,27 +465,50 @@ SEE ALSO
 
     def print_one(self, helper):
         self.print_proto(helper)
+        self.print_elem(helper)
 
-        if (helper.desc):
-            print('\tDescription')
-            # Do not strip all newline characters: formatted code at the end of
-            # a section must be followed by a blank line.
-            for line in re.sub('\n$', '', helper.desc, count=1).split('\n'):
-                print('{}{}'.format('\t\t' if line else '', line))
 
-        if (helper.ret):
-            print('\tReturn')
-            for line in helper.ret.rstrip().split('\n'):
-                print('{}{}'.format('\t\t' if line else '', line))
+class PrinterSyscallRST(PrinterRST):
+    """
+    A printer for dumping collected information about the syscall API as a
+    ReStructured Text page compatible with the rst2man program, which can be
+    used to generate a manual page for the syscall.
+    @parser: A HeaderParser with APIElement objects to print to standard
+             output
+    """
+    def __init__(self, parser):
+        self.elements = parser.commands
 
-        print('')
+    def print_header(self):
+        header = '''\
+===
+bpf
+===
+-------------------------------------------------------------------------------
+Perform a command on an extended BPF object
+-------------------------------------------------------------------------------
+
+:Manual section: 2
+
+COMMANDS
+========
+'''
+        PrinterRST.print_license(self)
+        print(header)
+
+    def print_one(self, command):
+        print('**%s**' % (command.proto))
+        self.print_elem(command)
+
 
 class PrinterHelpers(Printer):
     """
     A printer for dumping collected information about helpers as C header to
     be included from BPF program.
-    @helpers: array of Helper objects to print to standard output
+    @parser: A HeaderParser with Helper objects to print to standard output
     """
+    def __init__(self, parser):
+        self.elements = parser.helpers
 
     type_fwds = [
             'struct bpf_fib_lookup',
@@ -511,7 +619,7 @@ class PrinterHelpers(Printer):
 
     def print_header(self):
         header = '''\
-/* This is auto-generated file. See bpf_helpers_doc.py for details. */
+/* This is auto-generated file. See bpf_doc.py for details. */
 
 /* Forward declarations of BPF structs */'''
 
@@ -589,8 +697,13 @@ script = os.path.abspath(sys.argv[0])
 linuxRoot = os.path.dirname(os.path.dirname(script))
 bpfh = os.path.join(linuxRoot, 'include/uapi/linux/bpf.h')
 
+printers = {
+        'helpers': PrinterHelpersRST,
+        'syscall': PrinterSyscallRST,
+}
+
 argParser = argparse.ArgumentParser(description="""
-Parse eBPF header file and generate documentation for eBPF helper functions.
+Parse eBPF header file and generate documentation for the eBPF API.
 The RST-formatted output produced can be turned into a manual page with the
 rst2man utility.
 """)
@@ -601,6 +714,8 @@ if (os.path.isfile(bpfh)):
                            default=bpfh)
 else:
     argParser.add_argument('--filename', help='path to include/uapi/linux/bpf.h')
+argParser.add_argument('target', nargs='?', default='helpers',
+                       choices=printers.keys(), help='eBPF API target')
 args = argParser.parse_args()
 
 # Parse file.
@@ -609,7 +724,9 @@ headerParser.run()
 
 # Print formatted output to standard output.
 if args.header:
-    printer = PrinterHelpers(headerParser.helpers)
+    if args.target != 'helpers':
+        raise NotImplementedError('Only helpers header generation is supported')
+    printer = PrinterHelpers(headerParser)
 else:
-    printer = PrinterRST(headerParser.helpers)
+    printer = printers[args.target](headerParser)
 printer.print_all()
