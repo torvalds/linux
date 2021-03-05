@@ -326,7 +326,7 @@ struct vcpu_vmx {
 	u64 msr_ia32_feature_control;
 	u64 msr_ia32_feature_control_valid_bits;
 #if IS_ENABLED(CONFIG_HYPERV)
-	u64 ept_pointer;
+	u64 hv_root_ept;
 #endif
 
 	struct pt_desc pt_desc;
@@ -348,8 +348,8 @@ struct kvm_vmx {
 	gpa_t ept_identity_map_addr;
 
 #if IS_ENABLED(CONFIG_HYPERV)
-	hpa_t hv_tlb_eptp;
-	spinlock_t ept_pointer_lock;
+	hpa_t hv_root_ept;
+	spinlock_t hv_root_ept_lock;
 #endif
 };
 

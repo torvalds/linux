@@ -481,18 +481,14 @@ static int kvm_fill_hv_flush_list_func(struct hv_guest_mapping_flush_list *flush
 			range->pages);
 }
 
-static inline int hv_remote_flush_eptp(u64 eptp, struct kvm_tlb_range *range)
+static inline int hv_remote_flush_root_ept(hpa_t root_ept,
+					   struct kvm_tlb_range *range)
 {
-	/*
-	 * FLUSH_GUEST_PHYSICAL_ADDRESS_SPACE hypercall needs address
-	 * of the base of EPT PML4 table, strip off EPT configuration
-	 * information.
-	 */
 	if (range)
-		return hyperv_flush_guest_mapping_range(eptp & PAGE_MASK,
+		return hyperv_flush_guest_mapping_range(root_ept,
 				kvm_fill_hv_flush_list_func, (void *)range);
 	else
-		return hyperv_flush_guest_mapping(eptp & PAGE_MASK);
+		return hyperv_flush_guest_mapping(root_ept);
 }
 
 static int hv_remote_flush_tlb_with_range(struct kvm *kvm,
@@ -500,56 +496,55 @@ static int hv_remote_flush_tlb_with_range(struct kvm *kvm,
 {
 	struct kvm_vmx *kvm_vmx = to_kvm_vmx(kvm);
 	struct kvm_vcpu *vcpu;
-	int ret = 0, i, nr_unique_valid_eptps;
-	u64 tmp_eptp;
+	int ret = 0, i, nr_unique_valid_roots;
+	hpa_t root;
 
-	spin_lock(&kvm_vmx->ept_pointer_lock);
+	spin_lock(&kvm_vmx->hv_root_ept_lock);
 
-	if (!VALID_PAGE(kvm_vmx->hv_tlb_eptp)) {
-		nr_unique_valid_eptps = 0;
+	if (!VALID_PAGE(kvm_vmx->hv_root_ept)) {
+		nr_unique_valid_roots = 0;
 
 		/*
-		 * Flush all valid EPTPs, and see if all vCPUs have converged
-		 * on a common EPTP, in which case future flushes can skip the
-		 * loop and flush the common EPTP.
+		 * Flush all valid roots, and see if all vCPUs have converged
+		 * on a common root, in which case future flushes can skip the
+		 * loop and flush the common root.
 		 */
 		kvm_for_each_vcpu(i, vcpu, kvm) {
-			tmp_eptp = to_vmx(vcpu)->ept_pointer;
-			if (!VALID_PAGE(tmp_eptp) ||
-			    tmp_eptp == kvm_vmx->hv_tlb_eptp)
+			root = to_vmx(vcpu)->hv_root_ept;
+			if (!VALID_PAGE(root) || root == kvm_vmx->hv_root_ept)
 				continue;
 
 			/*
-			 * Set the tracked EPTP to the first valid EPTP.  Keep
-			 * this EPTP for the entirety of the loop even if more
-			 * EPTPs are encountered as a low effort optimization
-			 * to avoid flushing the same (first) EPTP again.
+			 * Set the tracked root to the first valid root.  Keep
+			 * this root for the entirety of the loop even if more
+			 * roots are encountered as a low effort optimization
+			 * to avoid flushing the same (first) root again.
 			 */
-			if (++nr_unique_valid_eptps == 1)
-				kvm_vmx->hv_tlb_eptp = tmp_eptp;
+			if (++nr_unique_valid_roots == 1)
+				kvm_vmx->hv_root_ept = root;
 
 			if (!ret)
-				ret = hv_remote_flush_eptp(tmp_eptp, range);
+				ret = hv_remote_flush_root_ept(root, range);
 
 			/*
-			 * Stop processing EPTPs if a failure occurred and
-			 * there is already a detected EPTP mismatch.
+			 * Stop processing roots if a failure occurred and
+			 * multiple valid roots have already been detected.
 			 */
-			if (ret && nr_unique_valid_eptps > 1)
+			if (ret && nr_unique_valid_roots > 1)
 				break;
 		}
 
 		/*
-		 * The optimized flush of a single EPTP can't be used if there
-		 * are multiple valid EPTPs (obviously).
+		 * The optimized flush of a single root can't be used if there
+		 * are multiple valid roots (obviously).
 		 */
-		if (nr_unique_valid_eptps > 1)
-			kvm_vmx->hv_tlb_eptp = INVALID_PAGE;
+		if (nr_unique_valid_roots > 1)
+			kvm_vmx->hv_root_ept = INVALID_PAGE;
 	} else {
-		ret = hv_remote_flush_eptp(kvm_vmx->hv_tlb_eptp, range);
+		ret = hv_remote_flush_root_ept(kvm_vmx->hv_root_ept, range);
 	}
 
-	spin_unlock(&kvm_vmx->ept_pointer_lock);
+	spin_unlock(&kvm_vmx->hv_root_ept_lock);
 	return ret;
 }
 static int hv_remote_flush_tlb(struct kvm *kvm)
@@ -584,17 +579,17 @@ static int hv_enable_direct_tlbflush(struct kvm_vcpu *vcpu)
 
 #endif /* IS_ENABLED(CONFIG_HYPERV) */
 
-static void hv_load_mmu_eptp(struct kvm_vcpu *vcpu, u64 eptp)
+static void hv_track_root_ept(struct kvm_vcpu *vcpu, hpa_t root_ept)
 {
 #if IS_ENABLED(CONFIG_HYPERV)
 	struct kvm_vmx *kvm_vmx = to_kvm_vmx(vcpu->kvm);
 
 	if (kvm_x86_ops.tlb_remote_flush == hv_remote_flush_tlb) {
-		spin_lock(&kvm_vmx->ept_pointer_lock);
-		to_vmx(vcpu)->ept_pointer = eptp;
-		if (eptp != kvm_vmx->hv_tlb_eptp)
-			kvm_vmx->hv_tlb_eptp = INVALID_PAGE;
-		spin_unlock(&kvm_vmx->ept_pointer_lock);
+		spin_lock(&kvm_vmx->hv_root_ept_lock);
+		to_vmx(vcpu)->hv_root_ept = root_ept;
+		if (root_ept != kvm_vmx->hv_root_ept)
+			kvm_vmx->hv_root_ept = INVALID_PAGE;
+		spin_unlock(&kvm_vmx->hv_root_ept_lock);
 	}
 #endif
 }
@@ -3137,7 +3132,7 @@ static void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa,
 		eptp = construct_eptp(vcpu, root_hpa, root_level);
 		vmcs_write64(EPT_POINTER, eptp);
 
-		hv_load_mmu_eptp(vcpu, eptp);
+		hv_track_root_ept(vcpu, root_hpa);
 
 		if (!enable_unrestricted_guest && !is_paging(vcpu))
 			guest_cr3 = to_kvm_vmx(kvm)->ept_identity_map_addr;
@@ -6929,7 +6924,7 @@ static int vmx_create_vcpu(struct kvm_vcpu *vcpu)
 	vmx->pi_desc.sn = 1;
 
 #if IS_ENABLED(CONFIG_HYPERV)
-	vmx->ept_pointer = INVALID_PAGE;
+	vmx->hv_root_ept = INVALID_PAGE;
 #endif
 	return 0;
 
@@ -6948,7 +6943,7 @@ free_vpid:
 static int vmx_vm_init(struct kvm *kvm)
 {
 #if IS_ENABLED(CONFIG_HYPERV)
-	spin_lock_init(&to_kvm_vmx(kvm)->ept_pointer_lock);
+	spin_lock_init(&to_kvm_vmx(kvm)->hv_root_ept_lock);
 #endif
 
 	if (!ple_gap)
