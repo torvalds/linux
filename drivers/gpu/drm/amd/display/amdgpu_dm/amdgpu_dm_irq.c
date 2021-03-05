@@ -185,6 +185,55 @@ static struct list_head *remove_irq_handler(struct amdgpu_device *adev,
 	return hnd_list;
 }
 
+/**
+ * unregister_all_irq_handlers() - Cleans up handlers from the DM IRQ table
+ * @adev: The base driver device containing the DM device
+ *
+ * Go through low and high context IRQ tables and deallocate handlers.
+ */
+static void unregister_all_irq_handlers(struct amdgpu_device *adev)
+{
+	struct list_head *hnd_list_low;
+	struct list_head *hnd_list_high;
+	struct list_head *entry, *tmp;
+	struct amdgpu_dm_irq_handler_data *handler;
+	unsigned long irq_table_flags;
+	int i;
+
+	DM_IRQ_TABLE_LOCK(adev, irq_table_flags);
+
+	for (i = 0; i < DAL_IRQ_SOURCES_NUMBER; i++) {
+		hnd_list_low = &adev->dm.irq_handler_list_low_tab[i];
+		hnd_list_high = &adev->dm.irq_handler_list_high_tab[i];
+
+		list_for_each_safe(entry, tmp, hnd_list_low) {
+
+			handler = list_entry(entry, struct amdgpu_dm_irq_handler_data,
+					     list);
+
+			if (handler == NULL || handler->handler == NULL)
+				continue;
+
+			list_del(&handler->list);
+			kfree(handler);
+		}
+
+		list_for_each_safe(entry, tmp, hnd_list_high) {
+
+			handler = list_entry(entry, struct amdgpu_dm_irq_handler_data,
+					     list);
+
+			if (handler == NULL || handler->handler == NULL)
+				continue;
+
+			list_del(&handler->list);
+			kfree(handler);
+		}
+	}
+
+	DM_IRQ_TABLE_UNLOCK(adev, irq_table_flags);
+}
+
 static bool
 validate_irq_registration_params(struct dc_interrupt_params *int_params,
 				 void (*ih)(void *))
@@ -415,6 +464,8 @@ void amdgpu_dm_irq_fini(struct amdgpu_device *adev)
 			}
 		}
 	}
+	/* Deallocate handlers from the table. */
+	unregister_all_irq_handlers(adev);
 }
 
 int amdgpu_dm_irq_suspend(struct amdgpu_device *adev)
