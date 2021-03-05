@@ -270,7 +270,7 @@ static struct vfsmount *cifs_dfs_do_mount(struct dentry *mntpt,
 	char *mountdata;
 	char *devname;
 
-	devname = kstrndup(fullpath, strlen(fullpath), GFP_KERNEL);
+	devname = kstrdup(fullpath, GFP_KERNEL);
 	if (!devname)
 		return ERR_PTR(-ENOMEM);
 

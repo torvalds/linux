@@ -89,7 +89,7 @@ static int get_normalized_path(const char *path, char **npath)
 	if (*path == '\\') {
 		*npath = (char *)path;
 	} else {
-		*npath = kstrndup(path, strlen(path), GFP_KERNEL);
+		*npath = kstrdup(path, GFP_KERNEL);
 		if (!*npath)
 			return -ENOMEM;
 		convert_delimiter(*npath, '\\');
@@ -358,7 +358,7 @@ static struct cache_dfs_tgt *alloc_target(const char *name, int path_consumed)
 	t = kmalloc(sizeof(*t), GFP_ATOMIC);
 	if (!t)
 		return ERR_PTR(-ENOMEM);
-	t->name = kstrndup(name, strlen(name), GFP_ATOMIC);
+	t->name = kstrdup(name, GFP_ATOMIC);
 	if (!t->name) {
 		kfree(t);
 		return ERR_PTR(-ENOMEM);
@@ -419,7 +419,7 @@ static struct cache_entry *alloc_cache_entry(const char *path,
 	if (!ce)
 		return ERR_PTR(-ENOMEM);
 
-	ce->path = kstrndup(path, strlen(path), GFP_KERNEL);
+	ce->path = kstrdup(path, GFP_KERNEL);
 	if (!ce->path) {
 		kmem_cache_free(cache_slab, ce);
 		return ERR_PTR(-ENOMEM);
@@ -531,7 +531,7 @@ static struct cache_entry *lookup_cache_entry(const char *path, unsigned int *ha
 	char *s, *e;
 	char sep;
 
-	npath = kstrndup(path, strlen(path), GFP_KERNEL);
+	npath = kstrdup(path, GFP_KERNEL);
 	if (!npath)
 		return ERR_PTR(-ENOMEM);
 
@@ -641,7 +641,7 @@ static int __update_cache_entry(const char *path,
 
 	if (ce->tgthint) {
 		s = ce->tgthint->name;
-		th = kstrndup(s, strlen(s), GFP_ATOMIC);
+		th = kstrdup(s, GFP_ATOMIC);
 		if (!th)
 			return -ENOMEM;
 	}
@@ -786,11 +786,11 @@ static int setup_referral(const char *path, struct cache_entry *ce,
 
 	memset(ref, 0, sizeof(*ref));
 
-	ref->path_name = kstrndup(path, strlen(path), GFP_ATOMIC);
+	ref->path_name = kstrdup(path, GFP_ATOMIC);
 	if (!ref->path_name)
 		return -ENOMEM;
 
-	ref->node_name = kstrndup(target, strlen(target), GFP_ATOMIC);
+	ref->node_name = kstrdup(target, GFP_ATOMIC);
 	if (!ref->node_name) {
 		rc = -ENOMEM;
 		goto err_free_path;
@@ -828,7 +828,7 @@ static int get_targets(struct cache_entry *ce, struct dfs_cache_tgt_list *tl)
 			goto err_free_it;
 		}
 
-		it->it_name = kstrndup(t->name, strlen(t->name), GFP_ATOMIC);
+		it->it_name = kstrdup(t->name, GFP_ATOMIC);
 		if (!it->it_name) {
 			kfree(it);
 			rc = -ENOMEM;
@@ -1166,7 +1166,7 @@ int dfs_cache_add_vol(char *mntdata, struct smb3_fs_context *ctx, const char *fu
 	if (!vi)
 		return -ENOMEM;
 
-	vi->fullpath = kstrndup(fullpath, strlen(fullpath), GFP_KERNEL);
+	vi->fullpath = kstrdup(fullpath, GFP_KERNEL);
 	if (!vi->fullpath) {
 		rc = -ENOMEM;
 		goto err_free_vi;

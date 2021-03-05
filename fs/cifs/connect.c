@@ -1778,9 +1778,7 @@ cifs_set_cifscreds(struct smb3_fs_context *ctx, struct cifs_ses *ses)
 	 * for the request.
 	 */
 	if (is_domain && ses->domainName) {
-		ctx->domainname = kstrndup(ses->domainName,
-					   strlen(ses->domainName),
-					   GFP_KERNEL);
+		ctx->domainname = kstrdup(ses->domainName, GFP_KERNEL);
 		if (!ctx->domainname) {
 			cifs_dbg(FYI, "Unable to allocate %zd bytes for domain\n",
 				 len);
@@ -3411,8 +3409,7 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 			goto error;
 	}
 	/* Save mount options */
-	mntdata = kstrndup(cifs_sb->ctx->mount_options,
-			   strlen(cifs_sb->ctx->mount_options), GFP_KERNEL);
+	mntdata = kstrdup(cifs_sb->ctx->mount_options, GFP_KERNEL);
 	if (!mntdata) {
 		rc = -ENOMEM;
 		goto error;
@@ -3485,7 +3482,7 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 	 * links, the prefix path is included in both and may be changed during reconnect.  See
 	 * cifs_tree_connect().
 	 */
-	cifs_sb->origin_fullpath = kstrndup(full_path, strlen(full_path), GFP_KERNEL);
+	cifs_sb->origin_fullpath = kstrdup(full_path, GFP_KERNEL);
 	if (!cifs_sb->origin_fullpath) {
 		rc = -ENOMEM;
 		goto error;

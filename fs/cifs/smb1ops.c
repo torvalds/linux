@@ -926,9 +926,7 @@ cifs_unix_dfs_readlink(const unsigned int xid, struct cifs_tcon *tcon,
 			  0);
 
 	if (!rc) {
-		*symlinkinfo = kstrndup(referral.node_name,
-					strlen(referral.node_name),
-					GFP_KERNEL);
+		*symlinkinfo = kstrdup(referral.node_name, GFP_KERNEL);
 		free_dfs_info_param(&referral);
 		if (!*symlinkinfo)
 			rc = -ENOMEM;

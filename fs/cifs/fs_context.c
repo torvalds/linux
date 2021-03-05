@@ -430,7 +430,7 @@ int smb3_parse_opt(const char *options, const char *key, char **val)
 			if (nval == p)
 				continue;
 			*nval++ = 0;
-			*val = kstrndup(nval, strlen(nval), GFP_KERNEL);
+			*val = kstrdup(nval, GFP_KERNEL);
 			rc = !*val ? -ENOMEM : 0;
 			goto out;
 		}
