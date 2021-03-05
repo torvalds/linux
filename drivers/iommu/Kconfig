@@ -408,4 +408,16 @@ config VIRTIO_IOMMU
 
 	  Say Y here if you intend to run this kernel as a guest.
 
+config SPRD_IOMMU
+	tristate "Unisoc IOMMU Support"
+	depends on ARCH_SPRD || COMPILE_TEST
+	select IOMMU_API
+	help
+	  Support for IOMMU on Unisoc's SoCs, this IOMMU can be used by
+	  Unisoc's multimedia devices, such as display, Image codec(jpeg)
+	  and a few signal processors, including VSP(video), GSP(graphic),
+	  ISP(image), and CPP(camera pixel processor), etc.
+
+	  Say Y here if you want to use the multimedia devices listed above.
+
 endif # IOMMU_SUPPORT
