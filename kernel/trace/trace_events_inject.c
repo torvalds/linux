@@ -192,7 +192,6 @@ static void *trace_alloc_entry(struct trace_event_call *call, int *size)
 static int parse_entry(char *str, struct trace_event_call *call, void **pentry)
 {
 	struct ftrace_event_field *field;
-	unsigned long irq_flags;
 	void *entry = NULL;
 	int entry_size;
 	u64 val = 0;
@@ -203,9 +202,8 @@ static int parse_entry(char *str, struct trace_event_call *call, void **pentry)
 	if (!entry)
 		return -ENOMEM;
 
-	local_save_flags(irq_flags);
-	tracing_generic_entry_update(entry, call->event.type, irq_flags,
-				     preempt_count());
+	tracing_generic_entry_update(entry, call->event.type,
+				     tracing_gen_ctx());
 
 	while ((len = parse_field(str, call, &field, &val)) > 0) {
 		if (is_function_field(field))

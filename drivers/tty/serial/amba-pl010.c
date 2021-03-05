@@ -754,7 +754,7 @@ static int pl010_probe(struct amba_device *dev, const struct amba_id *id)
 	return ret;
 }
 
-static int pl010_remove(struct amba_device *dev)
+static void pl010_remove(struct amba_device *dev)
 {
 	struct uart_amba_port *uap = amba_get_drvdata(dev);
 	int i;
@@ -770,8 +770,6 @@ static int pl010_remove(struct amba_device *dev)
 
 	if (!busy)
 		uart_unregister_driver(&amba_reg);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
