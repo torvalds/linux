@@ -34,8 +34,8 @@
 
 const struct old_serial_port *spk_serial_init(int index);
 void spk_stop_serial_interrupt(void);
-void spk_serial_release(void);
-void spk_ttyio_release(void);
+void spk_serial_release(struct spk_synth *synth);
+void spk_ttyio_release(struct spk_synth *synth);
 void spk_ttyio_register_ldisc(void);
 void spk_ttyio_unregister_ldisc(void);
 

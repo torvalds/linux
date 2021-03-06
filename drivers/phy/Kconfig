@@ -52,6 +52,7 @@ config PHY_XGENE
 config USB_LGM_PHY
 	tristate "INTEL Lightning Mountain USB PHY Driver"
 	depends on USB_SUPPORT
+	depends on X86 || COMPILE_TEST
 	select USB_PHY
 	select REGULATOR
 	select REGULATOR_FIXED_VOLTAGE

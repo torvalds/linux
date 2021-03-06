@@ -659,15 +659,6 @@ config MFD_INTEL_LPSS_PCI
 	  I2C, SPI and HS-UART starting from Intel Sunrisepoint (Intel Skylake
 	  PCH) in PCI mode.
 
-config MFD_INTEL_MSIC
-	bool "Intel MSIC"
-	depends on INTEL_SCU
-	select MFD_CORE
-	help
-	  Select this option to enable access to Intel MSIC (Avatele
-	  Passage) chip. This chip embeds audio, battery, GPIO, etc.
-	  devices used in Intel Medfield platforms.
-
 config MFD_INTEL_PMC_BXT
 	tristate "Intel PMC Driver for Broxton"
 	depends on X86
