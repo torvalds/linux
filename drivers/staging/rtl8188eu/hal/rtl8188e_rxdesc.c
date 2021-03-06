@@ -171,8 +171,8 @@ void update_recvframe_phyinfo_88e(struct recv_frame *precvframe,
 		pkt_info.StationID = psta->mac_id;
 	pkt_info.Rate = pattrib->mcs_rate;
 
-	ODM_PhyStatusQuery(&padapter->HalData->odmpriv, pPHYInfo,
-			   (u8 *)pphy_status, &(pkt_info));
+	odm_phy_status_query(&padapter->HalData->odmpriv, pPHYInfo,
+			     (u8 *)pphy_status, &(pkt_info));
 
 	precvframe->psta = NULL;
 	if (pkt_info.bPacketMatchBSSID &&
