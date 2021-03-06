@@ -11,8 +11,9 @@
  * V0.0X01.0X05 add hdr config
  * V0.0X01.0X06 support enum sensor fmt
  * V0.0X01.0X07 add quick stream on/off
+ * V0.0X01.0X08 fixed hdr 2 exposure issue
  */
-
+//#define DEBUG
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -32,7 +33,7 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x07)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x08)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -158,6 +159,9 @@ struct ov4689 {
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
+	bool			has_init_exp;
+	struct preisp_hdrae_exp_s init_hdrae_exp;
+	u32			cur_vts;
 };
 
 #define to_ov4689(sd) container_of(sd, struct ov4689, subdev)
@@ -807,15 +811,15 @@ static int ov4689_set_hdrae(struct ov4689 *ov4689,
 	u32 m_gain = ae->middle_gain_reg;
 	u32 s_gain = ae->short_gain_reg;
 
+	if (!ov4689->has_init_exp && !ov4689->streaming) {
+		ov4689->init_hdrae_exp = *ae;
+		ov4689->has_init_exp = true;
+		dev_dbg(&ov4689->client->dev, "ov4689 don't stream, record exp for hdr!\n");
+		return ret;
+	}
 	dev_dbg(&ov4689->client->dev,
 		"rev exp req: L_exp: 0x%x, 0x%x, M_exp: 0x%x, 0x%x S_exp: 0x%x, 0x%x\n",
 		l_exp, m_exp, s_exp, l_gain, m_gain, s_gain);
-	if (l_exp <= m_exp ||
-	    m_exp <= s_exp ||
-	    l_exp + m_exp + s_exp >= ov4689->cur_mode->vts_def - 4) {
-		dev_err(&ov4689->client->dev, "exp parameter is error\n");
-		return -EINVAL;
-	}
 
 	if (l_exp < 3)
 		l_exp = 3;
@@ -829,6 +833,22 @@ static int ov4689_set_hdrae(struct ov4689 *ov4689,
 		l_exp = m_exp;
 		m_gain = s_gain;
 		m_exp =	s_exp;
+		if (l_exp <= m_exp ||
+		    l_exp + m_exp >= ov4689->cur_vts - 4) {
+			dev_err(&ov4689->client->dev,
+				"exp parameter error, l_exp %d, s_exp %d, cur_vts %d\n",
+				l_exp, m_exp, ov4689->cur_vts);
+			return -EINVAL;
+		}
+	} else {
+		if (l_exp <= m_exp ||
+		    m_exp <= s_exp ||
+		    l_exp + m_exp + s_exp >= ov4689->cur_vts - 4) {
+			dev_err(&ov4689->client->dev,
+				"exp parameter error, l_exp %d, m_exp %d, s_exp %d, cur_vts %d\n",
+				l_exp, m_exp, s_exp, ov4689->cur_vts);
+			return -EINVAL;
+		}
 	}
 
 	ret = ov4689_write_reg(ov4689->client, OV4689_GROUP_UPDATE_ADDRESS,
@@ -890,6 +910,9 @@ static long ov4689_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				hdr->hdr_mode, w, h);
 			ret = -EINVAL;
 		} else {
+			dev_dbg(&ov4689->client->dev,
+				"set hdr mode:%d\n",
+				ov4689->cur_mode->hdr_mode);
 			w = ov4689->cur_mode->hts_def - ov4689->cur_mode->width;
 			h = ov4689->cur_mode->vts_def - ov4689->cur_mode->height;
 			__v4l2_ctrl_modify_range(ov4689->hblank, w, w, 1, w);
@@ -1015,11 +1038,19 @@ static int __ov4689_start_stream(struct ov4689 *ov4689)
 		return ret;
 
 	/* In case these controls are set before streaming */
-	mutex_unlock(&ov4689->mutex);
-	ret = v4l2_ctrl_handler_setup(&ov4689->ctrl_handler);
-	mutex_lock(&ov4689->mutex);
+	ret = __v4l2_ctrl_handler_setup(&ov4689->ctrl_handler);
 	if (ret)
 		return ret;
+	if (ov4689->has_init_exp && ov4689->cur_mode->hdr_mode != NO_HDR) {
+		ret = ov4689_ioctl(&ov4689->subdev,
+				   PREISP_CMD_SET_HDRAE_EXP,
+				   &ov4689->init_hdrae_exp);
+		if (ret) {
+			dev_err(&ov4689->client->dev,
+				"init exp fail in hdr mode\n");
+			return ret;
+		}
+	}
 
 	return ov4689_write_reg(ov4689->client, OV4689_REG_CTRL_MODE,
 				OV4689_REG_VALUE_08BIT, OV4689_MODE_STREAMING);
@@ -1027,6 +1058,7 @@ static int __ov4689_start_stream(struct ov4689 *ov4689)
 
 static int __ov4689_stop_stream(struct ov4689 *ov4689)
 {
+	ov4689->has_init_exp = false;
 	return ov4689_write_reg(ov4689->client, OV4689_REG_CTRL_MODE,
 				OV4689_REG_VALUE_08BIT, OV4689_MODE_SW_STANDBY);
 }
@@ -1135,7 +1167,7 @@ static int __ov4689_power_on(struct ov4689 *ov4689)
 		return ret;
 	}
 	if (!IS_ERR(ov4689->reset_gpio))
-		gpiod_set_value_cansleep(ov4689->reset_gpio, 0);
+		gpiod_set_value_cansleep(ov4689->reset_gpio, 1);
 
 	ret = regulator_bulk_enable(OV4689_NUM_SUPPLIES, ov4689->supplies);
 	if (ret < 0) {
@@ -1144,7 +1176,7 @@ static int __ov4689_power_on(struct ov4689 *ov4689)
 	}
 
 	if (!IS_ERR(ov4689->reset_gpio))
-		gpiod_set_value_cansleep(ov4689->reset_gpio, 1);
+		gpiod_set_value_cansleep(ov4689->reset_gpio, 0);
 
 	usleep_range(500, 1000);
 	if (!IS_ERR(ov4689->pwdn_gpio))
@@ -1171,7 +1203,7 @@ static void __ov4689_power_off(struct ov4689 *ov4689)
 		gpiod_set_value_cansleep(ov4689->pwdn_gpio, 0);
 	clk_disable_unprepare(ov4689->xvclk);
 	if (!IS_ERR(ov4689->reset_gpio))
-		gpiod_set_value_cansleep(ov4689->reset_gpio, 0);
+		gpiod_set_value_cansleep(ov4689->reset_gpio, 1);
 	if (!IS_ERR_OR_NULL(ov4689->pins_sleep)) {
 		ret = pinctrl_select_state(ov4689->pinctrl,
 					   ov4689->pins_sleep);
@@ -1305,6 +1337,8 @@ static int ov4689_set_ctrl(struct v4l2_ctrl *ctrl)
 		/* 4 least significant bits of expsoure are fractional part */
 		ret = ov4689_write_reg(ov4689->client, OV4689_REG_EXPOSURE,
 				       OV4689_REG_VALUE_24BIT, ctrl->val << 4);
+		dev_dbg(&client->dev, "%s set exposure %d\n",
+			 __func__, ctrl->val);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
 		ret = ov4689_write_reg(ov4689->client, OV4689_REG_GAIN_H,
@@ -1313,11 +1347,16 @@ static int ov4689_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret |= ov4689_write_reg(ov4689->client, OV4689_REG_GAIN_L,
 				       OV4689_REG_VALUE_08BIT,
 				       ctrl->val & OV4689_GAIN_L_MASK);
+		dev_dbg(&client->dev, "%s set gain %d\n",
+			 __func__, ctrl->val);
 		break;
 	case V4L2_CID_VBLANK:
 		ret = ov4689_write_reg(ov4689->client, OV4689_REG_VTS,
 				       OV4689_REG_VALUE_16BIT,
 				       ctrl->val + ov4689->cur_mode->height);
+		ov4689->cur_vts = ctrl->val + ov4689->cur_mode->height;
+		dev_dbg(&client->dev, "%s set vts %d\n",
+			 __func__, ov4689->cur_vts);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = ov4689_enable_test_pattern(ov4689, ctrl->val);
@@ -1372,6 +1411,7 @@ static int ov4689_initialize_controls(struct ov4689 *ov4689)
 				V4L2_CID_VBLANK, vblank_def,
 				OV4689_VTS_MAX - mode->height,
 				1, vblank_def);
+	ov4689->cur_vts = mode->vts_def;
 
 	exposure_max = mode->vts_def - 4;
 	ov4689->exposure = v4l2_ctrl_new_std(handler, &ov4689_ctrl_ops,
@@ -1397,6 +1437,7 @@ static int ov4689_initialize_controls(struct ov4689 *ov4689)
 	}
 
 	ov4689->subdev.ctrl_handler = handler;
+	ov4689->has_init_exp = false;
 
 	return 0;
 
