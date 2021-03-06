@@ -93,6 +93,14 @@ config ROCKCHIP_RGB
 	  and serial RGB format to panel or connect to a conversion chip.
 	  say Y to enable its driver.
 
+config DRM_ROCKCHIP_VVOP
+	tristate "Rockchip virtual VOP drm driver"
+	depends on DRM_ROCKCHIP
+	help
+	   Say y here if you want use some module of rockchip drm, but
+	   don't need a real vop driver(et: you just want rockchip drm
+	   gem driver to allocate memory).
+
 source "drivers/gpu/drm/rockchip/ebc-dev/Kconfig"
 source "drivers/gpu/drm/rockchip/rk618/Kconfig"
 source "drivers/gpu/drm/rockchip/rk628/Kconfig"
