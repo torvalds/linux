@@ -375,32 +375,6 @@ static void geni_i2c_tx_msg_cleanup(struct geni_i2c_dev *gi2c,
 	}
 }
 
-static void geni_i2c_stop_xfer(struct geni_i2c_dev *gi2c)
-{
-	int ret;
-	u32 geni_status;
-	struct i2c_msg *cur;
-
-	/* Resume device, as runtime suspend can happen anytime during transfer */
-	ret = pm_runtime_get_sync(gi2c->se.dev);
-	if (ret < 0) {
-		dev_err(gi2c->se.dev, "Failed to resume device: %d\n", ret);
-		return;
-	}
-
-	geni_status = readl_relaxed(gi2c->se.base + SE_GENI_STATUS);
-	if (geni_status & M_GENI_CMD_ACTIVE) {
-		cur = gi2c->cur;
-		geni_i2c_abort_xfer(gi2c);
-		if (cur->flags & I2C_M_RD)
-			geni_i2c_rx_msg_cleanup(gi2c, cur);
-		else
-			geni_i2c_tx_msg_cleanup(gi2c, cur);
-	}
-
-	pm_runtime_put_sync_suspend(gi2c->se.dev);
-}
-
 static int geni_i2c_rx_one_msg(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
 				u32 m_param)
 {
@@ -676,13 +650,6 @@ static int geni_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void  geni_i2c_shutdown(struct platform_device *pdev)
-{
-	struct geni_i2c_dev *gi2c = platform_get_drvdata(pdev);
-
-	geni_i2c_stop_xfer(gi2c);
-}
-
 static int __maybe_unused geni_i2c_runtime_suspend(struct device *dev)
 {
 	int ret;
@@ -747,7 +714,6 @@ MODULE_DEVICE_TABLE(of, geni_i2c_dt_match);
 static struct platform_driver geni_i2c_driver = {
 	.probe  = geni_i2c_probe,
 	.remove = geni_i2c_remove,
-	.shutdown = geni_i2c_shutdown,
 	.driver = {
 		.name = "geni_i2c",
 		.pm = &geni_i2c_pm_ops,

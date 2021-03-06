@@ -638,8 +638,18 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_printf(s, ",snapshot=%llu", tcon->snapshot_time);
 	if (tcon->handle_timeout)
 		seq_printf(s, ",handletimeout=%u", tcon->handle_timeout);
-	/* convert actimeo and display it in seconds */
-	seq_printf(s, ",actimeo=%lu", cifs_sb->ctx->actimeo / HZ);
+
+	/*
+	 * Display file and directory attribute timeout in seconds.
+	 * If file and directory attribute timeout the same then actimeo
+	 * was likely specified on mount
+	 */
+	if (cifs_sb->ctx->acdirmax == cifs_sb->ctx->acregmax)
+		seq_printf(s, ",actimeo=%lu", cifs_sb->ctx->acregmax / HZ);
+	else {
+		seq_printf(s, ",acdirmax=%lu", cifs_sb->ctx->acdirmax / HZ);
+		seq_printf(s, ",acregmax=%lu", cifs_sb->ctx->acregmax / HZ);
+	}
 
 	if (tcon->ses->chan_max > 1)
 		seq_printf(s, ",multichannel,max_channels=%zu",
@@ -1526,6 +1536,7 @@ init_cifs(void)
  */
 	atomic_set(&sesInfoAllocCount, 0);
 	atomic_set(&tconInfoAllocCount, 0);
+	atomic_set(&tcpSesNextId, 0);
 	atomic_set(&tcpSesAllocCount, 0);
 	atomic_set(&tcpSesReconnectCount, 0);
 	atomic_set(&tconInfoReconnectCount, 0);
