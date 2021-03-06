@@ -774,6 +774,8 @@ static int io_wq_fork_manager(struct io_wq *wq)
 	if (wq->manager)
 		return 0;
 
+	WARN_ON_ONCE(test_bit(IO_WQ_BIT_EXIT, &wq->state));
+
 	init_completion(&wq->worker_done);
 	atomic_set(&wq->worker_refs, 1);
 	tsk = create_io_thread(io_wq_manager, wq, NUMA_NO_NODE);
