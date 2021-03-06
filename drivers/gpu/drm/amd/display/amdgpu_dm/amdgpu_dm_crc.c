@@ -433,7 +433,7 @@ void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 	struct amdgpu_device *adev = NULL;
 	struct crc_rd_work *crc_rd_wrk = NULL;
 	struct crc_params *crc_window = NULL, tmp_window;
-	unsigned long flags;
+	unsigned long flags1, flags2;
 	struct crtc_position position;
 	uint32_t v_blank;
 	uint32_t v_back_porch;
@@ -447,7 +447,7 @@ void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 	adev = drm_to_adev(crtc->dev);
 	drm_dev = crtc->dev;
 
-	spin_lock_irqsave(&drm_dev->event_lock, flags);
+	spin_lock_irqsave(&drm_dev->event_lock, flags1);
 	stream_state = acrtc->dm_irq_params.stream;
 	cur_crc_src = acrtc->dm_irq_params.crc_src;
 	timing_out = &stream_state->timing;
@@ -508,10 +508,10 @@ void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 				if (acrtc->dm_irq_params.crc_window.skip_frame_cnt == 0) {
 					if (adev->dm.crc_rd_wrk) {
 						crc_rd_wrk = adev->dm.crc_rd_wrk;
-						spin_lock_irq(&crc_rd_wrk->crc_rd_work_lock);
+						spin_lock_irqsave(&crc_rd_wrk->crc_rd_work_lock, flags2);
 						crc_rd_wrk->phy_inst =
 							stream_state->link->link_enc_hw_inst;
-						spin_unlock_irq(&crc_rd_wrk->crc_rd_work_lock);
+						spin_unlock_irqrestore(&crc_rd_wrk->crc_rd_work_lock, flags2);
 						schedule_work(&crc_rd_wrk->notify_ta_work);
 					}
 				} else {
@@ -522,7 +522,7 @@ void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 	}
 
 cleanup:
-	spin_unlock_irqrestore(&drm_dev->event_lock, flags);
+	spin_unlock_irqrestore(&drm_dev->event_lock, flags1);
 }
 
 void amdgpu_dm_crtc_secure_display_resume(struct amdgpu_device *adev)
