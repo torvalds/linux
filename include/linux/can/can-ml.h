@@ -44,6 +44,7 @@
 
 #include <linux/can.h>
 #include <linux/list.h>
+#include <linux/netdevice.h>
 
 #define CAN_SFF_RCV_ARRAY_SZ (1 << CAN_SFF_ID_BITS)
 #define CAN_EFF_RCV_HASH_BITS 10
@@ -64,5 +65,16 @@ struct can_ml_priv {
 	struct j1939_priv *j1939_priv;
 #endif
 };
+
+static inline struct can_ml_priv *can_get_ml_priv(struct net_device *dev)
+{
+	return netdev_get_ml_priv(dev, ML_PRIV_CAN);
+}
+
+static inline void can_set_ml_priv(struct net_device *dev,
+				   struct can_ml_priv *ml_priv)
+{
+	netdev_set_ml_priv(dev, ml_priv, ML_PRIV_CAN);
+}
 
 #endif /* CAN_ML_H */

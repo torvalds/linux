@@ -22,9 +22,9 @@ struct dma_heap;
  */
 struct dma_heap_ops {
 	struct dma_buf *(*allocate)(struct dma_heap *heap,
-			unsigned long len,
-			unsigned long fd_flags,
-			unsigned long heap_flags);
+				    unsigned long len,
+				    unsigned long fd_flags,
+				    unsigned long heap_flags);
 };
 
 /**

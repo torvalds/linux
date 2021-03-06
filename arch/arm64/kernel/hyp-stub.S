@@ -75,9 +75,6 @@ SYM_CODE_END(el1_sync)
 
 // nVHE? No way! Give me the real thing!
 SYM_CODE_START_LOCAL(mutate_to_vhe)
-	// Be prepared to fail
-	mov_q	x0, HVC_STUB_ERR
-
 	// Sanity check: MMU *must* be off
 	mrs	x1, sctlr_el2
 	tbnz	x1, #0, 1f
@@ -96,8 +93,11 @@ SYM_CODE_START_LOCAL(mutate_to_vhe)
 	cmp	x1, xzr
 	and	x2, x2, x1
 	csinv	x2, x2, xzr, ne
-	cbz	x2, 1f
+	cbnz	x2, 2f
 
+1:	mov_q	x0, HVC_STUB_ERR
+	eret
+2:
 	// Engage the VHE magic!
 	mov_q	x0, HCR_HOST_VHE_FLAGS
 	msr	hcr_el2, x0
@@ -131,9 +131,28 @@ SYM_CODE_START_LOCAL(mutate_to_vhe)
 	msr	mair_el1, x0
 	isb
 
+	// Hack the exception return to stay at EL2
+	mrs	x0, spsr_el1
+	and	x0, x0, #~PSR_MODE_MASK
+	mov	x1, #PSR_MODE_EL2h
+	orr	x0, x0, x1
+	msr	spsr_el1, x0
+
+	b	enter_vhe
+SYM_CODE_END(mutate_to_vhe)
+
+	// At the point where we reach enter_vhe(), we run with
+	// the MMU off (which is enforced by mutate_to_vhe()).
+	// We thus need to be in the idmap, or everything will
+	// explode when enabling the MMU.
+
+	.pushsection	.idmap.text, "ax"
+
+SYM_CODE_START_LOCAL(enter_vhe)
 	// Invalidate TLBs before enabling the MMU
 	tlbi	vmalle1
 	dsb	nsh
+	isb
 
 	// Enable the EL2 S1 MMU, as set up from EL1
 	mrs_s	x0, SYS_SCTLR_EL12
@@ -143,17 +162,12 @@ SYM_CODE_START_LOCAL(mutate_to_vhe)
 	mov_q	x0, INIT_SCTLR_EL1_MMU_OFF
 	msr_s	SYS_SCTLR_EL12, x0
 
-	// Hack the exception return to stay at EL2
-	mrs	x0, spsr_el1
-	and	x0, x0, #~PSR_MODE_MASK
-	mov	x1, #PSR_MODE_EL2h
-	orr	x0, x0, x1
-	msr	spsr_el1, x0
-
 	mov	x0, xzr
 
-1:	eret
-SYM_CODE_END(mutate_to_vhe)
+	eret
+SYM_CODE_END(enter_vhe)
+
+	.popsection
 
 .macro invalid_vector	label
 SYM_CODE_START_LOCAL(\label)

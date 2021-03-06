@@ -348,7 +348,6 @@ static struct dma_buf *cma_heap_allocate(struct dma_heap *heap,
 		ret = PTR_ERR(dmabuf);
 		goto free_pages;
 	}
-
 	return dmabuf;
 
 free_pages:

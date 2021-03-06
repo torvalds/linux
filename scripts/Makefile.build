@@ -15,7 +15,6 @@ obj-y :=
 obj-m :=
 lib-y :=
 lib-m :=
-always :=
 always-y :=
 always-m :=
 targets :=
