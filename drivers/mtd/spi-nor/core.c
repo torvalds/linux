@@ -1618,12 +1618,12 @@ static int spi_nor_erase_multi_sectors(struct spi_nor *nor, u64 addr, u32 len)
 			if (ret)
 				goto destroy_erase_cmd_list;
 
-			addr += cmd->size;
-			cmd->count--;
-
 			ret = spi_nor_wait_till_ready(nor);
 			if (ret)
 				goto destroy_erase_cmd_list;
+
+			addr += cmd->size;
+			cmd->count--;
 		}
 		list_del(&cmd->list);
 		kfree(cmd);
@@ -1704,12 +1704,12 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 			if (ret)
 				goto erase_err;
 
-			addr += mtd->erasesize;
-			len -= mtd->erasesize;
-
 			ret = spi_nor_wait_till_ready(nor);
 			if (ret)
 				goto erase_err;
+
+			addr += mtd->erasesize;
+			len -= mtd->erasesize;
 		}
 
 	/* erase multiple sectors */
