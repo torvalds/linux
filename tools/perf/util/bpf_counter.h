@@ -38,7 +38,7 @@ int bpf_counter__install_pe(struct evsel *evsel, int cpu, int fd);
 
 #else /* HAVE_BPF_SKEL */
 
-#include<linux/err.h>
+#include <linux/err.h>
 
 static inline int bpf_counter__load(struct evsel *evsel __maybe_unused,
 				    struct target *target __maybe_unused)
