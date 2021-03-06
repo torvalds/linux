@@ -1183,6 +1183,9 @@ static void io_prep_async_work(struct io_kiocb *req)
 	const struct io_op_def *def = &io_op_defs[req->opcode];
 	struct io_ring_ctx *ctx = req->ctx;
 
+	if (!req->work.creds)
+		req->work.creds = get_current_cred();
+
 	if (req->flags & REQ_F_FORCE_ASYNC)
 		req->work.flags |= IO_WQ_WORK_CONCURRENT;
 
@@ -1648,6 +1651,10 @@ static void io_dismantle_req(struct io_kiocb *req)
 		io_put_file(req, req->file, (req->flags & REQ_F_FIXED_FILE));
 	if (req->fixed_rsrc_refs)
 		percpu_ref_put(req->fixed_rsrc_refs);
+	if (req->work.creds) {
+		put_cred(req->work.creds);
+		req->work.creds = NULL;
+	}
 
 	if (req->flags & REQ_F_INFLIGHT) {
 		struct io_ring_ctx *ctx = req->ctx;
@@ -5916,18 +5923,8 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 	const struct cred *creds = NULL;
 	int ret;
 
-	if (req->work.personality) {
-		const struct cred *new_creds;
-
-		if (!(issue_flags & IO_URING_F_NONBLOCK))
-			mutex_lock(&ctx->uring_lock);
-		new_creds = idr_find(&ctx->personality_idr, req->work.personality);
-		if (!(issue_flags & IO_URING_F_NONBLOCK))
-			mutex_unlock(&ctx->uring_lock);
-		if (!new_creds)
-			return -EINVAL;
-		creds = override_creds(new_creds);
-	}
+	if (req->work.creds && req->work.creds != current_cred())
+		creds = override_creds(req->work.creds);
 
 	switch (req->opcode) {
 	case IORING_OP_NOP:
@@ -6291,7 +6288,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 {
 	struct io_submit_state *state;
 	unsigned int sqe_flags;
-	int ret = 0;
+	int personality, ret = 0;
 
 	req->opcode = READ_ONCE(sqe->opcode);
 	/* same numerical values with corresponding REQ_F_*, safe to copy */
@@ -6324,8 +6321,16 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		return -EOPNOTSUPP;
 
 	req->work.list.next = NULL;
+	personality = READ_ONCE(sqe->personality);
+	if (personality) {
+		req->work.creds = idr_find(&ctx->personality_idr, personality);
+		if (!req->work.creds)
+			return -EINVAL;
+		get_cred(req->work.creds);
+	} else {
+		req->work.creds = NULL;
+	}
 	req->work.flags = 0;
-	req->work.personality = READ_ONCE(sqe->personality);
 	state = &ctx->submit_state;
 
 	/*
