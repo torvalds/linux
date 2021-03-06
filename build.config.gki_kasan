@@ -10,9 +10,8 @@ function update_kasan_config() {
          -d CONFIG_RANDOMIZE_BASE \
          -d CONFIG_KASAN_OUTLINE \
          --set-val CONFIG_FRAME_WARN 0 \
-         -d LTO \
-         -d LTO_CLANG \
-         -d CFI \
+         -d LTO_CLANG_THIN \
+         -d LTO_CLANG_FULL \
          -d CFI_PERMISSIVE \
          -d CFI_CLANG \
          -d SHADOW_CALL_STACK
