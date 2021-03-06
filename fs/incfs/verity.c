@@ -102,7 +102,7 @@ static int incfs_end_enable_verity(struct file *filp, u8 *sig, size_t sig_size)
 	/*
 	 * Set verity xattr so we can set S_VERITY without opening backing file
 	 */
-	error = vfs_setxattr(bfc->bc_file->f_path.dentry,
+	error = vfs_setxattr(&init_user_ns, bfc->bc_file->f_path.dentry,
 			     INCFS_XATTR_VERITY_NAME, NULL, 0, XATTR_CREATE);
 	if (error) {
 		pr_warn("incfs: error setting verity xattr: %d\n", error);

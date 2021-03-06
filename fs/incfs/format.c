@@ -85,7 +85,7 @@ static int truncate_backing_file(struct backing_file_context *bfc,
 	attr.ia_valid = ATTR_SIZE;
 
 	inode_lock(inode);
-	result = notify_change(dentry, &attr, NULL);
+	result = notify_change(&init_user_ns, dentry, &attr, NULL);
 	inode_unlock(inode);
 
 	return result;
