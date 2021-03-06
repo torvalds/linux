@@ -475,4 +475,5 @@ extern struct platform_driver rk3066_hdmi_driver;
 extern struct platform_driver rockchip_rgb_driver;
 extern struct platform_driver dw_dp_driver;
 extern struct platform_driver vconn_platform_driver;
+extern struct platform_driver vvop_platform_driver;
 #endif /* _ROCKCHIP_DRM_DRV_H_ */

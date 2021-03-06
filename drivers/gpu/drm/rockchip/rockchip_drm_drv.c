@@ -44,7 +44,12 @@
 #define DRIVER_MAJOR	3
 #define DRIVER_MINOR	0
 
+#if IS_ENABLED(CONFIG_DRM_ROCKCHIP_VVOP)
+static bool is_support_iommu = false;
+#else
 static bool is_support_iommu = true;
+#endif
+
 static struct drm_driver rockchip_drm_driver;
 
 void drm_mode_convert_to_split_mode(struct drm_display_mode *mode)
@@ -1780,8 +1785,10 @@ static int rockchip_drm_platform_probe(struct platform_device *pdev)
 	int ret;
 
 	ret = rockchip_drm_platform_of_probe(dev);
+#if !IS_ENABLED(CONFIG_DRM_ROCKCHIP_VVOP)
 	if (ret)
 		return ret;
+#endif
 
 	match = rockchip_drm_match_add(dev);
 	if (IS_ERR(match))
@@ -1845,6 +1852,9 @@ static int __init rockchip_drm_init(void)
 	int ret;
 
 	num_rockchip_sub_drivers = 0;
+#if IS_ENABLED(CONFIG_DRM_ROCKCHIP_VVOP)
+	ADD_ROCKCHIP_SUB_DRIVER(vvop_platform_driver, CONFIG_DRM_ROCKCHIP_VVOP);
+#else
 	ADD_ROCKCHIP_SUB_DRIVER(vop_platform_driver, CONFIG_DRM_ROCKCHIP);
 	ADD_ROCKCHIP_SUB_DRIVER(vop2_platform_driver, CONFIG_DRM_ROCKCHIP);
 	ADD_ROCKCHIP_SUB_DRIVER(vconn_platform_driver, CONFIG_ROCKCHIP_VCONN);
@@ -1865,6 +1875,7 @@ static int __init rockchip_drm_init(void)
 	ADD_ROCKCHIP_SUB_DRIVER(rockchip_rgb_driver, CONFIG_ROCKCHIP_RGB);
 	ADD_ROCKCHIP_SUB_DRIVER(dw_dp_driver, CONFIG_ROCKCHIP_DW_DP);
 
+#endif
 	ret = platform_register_drivers(rockchip_sub_drivers,
 					num_rockchip_sub_drivers);
 	if (ret)
