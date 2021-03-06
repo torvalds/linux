@@ -22,6 +22,7 @@ asmlinkage int sys_cacheflush(unsigned long addr, unsigned long len,
 				unsigned int op)
 {
 	struct vm_area_struct *vma;
+	struct mm_struct *mm = current->mm;
 
 	if (len == 0)
 		return 0;
@@ -34,16 +35,22 @@ asmlinkage int sys_cacheflush(unsigned long addr, unsigned long len,
 	if (addr + len < addr)
 		return -EFAULT;
 
+	if (mmap_read_lock_killable(mm))
+		return -EINTR;
+
 	/*
 	 * Verify that the specified address region actually belongs
 	 * to this process.
 	 */
-	vma = find_vma(current->mm, addr);
-	if (vma == NULL || addr < vma->vm_start || addr + len > vma->vm_end)
+	vma = find_vma(mm, addr);
+	if (vma == NULL || addr < vma->vm_start || addr + len > vma->vm_end) {
+		mmap_read_unlock(mm);
 		return -EFAULT;
+	}
 
 	flush_cache_range(vma, addr, addr + len);
 
+	mmap_read_unlock(mm);
 	return 0;
 }
 
