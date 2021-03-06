@@ -867,7 +867,8 @@ static int ti_iodelay_probe(struct platform_device *pdev)
 		goto exit_out;
 	}
 
-	if (ti_iodelay_pinconf_init_dev(iod))
+	ret = ti_iodelay_pinconf_init_dev(iod);
+	if (ret)
 		goto exit_out;
 
 	ret = ti_iodelay_alloc_pins(dev, iod, res->start);
