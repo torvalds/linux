@@ -195,7 +195,6 @@ static int flexcop_usb_memory_req(struct flexcop_usb *fc_usb,
 		break;
 	default:
 		return -EINVAL;
-		break;
 	}
 	for (i = 0; i < len;) {
 		pagechunk =
