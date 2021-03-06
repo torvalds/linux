@@ -225,15 +225,14 @@ int devm_iio_kfifo_buffer_setup(struct device *dev,
 {
 	struct iio_buffer *buffer;
 
-	if (mode_flags)
-		mode_flags &= kfifo_access_funcs.modes;
-
 	if (!mode_flags)
 		return -EINVAL;
 
 	buffer = devm_iio_kfifo_allocate(dev);
 	if (!buffer)
 		return -ENOMEM;
+
+	mode_flags &= kfifo_access_funcs.modes;
 
 	indio_dev->modes |= mode_flags;
 	indio_dev->setup_ops = setup_ops;
