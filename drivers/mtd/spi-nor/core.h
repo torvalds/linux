@@ -261,8 +261,7 @@ struct spi_nor_fixups {
 	void (*default_init)(struct spi_nor *nor);
 	int (*post_bfpt)(struct spi_nor *nor,
 			 const struct sfdp_parameter_header *bfpt_header,
-			 const struct sfdp_bfpt *bfpt,
-			 struct spi_nor_flash_parameter *params);
+			 const struct sfdp_bfpt *bfpt);
 	void (*post_sfdp)(struct spi_nor *nor);
 };
 
@@ -470,8 +469,7 @@ void spi_nor_init_uniform_erase_map(struct spi_nor_erase_map *map,
 
 int spi_nor_post_bfpt_fixups(struct spi_nor *nor,
 			     const struct sfdp_parameter_header *bfpt_header,
-			     const struct sfdp_bfpt *bfpt,
-			     struct spi_nor_flash_parameter *params);
+			     const struct sfdp_bfpt *bfpt);
 
 static struct spi_nor __maybe_unused *mtd_to_spi_nor(struct mtd_info *mtd)
 {

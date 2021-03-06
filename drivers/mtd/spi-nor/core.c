@@ -2626,22 +2626,20 @@ void spi_nor_init_uniform_erase_map(struct spi_nor_erase_map *map,
 
 int spi_nor_post_bfpt_fixups(struct spi_nor *nor,
 			     const struct sfdp_parameter_header *bfpt_header,
-			     const struct sfdp_bfpt *bfpt,
-			     struct spi_nor_flash_parameter *params)
+			     const struct sfdp_bfpt *bfpt)
 {
 	int ret;
 
 	if (nor->manufacturer && nor->manufacturer->fixups &&
 	    nor->manufacturer->fixups->post_bfpt) {
 		ret = nor->manufacturer->fixups->post_bfpt(nor, bfpt_header,
-							   bfpt, params);
+							   bfpt);
 		if (ret)
 			return ret;
 	}
 
 	if (nor->info->fixups && nor->info->fixups->post_bfpt)
-		return nor->info->fixups->post_bfpt(nor, bfpt_header, bfpt,
-						    params);
+		return nor->info->fixups->post_bfpt(nor, bfpt_header, bfpt);
 
 	return 0;
 }
@@ -2896,7 +2894,7 @@ static void spi_nor_sfdp_init_params(struct spi_nor *nor)
 
 	memcpy(&sfdp_params, nor->params, sizeof(sfdp_params));
 
-	if (spi_nor_parse_sfdp(nor, nor->params)) {
+	if (spi_nor_parse_sfdp(nor)) {
 		memcpy(nor->params, &sfdp_params, sizeof(*nor->params));
 		nor->addr_width = 0;
 		nor->flags &= ~SNOR_F_4B_OPCODES;
