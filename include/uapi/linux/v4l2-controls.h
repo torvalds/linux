@@ -1728,7 +1728,7 @@ struct v4l2_vp8_loop_filter {
  * @uv_dc_delta: chroma DC delta value.
  * @uv_ac_delta: chroma AC delta value.
  * @padding: padding field. Should be zeroed by applications.
-
+ *
  * This structure contains the quantization indices present
  * in 'quant_indices()' part of the frame header syntax.
  * See section '9.6. Dequantization Indices' of the VP8 specification
@@ -1799,12 +1799,13 @@ struct v4l2_vp8_entropy_coder_state {
 
 #define V4L2_CID_STATELESS_VP8_FRAME (V4L2_CID_CODEC_STATELESS_BASE + 200)
 /**
- * struct v4l2_vp8_frame - VP8 frame parameters
+ * struct v4l2_ctrl_vp8_frame - VP8 frame parameters
  *
- * @seg: segmentation parameters. See &v4l2_vp8_segment for more details
+ * @segment: segmentation parameters. See &v4l2_vp8_segment for more details
  * @lf: loop filter parameters. See &v4l2_vp8_loop_filter for more details
  * @quant: quantization parameters. See &v4l2_vp8_quantization for more details
- * @probs: probabilities. See &v4l2_vp9_probabilities for more details
+ * @entropy: update probabilities. See &v4l2_vp8_entropy for more details
+ * @coder_state: boolean coder state. See &v4l2_vp8_entropy_coder_state for more details
  * @width: frame width.
  * @height: frame height.
  * @horizontal_scale: horizontal scaling factor.
