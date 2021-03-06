@@ -29,42 +29,42 @@ void ucc_fast_dump_regs(struct ucc_fast_private * uccf)
 	printk(KERN_INFO "Base address: 0x%p\n", uccf->uf_regs);
 
 	printk(KERN_INFO "gumr  : addr=0x%p, val=0x%08x\n",
-		  &uccf->uf_regs->gumr, qe_ioread32be(&uccf->uf_regs->gumr));
+		  &uccf->uf_regs->gumr, ioread32be(&uccf->uf_regs->gumr));
 	printk(KERN_INFO "upsmr : addr=0x%p, val=0x%08x\n",
-		  &uccf->uf_regs->upsmr, qe_ioread32be(&uccf->uf_regs->upsmr));
+		  &uccf->uf_regs->upsmr, ioread32be(&uccf->uf_regs->upsmr));
 	printk(KERN_INFO "utodr : addr=0x%p, val=0x%04x\n",
-		  &uccf->uf_regs->utodr, qe_ioread16be(&uccf->uf_regs->utodr));
+		  &uccf->uf_regs->utodr, ioread16be(&uccf->uf_regs->utodr));
 	printk(KERN_INFO "udsr  : addr=0x%p, val=0x%04x\n",
-		  &uccf->uf_regs->udsr, qe_ioread16be(&uccf->uf_regs->udsr));
+		  &uccf->uf_regs->udsr, ioread16be(&uccf->uf_regs->udsr));
 	printk(KERN_INFO "ucce  : addr=0x%p, val=0x%08x\n",
-		  &uccf->uf_regs->ucce, qe_ioread32be(&uccf->uf_regs->ucce));
+		  &uccf->uf_regs->ucce, ioread32be(&uccf->uf_regs->ucce));
 	printk(KERN_INFO "uccm  : addr=0x%p, val=0x%08x\n",
-		  &uccf->uf_regs->uccm, qe_ioread32be(&uccf->uf_regs->uccm));
+		  &uccf->uf_regs->uccm, ioread32be(&uccf->uf_regs->uccm));
 	printk(KERN_INFO "uccs  : addr=0x%p, val=0x%02x\n",
-		  &uccf->uf_regs->uccs, qe_ioread8(&uccf->uf_regs->uccs));
+		  &uccf->uf_regs->uccs, ioread8(&uccf->uf_regs->uccs));
 	printk(KERN_INFO "urfb  : addr=0x%p, val=0x%08x\n",
-		  &uccf->uf_regs->urfb, qe_ioread32be(&uccf->uf_regs->urfb));
+		  &uccf->uf_regs->urfb, ioread32be(&uccf->uf_regs->urfb));
 	printk(KERN_INFO "urfs  : addr=0x%p, val=0x%04x\n",
-		  &uccf->uf_regs->urfs, qe_ioread16be(&uccf->uf_regs->urfs));
+		  &uccf->uf_regs->urfs, ioread16be(&uccf->uf_regs->urfs));
 	printk(KERN_INFO "urfet : addr=0x%p, val=0x%04x\n",
-		  &uccf->uf_regs->urfet, qe_ioread16be(&uccf->uf_regs->urfet));
+		  &uccf->uf_regs->urfet, ioread16be(&uccf->uf_regs->urfet));
 	printk(KERN_INFO "urfset: addr=0x%p, val=0x%04x\n",
 		  &uccf->uf_regs->urfset,
-		  qe_ioread16be(&uccf->uf_regs->urfset));
+		  ioread16be(&uccf->uf_regs->urfset));
 	printk(KERN_INFO "utfb  : addr=0x%p, val=0x%08x\n",
-		  &uccf->uf_regs->utfb, qe_ioread32be(&uccf->uf_regs->utfb));
+		  &uccf->uf_regs->utfb, ioread32be(&uccf->uf_regs->utfb));
 	printk(KERN_INFO "utfs  : addr=0x%p, val=0x%04x\n",
-		  &uccf->uf_regs->utfs, qe_ioread16be(&uccf->uf_regs->utfs));
+		  &uccf->uf_regs->utfs, ioread16be(&uccf->uf_regs->utfs));
 	printk(KERN_INFO "utfet : addr=0x%p, val=0x%04x\n",
-		  &uccf->uf_regs->utfet, qe_ioread16be(&uccf->uf_regs->utfet));
+		  &uccf->uf_regs->utfet, ioread16be(&uccf->uf_regs->utfet));
 	printk(KERN_INFO "utftt : addr=0x%p, val=0x%04x\n",
-		  &uccf->uf_regs->utftt, qe_ioread16be(&uccf->uf_regs->utftt));
+		  &uccf->uf_regs->utftt, ioread16be(&uccf->uf_regs->utftt));
 	printk(KERN_INFO "utpt  : addr=0x%p, val=0x%04x\n",
-		  &uccf->uf_regs->utpt, qe_ioread16be(&uccf->uf_regs->utpt));
+		  &uccf->uf_regs->utpt, ioread16be(&uccf->uf_regs->utpt));
 	printk(KERN_INFO "urtry : addr=0x%p, val=0x%08x\n",
-		  &uccf->uf_regs->urtry, qe_ioread32be(&uccf->uf_regs->urtry));
+		  &uccf->uf_regs->urtry, ioread32be(&uccf->uf_regs->urtry));
 	printk(KERN_INFO "guemr : addr=0x%p, val=0x%02x\n",
-		  &uccf->uf_regs->guemr, qe_ioread8(&uccf->uf_regs->guemr));
+		  &uccf->uf_regs->guemr, ioread8(&uccf->uf_regs->guemr));
 }
 EXPORT_SYMBOL(ucc_fast_dump_regs);
 
@@ -86,7 +86,7 @@ EXPORT_SYMBOL(ucc_fast_get_qe_cr_subblock);
 
 void ucc_fast_transmit_on_demand(struct ucc_fast_private * uccf)
 {
-	qe_iowrite16be(UCC_FAST_TOD, &uccf->uf_regs->utodr);
+	iowrite16be(UCC_FAST_TOD, &uccf->uf_regs->utodr);
 }
 EXPORT_SYMBOL(ucc_fast_transmit_on_demand);
 
@@ -98,7 +98,7 @@ void ucc_fast_enable(struct ucc_fast_private * uccf, enum comm_dir mode)
 	uf_regs = uccf->uf_regs;
 
 	/* Enable reception and/or transmission on this UCC. */
-	gumr = qe_ioread32be(&uf_regs->gumr);
+	gumr = ioread32be(&uf_regs->gumr);
 	if (mode & COMM_DIR_TX) {
 		gumr |= UCC_FAST_GUMR_ENT;
 		uccf->enabled_tx = 1;
@@ -107,7 +107,7 @@ void ucc_fast_enable(struct ucc_fast_private * uccf, enum comm_dir mode)
 		gumr |= UCC_FAST_GUMR_ENR;
 		uccf->enabled_rx = 1;
 	}
-	qe_iowrite32be(gumr, &uf_regs->gumr);
+	iowrite32be(gumr, &uf_regs->gumr);
 }
 EXPORT_SYMBOL(ucc_fast_enable);
 
@@ -119,7 +119,7 @@ void ucc_fast_disable(struct ucc_fast_private * uccf, enum comm_dir mode)
 	uf_regs = uccf->uf_regs;
 
 	/* Disable reception and/or transmission on this UCC. */
-	gumr = qe_ioread32be(&uf_regs->gumr);
+	gumr = ioread32be(&uf_regs->gumr);
 	if (mode & COMM_DIR_TX) {
 		gumr &= ~UCC_FAST_GUMR_ENT;
 		uccf->enabled_tx = 0;
@@ -128,7 +128,7 @@ void ucc_fast_disable(struct ucc_fast_private * uccf, enum comm_dir mode)
 		gumr &= ~UCC_FAST_GUMR_ENR;
 		uccf->enabled_rx = 0;
 	}
-	qe_iowrite32be(gumr, &uf_regs->gumr);
+	iowrite32be(gumr, &uf_regs->gumr);
 }
 EXPORT_SYMBOL(ucc_fast_disable);
 
@@ -262,7 +262,7 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 	gumr |= uf_info->tenc;
 	gumr |= uf_info->tcrc;
 	gumr |= uf_info->mode;
-	qe_iowrite32be(gumr, &uf_regs->gumr);
+	iowrite32be(gumr, &uf_regs->gumr);
 
 	/* Allocate memory for Tx Virtual Fifo */
 	uccf->ucc_fast_tx_virtual_fifo_base_offset =
@@ -287,16 +287,16 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 	}
 
 	/* Set Virtual Fifo registers */
-	qe_iowrite16be(uf_info->urfs, &uf_regs->urfs);
-	qe_iowrite16be(uf_info->urfet, &uf_regs->urfet);
-	qe_iowrite16be(uf_info->urfset, &uf_regs->urfset);
-	qe_iowrite16be(uf_info->utfs, &uf_regs->utfs);
-	qe_iowrite16be(uf_info->utfet, &uf_regs->utfet);
-	qe_iowrite16be(uf_info->utftt, &uf_regs->utftt);
+	iowrite16be(uf_info->urfs, &uf_regs->urfs);
+	iowrite16be(uf_info->urfet, &uf_regs->urfet);
+	iowrite16be(uf_info->urfset, &uf_regs->urfset);
+	iowrite16be(uf_info->utfs, &uf_regs->utfs);
+	iowrite16be(uf_info->utfet, &uf_regs->utfet);
+	iowrite16be(uf_info->utftt, &uf_regs->utftt);
 	/* utfb, urfb are offsets from MURAM base */
-	qe_iowrite32be(uccf->ucc_fast_tx_virtual_fifo_base_offset,
+	iowrite32be(uccf->ucc_fast_tx_virtual_fifo_base_offset,
 		       &uf_regs->utfb);
-	qe_iowrite32be(uccf->ucc_fast_rx_virtual_fifo_base_offset,
+	iowrite32be(uccf->ucc_fast_rx_virtual_fifo_base_offset,
 		       &uf_regs->urfb);
 
 	/* Mux clocking */
@@ -365,14 +365,14 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 	}
 
 	/* Set interrupt mask register at UCC level. */
-	qe_iowrite32be(uf_info->uccm_mask, &uf_regs->uccm);
+	iowrite32be(uf_info->uccm_mask, &uf_regs->uccm);
 
 	/* First, clear anything pending at UCC level,
 	 * otherwise, old garbage may come through
 	 * as soon as the dam is opened. */
 
 	/* Writing '1' clears */
-	qe_iowrite32be(0xffffffff, &uf_regs->ucce);
+	iowrite32be(0xffffffff, &uf_regs->ucce);
 
 	*uccf_ret = uccf;
 	return 0;
