@@ -430,6 +430,9 @@ struct rt5645_platform_data {
 
 	/* Value to assign to snd_soc_card.long_name */
 	const char *long_name;
+
+	/* Some (package) variants have the headset-mic pin not-connected */
+	bool no_headset_mic;
 };
 
 struct rt5645_priv {
@@ -3180,7 +3183,7 @@ static int rt5645_jack_detect(struct snd_soc_component *component, int jack_inse
 		val &= 0x7;
 		dev_dbg(component->dev, "val = %d\n", val);
 
-		if (val == 1 || val == 2) {
+		if ((val == 1 || val == 2) && !rt5645->pdata.no_headset_mic) {
 			rt5645->jack_type = SND_JACK_HEADSET;
 			if (rt5645->en_button_func) {
 				rt5645_enable_push_button_irq(component, true);
@@ -3893,9 +3896,16 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		rt5645->pdata.dmic2_data_pin = QUIRK_DMIC2_DATA_PIN(quirk);
 	}
 
-	if (cht_rt5645_gpios && has_acpi_companion(&i2c->dev))
-		if (devm_acpi_dev_add_driver_gpios(&i2c->dev, cht_rt5645_gpios))
-			dev_dbg(&i2c->dev, "Failed to add driver gpios\n");
+	if (has_acpi_companion(&i2c->dev)) {
+		if (cht_rt5645_gpios) {
+			if (devm_acpi_dev_add_driver_gpios(&i2c->dev, cht_rt5645_gpios))
+				dev_dbg(&i2c->dev, "Failed to add driver gpios\n");
+		}
+
+		/* The ALC3270 package has the headset-mic pin not-connected */
+		if (acpi_dev_hid_uid_match(ACPI_COMPANION(&i2c->dev), "10EC3270", NULL))
+			rt5645->pdata.no_headset_mic = true;
+	}
 
 	rt5645->gpiod_hp_det = devm_gpiod_get_optional(&i2c->dev, "hp-detect",
 						       GPIOD_IN);
