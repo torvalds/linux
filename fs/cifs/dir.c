@@ -93,20 +93,16 @@ char *
 build_path_from_dentry_optional_prefix(struct dentry *direntry, void *page,
 				       bool prefix)
 {
-	struct dentry *temp;
-	int namelen;
 	int dfsplen;
 	int pplen = 0;
-	char *full_path = page;
-	char dirsep;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
-	unsigned seq;
+	char dirsep = CIFS_DIR_SEP(cifs_sb);
+	char *s;
 
 	if (unlikely(!page))
 		return ERR_PTR(-ENOMEM);
 
-	dirsep = CIFS_DIR_SEP(cifs_sb);
 	if (prefix)
 		dfsplen = strnlen(tcon->treeName, MAX_TREE_SIZE + 1);
 	else
@@ -115,74 +111,39 @@ build_path_from_dentry_optional_prefix(struct dentry *direntry, void *page,
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_USE_PREFIX_PATH)
 		pplen = cifs_sb->prepath ? strlen(cifs_sb->prepath) + 1 : 0;
 
-cifs_bp_rename_retry:
-	namelen = dfsplen + pplen;
-	seq = read_seqbegin(&rename_lock);
-	rcu_read_lock();
-	for (temp = direntry; !IS_ROOT(temp);) {
-		namelen += (1 + temp->d_name.len);
-		temp = temp->d_parent;
-	}
-	rcu_read_unlock();
-
-	if (namelen >= PAGE_SIZE)
+	s = dentry_path_raw(direntry, page, PAGE_SIZE);
+	if (IS_ERR(s))
+		return s;
+	if (!s[1])	// for root we want "", not "/"
+		s++;
+	if (s < (char *)page + pplen + dfsplen)
 		return ERR_PTR(-ENAMETOOLONG);
-
-	full_path[namelen] = 0;	/* trailing null */
-	rcu_read_lock();
-	for (temp = direntry; !IS_ROOT(temp);) {
-		spin_lock(&temp->d_lock);
-		namelen -= 1 + temp->d_name.len;
-		if (namelen < 0) {
-			spin_unlock(&temp->d_lock);
-			break;
-		} else {
-			full_path[namelen] = dirsep;
-			strncpy(full_path + namelen + 1, temp->d_name.name,
-				temp->d_name.len);
-			cifs_dbg(FYI, "name: %s\n", full_path + namelen);
-		}
-		spin_unlock(&temp->d_lock);
-		temp = temp->d_parent;
-	}
-	rcu_read_unlock();
-	if (namelen != dfsplen + pplen || read_seqretry(&rename_lock, seq)) {
-		cifs_dbg(FYI, "did not end path lookup where expected. namelen=%ddfsplen=%d\n",
-			 namelen, dfsplen);
-		/* presumably this is only possible if racing with a rename
-		of one of the parent directories  (we can not lock the dentries
-		above us to prevent this, but retrying should be harmless) */
-		goto cifs_bp_rename_retry;
-	}
-	/* DIR_SEP already set for byte  0 / vs \ but not for
-	   subsequent slashes in prepath which currently must
-	   be entered the right way - not sure if there is an alternative
-	   since the '\' is a valid posix character so we can not switch
-	   those safely to '/' if any are found in the middle of the prepath */
-	/* BB test paths to Windows with '/' in the midst of prepath */
-
 	if (pplen) {
-		int i;
-
 		cifs_dbg(FYI, "using cifs_sb prepath <%s>\n", cifs_sb->prepath);
-		memcpy(full_path+dfsplen+1, cifs_sb->prepath, pplen-1);
-		full_path[dfsplen] = dirsep;
-		for (i = 0; i < pplen-1; i++)
-			if (full_path[dfsplen+1+i] == '/')
-				full_path[dfsplen+1+i] = CIFS_DIR_SEP(cifs_sb);
+		s -= pplen;
+		memcpy(s + 1, cifs_sb->prepath, pplen - 1);
+		*s = '/';
 	}
+	if (dirsep != '/') {
+		/* BB test paths to Windows with '/' in the midst of prepath */
+		char *p;
 
+		for (p = s; *p; p++)
+			if (*p == '/')
+				*p = dirsep;
+	}
 	if (dfsplen) {
-		strncpy(full_path, tcon->treeName, dfsplen);
+		s -= dfsplen;
+		memcpy(s, tcon->treeName, dfsplen);
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) {
 			int i;
 			for (i = 0; i < dfsplen; i++) {
-				if (full_path[i] == '\\')
-					full_path[i] = '/';
+				if (s[i] == '\\')
+					s[i] = '/';
 			}
 		}
 	}
-	return full_path;
+	return s;
 }
 
 /*
