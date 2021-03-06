@@ -445,11 +445,11 @@ quiet_cmd_link_multi-m = LD [M]  $@
       cmd_link_multi-m = $(LD) $(ld_flags) -r -o $@ $(filter %.o,$^)
 endif
 
-$(multi-used-m): FORCE
+$(multi-obj-m): FORCE
 	$(call if_changed,link_multi-m)
-$(call multi_depend, $(multi-used-m), .o, -objs -y -m)
+$(call multi_depend, $(multi-obj-m), .o, -objs -y -m)
 
-targets += $(multi-used-m)
+targets += $(multi-obj-m)
 targets := $(filter-out $(PHONY), $(targets))
 
 # Add intermediate targets:
