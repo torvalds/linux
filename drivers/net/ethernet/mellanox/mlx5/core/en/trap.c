@@ -245,7 +245,7 @@ static void mlx5e_build_trap_params(struct mlx5e_priv *priv, struct mlx5e_trap *
 	params->rq_wq_type = MLX5_WQ_TYPE_CYCLIC;
 	mlx5e_init_rq_type_params(priv->mdev, params);
 	params->sw_mtu = priv->netdev->max_mtu;
-	mlx5e_build_rq_param(priv, params, NULL, &t->rq_param);
+	mlx5e_build_rq_param(priv, params, NULL, priv->q_counter, &t->rq_param);
 }
 
 static struct mlx5e_trap *mlx5e_open_trap(struct mlx5e_priv *priv)

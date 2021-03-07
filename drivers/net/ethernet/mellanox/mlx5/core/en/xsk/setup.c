@@ -40,7 +40,7 @@ static void mlx5e_build_xsk_cparam(struct mlx5e_priv *priv,
 				   struct mlx5e_xsk_param *xsk,
 				   struct mlx5e_channel_param *cparam)
 {
-	mlx5e_build_rq_param(priv, params, xsk, &cparam->rq);
+	mlx5e_build_rq_param(priv, params, xsk, priv->q_counter, &cparam->rq);
 	mlx5e_build_xdpsq_param(priv, params, &cparam->xdp_sq);
 }
 
