@@ -415,6 +415,11 @@ static void zynqmp_disp_avbuf_write(struct zynqmp_disp *disp, int reg, u32 val)
 	writel(val, disp->avbuf.base + reg);
 }
 
+static bool zynqmp_disp_layer_is_gfx(const struct zynqmp_disp_layer *layer)
+{
+	return layer->id == ZYNQMP_DISP_LAYER_GFX;
+}
+
 static bool zynqmp_disp_layer_is_video(const struct zynqmp_disp_layer *layer)
 {
 	return layer->id == ZYNQMP_DISP_LAYER_VID;
@@ -1157,6 +1162,9 @@ zynqmp_disp_plane_atomic_disable(struct drm_plane *plane,
 		return;
 
 	zynqmp_disp_layer_disable(layer);
+
+	if (zynqmp_disp_layer_is_gfx(layer))
+		zynqmp_disp_blend_set_global_alpha(layer->disp, false, 0);
 }
 
 static void
@@ -1185,6 +1193,9 @@ zynqmp_disp_plane_atomic_update(struct drm_plane *plane,
 	}
 
 	zynqmp_disp_layer_update(layer, new_state);
+
+	if (zynqmp_disp_layer_is_gfx(layer))
+		zynqmp_disp_blend_set_global_alpha(layer->disp, true, 255);
 
 	/* Enable or re-enable the plane is the format has changed. */
 	if (format_changed)
@@ -1447,7 +1458,6 @@ zynqmp_disp_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	zynqmp_disp_blend_set_output_format(disp, ZYNQMP_DPSUB_FORMAT_RGB);
 	zynqmp_disp_blend_set_bg_color(disp, 0, 0, 0);
-	zynqmp_disp_blend_set_global_alpha(disp, false, 0);
 
 	zynqmp_disp_enable(disp);
 
