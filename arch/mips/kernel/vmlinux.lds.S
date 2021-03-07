@@ -173,7 +173,11 @@ SECTIONS
 #endif
 
 #ifdef CONFIG_MIPS_RAW_APPENDED_DTB
-	STRUCT_ALIGN();
+	.fill : {
+		FILL(0);
+		BYTE(0);
+		. = ALIGN(8);
+	}
 	__appended_dtb = .;
 	/* leave space for appended DTB */
 	. += 0x100000;
