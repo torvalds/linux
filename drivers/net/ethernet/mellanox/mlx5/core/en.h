@@ -919,8 +919,6 @@ struct mlx5e_profile {
 void mlx5e_build_ptys2ethtool_map(void);
 
 bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev);
-bool mlx5e_striding_rq_possible(struct mlx5_core_dev *mdev,
-				struct mlx5e_params *params);
 
 void mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);
 void mlx5e_fold_sw_stats64(struct mlx5e_priv *priv, struct rtnl_link_stats64 *s);
@@ -1024,14 +1022,6 @@ void mlx5e_deactivate_priv_channels(struct mlx5e_priv *priv);
 void mlx5e_build_default_indir_rqt(u32 *indirection_rqt, int len,
 				   int num_channels);
 
-void mlx5e_reset_tx_moderation(struct mlx5e_params *params, u8 cq_period_mode);
-void mlx5e_reset_rx_moderation(struct mlx5e_params *params, u8 cq_period_mode);
-void mlx5e_set_tx_cq_mode_params(struct mlx5e_params *params, u8 cq_period_mode);
-void mlx5e_set_rx_cq_mode_params(struct mlx5e_params *params, u8 cq_period_mode);
-
-void mlx5e_set_rq_type(struct mlx5_core_dev *mdev, struct mlx5e_params *params);
-void mlx5e_init_rq_type_params(struct mlx5_core_dev *mdev,
-			       struct mlx5e_params *params);
 int mlx5e_modify_rq_state(struct mlx5e_rq *rq, int curr_state, int next_state);
 void mlx5e_activate_rq(struct mlx5e_rq *rq);
 void mlx5e_deactivate_rq(struct mlx5e_rq *rq);
@@ -1177,8 +1167,6 @@ int mlx5e_netdev_change_profile(struct mlx5e_priv *priv,
 void mlx5e_netdev_attach_nic_profile(struct mlx5e_priv *priv);
 void mlx5e_set_netdev_mtu_boundaries(struct mlx5e_priv *priv);
 void mlx5e_build_nic_params(struct mlx5e_priv *priv, struct mlx5e_xsk *xsk, u16 mtu);
-void mlx5e_build_rq_params(struct mlx5_core_dev *mdev,
-			   struct mlx5e_params *params);
 void mlx5e_build_rss_params(struct mlx5e_rss_params *rss_params,
 			    u16 num_channels);
 void mlx5e_rx_dim_work(struct work_struct *work);

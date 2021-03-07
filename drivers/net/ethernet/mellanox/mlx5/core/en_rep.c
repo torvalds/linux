@@ -40,6 +40,7 @@
 #include "eswitch.h"
 #include "en.h"
 #include "en_rep.h"
+#include "en/params.h"
 #include "en/txrx.h"
 #include "en_tc.h"
 #include "en/rep/tc.h"
