@@ -380,6 +380,7 @@ struct io_ring_ctx {
 	/* Only used for accounting purposes */
 	struct mm_struct	*mm_account;
 
+	const struct cred	*sq_creds;	/* cred used for __io_sq_thread() */
 	struct io_sq_data	*sq_data;	/* if using sq thread polling */
 
 	struct wait_queue_head	sqo_sq_wait;
@@ -6719,7 +6720,13 @@ static int io_sq_thread(void *data)
 		sqt_spin = false;
 		cap_entries = !list_is_singular(&sqd->ctx_list);
 		list_for_each_entry(ctx, &sqd->ctx_list, sqd_list) {
+			const struct cred *creds = NULL;
+
+			if (ctx->sq_creds != current_cred())
+				creds = override_creds(ctx->sq_creds);
 			ret = __io_sq_thread(ctx, cap_entries);
+			if (creds)
+				revert_creds(creds);
 			if (!sqt_spin && (ret > 0 || !list_empty(&ctx->iopoll_list)))
 				sqt_spin = true;
 		}
@@ -7152,6 +7159,8 @@ static void io_sq_thread_finish(struct io_ring_ctx *ctx)
 
 		io_put_sq_data(sqd);
 		ctx->sq_data = NULL;
+		if (ctx->sq_creds)
+			put_cred(ctx->sq_creds);
 	}
 }
 
@@ -7890,6 +7899,7 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 			goto err;
 		}
 
+		ctx->sq_creds = get_current_cred();
 		ctx->sq_data = sqd;
 		io_sq_thread_park(sqd);
 		mutex_lock(&sqd->ctx_lock);
