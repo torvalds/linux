@@ -67,6 +67,14 @@ config PHY_MVEBU_CP110_COMPHY
 	  lanes can be used by various controllers (Ethernet, sata, usb,
 	  PCIe...).
 
+config PHY_MVEBU_CP110_UTMI
+	tristate "Marvell CP110 UTMI driver"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on OF
+	select GENERIC_PHY
+	help
+	  Enable this to support Marvell CP110 UTMI PHY driver.
+
 config PHY_MVEBU_SATA
 	def_bool y
 	depends on ARCH_DOVE || MACH_DOVE || MACH_KIRKWOOD
