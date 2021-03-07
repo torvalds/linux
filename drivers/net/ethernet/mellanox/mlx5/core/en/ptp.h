@@ -18,12 +18,14 @@ struct mlx5e_ptpsq {
 
 enum {
 	MLX5E_PTP_STATE_TX,
+	MLX5E_PTP_STATE_RX,
 	MLX5E_PTP_STATE_NUM_STATES,
 };
 
 struct mlx5e_ptp {
 	/* data path */
 	struct mlx5e_ptpsq         ptpsq[MLX5E_MAX_NUM_TC];
+	struct mlx5e_rq            rq;
 	struct napi_struct         napi;
 	struct device             *pdev;
 	struct net_device         *netdev;

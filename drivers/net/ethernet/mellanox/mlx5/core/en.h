@@ -730,6 +730,7 @@ struct mlx5e_ptp_stats {
 	struct mlx5e_ch_stats ch;
 	struct mlx5e_sq_stats sq[MLX5E_MAX_NUM_TC];
 	struct mlx5e_ptp_cq_stats cq[MLX5E_MAX_NUM_TC];
+	struct mlx5e_rq_stats rq;
 } ____cacheline_aligned_in_smp;
 
 enum {
