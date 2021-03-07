@@ -93,7 +93,6 @@ struct arizona_priv {
 	bool dvfs_cached;
 
 	/* Variables used by arizona-jack.c code */
-	struct device *dev;
 	struct mutex lock;
 	struct delayed_work hpdet_work;
 	struct delayed_work micd_detect_work;

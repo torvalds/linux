@@ -251,7 +251,7 @@ static void arizona_start_mic(struct arizona_priv *info)
 	unsigned int mode;
 
 	/* Microphone detection can't use idle mode */
-	pm_runtime_get_sync(info->dev);
+	pm_runtime_get_sync(arizona->dev);
 
 	if (info->detecting) {
 		ret = regulator_allow_bypass(info->micvdd, false);
@@ -296,7 +296,7 @@ static void arizona_start_mic(struct arizona_priv *info)
 		dev_err(arizona->dev, "Failed to enable micd: %d\n", ret);
 	} else if (!change) {
 		regulator_disable(info->micvdd);
-		pm_runtime_put_autosuspend(info->dev);
+		pm_runtime_put_autosuspend(arizona->dev);
 	}
 }
 
@@ -341,8 +341,8 @@ static void arizona_stop_mic(struct arizona_priv *info)
 
 	if (change) {
 		regulator_disable(info->micvdd);
-		pm_runtime_mark_last_busy(info->dev);
-		pm_runtime_put_autosuspend(info->dev);
+		pm_runtime_mark_last_busy(arizona->dev);
+		pm_runtime_put_autosuspend(arizona->dev);
 	}
 }
 
@@ -534,7 +534,7 @@ static int arizona_hpdet_do_id(struct arizona_priv *info, int *reading,
 		info->num_hpdet_res = 0;
 		info->hpdet_retried = true;
 		arizona_start_hpdet_acc_id(info);
-		pm_runtime_put(info->dev);
+		pm_runtime_put(arizona->dev);
 		return -EAGAIN;
 	}
 
@@ -631,7 +631,7 @@ done:
 		arizona_start_mic(info);
 
 	if (info->hpdet_active) {
-		pm_runtime_put_autosuspend(info->dev);
+		pm_runtime_put_autosuspend(arizona->dev);
 		info->hpdet_active = false;
 	}
 
@@ -656,7 +656,7 @@ static void arizona_identify_headphone(struct arizona_priv *info)
 	dev_dbg(arizona->dev, "Starting HPDET\n");
 
 	/* Make sure we keep the device enabled during the measurement */
-	pm_runtime_get_sync(info->dev);
+	pm_runtime_get_sync(arizona->dev);
 
 	info->hpdet_active = true;
 
@@ -685,7 +685,7 @@ static void arizona_identify_headphone(struct arizona_priv *info)
 
 err:
 	arizona_extcon_hp_clamp(info, false);
-	pm_runtime_put_autosuspend(info->dev);
+	pm_runtime_put_autosuspend(arizona->dev);
 
 	/* Just report headphone */
 	ret = extcon_set_state_sync(info->edev, EXTCON_JACK_HEADPHONE, true);
@@ -708,7 +708,7 @@ static void arizona_start_hpdet_acc_id(struct arizona_priv *info)
 	dev_dbg(arizona->dev, "Starting identification via HPDET\n");
 
 	/* Make sure we keep the device enabled during the measurement */
-	pm_runtime_get_sync(info->dev);
+	pm_runtime_get_sync(arizona->dev);
 
 	info->hpdet_active = true;
 
@@ -1006,7 +1006,7 @@ static void arizona_micd_detect(struct work_struct *work)
 	else
 		arizona_button_reading(info);
 
-	pm_runtime_mark_last_busy(info->dev);
+	pm_runtime_mark_last_busy(arizona->dev);
 	mutex_unlock(&info->lock);
 }
 
@@ -1090,7 +1090,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 	cancelled_hp = cancel_delayed_work_sync(&info->hpdet_work);
 	cancelled_mic = cancel_delayed_work_sync(&info->micd_timeout_work);
 
-	pm_runtime_get_sync(info->dev);
+	pm_runtime_get_sync(arizona->dev);
 
 	mutex_lock(&info->lock);
 
@@ -1110,7 +1110,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 		dev_err(arizona->dev, "Failed to read jackdet status: %d\n",
 			ret);
 		mutex_unlock(&info->lock);
-		pm_runtime_put_autosuspend(info->dev);
+		pm_runtime_put_autosuspend(arizona->dev);
 		return IRQ_NONE;
 	}
 
@@ -1210,8 +1210,8 @@ out:
 
 	mutex_unlock(&info->lock);
 
-	pm_runtime_mark_last_busy(info->dev);
-	pm_runtime_put_autosuspend(info->dev);
+	pm_runtime_mark_last_busy(arizona->dev);
+	pm_runtime_put_autosuspend(arizona->dev);
 
 	return IRQ_HANDLED;
 }
@@ -1366,7 +1366,6 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 
 	mutex_init(&info->lock);
 	info->arizona = arizona;
-	info->dev = &pdev->dev;
 	info->last_jackdet = ~(ARIZONA_MICD_CLAMP_STS | ARIZONA_JD1_STS);
 	INIT_DELAYED_WORK(&info->hpdet_work, arizona_hpdet_work);
 	INIT_DELAYED_WORK(&info->micd_detect_work, arizona_micd_detect);
@@ -1617,9 +1616,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 
 	arizona_extcon_set_mode(info, 0);
 
-	pm_runtime_enable(&pdev->dev);
-	pm_runtime_idle(&pdev->dev);
-	pm_runtime_get_sync(&pdev->dev);
+	pm_runtime_get_sync(arizona->dev);
 
 	if (info->micd_clamp) {
 		jack_irq_rise = ARIZONA_IRQ_MICD_CLAMP_RISE;
@@ -1689,7 +1686,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		goto err_hpdet;
 	}
 
-	pm_runtime_put(&pdev->dev);
+	pm_runtime_put(arizona->dev);
 
 	return 0;
 
@@ -1706,8 +1703,7 @@ err_rise_wake:
 err_rise:
 	arizona_free_irq(arizona, jack_irq_rise, info);
 err_pm:
-	pm_runtime_put(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
+	pm_runtime_put(arizona->dev);
 err_gpio:
 	gpiod_put(info->micd_pol_gpio);
 	return ret;
@@ -1747,7 +1743,7 @@ static int arizona_extcon_remove(struct platform_device *pdev)
 			ret);
 	} else if (change) {
 		regulator_disable(info->micvdd);
-		pm_runtime_put(info->dev);
+		pm_runtime_put(arizona->dev);
 	}
 
 	regmap_update_bits(arizona->regmap,
@@ -1758,8 +1754,6 @@ static int arizona_extcon_remove(struct platform_device *pdev)
 	arizona_clk32k_disable(arizona);
 
 	gpiod_put(info->micd_pol_gpio);
-
-	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
