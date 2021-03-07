@@ -1235,37 +1235,13 @@ config MFD_SC27XX_PMIC
 
 config ABX500_CORE
 	bool "ST-Ericsson ABX500 Mixed Signal Circuit register functions"
-	default y if ARCH_U300 || ARCH_U8500 || COMPILE_TEST
+	default y if ARCH_U8500 || COMPILE_TEST
 	help
 	  Say yes here if you have the ABX500 Mixed Signal IC family
 	  chips. This core driver expose register access functions.
 	  Functionality specific drivers using these functions can
 	  remain unchanged when IC changes. Binding of the functions to
 	  actual register access is done by the IC core driver.
-
-config AB3100_CORE
-	bool "ST-Ericsson AB3100 Mixed Signal Circuit core functions"
-	depends on I2C=y && ABX500_CORE
-	select MFD_CORE
-	default y if ARCH_U300
-	help
-	  Select this to enable the AB3100 Mixed Signal IC core
-	  functionality. This connects to a AB3100 on the I2C bus
-	  and expose a number of symbols needed for dependent devices
-	  to read and write registers and subscribe to events from
-	  this multi-functional IC. This is needed to use other features
-	  of the AB3100 such as battery-backed RTC, charging control,
-	  LEDs, vibrator, system power and temperature, power management
-	  and ALSA sound.
-
-config AB3100_OTP
-	tristate "ST-Ericsson AB3100 OTP functions"
-	depends on AB3100_CORE
-	default y if AB3100_CORE
-	help
-	  Select this to enable the AB3100 Mixed Signal IC OTP (one-time
-	  programmable memory) support. This exposes a sysfs file to read
-	  out OTP values.
 
 config AB8500_CORE
 	bool "ST-Ericsson AB8500 Mixed Signal Power Management chip"
