@@ -385,7 +385,6 @@ bool blk_mq_sched_try_insert_merge(struct request_queue *q, struct request *rq)
 EXPORT_SYMBOL_GPL(blk_mq_sched_try_insert_merge);
 
 static bool blk_mq_sched_bypass_insert(struct blk_mq_hw_ctx *hctx,
-				       bool has_sched,
 				       struct request *rq)
 {
 	/*
@@ -402,9 +401,6 @@ static bool blk_mq_sched_bypass_insert(struct blk_mq_hw_ctx *hctx,
 	if ((rq->rq_flags & RQF_FLUSH_SEQ) || blk_rq_is_passthrough(rq))
 		return true;
 
-	if (has_sched)
-		rq->rq_flags |= RQF_SORTED;
-
 	return false;
 }
 
@@ -418,7 +414,7 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 
 	WARN_ON(e && (rq->tag != BLK_MQ_NO_TAG));
 
-	if (blk_mq_sched_bypass_insert(hctx, !!e, rq)) {
+	if (blk_mq_sched_bypass_insert(hctx, rq)) {
 		/*
 		 * Firstly normal IO request is inserted to scheduler queue or
 		 * sw queue, meantime we add flush request to dispatch queue(
