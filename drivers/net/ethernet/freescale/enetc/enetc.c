@@ -344,6 +344,12 @@ static void enetc_tstamp_tx(struct sk_buff *skb, u64 tstamp)
 	if (skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS) {
 		memset(&shhwtstamps, 0, sizeof(shhwtstamps));
 		shhwtstamps.hwtstamp = ns_to_ktime(tstamp);
+		/* Ensure skb_mstamp_ns, which might have been populated with
+		 * the txtime, is not mistaken for a software timestamp,
+		 * because this will prevent the dispatch of our hardware
+		 * timestamp to the socket.
+		 */
+		skb->tstamp = ktime_set(0, 0);
 		skb_tstamp_tx(skb, &shhwtstamps);
 	}
 }
