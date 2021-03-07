@@ -79,8 +79,8 @@ static inline void wq_list_del(struct io_wq_work_list *list,
 
 struct io_wq_work {
 	struct io_wq_work_node list;
-	const struct cred *creds;
 	unsigned flags;
+	unsigned short personality;
 };
 
 static inline struct io_wq_work *wq_next_work(struct io_wq_work *work)
@@ -114,11 +114,10 @@ struct io_wq_data {
 
 struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data);
 void io_wq_put(struct io_wq *wq);
+void io_wq_put_and_exit(struct io_wq *wq);
 
 void io_wq_enqueue(struct io_wq *wq, struct io_wq_work *work);
 void io_wq_hash_work(struct io_wq_work *work, void *val);
-
-pid_t io_wq_fork_thread(int (*fn)(void *), void *arg);
 
 static inline bool io_wq_is_hashed(struct io_wq_work *work)
 {
