@@ -27,6 +27,8 @@
 #include <linux/mfd/arizona/registers.h>
 #include <dt-bindings/mfd/arizona.h>
 
+#include "arizona.h"
+
 #define ARIZONA_MAX_MICD_RANGE 8
 
 #define ARIZONA_MICD_CLAMP_MODE_JDL      0x4
@@ -61,47 +63,6 @@
 
 #define MICD_LVL_0_TO_8 (MICD_LVL_0_TO_7 | ARIZONA_MICD_LVL_8)
 
-struct arizona_extcon_info {
-	struct device *dev;
-	struct arizona *arizona;
-	struct mutex lock;
-	struct regulator *micvdd;
-	struct input_dev *input;
-
-	u16 last_jackdet;
-
-	int micd_mode;
-	const struct arizona_micd_config *micd_modes;
-	int micd_num_modes;
-
-	const struct arizona_micd_range *micd_ranges;
-	int num_micd_ranges;
-
-	bool micd_reva;
-	bool micd_clamp;
-
-	struct delayed_work hpdet_work;
-	struct delayed_work micd_detect_work;
-	struct delayed_work micd_timeout_work;
-
-	bool hpdet_active;
-	bool hpdet_done;
-	bool hpdet_retried;
-
-	int num_hpdet_res;
-	unsigned int hpdet_res[3];
-
-	bool mic;
-	bool detecting;
-	int jack_flips;
-
-	int hpdet_ip_version;
-
-	struct extcon_dev *edev;
-
-	struct gpio_desc *micd_pol_gpio;
-};
-
 static const struct arizona_micd_config micd_default_modes[] = {
 	{ ARIZONA_ACCDET_SRC, 1, 0 },
 	{ 0,                  2, 1 },
@@ -135,9 +96,9 @@ static const unsigned int arizona_cable[] = {
 	EXTCON_NONE,
 };
 
-static void arizona_start_hpdet_acc_id(struct arizona_extcon_info *info);
+static void arizona_start_hpdet_acc_id(struct arizona_priv *info);
 
-static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
+static void arizona_extcon_hp_clamp(struct arizona_priv *info,
 				    bool clamp)
 {
 	struct arizona *arizona = info->arizona;
@@ -222,7 +183,7 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 	snd_soc_dapm_mutex_unlock(arizona->dapm);
 }
 
-static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
+static void arizona_extcon_set_mode(struct arizona_priv *info, int mode)
 {
 	struct arizona *arizona = info->arizona;
 
@@ -243,7 +204,7 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 	dev_dbg(arizona->dev, "Set jack polarity to %d\n", mode);
 }
 
-static const char *arizona_extcon_get_micbias(struct arizona_extcon_info *info)
+static const char *arizona_extcon_get_micbias(struct arizona_priv *info)
 {
 	switch (info->micd_modes[0].bias) {
 	case 1:
@@ -257,7 +218,7 @@ static const char *arizona_extcon_get_micbias(struct arizona_extcon_info *info)
 	}
 }
 
-static void arizona_extcon_pulse_micbias(struct arizona_extcon_info *info)
+static void arizona_extcon_pulse_micbias(struct arizona_priv *info)
 {
 	struct arizona *arizona = info->arizona;
 	const char *widget = arizona_extcon_get_micbias(info);
@@ -282,7 +243,7 @@ static void arizona_extcon_pulse_micbias(struct arizona_extcon_info *info)
 	}
 }
 
-static void arizona_start_mic(struct arizona_extcon_info *info)
+static void arizona_start_mic(struct arizona_priv *info)
 {
 	struct arizona *arizona = info->arizona;
 	bool change;
@@ -339,7 +300,7 @@ static void arizona_start_mic(struct arizona_extcon_info *info)
 	}
 }
 
-static void arizona_stop_mic(struct arizona_extcon_info *info)
+static void arizona_stop_mic(struct arizona_priv *info)
 {
 	struct arizona *arizona = info->arizona;
 	const char *widget = arizona_extcon_get_micbias(info);
@@ -407,7 +368,7 @@ static struct {
 	{ 1000, 10000 },
 };
 
-static int arizona_hpdet_read(struct arizona_extcon_info *info)
+static int arizona_hpdet_read(struct arizona_priv *info)
 {
 	struct arizona *arizona = info->arizona;
 	unsigned int val, range;
@@ -527,7 +488,7 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 	return val;
 }
 
-static int arizona_hpdet_do_id(struct arizona_extcon_info *info, int *reading,
+static int arizona_hpdet_do_id(struct arizona_priv *info, int *reading,
 			       bool *mic)
 {
 	struct arizona *arizona = info->arizona;
@@ -597,7 +558,7 @@ static int arizona_hpdet_do_id(struct arizona_extcon_info *info, int *reading,
 
 static irqreturn_t arizona_hpdet_irq(int irq, void *data)
 {
-	struct arizona_extcon_info *info = data;
+	struct arizona_priv *info = data;
 	struct arizona *arizona = info->arizona;
 	int id_gpio = arizona->pdata.hpdet_id_gpio;
 	unsigned int report = EXTCON_JACK_HEADPHONE;
@@ -684,7 +645,7 @@ out:
 	return IRQ_HANDLED;
 }
 
-static void arizona_identify_headphone(struct arizona_extcon_info *info)
+static void arizona_identify_headphone(struct arizona_priv *info)
 {
 	struct arizona *arizona = info->arizona;
 	int ret;
@@ -737,7 +698,7 @@ err:
 	info->hpdet_active = false;
 }
 
-static void arizona_start_hpdet_acc_id(struct arizona_extcon_info *info)
+static void arizona_start_hpdet_acc_id(struct arizona_priv *info)
 {
 	struct arizona *arizona = info->arizona;
 	int hp_reading = 32;
@@ -790,8 +751,8 @@ err:
 
 static void arizona_micd_timeout_work(struct work_struct *work)
 {
-	struct arizona_extcon_info *info = container_of(work,
-						struct arizona_extcon_info,
+	struct arizona_priv *info = container_of(work,
+						struct arizona_priv,
 						micd_timeout_work.work);
 
 	mutex_lock(&info->lock);
@@ -805,7 +766,7 @@ static void arizona_micd_timeout_work(struct work_struct *work)
 	mutex_unlock(&info->lock);
 }
 
-static int arizona_micd_adc_read(struct arizona_extcon_info *info)
+static int arizona_micd_adc_read(struct arizona_priv *info)
 {
 	struct arizona *arizona = info->arizona;
 	unsigned int val;
@@ -842,7 +803,7 @@ static int arizona_micd_adc_read(struct arizona_extcon_info *info)
 	return val;
 }
 
-static int arizona_micd_read(struct arizona_extcon_info *info)
+static int arizona_micd_read(struct arizona_priv *info)
 {
 	struct arizona *arizona = info->arizona;
 	unsigned int val = 0;
@@ -875,7 +836,7 @@ static int arizona_micd_read(struct arizona_extcon_info *info)
 
 static int arizona_micdet_reading(void *priv)
 {
-	struct arizona_extcon_info *info = priv;
+	struct arizona_priv *info = priv;
 	struct arizona *arizona = info->arizona;
 	int ret, val;
 
@@ -969,7 +930,7 @@ static int arizona_micdet_reading(void *priv)
 
 static int arizona_button_reading(void *priv)
 {
-	struct arizona_extcon_info *info = priv;
+	struct arizona_priv *info = priv;
 	struct arizona *arizona = info->arizona;
 	int val, key, lvl, i;
 
@@ -1017,8 +978,8 @@ static int arizona_button_reading(void *priv)
 
 static void arizona_micd_detect(struct work_struct *work)
 {
-	struct arizona_extcon_info *info = container_of(work,
-						struct arizona_extcon_info,
+	struct arizona_priv *info = container_of(work,
+						struct arizona_priv,
 						micd_detect_work.work);
 	struct arizona *arizona = info->arizona;
 	int ret;
@@ -1051,7 +1012,7 @@ static void arizona_micd_detect(struct work_struct *work)
 
 static irqreturn_t arizona_micdet(int irq, void *data)
 {
-	struct arizona_extcon_info *info = data;
+	struct arizona_priv *info = data;
 	struct arizona *arizona = info->arizona;
 	int debounce = arizona->pdata.micd_detect_debounce;
 
@@ -1075,8 +1036,8 @@ static irqreturn_t arizona_micdet(int irq, void *data)
 
 static void arizona_hpdet_work(struct work_struct *work)
 {
-	struct arizona_extcon_info *info = container_of(work,
-						struct arizona_extcon_info,
+	struct arizona_priv *info = container_of(work,
+						struct arizona_priv,
 						hpdet_work.work);
 
 	mutex_lock(&info->lock);
@@ -1084,7 +1045,7 @@ static void arizona_hpdet_work(struct work_struct *work)
 	mutex_unlock(&info->lock);
 }
 
-static int arizona_hpdet_wait(struct arizona_extcon_info *info)
+static int arizona_hpdet_wait(struct arizona_priv *info)
 {
 	struct arizona *arizona = info->arizona;
 	unsigned int val;
@@ -1120,7 +1081,7 @@ static int arizona_hpdet_wait(struct arizona_extcon_info *info)
 
 static irqreturn_t arizona_jackdet(int irq, void *data)
 {
-	struct arizona_extcon_info *info = data;
+	struct arizona_priv *info = data;
 	struct arizona *arizona = info->arizona;
 	unsigned int val, present, mask;
 	bool cancelled_hp, cancelled_mic;
@@ -1380,7 +1341,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
 	struct arizona_pdata *pdata = &arizona->pdata;
-	struct arizona_extcon_info *info;
+	struct arizona_priv *info;
 	unsigned int val;
 	unsigned int clamp_mode;
 	int jack_irq_fall, jack_irq_rise;
@@ -1754,7 +1715,7 @@ err_gpio:
 
 static int arizona_extcon_remove(struct platform_device *pdev)
 {
-	struct arizona_extcon_info *info = platform_get_drvdata(pdev);
+	struct arizona_priv *info = platform_get_drvdata(pdev);
 	struct arizona *arizona = info->arizona;
 	int jack_irq_rise, jack_irq_fall;
 	bool change;

@@ -91,6 +91,42 @@ struct arizona_priv {
 	unsigned int dvfs_reqs;
 	struct mutex dvfs_lock;
 	bool dvfs_cached;
+
+	/* Variables used by arizona-jack.c code */
+	struct device *dev;
+	struct mutex lock;
+	struct delayed_work hpdet_work;
+	struct delayed_work micd_detect_work;
+	struct delayed_work micd_timeout_work;
+	struct regulator *micvdd;
+	struct input_dev *input;
+	struct extcon_dev *edev;
+	struct gpio_desc *micd_pol_gpio;
+
+	u16 last_jackdet;
+
+	int micd_mode;
+	const struct arizona_micd_config *micd_modes;
+	int micd_num_modes;
+
+	const struct arizona_micd_range *micd_ranges;
+	int num_micd_ranges;
+
+	bool micd_reva;
+	bool micd_clamp;
+
+	bool hpdet_active;
+	bool hpdet_done;
+	bool hpdet_retried;
+
+	bool mic;
+	bool detecting;
+
+	int num_hpdet_res;
+	unsigned int hpdet_res[3];
+
+	int jack_flips;
+	int hpdet_ip_version;
 };
 
 struct arizona_voice_trigger_info {
