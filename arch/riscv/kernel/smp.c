@@ -9,6 +9,7 @@
  */
 
 #include <linux/cpu.h>
+#include <linux/clockchips.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/profile.h>
@@ -27,6 +28,7 @@ enum ipi_message_type {
 	IPI_CALL_FUNC,
 	IPI_CPU_STOP,
 	IPI_IRQ_WORK,
+	IPI_TIMER,
 	IPI_MAX
 };
 
@@ -176,6 +178,12 @@ void handle_IPI(struct pt_regs *regs)
 			irq_work_run();
 		}
 
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+		if (ops & (1 << IPI_TIMER)) {
+			stats[IPI_TIMER]++;
+			tick_receive_broadcast();
+		}
+#endif
 		BUG_ON((ops >> IPI_MAX) != 0);
 
 		/* Order data access and bit testing. */
@@ -192,6 +200,7 @@ static const char * const ipi_names[] = {
 	[IPI_CALL_FUNC]		= "Function call interrupts",
 	[IPI_CPU_STOP]		= "CPU stop interrupts",
 	[IPI_IRQ_WORK]		= "IRQ work interrupts",
+	[IPI_TIMER]		= "Timer broadcast interrupts",
 };
 
 void show_ipi_stats(struct seq_file *p, int prec)
@@ -216,6 +225,13 @@ void arch_send_call_function_single_ipi(int cpu)
 {
 	send_ipi_single(cpu, IPI_CALL_FUNC);
 }
+
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+void tick_broadcast(const struct cpumask *mask)
+{
+	send_ipi_mask(mask, IPI_TIMER);
+}
+#endif
 
 void smp_send_stop(void)
 {
