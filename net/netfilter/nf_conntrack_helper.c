@@ -219,7 +219,7 @@ nf_ct_lookup_helper(struct nf_conn *ct, struct net *net)
 			return NULL;
 		pr_info("nf_conntrack: default automatic helper assignment "
 			"has been turned off for security reasons and CT-based "
-			" firewall rule not found. Use the iptables CT target "
+			"firewall rule not found. Use the iptables CT target "
 			"to attach helpers instead.\n");
 		net->ct.auto_assign_helper_warned = 1;
 		return NULL;
@@ -227,7 +227,6 @@ nf_ct_lookup_helper(struct nf_conn *ct, struct net *net)
 
 	return __nf_ct_helper_find(&ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 }
-
 
 int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 			      gfp_t flags)
