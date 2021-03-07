@@ -222,8 +222,16 @@ mt7921_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	u32 val;
 	u8 seq;
 
-	/* TODO: make dynamic based on msg type */
-	mdev->mcu.timeout = 20 * HZ;
+	switch (cmd) {
+	case MCU_UNI_CMD_HIF_CTRL:
+	case MCU_UNI_CMD_SUSPEND:
+	case MCU_UNI_CMD_OFFLOAD:
+		mdev->mcu.timeout = HZ / 3;
+		break;
+	default:
+		mdev->mcu.timeout = 3 * HZ;
+		break;
+	}
 
 	seq = ++dev->mt76.mcu.msg_seq & 0xf;
 	if (!seq)
