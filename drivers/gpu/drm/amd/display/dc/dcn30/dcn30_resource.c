@@ -89,6 +89,7 @@
 #include "vm_helper.h"
 #include "dcn20/dcn20_vmid.h"
 #include "amdgpu_socbb.h"
+#include "dc_dmub_srv.h"
 
 #define DC_LOGGER_INIT(logger)
 

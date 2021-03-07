@@ -27,6 +27,8 @@
 #include "dc_dmub_srv.h"
 #include "../dmub/dmub_srv.h"
 #include "dm_helpers.h"
+#include "dc_hw_types.h"
+#include "core_types.h"
 
 #define CTX dc_dmub_srv->ctx
 #define DC_LOGGER CTX->logger

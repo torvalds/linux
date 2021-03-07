@@ -68,6 +68,7 @@ struct dce_hwseq;
 struct timing_generator;
 struct tg_color;
 struct output_pixel_processor;
+struct mpcc_blnd_cfg;
 
 struct hwseq_private_funcs {
 

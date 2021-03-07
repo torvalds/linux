@@ -205,6 +205,7 @@ struct dc_stream_state {
 	bool use_vsc_sdp_for_colorimetry;
 	bool ignore_msa_timing_param;
 
+	bool allow_freesync;
 	bool freesync_on_desktop;
 
 	bool converter_disable_audio;
@@ -295,9 +296,9 @@ struct dc_stream_update {
 	struct dc_info_packet *vrr_infopacket;
 	struct dc_info_packet *vsc_infopacket;
 	struct dc_info_packet *vsp_infopacket;
-
 	bool *dpms_off;
 	bool integer_scaling_update;
+	bool *allow_freesync;
 
 	struct colorspace_transform *gamut_remap;
 	enum dc_color_space *output_color_space;

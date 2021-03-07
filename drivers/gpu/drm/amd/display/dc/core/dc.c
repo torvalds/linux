@@ -397,7 +397,6 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 		struct dc_crtc_timing_adjust *adjust)
 {
 	int i;
-	bool ret = false;
 
 	stream->adjust.v_total_max = adjust->v_total_max;
 	stream->adjust.v_total_mid = adjust->v_total_mid;
@@ -412,10 +411,10 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 					1,
 					*adjust);
 
-			ret = true;
+			return true;
 		}
 	}
-	return ret;
+	return false;
 }
 
 /**
@@ -2649,6 +2648,9 @@ static void copy_stream_update_to_stream(struct dc *dc,
 
 	if (update->vrr_infopacket)
 		stream->vrr_infopacket = *update->vrr_infopacket;
+
+	if (update->allow_freesync)
+		stream->allow_freesync = *update->allow_freesync;
 
 	if (update->crtc_timing_adjust)
 		stream->adjust = *update->crtc_timing_adjust;

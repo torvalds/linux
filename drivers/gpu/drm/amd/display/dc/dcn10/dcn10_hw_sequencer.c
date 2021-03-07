@@ -2613,7 +2613,6 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	dc->hwss.update_visual_confirm_color(dc, pipe_ctx, &blnd_cfg.black_color, mpcc_id);
 
 	ASSERT(new_mpcc != NULL);
-
 	hubp->opp_id = pipe_ctx->stream_res.opp->inst;
 	hubp->mpcc_id = mpcc_id;
 }
