@@ -1164,7 +1164,8 @@ zynqmp_disp_plane_atomic_disable(struct drm_plane *plane,
 	zynqmp_disp_layer_disable(layer);
 
 	if (zynqmp_disp_layer_is_gfx(layer))
-		zynqmp_disp_blend_set_global_alpha(layer->disp, false, 0);
+		zynqmp_disp_blend_set_global_alpha(layer->disp, false,
+						   plane->state->alpha >> 8);
 }
 
 static void
@@ -1195,7 +1196,8 @@ zynqmp_disp_plane_atomic_update(struct drm_plane *plane,
 	zynqmp_disp_layer_update(layer, new_state);
 
 	if (zynqmp_disp_layer_is_gfx(layer))
-		zynqmp_disp_blend_set_global_alpha(layer->disp, true, 255);
+		zynqmp_disp_blend_set_global_alpha(layer->disp, true,
+						   plane->state->alpha >> 8);
 
 	/* Enable or re-enable the plane is the format has changed. */
 	if (format_changed)
@@ -1249,6 +1251,9 @@ static int zynqmp_disp_create_planes(struct zynqmp_disp *disp)
 
 		drm_plane_helper_add(&layer->plane,
 				     &zynqmp_disp_plane_helper_funcs);
+
+		if (zynqmp_disp_layer_is_gfx(layer))
+			drm_plane_create_alpha_property(&layer->plane);
 	}
 
 	return 0;
