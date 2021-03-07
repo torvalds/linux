@@ -242,7 +242,7 @@ void iio_buffer_init(struct iio_buffer *buffer)
 }
 EXPORT_SYMBOL(iio_buffer_init);
 
-void iio_buffers_put(struct iio_dev *indio_dev)
+void iio_device_detach_buffers(struct iio_dev *indio_dev)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	struct iio_buffer *buffer;
@@ -252,6 +252,8 @@ void iio_buffers_put(struct iio_dev *indio_dev)
 		buffer = iio_dev_opaque->attached_buffers[i];
 		iio_buffer_put(buffer);
 	}
+
+	kfree(iio_dev_opaque->attached_buffers);
 }
 
 static ssize_t iio_show_scan_index(struct device *dev,
@@ -1633,7 +1635,6 @@ error_unwind_sysfs_and_mask:
 		buffer = iio_dev_opaque->attached_buffers[unwind_idx];
 		__iio_buffer_free_sysfs_and_mask(buffer);
 	}
-	kfree(iio_dev_opaque->attached_buffers);
 	return ret;
 }
 
@@ -1655,8 +1656,6 @@ void iio_buffers_free_sysfs_and_mask(struct iio_dev *indio_dev)
 		buffer = iio_dev_opaque->attached_buffers[i];
 		__iio_buffer_free_sysfs_and_mask(buffer);
 	}
-
-	kfree(iio_dev_opaque->attached_buffers);
 }
 
 /**
@@ -1779,6 +1778,8 @@ EXPORT_SYMBOL_GPL(iio_buffer_put);
  * This function attaches a buffer to a IIO device. The buffer stays attached to
  * the device until the device is freed. For legacy reasons, the first attached
  * buffer will also be assigned to 'indio_dev->buffer'.
+ * The array allocated here, will be free'd via the iio_device_detach_buffers()
+ * call which is handled by the iio_device_free().
  */
 int iio_device_attach_buffer(struct iio_dev *indio_dev,
 			     struct iio_buffer *buffer)

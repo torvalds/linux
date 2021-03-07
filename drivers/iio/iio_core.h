@@ -77,7 +77,7 @@ void iio_buffers_free_sysfs_and_mask(struct iio_dev *indio_dev);
 
 void iio_disable_all_buffers(struct iio_dev *indio_dev);
 void iio_buffer_wakeup_poll(struct iio_dev *indio_dev);
-void iio_buffers_put(struct iio_dev *indio_dev);
+void iio_device_detach_buffers(struct iio_dev *indio_dev);
 
 #else
 
@@ -93,7 +93,7 @@ static inline void iio_buffers_free_sysfs_and_mask(struct iio_dev *indio_dev) {}
 
 static inline void iio_disable_all_buffers(struct iio_dev *indio_dev) {}
 static inline void iio_buffer_wakeup_poll(struct iio_dev *indio_dev) {}
-static inline void iio_buffers_put(struct iio_dev *indio_dev) {}
+static inline void iio_device_detach_buffers(struct iio_dev *indio_dev) {}
 
 #endif
 

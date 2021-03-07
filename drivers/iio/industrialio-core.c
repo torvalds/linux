@@ -1586,7 +1586,7 @@ static void iio_dev_release(struct device *device)
 	iio_device_unregister_eventset(indio_dev);
 	iio_device_unregister_sysfs(indio_dev);
 
-	iio_buffers_put(indio_dev);
+	iio_device_detach_buffers(indio_dev);
 
 	ida_simple_remove(&iio_ida, indio_dev->id);
 	kfree(iio_dev_opaque);
