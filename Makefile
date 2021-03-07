@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 5
-PATCHLEVEL = 11
+PATCHLEVEL = 12
 SUBLEVEL = 0
-EXTRAVERSION =
-NAME = 💕 Valentine's Day Edition 💕
+EXTRAVERSION = -rc1
+NAME = Frozen Wasteland
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
@@ -96,6 +96,7 @@ endif
 
 ifneq ($(findstring s,$(filter-out --%,$(MAKEFLAGS))),)
   quiet=silent_
+  KBUILD_VERBOSE = 0
 endif
 
 export quiet Q KBUILD_VERBOSE
@@ -1326,10 +1327,10 @@ endef
 define filechk_version.h
 	if [ $(SUBLEVEL) -gt 255 ]; then                                 \
 		echo \#define LINUX_VERSION_CODE $(shell                 \
-		expr $(VERSION) \* 65536 + 0$(PATCHLEVEL) \* 256 + 255); \
+		expr $(VERSION) \* 65536 + $(PATCHLEVEL) \* 256 + 255); \
 	else                                                             \
 		echo \#define LINUX_VERSION_CODE $(shell                 \
-		expr $(VERSION) \* 65536 + 0$(PATCHLEVEL) \* 256 + $(SUBLEVEL)); \
+		expr $(VERSION) \* 65536 + $(PATCHLEVEL) \* 256 + $(SUBLEVEL)); \
 	fi;                                                              \
 	echo '#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) +  \
 	((c) > 255 ? 255 : (c)))';                                       \
@@ -1338,6 +1339,8 @@ define filechk_version.h
 	echo \#define LINUX_VERSION_SUBLEVEL $(SUBLEVEL)
 endef
 
+$(version_h): PATCHLEVEL := $(if $(PATCHLEVEL), $(PATCHLEVEL), 0)
+$(version_h): SUBLEVEL := $(if $(SUBLEVEL), $(SUBLEVEL), 0)
 $(version_h): FORCE
 	$(call filechk,version.h)
 
