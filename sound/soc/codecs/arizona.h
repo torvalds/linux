@@ -97,9 +97,8 @@ struct arizona_priv {
 	struct delayed_work hpdet_work;
 	struct delayed_work micd_detect_work;
 	struct delayed_work micd_timeout_work;
+	struct snd_soc_jack *jack;
 	struct regulator *micvdd;
-	struct input_dev *input;
-	struct extcon_dev *edev;
 	struct gpio_desc *micd_pol_gpio;
 
 	u16 last_jackdet;
@@ -108,6 +107,7 @@ struct arizona_priv {
 	const struct arizona_micd_config *micd_modes;
 	int micd_num_modes;
 
+	int micd_button_mask;
 	const struct arizona_micd_range *micd_ranges;
 	int num_micd_ranges;
 
@@ -256,6 +256,9 @@ extern unsigned int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 
 #define ARIZONA_RATE_ENUM_SIZE 4
 #define ARIZONA_SAMPLE_RATE_ENUM_SIZE 14
+
+/* SND_JACK_* mask for supported cable/switch types */
+#define ARIZONA_JACK_MASK  (SND_JACK_HEADSET | SND_JACK_LINEOUT | SND_JACK_MECHANICAL)
 
 extern const char * const arizona_rate_text[ARIZONA_RATE_ENUM_SIZE];
 extern const unsigned int arizona_rate_val[ARIZONA_RATE_ENUM_SIZE];
