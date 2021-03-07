@@ -336,7 +336,6 @@ struct io_ring_ctx {
 		unsigned int		drain_next: 1;
 		unsigned int		eventfd_async: 1;
 		unsigned int		restricted: 1;
-		unsigned int		sqo_exec: 1;
 
 		/*
 		 * Ring buffer of indices into array of io_uring_sqe, which is
@@ -6786,7 +6785,6 @@ static int io_sq_thread(void *data)
 
 	sqd->thread = NULL;
 	list_for_each_entry(ctx, &sqd->ctx_list, sqd_list) {
-		ctx->sqo_exec = 1;
 		io_ring_set_wakeup_flag(ctx);
 	}
 
@@ -7844,26 +7842,6 @@ void __io_uring_free(struct task_struct *tsk)
 	percpu_counter_destroy(&tctx->inflight);
 	kfree(tctx);
 	tsk->io_uring = NULL;
-}
-
-static int io_sq_thread_fork(struct io_sq_data *sqd, struct io_ring_ctx *ctx)
-{
-	struct task_struct *tsk;
-	int ret;
-
-	clear_bit(IO_SQ_THREAD_SHOULD_STOP, &sqd->state);
-	reinit_completion(&sqd->parked);
-	ctx->sqo_exec = 0;
-	sqd->task_pid = current->pid;
-	tsk = create_io_thread(io_sq_thread, sqd, NUMA_NO_NODE);
-	if (IS_ERR(tsk))
-		return PTR_ERR(tsk);
-	ret = io_uring_alloc_task_context(tsk, ctx);
-	if (ret)
-		set_bit(IO_SQ_THREAD_SHOULD_STOP, &sqd->state);
-	sqd->thread = tsk;
-	wake_up_new_task(tsk);
-	return ret;
 }
 
 static int io_sq_offload_create(struct io_ring_ctx *ctx,
@@ -9199,13 +9177,10 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
 		io_cqring_overflow_flush(ctx, false, NULL, NULL);
 
-		if (unlikely(ctx->sqo_exec)) {
-			ret = io_sq_thread_fork(ctx->sq_data, ctx);
-			if (ret)
-				goto out;
-			ctx->sqo_exec = 0;
-		}
 		ret = -EOWNERDEAD;
+		if (unlikely(ctx->sq_data->thread == NULL)) {
+			goto out;
+		}
 		if (flags & IORING_ENTER_SQ_WAKEUP)
 			wake_up(&ctx->sq_data->wait);
 		if (flags & IORING_ENTER_SQ_WAIT) {
