@@ -209,6 +209,7 @@ extern struct pci_driver mt7921_pci_driver;
 
 u32 mt7921_reg_map(struct mt7921_dev *dev, u32 addr);
 
+int __mt7921_start(struct mt7921_phy *phy);
 int mt7921_register_device(struct mt7921_dev *dev);
 void mt7921_unregister_device(struct mt7921_dev *dev);
 int mt7921_eeprom_init(struct mt7921_dev *dev);
