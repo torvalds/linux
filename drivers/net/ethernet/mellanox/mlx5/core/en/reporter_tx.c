@@ -315,8 +315,8 @@ mlx5e_tx_reporter_diagnose_common_config(struct devlink_health_reporter *reporte
 	if (err)
 		return err;
 
-	generic_ptpsq = priv->channels.port_ptp ?
-			&priv->channels.port_ptp->ptpsq[0] :
+	generic_ptpsq = priv->channels.ptp ?
+			&priv->channels.ptp->ptpsq[0] :
 			NULL;
 	if (!generic_ptpsq)
 		goto out;
@@ -346,7 +346,7 @@ static int mlx5e_tx_reporter_diagnose(struct devlink_health_reporter *reporter,
 				      struct netlink_ext_ack *extack)
 {
 	struct mlx5e_priv *priv = devlink_health_reporter_priv(reporter);
-	struct mlx5e_port_ptp *ptp_ch = priv->channels.port_ptp;
+	struct mlx5e_ptp *ptp_ch = priv->channels.ptp;
 
 	int i, tc, err = 0;
 
@@ -460,7 +460,7 @@ static int mlx5e_tx_reporter_dump_sq(struct mlx5e_priv *priv, struct devlink_fms
 static int mlx5e_tx_reporter_dump_all_sqs(struct mlx5e_priv *priv,
 					  struct devlink_fmsg *fmsg)
 {
-	struct mlx5e_port_ptp *ptp_ch = priv->channels.port_ptp;
+	struct mlx5e_ptp *ptp_ch = priv->channels.ptp;
 	struct mlx5_rsc_key key = {};
 	int i, tc, err;
 

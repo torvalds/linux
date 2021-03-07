@@ -2032,7 +2032,7 @@ static int set_pflag_tx_port_ts(struct net_device *netdev, bool enable)
 					 mlx5e_num_channels_changed_ctx, NULL);
 out:
 	if (!err)
-		priv->port_ptp_opened = true;
+		priv->tx_ptp_opened = true;
 
 	return err;
 }

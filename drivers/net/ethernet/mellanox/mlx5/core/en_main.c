@@ -2088,8 +2088,7 @@ int mlx5e_open_channels(struct mlx5e_priv *priv,
 	}
 
 	if (MLX5E_GET_PFLAG(&chs->params, MLX5E_PFLAG_TX_PORT_TS)) {
-		err = mlx5e_port_ptp_open(priv, &chs->params, chs->c[0]->lag_port,
-					  &chs->port_ptp);
+		err = mlx5e_ptp_open(priv, &chs->params, chs->c[0]->lag_port, &chs->ptp);
 		if (err)
 			goto err_close_channels;
 	}
@@ -2103,8 +2102,8 @@ int mlx5e_open_channels(struct mlx5e_priv *priv,
 	return 0;
 
 err_close_ptp:
-	if (chs->port_ptp)
-		mlx5e_port_ptp_close(chs->port_ptp);
+	if (chs->ptp)
+		mlx5e_ptp_close(chs->ptp);
 
 err_close_channels:
 	for (i--; i >= 0; i--)
@@ -2124,8 +2123,8 @@ static void mlx5e_activate_channels(struct mlx5e_channels *chs)
 	for (i = 0; i < chs->num; i++)
 		mlx5e_activate_channel(chs->c[i]);
 
-	if (chs->port_ptp)
-		mlx5e_ptp_activate_channel(chs->port_ptp);
+	if (chs->ptp)
+		mlx5e_ptp_activate_channel(chs->ptp);
 }
 
 #define MLX5E_RQ_WQES_TIMEOUT 20000 /* msecs */
@@ -2152,8 +2151,8 @@ static void mlx5e_deactivate_channels(struct mlx5e_channels *chs)
 {
 	int i;
 
-	if (chs->port_ptp)
-		mlx5e_ptp_deactivate_channel(chs->port_ptp);
+	if (chs->ptp)
+		mlx5e_ptp_deactivate_channel(chs->ptp);
 
 	for (i = 0; i < chs->num; i++)
 		mlx5e_deactivate_channel(chs->c[i]);
@@ -2163,11 +2162,10 @@ void mlx5e_close_channels(struct mlx5e_channels *chs)
 {
 	int i;
 
-	if (chs->port_ptp) {
-		mlx5e_port_ptp_close(chs->port_ptp);
-		chs->port_ptp = NULL;
+	if (chs->ptp) {
+		mlx5e_ptp_close(chs->ptp);
+		chs->ptp = NULL;
 	}
-
 	for (i = 0; i < chs->num; i++)
 		mlx5e_close_channel(chs->c[i]);
 
@@ -2758,11 +2756,11 @@ static void mlx5e_build_txq_maps(struct mlx5e_priv *priv)
 		}
 	}
 
-	if (!priv->channels.port_ptp)
+	if (!priv->channels.ptp)
 		return;
 
 	for (tc = 0; tc < num_tc; tc++) {
-		struct mlx5e_port_ptp *c = priv->channels.port_ptp;
+		struct mlx5e_ptp *c = priv->channels.ptp;
 		struct mlx5e_txqsq *sq = &c->ptpsq[tc].txqsq;
 
 		priv->txq2sq[sq->txq_ix] = sq;
@@ -3486,9 +3484,9 @@ void mlx5e_fold_sw_stats64(struct mlx5e_priv *priv, struct rtnl_link_stats64 *s)
 			s->tx_dropped    += sq_stats->dropped;
 		}
 	}
-	if (priv->port_ptp_opened) {
+	if (priv->tx_ptp_opened) {
 		for (i = 0; i < priv->max_opened_tc; i++) {
-			struct mlx5e_sq_stats *sq_stats = &priv->port_ptp_stats.sq[i];
+			struct mlx5e_sq_stats *sq_stats = &priv->ptp_stats.sq[i];
 
 			s->tx_packets    += sq_stats->packets;
 			s->tx_bytes      += sq_stats->bytes;
