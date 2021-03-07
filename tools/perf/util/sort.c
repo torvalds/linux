@@ -3140,7 +3140,7 @@ int output_field_add(struct perf_hpp_list *list, char *tok)
 		if (strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
-		if (sort__mode != SORT_MODE__MEMORY)
+		if (sort__mode != SORT_MODE__BRANCH)
 			return -EINVAL;
 
 		return __sort_dimension__add_output(list, sd);
@@ -3152,7 +3152,7 @@ int output_field_add(struct perf_hpp_list *list, char *tok)
 		if (strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
-		if (sort__mode != SORT_MODE__BRANCH)
+		if (sort__mode != SORT_MODE__MEMORY)
 			return -EINVAL;
 
 		return __sort_dimension__add_output(list, sd);
