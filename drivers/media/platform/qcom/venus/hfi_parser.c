@@ -235,12 +235,12 @@ static int hfi_platform_parser(struct venus_core *core, struct venus_inst *inst)
 	u32 enc_codecs, dec_codecs, count = 0;
 	unsigned int entries;
 
-	if (inst)
-		return 0;
-
 	plat = hfi_platform_get(core->res->hfi_version);
 	if (!plat)
 		return -EINVAL;
+
+	if (inst)
+		return 0;
 
 	if (plat->codecs)
 		plat->codecs(&enc_codecs, &dec_codecs, &count);
