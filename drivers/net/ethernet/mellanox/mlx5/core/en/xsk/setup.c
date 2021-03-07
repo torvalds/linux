@@ -45,6 +45,51 @@ static void mlx5e_build_xsk_cparam(struct mlx5_core_dev *mdev,
 	mlx5e_build_xdpsq_param(mdev, params, &cparam->xdp_sq);
 }
 
+static int mlx5e_init_xsk_rq(struct mlx5e_channel *c,
+			     struct mlx5e_params *params,
+			     struct xsk_buff_pool *pool,
+			     struct mlx5e_xsk_param *xsk,
+			     struct mlx5e_rq *rq)
+{
+	struct mlx5_core_dev *mdev = c->mdev;
+	int rq_xdp_ix;
+	int err;
+
+	rq->wq_type      = params->rq_wq_type;
+	rq->pdev         = c->pdev;
+	rq->netdev       = c->netdev;
+	rq->priv         = c->priv;
+	rq->tstamp       = c->tstamp;
+	rq->clock        = &mdev->clock;
+	rq->icosq        = &c->icosq;
+	rq->ix           = c->ix;
+	rq->mdev         = mdev;
+	rq->hw_mtu       = MLX5E_SW2HW_MTU(params, params->sw_mtu);
+	rq->xdpsq        = &c->rq_xdpsq;
+	rq->xsk_pool     = pool;
+	rq->stats        = &c->priv->channel_stats[c->ix].xskrq;
+	rq->ptp_cyc2time = mlx5_rq_ts_translator(mdev);
+	rq_xdp_ix        = c->ix + params->num_channels * MLX5E_RQ_GROUP_XSK;
+	err = mlx5e_rq_set_handlers(rq, params, xsk);
+	if (err)
+		return err;
+
+	return  xdp_rxq_info_reg(&rq->xdp_rxq, rq->netdev, rq_xdp_ix, 0);
+}
+
+static int mlx5e_open_xsk_rq(struct mlx5e_channel *c, struct mlx5e_params *params,
+			     struct mlx5e_rq_param *rq_params, struct xsk_buff_pool *pool,
+			     struct mlx5e_xsk_param *xsk)
+{
+	int err;
+
+	err = mlx5e_init_xsk_rq(c, params, pool, xsk, &c->xskrq);
+	if (err)
+		return err;
+
+	return mlx5e_open_rq(params, rq_params, xsk, cpu_to_node(c->cpu), &c->xskrq);
+}
+
 int mlx5e_open_xsk(struct mlx5e_priv *priv, struct mlx5e_params *params,
 		   struct mlx5e_xsk_param *xsk, struct xsk_buff_pool *pool,
 		   struct mlx5e_channel *c)
@@ -69,7 +114,7 @@ int mlx5e_open_xsk(struct mlx5e_priv *priv, struct mlx5e_params *params,
 	if (unlikely(err))
 		goto err_free_cparam;
 
-	err = mlx5e_open_rq(c, params, &cparam->rq, xsk, pool, &c->xskrq);
+	err = mlx5e_open_xsk_rq(c, params, &cparam->rq, pool, xsk);
 	if (unlikely(err))
 		goto err_close_rx_cq;
 
