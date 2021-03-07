@@ -637,6 +637,82 @@ static int yellow_carp_get_dpm_freq_by_index(struct smu_context *smu,
 	return 0;
 }
 
+static bool yellow_carp_clk_dpm_is_enabled(struct smu_context *smu,
+						enum smu_clk_type clk_type)
+{
+	enum smu_feature_mask feature_id = 0;
+
+	switch (clk_type) {
+	case SMU_MCLK:
+	case SMU_UCLK:
+	case SMU_FCLK:
+		feature_id = SMU_FEATURE_DPM_FCLK_BIT;
+		break;
+	case SMU_GFXCLK:
+	case SMU_SCLK:
+		feature_id = SMU_FEATURE_DPM_GFXCLK_BIT;
+		break;
+	case SMU_SOCCLK:
+		feature_id = SMU_FEATURE_DPM_SOCCLK_BIT;
+		break;
+	case SMU_VCLK:
+	case SMU_DCLK:
+		feature_id = SMU_FEATURE_VCN_DPM_BIT;
+		break;
+	default:
+		return true;
+	}
+
+	return smu_cmn_feature_is_enabled(smu, feature_id);
+}
+
+static int yellow_carp_set_soft_freq_limited_range(struct smu_context *smu,
+							enum smu_clk_type clk_type,
+							uint32_t min,
+							uint32_t max)
+{
+	enum smu_message_type msg_set_min, msg_set_max;
+	int ret = 0;
+
+	if (!yellow_carp_clk_dpm_is_enabled(smu, clk_type))
+		return -EINVAL;
+
+	switch (clk_type) {
+	case SMU_GFXCLK:
+	case SMU_SCLK:
+		msg_set_min = SMU_MSG_SetHardMinGfxClk;
+		msg_set_max = SMU_MSG_SetSoftMaxGfxClk;
+		break;
+	case SMU_FCLK:
+	case SMU_MCLK:
+		msg_set_min = SMU_MSG_SetHardMinFclkByFreq;
+		msg_set_max = SMU_MSG_SetSoftMaxFclkByFreq;
+		break;
+	case SMU_SOCCLK:
+		msg_set_min = SMU_MSG_SetHardMinSocclkByFreq;
+		msg_set_max = SMU_MSG_SetSoftMaxSocclkByFreq;
+		break;
+	case SMU_VCLK:
+	case SMU_DCLK:
+		msg_set_min = SMU_MSG_SetHardMinVcn;
+		msg_set_max = SMU_MSG_SetSoftMaxVcn;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = smu_cmn_send_smc_msg_with_param(smu, msg_set_min, min, NULL);
+	if (ret)
+		goto out;
+
+	ret = smu_cmn_send_smc_msg_with_param(smu, msg_set_max, max, NULL);
+	if (ret)
+		goto out;
+
+out:
+	return ret;
+}
+
 static int yellow_carp_print_clk_levels(struct smu_context *smu,
 				enum smu_clk_type clk_type, char *buf)
 {
@@ -686,6 +762,43 @@ print_clk_out:
 	return size;
 }
 
+static int yellow_carp_force_clk_levels(struct smu_context *smu,
+				enum smu_clk_type clk_type, uint32_t mask)
+{
+	uint32_t soft_min_level = 0, soft_max_level = 0;
+	uint32_t min_freq = 0, max_freq = 0;
+	int ret = 0;
+
+	soft_min_level = mask ? (ffs(mask) - 1) : 0;
+	soft_max_level = mask ? (fls(mask) - 1) : 0;
+
+	switch (clk_type) {
+	case SMU_SOCCLK:
+	case SMU_MCLK:
+	case SMU_FCLK:
+	case SMU_VCLK:
+	case SMU_DCLK:
+		ret = yellow_carp_get_dpm_freq_by_index(smu, clk_type, soft_min_level, &min_freq);
+		if (ret)
+			goto force_level_out;
+
+		ret = yellow_carp_get_dpm_freq_by_index(smu, clk_type, soft_max_level, &max_freq);
+		if (ret)
+			goto force_level_out;
+
+		ret = yellow_carp_set_soft_freq_limited_range(smu, clk_type, min_freq, max_freq);
+		if (ret)
+			goto force_level_out;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+force_level_out:
+	return ret;
+}
+
 static int yellow_carp_set_fine_grain_gfx_freq_parameters(struct smu_context *smu)
 {
 	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
@@ -719,6 +832,7 @@ static const struct pptable_funcs yellow_carp_ppt_funcs = {
 	.post_init = yellow_carp_post_smu_init,
 	.od_edit_dpm_table = yellow_carp_od_edit_dpm_table,
 	.print_clk_levels = yellow_carp_print_clk_levels,
+	.force_clk_levels = yellow_carp_force_clk_levels,
 	.set_fine_grain_gfx_freq_parameters = yellow_carp_set_fine_grain_gfx_freq_parameters,
 };
 
