@@ -1252,6 +1252,7 @@ static int zynqmp_disp_create_planes(struct zynqmp_disp *disp)
 		drm_plane_helper_add(&layer->plane,
 				     &zynqmp_disp_plane_helper_funcs);
 
+		drm_plane_create_zpos_immutable_property(&layer->plane, i);
 		if (zynqmp_disp_layer_is_gfx(layer))
 			drm_plane_create_alpha_property(&layer->plane);
 	}
