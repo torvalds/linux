@@ -386,4 +386,10 @@ static inline int arizona_unregister_notifier(struct snd_soc_component *componen
 
 int arizona_of_get_audio_pdata(struct arizona *arizona);
 
+int arizona_jack_codec_dev_probe(struct arizona_priv *info, struct device *dev);
+int arizona_jack_codec_dev_remove(struct arizona_priv *info);
+
+int arizona_jack_set_jack(struct snd_soc_component *component,
+			  struct snd_soc_jack *jack, void *data);
+
 #endif

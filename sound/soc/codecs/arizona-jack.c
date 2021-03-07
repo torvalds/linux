@@ -7,14 +7,12 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
-#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
@@ -1337,27 +1335,16 @@ static int arizona_extcon_device_get_pdata(struct device *dev,
 	return 0;
 }
 
-static int arizona_extcon_probe(struct platform_device *pdev)
+int arizona_jack_codec_dev_probe(struct arizona_priv *info, struct device *dev)
 {
-	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
+	struct arizona *arizona = info->arizona;
 	struct arizona_pdata *pdata = &arizona->pdata;
-	struct arizona_priv *info;
-	unsigned int val;
-	unsigned int clamp_mode;
-	int jack_irq_fall, jack_irq_rise;
-	int ret, mode, i, j;
-
-	if (!arizona->dapm || !arizona->dapm->card)
-		return -EPROBE_DEFER;
-
-	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
+	int ret, mode;
 
 	if (!dev_get_platdata(arizona->dev))
-		arizona_extcon_device_get_pdata(&pdev->dev, arizona);
+		arizona_extcon_device_get_pdata(dev, arizona);
 
-	info->micvdd = devm_regulator_get(&pdev->dev, "MICVDD");
+	info->micvdd = devm_regulator_get(dev, "MICVDD");
 	if (IS_ERR(info->micvdd)) {
 		ret = PTR_ERR(info->micvdd);
 		dev_err(arizona->dev, "Failed to get MICVDD: %d\n", ret);
@@ -1365,12 +1352,10 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	}
 
 	mutex_init(&info->lock);
-	info->arizona = arizona;
 	info->last_jackdet = ~(ARIZONA_MICD_CLAMP_STS | ARIZONA_JD1_STS);
 	INIT_DELAYED_WORK(&info->hpdet_work, arizona_hpdet_work);
 	INIT_DELAYED_WORK(&info->micd_detect_work, arizona_micd_detect);
 	INIT_DELAYED_WORK(&info->micd_timeout_work, arizona_micd_timeout_work);
-	platform_set_drvdata(pdev, info);
 
 	switch (arizona->type) {
 	case WM5102:
@@ -1404,20 +1389,20 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		break;
 	}
 
-	info->edev = devm_extcon_dev_allocate(&pdev->dev, arizona_cable);
+	info->edev = devm_extcon_dev_allocate(dev, arizona_cable);
 	if (IS_ERR(info->edev)) {
-		dev_err(&pdev->dev, "failed to allocate extcon device\n");
+		dev_err(arizona->dev, "failed to allocate extcon device\n");
 		return -ENOMEM;
 	}
 
-	ret = devm_extcon_dev_register(&pdev->dev, info->edev);
+	ret = devm_extcon_dev_register(dev, info->edev);
 	if (ret < 0) {
 		dev_err(arizona->dev, "extcon_dev_register() failed: %d\n",
 			ret);
 		return ret;
 	}
 
-	info->input = devm_input_allocate_device(&pdev->dev);
+	info->input = devm_input_allocate_device(dev);
 	if (!info->input) {
 		dev_err(arizona->dev, "Can't allocate input dev\n");
 		ret = -ENOMEM;
@@ -1448,7 +1433,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		else
 			mode = GPIOF_OUT_INIT_LOW;
 
-		ret = devm_gpio_request_one(&pdev->dev, pdata->micd_pol_gpio,
+		ret = devm_gpio_request_one(dev, pdata->micd_pol_gpio,
 					    mode, "MICD polarity");
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to request GPIO%d: %d\n",
@@ -1481,16 +1466,37 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	}
 
 	if (arizona->pdata.hpdet_id_gpio > 0) {
-		ret = devm_gpio_request_one(&pdev->dev,
-					    arizona->pdata.hpdet_id_gpio,
+		ret = devm_gpio_request_one(dev, arizona->pdata.hpdet_id_gpio,
 					    GPIOF_OUT_INIT_LOW,
 					    "HPDET");
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to request GPIO%d: %d\n",
 				arizona->pdata.hpdet_id_gpio, ret);
-			goto err_gpio;
+			gpiod_put(info->micd_pol_gpio);
+			return ret;
 		}
 	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arizona_jack_codec_dev_probe);
+
+int arizona_jack_codec_dev_remove(struct arizona_priv *info)
+{
+	gpiod_put(info->micd_pol_gpio);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arizona_jack_codec_dev_remove);
+
+static int arizona_jack_enable_jack_detect(struct arizona_priv *info,
+					   struct snd_soc_jack *jack)
+{
+	struct arizona *arizona = info->arizona;
+	struct arizona_pdata *pdata = &arizona->pdata;
+	unsigned int val;
+	unsigned int clamp_mode;
+	int jack_irq_fall, jack_irq_rise;
+	int ret, i, j;
 
 	if (arizona->pdata.micd_bias_start_time)
 		regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,
@@ -1532,16 +1538,15 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	if (arizona->pdata.num_micd_ranges > ARIZONA_MAX_MICD_RANGE) {
 		dev_err(arizona->dev, "Too many MICD ranges: %d\n",
 			arizona->pdata.num_micd_ranges);
+		return -EINVAL;
 	}
 
 	if (info->num_micd_ranges > 1) {
 		for (i = 1; i < info->num_micd_ranges; i++) {
 			if (info->micd_ranges[i - 1].max >
 			    info->micd_ranges[i].max) {
-				dev_err(arizona->dev,
-					"MICD ranges must be sorted\n");
-				ret = -EINVAL;
-				goto err_gpio;
+				dev_err(arizona->dev, "MICD ranges must be sorted\n");
+				return -EINVAL;
 			}
 		}
 	}
@@ -1559,8 +1564,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		if (j == ARIZONA_NUM_MICD_BUTTON_LEVELS) {
 			dev_err(arizona->dev, "Unsupported MICD level %d\n",
 				info->micd_ranges[i].max);
-			ret = -EINVAL;
-			goto err_gpio;
+			return -EINVAL;
 		}
 
 		dev_dbg(arizona->dev, "%d ohms for MICD threshold %d\n",
@@ -1629,43 +1633,40 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	ret = arizona_request_irq(arizona, jack_irq_rise,
 				  "JACKDET rise", arizona_jackdet, info);
 	if (ret != 0) {
-		dev_err(&pdev->dev, "Failed to get JACKDET rise IRQ: %d\n",
-			ret);
+		dev_err(arizona->dev, "Failed to get JACKDET rise IRQ: %d\n", ret);
 		goto err_pm;
 	}
 
 	ret = arizona_set_irq_wake(arizona, jack_irq_rise, 1);
 	if (ret != 0) {
-		dev_err(&pdev->dev, "Failed to set JD rise IRQ wake: %d\n",
-			ret);
+		dev_err(arizona->dev, "Failed to set JD rise IRQ wake: %d\n", ret);
 		goto err_rise;
 	}
 
 	ret = arizona_request_irq(arizona, jack_irq_fall,
 				  "JACKDET fall", arizona_jackdet, info);
 	if (ret != 0) {
-		dev_err(&pdev->dev, "Failed to get JD fall IRQ: %d\n", ret);
+		dev_err(arizona->dev, "Failed to get JD fall IRQ: %d\n", ret);
 		goto err_rise_wake;
 	}
 
 	ret = arizona_set_irq_wake(arizona, jack_irq_fall, 1);
 	if (ret != 0) {
-		dev_err(&pdev->dev, "Failed to set JD fall IRQ wake: %d\n",
-			ret);
+		dev_err(arizona->dev, "Failed to set JD fall IRQ wake: %d\n", ret);
 		goto err_fall;
 	}
 
 	ret = arizona_request_irq(arizona, ARIZONA_IRQ_MICDET,
 				  "MICDET", arizona_micdet, info);
 	if (ret != 0) {
-		dev_err(&pdev->dev, "Failed to get MICDET IRQ: %d\n", ret);
+		dev_err(arizona->dev, "Failed to get MICDET IRQ: %d\n", ret);
 		goto err_fall_wake;
 	}
 
 	ret = arizona_request_irq(arizona, ARIZONA_IRQ_HPDET,
 				  "HPDET", arizona_hpdet_irq, info);
 	if (ret != 0) {
-		dev_err(&pdev->dev, "Failed to get HPDET IRQ: %d\n", ret);
+		dev_err(arizona->dev, "Failed to get HPDET IRQ: %d\n", ret);
 		goto err_micdet;
 	}
 
@@ -1677,12 +1678,11 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 
 	ret = regulator_allow_bypass(info->micvdd, true);
 	if (ret != 0)
-		dev_warn(arizona->dev, "Failed to set MICVDD to bypass: %d\n",
-			 ret);
+		dev_warn(arizona->dev, "Failed to set MICVDD to bypass: %d\n", ret);
 
 	ret = input_register_device(info->input);
 	if (ret) {
-		dev_err(&pdev->dev, "Can't register input device: %d\n", ret);
+		dev_err(arizona->dev, "Can't register input device: %d\n", ret);
 		goto err_hpdet;
 	}
 
@@ -1704,14 +1704,11 @@ err_rise:
 	arizona_free_irq(arizona, jack_irq_rise, info);
 err_pm:
 	pm_runtime_put(arizona->dev);
-err_gpio:
-	gpiod_put(info->micd_pol_gpio);
 	return ret;
 }
 
-static int arizona_extcon_remove(struct platform_device *pdev)
+static int arizona_jack_disable_jack_detect(struct arizona_priv *info)
 {
-	struct arizona_priv *info = platform_get_drvdata(pdev);
 	struct arizona *arizona = info->arizona;
 	int jack_irq_rise, jack_irq_fall;
 	bool change;
@@ -1739,8 +1736,7 @@ static int arizona_extcon_remove(struct platform_device *pdev)
 				       ARIZONA_MICD_ENA, 0,
 				       &change);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to disable micd on remove: %d\n",
-			ret);
+		dev_err(arizona->dev, "Failed to disable micd on remove: %d\n", ret);
 	} else if (change) {
 		regulator_disable(info->micvdd);
 		pm_runtime_put(arizona->dev);
@@ -1753,22 +1749,17 @@ static int arizona_extcon_remove(struct platform_device *pdev)
 			   ARIZONA_JD1_ENA, 0);
 	arizona_clk32k_disable(arizona);
 
-	gpiod_put(info->micd_pol_gpio);
-
 	return 0;
 }
 
-static struct platform_driver arizona_extcon_driver = {
-	.driver		= {
-		.name	= "arizona-extcon",
-	},
-	.probe		= arizona_extcon_probe,
-	.remove		= arizona_extcon_remove,
-};
+int arizona_jack_set_jack(struct snd_soc_component *component,
+			  struct snd_soc_jack *jack, void *data)
+{
+	struct arizona_priv *info = snd_soc_component_get_drvdata(component);
 
-module_platform_driver(arizona_extcon_driver);
-
-MODULE_DESCRIPTION("Arizona Extcon driver");
-MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:extcon-arizona");
+	if (jack)
+		return arizona_jack_enable_jack_detect(info, jack);
+	else
+		return arizona_jack_disable_jack_detect(info);
+}
+EXPORT_SYMBOL_GPL(arizona_jack_set_jack);
