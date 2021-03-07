@@ -3496,6 +3496,13 @@ void mlx5e_fold_sw_stats64(struct mlx5e_priv *priv, struct rtnl_link_stats64 *s)
 			s->tx_dropped    += sq_stats->dropped;
 		}
 	}
+	if (priv->rx_ptp_opened) {
+		struct mlx5e_rq_stats *rq_stats = &priv->ptp_stats.rq;
+
+		s->rx_packets   += rq_stats->packets;
+		s->rx_bytes     += rq_stats->bytes;
+		s->multicast    += rq_stats->mcast_packets;
+	}
 }
 
 void

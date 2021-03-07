@@ -860,6 +860,7 @@ struct mlx5e_priv {
 	u16                        max_nch;
 	u8                         max_opened_tc;
 	bool                       tx_ptp_opened;
+	bool                       rx_ptp_opened;
 	struct hwtstamp_config     tstamp;
 	u16                        q_counter;
 	u16                        drop_rq_q_counter;

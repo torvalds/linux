@@ -610,6 +610,9 @@ int mlx5e_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
 	if (unlikely(err))
 		goto err_napi_del;
 
+	if (test_bit(MLX5E_PTP_STATE_RX, c->state))
+		priv->rx_ptp_opened = true;
+
 	*cp = c;
 
 	kvfree(cparams);
