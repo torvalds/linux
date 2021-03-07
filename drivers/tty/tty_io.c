@@ -429,8 +429,7 @@ struct tty_driver *tty_find_polling_driver(char *name, int *line)
 EXPORT_SYMBOL_GPL(tty_find_polling_driver);
 #endif
 
-static ssize_t hung_up_tty_read(struct file *file, char __user *buf,
-				size_t count, loff_t *ppos)
+static ssize_t hung_up_tty_read(struct kiocb *iocb, struct iov_iter *to)
 {
 	return 0;
 }
@@ -502,7 +501,7 @@ static const struct file_operations console_fops = {
 
 static const struct file_operations hung_up_tty_fops = {
 	.llseek		= no_llseek,
-	.read		= hung_up_tty_read,
+	.read_iter	= hung_up_tty_read,
 	.write_iter	= hung_up_tty_write,
 	.poll		= hung_up_tty_poll,
 	.unlocked_ioctl	= hung_up_tty_ioctl,
@@ -860,13 +859,20 @@ static int iterate_tty_read(struct tty_ldisc *ld, struct tty_struct *tty,
 		if (!size)
 			break;
 
-		/*
-		 * A ldisc read error return will override any previously copied
-		 * data (eg -EOVERFLOW from HDLC)
-		 */
 		if (size < 0) {
-			memzero_explicit(kernel_buf, sizeof(kernel_buf));
-			return size;
+			/* Did we have an earlier error (ie -EFAULT)? */
+			if (retval)
+				break;
+			retval = size;
+
+			/*
+			 * -EOVERFLOW means we didn't have enough space
+			 * for a whole packet, and we shouldn't return
+			 * a partial result.
+			 */
+			if (retval == -EOVERFLOW)
+				offset = 0;
+			break;
 		}
 
 		copied = copy_to_iter(kernel_buf, size, to);
@@ -922,8 +928,10 @@ static ssize_t tty_read(struct kiocb *iocb, struct iov_iter *to)
 	/* We want to wait for the line discipline to sort out in this
 	   situation */
 	ld = tty_ldisc_ref_wait(tty);
+	if (!ld)
+		return hung_up_tty_read(iocb, to);
 	i = -EIO;
-	if (ld && ld->ops->read)
+	if (ld->ops->read)
 		i = iterate_tty_read(ld, tty, file, to);
 	tty_ldisc_deref(ld);
 
