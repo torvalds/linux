@@ -856,14 +856,14 @@ static int sysc_map_and_check_registers(struct sysc *ddata)
 	struct device_node *np = ddata->dev->of_node;
 	int error;
 
-	if (!of_get_property(np, "reg", NULL))
-		return 0;
-
 	error = sysc_parse_and_check_child_range(ddata);
 	if (error)
 		return error;
 
 	sysc_check_children(ddata);
+
+	if (!of_get_property(np, "reg", NULL))
+		return 0;
 
 	error = sysc_parse_registers(ddata);
 	if (error)
