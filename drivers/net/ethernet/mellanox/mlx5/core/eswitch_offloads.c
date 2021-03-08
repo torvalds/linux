@@ -2747,6 +2747,19 @@ static int mlx5_esw_host_number_init(struct mlx5_eswitch *esw)
 	return 0;
 }
 
+bool mlx5_esw_offloads_controller_valid(const struct mlx5_eswitch *esw, u32 controller)
+{
+	/* Local controller is always valid */
+	if (controller == 0)
+		return true;
+
+	if (!mlx5_core_is_ecpf_esw_manager(esw->dev))
+		return false;
+
+	/* External host number starts with zero in device */
+	return (controller == esw->offloads.host_number + 1);
+}
+
 int esw_offloads_enable(struct mlx5_eswitch *esw)
 {
 	struct mapping_ctx *reg_c0_obj_pool;
@@ -3295,7 +3308,7 @@ u32 mlx5_eswitch_get_vport_metadata_for_match(struct mlx5_eswitch *esw,
 EXPORT_SYMBOL(mlx5_eswitch_get_vport_metadata_for_match);
 
 int mlx5_esw_offloads_sf_vport_enable(struct mlx5_eswitch *esw, struct devlink_port *dl_port,
-				      u16 vport_num, u32 sfnum)
+				      u16 vport_num, u32 controller, u32 sfnum)
 {
 	int err;
 
@@ -3303,7 +3316,7 @@ int mlx5_esw_offloads_sf_vport_enable(struct mlx5_eswitch *esw, struct devlink_p
 	if (err)
 		return err;
 
-	err = mlx5_esw_devlink_sf_port_register(esw, dl_port, vport_num, sfnum);
+	err = mlx5_esw_devlink_sf_port_register(esw, dl_port, vport_num, controller, sfnum);
 	if (err)
 		goto devlink_err;
 
