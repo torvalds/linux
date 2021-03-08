@@ -445,11 +445,15 @@ static void mlx5e_hairpin_destroy_transport(struct mlx5e_hairpin *hp)
 	mlx5_core_dealloc_transport_domain(hp->func_mdev, hp->tdn);
 }
 
-static void mlx5e_hairpin_fill_rqt_rqns(struct mlx5e_hairpin *hp, void *rqtc)
+static int mlx5e_hairpin_fill_rqt_rqns(struct mlx5e_hairpin *hp, void *rqtc)
 {
-	u32 indirection_rqt[MLX5E_INDIR_RQT_SIZE], rqn;
+	u32 *indirection_rqt, rqn;
 	struct mlx5e_priv *priv = hp->func_priv;
 	int i, ix, sz = MLX5E_INDIR_RQT_SIZE;
+
+	indirection_rqt = kzalloc(sz, GFP_KERNEL);
+	if (!indirection_rqt)
+		return -ENOMEM;
 
 	mlx5e_build_default_indir_rqt(indirection_rqt, sz,
 				      hp->num_channels);
@@ -462,6 +466,9 @@ static void mlx5e_hairpin_fill_rqt_rqns(struct mlx5e_hairpin *hp, void *rqtc)
 		rqn = hp->pair->rqn[ix];
 		MLX5_SET(rqtc, rqtc, rq_num[i], rqn);
 	}
+
+	kfree(indirection_rqt);
+	return 0;
 }
 
 static int mlx5e_hairpin_create_indirect_rqt(struct mlx5e_hairpin *hp)
@@ -482,12 +489,15 @@ static int mlx5e_hairpin_create_indirect_rqt(struct mlx5e_hairpin *hp)
 	MLX5_SET(rqtc, rqtc, rqt_actual_size, sz);
 	MLX5_SET(rqtc, rqtc, rqt_max_size, sz);
 
-	mlx5e_hairpin_fill_rqt_rqns(hp, rqtc);
+	err = mlx5e_hairpin_fill_rqt_rqns(hp, rqtc);
+	if (err)
+		goto out;
 
 	err = mlx5_core_create_rqt(mdev, in, inlen, &hp->indir_rqt.rqtn);
 	if (!err)
 		hp->indir_rqt.enabled = true;
 
+out:
 	kvfree(in);
 	return err;
 }
