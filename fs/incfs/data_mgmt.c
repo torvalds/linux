@@ -469,10 +469,27 @@ static void log_read_one_record(struct read_log *rl, struct read_log_state *rs)
 
 	case SAME_FILE:
 		rs->base_record.block_index =
-			record->same_file_record.block_index;
+			record->same_file.block_index;
 		rs->base_record.absolute_ts_us +=
-			record->same_file_record.relative_ts_us;
-		record_size = sizeof(record->same_file_record);
+			record->same_file.relative_ts_us;
+		rs->base_record.uid = record->same_file.uid;
+		record_size = sizeof(record->same_file);
+		break;
+
+	case SAME_FILE_CLOSE_BLOCK:
+		rs->base_record.block_index +=
+			record->same_file_close_block.block_index_delta;
+		rs->base_record.absolute_ts_us +=
+			record->same_file_close_block.relative_ts_us;
+		record_size = sizeof(record->same_file_close_block);
+		break;
+
+	case SAME_FILE_CLOSE_BLOCK_SHORT:
+		rs->base_record.block_index +=
+			record->same_file_close_block_short.block_index_delta;
+		rs->base_record.absolute_ts_us +=
+		   record->same_file_close_block_short.relative_ts_tens_us * 10;
+		record_size = sizeof(record->same_file_close_block_short);
 		break;
 
 	case SAME_FILE_NEXT_BLOCK:
@@ -485,7 +502,7 @@ static void log_read_one_record(struct read_log *rl, struct read_log_state *rs)
 	case SAME_FILE_NEXT_BLOCK_SHORT:
 		++rs->base_record.block_index;
 		rs->base_record.absolute_ts_us +=
-			record->same_file_next_block_short.relative_ts_us;
+		    record->same_file_next_block_short.relative_ts_tens_us * 10;
 		record_size = sizeof(record->same_file_next_block_short);
 		break;
 	}
@@ -508,6 +525,10 @@ static void log_block_read(struct mount_info *mi, incfs_uuid_t *id,
 	union log_record record;
 	size_t record_size;
 	uid_t uid = current_uid().val;
+	int block_delta;
+	bool same_file, same_uid;
+	bool next_block, close_block, very_close_block;
+	bool close_time, very_close_time, very_very_close_time;
 
 	/*
 	 * This may read the old value, but it's OK to delay the logging start
@@ -528,9 +549,57 @@ static void log_block_read(struct mount_info *mi, incfs_uuid_t *id,
 	tail = &log->rl_tail;
 	relative_us = now_us - head->base_record.absolute_ts_us;
 
-	if (memcmp(id, &head->base_record.file_id, sizeof(incfs_uuid_t)) ||
-	    relative_us >= 1ll << 32 ||
-	    uid != head->base_record.uid) {
+	same_file = !memcmp(id, &head->base_record.file_id,
+			    sizeof(incfs_uuid_t));
+	same_uid = uid == head->base_record.uid;
+
+	block_delta = block_index - head->base_record.block_index;
+	next_block = block_delta == 1;
+	very_close_block = block_delta >= S8_MIN && block_delta <= S8_MAX;
+	close_block = block_delta >= S16_MIN && block_delta <= S16_MAX;
+
+	very_very_close_time = relative_us < (1 << 5) * 10;
+	very_close_time = relative_us < (1 << 13);
+	close_time = relative_us < (1 << 16);
+
+	if (same_file && same_uid && next_block && very_very_close_time) {
+		record.same_file_next_block_short =
+			(struct same_file_next_block_short){
+				.type = SAME_FILE_NEXT_BLOCK_SHORT,
+				.relative_ts_tens_us = div_s64(relative_us, 10),
+			};
+		record_size = sizeof(struct same_file_next_block_short);
+	} else if (same_file && same_uid && next_block && very_close_time) {
+		record.same_file_next_block = (struct same_file_next_block){
+			.type = SAME_FILE_NEXT_BLOCK,
+			.relative_ts_us = relative_us,
+		};
+		record_size = sizeof(struct same_file_next_block);
+	} else if (same_file && same_uid && very_close_block &&
+		   very_very_close_time) {
+		record.same_file_close_block_short =
+			(struct same_file_close_block_short){
+				.type = SAME_FILE_CLOSE_BLOCK_SHORT,
+				.relative_ts_tens_us = div_s64(relative_us, 10),
+				.block_index_delta = block_delta,
+			};
+		record_size = sizeof(struct same_file_close_block_short);
+	} else if (same_file && same_uid && close_block && very_close_time) {
+		record.same_file_close_block = (struct same_file_close_block){
+				.type = SAME_FILE_CLOSE_BLOCK,
+				.relative_ts_us = relative_us,
+				.block_index_delta = block_delta,
+			};
+		record_size = sizeof(struct same_file_close_block);
+	} else if (same_file && close_time) {
+		record.same_file = (struct same_file){
+			.type = SAME_FILE,
+			.block_index = block_index,
+			.relative_ts_us = relative_us,
+			.uid = uid,
+		};
+		record_size = sizeof(struct same_file);
+	} else {
 		record.full_record = (struct full_record){
 			.type = FULL,
 			.block_index = block_index,
@@ -540,27 +609,6 @@ static void log_block_read(struct mount_info *mi, incfs_uuid_t *id,
 		};
 		head->base_record.file_id = *id;
 		record_size = sizeof(struct full_record);
-	} else if (block_index != head->base_record.block_index + 1 ||
-		   relative_us >= 1 << 30) {
-		record.same_file_record = (struct same_file_record){
-			.type = SAME_FILE,
-			.block_index = block_index,
-			.relative_ts_us = relative_us,
-		};
-		record_size = sizeof(struct same_file_record);
-	} else if (relative_us >= 1 << 14) {
-		record.same_file_next_block = (struct same_file_next_block){
-			.type = SAME_FILE_NEXT_BLOCK,
-			.relative_ts_us = relative_us,
-		};
-		record_size = sizeof(struct same_file_next_block);
-	} else {
-		record.same_file_next_block_short =
-			(struct same_file_next_block_short){
-				.type = SAME_FILE_NEXT_BLOCK_SHORT,
-				.relative_ts_us = relative_us,
-			};
-		record_size = sizeof(struct same_file_next_block_short);
 	}
 
 	head->base_record.block_index = block_index;
