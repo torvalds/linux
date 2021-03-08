@@ -880,7 +880,11 @@ EXPORT_SYMBOL_GPL(software_node_unregister_nodes);
  * software_node_register_node_group - Register a group of software nodes
  * @node_group: NULL terminated array of software node pointers to be registered
  *
- * Register multiple software nodes at once.
+ * Register multiple software nodes at once. If any node in the array
+ * has its .parent pointer set (which can only be to another software_node),
+ * then its parent **must** have been registered before it is; either outside
+ * of this function or by ordering the array such that parent comes before
+ * child.
  */
 int software_node_register_node_group(const struct software_node **node_group)
 {
@@ -906,10 +910,14 @@ EXPORT_SYMBOL_GPL(software_node_register_node_group);
  * software_node_unregister_node_group - Unregister a group of software nodes
  * @node_group: NULL terminated array of software node pointers to be unregistered
  *
- * Unregister multiple software nodes at once. The array will be unwound in
- * reverse order (i.e. last entry first) and thus if any members of the array are
- * children of another member then the children must appear later in the list such
- * that they are unregistered first.
+ * Unregister multiple software nodes at once. If parent pointers are set up
+ * in any of the software nodes then the array **must** be ordered such that
+ * parents come before their children.
+ *
+ * NOTE: If you are uncertain whether the array is ordered such that
+ * parents will be unregistered before their children, it is wiser to
+ * remove the nodes individually, in the correct order (child before
+ * parent).
  */
 void software_node_unregister_node_group(
 		const struct software_node **node_group)
