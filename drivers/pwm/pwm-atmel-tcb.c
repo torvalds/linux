@@ -507,13 +507,13 @@ static int atmel_tcb_pwm_remove(struct platform_device *pdev)
 	struct atmel_tcb_pwm_chip *tcbpwm = platform_get_drvdata(pdev);
 	int err;
 
-	clk_disable_unprepare(tcbpwm->slow_clk);
-	clk_put(tcbpwm->slow_clk);
-	clk_put(tcbpwm->clk);
-
 	err = pwmchip_remove(&tcbpwm->chip);
 	if (err < 0)
 		return err;
+
+	clk_disable_unprepare(tcbpwm->slow_clk);
+	clk_put(tcbpwm->slow_clk);
+	clk_put(tcbpwm->clk);
 
 	return 0;
 }
