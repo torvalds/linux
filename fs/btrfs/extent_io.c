@@ -3020,7 +3020,7 @@ readpage_ok:
 			 */
 			if (page->index == end_index && i_size <= end) {
 				u32 zero_start = max(offset_in_page(i_size),
-						     offset_in_page(end));
+						     offset_in_page(start));
 
 				zero_user_segment(page, zero_start,
 						  offset_in_page(end) + 1);
