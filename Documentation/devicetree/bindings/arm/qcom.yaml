@@ -137,6 +137,16 @@ properties:
           - const: qcom,msm8916
 
       - items:
+          - enum:
+              - sony,karin_windy
+              - sony,karin-row
+              - sony,satsuki-row
+              - sony,sumire-row
+              - sony,suzuran-row
+              - qcom,msm8994
+          - const: qcom,apq8094
+
+      - items:
           - const: qcom,msm8996-mtp
 
       - items:
