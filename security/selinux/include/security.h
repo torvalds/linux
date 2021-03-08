@@ -419,7 +419,7 @@ extern struct page *selinux_kernel_status_page(struct selinux_state *state);
 
 #define SELINUX_KERNEL_STATUS_VERSION	1
 struct selinux_kernel_status {
-	u32	version;	/* version number of thie structure */
+	u32	version;	/* version number of the structure */
 	u32	sequence;	/* sequence number of seqlock logic */
 	u32	enforcing;	/* current setting of enforcing mode */
 	u32	policyload;	/* times of policy reloaded */
