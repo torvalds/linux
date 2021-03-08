@@ -284,7 +284,8 @@ btree_key_can_insert_cached(struct btree_trans *trans,
 	BUG_ON(iter->level);
 
 	if (!test_bit(BKEY_CACHED_DIRTY, &ck->flags) &&
-	    bch2_btree_key_cache_must_wait(trans->c))
+	    bch2_btree_key_cache_must_wait(trans->c) &&
+	    !(trans->flags & BTREE_INSERT_JOURNAL_RECLAIM))
 		return BTREE_INSERT_NEED_JOURNAL_RECLAIM;
 
 	if (u64s <= ck->u64s)
