@@ -7856,10 +7856,9 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 			ret = PTR_ERR(tsk);
 			goto err;
 		}
-		ret = io_uring_alloc_task_context(tsk, ctx);
-		if (ret)
-			set_bit(IO_SQ_THREAD_SHOULD_STOP, &sqd->state);
+
 		sqd->thread = tsk;
+		ret = io_uring_alloc_task_context(tsk, ctx);
 		wake_up_new_task(tsk);
 		if (ret)
 			goto err;
