@@ -870,17 +870,62 @@ static int amdgpu_display_get_fb_info(const struct amdgpu_framebuffer *amdgpu_fb
 	return r;
 }
 
+int amdgpu_display_gem_fb_init(struct drm_device *dev,
+			       struct amdgpu_framebuffer *rfb,
+			       const struct drm_mode_fb_cmd2 *mode_cmd,
+			       struct drm_gem_object *obj)
+{
+	int ret;
+
+	rfb->base.obj[0] = obj;
+	drm_helper_mode_fill_fb_struct(dev, &rfb->base, mode_cmd);
+	ret = drm_framebuffer_init(dev, &rfb->base, &amdgpu_fb_funcs);
+	if (ret)
+		goto err;
+
+	ret = amdgpu_display_framebuffer_init(dev, rfb, mode_cmd, obj);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	drm_err(dev, "Failed to init gem fb: %d\n", ret);
+	rfb->base.obj[0] = NULL;
+	return ret;
+}
+
+int amdgpu_display_gem_fb_verify_and_init(
+	struct drm_device *dev, struct amdgpu_framebuffer *rfb,
+	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd,
+	struct drm_gem_object *obj)
+{
+	int ret;
+
+	rfb->base.obj[0] = obj;
+
+	/* Verify that bo size can fit the fb size. */
+	ret = drm_gem_fb_init_with_funcs(dev, &rfb->base, file_priv, mode_cmd,
+					 &amdgpu_fb_funcs);
+	if (ret)
+		goto err;
+
+	ret = amdgpu_display_framebuffer_init(dev, rfb, mode_cmd, obj);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	drm_err(dev, "Failed to verify and init gem fb: %d\n", ret);
+	rfb->base.obj[0] = NULL;
+	return ret;
+}
+
 int amdgpu_display_framebuffer_init(struct drm_device *dev,
 				    struct amdgpu_framebuffer *rfb,
 				    const struct drm_mode_fb_cmd2 *mode_cmd,
 				    struct drm_gem_object *obj)
 {
 	int ret, i;
-	rfb->base.obj[0] = obj;
-	drm_helper_mode_fill_fb_struct(dev, &rfb->base, mode_cmd);
-	ret = drm_framebuffer_init(dev, &rfb->base, &amdgpu_fb_funcs);
-	if (ret)
-		goto fail;
 
 	/*
 	 * This needs to happen before modifier conversion as that might change
@@ -891,13 +936,13 @@ int amdgpu_display_framebuffer_init(struct drm_device *dev,
 			drm_dbg_kms(dev, "Plane 0 and %d have different BOs: %u vs. %u\n",
 				    i, mode_cmd->handles[0], mode_cmd->handles[i]);
 			ret = -EINVAL;
-			goto fail;
+			return ret;
 		}
 	}
 
 	ret = amdgpu_display_get_fb_info(rfb, &rfb->tiling_flags, &rfb->tmz_surface);
 	if (ret)
-		goto fail;
+		return ret;
 
 	if (dev->mode_config.allow_fb_modifiers &&
 	    !(rfb->base.flags & DRM_MODE_FB_MODIFIERS)) {
@@ -905,7 +950,7 @@ int amdgpu_display_framebuffer_init(struct drm_device *dev,
 		if (ret) {
 			drm_dbg_kms(dev, "Failed to convert tiling flags 0x%llX to a modifier",
 				    rfb->tiling_flags);
-			goto fail;
+			return ret;
 		}
 	}
 
@@ -915,10 +960,6 @@ int amdgpu_display_framebuffer_init(struct drm_device *dev,
 	}
 
 	return 0;
-
-fail:
-	rfb->base.obj[0] = NULL;
-	return ret;
 }
 
 struct drm_framebuffer *
@@ -953,7 +994,8 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	ret = amdgpu_display_framebuffer_init(dev, amdgpu_fb, mode_cmd, obj);
+	ret = amdgpu_display_gem_fb_verify_and_init(dev, amdgpu_fb, file_priv,
+						    mode_cmd, obj);
 	if (ret) {
 		kfree(amdgpu_fb);
 		drm_gem_object_put(obj);
