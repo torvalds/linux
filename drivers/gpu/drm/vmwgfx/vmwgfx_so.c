@@ -170,7 +170,7 @@ static int vmw_view_create(struct vmw_resource *res)
 		return 0;
 	}
 
-	cmd = VMW_FIFO_RESERVE_DX(res->dev_priv, view->cmd_size, view->ctx->id);
+	cmd = VMW_CMD_CTX_RESERVE(res->dev_priv, view->cmd_size, view->ctx->id);
 	if (!cmd) {
 		mutex_unlock(&dev_priv->binding_mutex);
 		return -ENOMEM;
@@ -181,7 +181,7 @@ static int vmw_view_create(struct vmw_resource *res)
 	/* Sid may have changed due to surface eviction. */
 	WARN_ON(view->srf->id == SVGA3D_INVALID_ID);
 	cmd->body.sid = view->srf->id;
-	vmw_fifo_commit(res->dev_priv, view->cmd_size);
+	vmw_cmd_commit(res->dev_priv, view->cmd_size);
 	res->id = view->view_id;
 	list_add_tail(&view->srf_head, &srf->view_list);
 	vmw_cotable_add_resource(view->cotable, &view->cotable_head);
@@ -213,14 +213,14 @@ static int vmw_view_destroy(struct vmw_resource *res)
 	if (!view->committed || res->id == -1)
 		return 0;
 
-	cmd = VMW_FIFO_RESERVE_DX(dev_priv, sizeof(*cmd), view->ctx->id);
+	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), view->ctx->id);
 	if (!cmd)
 		return -ENOMEM;
 
 	cmd->header.id = vmw_view_destroy_cmds[view->view_type];
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.view_id = view->view_id;
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 	res->id = -1;
 	list_del_init(&view->cotable_head);
 	list_del_init(&view->srf_head);

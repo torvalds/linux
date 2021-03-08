@@ -634,7 +634,7 @@ err_out:
 
 void xlgmac_init_desc_ops(struct xlgmac_desc_ops *desc_ops)
 {
-	desc_ops->alloc_channles_and_rings = xlgmac_alloc_channels_and_rings;
+	desc_ops->alloc_channels_and_rings = xlgmac_alloc_channels_and_rings;
 	desc_ops->free_channels_and_rings = xlgmac_free_channels_and_rings;
 	desc_ops->map_tx_skb = xlgmac_map_tx_skb;
 	desc_ops->map_rx_buffer = xlgmac_map_rx_buffer;

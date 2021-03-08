@@ -19,8 +19,6 @@
 #include <linux/phy.h>
 #include <linux/netdevice.h>
 
-#define DEBUG
-
 /* DP83865 phy identifier values */
 #define DP83865_PHY_ID	0x20005c7a
 

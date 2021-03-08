@@ -45,8 +45,11 @@ int iwl_mvm_send_cmd(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd)
 	if (cmd->flags & CMD_WANT_SKB)
 		return ret;
 
-	/* Silently ignore failures if RFKILL is asserted */
-	if (!ret || ret == -ERFKILL)
+	/*
+	 * Silently ignore failures if RFKILL is asserted or
+	 * we are in suspend\resume process
+	 */
+	if (!ret || ret == -ERFKILL || ret == -EHOSTDOWN)
 		return 0;
 	return ret;
 }
@@ -496,18 +499,33 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u8 lmac_num)
 static void iwl_mvm_dump_iml_error_log(struct iwl_mvm *mvm)
 {
 	struct iwl_trans *trans = mvm->trans;
-	u32 error;
+	u32 error, data1;
+
+	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000) {
+		error = UMAG_SB_CPU_2_STATUS;
+		data1 = UMAG_SB_CPU_1_STATUS;
+	} else if (mvm->trans->trans_cfg->device_family >=
+		   IWL_DEVICE_FAMILY_8000) {
+		error = SB_CPU_2_STATUS;
+		data1 = SB_CPU_1_STATUS;
+	} else {
+		return;
+	}
 
 	error = iwl_read_umac_prph(trans, UMAG_SB_CPU_2_STATUS);
 
 	IWL_ERR(trans, "IML/ROM dump:\n");
 
 	if (error & 0xFFFF0000)
-		IWL_ERR(trans, "IML/ROM SYSASSERT:\n");
+		IWL_ERR(trans, "0x%04X | IML/ROM SYSASSERT\n", error >> 16);
 
 	IWL_ERR(mvm, "0x%08X | IML/ROM error/state\n", error);
 	IWL_ERR(mvm, "0x%08X | IML/ROM data1\n",
-		iwl_read_umac_prph(trans, UMAG_SB_CPU_1_STATUS));
+		iwl_read_umac_prph(trans, data1));
+
+	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000)
+		IWL_ERR(mvm, "0x%08X | IML/ROM WFPM_AUTH_KEY_0\n",
+			iwl_read_umac_prph(trans, SB_MODIFY_CFG_FLAG));
 }
 
 void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
@@ -525,8 +543,7 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 
 	iwl_mvm_dump_umac_error_log(mvm);
 
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
-		iwl_mvm_dump_iml_error_log(mvm);
+	iwl_mvm_dump_iml_error_log(mvm);
 
 	iwl_fw_error_print_fseq_regs(&mvm->fwrt);
 }
@@ -830,6 +847,36 @@ struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm)
 	}
 
 	return bss_iter_data.vif;
+}
+
+struct iwl_bss_find_iter_data {
+	struct ieee80211_vif *vif;
+	u32 macid;
+};
+
+static void iwl_mvm_bss_find_iface_iterator(void *_data, u8 *mac,
+					    struct ieee80211_vif *vif)
+{
+	struct iwl_bss_find_iter_data *data = _data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (mvmvif->id == data->macid)
+		data->vif = vif;
+}
+
+struct ieee80211_vif *iwl_mvm_get_vif_by_macid(struct iwl_mvm *mvm, u32 macid)
+{
+	struct iwl_bss_find_iter_data data = {
+		.macid = macid,
+	};
+
+	lockdep_assert_held(&mvm->mutex);
+
+	ieee80211_iterate_active_interfaces_atomic(
+		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+		iwl_mvm_bss_find_iface_iterator, &data);
+
+	return data.vif;
 }
 
 struct iwl_sta_iter_data {

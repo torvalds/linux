@@ -375,7 +375,7 @@ int snd_emu10k1_alloc_pages_maybe_wider(struct snd_emu10k1 *emu, size_t size,
 					struct snd_dma_buffer *dmab)
 {
 	if (emu->iommu_workaround) {
-		size_t npages = (size + PAGE_SIZE - 1) / PAGE_SIZE;
+		size_t npages = DIV_ROUND_UP(size, PAGE_SIZE);
 		size_t size_real = npages * PAGE_SIZE;
 
 		/*

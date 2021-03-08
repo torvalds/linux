@@ -71,6 +71,13 @@
 
 #define TEGRA30_POWER_HOTPLUG_SHUTDOWN	(1 << 27) /* Hotplug shutdown */
 
+#define PLLA_STORE_MASK			(1 << 0)
+#define PLLC_STORE_MASK			(1 << 1)
+#define PLLM_STORE_MASK			(1 << 2)
+#define PLLP_STORE_MASK			(1 << 3)
+#define PLLX_STORE_MASK			(1 << 4)
+#define PLLM_PMC_STORE_MASK		(1 << 5)
+
 .macro emc_device_mask, rd, base
 	ldr	\rd, [\base, #EMC_ADR_CFG]
 	tst	\rd, #0x1
@@ -87,7 +94,43 @@
 	bne	1001b
 .endm
 
-.macro pll_enable, rd, r_car_base, pll_base, pll_misc
+.macro test_pll_state, rd, test_mask
+	ldr	\rd, tegra_pll_state
+	tst	\rd, #\test_mask
+.endm
+
+.macro store_pll_state, rd, tmp, r_car_base, pll_base, pll_mask
+	ldr	\rd, [\r_car_base, #\pll_base]
+	tst	\rd, #(1 << 30)
+	ldr	\rd, tegra_pll_state
+	biceq	\rd, \rd, #\pll_mask
+	orrne	\rd, \rd, #\pll_mask
+	adr	\tmp, tegra_pll_state
+	str	\rd, [\tmp]
+.endm
+
+.macro store_pllm_pmc_state, rd, tmp, pmc_base
+	ldr	\rd, [\pmc_base, #PMC_PLLP_WB0_OVERRIDE]
+	tst	\rd, #(1 << 12)
+	ldr	\rd, tegra_pll_state
+	biceq	\rd, \rd, #PLLM_PMC_STORE_MASK
+	orrne	\rd, \rd, #PLLM_PMC_STORE_MASK
+	adr	\tmp, tegra_pll_state
+	str	\rd, [\tmp]
+.endm
+
+.macro pllm_pmc_enable, rd, pmc_base
+	test_pll_state \rd, PLLM_PMC_STORE_MASK
+
+	ldrne	\rd, [\pmc_base, #PMC_PLLP_WB0_OVERRIDE]
+	orrne	\rd, \rd, #(1 << 12)
+	strne	\rd, [\pmc_base, #PMC_PLLP_WB0_OVERRIDE]
+.endm
+
+.macro pll_enable, rd, r_car_base, pll_base, pll_misc, test_mask
+	test_pll_state \rd, \test_mask
+	beq	1f
+
 	ldr	\rd, [\r_car_base, #\pll_base]
 	tst	\rd, #(1 << 30)
 	orreq	\rd, \rd, #(1 << 30)
@@ -102,13 +145,17 @@
 	orr	\rd, \rd, #(1 << 18)
 	str	\rd, [\r_car_base, #\pll_misc]
 	.endif
+1:
 .endm
 
-.macro pll_locked, rd, r_car_base, pll_base
+.macro pll_locked, rd, r_car_base, pll_base, test_mask
+	test_pll_state \rd, \test_mask
+	beq	2f
 1:
 	ldr	\rd, [\r_car_base, #\pll_base]
 	tst	\rd, #(1 << 27)
 	beq	1b
+2:
 .endm
 
 .macro pll_iddq_exit, rd, car, iddq, iddq_bit
@@ -342,34 +389,30 @@ ENTRY(tegra30_lp1_reset)
 
 	/* enable PLLM via PMC */
 	mov32	r2, TEGRA_PMC_BASE
-	ldr	r1, [r2, #PMC_PLLP_WB0_OVERRIDE]
-	orr	r1, r1, #(1 << 12)
-	str	r1, [r2, #PMC_PLLP_WB0_OVERRIDE]
+	pllm_pmc_enable r1, r2
 
-	pll_enable r1, r0, CLK_RESET_PLLM_BASE, 0
-	pll_enable r1, r0, CLK_RESET_PLLC_BASE, 0
-	pll_enable r1, r0, CLK_RESET_PLLX_BASE, 0
+	pll_enable r1, r0, CLK_RESET_PLLM_BASE, 0, PLLM_STORE_MASK
+	pll_enable r1, r0, CLK_RESET_PLLC_BASE, 0, PLLC_STORE_MASK
+	pll_enable r1, r0, CLK_RESET_PLLX_BASE, 0, PLLX_STORE_MASK
 
 	b	_pll_m_c_x_done
 
 _no_pll_iddq_exit:
 	/* enable PLLM via PMC */
 	mov32	r2, TEGRA_PMC_BASE
-	ldr	r1, [r2, #PMC_PLLP_WB0_OVERRIDE]
-	orr	r1, r1, #(1 << 12)
-	str	r1, [r2, #PMC_PLLP_WB0_OVERRIDE]
+	pllm_pmc_enable r1, r2
 
-	pll_enable r1, r0, CLK_RESET_PLLM_BASE, CLK_RESET_PLLM_MISC
-	pll_enable r1, r0, CLK_RESET_PLLC_BASE, CLK_RESET_PLLC_MISC
+	pll_enable r1, r0, CLK_RESET_PLLM_BASE, CLK_RESET_PLLM_MISC, PLLM_STORE_MASK
+	pll_enable r1, r0, CLK_RESET_PLLC_BASE, CLK_RESET_PLLC_MISC, PLLC_STORE_MASK
 
 _pll_m_c_x_done:
-	pll_enable r1, r0, CLK_RESET_PLLP_BASE, CLK_RESET_PLLP_MISC
-	pll_enable r1, r0, CLK_RESET_PLLA_BASE, CLK_RESET_PLLA_MISC
+	pll_enable r1, r0, CLK_RESET_PLLP_BASE, CLK_RESET_PLLP_MISC, PLLP_STORE_MASK
+	pll_enable r1, r0, CLK_RESET_PLLA_BASE, CLK_RESET_PLLA_MISC, PLLA_STORE_MASK
 
-	pll_locked r1, r0, CLK_RESET_PLLM_BASE
-	pll_locked r1, r0, CLK_RESET_PLLP_BASE
-	pll_locked r1, r0, CLK_RESET_PLLA_BASE
-	pll_locked r1, r0, CLK_RESET_PLLC_BASE
+	pll_locked r1, r0, CLK_RESET_PLLM_BASE, PLLM_STORE_MASK
+	pll_locked r1, r0, CLK_RESET_PLLP_BASE, PLLP_STORE_MASK
+	pll_locked r1, r0, CLK_RESET_PLLA_BASE, PLLA_STORE_MASK
+	pll_locked r1, r0, CLK_RESET_PLLC_BASE, PLLC_STORE_MASK
 
 	/*
 	 * CPUFreq driver could select other PLL for CPU. PLLX will be
@@ -380,7 +423,7 @@ _pll_m_c_x_done:
 	cmp	r1, #TEGRA30
 	beq	1f
 
-	pll_locked r1, r0, CLK_RESET_PLLX_BASE
+	pll_locked r1, r0, CLK_RESET_PLLX_BASE, PLLX_STORE_MASK
 
 	ldr	r1, [r0, #CLK_RESET_PLLP_BASE]
 	bic	r1, r1, #(1<<31)	@ disable PllP bypass
@@ -593,6 +636,9 @@ tegra_sdram_pad_save:
 	.long	0
 	.endr
 
+tegra_pll_state:
+	.word	0x0
+
 /*
  * tegra30_tear_down_core
  *
@@ -640,6 +686,14 @@ tegra30_switch_cpu_to_clk32k:
 	ldr	r1, [r7]
 	add	r1, r1, #2
 	wait_until r1, r7, r9
+
+	/* store enable-state of PLLs */
+	store_pll_state r0, r1, r5, CLK_RESET_PLLA_BASE, PLLA_STORE_MASK
+	store_pll_state r0, r1, r5, CLK_RESET_PLLC_BASE, PLLC_STORE_MASK
+	store_pll_state r0, r1, r5, CLK_RESET_PLLM_BASE, PLLM_STORE_MASK
+	store_pll_state r0, r1, r5, CLK_RESET_PLLP_BASE, PLLP_STORE_MASK
+	store_pll_state r0, r1, r5, CLK_RESET_PLLX_BASE, PLLX_STORE_MASK
+	store_pllm_pmc_state r0, r1, r4
 
 	/* disable PLLM via PMC in LP1 */
 	ldr	r0, [r4, #PMC_PLLP_WB0_OVERRIDE]

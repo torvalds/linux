@@ -47,7 +47,7 @@
 
 /* Function prototypes */
 static int cyberjack_port_probe(struct usb_serial_port *port);
-static int cyberjack_port_remove(struct usb_serial_port *port);
+static void cyberjack_port_remove(struct usb_serial_port *port);
 static int  cyberjack_open(struct tty_struct *tty,
 	struct usb_serial_port *port);
 static void cyberjack_close(struct usb_serial_port *port);
@@ -120,7 +120,7 @@ static int cyberjack_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
-static int cyberjack_port_remove(struct usb_serial_port *port)
+static void cyberjack_port_remove(struct usb_serial_port *port)
 {
 	struct cyberjack_private *priv;
 
@@ -128,8 +128,6 @@ static int cyberjack_port_remove(struct usb_serial_port *port)
 
 	priv = usb_get_serial_port_data(port);
 	kfree(priv);
-
-	return 0;
 }
 
 static int  cyberjack_open(struct tty_struct *tty,

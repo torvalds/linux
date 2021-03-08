@@ -129,13 +129,11 @@ l2_tests=$(grep -r --include=Makefile ": LDLIBS" | \
 		grep -v "VAR_LDLIBS" | awk -F: '{print $1}')
 
 # Level 3
-# gpio,  memfd and others use pkg-config to find mount and fuse libs
+# memfd and others use pkg-config to find mount and fuse libs
 # respectively and save it in VAR_LDLIBS. If pkg-config doesn't find
 # any, VAR_LDLIBS set to default.
 # Use the default value and filter out pkg-config for dependency check.
 # e.g:
-# gpio/Makefile
-#	VAR_LDLIBS := $(shell pkg-config --libs mount) 2>/dev/null)
 # memfd/Makefile
 #	VAR_LDLIBS := $(shell pkg-config fuse --libs 2>/dev/null)
 

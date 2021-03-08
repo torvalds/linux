@@ -1024,11 +1024,10 @@ static int snd_opti9xx_isa_probe(struct device *devptr,
 	return 0;
 }
 
-static int snd_opti9xx_isa_remove(struct device *devptr,
-				  unsigned int dev)
+static void snd_opti9xx_isa_remove(struct device *devptr,
+				   unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(devptr));
-	return 0;
 }
 
 #ifdef CONFIG_PM

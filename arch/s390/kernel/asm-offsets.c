@@ -26,26 +26,14 @@ int main(void)
 	BLANK();
 	/* thread struct offsets */
 	OFFSET(__THREAD_ksp, thread_struct, ksp);
-	OFFSET(__THREAD_sysc_table,  thread_struct, sys_call_table);
-	OFFSET(__THREAD_last_break, thread_struct, last_break);
-	OFFSET(__THREAD_FPU_fpc, thread_struct, fpu.fpc);
-	OFFSET(__THREAD_FPU_regs, thread_struct, fpu.regs);
-	OFFSET(__THREAD_per_cause, thread_struct, per_event.cause);
-	OFFSET(__THREAD_per_address, thread_struct, per_event.address);
-	OFFSET(__THREAD_per_paid, thread_struct, per_event.paid);
-	OFFSET(__THREAD_trap_tdb, thread_struct, trap_tdb);
 	BLANK();
 	/* thread info offsets */
 	OFFSET(__TI_flags, task_struct, thread_info.flags);
 	BLANK();
 	/* pt_regs offsets */
-	OFFSET(__PT_ARGS, pt_regs, args);
 	OFFSET(__PT_PSW, pt_regs, psw);
 	OFFSET(__PT_GPRS, pt_regs, gprs);
 	OFFSET(__PT_ORIG_GPR2, pt_regs, orig_gpr2);
-	OFFSET(__PT_INT_CODE, pt_regs, int_code);
-	OFFSET(__PT_INT_PARM, pt_regs, int_parm);
-	OFFSET(__PT_INT_PARM_LONG, pt_regs, int_parm_long);
 	OFFSET(__PT_FLAGS, pt_regs, flags);
 	OFFSET(__PT_CR1, pt_regs, cr1);
 	DEFINE(__PT_SIZE, sizeof(struct pt_regs));
@@ -64,6 +52,7 @@ int main(void)
 	OFFSET(__CLOCK_IDLE_EXIT, s390_idle_data, clock_idle_exit);
 	OFFSET(__TIMER_IDLE_ENTER, s390_idle_data, timer_idle_enter);
 	OFFSET(__TIMER_IDLE_EXIT, s390_idle_data, timer_idle_exit);
+	OFFSET(__MT_CYCLES_ENTER, s390_idle_data, mt_cycles_enter);
 	BLANK();
 	/* hardware defined lowcore locations 0x000 - 0x1ff */
 	OFFSET(__LC_EXT_PARAMS, lowcore, ext_params);
@@ -115,13 +104,9 @@ int main(void)
 	OFFSET(__LC_CPU_FLAGS, lowcore, cpu_flags);
 	OFFSET(__LC_RETURN_PSW, lowcore, return_psw);
 	OFFSET(__LC_RETURN_MCCK_PSW, lowcore, return_mcck_psw);
-	OFFSET(__LC_SYNC_ENTER_TIMER, lowcore, sync_enter_timer);
-	OFFSET(__LC_ASYNC_ENTER_TIMER, lowcore, async_enter_timer);
+	OFFSET(__LC_SYS_ENTER_TIMER, lowcore, sys_enter_timer);
 	OFFSET(__LC_MCCK_ENTER_TIMER, lowcore, mcck_enter_timer);
 	OFFSET(__LC_EXIT_TIMER, lowcore, exit_timer);
-	OFFSET(__LC_USER_TIMER, lowcore, user_timer);
-	OFFSET(__LC_SYSTEM_TIMER, lowcore, system_timer);
-	OFFSET(__LC_STEAL_TIMER, lowcore, steal_timer);
 	OFFSET(__LC_LAST_UPDATE_TIMER, lowcore, last_update_timer);
 	OFFSET(__LC_LAST_UPDATE_CLOCK, lowcore, last_update_clock);
 	OFFSET(__LC_INT_CLOCK, lowcore, int_clock);
@@ -133,6 +118,7 @@ int main(void)
 	OFFSET(__LC_ASYNC_STACK, lowcore, async_stack);
 	OFFSET(__LC_NODAT_STACK, lowcore, nodat_stack);
 	OFFSET(__LC_RESTART_STACK, lowcore, restart_stack);
+	OFFSET(__LC_MCCK_STACK, lowcore, mcck_stack);
 	OFFSET(__LC_RESTART_FN, lowcore, restart_fn);
 	OFFSET(__LC_RESTART_DATA, lowcore, restart_data);
 	OFFSET(__LC_RESTART_SOURCE, lowcore, restart_source);

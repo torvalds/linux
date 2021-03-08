@@ -310,10 +310,6 @@ static void ipu_di_sync_config_noninterlaced(struct ipu_di *di,
 			/* unused */
 		} , {
 			/* unused */
-		} , {
-			/* unused */
-		} , {
-			/* unused */
 		},
 	};
 	/* can't use #7 and #8 for line active and pixel active counters */

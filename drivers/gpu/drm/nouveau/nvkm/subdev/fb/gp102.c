@@ -114,9 +114,9 @@ gp102_fb = {
 
 int
 gp102_fb_new_(const struct nvkm_fb_func *func, struct nvkm_device *device,
-	      int index, struct nvkm_fb **pfb)
+	      enum nvkm_subdev_type type, int inst, struct nvkm_fb **pfb)
 {
-	int ret = gf100_fb_new_(func, device, index, pfb);
+	int ret = gf100_fb_new_(func, device, type, inst, pfb);
 	if (ret)
 		return ret;
 
@@ -126,9 +126,9 @@ gp102_fb_new_(const struct nvkm_fb_func *func, struct nvkm_device *device,
 }
 
 int
-gp102_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+gp102_fb_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_fb **pfb)
 {
-	return gp102_fb_new_(&gp102_fb, device, index, pfb);
+	return gp102_fb_new_(&gp102_fb, device, type, inst, pfb);
 }
 
 MODULE_FIRMWARE("nvidia/gp102/nvdec/scrubber.bin");

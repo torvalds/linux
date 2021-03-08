@@ -50,6 +50,7 @@ static void led_blink(struct timer_list *unused)
 	add_timer(&led_blink_timer);
 }
 
+#ifdef CONFIG_PROC_FS
 static int led_proc_show(struct seq_file *m, void *v)
 {
 	if (get_auxio() & AUXIO_LED)
@@ -111,6 +112,7 @@ static const struct proc_ops led_proc_ops = {
 	.proc_release	= single_release,
 	.proc_write	= led_proc_write,
 };
+#endif
 
 static struct proc_dir_entry *led;
 

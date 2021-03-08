@@ -536,6 +536,9 @@ static int __init maple_add_bridge(struct device_node *dev)
 	/* Check for legacy IOs */
 	isa_bridge_find_early(hose);
 
+	/* create pci_dn's for DT nodes under this PHB */
+	pci_devs_phb_init_dynamic(hose);
+
 	return 0;
 }
 

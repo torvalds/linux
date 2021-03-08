@@ -497,20 +497,6 @@ void mlx5e_ipsec_offload_handle_rx_skb(struct net_device *netdev,
 	}
 }
 
-bool mlx5e_ipsec_feature_check(struct sk_buff *skb, struct net_device *netdev,
-			       netdev_features_t features)
-{
-	struct sec_path *sp = skb_sec_path(skb);
-	struct xfrm_state *x;
-
-	if (sp && sp->len) {
-		x = sp->xvec[0];
-		if (x && x->xso.offload_handle)
-			return true;
-	}
-	return false;
-}
-
 void mlx5e_ipsec_build_inverse_table(void)
 {
 	u16 mss_inv;

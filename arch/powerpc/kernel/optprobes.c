@@ -142,29 +142,10 @@ void arch_remove_optimized_kprobe(struct optimized_kprobe *op)
 }
 
 /*
- * emulate_step() requires insn to be emulated as
- * second parameter. Load register 'r4' with the
- * instruction.
- */
-void patch_imm32_load_insns(unsigned int val, kprobe_opcode_t *addr)
-{
-	/* addis r4,0,(insn)@h */
-	patch_instruction((struct ppc_inst *)addr,
-			  ppc_inst(PPC_INST_ADDIS | ___PPC_RT(4) |
-				   ((val >> 16) & 0xffff)));
-	addr++;
-
-	/* ori r4,r4,(insn)@l */
-	patch_instruction((struct ppc_inst *)addr,
-			  ppc_inst(PPC_INST_ORI | ___PPC_RA(4) |
-				   ___PPC_RS(4) | (val & 0xffff)));
-}
-
-/*
  * Generate instructions to load provided immediate 64-bit value
  * to register 'reg' and patch these instructions at 'addr'.
  */
-void patch_imm64_load_insns(unsigned long val, int reg, kprobe_opcode_t *addr)
+static void patch_imm64_load_insns(unsigned long val, int reg, kprobe_opcode_t *addr)
 {
 	/* lis reg,(op)@highest */
 	patch_instruction((struct ppc_inst *)addr,

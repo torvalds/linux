@@ -327,20 +327,20 @@ static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
 	}
 FORCED_AGG_SETTING:
 	switch (pHTInfo->ForcedAMPDUMode) {
-		case HT_AGG_AUTO:
-			break;
+	case HT_AGG_AUTO:
+		break;
 
-		case HT_AGG_FORCE_ENABLE:
-			tcb_desc->bAMPDUEnable = true;
-			tcb_desc->ampdu_density = pHTInfo->ForcedMPDUDensity;
-			tcb_desc->ampdu_factor = pHTInfo->ForcedAMPDUFactor;
-			break;
+	case HT_AGG_FORCE_ENABLE:
+		tcb_desc->bAMPDUEnable = true;
+		tcb_desc->ampdu_density = pHTInfo->ForcedMPDUDensity;
+		tcb_desc->ampdu_factor = pHTInfo->ForcedAMPDUFactor;
+		break;
 
-		case HT_AGG_FORCE_DISABLE:
-			tcb_desc->bAMPDUEnable = false;
-			tcb_desc->ampdu_density = 0;
-			tcb_desc->ampdu_factor = 0;
-			break;
+	case HT_AGG_FORCE_DISABLE:
+		tcb_desc->bAMPDUEnable = false;
+		tcb_desc->ampdu_density = 0;
+		tcb_desc->ampdu_factor = 0;
+		break;
 
 	}
 		return;

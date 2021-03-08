@@ -54,7 +54,6 @@ struct acpi_cpufreq_data {
 	unsigned int resume;
 	unsigned int cpu_feature;
 	unsigned int acpi_perf_cpu;
-	unsigned int first_perf_state;
 	cpumask_var_t freqdomain_cpus;
 	void (*cpu_freq_write)(struct acpi_pct_register *reg, u32 val);
 	u32 (*cpu_freq_read)(struct acpi_pct_register *reg);
@@ -223,10 +222,10 @@ static unsigned extract_msr(struct cpufreq_policy *policy, u32 msr)
 
 	perf = to_perf_data(data);
 
-	cpufreq_for_each_entry(pos, policy->freq_table + data->first_perf_state)
+	cpufreq_for_each_entry(pos, policy->freq_table)
 		if (msr == perf->states[pos->driver_data].status)
 			return pos->frequency;
-	return policy->freq_table[data->first_perf_state].frequency;
+	return policy->freq_table[0].frequency;
 }
 
 static unsigned extract_freq(struct cpufreq_policy *policy, u32 val)
@@ -365,7 +364,6 @@ static unsigned int get_cur_freq_on_cpu(unsigned int cpu)
 	struct cpufreq_policy *policy;
 	unsigned int freq;
 	unsigned int cached_freq;
-	unsigned int state;
 
 	pr_debug("%s (%d)\n", __func__, cpu);
 
@@ -377,11 +375,7 @@ static unsigned int get_cur_freq_on_cpu(unsigned int cpu)
 	if (unlikely(!data || !policy->freq_table))
 		return 0;
 
-	state = to_perf_data(data)->state;
-	if (state < data->first_perf_state)
-		state = data->first_perf_state;
-
-	cached_freq = policy->freq_table[state].frequency;
+	cached_freq = policy->freq_table[to_perf_data(data)->state].frequency;
 	freq = extract_freq(policy, get_cur_val(cpumask_of(cpu), data));
 	if (freq != cached_freq) {
 		/*
@@ -680,7 +674,6 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	unsigned int valid_states = 0;
 	unsigned int result = 0;
-	unsigned int state_count;
 	u64 max_boost_ratio;
 	unsigned int i;
 #ifdef CONFIG_SMP
@@ -795,28 +788,8 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		goto err_unreg;
 	}
 
-	state_count = perf->state_count + 1;
-
-	max_boost_ratio = get_max_boost_ratio(cpu);
-	if (max_boost_ratio) {
-		/*
-		 * Make a room for one more entry to represent the highest
-		 * available "boost" frequency.
-		 */
-		state_count++;
-		valid_states++;
-		data->first_perf_state = valid_states;
-	} else {
-		/*
-		 * If the maximum "boost" frequency is unknown, ask the arch
-		 * scale-invariance code to use the "nominal" performance for
-		 * CPU utilization scaling so as to prevent the schedutil
-		 * governor from selecting inadequate CPU frequencies.
-		 */
-		arch_set_max_freq_ratio(true);
-	}
-
-	freq_table = kcalloc(state_count, sizeof(*freq_table), GFP_KERNEL);
+	freq_table = kcalloc(perf->state_count + 1, sizeof(*freq_table),
+			     GFP_KERNEL);
 	if (!freq_table) {
 		result = -ENOMEM;
 		goto err_unreg;
@@ -851,27 +824,25 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	}
 	freq_table[valid_states].frequency = CPUFREQ_TABLE_END;
 
+	max_boost_ratio = get_max_boost_ratio(cpu);
 	if (max_boost_ratio) {
-		unsigned int state = data->first_perf_state;
-		unsigned int freq = freq_table[state].frequency;
+		unsigned int freq = freq_table[0].frequency;
 
 		/*
 		 * Because the loop above sorts the freq_table entries in the
 		 * descending order, freq is the maximum frequency in the table.
 		 * Assume that it corresponds to the CPPC nominal frequency and
-		 * use it to populate the frequency field of the extra "boost"
-		 * frequency entry.
+		 * use it to set cpuinfo.max_freq.
 		 */
-		freq_table[0].frequency = freq * max_boost_ratio >> SCHED_CAPACITY_SHIFT;
+		policy->cpuinfo.max_freq = freq * max_boost_ratio >> SCHED_CAPACITY_SHIFT;
+	} else {
 		/*
-		 * The purpose of the extra "boost" frequency entry is to make
-		 * the rest of cpufreq aware of the real maximum frequency, but
-		 * the way to request it is the same as for the first_perf_state
-		 * entry that is expected to cover the entire range of "boost"
-		 * frequencies of the CPU, so copy the driver_data value from
-		 * that entry.
+		 * If the maximum "boost" frequency is unknown, ask the arch
+		 * scale-invariance code to use the "nominal" performance for
+		 * CPU utilization scaling so as to prevent the schedutil
+		 * governor from selecting inadequate CPU frequencies.
 		 */
-		freq_table[0].driver_data = freq_table[state].driver_data;
+		arch_set_max_freq_ratio(true);
 	}
 
 	policy->freq_table = freq_table;
@@ -947,8 +918,7 @@ static void acpi_cpufreq_cpu_ready(struct cpufreq_policy *policy)
 {
 	struct acpi_processor_performance *perf = per_cpu_ptr(acpi_perf_data,
 							      policy->cpu);
-	struct acpi_cpufreq_data *data = policy->driver_data;
-	unsigned int freq = policy->freq_table[data->first_perf_state].frequency;
+	unsigned int freq = policy->freq_table[0].frequency;
 
 	if (perf->states[0].core_frequency * 1000 != freq)
 		pr_warn(FW_WARN "P-state 0 is not max freq\n");

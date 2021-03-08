@@ -207,7 +207,7 @@ struct atm_skb_data {
 	struct atm_vcc	*vcc;		/* ATM VCC */
 	unsigned long	atm_options;	/* ATM layer options */
 	unsigned int	acct_truesize;  /* truesize accounted to vcc */
-};
+} __packed;
 
 #define VCC_HTABLE_SIZE 32
 

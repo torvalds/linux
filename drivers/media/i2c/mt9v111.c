@@ -1253,12 +1253,6 @@ static int mt9v111_remove(struct i2c_client *client)
 	mutex_destroy(&mt9v111->pwr_mutex);
 	mutex_destroy(&mt9v111->stream_mutex);
 
-	devm_gpiod_put(mt9v111->dev, mt9v111->oe);
-	devm_gpiod_put(mt9v111->dev, mt9v111->standby);
-	devm_gpiod_put(mt9v111->dev, mt9v111->reset);
-
-	devm_clk_put(mt9v111->dev, mt9v111->clk);
-
 	return 0;
 }
 

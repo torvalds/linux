@@ -43,6 +43,7 @@ config FB_OMAP2_PANEL_DPI
 config FB_OMAP2_PANEL_DSI_CM
 	tristate "Generic DSI Command Mode Panel"
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on DRM_PANEL_DSI_CM = n
 	help
 	  Driver for generic DSI command mode panels.
 

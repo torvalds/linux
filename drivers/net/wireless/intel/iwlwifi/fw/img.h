@@ -219,6 +219,9 @@ struct iwl_fw {
 	u8 human_readable[FW_VER_HUMAN_READABLE_SZ];
 
 	struct iwl_fw_dbg dbg;
+
+	u8 *phy_integration_ver;
+	u32 phy_integration_ver_len;
 };
 
 static inline const char *get_fw_dbg_mode_string(int mode)

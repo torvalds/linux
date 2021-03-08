@@ -56,7 +56,8 @@ static inline int ext2_acl_count(size_t size)
 
 /* acl.c */
 extern struct posix_acl *ext2_get_acl(struct inode *inode, int type);
-extern int ext2_set_acl(struct inode *inode, struct posix_acl *acl, int type);
+extern int ext2_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+			struct posix_acl *acl, int type);
 extern int ext2_init_acl (struct inode *, struct inode *);
 
 #else

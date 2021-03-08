@@ -56,7 +56,7 @@
 	};
 
 	pmu: pmu {
-		compatible = "arm,armv8-pmuv3";
+		compatible = "arm,cortex-a53-pmu";
 		/* Recommendation from GIC500 TRM Table A.3 */
 		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>;
 	};

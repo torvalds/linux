@@ -73,12 +73,9 @@ uint16_t fixed_point_to_int_frac(
 
 	return result;
 }
-/**
-* convert_float_matrix
-* This converts a double into HW register spec defined format S2D13.
-* @param :
-* @return None
-*/
+/*
+ * convert_float_matrix - This converts a double into HW register spec defined format S2D13.
+ */
 void convert_float_matrix(
 	uint16_t *matrix,
 	struct fixed31_32 *flt,

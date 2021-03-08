@@ -476,7 +476,7 @@ static netdev_tx_t c_can_start_xmit(struct sk_buff *skb,
 	 */
 	c_can_setup_tx_object(dev, IF_TX, frame, idx);
 	priv->dlc[idx] = frame->len;
-	can_put_echo_skb(skb, dev, idx);
+	can_put_echo_skb(skb, dev, idx, 0);
 
 	/* Update the active bits */
 	atomic_add((1 << idx), &priv->tx_active);
@@ -733,7 +733,7 @@ static void c_can_do_tx(struct net_device *dev)
 		pend &= ~(1 << idx);
 		obj = idx + C_CAN_MSG_OBJ_TX_FIRST;
 		c_can_inval_tx_object(dev, IF_RX, obj);
-		can_get_echo_skb(dev, idx);
+		can_get_echo_skb(dev, idx, NULL);
 		bytes += priv->dlc[idx];
 		pkts++;
 	}

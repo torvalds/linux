@@ -71,6 +71,7 @@ static const struct hw_sequencer_funcs dcn30_funcs = {
 	.edp_backlight_control = dce110_edp_backlight_control,
 	.edp_power_control = dce110_edp_power_control,
 	.edp_wait_for_hpd_ready = dce110_edp_wait_for_hpd_ready,
+	.edp_wait_for_T12 = dce110_edp_wait_for_T12,
 	.set_cursor_position = dcn10_set_cursor_position,
 	.set_cursor_attribute = dcn10_set_cursor_attribute,
 	.set_cursor_sdr_white_level = dcn10_set_cursor_sdr_white_level,
@@ -91,11 +92,13 @@ static const struct hw_sequencer_funcs dcn30_funcs = {
 	.get_vupdate_offset_from_vsync = dcn10_get_vupdate_offset_from_vsync,
 	.calc_vupdate_position = dcn10_calc_vupdate_position,
 	.apply_idle_power_optimizations = dcn30_apply_idle_power_optimizations,
+	.does_plane_fit_in_mall = dcn30_does_plane_fit_in_mall,
 	.set_backlight_level = dcn21_set_backlight_level,
 	.set_abm_immediate_disable = dcn21_set_abm_immediate_disable,
 	.hardware_release = dcn30_hardware_release,
 	.set_pipe = dcn21_set_pipe,
 	.set_disp_pattern_generator = dcn30_set_disp_pattern_generator,
+	.set_hubp_blank = dcn30_set_hubp_blank,
 };
 
 static const struct hwseq_private_funcs dcn30_private_funcs = {

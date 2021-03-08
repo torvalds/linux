@@ -69,11 +69,13 @@
 		ethernet-phy@0 {
 			reg = <0>;
 			qca,clk-out-frequency = <125000000>;
+			qca,smarteee-tw-us-1g = <24>;
 		};
 
 		ethernet-phy@4 {
 			reg = <4>;
 			qca,clk-out-frequency = <125000000>;
+			qca,smarteee-tw-us-1g = <24>;
 		};
 	};
 };

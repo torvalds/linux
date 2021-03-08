@@ -181,7 +181,7 @@ static enum i40iw_status_code i40iw_sc_parse_fpm_commit_buf(
  * i40iw_sc_decode_fpm_query() - Decode a 64 bit value into max count and size
  * @buf: ptr to fpm query buffer
  * @buf_idx: index into buf
- * @info: ptr to i40iw_hmc_obj_info struct
+ * @obj_info: ptr to i40iw_hmc_obj_info struct
  * @rsrc_idx: resource index into info
  *
  * Decode a 64 bit value from fpm query buffer into max count and size
@@ -205,7 +205,7 @@ static u64 i40iw_sc_decode_fpm_query(u64 *buf,
 /**
  * i40iw_sc_parse_fpm_query_buf() - parses fpm query buffer
  * @buf: ptr to fpm query buffer
- * @info: ptr to i40iw_hmc_obj_info struct
+ * @hmc_info: ptr to i40iw_hmc_obj_info struct
  * @hmc_fpm_misc: ptr to fpm data
  *
  * parses fpm query buffer and copy max_cnt and
@@ -775,7 +775,7 @@ static enum i40iw_status_code i40iw_sc_ccq_get_cqe_info(
  * i40iw_sc_poll_for_cqp_op_done - Waits for last write to complete in CQP SQ
  * @cqp: struct for cqp hw
  * @op_code: cqp opcode for completion
- * @info: completion q entry to return
+ * @compl_info: completion q entry to return
  */
 static enum i40iw_status_code i40iw_sc_poll_for_cqp_op_done(
 					struct i40iw_sc_cqp *cqp,
@@ -933,7 +933,7 @@ static enum i40iw_status_code i40iw_sc_commit_fpm_values_done(struct i40iw_sc_cq
  * @cqp: struct for cqp hw
  * @scratch: u64 saved to be used during cqp completion
  * @hmc_fn_id: hmc function id
- * @commit_fpm_mem; Memory for fpm values
+ * @commit_fpm_mem: Memory for fpm values
  * @post_sq: flag for cqp db to ring
  * @wait_type: poll ccq or cqp registers for cqp completion
  */
@@ -1026,7 +1026,7 @@ i40iw_sc_query_rdma_features(struct i40iw_sc_cqp *cqp,
 
 /**
  * i40iw_get_rdma_features - get RDMA features
- * @dev - sc device struct
+ * @dev: sc device struct
  */
 enum i40iw_status_code i40iw_get_rdma_features(struct i40iw_sc_dev *dev)
 {
@@ -1456,7 +1456,7 @@ static enum i40iw_status_code i40iw_sc_add_local_mac_ipaddr_entry(
  * @cqp: struct for cqp hw
  * @scratch: u64 saved to be used during cqp completion
  * @entry_idx: index of mac entry
- * @ ignore_ref_count: to force mac adde delete
+ * @ignore_ref_count: to force mac adde delete
  * @post_sq: flag for cqp db to ring
  */
 static enum i40iw_status_code i40iw_sc_del_local_mac_ipaddr_entry(
@@ -2304,7 +2304,7 @@ static enum i40iw_status_code i40iw_sc_cq_destroy(struct i40iw_sc_cq *cq,
  * i40iw_sc_cq_modify - modify a Completion Queue
  * @cq: cq struct
  * @info: modification info struct
- * @scratch:
+ * @scratch: u64 saved to be used during cqp completion
  * @post_sq: flag to post to sq
  */
 static enum i40iw_status_code i40iw_sc_cq_modify(struct i40iw_sc_cq *cq,
@@ -3673,7 +3673,7 @@ static enum i40iw_status_code i40iw_sc_configure_iw_fpm(struct i40iw_sc_dev *dev
 /**
  * cqp_sds_wqe_fill - fill cqp wqe doe sd
  * @cqp: struct for cqp hw
- * @info; sd info for wqe
+ * @info: sd info for wqe
  * @scratch: u64 saved to be used during cqp completion
  */
 static enum i40iw_status_code cqp_sds_wqe_fill(struct i40iw_sc_cqp *cqp,
@@ -4884,7 +4884,7 @@ void i40iw_hw_stats_init(struct i40iw_vsi_pestat *stats, u8 fcn_idx, bool is_pf)
 
 /**
  * i40iw_hw_stats_read_32 - Read 32-bit HW stats counters and accommodates for roll-overs.
- * @stat: pestat struct
+ * @stats: pestat struct
  * @index: index in HW stats table which contains offset reg-addr
  * @value: hw stats value
  */

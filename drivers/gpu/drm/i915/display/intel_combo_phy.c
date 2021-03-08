@@ -427,10 +427,22 @@ static void icl_combo_phys_uninit(struct drm_i915_private *dev_priv)
 		u32 val;
 
 		if (phy == PHY_A &&
-		    !icl_combo_phy_verify_state(dev_priv, phy))
-			drm_warn(&dev_priv->drm,
-				 "Combo PHY %c HW state changed unexpectedly\n",
-				 phy_name(phy));
+		    !icl_combo_phy_verify_state(dev_priv, phy)) {
+			if (IS_TIGERLAKE(dev_priv) || IS_DG1(dev_priv)) {
+				/*
+				 * A known problem with old ifwi:
+				 * https://gitlab.freedesktop.org/drm/intel/-/issues/2411
+				 * Suppress the warning for CI. Remove ASAP!
+				 */
+				drm_dbg_kms(&dev_priv->drm,
+					    "Combo PHY %c HW state changed unexpectedly\n",
+					    phy_name(phy));
+			} else {
+				drm_warn(&dev_priv->drm,
+					 "Combo PHY %c HW state changed unexpectedly\n",
+					 phy_name(phy));
+			}
+		}
 
 		if (!has_phy_misc(dev_priv, phy))
 			goto skip_phy_misc;

@@ -31,12 +31,12 @@ struct bd718xx_clk {
 	u8 reg;
 	u8 mask;
 	struct platform_device *pdev;
-	struct rohm_regmap_dev *mfd;
+	struct regmap *regmap;
 };
 
 static int bd71837_clk_set(struct bd718xx_clk *c, unsigned int status)
 {
-	return regmap_update_bits(c->mfd->regmap, c->reg, c->mask, status);
+	return regmap_update_bits(c->regmap, c->reg, c->mask, status);
 }
 
 static void bd71837_clk_disable(struct clk_hw *hw)
@@ -62,7 +62,7 @@ static int bd71837_clk_is_enabled(struct clk_hw *hw)
 	int rval;
 	struct bd718xx_clk *c = container_of(hw, struct bd718xx_clk, hw);
 
-	rval = regmap_read(c->mfd->regmap, c->reg, &enabled);
+	rval = regmap_read(c->regmap, c->reg, &enabled);
 
 	if (rval)
 		return rval;
@@ -82,7 +82,6 @@ static int bd71837_clk_probe(struct platform_device *pdev)
 	int rval = -ENOMEM;
 	const char *parent_clk;
 	struct device *parent = pdev->dev.parent;
-	struct rohm_regmap_dev *mfd = dev_get_drvdata(parent);
 	struct clk_init_data init = {
 		.name = "bd718xx-32k-out",
 		.ops = &bd71837_clk_ops,
@@ -92,6 +91,10 @@ static int bd71837_clk_probe(struct platform_device *pdev)
 	c = devm_kzalloc(&pdev->dev, sizeof(*c), GFP_KERNEL);
 	if (!c)
 		return -ENOMEM;
+
+	c->regmap = dev_get_regmap(pdev->dev.parent, NULL);
+	if (!c->regmap)
+		return -ENODEV;
 
 	init.num_parents = 1;
 	parent_clk = of_clk_get_parent_name(parent->of_node, 0);
@@ -119,7 +122,6 @@ static int bd71837_clk_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Unknown clk chip\n");
 		return -EINVAL;
 	}
-	c->mfd = mfd;
 	c->pdev = pdev;
 	c->hw.init = &init;
 

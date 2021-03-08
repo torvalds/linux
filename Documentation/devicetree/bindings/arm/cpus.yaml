@@ -169,6 +169,7 @@ properties:
       - qcom,kryo385
       - qcom,kryo468
       - qcom,kryo485
+      - qcom,kryo685
       - qcom,scorpion
 
   enable-method:

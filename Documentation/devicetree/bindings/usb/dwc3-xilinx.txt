@@ -19,7 +19,7 @@ Example device node:
 			#address-cells = <0x2>;
 			#size-cells = <0x1>;
 			compatible = "xlnx,zynqmp-dwc3";
-			clock-names = "bus_clk" "ref_clk";
+			clock-names = "bus_clk", "ref_clk";
 			clocks = <&clk125>, <&clk125>;
 			ranges;
 

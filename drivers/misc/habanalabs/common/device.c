@@ -142,6 +142,9 @@ static int hl_mmap(struct file *filp, struct vm_area_struct *vma)
 	switch (vm_pgoff & HL_MMAP_TYPE_MASK) {
 	case HL_MMAP_TYPE_CB:
 		return hl_cb_mmap(hpriv, vma);
+
+	case HL_MMAP_TYPE_BLOCK:
+		return hl_hw_block_mmap(hpriv, vma);
 	}
 
 	return -EINVAL;
@@ -373,7 +376,6 @@ static int device_early_init(struct hl_device *hdev)
 
 	mutex_init(&hdev->send_cpu_message_lock);
 	mutex_init(&hdev->debug_lock);
-	mutex_init(&hdev->mmu_cache_lock);
 	INIT_LIST_HEAD(&hdev->cs_mirror_list);
 	spin_lock_init(&hdev->cs_mirror_lock);
 	INIT_LIST_HEAD(&hdev->fpriv_list);
@@ -414,7 +416,6 @@ static void device_early_fini(struct hl_device *hdev)
 {
 	int i;
 
-	mutex_destroy(&hdev->mmu_cache_lock);
 	mutex_destroy(&hdev->debug_lock);
 	mutex_destroy(&hdev->send_cpu_message_lock);
 
@@ -1158,12 +1159,20 @@ kill_processes:
 	atomic_set(&hdev->in_reset, 0);
 	hdev->needs_reset = false;
 
-	if (hard_reset)
-		hdev->hard_reset_cnt++;
-	else
-		hdev->soft_reset_cnt++;
+	dev_notice(hdev->dev, "Successfully finished resetting the device\n");
 
-	dev_warn(hdev->dev, "Successfully finished resetting the device\n");
+	if (hard_reset) {
+		hdev->hard_reset_cnt++;
+
+		/* After reset is done, we are ready to receive events from
+		 * the F/W. We can't do it before because we will ignore events
+		 * and if those events are fatal, we won't know about it and
+		 * the device will be operational although it shouldn't be
+		 */
+		hdev->asic_funcs->enable_events_from_fw(hdev);
+	} else {
+		hdev->soft_reset_cnt++;
+	}
 
 	return 0;
 
@@ -1314,11 +1323,16 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 
 	hdev->compute_ctx = NULL;
 
+	hl_debugfs_add_device(hdev);
+
+	/* debugfs nodes are created in hl_ctx_init so it must be called after
+	 * hl_debugfs_add_device.
+	 */
 	rc = hl_ctx_init(hdev, hdev->kernel_ctx, true);
 	if (rc) {
 		dev_err(hdev->dev, "failed to initialize kernel context\n");
 		kfree(hdev->kernel_ctx);
-		goto mmu_fini;
+		goto remove_device_from_debugfs;
 	}
 
 	rc = hl_cb_pool_init(hdev);
@@ -1326,8 +1340,6 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		dev_err(hdev->dev, "failed to initialize CB pool\n");
 		goto release_ctx;
 	}
-
-	hl_debugfs_add_device(hdev);
 
 	/*
 	 * From this point, in case of an error, add char devices and create
@@ -1411,12 +1423,21 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 
 	hdev->init_done = true;
 
+	/* After initialization is done, we are ready to receive events from
+	 * the F/W. We can't do it before because we will ignore events and if
+	 * those events are fatal, we won't know about it and the device will
+	 * be operational although it shouldn't be
+	 */
+	hdev->asic_funcs->enable_events_from_fw(hdev);
+
 	return 0;
 
 release_ctx:
 	if (hl_ctx_put(hdev->kernel_ctx) != 1)
 		dev_err(hdev->dev,
 			"kernel ctx is still alive on initialization failure\n");
+remove_device_from_debugfs:
+	hl_debugfs_remove_device(hdev);
 mmu_fini:
 	hl_mmu_fini(hdev);
 eq_fini:
@@ -1482,7 +1503,8 @@ void hl_device_fini(struct hl_device *hdev)
 		usleep_range(50, 200);
 		rc = atomic_cmpxchg(&hdev->in_reset, 0, 1);
 		if (ktime_compare(ktime_get(), timeout) > 0) {
-			WARN(1, "Failed to remove device because reset function did not finish\n");
+			dev_crit(hdev->dev,
+				"Failed to remove device because reset function did not finish\n");
 			return;
 		}
 	}
@@ -1515,8 +1537,6 @@ void hl_device_fini(struct hl_device *hdev)
 
 	device_late_fini(hdev);
 
-	hl_debugfs_remove_device(hdev);
-
 	/*
 	 * Halt the engines and disable interrupts so we won't get any more
 	 * completions from H/W and we won't have any accesses from the
@@ -1547,6 +1567,8 @@ void hl_device_fini(struct hl_device *hdev)
 	/* Release kernel context */
 	if ((hdev->kernel_ctx) && (hl_ctx_put(hdev->kernel_ctx) != 1))
 		dev_err(hdev->dev, "kernel ctx is still alive\n");
+
+	hl_debugfs_remove_device(hdev);
 
 	hl_vm_fini(hdev);
 

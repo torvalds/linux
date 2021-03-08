@@ -81,7 +81,7 @@ static int check_buffer_underflow_by_byte(int mem_type, int mode,
 		last_index = 0;
 		/* Set some value in tagged memory and make the buffer underflow */
 		for (j = sizes[i] - 1; (j >= -underflow_range) &&
-				       (cur_mte_cxt.fault_valid == false); j--) {
+				       (!cur_mte_cxt.fault_valid); j--) {
 			ptr[j] = '1';
 			last_index = j;
 		}

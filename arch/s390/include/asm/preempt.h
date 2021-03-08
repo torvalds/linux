@@ -131,9 +131,9 @@ static inline bool should_resched(int preempt_offset)
 #endif /* CONFIG_HAVE_MARCH_Z196_FEATURES */
 
 #ifdef CONFIG_PREEMPTION
-extern asmlinkage void preempt_schedule(void);
+extern void preempt_schedule(void);
 #define __preempt_schedule() preempt_schedule()
-extern asmlinkage void preempt_schedule_notrace(void);
+extern void preempt_schedule_notrace(void);
 #define __preempt_schedule_notrace() preempt_schedule_notrace()
 #endif /* CONFIG_PREEMPTION */
 

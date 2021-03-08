@@ -710,6 +710,12 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 		ql_log(ql_log_info, vha, 0x706e,
 		    "Issuing ISP reset.\n");
 
+		if (vha->hw->flags.port_isolated) {
+			ql_log(ql_log_info, vha, 0x706e,
+			       "Port is isolated, returning.\n");
+			return -EINVAL;
+		}
+
 		scsi_block_requests(vha->host);
 		if (IS_QLA82XX(ha)) {
 			ha->flags.isp82xx_no_md_cap = 1;
@@ -2715,6 +2721,9 @@ qla2x00_issue_lip(struct Scsi_Host *shost)
 	scsi_qla_host_t *vha = shost_priv(shost);
 
 	if (IS_QLAFX00(vha->hw))
+		return 0;
+
+	if (vha->hw->flags.port_isolated)
 		return 0;
 
 	qla2x00_loop_reset(vha);

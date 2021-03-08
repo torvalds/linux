@@ -883,8 +883,10 @@ static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 	if (urb->transfer_buffer == NULL) {
 		urb->transfer_buffer = kmalloc(URB_TRANSFER_BUFFER_SIZE,
 					       GFP_ATOMIC);
-		if (!urb->transfer_buffer)
+		if (!urb->transfer_buffer) {
+			bytes_sent = -ENOMEM;
 			goto exit;
+		}
 	}
 	transfer_size = min(count, URB_TRANSFER_BUFFER_SIZE);
 
@@ -1743,7 +1745,7 @@ error:
 	return status;
 }
 
-static int mos7840_port_remove(struct usb_serial_port *port)
+static void mos7840_port_remove(struct usb_serial_port *port)
 {
 	struct moschip_port *mos7840_port = usb_get_serial_port_data(port);
 
@@ -1760,8 +1762,6 @@ static int mos7840_port_remove(struct usb_serial_port *port)
 	}
 
 	kfree(mos7840_port);
-
-	return 0;
 }
 
 static struct usb_serial_driver moschip7840_4port_device = {

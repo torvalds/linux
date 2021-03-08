@@ -84,40 +84,23 @@ properties:
       - const: pclk
 
   ports:
-    type: object
-    description:
-      A node containing DSI input & output port nodes with endpoint
-      definitions as documented in
-      Documentation/devicetree/bindings/graph.txt.
+    $ref: /schemas/graph.yaml#/properties/ports
+
     properties:
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/$defs/port-base
         description:
           Input port node to receive pixel data from the
           display controller. Exactly one endpoint must be
           specified.
         properties:
-          '#address-cells':
-            const: 1
-
-          '#size-cells':
-            const: 0
-
           endpoint@0:
+            $ref: /schemas/graph.yaml#/properties/endpoint
             description: sub-node describing the input from LCDIF
-            type: object
 
           endpoint@1:
+            $ref: /schemas/graph.yaml#/properties/endpoint
             description: sub-node describing the input from DCSS
-            type: object
-
-          reg:
-            const: 0
-
-        required:
-          - '#address-cells'
-          - '#size-cells'
-          - reg
 
         oneOf:
           - required:
@@ -125,27 +108,17 @@ properties:
           - required:
               - endpoint@1
 
-        additionalProperties: false
+        unevaluatedProperties: false
 
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description:
           DSI output port node to the panel or the next bridge
           in the chain
 
-      '#address-cells':
-        const: 1
-
-      '#size-cells':
-        const: 0
-
     required:
-      - '#address-cells'
-      - '#size-cells'
       - port@0
       - port@1
-
-    additionalProperties: false
 
 required:
   - '#address-cells'

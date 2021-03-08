@@ -111,6 +111,18 @@ config SND_SOC_INTEL_BYTCR_RT5651_MACH
 	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
 
+config SND_SOC_INTEL_BYTCR_WM5102_MACH
+	tristate "Baytrail and Baytrail-CR with WM5102 codec"
+	depends on MFD_ARIZONA && MFD_WM5102 && SPI_MASTER && ACPI
+	depends on X86_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_ACPI
+	select SND_SOC_WM5102
+	help
+	  This adds support for ASoC machine driver for Intel(R) Baytrail and Baytrail-CR
+	  platforms with WM5102 audio codec.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
 config SND_SOC_INTEL_CHT_BSW_RT5672_MACH
 	tristate "Cherrytrail & Braswell with RT5672 codec"
 	depends on I2C && ACPI

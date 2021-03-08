@@ -23,8 +23,8 @@
 #include "avtab.h"
 #include "policydb.h"
 
-static struct kmem_cache *avtab_node_cachep;
-static struct kmem_cache *avtab_xperms_cachep;
+static struct kmem_cache *avtab_node_cachep __ro_after_init;
+static struct kmem_cache *avtab_xperms_cachep __ro_after_init;
 
 /* Based on MurmurHash3, written by Austin Appleby and placed in the
  * public domain.
