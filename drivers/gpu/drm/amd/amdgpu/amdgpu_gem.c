@@ -71,6 +71,8 @@ int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
 	bp.preferred_domain = initial_domain;
 	bp.flags = flags;
 	bp.domain = initial_domain;
+	bp.bo_ptr_size = sizeof(struct amdgpu_bo);
+
 	r = amdgpu_bo_create(adev, &bp, &bo);
 	if (r)
 		return r;

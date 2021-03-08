@@ -248,6 +248,7 @@ int amdgpu_bo_create_reserved(struct amdgpu_device *adev,
 	bp.flags |= AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
 	bp.type = ttm_bo_type_kernel;
 	bp.resv = NULL;
+	bp.bo_ptr_size = sizeof(struct amdgpu_bo);
 
 	if (!*bo_ptr) {
 		r = amdgpu_bo_create(adev, &bp, bo_ptr);
@@ -543,9 +544,10 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 	if (!amdgpu_bo_validate_size(adev, size, bp->domain))
 		return -ENOMEM;
 
-	*bo_ptr = NULL;
+	BUG_ON(bp->bo_ptr_size < sizeof(struct amdgpu_bo));
 
-	bo = kzalloc(sizeof(struct amdgpu_bo), GFP_KERNEL);
+	*bo_ptr = NULL;
+	bo = kzalloc(bp->bo_ptr_size, GFP_KERNEL);
 	if (bo == NULL)
 		return -ENOMEM;
 	drm_gem_private_object_init(adev_to_drm(adev), &bo->tbo.base, size);
@@ -635,6 +637,7 @@ static int amdgpu_bo_create_shadow(struct amdgpu_device *adev,
 		AMDGPU_GEM_CREATE_SHADOW;
 	bp.type = ttm_bo_type_kernel;
 	bp.resv = bo->tbo.base.resv;
+	bp.bo_ptr_size = sizeof(struct amdgpu_bo);
 
 	r = amdgpu_bo_do_create(adev, &bp, &bo->shadow);
 	if (!r) {
@@ -669,6 +672,7 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 	int r;
 
 	bp->flags = bp->flags & ~AMDGPU_GEM_CREATE_SHADOW;
+
 	r = amdgpu_bo_do_create(adev, bp, bo_ptr);
 	if (r)
 		return r;

@@ -869,6 +869,7 @@ static void amdgpu_vm_bo_param(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	bp->domain = amdgpu_bo_get_preferred_pin_domain(adev, bp->domain);
 	bp->flags = AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
 		AMDGPU_GEM_CREATE_CPU_GTT_USWC;
+	bp->bo_ptr_size = sizeof(struct amdgpu_bo);
 	if (vm->use_cpu_for_update)
 		bp->flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
 	else if (!vm->root.base.bo || vm->root.base.bo->shadow)

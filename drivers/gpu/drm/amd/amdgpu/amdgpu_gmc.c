@@ -55,6 +55,8 @@ int amdgpu_gmc_pdb0_alloc(struct amdgpu_device *adev)
 		AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
 	bp.type = ttm_bo_type_kernel;
 	bp.resv = NULL;
+	bp.bo_ptr_size = sizeof(struct amdgpu_bo);
+
 	r = amdgpu_bo_create(adev, &bp, &adev->gmc.pdb0_bo);
 	if (r)
 		return r;

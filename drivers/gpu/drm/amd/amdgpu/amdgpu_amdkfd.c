@@ -246,6 +246,7 @@ int amdgpu_amdkfd_alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 	bp.flags = AMDGPU_GEM_CREATE_CPU_GTT_USWC;
 	bp.type = ttm_bo_type_kernel;
 	bp.resv = NULL;
+	bp.bo_ptr_size = sizeof(struct amdgpu_bo);
 
 	if (cp_mqd_gfx9)
 		bp.flags |= AMDGPU_GEM_CREATE_CP_MQD_GFX9;
@@ -327,6 +328,7 @@ int amdgpu_amdkfd_alloc_gws(struct kgd_dev *kgd, size_t size,
 	bp.flags = AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
 	bp.type = ttm_bo_type_device;
 	bp.resv = NULL;
+	bp.bo_ptr_size = sizeof(struct amdgpu_bo);
 
 	r = amdgpu_bo_create(adev, &bp, &bo);
 	if (r) {
