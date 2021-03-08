@@ -63,14 +63,15 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
 	 * (e.g. 0 = states 0..n; 1 = states 1..n; etc.
 	 */
 	status = acpi_evaluate_integer(pr->handle, "_PPC", NULL, &ppc);
-
-	if (status != AE_NOT_FOUND)
+	if (status != AE_NOT_FOUND) {
 		acpi_processor_ppc_in_use = true;
 
-	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
-		acpi_handle_warn(pr->handle, "_PPC evaluation failed: %s\n",
-				 acpi_format_exception(status));
-		return -ENODEV;
+		if (ACPI_FAILURE(status)) {
+			acpi_handle_warn(pr->handle,
+					 "_PPC evaluation failed: %s\n",
+					 acpi_format_exception(status));
+			return -ENODEV;
+		}
 	}
 
 	pr_debug("CPU %d: _PPC is %d - frequency %s limited\n", pr->id,
