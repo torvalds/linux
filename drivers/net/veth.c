@@ -434,7 +434,7 @@ static int veth_xdp_xmit(struct net_device *dev, int n,
 			 u32 flags, bool ndo_xmit)
 {
 	struct veth_priv *rcv_priv, *priv = netdev_priv(dev);
-	int i, ret = -ENXIO, drops = 0;
+	int i, ret = -ENXIO, nxmit = 0;
 	struct net_device *rcv;
 	unsigned int max_len;
 	struct veth_rq *rq;
@@ -464,21 +464,20 @@ static int veth_xdp_xmit(struct net_device *dev, int n,
 		void *ptr = veth_xdp_to_ptr(frame);
 
 		if (unlikely(frame->len > max_len ||
-			     __ptr_ring_produce(&rq->xdp_ring, ptr))) {
-			xdp_return_frame_rx_napi(frame);
-			drops++;
-		}
+			     __ptr_ring_produce(&rq->xdp_ring, ptr)))
+			break;
+		nxmit++;
 	}
 	spin_unlock(&rq->xdp_ring.producer_lock);
 
 	if (flags & XDP_XMIT_FLUSH)
 		__veth_xdp_flush(rq);
 
-	ret = n - drops;
+	ret = nxmit;
 	if (ndo_xmit) {
 		u64_stats_update_begin(&rq->stats.syncp);
-		rq->stats.vs.peer_tq_xdp_xmit += n - drops;
-		rq->stats.vs.peer_tq_xdp_xmit_err += drops;
+		rq->stats.vs.peer_tq_xdp_xmit += nxmit;
+		rq->stats.vs.peer_tq_xdp_xmit_err += n - nxmit;
 		u64_stats_update_end(&rq->stats.syncp);
 	}
 
@@ -505,20 +504,23 @@ static int veth_ndo_xdp_xmit(struct net_device *dev, int n,
 
 static void veth_xdp_flush_bq(struct veth_rq *rq, struct veth_xdp_tx_bq *bq)
 {
-	int sent, i, err = 0;
+	int sent, i, err = 0, drops;
 
 	sent = veth_xdp_xmit(rq->dev, bq->count, bq->q, 0, false);
 	if (sent < 0) {
 		err = sent;
 		sent = 0;
-		for (i = 0; i < bq->count; i++)
-			xdp_return_frame(bq->q[i]);
 	}
-	trace_xdp_bulk_tx(rq->dev, sent, bq->count - sent, err);
+
+	for (i = sent; unlikely(i < bq->count); i++)
+		xdp_return_frame(bq->q[i]);
+
+	drops = bq->count - sent;
+	trace_xdp_bulk_tx(rq->dev, sent, drops, err);
 
 	u64_stats_update_begin(&rq->stats.syncp);
 	rq->stats.vs.xdp_tx += sent;
-	rq->stats.vs.xdp_tx_err += bq->count - sent;
+	rq->stats.vs.xdp_tx_err += drops;
 	u64_stats_update_end(&rq->stats.syncp);
 
 	bq->count = 0;

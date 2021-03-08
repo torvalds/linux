@@ -571,8 +571,8 @@ ice_run_xdp(struct ice_ring *rx_ring, struct xdp_buff *xdp,
  * @frames: XDP frames to be transmitted
  * @flags: transmit flags
  *
- * Returns number of frames successfully sent. Frames that fail are
- * free'ed via XDP return API.
+ * Returns number of frames successfully sent. Failed frames
+ * will be free'ed by XDP core.
  * For error cases, a negative errno code is returned and no-frames
  * are transmitted (caller must handle freeing frames).
  */
@@ -584,7 +584,7 @@ ice_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 	unsigned int queue_index = smp_processor_id();
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_ring *xdp_ring;
-	int drops = 0, i;
+	int nxmit = 0, i;
 
 	if (test_bit(__ICE_DOWN, vsi->state))
 		return -ENETDOWN;
@@ -601,16 +601,15 @@ ice_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		int err;
 
 		err = ice_xmit_xdp_ring(xdpf->data, xdpf->len, xdp_ring);
-		if (err != ICE_XDP_TX) {
-			xdp_return_frame_rx_napi(xdpf);
-			drops++;
-		}
+		if (err != ICE_XDP_TX)
+			break;
+		nxmit++;
 	}
 
 	if (unlikely(flags & XDP_XMIT_FLUSH))
 		ice_xdp_ring_update_tail(xdp_ring);
 
-	return n - drops;
+	return nxmit;
 }
 
 /**

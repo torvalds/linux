@@ -499,10 +499,10 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 	unsigned int len;
 	int packets = 0;
 	int bytes = 0;
-	int drops = 0;
+	int nxmit = 0;
 	int kicks = 0;
-	int ret, err;
 	void *ptr;
+	int ret;
 	int i;
 
 	/* Only allow ndo_xdp_xmit if XDP is loaded on dev, as this
@@ -516,7 +516,6 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 
 	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK)) {
 		ret = -EINVAL;
-		drops = n;
 		goto out;
 	}
 
@@ -539,13 +538,11 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 	for (i = 0; i < n; i++) {
 		struct xdp_frame *xdpf = frames[i];
 
-		err = __virtnet_xdp_xmit_one(vi, sq, xdpf);
-		if (err) {
-			xdp_return_frame_rx_napi(xdpf);
-			drops++;
-		}
+		if (__virtnet_xdp_xmit_one(vi, sq, xdpf))
+			break;
+		nxmit++;
 	}
-	ret = n - drops;
+	ret = nxmit;
 
 	if (flags & XDP_XMIT_FLUSH) {
 		if (virtqueue_kick_prepare(sq->vq) && virtqueue_notify(sq->vq))
@@ -556,7 +553,7 @@ out:
 	sq->stats.bytes += bytes;
 	sq->stats.packets += packets;
 	sq->stats.xdp_tx += n;
-	sq->stats.xdp_tx_drops += drops;
+	sq->stats.xdp_tx_drops += n - nxmit;
 	sq->stats.kicks += kicks;
 	u64_stats_update_end(&sq->stats.syncp);
 
@@ -709,7 +706,9 @@ static struct sk_buff *receive_small(struct net_device *dev,
 			if (unlikely(!xdpf))
 				goto err_xdp;
 			err = virtnet_xdp_xmit(dev, 1, &xdpf, 0);
-			if (unlikely(err < 0)) {
+			if (unlikely(!err)) {
+				xdp_return_frame_rx_napi(xdpf);
+			} else if (unlikely(err < 0)) {
 				trace_xdp_exception(vi->dev, xdp_prog, act);
 				goto err_xdp;
 			}
@@ -896,7 +895,9 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			if (unlikely(!xdpf))
 				goto err_xdp;
 			err = virtnet_xdp_xmit(dev, 1, &xdpf, 0);
-			if (unlikely(err < 0)) {
+			if (unlikely(!err)) {
+				xdp_return_frame_rx_napi(xdpf);
+			} else if (unlikely(err < 0)) {
 				trace_xdp_exception(vi->dev, xdp_prog, act);
 				if (unlikely(xdp_page != page))
 					put_page(xdp_page);

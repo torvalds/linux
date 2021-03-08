@@ -2431,8 +2431,6 @@ static int dpaa2_eth_xdp_xmit(struct net_device *net_dev, int n,
 	percpu_stats->tx_packets += enqueued;
 	for (i = 0; i < enqueued; i++)
 		percpu_stats->tx_bytes += dpaa2_fd_get_len(&fds[i]);
-	for (i = enqueued; i < n; i++)
-		xdp_return_frame_rx_napi(frames[i]);
 
 	return enqueued;
 }

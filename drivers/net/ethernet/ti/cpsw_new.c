@@ -1093,24 +1093,22 @@ static int cpsw_ndo_xdp_xmit(struct net_device *ndev, int n,
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct xdp_frame *xdpf;
-	int i, drops = 0;
+	int i, nxmit = 0;
 
 	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
 		return -EINVAL;
 
 	for (i = 0; i < n; i++) {
 		xdpf = frames[i];
-		if (xdpf->len < CPSW_MIN_PACKET_SIZE) {
-			xdp_return_frame_rx_napi(xdpf);
-			drops++;
-			continue;
-		}
+		if (xdpf->len < CPSW_MIN_PACKET_SIZE)
+			break;
 
 		if (cpsw_xdp_tx_frame(priv, xdpf, NULL, priv->emac_port))
-			drops++;
+			break;
+		nxmit++;
 	}
 
-	return n - drops;
+	return nxmit;
 }
 
 static int cpsw_get_port_parent_id(struct net_device *ndev,
