@@ -4575,6 +4575,73 @@ static int amdgpu_device_suspend_display_audio(struct amdgpu_device *adev)
 	return 0;
 }
 
+void amdgpu_device_recheck_guilty_jobs(struct amdgpu_device *adev,
+			       struct amdgpu_hive_info *hive,
+			       struct list_head *device_list_handle,
+			       bool *need_full_reset)
+{
+	int i, r = 0;
+
+	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
+		struct amdgpu_ring *ring = adev->rings[i];
+		int ret = 0;
+		struct drm_sched_job *s_job;
+
+		if (!ring || !ring->sched.thread)
+			continue;
+
+		s_job = list_first_entry_or_null(&ring->sched.pending_list,
+				struct drm_sched_job, list);
+		if (s_job == NULL)
+			continue;
+
+		/* clear job's guilty and depend the folowing step to decide the real one */
+		drm_sched_reset_karma(s_job);
+		drm_sched_resubmit_jobs_ext(&ring->sched, 1);
+
+		ret = dma_fence_wait_timeout(s_job->s_fence->parent, false, ring->sched.timeout);
+		if (ret == 0) { /* timeout */
+			DRM_ERROR("Found the real bad job! ring:%s, job_id:%llx\n",
+						ring->sched.name, s_job->id);
+
+			/* set guilty */
+			drm_sched_increase_karma(s_job);
+retry:
+			/* do hw reset */
+			if (amdgpu_sriov_vf(adev)) {
+				amdgpu_virt_fini_data_exchange(adev);
+				r = amdgpu_device_reset_sriov(adev, false);
+				if (r)
+					adev->asic_reset_res = r;
+			} else {
+				r  = amdgpu_do_asic_reset(hive, device_list_handle,
+						need_full_reset, false);
+				if (r && r == -EAGAIN)
+					goto retry;
+			}
+
+			/*
+			 * add reset counter so that the following
+			 * resubmitted job could flush vmid
+			 */
+			atomic_inc(&adev->gpu_reset_counter);
+			continue;
+		}
+
+		/* got the hw fence, signal finished fence */
+		atomic_dec(ring->sched.score);
+		dma_fence_get(&s_job->s_fence->finished);
+		dma_fence_signal(&s_job->s_fence->finished);
+		dma_fence_put(&s_job->s_fence->finished);
+
+		/* remove node from list and free the job */
+		spin_lock(&ring->sched.job_list_lock);
+		list_del_init(&s_job->list);
+		spin_unlock(&ring->sched.job_list_lock);
+		ring->sched.ops->free_job(s_job);
+	}
+}
+
 /**
  * amdgpu_device_gpu_recover - reset the asic and recover scheduler
  *
@@ -4597,6 +4664,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	int i, r = 0;
 	bool need_emergency_restart = false;
 	bool audio_suspended = false;
+	int tmp_vram_lost_counter;
 
 	/*
 	 * Special case: RAS triggered and full reset isn't supported
@@ -4748,6 +4816,7 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 		}
 	}
 
+	tmp_vram_lost_counter = atomic_read(&((adev)->vram_lost_counter));
 	/* Actual ASIC resets if needed.*/
 	/* TODO Implement XGMI hive reset logic for SRIOV */
 	if (amdgpu_sriov_vf(adev)) {
@@ -4764,6 +4833,18 @@ skip_hw_reset:
 
 	/* Post ASIC reset for all devs .*/
 	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
+
+		/*
+		 * Sometimes a later bad compute job can block a good gfx job as gfx
+		 * and compute ring share internal GC HW mutually. We add an additional
+		 * guilty jobs recheck step to find the real guilty job, it synchronously
+		 * submits and pends for the first job being signaled. If it gets timeout,
+		 * we identify it as a real guilty job.
+		 */
+		if (amdgpu_gpu_recovery == 2 &&
+			!(tmp_vram_lost_counter < atomic_read(&adev->vram_lost_counter)))
+			amdgpu_device_recheck_guilty_jobs(tmp_adev, hive,
+					device_list_handle, &need_full_reset);
 
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			struct amdgpu_ring *ring = tmp_adev->rings[i];
