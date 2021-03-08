@@ -25,6 +25,7 @@
 #include <sys/xattr.h>
 
 #include <linux/random.h>
+#include <linux/stat.h>
 #include <linux/unistd.h>
 
 #include <openssl/pem.h>
@@ -3804,10 +3805,16 @@ static int enable_verity(const char *mount_dir, struct test_file *file,
 		.digest_size = 32
 	};
 	uint64_t flags;
+	struct statx statxbuf = {};
 
 	memcpy(fsverity_signed_digest.magic, "FSVerity", 8);
 
 	TEST(filename = concat_file_name(mount_dir, file->name), filename);
+	TESTEQUAL(syscall(__NR_statx, AT_FDCWD, filename, 0, STATX_ALL,
+			  &statxbuf), 0);
+	TESTEQUAL(statxbuf.stx_attributes_mask & STATX_ATTR_VERITY,
+		  STATX_ATTR_VERITY);
+	TESTEQUAL(statxbuf.stx_attributes & STATX_ATTR_VERITY, 0);
 	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
 	TESTEQUAL(ioctl(fd, FS_IOC_GETFLAGS, &flags), 0);
 	TESTEQUAL(flags & FS_VERITY_FL, 0);
@@ -3863,10 +3870,15 @@ static int validate_verity(const char *mount_dir, struct test_file *file)
 	int fd = -1;
 	uint64_t flags;
 	struct fsverity_digest *digest;
+	struct statx statxbuf = {};
 
 	TEST(digest = malloc(sizeof(struct fsverity_digest) +
 			     INCFS_MAX_HASH_SIZE), digest != NULL);
 	TEST(filename = concat_file_name(mount_dir, file->name), filename);
+	TESTEQUAL(syscall(__NR_statx, AT_FDCWD, filename, 0, STATX_ALL,
+			  &statxbuf), 0);
+	TESTEQUAL(statxbuf.stx_attributes & STATX_ATTR_VERITY,
+		  STATX_ATTR_VERITY);
 	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
 	TESTEQUAL(ioctl(fd, FS_IOC_GETFLAGS, &flags), 0);
 	TESTEQUAL(flags & FS_VERITY_FL, FS_VERITY_FL);
