@@ -558,8 +558,8 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		break;
 	case CHIP_ALDEBARAN:
 		aldebaran_set_ppt_funcs(smu);
-		/* OD is not supported on Aldebaran */
-		smu->od_enabled = false;
+		/* Enable pp_od_clk_voltage node */
+		smu->od_enabled = true;
 		break;
 	case CHIP_RENOIR:
 		renoir_set_ppt_funcs(smu);

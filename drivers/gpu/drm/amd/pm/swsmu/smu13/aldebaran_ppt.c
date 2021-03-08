@@ -676,6 +676,10 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 	dpm_context = smu_dpm->dpm_context;
 
 	switch (type) {
+
+	case SMU_OD_SCLK:
+		size = sprintf(buf, "%s:\n", "GFXCLK");
+		fallthrough;
 	case SMU_SCLK:
 		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_GFXCLK, &now);
 		if (ret) {
@@ -721,6 +725,9 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 
 		break;
 
+	case SMU_OD_MCLK:
+		size = sprintf(buf, "%s:\n", "MCLK");
+		fallthrough;
 	case SMU_MCLK:
 		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_UCLK, &now);
 		if (ret) {
@@ -1179,6 +1186,74 @@ static int aldebaran_set_soft_freq_limited_range(struct smu_context *smu,
 	return ret;
 }
 
+static int aldebaran_usr_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABLE_COMMAND type,
+							long input[], uint32_t size)
+{
+	struct smu_dpm_context *smu_dpm = &(smu->smu_dpm);
+	struct smu_13_0_dpm_context *dpm_context = smu_dpm->dpm_context;
+	uint32_t min_clk;
+	uint32_t max_clk;
+	int ret = 0;
+
+	/* Only allowed in manual or determinism mode */
+	if ((smu_dpm->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
+			&& (smu_dpm->dpm_level != AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM))
+		return -EINVAL;
+
+	switch (type) {
+	case PP_OD_EDIT_SCLK_VDDC_TABLE:
+		if (size != 2) {
+			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			return -EINVAL;
+		}
+
+		if (input[0] == 0) {
+			if (input[1] < dpm_context->dpm_tables.gfx_table.min) {
+				dev_warn(smu->adev->dev, "Minimum GFX clk (%ld) MHz specified is less than the minimum allowed (%d) MHz\n",
+					input[1], dpm_context->dpm_tables.gfx_table.min);
+				return -EINVAL;
+			}
+			smu->gfx_actual_hard_min_freq = input[1];
+		} else if (input[0] == 1) {
+			if (input[1] > dpm_context->dpm_tables.gfx_table.max) {
+				dev_warn(smu->adev->dev, "Maximum GFX clk (%ld) MHz specified is greater than the maximum allowed (%d) MHz\n",
+					input[1], dpm_context->dpm_tables.gfx_table.max);
+				return -EINVAL;
+			}
+			smu->gfx_actual_soft_max_freq = input[1];
+		} else {
+			return -EINVAL;
+		}
+		break;
+	case PP_OD_RESTORE_DEFAULT_TABLE:
+		if (size != 0) {
+			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			return -EINVAL;
+		} else {
+			/* Use the default frequencies for manual and determinism mode */
+			min_clk = dpm_context->dpm_tables.gfx_table.min;
+			max_clk = dpm_context->dpm_tables.gfx_table.max;
+
+			return aldebaran_set_soft_freq_limited_range(smu, SMU_GFXCLK, min_clk, max_clk);
+		}
+		break;
+	case PP_OD_COMMIT_DPM_TABLE:
+		if (size != 0) {
+			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			return -EINVAL;
+		} else {
+			min_clk = smu->gfx_actual_hard_min_freq;
+			max_clk = smu->gfx_actual_soft_max_freq;
+			return aldebaran_set_soft_freq_limited_range(smu, SMU_GFXCLK, min_clk, max_clk);
+		}
+		break;
+	default:
+		return -ENOSYS;
+	}
+
+	return ret;
+}
+
 static bool aldebaran_is_dpm_running(struct smu_context *smu)
 {
 	int ret = 0;
@@ -1432,6 +1507,7 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.baco_is_support= aldebaran_is_baco_supported,
 	.get_dpm_ultimate_freq = smu_v13_0_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = aldebaran_set_soft_freq_limited_range,
+	.od_edit_dpm_table = aldebaran_usr_edit_dpm_table,
 	.set_df_cstate = aldebaran_set_df_cstate,
 	.allow_xgmi_power_down = aldebaran_allow_xgmi_power_down,
 	.log_thermal_throttling_event = aldebaran_log_thermal_throttling_event,
