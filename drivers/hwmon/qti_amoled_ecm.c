@@ -337,9 +337,9 @@ static void ecm_average_work(struct work_struct *work)
 	mutex_lock(&ecm->sdam_lock);
 
 	if (!data->num_m_samples || !data->m_cumulative) {
-		pr_warn("Invalid data, num_m_samples=%u m_cumulative:%u\n",
+		pr_warn_ratelimited("Invalid data, num_m_samples=%u m_cumulative:%u\n",
 			data->num_m_samples, data->m_cumulative);
-		data->avg_current = -EINVAL;
+		data->avg_current = 0;
 	} else {
 		data->avg_current = data->m_cumulative / data->num_m_samples;
 		pr_debug("avg_current=%u mA\n", data->avg_current);
@@ -510,11 +510,14 @@ static int handle_ecm_abort(struct amoled_ecm *ecm)
 
 	switch (mode) {
 	case ECM_MODE_MULTI_FRAMES:
-		data->avg_current = -EIO;
+		pr_warn_ratelimited("Multiple frames mode is not supported\n");
+		data->avg_current = 0;
 		break;
 	case ECM_MODE_CONTINUOUS:
 		if (data->num_m_samples < ECM_MIN_M_SAMPLES) {
-			data->avg_current = -EIO;
+			pr_warn_ratelimited("Too few samples %u for continuous mode\n",
+					data->num_m_samples);
+			data->avg_current = 0;
 			break;
 		}
 
@@ -522,7 +525,8 @@ static int handle_ecm_abort(struct amoled_ecm *ecm)
 		schedule_delayed_work(&ecm->average_work, 0);
 		break;
 	default:
-		data->avg_current = -EINVAL;
+		pr_err_ratelimited("Invalid ECM operation mode: %u\n", mode);
+		data->avg_current = 0;
 		return -EINVAL;
 	}
 
