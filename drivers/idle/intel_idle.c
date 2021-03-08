@@ -744,8 +744,8 @@ static struct cpuidle_state icx_cstates[] __initdata = {
 		.name = "C6",
 		.desc = "MWAIT 0x20",
 		.flags = MWAIT2flg(0x20) | CPUIDLE_FLAG_TLB_FLUSHED,
-		.exit_latency = 128,
-		.target_residency = 384,
+		.exit_latency = 170,
+		.target_residency = 600,
 		.enter = &intel_idle,
 		.enter_s2idle = intel_idle_s2idle, },
 	{
