@@ -1766,8 +1766,7 @@ static int gaudi_enable_msi(struct hl_device *hdev)
 	if (gaudi->hw_cap_initialized & HW_CAP_MSI)
 		return 0;
 
-	rc = pci_alloc_irq_vectors(hdev->pdev, 1, GAUDI_MSI_ENTRIES,
-					PCI_IRQ_MSI);
+	rc = pci_alloc_irq_vectors(hdev->pdev, 1, 1, PCI_IRQ_MSI);
 	if (rc < 0) {
 		dev_err(hdev->dev, "MSI: Failed to enable support %d\n", rc);
 		return rc;
