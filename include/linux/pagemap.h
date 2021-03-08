@@ -302,8 +302,26 @@ pgoff_t page_cache_prev_miss(struct address_space *mapping,
 #define FGP_HEAD		0x00000080
 #define FGP_ENTRY		0x00000100
 
-struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
-		int fgp_flags, gfp_t cache_gfp_mask);
+struct folio *__filemap_get_folio(struct address_space *mapping, pgoff_t index,
+		int fgp_flags, gfp_t gfp);
+struct page *pagecache_get_page(struct address_space *mapping, pgoff_t index,
+		int fgp_flags, gfp_t gfp);
+
+/**
+ * filemap_get_folio - Find and get a folio.
+ * @mapping: The address_space to search.
+ * @index: The page index.
+ *
+ * Looks up the page cache entry at @mapping & @index.  If a folio is
+ * present, it is returned with an increased refcount.
+ *
+ * Otherwise, %NULL is returned.
+ */
+static inline struct folio *filemap_get_folio(struct address_space *mapping,
+					pgoff_t index)
+{
+	return __filemap_get_folio(mapping, index, 0, 0);
+}
 
 /**
  * find_get_page - find and get a page reference
@@ -344,25 +362,6 @@ static inline struct page *find_lock_page(struct address_space *mapping,
 					pgoff_t index)
 {
 	return pagecache_get_page(mapping, index, FGP_LOCK, 0);
-}
-
-/**
- * find_lock_head - Locate, pin and lock a pagecache page.
- * @mapping: The address_space to search.
- * @index: The page index.
- *
- * Looks up the page cache entry at @mapping & @index.  If there is a
- * page cache page, its head page is returned locked and with an increased
- * refcount.
- *
- * Context: May sleep.
- * Return: A struct page which is !PageTail, or %NULL if there is no page
- * in the cache for this index.
- */
-static inline struct page *find_lock_head(struct address_space *mapping,
-					pgoff_t index)
-{
-	return pagecache_get_page(mapping, index, FGP_LOCK | FGP_HEAD, 0);
 }
 
 /**
