@@ -93,15 +93,13 @@ static int bcm47xx_nvram_find_and_copy(void __iomem *flash_start, size_t res_siz
 	}
 
 	/* TODO: when nvram is on nand flash check for bad blocks first. */
-	flash_size = FLASH_MIN;
-	while (flash_size <= res_size) {
+	for (flash_size = FLASH_MIN; flash_size <= res_size; flash_size <<= 1) {
 		/* Windowed flash access */
 		size = find_nvram_size(flash_start + flash_size);
 		if (size) {
 			offset = flash_size - size;
 			goto found;
 		}
-		flash_size <<= 1;
 	}
 
 	/* Try embedded NVRAM at 4 KB and 1 KB as last resorts */
