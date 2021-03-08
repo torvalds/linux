@@ -2747,7 +2747,7 @@ int f2fs_restore_node_summary(struct f2fs_sb_info *sbi,
 	sum_entry = &sum->entries[0];
 
 	for (i = 0; i < last_offset; i += nrpages, addr += nrpages) {
-		nrpages = min(last_offset - i, BIO_MAX_PAGES);
+		nrpages = bio_max_segs(last_offset - i);
 
 		/* readahead node pages */
 		f2fs_ra_meta_pages(sbi, addr, nrpages, META_POR, true);

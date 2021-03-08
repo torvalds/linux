@@ -149,7 +149,7 @@ notrace long system_call_exception(long r3, long r4, long r5,
  * enabled when the interrupt handler returns (indicating a process-context /
  * synchronous interrupt) then irqs_enabled should be true.
  */
-static notrace inline bool __prep_irq_for_enabled_exit(bool clear_ri)
+static notrace __always_inline bool __prep_irq_for_enabled_exit(bool clear_ri)
 {
 	/* This must be done with RI=1 because tracing may touch vmaps */
 	trace_hardirqs_on();

@@ -11,9 +11,11 @@
 #include "hyperv.h"
 
 #include <linux/kvm_host.h>
+#include <linux/sched/stat.h>
 
 #include <trace/events/kvm.h>
 #include <xen/interface/xen.h>
+#include <xen/interface/vcpu.h>
 
 #include "trace.h"
 
@@ -59,6 +61,132 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 out:
 	srcu_read_unlock(&kvm->srcu, idx);
 	return ret;
+}
+
+static void kvm_xen_update_runstate(struct kvm_vcpu *v, int state)
+{
+	struct kvm_vcpu_xen *vx = &v->arch.xen;
+	u64 now = get_kvmclock_ns(v->kvm);
+	u64 delta_ns = now - vx->runstate_entry_time;
+	u64 run_delay = current->sched_info.run_delay;
+
+	if (unlikely(!vx->runstate_entry_time))
+		vx->current_runstate = RUNSTATE_offline;
+
+	/*
+	 * Time waiting for the scheduler isn't "stolen" if the
+	 * vCPU wasn't running anyway.
+	 */
+	if (vx->current_runstate == RUNSTATE_running) {
+		u64 steal_ns = run_delay - vx->last_steal;
+
+		delta_ns -= steal_ns;
+
+		vx->runstate_times[RUNSTATE_runnable] += steal_ns;
+	}
+	vx->last_steal = run_delay;
+
+	vx->runstate_times[vx->current_runstate] += delta_ns;
+	vx->current_runstate = state;
+	vx->runstate_entry_time = now;
+}
+
+void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, int state)
+{
+	struct kvm_vcpu_xen *vx = &v->arch.xen;
+	uint64_t state_entry_time;
+	unsigned int offset;
+
+	kvm_xen_update_runstate(v, state);
+
+	if (!vx->runstate_set)
+		return;
+
+	BUILD_BUG_ON(sizeof(struct compat_vcpu_runstate_info) != 0x2c);
+
+	offset = offsetof(struct compat_vcpu_runstate_info, state_entry_time);
+#ifdef CONFIG_X86_64
+	/*
+	 * The only difference is alignment of uint64_t in 32-bit.
+	 * So the first field 'state' is accessed directly using
+	 * offsetof() (where its offset happens to be zero), while the
+	 * remaining fields which are all uint64_t, start at 'offset'
+	 * which we tweak here by adding 4.
+	 */
+	BUILD_BUG_ON(offsetof(struct vcpu_runstate_info, state_entry_time) !=
+		     offsetof(struct compat_vcpu_runstate_info, state_entry_time) + 4);
+	BUILD_BUG_ON(offsetof(struct vcpu_runstate_info, time) !=
+		     offsetof(struct compat_vcpu_runstate_info, time) + 4);
+
+	if (v->kvm->arch.xen.long_mode)
+		offset = offsetof(struct vcpu_runstate_info, state_entry_time);
+#endif
+	/*
+	 * First write the updated state_entry_time at the appropriate
+	 * location determined by 'offset'.
+	 */
+	state_entry_time = vx->runstate_entry_time;
+	state_entry_time |= XEN_RUNSTATE_UPDATE;
+
+	BUILD_BUG_ON(sizeof(((struct vcpu_runstate_info *)0)->state_entry_time) !=
+		     sizeof(state_entry_time));
+	BUILD_BUG_ON(sizeof(((struct compat_vcpu_runstate_info *)0)->state_entry_time) !=
+		     sizeof(state_entry_time));
+
+	if (kvm_write_guest_offset_cached(v->kvm, &v->arch.xen.runstate_cache,
+					  &state_entry_time, offset,
+					  sizeof(state_entry_time)))
+		return;
+	smp_wmb();
+
+	/*
+	 * Next, write the new runstate. This is in the *same* place
+	 * for 32-bit and 64-bit guests, asserted here for paranoia.
+	 */
+	BUILD_BUG_ON(offsetof(struct vcpu_runstate_info, state) !=
+		     offsetof(struct compat_vcpu_runstate_info, state));
+	BUILD_BUG_ON(sizeof(((struct vcpu_runstate_info *)0)->state) !=
+		     sizeof(vx->current_runstate));
+	BUILD_BUG_ON(sizeof(((struct compat_vcpu_runstate_info *)0)->state) !=
+		     sizeof(vx->current_runstate));
+
+	if (kvm_write_guest_offset_cached(v->kvm, &v->arch.xen.runstate_cache,
+					  &vx->current_runstate,
+					  offsetof(struct vcpu_runstate_info, state),
+					  sizeof(vx->current_runstate)))
+		return;
+
+	/*
+	 * Write the actual runstate times immediately after the
+	 * runstate_entry_time.
+	 */
+	BUILD_BUG_ON(offsetof(struct vcpu_runstate_info, state_entry_time) !=
+		     offsetof(struct vcpu_runstate_info, time) - sizeof(u64));
+	BUILD_BUG_ON(offsetof(struct compat_vcpu_runstate_info, state_entry_time) !=
+		     offsetof(struct compat_vcpu_runstate_info, time) - sizeof(u64));
+	BUILD_BUG_ON(sizeof(((struct vcpu_runstate_info *)0)->time) !=
+		     sizeof(((struct compat_vcpu_runstate_info *)0)->time));
+	BUILD_BUG_ON(sizeof(((struct vcpu_runstate_info *)0)->time) !=
+		     sizeof(vx->runstate_times));
+
+	if (kvm_write_guest_offset_cached(v->kvm, &v->arch.xen.runstate_cache,
+					  &vx->runstate_times[0],
+					  offset + sizeof(u64),
+					  sizeof(vx->runstate_times)))
+		return;
+
+	smp_wmb();
+
+	/*
+	 * Finally, clear the XEN_RUNSTATE_UPDATE bit in the guest's
+	 * runstate_entry_time field.
+	 */
+
+	state_entry_time &= ~XEN_RUNSTATE_UPDATE;
+	if (kvm_write_guest_offset_cached(v->kvm, &v->arch.xen.runstate_cache,
+					  &state_entry_time, offset,
+					  sizeof(state_entry_time)))
+		return;
 }
 
 int __kvm_xen_has_interrupt(struct kvm_vcpu *v)
@@ -187,9 +315,12 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		/* No compat necessary here. */
 		BUILD_BUG_ON(sizeof(struct vcpu_info) !=
 			     sizeof(struct compat_vcpu_info));
+		BUILD_BUG_ON(offsetof(struct vcpu_info, time) !=
+			     offsetof(struct compat_vcpu_info, time));
 
 		if (data->u.gpa == GPA_INVALID) {
 			vcpu->arch.xen.vcpu_info_set = false;
+			r = 0;
 			break;
 		}
 
@@ -206,6 +337,7 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 	case KVM_XEN_VCPU_ATTR_TYPE_VCPU_TIME_INFO:
 		if (data->u.gpa == GPA_INVALID) {
 			vcpu->arch.xen.vcpu_time_info_set = false;
+			r = 0;
 			break;
 		}
 
@@ -217,6 +349,121 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 			vcpu->arch.xen.vcpu_time_info_set = true;
 			kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
 		}
+		break;
+
+	case KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_ADDR:
+		if (!sched_info_on()) {
+			r = -EOPNOTSUPP;
+			break;
+		}
+		if (data->u.gpa == GPA_INVALID) {
+			vcpu->arch.xen.runstate_set = false;
+			r = 0;
+			break;
+		}
+
+		r = kvm_gfn_to_hva_cache_init(vcpu->kvm,
+					      &vcpu->arch.xen.runstate_cache,
+					      data->u.gpa,
+					      sizeof(struct vcpu_runstate_info));
+		if (!r) {
+			vcpu->arch.xen.runstate_set = true;
+		}
+		break;
+
+	case KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_CURRENT:
+		if (!sched_info_on()) {
+			r = -EOPNOTSUPP;
+			break;
+		}
+		if (data->u.runstate.state > RUNSTATE_offline) {
+			r = -EINVAL;
+			break;
+		}
+
+		kvm_xen_update_runstate(vcpu, data->u.runstate.state);
+		r = 0;
+		break;
+
+	case KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_DATA:
+		if (!sched_info_on()) {
+			r = -EOPNOTSUPP;
+			break;
+		}
+		if (data->u.runstate.state > RUNSTATE_offline) {
+			r = -EINVAL;
+			break;
+		}
+		if (data->u.runstate.state_entry_time !=
+		    (data->u.runstate.time_running +
+		     data->u.runstate.time_runnable +
+		     data->u.runstate.time_blocked +
+		     data->u.runstate.time_offline)) {
+			r = -EINVAL;
+			break;
+		}
+		if (get_kvmclock_ns(vcpu->kvm) <
+		    data->u.runstate.state_entry_time) {
+			r = -EINVAL;
+			break;
+		}
+
+		vcpu->arch.xen.current_runstate = data->u.runstate.state;
+		vcpu->arch.xen.runstate_entry_time =
+			data->u.runstate.state_entry_time;
+		vcpu->arch.xen.runstate_times[RUNSTATE_running] =
+			data->u.runstate.time_running;
+		vcpu->arch.xen.runstate_times[RUNSTATE_runnable] =
+			data->u.runstate.time_runnable;
+		vcpu->arch.xen.runstate_times[RUNSTATE_blocked] =
+			data->u.runstate.time_blocked;
+		vcpu->arch.xen.runstate_times[RUNSTATE_offline] =
+			data->u.runstate.time_offline;
+		vcpu->arch.xen.last_steal = current->sched_info.run_delay;
+		r = 0;
+		break;
+
+	case KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_ADJUST:
+		if (!sched_info_on()) {
+			r = -EOPNOTSUPP;
+			break;
+		}
+		if (data->u.runstate.state > RUNSTATE_offline &&
+		    data->u.runstate.state != (u64)-1) {
+			r = -EINVAL;
+			break;
+		}
+		/* The adjustment must add up */
+		if (data->u.runstate.state_entry_time !=
+		    (data->u.runstate.time_running +
+		     data->u.runstate.time_runnable +
+		     data->u.runstate.time_blocked +
+		     data->u.runstate.time_offline)) {
+			r = -EINVAL;
+			break;
+		}
+
+		if (get_kvmclock_ns(vcpu->kvm) <
+		    (vcpu->arch.xen.runstate_entry_time +
+		     data->u.runstate.state_entry_time)) {
+			r = -EINVAL;
+			break;
+		}
+
+		vcpu->arch.xen.runstate_entry_time +=
+			data->u.runstate.state_entry_time;
+		vcpu->arch.xen.runstate_times[RUNSTATE_running] +=
+			data->u.runstate.time_running;
+		vcpu->arch.xen.runstate_times[RUNSTATE_runnable] +=
+			data->u.runstate.time_runnable;
+		vcpu->arch.xen.runstate_times[RUNSTATE_blocked] +=
+			data->u.runstate.time_blocked;
+		vcpu->arch.xen.runstate_times[RUNSTATE_offline] +=
+			data->u.runstate.time_offline;
+
+		if (data->u.runstate.state <= RUNSTATE_offline)
+			kvm_xen_update_runstate(vcpu, data->u.runstate.state);
+		r = 0;
 		break;
 
 	default:
@@ -249,6 +496,49 @@ int kvm_xen_vcpu_get_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		else
 			data->u.gpa = GPA_INVALID;
 		r = 0;
+		break;
+
+	case KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_ADDR:
+		if (!sched_info_on()) {
+			r = -EOPNOTSUPP;
+			break;
+		}
+		if (vcpu->arch.xen.runstate_set) {
+			data->u.gpa = vcpu->arch.xen.runstate_cache.gpa;
+			r = 0;
+		}
+		break;
+
+	case KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_CURRENT:
+		if (!sched_info_on()) {
+			r = -EOPNOTSUPP;
+			break;
+		}
+		data->u.runstate.state = vcpu->arch.xen.current_runstate;
+		r = 0;
+		break;
+
+	case KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_DATA:
+		if (!sched_info_on()) {
+			r = -EOPNOTSUPP;
+			break;
+		}
+		data->u.runstate.state = vcpu->arch.xen.current_runstate;
+		data->u.runstate.state_entry_time =
+			vcpu->arch.xen.runstate_entry_time;
+		data->u.runstate.time_running =
+			vcpu->arch.xen.runstate_times[RUNSTATE_running];
+		data->u.runstate.time_runnable =
+			vcpu->arch.xen.runstate_times[RUNSTATE_runnable];
+		data->u.runstate.time_blocked =
+			vcpu->arch.xen.runstate_times[RUNSTATE_blocked];
+		data->u.runstate.time_offline =
+			vcpu->arch.xen.runstate_times[RUNSTATE_offline];
+		r = 0;
+		break;
+
+	case KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_ADJUST:
+		r = -EINVAL;
 		break;
 
 	default:

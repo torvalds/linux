@@ -331,8 +331,9 @@ struct inode *erofs_iget(struct super_block *sb,
 	return inode;
 }
 
-int erofs_getattr(const struct path *path, struct kstat *stat,
-		  u32 request_mask, unsigned int query_flags)
+int erofs_getattr(struct user_namespace *mnt_userns, const struct path *path,
+		  struct kstat *stat, u32 request_mask,
+		  unsigned int query_flags)
 {
 	struct inode *const inode = d_inode(path->dentry);
 
@@ -343,7 +344,7 @@ int erofs_getattr(const struct path *path, struct kstat *stat,
 	stat->attributes_mask |= (STATX_ATTR_COMPRESSED |
 				  STATX_ATTR_IMMUTABLE);
 
-	generic_fillattr(inode, stat);
+	generic_fillattr(&init_user_ns, inode, stat);
 	return 0;
 }
 

@@ -141,6 +141,7 @@ static int check_compressed_csum(struct btrfs_inode *inode, struct bio *bio,
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	const u32 csum_size = fs_info->csum_size;
+	const u32 sectorsize = fs_info->sectorsize;
 	struct page *page;
 	unsigned long i;
 	char *kaddr;
@@ -154,22 +155,34 @@ static int check_compressed_csum(struct btrfs_inode *inode, struct bio *bio,
 	shash->tfm = fs_info->csum_shash;
 
 	for (i = 0; i < cb->nr_pages; i++) {
+		u32 pg_offset;
+		u32 bytes_left = PAGE_SIZE;
 		page = cb->compressed_pages[i];
 
-		kaddr = kmap_atomic(page);
-		crypto_shash_digest(shash, kaddr, PAGE_SIZE, csum);
-		kunmap_atomic(kaddr);
+		/* Determine the remaining bytes inside the page first */
+		if (i == cb->nr_pages - 1)
+			bytes_left = cb->compressed_len - i * PAGE_SIZE;
 
-		if (memcmp(&csum, cb_sum, csum_size)) {
-			btrfs_print_data_csum_error(inode, disk_start,
-					csum, cb_sum, cb->mirror_num);
-			if (btrfs_io_bio(bio)->device)
-				btrfs_dev_stat_inc_and_print(
-					btrfs_io_bio(bio)->device,
-					BTRFS_DEV_STAT_CORRUPTION_ERRS);
-			return -EIO;
+		/* Hash through the page sector by sector */
+		for (pg_offset = 0; pg_offset < bytes_left;
+		     pg_offset += sectorsize) {
+			kaddr = kmap_atomic(page);
+			crypto_shash_digest(shash, kaddr + pg_offset,
+					    sectorsize, csum);
+			kunmap_atomic(kaddr);
+
+			if (memcmp(&csum, cb_sum, csum_size) != 0) {
+				btrfs_print_data_csum_error(inode, disk_start,
+						csum, cb_sum, cb->mirror_num);
+				if (btrfs_io_bio(bio)->device)
+					btrfs_dev_stat_inc_and_print(
+						btrfs_io_bio(bio)->device,
+						BTRFS_DEV_STAT_CORRUPTION_ERRS);
+				return -EIO;
+			}
+			cb_sum += csum_size;
+			disk_start += sectorsize;
 		}
-		cb_sum += csum_size;
 	}
 	return 0;
 }
@@ -640,7 +653,7 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree,
 				   page_offset(bio_first_page_all(bio)),
-				   PAGE_SIZE);
+				   fs_info->sectorsize);
 	read_unlock(&em_tree->lock);
 	if (!em)
 		return BLK_STS_IOERR;
@@ -698,19 +711,30 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	refcount_set(&cb->pending_bios, 1);
 
 	for (pg_index = 0; pg_index < nr_pages; pg_index++) {
+		u32 pg_len = PAGE_SIZE;
 		int submit = 0;
+
+		/*
+		 * To handle subpage case, we need to make sure the bio only
+		 * covers the range we need.
+		 *
+		 * If we're at the last page, truncate the length to only cover
+		 * the remaining part.
+		 */
+		if (pg_index == nr_pages - 1)
+			pg_len = min_t(u32, PAGE_SIZE,
+					compressed_len - pg_index * PAGE_SIZE);
 
 		page = cb->compressed_pages[pg_index];
 		page->mapping = inode->i_mapping;
 		page->index = em_start >> PAGE_SHIFT;
 
 		if (comp_bio->bi_iter.bi_size)
-			submit = btrfs_bio_fits_in_stripe(page, PAGE_SIZE,
+			submit = btrfs_bio_fits_in_stripe(page, pg_len,
 							  comp_bio, 0);
 
 		page->mapping = NULL;
-		if (submit || bio_add_page(comp_bio, page, PAGE_SIZE, 0) <
-		    PAGE_SIZE) {
+		if (submit || bio_add_page(comp_bio, page, pg_len, 0) < pg_len) {
 			unsigned int nr_sectors;
 
 			ret = btrfs_bio_wq_end_io(fs_info, comp_bio,
@@ -743,9 +767,9 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 			comp_bio->bi_private = cb;
 			comp_bio->bi_end_io = end_compressed_bio_read;
 
-			bio_add_page(comp_bio, page, PAGE_SIZE, 0);
+			bio_add_page(comp_bio, page, pg_len, 0);
 		}
-		cur_disk_byte += PAGE_SIZE;
+		cur_disk_byte += pg_len;
 	}
 
 	ret = btrfs_bio_wq_end_io(fs_info, comp_bio, BTRFS_WQ_ENDIO_DATA);
@@ -1237,7 +1261,6 @@ int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
 	unsigned long prev_start_byte;
 	unsigned long working_bytes = total_out - buf_start;
 	unsigned long bytes;
-	char *kaddr;
 	struct bio_vec bvec = bio_iter_iovec(bio, bio->bi_iter);
 
 	/*
@@ -1268,9 +1291,8 @@ int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
 				PAGE_SIZE - (buf_offset % PAGE_SIZE));
 		bytes = min(bytes, working_bytes);
 
-		kaddr = kmap_atomic(bvec.bv_page);
-		memcpy(kaddr + bvec.bv_offset, buf + buf_offset, bytes);
-		kunmap_atomic(kaddr);
+		memcpy_to_page(bvec.bv_page, bvec.bv_offset, buf + buf_offset,
+			       bytes);
 		flush_dcache_page(bvec.bv_page);
 
 		buf_offset += bytes;

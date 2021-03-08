@@ -489,7 +489,8 @@ unlock:
 	return ret;
 }
 
-static int zonefs_inode_setattr(struct dentry *dentry, struct iattr *iattr)
+static int zonefs_inode_setattr(struct user_namespace *mnt_userns,
+				struct dentry *dentry, struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);
 	int ret;
@@ -497,7 +498,7 @@ static int zonefs_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (unlikely(IS_IMMUTABLE(inode)))
 		return -EPERM;
 
-	ret = setattr_prepare(dentry, iattr);
+	ret = setattr_prepare(&init_user_ns, dentry, iattr);
 	if (ret)
 		return ret;
 
@@ -525,7 +526,7 @@ static int zonefs_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 			return ret;
 	}
 
-	setattr_copy(inode, iattr);
+	setattr_copy(&init_user_ns, inode, iattr);
 
 	return 0;
 }
@@ -1233,7 +1234,7 @@ static void zonefs_init_dir_inode(struct inode *parent, struct inode *inode,
 	struct super_block *sb = parent->i_sb;
 
 	inode->i_ino = blkdev_nr_zones(sb->s_bdev->bd_disk) + type + 1;
-	inode_init_owner(inode, parent, S_IFDIR | 0555);
+	inode_init_owner(&init_user_ns, inode, parent, S_IFDIR | 0555);
 	inode->i_op = &zonefs_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 	set_nlink(inode, 2);

@@ -15,6 +15,7 @@
 #include <linux/memblock.h>
 #include <linux/kexec.h>
 #include <linux/elfcore.h>
+#include <linux/reboot.h>
 #include <linux/sysctl.h>
 #include <linux/init.h>
 #include <linux/kdebug.h>

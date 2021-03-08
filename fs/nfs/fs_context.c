@@ -82,6 +82,7 @@ enum nfs_param {
 	Opt_v,
 	Opt_vers,
 	Opt_wsize,
+	Opt_write,
 };
 
 enum {
@@ -110,6 +111,19 @@ static const struct constant_table nfs_param_enums_lookupcache[] = {
 	{ "none",		Opt_lookupcache_none },
 	{ "pos",		Opt_lookupcache_positive },
 	{ "positive",		Opt_lookupcache_positive },
+	{}
+};
+
+enum {
+	Opt_write_lazy,
+	Opt_write_eager,
+	Opt_write_wait,
+};
+
+static const struct constant_table nfs_param_enums_write[] = {
+	{ "lazy",		Opt_write_lazy },
+	{ "eager",		Opt_write_eager },
+	{ "wait",		Opt_write_wait },
 	{}
 };
 
@@ -171,6 +185,7 @@ static const struct fs_parameter_spec nfs_fs_parameters[] = {
 	fsparam_flag  ("v4.1",		Opt_v),
 	fsparam_flag  ("v4.2",		Opt_v),
 	fsparam_string("vers",		Opt_vers),
+	fsparam_enum  ("write",		Opt_write, nfs_param_enums_write),
 	fsparam_u32   ("wsize",		Opt_wsize),
 	{}
 };
@@ -765,6 +780,24 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		case Opt_local_lock_none:
 			ctx->flags &= ~(NFS_MOUNT_LOCAL_FLOCK |
 					NFS_MOUNT_LOCAL_FCNTL);
+			break;
+		default:
+			goto out_invalid_value;
+		}
+		break;
+	case Opt_write:
+		switch (result.uint_32) {
+		case Opt_write_lazy:
+			ctx->flags &=
+				~(NFS_MOUNT_WRITE_EAGER | NFS_MOUNT_WRITE_WAIT);
+			break;
+		case Opt_write_eager:
+			ctx->flags |= NFS_MOUNT_WRITE_EAGER;
+			ctx->flags &= ~NFS_MOUNT_WRITE_WAIT;
+			break;
+		case Opt_write_wait:
+			ctx->flags |=
+				NFS_MOUNT_WRITE_EAGER | NFS_MOUNT_WRITE_WAIT;
 			break;
 		default:
 			goto out_invalid_value;
@@ -1479,6 +1512,8 @@ static int nfs_init_fs_context(struct fs_context *fc)
 		ctx->selected_flavor	= RPC_AUTH_MAXFLAVOR;
 		ctx->minorversion	= 0;
 		ctx->need_mount		= true;
+
+		fc->s_iflags		|= SB_I_STABLE_WRITES;
 	}
 	fc->fs_private = ctx;
 	fc->ops = &nfs_fs_context_ops;

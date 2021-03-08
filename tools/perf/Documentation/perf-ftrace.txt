@@ -28,8 +28,8 @@ OPTIONS
 	specified: function_graph or function.
 
 -v::
---verbose=::
-        Verbosity level.
+--verbose::
+        Increase the verbosity level.
 
 -F::
 --funcs::

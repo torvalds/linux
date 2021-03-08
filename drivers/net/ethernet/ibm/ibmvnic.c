@@ -78,7 +78,6 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(IBMVNIC_DRIVER_VERSION);
 
 static int ibmvnic_version = IBMVNIC_INITIAL_VERSION;
-static int ibmvnic_remove(struct vio_dev *);
 static void release_sub_crqs(struct ibmvnic_adapter *, bool);
 static int ibmvnic_reset_crq(struct ibmvnic_adapter *);
 static int ibmvnic_send_crq_init(struct ibmvnic_adapter *);
@@ -1172,12 +1171,25 @@ static int ibmvnic_open(struct net_device *netdev)
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	int rc;
 
-	/* If device failover is pending, just set device state and return.
-	 * Device operation will be handled by reset routine.
+	ASSERT_RTNL();
+
+	/* If device failover is pending or we are about to reset, just set
+	 * device state and return. Device operation will be handled by reset
+	 * routine.
+	 *
+	 * It should be safe to overwrite the adapter->state here. Since
+	 * we hold the rtnl, either the reset has not actually started or
+	 * the rtnl got dropped during the set_link_state() in do_reset().
+	 * In the former case, no one else is changing the state (again we
+	 * have the rtnl) and in the latter case, do_reset() will detect and
+	 * honor our setting below.
 	 */
-	if (adapter->failover_pending) {
+	if (adapter->failover_pending || (test_bit(0, &adapter->resetting))) {
+		netdev_dbg(netdev, "[S:%d FOP:%d] Resetting, deferring open\n",
+			   adapter->state, adapter->failover_pending);
 		adapter->state = VNIC_OPEN;
-		return 0;
+		rc = 0;
+		goto out;
 	}
 
 	if (adapter->state != VNIC_CLOSED) {
@@ -1196,10 +1208,12 @@ static int ibmvnic_open(struct net_device *netdev)
 	rc = __ibmvnic_open(netdev);
 
 out:
-	/* If open fails due to a pending failover, set device state and
-	 * return. Device operation will be handled by reset routine.
+	/* If open failed and there is a pending failover or in-progress reset,
+	 * set device state and return. Device operation will be handled by
+	 * reset routine. See also comments above regarding rtnl.
 	 */
-	if (rc && adapter->failover_pending) {
+	if (rc &&
+	    (adapter->failover_pending || (test_bit(0, &adapter->resetting)))) {
 		adapter->state = VNIC_OPEN;
 		rc = 0;
 	}
@@ -1928,6 +1942,14 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 	if (rwi->reset_reason == VNIC_RESET_FAILOVER)
 		adapter->failover_pending = false;
 
+	/* read the state and check (again) after getting rtnl */
+	reset_state = adapter->state;
+
+	if (reset_state == VNIC_REMOVING || reset_state == VNIC_REMOVED) {
+		rc = -EBUSY;
+		goto out;
+	}
+
 	netif_carrier_off(netdev);
 
 	old_num_rx_queues = adapter->req_rx_queues;
@@ -1958,11 +1980,27 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 			if (rc)
 				goto out;
 
+			if (adapter->state == VNIC_OPEN) {
+				/* When we dropped rtnl, ibmvnic_open() got
+				 * it and noticed that we are resetting and
+				 * set the adapter state to OPEN. Update our
+				 * new "target" state, and resume the reset
+				 * from VNIC_CLOSING state.
+				 */
+				netdev_dbg(netdev,
+					   "Open changed state from %d, updating.\n",
+					   reset_state);
+				reset_state = VNIC_OPEN;
+				adapter->state = VNIC_CLOSING;
+			}
+
 			if (adapter->state != VNIC_CLOSING) {
+				/* If someone else changed the adapter state
+				 * when we dropped the rtnl, fail the reset
+				 */
 				rc = -1;
 				goto out;
 			}
-
 			adapter->state = VNIC_CLOSED;
 		}
 	}
@@ -2105,6 +2143,14 @@ static int do_hard_reset(struct ibmvnic_adapter *adapter,
 
 	netdev_dbg(adapter->netdev, "Hard resetting driver (%d)\n",
 		   rwi->reset_reason);
+
+	/* read the state and check (again) after getting rtnl */
+	reset_state = adapter->state;
+
+	if (reset_state == VNIC_REMOVING || reset_state == VNIC_REMOVED) {
+		rc = -EBUSY;
+		goto out;
+	}
 
 	netif_carrier_off(netdev);
 	adapter->reset_reason = rwi->reset_reason;
@@ -5349,7 +5395,7 @@ ibmvnic_init_fail:
 	return rc;
 }
 
-static int ibmvnic_remove(struct vio_dev *dev)
+static void ibmvnic_remove(struct vio_dev *dev)
 {
 	struct net_device *netdev = dev_get_drvdata(&dev->dev);
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
@@ -5390,8 +5436,6 @@ static int ibmvnic_remove(struct vio_dev *dev)
 	device_remove_file(&dev->dev, &dev_attr_failover);
 	free_netdev(netdev);
 	dev_set_drvdata(&dev->dev, NULL);
-
-	return 0;
 }
 
 static ssize_t failover_store(struct device *dev, struct device_attribute *attr,

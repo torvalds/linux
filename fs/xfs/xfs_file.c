@@ -29,6 +29,7 @@
 #include <linux/backing-dev.h>
 #include <linux/mman.h>
 #include <linux/fadvise.h>
+#include <linux/mount.h>
 
 static const struct vm_operations_struct xfs_file_vm_ops;
 
@@ -1051,7 +1052,8 @@ xfs_file_fallocate(
 
 		iattr.ia_valid = ATTR_SIZE;
 		iattr.ia_size = new_size;
-		error = xfs_vn_setattr_size(file_dentry(file), &iattr);
+		error = xfs_vn_setattr_size(file_mnt_user_ns(file),
+					    file_dentry(file), &iattr);
 		if (error)
 			goto out_unlock;
 	}

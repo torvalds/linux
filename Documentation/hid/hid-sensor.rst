@@ -48,12 +48,12 @@ for different sensors. For example an accelerometer can send X,Y and Z data, whe
 an ambient light sensor can send illumination data.
 So the implementation has two parts:
 
-- Core hid driver
+- Core HID driver
 - Individual sensor processing part (sensor drivers)
 
 Core driver
 -----------
-The core driver registers (hid-sensor-hub) registers as a HID driver. It parses
+The core driver (hid-sensor-hub) registers as a HID driver. It parses
 report descriptors and identifies all the sensors present. It adds an MFD device
 with name HID-SENSOR-xxxx (where xxxx is usage id from the specification).
 
@@ -95,14 +95,14 @@ Registration functions::
 			u32 usage_id,
 			struct hid_sensor_hub_callbacks *usage_callback):
 
-Registers callbacks for an usage id. The callback functions are not allowed
+Registers callbacks for a usage id. The callback functions are not allowed
 to sleep::
 
 
   int sensor_hub_remove_callback(struct hid_sensor_hub_device *hsdev,
 			u32 usage_id):
 
-Removes callbacks for an usage id.
+Removes callbacks for a usage id.
 
 
 Parsing function::
@@ -166,7 +166,7 @@ This allows some differentiating use cases, where vendor can provide application
 Some common use cases are debug other sensors or to provide some events like
 keyboard attached/detached or lid open/close.
 
-To allow application to utilize these sensors, here they are exported uses sysfs
+To allow application to utilize these sensors, here they are exported using sysfs
 attribute groups, attributes and misc device interface.
 
 An example of this representation on sysfs::
@@ -207,9 +207,9 @@ An example of this representation on sysfs::
   │   │   │   ├── input-1-200202-units
   │   │   │   ├── input-1-200202-value
 
-Here there is a custom sensors with four fields, two feature and two inputs.
+Here there is a custom sensor with four fields: two feature and two inputs.
 Each field is represented by a set of attributes. All fields except the "value"
-are read only. The value field is a RW field.
+are read only. The value field is a read-write field.
 
 Example::
 
@@ -237,6 +237,6 @@ These reports are pushed using misc device interface in a FIFO order::
 	│   │   │   ├── 10:53 -> ../HID-SENSOR-2000e1.6.auto
 	│   ├──  HID-SENSOR-2000e1.6.auto
 
-Each reports can be of variable length preceded by a header. This header
-consist of a 32 bit usage id, 64 bit time stamp and 32 bit length field of raw
+Each report can be of variable length preceded by a header. This header
+consists of a 32-bit usage id, 64-bit time stamp and 32-bit length field of raw
 data.

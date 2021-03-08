@@ -179,7 +179,10 @@ static int dax_bus_remove(struct device *dev)
 	struct dax_device_driver *dax_drv = to_dax_drv(dev->driver);
 	struct dev_dax *dev_dax = to_dev_dax(dev);
 
-	return dax_drv->remove(dev_dax);
+	if (dax_drv->remove)
+		dax_drv->remove(dev_dax);
+
+	return 0;
 }
 
 static struct bus_type dax_bus_type = {
@@ -1038,7 +1041,7 @@ static ssize_t range_parse(const char *opt, size_t len, struct range *range)
 {
 	unsigned long long addr = 0;
 	char *start, *end, *str;
-	ssize_t rc = EINVAL;
+	ssize_t rc = -EINVAL;
 
 	str = kstrdup(opt, GFP_KERNEL);
 	if (!str)
@@ -1392,6 +1395,13 @@ int __dax_driver_register(struct dax_device_driver *dax_drv,
 	struct device_driver *drv = &dax_drv->drv;
 	int rc = 0;
 
+	/*
+	 * dax_bus_probe() calls dax_drv->probe() unconditionally.
+	 * So better be safe than sorry and ensure it is provided.
+	 */
+	if (!dax_drv->probe)
+		return -EINVAL;
+
 	INIT_LIST_HEAD(&dax_drv->ids);
 	drv->owner = module;
 	drv->name = mod_name;
@@ -1409,7 +1419,15 @@ int __dax_driver_register(struct dax_device_driver *dax_drv,
 	mutex_unlock(&dax_bus_lock);
 	if (rc)
 		return rc;
-	return driver_register(drv);
+
+	rc = driver_register(drv);
+	if (rc && dax_drv->match_always) {
+		mutex_lock(&dax_bus_lock);
+		match_always_count -= dax_drv->match_always;
+		mutex_unlock(&dax_bus_lock);
+	}
+
+	return rc;
 }
 EXPORT_SYMBOL_GPL(__dax_driver_register);
 

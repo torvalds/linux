@@ -386,8 +386,9 @@ static struct svc_export *svc_export_update(struct svc_export *new,
 					    struct svc_export *old);
 static struct svc_export *svc_export_lookup(struct svc_export *);
 
-static int check_export(struct inode *inode, int *flags, unsigned char *uuid)
+static int check_export(struct path *path, int *flags, unsigned char *uuid)
 {
+	struct inode *inode = d_inode(path->dentry);
 
 	/*
 	 * We currently export only dirs, regular files, and (for v4
@@ -411,6 +412,7 @@ static int check_export(struct inode *inode, int *flags, unsigned char *uuid)
 	 *       or an FSID number (so NFSEXP_FSID or ->uuid is needed).
 	 * 2:  We must be able to find an inode from a filehandle.
 	 *       This means that s_export_op must be set.
+	 * 3: We must not currently be on an idmapped mount.
 	 */
 	if (!(inode->i_sb->s_type->fs_flags & FS_REQUIRES_DEV) &&
 	    !(*flags & NFSEXP_FSID) &&
@@ -422,6 +424,11 @@ static int check_export(struct inode *inode, int *flags, unsigned char *uuid)
 	if (!inode->i_sb->s_export_op ||
 	    !inode->i_sb->s_export_op->fh_to_dentry) {
 		dprintk("exp_export: export of invalid fs type.\n");
+		return -EINVAL;
+	}
+
+	if (mnt_user_ns(path->mnt) != &init_user_ns) {
+		dprintk("exp_export: export of idmapped mounts not yet supported.\n");
 		return -EINVAL;
 	}
 
@@ -653,8 +660,7 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 				goto out4;
 		}
 
-		err = check_export(d_inode(exp.ex_path.dentry), &exp.ex_flags,
-				   exp.ex_uuid);
+		err = check_export(&exp.ex_path, &exp.ex_flags, exp.ex_uuid);
 		if (err)
 			goto out4;
 		/*

@@ -1236,7 +1236,8 @@ static int __cmd_diff(void)
 
  out_delete:
 	data__for_each_file(i, d) {
-		perf_session__delete(d->session);
+		if (!IS_ERR(d->session))
+			perf_session__delete(d->session);
 		data__free(d);
 	}
 

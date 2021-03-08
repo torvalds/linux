@@ -349,15 +349,8 @@ struct trace_event_call {
 	struct event_filter	*filter;
 	void			*mod;
 	void			*data;
-	/*
-	 *   bit 0:		filter_active
-	 *   bit 1:		allow trace by non root (cap any)
-	 *   bit 2:		failed to apply filter
-	 *   bit 3:		trace internal event (do not enable)
-	 *   bit 4:		Event was enabled by module
-	 *   bit 5:		use call filter rather than file filter
-	 *   bit 6:		Event is a tracepoint
-	 */
+
+	/* See the TRACE_EVENT_FL_* flags above */
 	int			flags; /* static flags of different events */
 
 #ifdef CONFIG_PERF_EVENTS

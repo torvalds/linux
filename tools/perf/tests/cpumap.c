@@ -106,6 +106,8 @@ static int cpu_map_print(const char *str)
 		return -1;
 
 	cpu_map__snprint(map, buf, sizeof(buf));
+	perf_cpu_map__put(map);
+
 	return !strcmp(buf, str);
 }
 

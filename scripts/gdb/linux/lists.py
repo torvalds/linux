@@ -27,6 +27,11 @@ def list_for_each(head):
         raise TypeError("Must be struct list_head not {}"
                            .format(head.type))
 
+    if head['next'] == 0:
+        gdb.write("list_for_each: Uninitialized list '{}' treated as empty\n"
+                     .format(head.address))
+        return
+
     node = head['next'].dereference()
     while node.address != head.address:
         yield node.address
