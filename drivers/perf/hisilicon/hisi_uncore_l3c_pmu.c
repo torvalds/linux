@@ -14,7 +14,6 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/list.h>
-#include <linux/platform_device.h>
 #include <linux/smp.h>
 
 #include "hisi_uncore_pmu.h"
@@ -154,60 +153,14 @@ static void hisi_l3c_pmu_disable_counter_int(struct hisi_pmu *l3c_pmu,
 	writel(val, l3c_pmu->base + L3C_INT_MASK);
 }
 
-static irqreturn_t hisi_l3c_pmu_isr(int irq, void *dev_id)
+static u32 hisi_l3c_pmu_get_int_status(struct hisi_pmu *l3c_pmu)
 {
-	struct hisi_pmu *l3c_pmu = dev_id;
-	struct perf_event *event;
-	unsigned long overflown;
-	int idx;
-
-	/* Read L3C_INT_STATUS register */
-	overflown = readl(l3c_pmu->base + L3C_INT_STATUS);
-	if (!overflown)
-		return IRQ_NONE;
-
-	/*
-	 * Find the counter index which overflowed if the bit was set
-	 * and handle it.
-	 */
-	for_each_set_bit(idx, &overflown, L3C_NR_COUNTERS) {
-		/* Write 1 to clear the IRQ status flag */
-		writel((1 << idx), l3c_pmu->base + L3C_INT_CLEAR);
-
-		/* Get the corresponding event struct */
-		event = l3c_pmu->pmu_events.hw_events[idx];
-		if (!event)
-			continue;
-
-		hisi_uncore_pmu_event_update(event);
-		hisi_uncore_pmu_set_event_period(event);
-	}
-
-	return IRQ_HANDLED;
+	return readl(l3c_pmu->base + L3C_INT_STATUS);
 }
 
-static int hisi_l3c_pmu_init_irq(struct hisi_pmu *l3c_pmu,
-				 struct platform_device *pdev)
+static void hisi_l3c_pmu_clear_int_status(struct hisi_pmu *l3c_pmu, int idx)
 {
-	int irq, ret;
-
-	/* Read and init IRQ */
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
-
-	ret = devm_request_irq(&pdev->dev, irq, hisi_l3c_pmu_isr,
-			       IRQF_NOBALANCING | IRQF_NO_THREAD,
-			       dev_name(&pdev->dev), l3c_pmu);
-	if (ret < 0) {
-		dev_err(&pdev->dev,
-			"Fail to request IRQ:%d ret:%d\n", irq, ret);
-		return ret;
-	}
-
-	l3c_pmu->irq = irq;
-
-	return 0;
+	writel(1 << idx, l3c_pmu->base + L3C_INT_CLEAR);
 }
 
 static const struct acpi_device_id hisi_l3c_pmu_acpi_match[] = {
@@ -330,6 +283,8 @@ static const struct hisi_uncore_ops hisi_uncore_l3c_ops = {
 	.disable_counter_int	= hisi_l3c_pmu_disable_counter_int,
 	.write_counter		= hisi_l3c_pmu_write_counter,
 	.read_counter		= hisi_l3c_pmu_read_counter,
+	.get_int_status		= hisi_l3c_pmu_get_int_status,
+	.clear_int_status	= hisi_l3c_pmu_clear_int_status,
 };
 
 static int hisi_l3c_pmu_dev_probe(struct platform_device *pdev,
@@ -341,7 +296,7 @@ static int hisi_l3c_pmu_dev_probe(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	ret = hisi_l3c_pmu_init_irq(l3c_pmu, pdev);
+	ret = hisi_uncore_pmu_init_irq(l3c_pmu, pdev);
 	if (ret)
 		return ret;
 

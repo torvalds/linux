@@ -14,7 +14,6 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/list.h>
-#include <linux/platform_device.h>
 #include <linux/smp.h>
 
 #include "hisi_uncore_pmu.h"
@@ -155,60 +154,14 @@ static void hisi_hha_pmu_disable_counter_int(struct hisi_pmu *hha_pmu,
 	writel(val, hha_pmu->base + HHA_INT_MASK);
 }
 
-static irqreturn_t hisi_hha_pmu_isr(int irq, void *dev_id)
+static u32 hisi_hha_pmu_get_int_status(struct hisi_pmu *hha_pmu)
 {
-	struct hisi_pmu *hha_pmu = dev_id;
-	struct perf_event *event;
-	unsigned long overflown;
-	int idx;
-
-	/* Read HHA_INT_STATUS register */
-	overflown = readl(hha_pmu->base + HHA_INT_STATUS);
-	if (!overflown)
-		return IRQ_NONE;
-
-	/*
-	 * Find the counter index which overflowed if the bit was set
-	 * and handle it
-	 */
-	for_each_set_bit(idx, &overflown, HHA_NR_COUNTERS) {
-		/* Write 1 to clear the IRQ status flag */
-		writel((1 << idx), hha_pmu->base + HHA_INT_CLEAR);
-
-		/* Get the corresponding event struct */
-		event = hha_pmu->pmu_events.hw_events[idx];
-		if (!event)
-			continue;
-
-		hisi_uncore_pmu_event_update(event);
-		hisi_uncore_pmu_set_event_period(event);
-	}
-
-	return IRQ_HANDLED;
+	return readl(hha_pmu->base + HHA_INT_STATUS);
 }
 
-static int hisi_hha_pmu_init_irq(struct hisi_pmu *hha_pmu,
-				 struct platform_device *pdev)
+static void hisi_hha_pmu_clear_int_status(struct hisi_pmu *hha_pmu, int idx)
 {
-	int irq, ret;
-
-	/* Read and init IRQ */
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
-
-	ret = devm_request_irq(&pdev->dev, irq, hisi_hha_pmu_isr,
-			      IRQF_NOBALANCING | IRQF_NO_THREAD,
-			      dev_name(&pdev->dev), hha_pmu);
-	if (ret < 0) {
-		dev_err(&pdev->dev,
-			"Fail to request IRQ:%d ret:%d\n", irq, ret);
-		return ret;
-	}
-
-	hha_pmu->irq = irq;
-
-	return 0;
+	writel(1 << idx, hha_pmu->base + HHA_INT_CLEAR);
 }
 
 static const struct acpi_device_id hisi_hha_pmu_acpi_match[] = {
@@ -340,6 +293,8 @@ static const struct hisi_uncore_ops hisi_uncore_hha_ops = {
 	.disable_counter_int	= hisi_hha_pmu_disable_counter_int,
 	.write_counter		= hisi_hha_pmu_write_counter,
 	.read_counter		= hisi_hha_pmu_read_counter,
+	.get_int_status		= hisi_hha_pmu_get_int_status,
+	.clear_int_status	= hisi_hha_pmu_clear_int_status,
 };
 
 static int hisi_hha_pmu_dev_probe(struct platform_device *pdev,
@@ -351,7 +306,7 @@ static int hisi_hha_pmu_dev_probe(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	ret = hisi_hha_pmu_init_irq(hha_pmu, pdev);
+	ret = hisi_uncore_pmu_init_irq(hha_pmu, pdev);
 	if (ret)
 		return ret;
 

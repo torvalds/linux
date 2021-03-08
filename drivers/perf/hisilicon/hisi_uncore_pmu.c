@@ -128,6 +128,60 @@ static void hisi_uncore_pmu_clear_event_idx(struct hisi_pmu *hisi_pmu, int idx)
 	clear_bit(idx, hisi_pmu->pmu_events.used_mask);
 }
 
+static irqreturn_t hisi_uncore_pmu_isr(int irq, void *data)
+{
+	struct hisi_pmu *hisi_pmu = data;
+	struct perf_event *event;
+	unsigned long overflown;
+	int idx;
+
+	overflown = hisi_pmu->ops->get_int_status(hisi_pmu);
+	if (!overflown)
+		return IRQ_NONE;
+
+	/*
+	 * Find the counter index which overflowed if the bit was set
+	 * and handle it.
+	 */
+	for_each_set_bit(idx, &overflown, hisi_pmu->num_counters) {
+		/* Write 1 to clear the IRQ status flag */
+		hisi_pmu->ops->clear_int_status(hisi_pmu, idx);
+		/* Get the corresponding event struct */
+		event = hisi_pmu->pmu_events.hw_events[idx];
+		if (!event)
+			continue;
+
+		hisi_uncore_pmu_event_update(event);
+		hisi_uncore_pmu_set_event_period(event);
+	}
+
+	return IRQ_HANDLED;
+}
+
+int hisi_uncore_pmu_init_irq(struct hisi_pmu *hisi_pmu,
+			     struct platform_device *pdev)
+{
+	int irq, ret;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
+	ret = devm_request_irq(&pdev->dev, irq, hisi_uncore_pmu_isr,
+			       IRQF_NOBALANCING | IRQF_NO_THREAD,
+			       dev_name(&pdev->dev), hisi_pmu);
+	if (ret < 0) {
+		dev_err(&pdev->dev,
+			"Fail to request IRQ: %d ret: %d.\n", irq, ret);
+		return ret;
+	}
+
+	hisi_pmu->irq = irq;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hisi_uncore_pmu_init_irq);
+
 int hisi_uncore_pmu_event_init(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;

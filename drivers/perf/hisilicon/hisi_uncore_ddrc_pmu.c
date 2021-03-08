@@ -14,7 +14,6 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/list.h>
-#include <linux/platform_device.h>
 #include <linux/smp.h>
 
 #include "hisi_uncore_pmu.h"
@@ -165,60 +164,14 @@ static void hisi_ddrc_pmu_disable_counter_int(struct hisi_pmu *ddrc_pmu,
 	writel(val, ddrc_pmu->base + DDRC_INT_MASK);
 }
 
-static irqreturn_t hisi_ddrc_pmu_isr(int irq, void *dev_id)
+static u32 hisi_ddrc_pmu_get_int_status(struct hisi_pmu *ddrc_pmu)
 {
-	struct hisi_pmu *ddrc_pmu = dev_id;
-	struct perf_event *event;
-	unsigned long overflown;
-	int idx;
-
-	/* Read the DDRC_INT_STATUS register */
-	overflown = readl(ddrc_pmu->base + DDRC_INT_STATUS);
-	if (!overflown)
-		return IRQ_NONE;
-
-	/*
-	 * Find the counter index which overflowed if the bit was set
-	 * and handle it
-	 */
-	for_each_set_bit(idx, &overflown, DDRC_NR_COUNTERS) {
-		/* Write 1 to clear the IRQ status flag */
-		writel((1 << idx), ddrc_pmu->base + DDRC_INT_CLEAR);
-
-		/* Get the corresponding event struct */
-		event = ddrc_pmu->pmu_events.hw_events[idx];
-		if (!event)
-			continue;
-
-		hisi_uncore_pmu_event_update(event);
-		hisi_uncore_pmu_set_event_period(event);
-	}
-
-	return IRQ_HANDLED;
+	return readl(ddrc_pmu->base + DDRC_INT_STATUS);
 }
 
-static int hisi_ddrc_pmu_init_irq(struct hisi_pmu *ddrc_pmu,
-				  struct platform_device *pdev)
+static void hisi_ddrc_pmu_clear_int_status(struct hisi_pmu *ddrc_pmu, int idx)
 {
-	int irq, ret;
-
-	/* Read and init IRQ */
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
-
-	ret = devm_request_irq(&pdev->dev, irq, hisi_ddrc_pmu_isr,
-			       IRQF_NOBALANCING | IRQF_NO_THREAD,
-			       dev_name(&pdev->dev), ddrc_pmu);
-	if (ret < 0) {
-		dev_err(&pdev->dev,
-			"Fail to request IRQ:%d ret:%d\n", irq, ret);
-		return ret;
-	}
-
-	ddrc_pmu->irq = irq;
-
-	return 0;
+	writel(1 << idx, ddrc_pmu->base + DDRC_INT_CLEAR);
 }
 
 static const struct acpi_device_id hisi_ddrc_pmu_acpi_match[] = {
@@ -328,6 +281,8 @@ static const struct hisi_uncore_ops hisi_uncore_ddrc_ops = {
 	.disable_counter_int	= hisi_ddrc_pmu_disable_counter_int,
 	.write_counter		= hisi_ddrc_pmu_write_counter,
 	.read_counter		= hisi_ddrc_pmu_read_counter,
+	.get_int_status		= hisi_ddrc_pmu_get_int_status,
+	.clear_int_status	= hisi_ddrc_pmu_clear_int_status,
 };
 
 static int hisi_ddrc_pmu_dev_probe(struct platform_device *pdev,
@@ -339,7 +294,7 @@ static int hisi_ddrc_pmu_dev_probe(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	ret = hisi_ddrc_pmu_init_irq(ddrc_pmu, pdev);
+	ret = hisi_uncore_pmu_init_irq(ddrc_pmu, pdev);
 	if (ret)
 		return ret;
 

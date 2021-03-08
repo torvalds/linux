@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/perf_event.h>
+#include <linux/platform_device.h>
 #include <linux/types.h>
 
 #undef pr_fmt
@@ -47,6 +48,8 @@ struct hisi_uncore_ops {
 	void (*disable_counter_int)(struct hisi_pmu *, struct hw_perf_event *);
 	void (*start_counters)(struct hisi_pmu *);
 	void (*stop_counters)(struct hisi_pmu *);
+	u32 (*get_int_status)(struct hisi_pmu *hisi_pmu);
+	void (*clear_int_status)(struct hisi_pmu *hisi_pmu, int idx);
 };
 
 struct hisi_pmu_hwevents {
@@ -101,6 +104,7 @@ int hisi_uncore_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node);
 ssize_t hisi_uncore_pmu_identifier_attr_show(struct device *dev,
 					     struct device_attribute *attr,
 					     char *page);
-
+int hisi_uncore_pmu_init_irq(struct hisi_pmu *hisi_pmu,
+			     struct platform_device *pdev);
 
 #endif /* __HISI_UNCORE_PMU_H__ */
