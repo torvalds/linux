@@ -1027,7 +1027,7 @@
 				status = "disabled";
 
 				fixed-link {
-					speed = <1000>;
+					speed = <2500>;
 					full-duplex;
 				};
 			};
