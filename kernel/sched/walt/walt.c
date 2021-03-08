@@ -16,6 +16,7 @@
 
 #include <trace/hooks/sched.h>
 #include <trace/hooks/cpufreq.h>
+#include <trace/events/power.h>
 
 #include "walt.h"
 #include "trace.h"
@@ -730,13 +731,6 @@ static void update_rq_load_subtractions(int index, struct rq *rq,
 	wrq->load_subs[index].subs += sub_load;
 	if (new_task)
 		wrq->load_subs[index].new_subs += sub_load;
-}
-
-static inline struct walt_sched_cluster *cpu_cluster(int cpu)
-{
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
-
-	return wrq->cluster;
 }
 
 static void update_cluster_load_subtractions(struct task_struct *p,
@@ -2306,6 +2300,7 @@ static struct walt_sched_cluster *alloc_new_cluster(const struct cpumask *cpus)
 
 	INIT_LIST_HEAD(&cluster->list);
 	cluster->cur_freq		=	1;
+	cluster->max_freq		=	1;
 	cluster->max_possible_freq	=	1;
 
 	raw_spin_lock_init(&cluster->load_lock);
@@ -2511,6 +2506,7 @@ static void walt_update_cluster_topology(void)
 
 		if (policy) {
 			cluster->max_possible_freq = policy->cpuinfo.max_freq;
+			cluster->max_freq = policy->max;
 			for_each_cpu(i, &cluster->cpus) {
 				wrq = (struct walt_rq *) cpu_rq(i)->android_vendor_data1;
 				cpumask_copy(&wrq->freq_domain_cpumask,
@@ -3630,6 +3626,14 @@ static void android_rvh_wake_up_new_task(void *unused, struct task_struct *new)
 	add_new_task_to_grp(new);
 }
 
+static void walt_cpu_frequency_limits(void *unused, struct cpufreq_policy *policy)
+{
+	if (unlikely(walt_disabled))
+		return;
+
+	cpu_cluster(policy->cpu)->max_freq = policy->max;
+}
+
 /*
  * The intention of this hook is to update cpu_capacity_orig as well as
  * (*capacity), otherwise we will end up capacity_of() > capacity_orig_of().
@@ -3639,6 +3643,7 @@ static void android_rvh_update_cpu_capacity(void *unused, int cpu, unsigned long
 	unsigned long max_capacity = arch_scale_cpu_capacity(cpu);
 	unsigned long thermal_pressure = arch_scale_thermal_pressure(cpu);
 	unsigned long thermal_cap;
+	struct walt_sched_cluster *cluster;
 
 	if (unlikely(walt_disabled))
 		return;
@@ -3651,18 +3656,13 @@ static void android_rvh_update_cpu_capacity(void *unused, int cpu, unsigned long
 
 	thermal_cap = max_capacity - thermal_pressure;
 
-	/*
-	 * TODO:
-	 * Thermal is taken care now. but what about limits via
-	 * cpufreq max. we don't have arch_scale_max_freq_capacity()
-	 * in 5.10 now.
-	 *
-	 * Two options:
-	 * #1 either port that max_frq_cap patch to AOSP
-	 * #2 register for cpufreq policy updates..
-	 */
-	cpu_rq(cpu)->cpu_capacity_orig = min(cpu_rq(cpu)->cpu_capacity_orig,
-					     thermal_cap);
+	cluster = cpu_cluster(cpu);
+	/* reduce the max_capacity under cpufreq constraints */
+	if (cluster->max_freq != cluster->max_possible_freq)
+		max_capacity = mult_frac(max_capacity, cluster->max_freq,
+					 cluster->max_possible_freq);
+
+	cpu_rq(cpu)->cpu_capacity_orig = min(max_capacity, thermal_cap);
 	*capacity = cpu_rq(cpu)->cpu_capacity_orig;
 }
 
@@ -3983,6 +3983,7 @@ static void register_walt_hooks(void)
 	register_trace_android_rvh_ttwu_cond(android_rvh_ttwu_cond, NULL);
 	register_trace_android_rvh_sched_exec(android_rvh_sched_exec, NULL);
 	register_trace_android_rvh_build_perf_domains(android_rvh_build_perf_domains, NULL);
+	register_trace_cpu_frequency_limits(walt_cpu_frequency_limits, NULL);
 }
 
 atomic64_t walt_irq_work_lastq_ws;

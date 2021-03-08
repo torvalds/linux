@@ -127,9 +127,11 @@ struct walt_sched_cluster {
 	int			id;
 	/*
 	 * max_possible_freq = maximum supported by hardware
+	 * max_freq = max freq as per cpufreq limits
 	 */
 	unsigned int		cur_freq;
 	unsigned int		max_possible_freq;
+	unsigned int		max_freq;
 	u64			aggr_grp_load;
 };
 
@@ -225,6 +227,13 @@ extern const int sched_user_hint_max;
 extern struct list_head cluster_head;
 #define for_each_sched_cluster(cluster) \
 	list_for_each_entry_rcu(cluster, &cluster_head, list)
+
+static inline struct walt_sched_cluster *cpu_cluster(int cpu)
+{
+	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+
+	return wrq->cluster;
+}
 
 static inline u32 cpu_cycles_to_freq(u64 cycles, u64 period)
 {
