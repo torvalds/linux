@@ -25,19 +25,136 @@
 #define HHA_VERSION		0x1cf0
 #define HHA_PERF_CTRL		0x1E00
 #define HHA_EVENT_CTRL		0x1E04
+#define HHA_SRCID_CTRL		0x1E08
+#define HHA_DATSRC_CTRL		0x1BF0
 #define HHA_EVENT_TYPE0		0x1E80
 /*
- * Each counter is 48-bits and [48:63] are reserved
- * which are Read-As-Zero and Writes-Ignored.
+ * If the HW version only supports a 48-bit counter, then
+ * bits [63:48] are reserved, which are Read-As-Zero and
+ * Writes-Ignored.
  */
 #define HHA_CNT0_LOWER		0x1F00
 
-/* HHA has 16-counters */
+/* HHA PMU v1 has 16 counters and v2 only has 8 counters */
 #define HHA_V1_NR_COUNTERS	0x10
+#define HHA_V2_NR_COUNTERS	0x8
 
 #define HHA_PERF_CTRL_EN	0x1
+#define HHA_TRACETAG_EN		BIT(31)
+#define HHA_SRCID_EN		BIT(2)
+#define HHA_SRCID_CMD_SHIFT	6
+#define HHA_SRCID_MSK_SHIFT	20
+#define HHA_SRCID_CMD		GENMASK(16, 6)
+#define HHA_SRCID_MSK		GENMASK(30, 20)
+#define HHA_DATSRC_SKT_EN	BIT(23)
 #define HHA_EVTYPE_NONE		0xff
 #define HHA_V1_NR_EVENT		0x65
+#define HHA_V2_NR_EVENT		0xCE
+
+HISI_PMU_EVENT_ATTR_EXTRACTOR(srcid_cmd, config1, 10, 0);
+HISI_PMU_EVENT_ATTR_EXTRACTOR(srcid_msk, config1, 21, 11);
+HISI_PMU_EVENT_ATTR_EXTRACTOR(tracetag_en, config1, 22, 22);
+HISI_PMU_EVENT_ATTR_EXTRACTOR(datasrc_skt, config1, 23, 23);
+
+static void hisi_hha_pmu_enable_tracetag(struct perf_event *event)
+{
+	struct hisi_pmu *hha_pmu = to_hisi_pmu(event->pmu);
+	u32 tt_en = hisi_get_tracetag_en(event);
+
+	if (tt_en) {
+		u32 val;
+
+		val = readl(hha_pmu->base + HHA_SRCID_CTRL);
+		val |= HHA_TRACETAG_EN;
+		writel(val, hha_pmu->base + HHA_SRCID_CTRL);
+	}
+}
+
+static void hisi_hha_pmu_clear_tracetag(struct perf_event *event)
+{
+	struct hisi_pmu *hha_pmu = to_hisi_pmu(event->pmu);
+	u32 val;
+
+	val = readl(hha_pmu->base + HHA_SRCID_CTRL);
+	val &= ~HHA_TRACETAG_EN;
+	writel(val, hha_pmu->base + HHA_SRCID_CTRL);
+}
+
+static void hisi_hha_pmu_config_ds(struct perf_event *event)
+{
+	struct hisi_pmu *hha_pmu = to_hisi_pmu(event->pmu);
+	u32 ds_skt = hisi_get_datasrc_skt(event);
+
+	if (ds_skt) {
+		u32 val;
+
+		val = readl(hha_pmu->base + HHA_DATSRC_CTRL);
+		val |= HHA_DATSRC_SKT_EN;
+		writel(ds_skt, hha_pmu->base + HHA_DATSRC_CTRL);
+	}
+}
+
+static void hisi_hha_pmu_clear_ds(struct perf_event *event)
+{
+	struct hisi_pmu *hha_pmu = to_hisi_pmu(event->pmu);
+	u32 ds_skt = hisi_get_datasrc_skt(event);
+
+	if (ds_skt) {
+		u32 val;
+
+		val = readl(hha_pmu->base + HHA_DATSRC_CTRL);
+		val &= ~HHA_DATSRC_SKT_EN;
+		writel(ds_skt, hha_pmu->base + HHA_DATSRC_CTRL);
+	}
+}
+
+static void hisi_hha_pmu_config_srcid(struct perf_event *event)
+{
+	struct hisi_pmu *hha_pmu = to_hisi_pmu(event->pmu);
+	u32 cmd = hisi_get_srcid_cmd(event);
+
+	if (cmd) {
+		u32 val, msk;
+
+		msk = hisi_get_srcid_msk(event);
+		val = readl(hha_pmu->base + HHA_SRCID_CTRL);
+		val |= HHA_SRCID_EN | (cmd << HHA_SRCID_CMD_SHIFT) |
+			(msk << HHA_SRCID_MSK_SHIFT);
+		writel(val, hha_pmu->base + HHA_SRCID_CTRL);
+	}
+}
+
+static void hisi_hha_pmu_disable_srcid(struct perf_event *event)
+{
+	struct hisi_pmu *hha_pmu = to_hisi_pmu(event->pmu);
+	u32 cmd = hisi_get_srcid_cmd(event);
+
+	if (cmd) {
+		u32 val;
+
+		val = readl(hha_pmu->base + HHA_SRCID_CTRL);
+		val &= ~(HHA_SRCID_EN | HHA_SRCID_MSK | HHA_SRCID_CMD);
+		writel(val, hha_pmu->base + HHA_SRCID_CTRL);
+	}
+}
+
+static void hisi_hha_pmu_enable_filter(struct perf_event *event)
+{
+	if (event->attr.config1 != 0x0) {
+		hisi_hha_pmu_enable_tracetag(event);
+		hisi_hha_pmu_config_ds(event);
+		hisi_hha_pmu_config_srcid(event);
+	}
+}
+
+static void hisi_hha_pmu_disable_filter(struct perf_event *event)
+{
+	if (event->attr.config1 != 0x0) {
+		hisi_hha_pmu_disable_srcid(event);
+		hisi_hha_pmu_clear_ds(event);
+		hisi_hha_pmu_clear_tracetag(event);
+	}
+}
 
 /*
  * Select the counter register offset using the counter index
@@ -167,7 +284,8 @@ static void hisi_hha_pmu_clear_int_status(struct hisi_pmu *hha_pmu, int idx)
 
 static const struct acpi_device_id hisi_hha_pmu_acpi_match[] = {
 	{ "HISI0243", },
-	{},
+	{ "HISI0244", },
+	{}
 };
 MODULE_DEVICE_TABLE(acpi, hisi_hha_pmu_acpi_match);
 
@@ -177,13 +295,6 @@ static int hisi_hha_pmu_init_data(struct platform_device *pdev,
 	unsigned long long id;
 	acpi_status status;
 
-	status = acpi_evaluate_integer(ACPI_HANDLE(&pdev->dev),
-				       "_UID", NULL, &id);
-	if (ACPI_FAILURE(status))
-		return -EINVAL;
-
-	hha_pmu->index_id = id;
-
 	/*
 	 * Use SCCL_ID and UID to identify the HHA PMU, while
 	 * SCCL_ID is in MPIDR[aff2].
@@ -192,6 +303,22 @@ static int hisi_hha_pmu_init_data(struct platform_device *pdev,
 				     &hha_pmu->sccl_id)) {
 		dev_err(&pdev->dev, "Can not read hha sccl-id!\n");
 		return -EINVAL;
+	}
+
+	/*
+	 * Early versions of BIOS support _UID by mistake, so we support
+	 * both "hisilicon, idx-id" as preference, if available.
+	 */
+	if (device_property_read_u32(&pdev->dev, "hisilicon,idx-id",
+				     &hha_pmu->index_id)) {
+		status = acpi_evaluate_integer(ACPI_HANDLE(&pdev->dev),
+					       "_UID", NULL, &id);
+		if (ACPI_FAILURE(status)) {
+			dev_err(&pdev->dev, "Cannot read idx-id!\n");
+			return -EINVAL;
+		}
+
+		hha_pmu->index_id = id;
 	}
 	/* HHA PMUs only share the same SCCL */
 	hha_pmu->ccl_id = -1;
@@ -215,6 +342,20 @@ static struct attribute *hisi_hha_pmu_v1_format_attr[] = {
 static const struct attribute_group hisi_hha_pmu_v1_format_group = {
 	.name = "format",
 	.attrs = hisi_hha_pmu_v1_format_attr,
+};
+
+static struct attribute *hisi_hha_pmu_v2_format_attr[] = {
+	HISI_PMU_FORMAT_ATTR(event, "config:0-7"),
+	HISI_PMU_FORMAT_ATTR(srcid_cmd, "config1:0-10"),
+	HISI_PMU_FORMAT_ATTR(srcid_msk, "config1:11-21"),
+	HISI_PMU_FORMAT_ATTR(tracetag_en, "config1:22"),
+	HISI_PMU_FORMAT_ATTR(datasrc_skt, "config1:23"),
+	NULL
+};
+
+static const struct attribute_group hisi_hha_pmu_v2_format_group = {
+	.name = "format",
+	.attrs = hisi_hha_pmu_v2_format_attr,
 };
 
 static struct attribute *hisi_hha_pmu_v1_events_attr[] = {
@@ -252,6 +393,20 @@ static const struct attribute_group hisi_hha_pmu_v1_events_group = {
 	.attrs = hisi_hha_pmu_v1_events_attr,
 };
 
+static struct attribute *hisi_hha_pmu_v2_events_attr[] = {
+	HISI_PMU_EVENT_ATTR(rx_ops_num,		0x00),
+	HISI_PMU_EVENT_ATTR(rx_outer,		0x01),
+	HISI_PMU_EVENT_ATTR(rx_sccl,		0x02),
+	HISI_PMU_EVENT_ATTR(hha_retry,		0x2e),
+	HISI_PMU_EVENT_ATTR(cycles,		0x55),
+	NULL
+};
+
+static const struct attribute_group hisi_hha_pmu_v2_events_group = {
+	.name = "events",
+	.attrs = hisi_hha_pmu_v2_events_attr,
+};
+
 static DEVICE_ATTR(cpumask, 0444, hisi_cpumask_sysfs_show, NULL);
 
 static struct attribute *hisi_hha_pmu_cpumask_attrs[] = {
@@ -283,6 +438,14 @@ static const struct attribute_group *hisi_hha_pmu_v1_attr_groups[] = {
 	NULL,
 };
 
+static const struct attribute_group *hisi_hha_pmu_v2_attr_groups[] = {
+	&hisi_hha_pmu_v2_format_group,
+	&hisi_hha_pmu_v2_events_group,
+	&hisi_hha_pmu_cpumask_attr_group,
+	&hisi_hha_pmu_identifier_group,
+	NULL
+};
+
 static const struct hisi_uncore_ops hisi_uncore_hha_ops = {
 	.write_evtype		= hisi_hha_pmu_write_evtype,
 	.get_event_idx		= hisi_uncore_pmu_get_event_idx,
@@ -296,6 +459,8 @@ static const struct hisi_uncore_ops hisi_uncore_hha_ops = {
 	.read_counter		= hisi_hha_pmu_read_counter,
 	.get_int_status		= hisi_hha_pmu_get_int_status,
 	.clear_int_status	= hisi_hha_pmu_clear_int_status,
+	.enable_filter		= hisi_hha_pmu_enable_filter,
+	.disable_filter		= hisi_hha_pmu_disable_filter,
 };
 
 static int hisi_hha_pmu_dev_probe(struct platform_device *pdev,
@@ -311,12 +476,20 @@ static int hisi_hha_pmu_dev_probe(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	hha_pmu->num_counters = HHA_V1_NR_COUNTERS;
-	hha_pmu->counter_bits = 48;
+	if (hha_pmu->identifier >= HISI_PMU_V2) {
+		hha_pmu->counter_bits = 64;
+		hha_pmu->check_event = HHA_V2_NR_EVENT;
+		hha_pmu->pmu_events.attr_groups = hisi_hha_pmu_v2_attr_groups;
+		hha_pmu->num_counters = HHA_V2_NR_COUNTERS;
+	} else {
+		hha_pmu->counter_bits = 48;
+		hha_pmu->check_event = HHA_V1_NR_EVENT;
+		hha_pmu->pmu_events.attr_groups = hisi_hha_pmu_v1_attr_groups;
+		hha_pmu->num_counters = HHA_V1_NR_COUNTERS;
+	}
 	hha_pmu->ops = &hisi_uncore_hha_ops;
 	hha_pmu->dev = &pdev->dev;
 	hha_pmu->on_cpu = -1;
-	hha_pmu->check_event = HHA_V1_NR_EVENT;
 
 	return 0;
 }
@@ -358,7 +531,7 @@ static int hisi_hha_pmu_probe(struct platform_device *pdev)
 		.start		= hisi_uncore_pmu_start,
 		.stop		= hisi_uncore_pmu_stop,
 		.read		= hisi_uncore_pmu_read,
-		.attr_groups	= hisi_hha_pmu_v1_attr_groups,
+		.attr_groups	= hha_pmu->pmu_events.attr_groups,
 		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
 	};
 
