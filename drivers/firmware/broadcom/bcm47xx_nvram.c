@@ -34,14 +34,20 @@ static char nvram_buf[NVRAM_SPACE];
 static size_t nvram_len;
 static const u32 nvram_sizes[] = {0x6000, 0x8000, 0xF000, 0x10000};
 
+/**
+ * bcm47xx_nvram_is_valid - check for a valid NVRAM at specified memory
+ */
+static bool bcm47xx_nvram_is_valid(void __iomem *nvram)
+{
+	return ((struct nvram_header *)nvram)->magic == NVRAM_MAGIC;
+}
+
 static u32 find_nvram_size(void __iomem *end)
 {
-	struct nvram_header __iomem *header;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(nvram_sizes); i++) {
-		header = (struct nvram_header *)(end - nvram_sizes[i]);
-		if (header->magic == NVRAM_MAGIC)
+		if (bcm47xx_nvram_is_valid(end - nvram_sizes[i]))
 			return nvram_sizes[i];
 	}
 
@@ -55,6 +61,7 @@ static int bcm47xx_nvram_find_and_copy(void __iomem *flash_start, size_t res_siz
 {
 	struct nvram_header __iomem *header;
 	size_t flash_size;
+	size_t offset;
 	u32 size;
 
 	if (nvram_len) {
@@ -68,31 +75,30 @@ static int bcm47xx_nvram_find_and_copy(void __iomem *flash_start, size_t res_siz
 		/* Windowed flash access */
 		size = find_nvram_size(flash_start + flash_size);
 		if (size) {
-			header = (struct nvram_header *)(flash_start + flash_size - size);
+			offset = flash_size - size;
 			goto found;
 		}
 		flash_size <<= 1;
 	}
 
 	/* Try embedded NVRAM at 4 KB and 1 KB as last resorts */
-	header = (struct nvram_header *)(flash_start + 4096);
-	if (header->magic == NVRAM_MAGIC) {
-		size = NVRAM_SPACE;
-		goto found;
-	}
 
-	header = (struct nvram_header *)(flash_start + 1024);
-	if (header->magic == NVRAM_MAGIC) {
-		size = NVRAM_SPACE;
+	offset = 4096;
+	if (bcm47xx_nvram_is_valid(flash_start + offset))
 		goto found;
-	}
+
+	offset = 1024;
+	if (bcm47xx_nvram_is_valid(flash_start + offset))
+		goto found;
 
 	pr_err("no nvram found\n");
 	return -ENXIO;
 
 found:
+	header = (struct nvram_header *)(flash_start + offset);
 	__ioread32_copy(nvram_buf, header, sizeof(*header) / 4);
 	nvram_len = ((struct nvram_header *)(nvram_buf))->len;
+	size = res_size - offset;
 	if (nvram_len > size) {
 		pr_err("The nvram size according to the header seems to be bigger than the partition on flash\n");
 		nvram_len = size;
