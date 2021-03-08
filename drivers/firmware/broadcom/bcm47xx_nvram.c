@@ -55,11 +55,34 @@ static u32 find_nvram_size(void __iomem *end)
 }
 
 /**
+ * bcm47xx_nvram_copy - copy NVRAM to internal buffer
+ */
+static void bcm47xx_nvram_copy(void __iomem *nvram_start, size_t res_size)
+{
+	struct nvram_header __iomem *header = nvram_start;
+	size_t copy_size;
+
+	copy_size = header->len;
+	if (copy_size > res_size) {
+		pr_err("The nvram size according to the header seems to be bigger than the partition on flash\n");
+		copy_size = res_size;
+	}
+	if (copy_size >= NVRAM_SPACE) {
+		pr_err("nvram on flash (%zu bytes) is bigger than the reserved space in memory, will just copy the first %i bytes\n",
+		       copy_size, NVRAM_SPACE - 1);
+		copy_size = NVRAM_SPACE - 1;
+	}
+
+	__ioread32_copy(nvram_buf, nvram_start, DIV_ROUND_UP(copy_size, 4));
+	nvram_buf[NVRAM_SPACE - 1] = '\0';
+	nvram_len = copy_size;
+}
+
+/**
  * bcm47xx_nvram_find_and_copy - find NVRAM on flash mapping & copy it
  */
 static int bcm47xx_nvram_find_and_copy(void __iomem *flash_start, size_t res_size)
 {
-	struct nvram_header __iomem *header;
 	size_t flash_size;
 	size_t offset;
 	u32 size;
@@ -95,23 +118,7 @@ static int bcm47xx_nvram_find_and_copy(void __iomem *flash_start, size_t res_siz
 	return -ENXIO;
 
 found:
-	header = (struct nvram_header *)(flash_start + offset);
-	__ioread32_copy(nvram_buf, header, sizeof(*header) / 4);
-	nvram_len = ((struct nvram_header *)(nvram_buf))->len;
-	size = res_size - offset;
-	if (nvram_len > size) {
-		pr_err("The nvram size according to the header seems to be bigger than the partition on flash\n");
-		nvram_len = size;
-	}
-	if (nvram_len >= NVRAM_SPACE) {
-		pr_err("nvram on flash (%zu bytes) is bigger than the reserved space in memory, will just copy the first %i bytes\n",
-		       nvram_len, NVRAM_SPACE - 1);
-		nvram_len = NVRAM_SPACE - 1;
-	}
-	/* proceed reading data after header */
-	__ioread32_copy(nvram_buf + sizeof(*header), header + 1,
-			DIV_ROUND_UP(nvram_len, 4));
-	nvram_buf[NVRAM_SPACE - 1] = '\0';
+	bcm47xx_nvram_copy(flash_start + offset, res_size - offset);
 
 	return 0;
 }
