@@ -5488,7 +5488,7 @@ dm_crtc_duplicate_state(struct drm_crtc *crtc)
 }
 
 #ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
-int amdgpu_dm_crtc_late_register(struct drm_crtc *crtc)
+static int amdgpu_dm_crtc_late_register(struct drm_crtc *crtc)
 {
 	crtc_debugfs_init(crtc);
 
