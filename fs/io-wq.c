@@ -110,7 +110,6 @@ struct io_wq {
 	io_wq_work_fn *do_work;
 
 	struct task_struct *manager;
-	struct user_struct *user;
 
 	struct io_wq_hash *hash;
 
