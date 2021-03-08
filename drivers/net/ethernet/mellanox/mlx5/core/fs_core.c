@@ -38,6 +38,7 @@
 #include "mlx5_core.h"
 #include "fs_core.h"
 #include "fs_cmd.h"
+#include "fs_ft_pool.h"
 #include "diag/fs_tracepoint.h"
 #include "accel/ipsec.h"
 #include "fpga/ipsec.h"
@@ -1166,6 +1167,8 @@ mlx5_create_lag_demux_flow_table(struct mlx5_flow_namespace *ns,
 
 	ft_attr.level = level;
 	ft_attr.prio  = prio;
+	ft_attr.max_fte = 1;
+
 	return __mlx5_create_flow_table(ns, &ft_attr, FS_FT_OP_MOD_LAG_DEMUX, 0);
 }
 EXPORT_SYMBOL(mlx5_create_lag_demux_flow_table);
@@ -1175,18 +1178,19 @@ mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
 				    struct mlx5_flow_table_attr *ft_attr)
 {
 	int num_reserved_entries = ft_attr->autogroup.num_reserved_entries;
-	int autogroups_max_fte = ft_attr->max_fte - num_reserved_entries;
 	int max_num_groups = ft_attr->autogroup.max_num_groups;
 	struct mlx5_flow_table *ft;
-
-	if (max_num_groups > autogroups_max_fte)
-		return ERR_PTR(-EINVAL);
-	if (num_reserved_entries > ft_attr->max_fte)
-		return ERR_PTR(-EINVAL);
+	int autogroups_max_fte;
 
 	ft = mlx5_create_flow_table(ns, ft_attr);
 	if (IS_ERR(ft))
 		return ft;
+
+	autogroups_max_fte = ft->max_fte - num_reserved_entries;
+	if (max_num_groups > autogroups_max_fte)
+		goto err_validate;
+	if (num_reserved_entries > ft->max_fte)
+		goto err_validate;
 
 	ft->autogroup.active = true;
 	ft->autogroup.required_groups = max_num_groups;
@@ -1195,6 +1199,10 @@ mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
 	ft->autogroup.group_size = autogroups_max_fte / (max_num_groups + 1);
 
 	return ft;
+
+err_validate:
+	mlx5_destroy_flow_table(ft);
+	return ERR_PTR(-ENOSPC);
 }
 EXPORT_SYMBOL(mlx5_create_auto_grouped_flow_table);
 
@@ -2588,6 +2596,7 @@ void mlx5_cleanup_fs(struct mlx5_core_dev *dev)
 	mlx5_cleanup_fc_stats(dev);
 	kmem_cache_destroy(steering->ftes_cache);
 	kmem_cache_destroy(steering->fgs_cache);
+	mlx5_ft_pool_destroy(dev);
 	kfree(steering);
 }
 
@@ -2938,9 +2947,13 @@ int mlx5_init_fs(struct mlx5_core_dev *dev)
 	if (err)
 		return err;
 
+	err = mlx5_ft_pool_init(dev);
+	if (err)
+		return err;
+
 	steering = kzalloc(sizeof(*steering), GFP_KERNEL);
 	if (!steering)
-		return -ENOMEM;
+		goto err;
 	steering->dev = dev;
 	dev->priv.steering = steering;
 
