@@ -69,6 +69,12 @@ config ROCKCHIP_DW_MIPI_DSI
 	  enable MIPI DSI on RK3288 or RK3399 based SoC, you should
 	  select this option.
 
+config ROCKCHIP_DW_DP
+	bool "Rockchip specific extensions for Synopsys DW DPTX"
+	help
+	  Choose this option for Synopsys DesignWare Cores DisplayPort
+	  transmit controller support on Rockchip SoC.
+
 config ROCKCHIP_INNO_HDMI
 	bool "Rockchip specific extensions for Innosilicon HDMI"
 	help
