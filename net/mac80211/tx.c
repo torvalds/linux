@@ -4162,6 +4162,9 @@ static bool ieee80211_tx_8023(struct ieee80211_sub_if_data *sdata,
 	unsigned long flags;
 	int q = info->hw_queue;
 
+	if (sta)
+		sk_pacing_shift_update(skb->sk, local->hw.tx_sk_pacing_shift);
+
 	if (ieee80211_queue_skb(local, sdata, sta, skb))
 		return true;
 
