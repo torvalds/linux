@@ -144,6 +144,7 @@
   cfg80211_unlink_bss
   cfg80211_update_owe_info_event
   cfg80211_vendor_cmd_reply
+  __cfi_slowpath
   cgroup_path_ns
   cgroup_taskset_first
   cgroup_taskset_next
