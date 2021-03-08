@@ -13,6 +13,8 @@
 #include <dt-bindings/clock/rk3568-cru.h>
 #include "clk.h"
 
+#define RK3568_GRF_SOC_CON1	0x504
+#define RK3568_GRF_SOC_CON2	0x508
 #define RK3568_GRF_SOC_STATUS0	0x580
 #define RK3568_PMU_GRF_SOC_CON0	0x100
 
@@ -276,13 +278,13 @@ PNAME(dpll_gpll_cpll_p)			= { "dpll", "gpll", "cpll" };
 PNAME(clk_ddr1x_p)			= { "clk_ddrphy1x_src", "dpll" };
 PNAME(gpll200_gpll150_gpll100_xin24m_p)	= { "gpll_200m", "gpll_150m", "gpll_100m", "xin24m" };
 PNAME(gpll100_gpll75_gpll50_p)		= { "gpll_100m", "gpll_75m", "cpll_50m" };
-PNAME(i2s0_mclkout_tx_p)		= { "clk_i2s0_8ch_tx", "xin_osc0_half" };
-PNAME(i2s0_mclkout_rx_p)		= { "clk_i2s0_8ch_rx", "xin_osc0_half" };
-PNAME(i2s1_mclkout_tx_p)		= { "clk_i2s1_8ch_tx", "xin_osc0_half" };
-PNAME(i2s1_mclkout_rx_p)		= { "clk_i2s1_8ch_rx", "xin_osc0_half" };
-PNAME(i2s2_mclkout_p)			= { "clk_i2s2_2ch", "xin_osc0_half" };
-PNAME(i2s3_mclkout_tx_p)		= { "clk_i2s3_2ch_tx", "xin_osc0_half" };
-PNAME(i2s3_mclkout_rx_p)		= { "clk_i2s3_2ch_rx", "xin_osc0_half" };
+PNAME(i2s0_mclkout_tx_p)		= { "mclk_i2s0_8ch_tx", "xin_osc0_half" };
+PNAME(i2s0_mclkout_rx_p)		= { "mclk_i2s0_8ch_rx", "xin_osc0_half" };
+PNAME(i2s1_mclkout_tx_p)		= { "mclk_i2s1_8ch_tx", "xin_osc0_half" };
+PNAME(i2s1_mclkout_rx_p)		= { "mclk_i2s1_8ch_rx", "xin_osc0_half" };
+PNAME(i2s2_mclkout_p)			= { "mclk_i2s2_2ch", "xin_osc0_half" };
+PNAME(i2s3_mclkout_tx_p)		= { "mclk_i2s3_2ch_tx", "xin_osc0_half" };
+PNAME(i2s3_mclkout_rx_p)		= { "mclk_i2s3_2ch_rx", "xin_osc0_half" };
 PNAME(mclk_pdm_p)			= { "gpll_300m", "cpll_250m", "gpll_200m", "gpll_100m" };
 PNAME(clk_i2c_p)			= { "gpll_200m", "gpll_100m", "xin24m", "cpll_100m" };
 PNAME(gpll200_gpll150_gpll100_p)	= { "gpll_200m", "gpll_150m", "gpll_100m" };
@@ -337,6 +339,12 @@ PNAME(clk_pwm0_p)			= { "xin24m", "clk_pdpmu" };
 PNAME(aclk_rkvdec_pre_p)		= { "gpll", "cpll" };
 PNAME(clk_rkvdec_core_p)		= { "gpll", "cpll", "dummy_npll", "dummy_vpll" };
 PNAME(clk_32k_ioe_p)			= { "clk_rtc_32k", "xin32k" };
+PNAME(i2s1_mclkout_p)			= { "i2s1_mclkout_rx", "i2s1_mclkout_tx" };
+PNAME(i2s3_mclkout_p)			= { "i2s3_mclkout_rx", "i2s3_mclkout_tx" };
+PNAME(i2s1_mclk_rx_ioe_p)		= { "i2s1_mclkin_rx", "i2s1_mclkout_rx" };
+PNAME(i2s1_mclk_tx_ioe_p)		= { "i2s1_mclkin_tx", "i2s1_mclkout_tx" };
+PNAME(i2s2_mclk_ioe_p)			= { "i2s2_mclkin", "i2s2_mclkout" };
+PNAME(i2s3_mclk_ioe_p)			= { "i2s3_mclkin", "i2s3_mclkout" };
 
 static struct rockchip_pll_clock rk3568_pmu_pll_clks[] __initdata = {
 	[ppll] = PLL(pll_rk3328, PLL_PPLL, "ppll",  mux_pll_p,
@@ -742,6 +750,19 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 	COMPOSITE_NODIV(I2S3_MCLKOUT_RX, "i2s3_mclkout_rx", i2s3_mclkout_rx_p, CLK_SET_RATE_PARENT,
 			RK3568_CLKSEL_CON(83), 15, 1, MFLAGS,
 			RK3568_CLKGATE_CON(7), 11, GFLAGS),
+
+	MUXGRF(I2S1_MCLKOUT, "i2s1_mclkout", i2s1_mclkout_p,  CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+			RK3568_GRF_SOC_CON1, 5, 1, MFLAGS),
+	MUXGRF(I2S3_MCLKOUT, "i2s3_mclkout", i2s3_mclkout_p,  CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+			RK3568_GRF_SOC_CON2, 15, 1, MFLAGS),
+	MUXGRF(I2S1_MCLK_RX_IOE, "i2s1_mclk_rx_ioe", i2s1_mclk_rx_ioe_p,  0,
+			RK3568_GRF_SOC_CON2, 0, 1, MFLAGS),
+	MUXGRF(I2S1_MCLK_TX_IOE, "i2s1_mclk_tx_ioe", i2s1_mclk_tx_ioe_p,  0,
+			RK3568_GRF_SOC_CON2, 1, 1, MFLAGS),
+	MUXGRF(I2S2_MCLK_IOE, "i2s2_mclk_ioe", i2s2_mclk_ioe_p,  0,
+			RK3568_GRF_SOC_CON2, 2, 1, MFLAGS),
+	MUXGRF(I2S3_MCLK_IOE, "i2s3_mclk_ioe", i2s3_mclk_ioe_p,  0,
+			RK3568_GRF_SOC_CON2, 3, 1, MFLAGS),
 
 	GATE(HCLK_PDM, "hclk_pdm", "hclk_gic_audio", 0,
 			RK3568_CLKGATE_CON(5), 14, GFLAGS),
