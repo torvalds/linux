@@ -185,6 +185,28 @@ mlx5_tc_ct_entry_has_nat(struct mlx5_ct_entry *entry)
 }
 
 static int
+mlx5_get_label_mapping(struct mlx5_tc_ct_priv *ct_priv,
+		       u32 *labels, u32 *id)
+{
+	if (!memchr_inv(labels, 0, sizeof(u32) * 4)) {
+		*id = 0;
+		return 0;
+	}
+
+	if (mapping_add(ct_priv->labels_mapping, labels, id))
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
+static void
+mlx5_put_label_mapping(struct mlx5_tc_ct_priv *ct_priv, u32 id)
+{
+	if (id)
+		mapping_remove(ct_priv->labels_mapping, id);
+}
+
+static int
 mlx5_tc_ct_rule_to_tuple(struct mlx5_ct_tuple *tuple, struct flow_rule *rule)
 {
 	struct flow_match_control control;
@@ -435,7 +457,7 @@ mlx5_tc_ct_entry_del_rule(struct mlx5_tc_ct_priv *ct_priv,
 	mlx5_tc_rule_delete(netdev_priv(ct_priv->netdev), zone_rule->rule, attr);
 	mlx5e_mod_hdr_detach(ct_priv->dev,
 			     ct_priv->mod_hdr_tbl, zone_rule->mh);
-	mapping_remove(ct_priv->labels_mapping, attr->ct_attr.ct_labels_id);
+	mlx5_put_label_mapping(ct_priv, attr->ct_attr.ct_labels_id);
 	kfree(attr);
 }
 
@@ -638,8 +660,8 @@ mlx5_tc_ct_entry_create_mod_hdr(struct mlx5_tc_ct_priv *ct_priv,
 	if (!meta)
 		return -EOPNOTSUPP;
 
-	err = mapping_add(ct_priv->labels_mapping, meta->ct_metadata.labels,
-			  &attr->ct_attr.ct_labels_id);
+	err = mlx5_get_label_mapping(ct_priv, meta->ct_metadata.labels,
+				     &attr->ct_attr.ct_labels_id);
 	if (err)
 		return -EOPNOTSUPP;
 	if (nat) {
@@ -675,7 +697,7 @@ mlx5_tc_ct_entry_create_mod_hdr(struct mlx5_tc_ct_priv *ct_priv,
 
 err_mapping:
 	dealloc_mod_hdr_actions(&mod_acts);
-	mapping_remove(ct_priv->labels_mapping, attr->ct_attr.ct_labels_id);
+	mlx5_put_label_mapping(ct_priv, attr->ct_attr.ct_labels_id);
 	return err;
 }
 
@@ -743,7 +765,7 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 err_rule:
 	mlx5e_mod_hdr_detach(ct_priv->dev,
 			     ct_priv->mod_hdr_tbl, zone_rule->mh);
-	mapping_remove(ct_priv->labels_mapping, attr->ct_attr.ct_labels_id);
+	mlx5_put_label_mapping(ct_priv, attr->ct_attr.ct_labels_id);
 err_mod_hdr:
 	kfree(attr);
 err_attr:
@@ -1198,7 +1220,7 @@ void mlx5_tc_ct_match_del(struct mlx5_tc_ct_priv *priv, struct mlx5_ct_attr *ct_
 	if (!priv || !ct_attr->ct_labels_id)
 		return;
 
-	mapping_remove(priv->labels_mapping, ct_attr->ct_labels_id);
+	mlx5_put_label_mapping(priv, ct_attr->ct_labels_id);
 }
 
 int
@@ -1276,7 +1298,7 @@ mlx5_tc_ct_match_add(struct mlx5_tc_ct_priv *priv,
 		ct_labels[1] = key->ct_labels[1] & mask->ct_labels[1];
 		ct_labels[2] = key->ct_labels[2] & mask->ct_labels[2];
 		ct_labels[3] = key->ct_labels[3] & mask->ct_labels[3];
-		if (mapping_add(priv->labels_mapping, ct_labels, &ct_attr->ct_labels_id))
+		if (mlx5_get_label_mapping(priv, ct_labels, &ct_attr->ct_labels_id))
 			return -EOPNOTSUPP;
 		mlx5e_tc_match_to_reg_match(spec, LABELS_TO_REG, ct_attr->ct_labels_id,
 					    MLX5_CT_LABELS_MASK);
