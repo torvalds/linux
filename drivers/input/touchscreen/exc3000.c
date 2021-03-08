@@ -263,6 +263,20 @@ static ssize_t fw_version_show(struct device *dev,
 	u8 response[EXC3000_LEN_FRAME];
 	int ret;
 
+	/* query bootloader info */
+	ret = exc3000_vendor_data_request(data,
+					  (u8[]){0x39, 0x02}, 2, response, 1);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * If the bootloader version is non-zero then the device is in
+	 * bootloader mode and won't answer a query for the application FW
+	 * version, so we just use the bootloader version info.
+	 */
+	if (response[2] || response[3])
+		return sprintf(buf, "%d.%d\n", response[2], response[3]);
+
 	ret = exc3000_vendor_data_request(data, (u8[]){'D'}, 1, response, 1);
 	if (ret < 0)
 		return ret;
