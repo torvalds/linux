@@ -37,6 +37,7 @@
 
 #define L3C_PERF_CTRL_EN	0x10000
 #define L3C_EVTYPE_NONE		0xff
+#define L3C_V1_NR_EVENTS	0x59
 
 /*
  * Select the counter register offset using the counter index
@@ -209,17 +210,17 @@ static int hisi_l3c_pmu_init_data(struct platform_device *pdev,
 	return 0;
 }
 
-static struct attribute *hisi_l3c_pmu_format_attr[] = {
+static struct attribute *hisi_l3c_pmu_v1_format_attr[] = {
 	HISI_PMU_FORMAT_ATTR(event, "config:0-7"),
 	NULL,
 };
 
-static const struct attribute_group hisi_l3c_pmu_format_group = {
+static const struct attribute_group hisi_l3c_pmu_v1_format_group = {
 	.name = "format",
-	.attrs = hisi_l3c_pmu_format_attr,
+	.attrs = hisi_l3c_pmu_v1_format_attr,
 };
 
-static struct attribute *hisi_l3c_pmu_events_attr[] = {
+static struct attribute *hisi_l3c_pmu_v1_events_attr[] = {
 	HISI_PMU_EVENT_ATTR(rd_cpipe,		0x00),
 	HISI_PMU_EVENT_ATTR(wr_cpipe,		0x01),
 	HISI_PMU_EVENT_ATTR(rd_hit_cpipe,	0x02),
@@ -236,9 +237,9 @@ static struct attribute *hisi_l3c_pmu_events_attr[] = {
 	NULL,
 };
 
-static const struct attribute_group hisi_l3c_pmu_events_group = {
+static const struct attribute_group hisi_l3c_pmu_v1_events_group = {
 	.name = "events",
-	.attrs = hisi_l3c_pmu_events_attr,
+	.attrs = hisi_l3c_pmu_v1_events_attr,
 };
 
 static DEVICE_ATTR(cpumask, 0444, hisi_cpumask_sysfs_show, NULL);
@@ -264,9 +265,9 @@ static const struct attribute_group hisi_l3c_pmu_identifier_group = {
 	.attrs = hisi_l3c_pmu_identifier_attrs,
 };
 
-static const struct attribute_group *hisi_l3c_pmu_attr_groups[] = {
-	&hisi_l3c_pmu_format_group,
-	&hisi_l3c_pmu_events_group,
+static const struct attribute_group *hisi_l3c_pmu_v1_attr_groups[] = {
+	&hisi_l3c_pmu_v1_format_group,
+	&hisi_l3c_pmu_v1_events_group,
 	&hisi_l3c_pmu_cpumask_attr_group,
 	&hisi_l3c_pmu_identifier_group,
 	NULL,
@@ -305,7 +306,7 @@ static int hisi_l3c_pmu_dev_probe(struct platform_device *pdev,
 	l3c_pmu->ops = &hisi_uncore_l3c_ops;
 	l3c_pmu->dev = &pdev->dev;
 	l3c_pmu->on_cpu = -1;
-	l3c_pmu->check_event = 0x59;
+	l3c_pmu->check_event = L3C_V1_NR_EVENTS;
 
 	return 0;
 }
@@ -347,7 +348,7 @@ static int hisi_l3c_pmu_probe(struct platform_device *pdev)
 		.start		= hisi_uncore_pmu_start,
 		.stop		= hisi_uncore_pmu_stop,
 		.read		= hisi_uncore_pmu_read,
-		.attr_groups	= hisi_l3c_pmu_attr_groups,
+		.attr_groups	= hisi_l3c_pmu_v1_attr_groups,
 		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
 	};
 

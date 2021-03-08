@@ -33,10 +33,11 @@
 #define HHA_CNT0_LOWER		0x1F00
 
 /* HHA has 16-counters */
-#define HHA_NR_COUNTERS		0x10
+#define HHA_V1_NR_COUNTERS	0x10
 
 #define HHA_PERF_CTRL_EN	0x1
 #define HHA_EVTYPE_NONE		0xff
+#define HHA_V1_NR_EVENT		0x65
 
 /*
  * Select the counter register offset using the counter index
@@ -206,17 +207,17 @@ static int hisi_hha_pmu_init_data(struct platform_device *pdev,
 	return 0;
 }
 
-static struct attribute *hisi_hha_pmu_format_attr[] = {
+static struct attribute *hisi_hha_pmu_v1_format_attr[] = {
 	HISI_PMU_FORMAT_ATTR(event, "config:0-7"),
 	NULL,
 };
 
-static const struct attribute_group hisi_hha_pmu_format_group = {
+static const struct attribute_group hisi_hha_pmu_v1_format_group = {
 	.name = "format",
-	.attrs = hisi_hha_pmu_format_attr,
+	.attrs = hisi_hha_pmu_v1_format_attr,
 };
 
-static struct attribute *hisi_hha_pmu_events_attr[] = {
+static struct attribute *hisi_hha_pmu_v1_events_attr[] = {
 	HISI_PMU_EVENT_ATTR(rx_ops_num,		0x00),
 	HISI_PMU_EVENT_ATTR(rx_outer,		0x01),
 	HISI_PMU_EVENT_ATTR(rx_sccl,		0x02),
@@ -246,9 +247,9 @@ static struct attribute *hisi_hha_pmu_events_attr[] = {
 	NULL,
 };
 
-static const struct attribute_group hisi_hha_pmu_events_group = {
+static const struct attribute_group hisi_hha_pmu_v1_events_group = {
 	.name = "events",
-	.attrs = hisi_hha_pmu_events_attr,
+	.attrs = hisi_hha_pmu_v1_events_attr,
 };
 
 static DEVICE_ATTR(cpumask, 0444, hisi_cpumask_sysfs_show, NULL);
@@ -274,9 +275,9 @@ static const struct attribute_group hisi_hha_pmu_identifier_group = {
 	.attrs = hisi_hha_pmu_identifier_attrs,
 };
 
-static const struct attribute_group *hisi_hha_pmu_attr_groups[] = {
-	&hisi_hha_pmu_format_group,
-	&hisi_hha_pmu_events_group,
+static const struct attribute_group *hisi_hha_pmu_v1_attr_groups[] = {
+	&hisi_hha_pmu_v1_format_group,
+	&hisi_hha_pmu_v1_events_group,
 	&hisi_hha_pmu_cpumask_attr_group,
 	&hisi_hha_pmu_identifier_group,
 	NULL,
@@ -310,12 +311,12 @@ static int hisi_hha_pmu_dev_probe(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	hha_pmu->num_counters = HHA_NR_COUNTERS;
+	hha_pmu->num_counters = HHA_V1_NR_COUNTERS;
 	hha_pmu->counter_bits = 48;
 	hha_pmu->ops = &hisi_uncore_hha_ops;
 	hha_pmu->dev = &pdev->dev;
 	hha_pmu->on_cpu = -1;
-	hha_pmu->check_event = 0x65;
+	hha_pmu->check_event = HHA_V1_NR_EVENT;
 
 	return 0;
 }
@@ -357,7 +358,7 @@ static int hisi_hha_pmu_probe(struct platform_device *pdev)
 		.start		= hisi_uncore_pmu_start,
 		.stop		= hisi_uncore_pmu_stop,
 		.read		= hisi_uncore_pmu_read,
-		.attr_groups	= hisi_hha_pmu_attr_groups,
+		.attr_groups	= hisi_hha_pmu_v1_attr_groups,
 		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
 	};
 
