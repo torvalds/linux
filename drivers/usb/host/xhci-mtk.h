@@ -84,7 +84,7 @@ struct mu3h_sch_ep_info {
 	struct mu3h_sch_tt *sch_tt;
 	u32 ep_type;
 	u32 maxpkt;
-	void *ep;
+	struct usb_host_endpoint *ep;
 	bool allocated;
 	/*
 	 * mtk xHCI scheduling information put into reserved DWs
