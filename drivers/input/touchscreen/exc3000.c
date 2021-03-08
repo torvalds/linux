@@ -301,9 +301,26 @@ static ssize_t model_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(model);
 
+static ssize_t type_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct exc3000_data *data = i2c_get_clientdata(client);
+	u8 response[EXC3000_LEN_FRAME];
+	int ret;
+
+	ret = exc3000_vendor_data_request(data, (u8[]){'F'}, 1, response, 1);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%s\n", &response[1]);
+}
+static DEVICE_ATTR_RO(type);
+
 static struct attribute *sysfs_attrs[] = {
 	&dev_attr_fw_version.attr,
 	&dev_attr_model.attr,
+	&dev_attr_type.attr,
 	NULL
 };
 
