@@ -263,10 +263,10 @@ int i2400m_barker_db_add(u32 barker_id)
 			return result;
 	}
 	barker = i2400m_barker_db + i2400m_barker_db_used++;
-	barker->data[0] = le32_to_cpu(barker_id);
-	barker->data[1] = le32_to_cpu(barker_id);
-	barker->data[2] = le32_to_cpu(barker_id);
-	barker->data[3] = le32_to_cpu(barker_id);
+	barker->data[0] = cpu_to_le32(barker_id);
+	barker->data[1] = cpu_to_le32(barker_id);
+	barker->data[2] = cpu_to_le32(barker_id);
+	barker->data[3] = cpu_to_le32(barker_id);
 	return 0;
 }
 
