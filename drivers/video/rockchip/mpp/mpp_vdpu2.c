@@ -222,7 +222,6 @@ static int vdpu_process_reg_fd(struct mpp_session *session,
 			fd = task->reg[idx] & 0x3ff;
 			offset = task->reg[idx] >> 10 << 4;
 		}
-		offset += mpp_query_reg_offset_info(&task->off_inf, idx);
 		mem_region = mpp_task_attach_fd(&task->mpp_task, fd);
 		if (IS_ERR(mem_region))
 			return -EFAULT;
