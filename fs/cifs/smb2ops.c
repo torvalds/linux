@@ -746,6 +746,9 @@ int open_shroot(unsigned int xid, struct cifs_tcon *tcon,
 	u8 oplock = SMB2_OPLOCK_LEVEL_II;
 	struct cifs_fid *pfid;
 
+	if (tcon->nohandlecache)
+		return -ENOTSUPP;
+
 	mutex_lock(&tcon->crfid.fid_mutex);
 	if (tcon->crfid.is_valid) {
 		cifs_dbg(FYI, "found a cached root file handle\n");
@@ -914,7 +917,6 @@ smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon,
 	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
-	bool no_cached_open = tcon->nohandlecache;
 	struct cached_fid *cfid = NULL;
 
 	oparms.tcon = tcon;
@@ -924,14 +926,12 @@ smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon,
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	if (no_cached_open) {
+	rc = open_shroot(xid, tcon, cifs_sb, &cfid);
+	if (rc == 0)
+		memcpy(&fid, cfid->fid, sizeof(struct cifs_fid));
+	else
 		rc = SMB2_open(xid, &oparms, &srch_path, &oplock, NULL, NULL,
 			       NULL, NULL);
-	} else {
-		rc = open_shroot(xid, tcon, cifs_sb, &cfid);
-		if (rc == 0)
-			memcpy(&fid, cfid->fid, sizeof(struct cifs_fid));
-	}
 	if (rc)
 		return;
 
@@ -945,7 +945,7 @@ smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon,
 			FS_VOLUME_INFORMATION);
 	SMB2_QFS_attr(xid, tcon, fid.persistent_fid, fid.volatile_fid,
 			FS_SECTOR_SIZE_INFORMATION); /* SMB3 specific */
-	if (no_cached_open)
+	if (cfid == NULL)
 		SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
 	else
 		close_shroot(cfid);
