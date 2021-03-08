@@ -257,10 +257,27 @@ out_no_root:
 static void cifs_kill_sb(struct super_block *sb)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+	struct cifs_tcon *tcon;
+	struct cached_fid *cfid;
 
+	/*
+	 * We ned to release all dentries for the cached directories
+	 * before we kill the sb.
+	 */
 	if (cifs_sb->root) {
 		dput(cifs_sb->root);
 		cifs_sb->root = NULL;
+	}
+	tcon = cifs_sb_master_tcon(cifs_sb);
+	if (tcon) {
+		cfid = &tcon->crfid;
+		mutex_lock(&cfid->fid_mutex);
+		if (cfid->dentry) {
+
+			dput(cfid->dentry);
+			cfid->dentry = NULL;
+		}
+		mutex_unlock(&cfid->fid_mutex);
 	}
 
 	kill_anon_super(sb);

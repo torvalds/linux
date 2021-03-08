@@ -690,6 +690,10 @@ smb2_close_cached_fid(struct kref *ref)
 		cfid->is_valid = false;
 		cfid->file_all_info_is_valid = false;
 		cfid->has_lease = false;
+		if (cfid->dentry) {
+			dput(cfid->dentry);
+			cfid->dentry = NULL;
+		}
 	}
 }
 
@@ -747,6 +751,7 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	__le16 utf16_path = 0; /* Null - since an open of top of share */
 	u8 oplock = SMB2_OPLOCK_LEVEL_II;
 	struct cifs_fid *pfid;
+	struct dentry *dentry;
 
 	if (tcon->nohandlecache)
 		return -ENOTSUPP;
@@ -756,6 +761,8 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 
 	if (strlen(path))
 		return -ENOENT;
+
+	dentry = cifs_sb->root;
 
 	mutex_lock(&tcon->crfid.fid_mutex);
 	if (tcon->crfid.is_valid) {
@@ -881,6 +888,8 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	memcpy(tcon->crfid.fid, pfid, sizeof(struct cifs_fid));
 	tcon->crfid.tcon = tcon;
 	tcon->crfid.is_valid = true;
+	tcon->crfid.dentry = dentry;
+	dget(dentry);
 	kref_init(&tcon->crfid.refcount);
 
 	/* BB TBD check to see if oplock level check can be removed below */

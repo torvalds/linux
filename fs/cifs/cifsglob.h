@@ -992,6 +992,7 @@ struct cached_fid {
 	struct cifs_fid *fid;
 	struct mutex fid_mutex;
 	struct cifs_tcon *tcon;
+	struct dentry *dentry;
 	struct work_struct lease_break;
 	struct smb2_file_all_info file_all_info;
 };
