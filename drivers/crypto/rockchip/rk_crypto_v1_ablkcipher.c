@@ -280,7 +280,7 @@ static void rk_iv_copyback(struct rk_crypto_info *dev)
 	u32 ivsize = crypto_ablkcipher_ivsize(tfm);
 
 	/* Update the IV buffer to contain the next IV for encryption mode. */
-	if (!(ctx->mode & RK_CRYPTO_DEC)) {
+	if (!(ctx->mode & RK_CRYPTO_DEC) && req->info) {
 		if (dev->aligned) {
 			memcpy(req->info, sg_virt(dev->sg_dst) +
 				dev->sg_dst->length - ivsize, ivsize);

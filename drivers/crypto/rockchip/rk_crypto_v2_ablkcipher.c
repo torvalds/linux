@@ -8,7 +8,6 @@
  *
  * Some ideas are from marvell-cesa.c and s5p-sss.c driver.
  */
-
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
@@ -94,6 +93,9 @@ static void set_iv_reg(struct rk_crypto_info *dev, const u8 *iv, u32 iv_len)
 	u32 i;
 	u8 tmp_buf[4];
 	u32 base_iv;
+
+	if (!iv || iv_len == 0)
+		return;
 
 	base_iv = CRYPTO_CH0_IV_0;
 	/* write iv data to reg */
@@ -438,7 +440,7 @@ static void rk_iv_copyback(struct rk_crypto_info *dev)
 	u32 ivsize = crypto_ablkcipher_ivsize(tfm);
 
 	/* Update the IV buffer to contain the next IV for encryption mode. */
-	if (!IS_BC_DECRYPT(ctx->mode)) {
+	if (!IS_BC_DECRYPT(ctx->mode) && req->info) {
 		if (dev->aligned) {
 			memcpy(req->info, sg_virt(dev->sg_dst) +
 				dev->count - ivsize, ivsize);
