@@ -97,7 +97,7 @@ static int mlx5_cmd_dr_create_flow_table(struct mlx5_flow_root_namespace *ns,
 		}
 	}
 
-	ft->max_fte = size ? roundup_pow_of_two(size) : 1;
+	ft->max_fte = INT_MAX;
 
 	return 0;
 }
