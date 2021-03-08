@@ -3353,12 +3353,6 @@ static void walt_irq_work(struct irq_work *irq_work)
 		for_each_cpu(cpu, &cluster_online_cpus) {
 			int wflag = 0;
 
-			/*
-			 * FIXME:
-			 *
-			 * For now supporting both schedutil and waltgov.
-			 * This is not by design but for convenience.
-			 */
 			rq = cpu_rq(cpu);
 			wrq = (struct walt_rq *) rq->android_vendor_data1;
 

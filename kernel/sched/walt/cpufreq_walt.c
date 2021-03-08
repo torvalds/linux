@@ -203,11 +203,6 @@ static unsigned int get_next_freq(struct waltgov_policy *wg_policy,
 				  unsigned long util, unsigned long max)
 {
 	struct cpufreq_policy *policy = wg_policy->policy;
-	/*
-	 * TODO:
-		unsigned int freq = arch_scale_freq_invariant() ?
-				policy->cpuinfo.max_freq : policy->cur;
-	 */
 	unsigned int freq = policy->cpuinfo.max_freq;
 
 	freq = map_util_freq(util, freq, max);
