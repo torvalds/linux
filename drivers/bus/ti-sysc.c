@@ -2858,6 +2858,7 @@ static int sysc_init_soc(struct sysc *ddata)
 	const struct soc_device_attribute *match;
 	struct ti_sysc_platform_data *pdata;
 	unsigned long features = 0;
+	struct device_node *np;
 
 	if (sysc_soc)
 		return 0;
@@ -2877,6 +2878,21 @@ static int sysc_init_soc(struct sysc *ddata)
 	match = soc_device_match(sysc_soc_match);
 	if (match && match->data)
 		sysc_soc->soc = (int)match->data;
+
+	/*
+	 * Check and warn about possible old incomplete dtb. We now want to see
+	 * simple-pm-bus instead of simple-bus in the dtb for genpd using SoCs.
+	 */
+	switch (sysc_soc->soc) {
+	case SOC_AM3:
+	case SOC_AM4:
+		np = of_find_node_by_path("/ocp");
+		WARN_ONCE(np && of_device_is_compatible(np, "simple-bus"),
+			  "ti-sysc: Incomplete old dtb, please update\n");
+		break;
+	default:
+		break;
+	}
 
 	/* Ignore devices that are not available on HS and EMU SoCs */
 	if (!sysc_soc->general_purpose) {
