@@ -43,8 +43,8 @@
 		reg = <RK3568_PD_PIPE>;
 		clocks = <&cru PCLK_PIPE>;
 		pm_qos = <&qos_pcie2x1>,
-			 <&qos_sata0>,
 			 <&qos_sata1>,
+			 <&qos_sata2>,
 			 <&qos_usb3_0>,
 			 <&qos_usb3_1>;
 	};
@@ -71,5 +71,5 @@
 /delete-node/ &pcie3x2;
 /delete-node/ &qos_pcie3x1;
 /delete-node/ &qos_pcie3x2;
-/delete-node/ &qos_sata2;
-/delete-node/ &sata2;
+/delete-node/ &qos_sata0;
+/delete-node/ &sata0;
