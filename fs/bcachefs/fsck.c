@@ -58,7 +58,7 @@ static int __remove_dirent(struct btree_trans *trans,
 	buf[name.len] = '\0';
 	name.name = buf;
 
-	ret = bch2_inode_find_by_inum_trans(trans, dir_inum, &dir_inode);
+	ret = __bch2_inode_find_by_inum_trans(trans, dir_inum, &dir_inode, 0);
 	if (ret && ret != -EINTR)
 		bch_err(c, "remove_dirent: err %i looking up directory inode", ret);
 	if (ret)
@@ -126,8 +126,8 @@ static int walk_inode(struct btree_trans *trans,
 		      struct inode_walker *w, u64 inum)
 {
 	if (inum != w->cur_inum) {
-		int ret = bch2_inode_find_by_inum_trans(trans, inum,
-							&w->inode);
+		int ret = __bch2_inode_find_by_inum_trans(trans, inum,
+							  &w->inode, 0);
 
 		if (ret && ret != -ENOENT)
 			return ret;
@@ -673,7 +673,7 @@ retry:
 			continue;
 		}
 
-		ret = bch2_inode_find_by_inum_trans(&trans, d_inum, &target);
+		ret = __bch2_inode_find_by_inum_trans(&trans, d_inum, &target, 0);
 		if (ret && ret != -ENOENT)
 			break;
 
@@ -787,7 +787,9 @@ static int check_root(struct bch_fs *c, struct bch_inode_unpacked *root_inode)
 
 	bch_verbose(c, "checking root directory");
 
-	ret = bch2_inode_find_by_inum(c, BCACHEFS_ROOT_INO, root_inode);
+	ret = bch2_trans_do(c, NULL, NULL, 0,
+		__bch2_inode_find_by_inum_trans(&trans, BCACHEFS_ROOT_INO,
+						root_inode, 0));
 	if (ret && ret != -ENOENT)
 		return ret;
 
@@ -834,7 +836,8 @@ static int check_lostfound(struct bch_fs *c,
 		goto create_lostfound;
 	}
 
-	ret = bch2_inode_find_by_inum(c, inum, lostfound_inode);
+	ret = bch2_trans_do(c, NULL, NULL, 0,
+		__bch2_inode_find_by_inum_trans(&trans, inum, lostfound_inode, 0));
 	if (ret && ret != -ENOENT)
 		return ret;
 
