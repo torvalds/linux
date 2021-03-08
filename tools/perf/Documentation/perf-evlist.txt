@@ -29,7 +29,7 @@ OPTIONS
 	Show just the sample frequency used for each event.
 
 -v::
---verbose=::
+--verbose::
 	Show all fields.
 
 -g::

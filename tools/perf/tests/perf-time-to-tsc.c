@@ -167,6 +167,8 @@ next_event:
 
 out_err:
 	evlist__delete(evlist);
+	perf_cpu_map__put(cpus);
+	perf_thread_map__put(threads);
 	return err;
 }
 

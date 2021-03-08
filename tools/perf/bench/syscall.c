@@ -54,7 +54,7 @@ int bench_syscall_basic(int argc, const char **argv)
 		result_usec += diff.tv_usec;
 
 		printf(" %14s: %lu.%03lu [sec]\n\n", "Total time",
-		       diff.tv_sec,
+		       (unsigned long) diff.tv_sec,
 		       (unsigned long) (diff.tv_usec/1000));
 
 		printf(" %14lf usecs/op\n",
@@ -66,7 +66,7 @@ int bench_syscall_basic(int argc, const char **argv)
 
 	case BENCH_FORMAT_SIMPLE:
 		printf("%lu.%03lu\n",
-		       diff.tv_sec,
+		       (unsigned long) diff.tv_sec,
 		       (unsigned long) (diff.tv_usec / 1000));
 		break;
 
