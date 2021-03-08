@@ -35,7 +35,7 @@ extern "C" {
 		typeof(*p) ___p1;					\
 		asm volatile ("ldar %w0, %1"				\
 			      : "=r" (___p1) : "Q" (*p) : "memory");	\
-		__p1;							\
+		___p1;							\
 	})
 #elif defined(__riscv)
 # define libbpf_smp_store_release(p, v)					\
