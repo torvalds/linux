@@ -912,6 +912,8 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 				&rsp_iov[1], sizeof(struct smb2_file_all_info),
 				(char *)&tcon->crfid.file_all_info))
 		tcon->crfid.file_all_info_is_valid = true;
+	tcon->crfid.time = jiffies;
+
 
 oshr_exit:
 	mutex_unlock(&tcon->crfid.fid_mutex);

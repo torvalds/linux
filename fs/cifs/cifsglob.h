@@ -988,6 +988,7 @@ struct cached_fid {
 	bool is_valid:1;	/* Do we have a useable root fid */
 	bool file_all_info_is_valid:1;
 	bool has_lease:1;
+	unsigned long time; /* jiffies of when lease was taken */
 	struct kref refcount;
 	struct cifs_fid *fid;
 	struct mutex fid_mutex;
