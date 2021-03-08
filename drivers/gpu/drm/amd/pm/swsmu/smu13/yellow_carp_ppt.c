@@ -42,6 +42,18 @@
 #undef pr_info
 #undef pr_debug
 
+#define FEATURE_MASK(feature) (1ULL << feature)
+#define SMC_DPM_FEATURE ( \
+	FEATURE_MASK(FEATURE_CCLK_DPM_BIT) | \
+	FEATURE_MASK(FEATURE_VCN_DPM_BIT)	 | \
+	FEATURE_MASK(FEATURE_FCLK_DPM_BIT)	 | \
+	FEATURE_MASK(FEATURE_SOCCLK_DPM_BIT)	 | \
+	FEATURE_MASK(FEATURE_MP0CLK_DPM_BIT)	 | \
+	FEATURE_MASK(FEATURE_LCLK_DPM_BIT)	 | \
+	FEATURE_MASK(FEATURE_SHUBCLK_DPM_BIT)	 | \
+	FEATURE_MASK(FEATURE_DCFCLK_DPM_BIT)| \
+	FEATURE_MASK(FEATURE_GFX_DPM_BIT))
+
 static struct cmn2asic_msg_mapping yellow_carp_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,                    PPSMC_MSG_TestMessage,			1),
 	MSG_MAP(GetSmuVersion,                  PPSMC_MSG_GetSmuVersion,		1),
@@ -198,18 +210,18 @@ static int yellow_carp_dpm_set_jpeg_enable(struct smu_context *smu, bool enable)
 
 static bool yellow_carp_is_dpm_running(struct smu_context *smu)
 {
-	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
+	uint32_t feature_mask[2];
+	uint64_t feature_enabled;
 
-	/*
-	 * Until now, the pmfw hasn't exported the interface of SMU
-	 * feature mask to APU SKU so just force on all the feature
-	 * at early initial stage.
-	 */
-	if (adev->in_suspend)
+	ret = smu_cmn_get_enabled_32_bits_mask(smu, feature_mask, 2);
+
+	if (ret)
 		return false;
-	else
-		return true;
 
+	feature_enabled = (uint64_t)feature_mask[1] << 32 | feature_mask[0];
+
+	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 
 static int yellow_carp_post_smu_init(struct smu_context *smu)
