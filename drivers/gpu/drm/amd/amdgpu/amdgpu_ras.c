@@ -1936,6 +1936,7 @@ static bool amdgpu_ras_asic_supported(struct amdgpu_device *adev)
 	return adev->asic_type == CHIP_VEGA10 ||
 		adev->asic_type == CHIP_VEGA20 ||
 		adev->asic_type == CHIP_ARCTURUS ||
+		adev->asic_type == CHIP_ALDEBARAN ||
 		adev->asic_type == CHIP_SIENNA_CICHLID;
 }
 
@@ -1958,19 +1959,29 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev,
 	    !amdgpu_ras_asic_supported(adev))
 		return;
 
-	if (amdgpu_atomfirmware_mem_ecc_supported(adev)) {
-		dev_info(adev->dev, "MEM ECC is active.\n");
-		*hw_supported |= (1 << AMDGPU_RAS_BLOCK__UMC |
-				1 << AMDGPU_RAS_BLOCK__DF);
-	} else
-		dev_info(adev->dev, "MEM ECC is not presented.\n");
+	if (!adev->gmc.xgmi.connected_to_cpu) {
+		if (amdgpu_atomfirmware_mem_ecc_supported(adev)) {
+			dev_info(adev->dev, "MEM ECC is active.\n");
+			*hw_supported |= (1 << AMDGPU_RAS_BLOCK__UMC |
+					1 << AMDGPU_RAS_BLOCK__DF);
+		} else {
+			dev_info(adev->dev, "MEM ECC is not presented.\n");
+		}
 
-	if (amdgpu_atomfirmware_sram_ecc_supported(adev)) {
-		dev_info(adev->dev, "SRAM ECC is active.\n");
-		*hw_supported |= ~(1 << AMDGPU_RAS_BLOCK__UMC |
-				1 << AMDGPU_RAS_BLOCK__DF);
-	} else
-		dev_info(adev->dev, "SRAM ECC is not presented.\n");
+		if (amdgpu_atomfirmware_sram_ecc_supported(adev)) {
+			dev_info(adev->dev, "SRAM ECC is active.\n");
+			*hw_supported |= ~(1 << AMDGPU_RAS_BLOCK__UMC |
+					1 << AMDGPU_RAS_BLOCK__DF);
+		} else {
+			dev_info(adev->dev, "SRAM ECC is not presented.\n");
+		}
+	} else {
+		/* driver only manages a few IP blocks RAS feature
+		 * when GPU is connected cpu through XGMI */
+		*hw_supported |= (1 << AMDGPU_RAS_BLOCK__GFX |
+				1 << AMDGPU_RAS_BLOCK__SDMA |
+				1 << AMDGPU_RAS_BLOCK__MMHUB);
+	}
 
 	/* hw_supported needs to be aligned with RAS block mask. */
 	*hw_supported &= AMDGPU_RAS_BLOCK_MASK;
