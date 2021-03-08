@@ -1276,6 +1276,7 @@
 	sd-uhs-sdr25;
 	sd-uhs-sdr104;
 	vqmmc-supply = <&vccio_sd>;
+	vmmc-supply = <&vcc3v3_sd>;
 	status = "okay";
 };
 
