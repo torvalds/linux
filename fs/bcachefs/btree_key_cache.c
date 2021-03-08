@@ -298,7 +298,14 @@ fill:
 		set_bit(BKEY_CACHED_ACCESSED, &ck->flags);
 
 	iter->uptodate = BTREE_ITER_NEED_PEEK;
-	bch2_btree_iter_downgrade(iter);
+
+	if (!(iter->flags & BTREE_ITER_INTENT))
+		bch2_btree_iter_downgrade(iter);
+	else if (!iter->locks_want) {
+		if (!__bch2_btree_iter_upgrade(iter, 1))
+			ret = -EINTR;
+	}
+
 	return ret;
 err:
 	if (ret != -EINTR) {
