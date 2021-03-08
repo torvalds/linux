@@ -124,6 +124,11 @@
 			     <1 10 0xf08>;
 	};
 
+	usbphy0: usbphy {
+		#phy-cells = <0>;
+		compatible = "usb-nop-xceiv";
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -467,11 +472,6 @@
 			resets = <&rst UART1_RESET>;
 			clocks = <&clkmgr AGILEX_L4_SP_CLK>;
 			status = "disabled";
-		};
-
-		usbphy0: usbphy@0 {
-			#phy-cells = <0>;
-			compatible = "usb-nop-xceiv";
 		};
 
 		usb0: usb@ffb00000 {
