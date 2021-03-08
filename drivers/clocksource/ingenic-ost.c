@@ -167,13 +167,14 @@ static const struct ingenic_ost_soc_info jz4725b_ost_soc_info = {
 	.is64bit = false,
 };
 
-static const struct ingenic_ost_soc_info jz4770_ost_soc_info = {
+static const struct ingenic_ost_soc_info jz4760b_ost_soc_info = {
 	.is64bit = true,
 };
 
 static const struct of_device_id ingenic_ost_of_match[] = {
 	{ .compatible = "ingenic,jz4725b-ost", .data = &jz4725b_ost_soc_info, },
-	{ .compatible = "ingenic,jz4770-ost", .data = &jz4770_ost_soc_info, },
+	{ .compatible = "ingenic,jz4760b-ost", .data = &jz4760b_ost_soc_info, },
+	{ .compatible = "ingenic,jz4770-ost", .data = &jz4760b_ost_soc_info, },
 	{ }
 };
 
