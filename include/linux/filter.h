@@ -646,7 +646,8 @@ struct bpf_redirect_info {
 	u32 flags;
 	u32 tgt_index;
 	void *tgt_value;
-	struct bpf_map *map;
+	u32 map_id;
+	enum bpf_map_type map_type;
 	u32 kern_flags;
 	struct bpf_nh_params nh;
 };
@@ -1488,13 +1489,14 @@ static __always_inline int __bpf_xdp_redirect_map(struct bpf_map *map, u32 ifind
 		 * performs multiple lookups, the last one always takes
 		 * precedence.
 		 */
-		WRITE_ONCE(ri->map, NULL);
+		ri->map_id = INT_MAX; /* Valid map id idr range: [1,INT_MAX[ */
+		ri->map_type = BPF_MAP_TYPE_UNSPEC;
 		return flags;
 	}
 
-	ri->flags = flags;
 	ri->tgt_index = ifindex;
-	WRITE_ONCE(ri->map, map);
+	ri->map_id = map->id;
+	ri->map_type = map->map_type;
 
 	return XDP_REDIRECT;
 }
