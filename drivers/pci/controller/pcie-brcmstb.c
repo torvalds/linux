@@ -1296,6 +1296,7 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 	pcie->hw_rev = readl(pcie->base + PCIE_MISC_REVISION);
 	if (pcie->type == BCM4908 && pcie->hw_rev >= BRCM_PCIE_HW_REV_3_20) {
 		dev_err(pcie->dev, "hardware revision with unsupported PERST# setup\n");
+		ret = -ENODEV;
 		goto fail;
 	}
 
