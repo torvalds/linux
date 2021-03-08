@@ -30,10 +30,10 @@
 		gpio5 = &lsio_gpio5;
 		gpio6 = &lsio_gpio6;
 		gpio7 = &lsio_gpio7;
-		i2c0 = &adma_i2c0;
-		i2c1 = &adma_i2c1;
-		i2c2 = &adma_i2c2;
-		i2c3 = &adma_i2c3;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
 		mmc0 = &usdhc1;
 		mmc1 = &usdhc2;
 		mmc2 = &usdhc3;
@@ -42,10 +42,10 @@
 		mu2 = &lsio_mu2;
 		mu3 = &lsio_mu3;
 		mu4 = &lsio_mu4;
-		serial0 = &adma_lpuart0;
-		serial1 = &adma_lpuart1;
-		serial2 = &adma_lpuart2;
-		serial3 = &adma_lpuart3;
+		serial0 = &lpuart0;
+		serial1 = &lpuart1;
+		serial2 = &lpuart2;
+		serial3 = &lpuart3;
 	};
 
 	cpus {
