@@ -751,8 +751,11 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	if (tcon->nohandlecache)
 		return -ENOTSUPP;
 
+	if (cifs_sb->root == NULL)
+		return -ENOENT;
+
 	if (strlen(path))
-		return -ENOTSUPP;
+		return -ENOENT;
 
 	mutex_lock(&tcon->crfid.fid_mutex);
 	if (tcon->crfid.is_valid) {

@@ -257,6 +257,12 @@ out_no_root:
 static void cifs_kill_sb(struct super_block *sb)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+
+	if (cifs_sb->root) {
+		dput(cifs_sb->root);
+		cifs_sb->root = NULL;
+	}
+
 	kill_anon_super(sb);
 	cifs_umount(cifs_sb);
 }
@@ -885,6 +891,9 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 	root = cifs_get_root(cifs_sb ? cifs_sb->ctx : old_ctx, sb);
 	if (IS_ERR(root))
 		goto out_super;
+
+	if (cifs_sb)
+		cifs_sb->root = dget(root);
 
 	cifs_dbg(FYI, "dentry root is: %p\n", root);
 	return root;
