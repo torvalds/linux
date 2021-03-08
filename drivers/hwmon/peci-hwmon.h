@@ -461,8 +461,6 @@ static inline int peci_pcs_calc_pwr_from_eng(struct device *dev,
 	ulong elapsed;
 	int ret;
 
-	if (!dev || !prev_energy || !energy || !power_in_mW)
-		return -EINVAL;
 
 	elapsed = energy->last_updated - prev_energy->last_updated;
 
@@ -479,19 +477,16 @@ static inline int peci_pcs_calc_pwr_from_eng(struct device *dev,
 		u64 energy_consumed_in_mJ;
 		u64 energy_by_jiffies;
 
-		/* Take care here about energy counter rollover */
-		if ((u32)(energy->value) >= (u32)(prev_energy->value))
-			energy_consumed = (u32)(energy->value) - (u32)(prev_energy->value);
+		if (energy->uvalue >= prev_energy->uvalue)
+			energy_consumed = energy->uvalue - prev_energy->uvalue;
 		else
-			energy_consumed = (U32_MAX - (u32)(prev_energy->value)) +
-					(u32)(energy->value) + 1u;
+			energy_consumed = (U32_MAX - prev_energy->uvalue) +
+					energy->uvalue + 1u;
 
-		/* Calculate the energy here */
 		energy_consumed_in_mJ =
 				peci_pcs_xn_to_munits(energy_consumed, unit);
 		energy_by_jiffies = energy_consumed_in_mJ * HZ;
 
-		/* Calculate the power */
 		if (energy_by_jiffies > (u64)U32_MAX) {
 			do_div(energy_by_jiffies, elapsed);
 			*power_in_mW = (long)energy_by_jiffies;
@@ -509,8 +504,7 @@ static inline int peci_pcs_calc_pwr_from_eng(struct device *dev,
 		ret = -EAGAIN;
 	}
 
-	/* Update previous energy sensor context with current value */
-	prev_energy->value = energy->value;
+	prev_energy->uvalue = energy->uvalue;
 	peci_sensor_mark_updated_with_time(prev_energy, energy->last_updated);
 
 	return ret;

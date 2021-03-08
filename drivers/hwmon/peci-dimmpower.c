@@ -81,14 +81,14 @@ peci_dimmpower_get_energy_counter(struct peci_dimmpower *priv,
 
 	if (!peci_sensor_need_update_with_time(sensor_data,
 					       update_interval)) {
-		dev_dbg(priv->dev, "skip reading peci\n");
+		dev_dbg(priv->dev, "skip reading dimm energy over peci\n");
 		return 0;
 	}
 
 	ret = peci_pcs_read(priv->mgr, PECI_MBX_INDEX_ENERGY_STATUS,
-			    PECI_PKG_ID_DIMM, &sensor_data->value);
+			    PECI_PKG_ID_DIMM, &sensor_data->uvalue);
 	if (ret) {
-		dev_dbg(priv->dev, "not able to read package energy\n");
+		dev_dbg(priv->dev, "not able to read dimm energy\n");
 		return ret;
 	}
 
@@ -96,7 +96,7 @@ peci_dimmpower_get_energy_counter(struct peci_dimmpower *priv,
 
 	dev_dbg(priv->dev,
 		"energy counter updated %duJ, jif %lu, HZ is %d jiffies\n",
-		sensor_data->value, sensor_data->last_updated, HZ);
+		sensor_data->uvalue, sensor_data->last_updated, HZ);
 
 	return ret;
 }
@@ -411,9 +411,6 @@ static int
 peci_dimmpower_read_string(struct device *dev, enum hwmon_sensor_types type,
 			   u32 attr, int channel, const char **str)
 {
-	if (!str)
-		return -EINVAL;
-
 	if (!peci_dimmpower_is_channel_valid(type, channel))
 		return -EOPNOTSUPP;
 
