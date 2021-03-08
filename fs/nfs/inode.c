@@ -229,6 +229,7 @@ void nfs_set_cache_invalid(struct inode *inode, unsigned long flags)
 	if (flags & NFS_INO_INVALID_DATA)
 		nfs_fscache_invalidate(inode);
 }
+EXPORT_SYMBOL_GPL(nfs_set_cache_invalid);
 
 /*
  * Invalidate the local caches

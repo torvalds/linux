@@ -357,13 +357,15 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 	truncate_pagecache_range(dst_inode, pos_dst,
 				 pos_dst + res->write_res.count);
 	spin_lock(&dst_inode->i_lock);
-	NFS_I(dst_inode)->cache_validity |= (NFS_INO_REVAL_PAGECACHE |
-			NFS_INO_REVAL_FORCED | NFS_INO_INVALID_SIZE |
-			NFS_INO_INVALID_ATTR | NFS_INO_INVALID_DATA);
+	nfs_set_cache_invalid(
+		dst_inode, NFS_INO_REVAL_PAGECACHE | NFS_INO_REVAL_FORCED |
+				   NFS_INO_INVALID_SIZE | NFS_INO_INVALID_ATTR |
+				   NFS_INO_INVALID_DATA);
 	spin_unlock(&dst_inode->i_lock);
 	spin_lock(&src_inode->i_lock);
-	NFS_I(src_inode)->cache_validity |= (NFS_INO_REVAL_PAGECACHE |
-			NFS_INO_REVAL_FORCED | NFS_INO_INVALID_ATIME);
+	nfs_set_cache_invalid(src_inode, NFS_INO_REVAL_PAGECACHE |
+						 NFS_INO_REVAL_FORCED |
+						 NFS_INO_INVALID_ATIME);
 	spin_unlock(&src_inode->i_lock);
 	status = res->write_res.count;
 out:
