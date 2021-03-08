@@ -48,11 +48,13 @@ static u32 find_nvram_size(void __iomem *end)
 	return 0;
 }
 
-/* Probe for NVRAM header */
-static int nvram_find_and_copy(void __iomem *iobase, u32 lim)
+/**
+ * bcm47xx_nvram_find_and_copy - find NVRAM on flash mapping & copy it
+ */
+static int bcm47xx_nvram_find_and_copy(void __iomem *flash_start, size_t res_size)
 {
 	struct nvram_header __iomem *header;
-	u32 off;
+	size_t flash_size;
 	u32 size;
 
 	if (nvram_len) {
@@ -61,25 +63,25 @@ static int nvram_find_and_copy(void __iomem *iobase, u32 lim)
 	}
 
 	/* TODO: when nvram is on nand flash check for bad blocks first. */
-	off = FLASH_MIN;
-	while (off <= lim) {
+	flash_size = FLASH_MIN;
+	while (flash_size <= res_size) {
 		/* Windowed flash access */
-		size = find_nvram_size(iobase + off);
+		size = find_nvram_size(flash_start + flash_size);
 		if (size) {
-			header = (struct nvram_header *)(iobase + off - size);
+			header = (struct nvram_header *)(flash_start + flash_size - size);
 			goto found;
 		}
-		off <<= 1;
+		flash_size <<= 1;
 	}
 
 	/* Try embedded NVRAM at 4 KB and 1 KB as last resorts */
-	header = (struct nvram_header *)(iobase + 4096);
+	header = (struct nvram_header *)(flash_start + 4096);
 	if (header->magic == NVRAM_MAGIC) {
 		size = NVRAM_SPACE;
 		goto found;
 	}
 
-	header = (struct nvram_header *)(iobase + 1024);
+	header = (struct nvram_header *)(flash_start + 1024);
 	if (header->magic == NVRAM_MAGIC) {
 		size = NVRAM_SPACE;
 		goto found;
@@ -124,7 +126,7 @@ int bcm47xx_nvram_init_from_mem(u32 base, u32 lim)
 	if (!iobase)
 		return -ENOMEM;
 
-	err = nvram_find_and_copy(iobase, lim);
+	err = bcm47xx_nvram_find_and_copy(iobase, lim);
 
 	iounmap(iobase);
 
