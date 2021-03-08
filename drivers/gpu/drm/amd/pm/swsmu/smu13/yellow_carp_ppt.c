@@ -177,6 +177,30 @@ err0_out:
 	return -ENOMEM;
 }
 
+static int yellow_carp_system_features_control(struct smu_context *smu, bool en)
+{
+	struct smu_feature *feature = &smu->smu_feature;
+	uint32_t feature_mask[2];
+	int ret = 0;
+
+	bitmap_zero(feature->enabled, feature->feature_num);
+	bitmap_zero(feature->supported, feature->feature_num);
+
+	if (!en)
+		return ret;
+
+	ret = smu_cmn_get_enabled_32_bits_mask(smu, feature_mask, 2);
+	if (ret)
+		return ret;
+
+	bitmap_copy(feature->enabled, (unsigned long *)&feature_mask,
+		    feature->feature_num);
+	bitmap_copy(feature->supported, (unsigned long *)&feature_mask,
+		    feature->feature_num);
+
+	return 0;
+}
+
 static int yellow_carp_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
 {
 	int ret = 0;
@@ -679,6 +703,7 @@ static const struct pptable_funcs yellow_carp_ppt_funcs = {
 	.check_fw_version = smu_v13_0_1_check_fw_version,
 	.init_smc_tables = yellow_carp_init_smc_tables,
 	.fini_smc_tables = smu_v13_0_1_fini_smc_tables,
+	.system_features_control = yellow_carp_system_features_control,
 	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
 	.send_smc_msg = smu_cmn_send_smc_msg,
 	.dpm_set_vcn_enable = yellow_carp_dpm_set_vcn_enable,
