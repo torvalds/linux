@@ -728,6 +728,7 @@ smb2_cached_lease_break(struct work_struct *work)
  * Open the directory at the root of a share
  */
 int open_shroot(unsigned int xid, struct cifs_tcon *tcon,
+		const char *path,
 		struct cifs_sb_info *cifs_sb,
 		struct cached_fid **cfid)
 {
@@ -747,6 +748,9 @@ int open_shroot(unsigned int xid, struct cifs_tcon *tcon,
 	struct cifs_fid *pfid;
 
 	if (tcon->nohandlecache)
+		return -ENOTSUPP;
+
+	if (strlen(path))
 		return -ENOTSUPP;
 
 	mutex_lock(&tcon->crfid.fid_mutex);
@@ -926,7 +930,7 @@ smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon,
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	rc = open_shroot(xid, tcon, cifs_sb, &cfid);
+	rc = open_shroot(xid, tcon, "", cifs_sb, &cfid);
 	if (rc == 0)
 		memcpy(&fid, cfid->fid, sizeof(struct cifs_fid));
 	else
