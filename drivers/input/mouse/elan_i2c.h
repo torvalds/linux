@@ -55,6 +55,11 @@
 #define ETP_FW_PAGE_SIZE_512	512
 #define ETP_FW_SIGNATURE_SIZE	6
 
+#define ETP_PRODUCT_ID_DELBIN	0x00C2
+#define ETP_PRODUCT_ID_VOXEL	0x00BF
+#define ETP_PRODUCT_ID_MAGPIE	0x0120
+#define ETP_PRODUCT_ID_BOBBA	0x0121
+
 struct i2c_client;
 struct completion;
 
