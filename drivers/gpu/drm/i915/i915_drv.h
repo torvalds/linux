@@ -1583,12 +1583,6 @@ tgl_stepping_get(struct drm_i915_private *dev_priv)
 #define IS_DG1_REVID(p, since, until) \
 	(IS_DG1(p) && IS_REVID(p, since, until))
 
-#define ADLS_REVID_A0		0x0
-#define ADLS_REVID_A2		0x1
-#define ADLS_REVID_B0		0x4
-#define ADLS_REVID_G0		0x8
-#define ADLS_REVID_C0		0xC /*Same as H0 ADLS SOC stepping*/
-
 #define IS_ADLS_DISP_STEPPING(p, since, until) \
 	(IS_ALDERLAKE_S(p) && \
 	 tgl_stepping_get(p)->disp_stepping >= (since) && \
