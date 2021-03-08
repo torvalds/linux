@@ -96,12 +96,6 @@ static bool hisi_validate_event_group(struct perf_event *event)
 	return counters <= hisi_pmu->num_counters;
 }
 
-int hisi_uncore_pmu_counter_valid(struct hisi_pmu *hisi_pmu, int idx)
-{
-	return idx >= 0 && idx < hisi_pmu->num_counters;
-}
-EXPORT_SYMBOL_GPL(hisi_uncore_pmu_counter_valid);
-
 int hisi_uncore_pmu_get_event_idx(struct perf_event *event)
 {
 	struct hisi_pmu *hisi_pmu = to_hisi_pmu(event->pmu);
@@ -131,11 +125,6 @@ EXPORT_SYMBOL_GPL(hisi_uncore_pmu_identifier_attr_show);
 
 static void hisi_uncore_pmu_clear_event_idx(struct hisi_pmu *hisi_pmu, int idx)
 {
-	if (!hisi_uncore_pmu_counter_valid(hisi_pmu, idx)) {
-		dev_err(hisi_pmu->dev, "Unsupported event index:%d!\n", idx);
-		return;
-	}
-
 	clear_bit(idx, hisi_pmu->pmu_events.used_mask);
 }
 

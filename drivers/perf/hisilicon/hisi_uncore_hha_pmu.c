@@ -51,29 +51,15 @@ static u32 hisi_hha_pmu_get_counter_offset(int cntr_idx)
 static u64 hisi_hha_pmu_read_counter(struct hisi_pmu *hha_pmu,
 				     struct hw_perf_event *hwc)
 {
-	u32 idx = hwc->idx;
-
-	if (!hisi_uncore_pmu_counter_valid(hha_pmu, idx)) {
-		dev_err(hha_pmu->dev, "Unsupported event index:%d!\n", idx);
-		return 0;
-	}
-
 	/* Read 64 bits and like L3C, top 16 bits are RAZ */
-	return readq(hha_pmu->base + hisi_hha_pmu_get_counter_offset(idx));
+	return readq(hha_pmu->base + hisi_hha_pmu_get_counter_offset(hwc->idx));
 }
 
 static void hisi_hha_pmu_write_counter(struct hisi_pmu *hha_pmu,
 				       struct hw_perf_event *hwc, u64 val)
 {
-	u32 idx = hwc->idx;
-
-	if (!hisi_uncore_pmu_counter_valid(hha_pmu, idx)) {
-		dev_err(hha_pmu->dev, "Unsupported event index:%d!\n", idx);
-		return;
-	}
-
 	/* Write 64 bits and like L3C, top 16 bits are WI */
-	writeq(val, hha_pmu->base + hisi_hha_pmu_get_counter_offset(idx));
+	writeq(val, hha_pmu->base + hisi_hha_pmu_get_counter_offset(hwc->idx));
 }
 
 static void hisi_hha_pmu_write_evtype(struct hisi_pmu *hha_pmu, int idx,

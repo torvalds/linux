@@ -65,29 +65,15 @@ static u32 hisi_ddrc_pmu_get_counter_offset(int cntr_idx)
 static u64 hisi_ddrc_pmu_read_counter(struct hisi_pmu *ddrc_pmu,
 				      struct hw_perf_event *hwc)
 {
-	/* Use event code as counter index */
-	u32 idx = GET_DDRC_EVENTID(hwc);
-
-	if (!hisi_uncore_pmu_counter_valid(ddrc_pmu, idx)) {
-		dev_err(ddrc_pmu->dev, "Unsupported event index:%d!\n", idx);
-		return 0;
-	}
-
-	return readl(ddrc_pmu->base + hisi_ddrc_pmu_get_counter_offset(idx));
+	return readl(ddrc_pmu->base +
+		     hisi_ddrc_pmu_get_counter_offset(hwc->idx));
 }
 
 static void hisi_ddrc_pmu_write_counter(struct hisi_pmu *ddrc_pmu,
 					struct hw_perf_event *hwc, u64 val)
 {
-	u32 idx = GET_DDRC_EVENTID(hwc);
-
-	if (!hisi_uncore_pmu_counter_valid(ddrc_pmu, idx)) {
-		dev_err(ddrc_pmu->dev, "Unsupported event index:%d!\n", idx);
-		return;
-	}
-
 	writel((u32)val,
-	       ddrc_pmu->base + hisi_ddrc_pmu_get_counter_offset(idx));
+	       ddrc_pmu->base + hisi_ddrc_pmu_get_counter_offset(hwc->idx));
 }
 
 /*

@@ -78,7 +78,6 @@ struct hisi_pmu {
 	u32 identifier;
 };
 
-int hisi_uncore_pmu_counter_valid(struct hisi_pmu *hisi_pmu, int idx);
 int hisi_uncore_pmu_get_event_idx(struct perf_event *event);
 void hisi_uncore_pmu_read(struct perf_event *event);
 int hisi_uncore_pmu_add(struct perf_event *event, int flags);
