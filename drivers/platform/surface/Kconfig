@@ -104,6 +104,22 @@ config SURFACE_AGGREGATOR_REGISTRY
 	  the respective client devices. Drivers for these devices still need to
 	  be selected via the other options.
 
+config SURFACE_DTX
+	tristate "Surface DTX (Detachment System) Driver"
+	depends on SURFACE_AGGREGATOR
+	depends on INPUT
+	help
+	  Driver for the Surface Book clipboard detachment system (DTX).
+
+	  On the Surface Book series devices, the display part containing the
+	  CPU (called the clipboard) can be detached from the base (containing a
+	  battery, the keyboard, and, optionally, a discrete GPU) by (if
+	  necessary) unlocking and opening the latch connecting both parts.
+
+	  This driver provides a user-space interface that can influence the
+	  behavior of this process, which includes the option to abort it in
+	  case the base is still in use or speed it up in case it is not.
+
 config SURFACE_GPE
 	tristate "Surface GPE/Lid Support Driver"
 	depends on DMI
