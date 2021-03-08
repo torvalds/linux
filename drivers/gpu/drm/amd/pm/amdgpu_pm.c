@@ -1042,83 +1042,6 @@ static ssize_t amdgpu_get_pp_dpm_clock(struct device *dev,
  */
 #define AMDGPU_MASK_BUF_MAX	(32 * 13)
 
-static int amdgpu_read_clk(const char *buf,
-		size_t count,
-		uint32_t *min,
-		uint32_t *max)
-{
-	int ret;
-	char *tmp;
-	char *token = NULL;
-	char *tag;
-	char *value;
-	char buf_cpy[AMDGPU_MASK_BUF_MAX + 1];
-	const char delimiter[3] = {' ', '\n', '\0'};
-	size_t bytes;
-	int i = 0;
-
-	bytes = min(count, sizeof(buf_cpy) - 1);
-	memcpy(buf_cpy, buf, bytes);
-	buf_cpy[bytes] = '\0';
-	tmp = buf_cpy;
-
-	*min = *max = 0;
-	while (i < 2) {
-		ret = -EINVAL;
-		token = strsep(&tmp, delimiter);
-		if (!token || !*token)
-			break;
-		tag = token;
-
-		token = strsep(&tmp, delimiter);
-		if (!token || !*token)
-			break;
-		value = token;
-
-		if (!strncmp(tag, "min", strlen("min")))
-			ret = kstrtou32(value, 0, min);
-		else if (!strncmp(tag, "max", strlen("max")))
-			ret = kstrtou32(value, 0, max);
-
-		if (ret)
-			break;
-		++i;
-	}
-
-	/* should get a non-zero value for min or max */
-	if (!*min && !*max)
-		return -EINVAL;
-
-	return 0;
-}
-
-static int amdgpu_set_clk_minmax(struct amdgpu_device *adev,
-		uint32_t clk_type,
-		uint32_t min,
-		uint32_t max)
-{
-	int ret;
-
-	if (!is_support_sw_smu(adev) || amdgpu_sriov_vf(adev))
-		return -EINVAL;
-
-	ret = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-		return ret;
-	}
-
-	ret = smu_set_soft_freq_range(&adev->smu, clk_type, min, max);
-
-	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
-	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-
-	if (ret)
-		return -EINVAL;
-
-	return 0;
-}
-
 static ssize_t amdgpu_read_mask(const char *buf, size_t count, uint32_t *mask)
 {
 	int ret;
@@ -1157,17 +1080,9 @@ static ssize_t amdgpu_set_pp_dpm_clock(struct device *dev,
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	int ret;
 	uint32_t mask = 0;
-	uint32_t min;
-	uint32_t max;
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
-
-	ret = amdgpu_read_clk(buf, count, &min, &max);
-	if (!ret) {
-		ret = amdgpu_set_clk_minmax(adev, SMU_GFXCLK, min, max);
-		return ret ? ret:count;
-	}
 
 	ret = amdgpu_read_mask(buf, count, &mask);
 	if (ret)
