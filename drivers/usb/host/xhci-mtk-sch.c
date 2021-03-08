@@ -25,6 +25,8 @@
  */
 #define TT_MICROFRAMES_MAX 9
 
+#define DBG_BUF_EN	64
+
 /* schedule error type */
 #define ESCH_SS_Y6		1001
 #define ESCH_SS_OVERLAP		1002
@@ -60,6 +62,31 @@ static char *sch_error_string(int err_num)
 static int is_fs_or_ls(enum usb_device_speed speed)
 {
 	return speed == USB_SPEED_FULL || speed == USB_SPEED_LOW;
+}
+
+static const char *
+decode_ep(struct usb_host_endpoint *ep, enum usb_device_speed speed)
+{
+	static char buf[DBG_BUF_EN];
+	struct usb_endpoint_descriptor *epd = &ep->desc;
+	unsigned int interval;
+	const char *unit;
+
+	interval = usb_decode_interval(epd, speed);
+	if (interval % 1000) {
+		unit = "us";
+	} else {
+		unit = "ms";
+		interval /= 1000;
+	}
+
+	snprintf(buf, DBG_BUF_EN, "%s ep%d%s %s, mpkt:%d, interval:%d/%d%s\n",
+		 usb_speed_string(speed), usb_endpoint_num(epd),
+		 usb_endpoint_dir_in(epd) ? "in" : "out",
+		 usb_ep_type_string(usb_endpoint_type(epd)),
+		 usb_endpoint_maxp(epd), epd->bInterval, interval, unit);
+
+	return buf;
 }
 
 static u32 get_bw_boundary(enum usb_device_speed speed)
@@ -711,10 +738,7 @@ static int add_ep_quirk(struct usb_hcd *hcd, struct usb_device *udev,
 	ep_index = xhci_get_endpoint_index(&ep->desc);
 	ep_ctx = xhci_get_ep_ctx(xhci, virt_dev->in_ctx, ep_index);
 
-	xhci_dbg(xhci, "%s() type:%d, speed:%d, mpkt:%d, dir:%d, ep:%p\n",
-		__func__, usb_endpoint_type(&ep->desc), udev->speed,
-		usb_endpoint_maxp(&ep->desc),
-		usb_endpoint_dir_in(&ep->desc), ep);
+	xhci_dbg(xhci, "%s %s\n", __func__, decode_ep(ep, udev->speed));
 
 	if (!need_bw_sch(ep, udev->speed, !!virt_dev->tt_info)) {
 		/*
@@ -750,10 +774,7 @@ static void drop_ep_quirk(struct usb_hcd *hcd, struct usb_device *udev,
 
 	virt_dev = xhci->devs[udev->slot_id];
 
-	xhci_dbg(xhci, "%s() type:%d, speed:%d, mpks:%d, dir:%d, ep:%p\n",
-		__func__, usb_endpoint_type(&ep->desc), udev->speed,
-		usb_endpoint_maxp(&ep->desc),
-		usb_endpoint_dir_in(&ep->desc), ep);
+	xhci_dbg(xhci, "%s %s\n", __func__, decode_ep(ep, udev->speed));
 
 	if (!need_bw_sch(ep, udev->speed, !!virt_dev->tt_info))
 		return;
