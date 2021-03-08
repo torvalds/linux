@@ -85,6 +85,8 @@ struct hisi_pmu {
 	void __iomem *base;
 	/* the ID of the PMU modules */
 	u32 index_id;
+	/* For DDRC PMU v2: each DDRC has more than one DMC */
+	u32 sub_id;
 	int num_counters;
 	int counter_bits;
 	/* check event code range */
