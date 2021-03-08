@@ -8,6 +8,7 @@
  * https://github.com/linux-can/can-doc/tree/master/m_can
  */
 
+#include <linux/bitfield.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -147,6 +148,16 @@ enum m_can_reg {
 #define NBTP_NTSEG1_MASK	(0xff << NBTP_NTSEG1_SHIFT)
 #define NBTP_NTSEG2_SHIFT	0
 #define NBTP_NTSEG2_MASK	(0x7f << NBTP_NTSEG2_SHIFT)
+
+/* Timestamp Counter Configuration Register (TSCC) */
+#define TSCC_TCP_MASK		GENMASK(19, 16)
+#define TSCC_TSS_MASK		GENMASK(1, 0)
+#define TSCC_TSS_DISABLE	0x0
+#define TSCC_TSS_INTERNAL	0x1
+#define TSCC_TSS_EXTERNAL	0x2
+
+/* Timestamp Counter Value Register (TSCV) */
+#define TSCV_TSC_MASK		GENMASK(15, 0)
 
 /* Error Counter Register(ECR) */
 #define ECR_RP			BIT(15)
@@ -302,6 +313,7 @@ enum m_can_reg {
 #define RX_BUF_ANMF		BIT(31)
 #define RX_BUF_FDF		BIT(21)
 #define RX_BUF_BRS		BIT(20)
+#define RX_BUF_RXTS_MASK	GENMASK(15, 0)
 
 /* Tx Buffer Element */
 /* T0 */
@@ -319,6 +331,7 @@ enum m_can_reg {
 /* E1 */
 #define TX_EVENT_MM_SHIFT	TX_BUF_MM_SHIFT
 #define TX_EVENT_MM_MASK	(0xff << TX_EVENT_MM_SHIFT)
+#define TX_EVENT_TXTS_MASK	GENMASK(15, 0)
 
 static inline u32 m_can_read(struct m_can_classdev *cdev, enum m_can_reg reg)
 {
@@ -411,6 +424,20 @@ static inline void m_can_enable_all_interrupts(struct m_can_classdev *cdev)
 static inline void m_can_disable_all_interrupts(struct m_can_classdev *cdev)
 {
 	m_can_write(cdev, M_CAN_ILE, 0x0);
+}
+
+/* Retrieve internal timestamp counter from TSCV.TSC, and shift it to 32-bit
+ * width.
+ */
+static u32 m_can_get_timestamp(struct m_can_classdev *cdev)
+{
+	u32 tscv;
+	u32 tsc;
+
+	tscv = m_can_read(cdev, M_CAN_TSCV);
+	tsc = FIELD_GET(TSCV_TSC_MASK, tscv);
+
+	return (tsc << 16);
 }
 
 static void m_can_clean(struct net_device *net)
