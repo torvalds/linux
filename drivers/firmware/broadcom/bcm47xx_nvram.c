@@ -42,18 +42,6 @@ static bool bcm47xx_nvram_is_valid(void __iomem *nvram)
 	return ((struct nvram_header *)nvram)->magic == NVRAM_MAGIC;
 }
 
-static u32 find_nvram_size(void __iomem *end)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(nvram_sizes); i++) {
-		if (bcm47xx_nvram_is_valid(end - nvram_sizes[i]))
-			return nvram_sizes[i];
-	}
-
-	return 0;
-}
-
 /**
  * bcm47xx_nvram_copy - copy NVRAM to internal buffer
  */
@@ -85,7 +73,7 @@ static int bcm47xx_nvram_find_and_copy(void __iomem *flash_start, size_t res_siz
 {
 	size_t flash_size;
 	size_t offset;
-	u32 size;
+	int i;
 
 	if (nvram_len) {
 		pr_warn("nvram already initialized\n");
@@ -93,12 +81,13 @@ static int bcm47xx_nvram_find_and_copy(void __iomem *flash_start, size_t res_siz
 	}
 
 	/* TODO: when nvram is on nand flash check for bad blocks first. */
+
+	/* Try every possible flash size and check for NVRAM at its end */
 	for (flash_size = FLASH_MIN; flash_size <= res_size; flash_size <<= 1) {
-		/* Windowed flash access */
-		size = find_nvram_size(flash_start + flash_size);
-		if (size) {
-			offset = flash_size - size;
-			goto found;
+		for (i = 0; i < ARRAY_SIZE(nvram_sizes); i++) {
+			offset = flash_size - nvram_sizes[i];
+			if (bcm47xx_nvram_is_valid(flash_start + offset))
+				goto found;
 		}
 	}
 
