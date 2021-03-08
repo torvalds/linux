@@ -7911,7 +7911,8 @@ static struct io_wq_work *io_free_work(struct io_wq_work *work)
 	return req ? &req->work : NULL;
 }
 
-static struct io_wq *io_init_wq_offload(struct io_ring_ctx *ctx)
+static struct io_wq *io_init_wq_offload(struct io_ring_ctx *ctx,
+					struct task_struct *task)
 {
 	struct io_wq_hash *hash;
 	struct io_wq_data data;
@@ -7928,6 +7929,7 @@ static struct io_wq *io_init_wq_offload(struct io_ring_ctx *ctx)
 	}
 
 	data.hash = hash;
+	data.task = task;
 	data.free_work = io_free_work;
 	data.do_work = io_wq_submit_work;
 
@@ -7953,7 +7955,7 @@ static int io_uring_alloc_task_context(struct task_struct *task,
 		return ret;
 	}
 
-	tctx->io_wq = io_init_wq_offload(ctx);
+	tctx->io_wq = io_init_wq_offload(ctx, task);
 	if (IS_ERR(tctx->io_wq)) {
 		ret = PTR_ERR(tctx->io_wq);
 		percpu_counter_destroy(&tctx->inflight);

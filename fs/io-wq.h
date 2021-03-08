@@ -116,6 +116,7 @@ static inline void io_wq_put_hash(struct io_wq_hash *hash)
 
 struct io_wq_data {
 	struct io_wq_hash *hash;
+	struct task_struct *task;
 	io_wq_work_fn *do_work;
 	free_work_fn *free_work;
 };
