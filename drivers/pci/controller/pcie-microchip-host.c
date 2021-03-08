@@ -301,27 +301,27 @@ static const struct cause event_cause[NUM_EVENTS] = {
 	LOCAL_EVENT_CAUSE(PM_MSI_INT_SYS_ERR, "system error"),
 };
 
-struct event_map pcie_event_to_event[] = {
+static struct event_map pcie_event_to_event[] = {
 	PCIE_EVENT_TO_EVENT_MAP(L2_EXIT),
 	PCIE_EVENT_TO_EVENT_MAP(HOTRST_EXIT),
 	PCIE_EVENT_TO_EVENT_MAP(DLUP_EXIT),
 };
 
-struct event_map sec_error_to_event[] = {
+static struct event_map sec_error_to_event[] = {
 	SEC_ERROR_TO_EVENT_MAP(TX_RAM_SEC_ERR),
 	SEC_ERROR_TO_EVENT_MAP(RX_RAM_SEC_ERR),
 	SEC_ERROR_TO_EVENT_MAP(PCIE2AXI_RAM_SEC_ERR),
 	SEC_ERROR_TO_EVENT_MAP(AXI2PCIE_RAM_SEC_ERR),
 };
 
-struct event_map ded_error_to_event[] = {
+static struct event_map ded_error_to_event[] = {
 	DED_ERROR_TO_EVENT_MAP(TX_RAM_DED_ERR),
 	DED_ERROR_TO_EVENT_MAP(RX_RAM_DED_ERR),
 	DED_ERROR_TO_EVENT_MAP(PCIE2AXI_RAM_DED_ERR),
 	DED_ERROR_TO_EVENT_MAP(AXI2PCIE_RAM_DED_ERR),
 };
 
-struct event_map local_status_to_event[] = {
+static struct event_map local_status_to_event[] = {
 	LOCAL_STATUS_TO_EVENT_MAP(DMA_END_ENGINE_0),
 	LOCAL_STATUS_TO_EVENT_MAP(DMA_END_ENGINE_1),
 	LOCAL_STATUS_TO_EVENT_MAP(DMA_ERROR_ENGINE_0),
