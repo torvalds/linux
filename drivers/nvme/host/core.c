@@ -1137,7 +1137,8 @@ void nvme_execute_passthru_rq(struct request *rq)
 
 	effects = nvme_passthru_start(ctrl, ns, cmd->common.opcode);
 	blk_execute_rq(disk, rq, 0);
-	nvme_passthru_end(ctrl, effects);
+	if (effects) /* nothing to be done for zero cmd effects */
+		nvme_passthru_end(ctrl, effects);
 }
 EXPORT_SYMBOL_NS_GPL(nvme_execute_passthru_rq, NVME_TARGET_PASSTHRU);
 
