@@ -21,7 +21,7 @@
 #include "hisi_uncore_pmu.h"
 
 #define HISI_GET_EVENTID(ev) (ev->hw.config_base & 0xff)
-#define HISI_MAX_PERIOD(nr) (BIT_ULL(nr) - 1)
+#define HISI_MAX_PERIOD(nr) (GENMASK_ULL((nr) - 1, 0))
 
 /*
  * PMU format attributes
@@ -245,6 +245,9 @@ static void hisi_uncore_pmu_enable_event(struct perf_event *event)
 	hisi_pmu->ops->write_evtype(hisi_pmu, hwc->idx,
 				    HISI_GET_EVENTID(event));
 
+	if (hisi_pmu->ops->enable_filter)
+		hisi_pmu->ops->enable_filter(event);
+
 	hisi_pmu->ops->enable_counter_int(hisi_pmu, hwc);
 	hisi_pmu->ops->enable_counter(hisi_pmu, hwc);
 }
@@ -259,6 +262,9 @@ static void hisi_uncore_pmu_disable_event(struct perf_event *event)
 
 	hisi_pmu->ops->disable_counter(hisi_pmu, hwc);
 	hisi_pmu->ops->disable_counter_int(hisi_pmu, hwc);
+
+	if (hisi_pmu->ops->disable_filter)
+		hisi_pmu->ops->disable_filter(event);
 }
 
 void hisi_uncore_pmu_set_event_period(struct perf_event *event)

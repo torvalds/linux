@@ -11,6 +11,7 @@
 #ifndef __HISI_UNCORE_PMU_H__
 #define __HISI_UNCORE_PMU_H__
 
+#include <linux/bitfield.h>
 #include <linux/cpumask.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
@@ -22,6 +23,7 @@
 #undef pr_fmt
 #define pr_fmt(fmt)     "hisi_pmu: " fmt
 
+#define HISI_PMU_V2		0x30
 #define HISI_MAX_COUNTERS 0x10
 #define to_hisi_pmu(p)	(container_of(p, struct hisi_pmu, pmu))
 
@@ -34,6 +36,12 @@
 	HISI_PMU_ATTR(_name, hisi_format_sysfs_show, (void *)_config)
 #define HISI_PMU_EVENT_ATTR(_name, _config)		\
 	HISI_PMU_ATTR(_name, hisi_event_sysfs_show, (unsigned long)_config)
+
+#define HISI_PMU_EVENT_ATTR_EXTRACTOR(name, config, hi, lo)        \
+	static inline u32 hisi_get_##name(struct perf_event *event)            \
+	{                                                                  \
+		return FIELD_GET(GENMASK_ULL(hi, lo), event->attr.config);  \
+	}
 
 struct hisi_pmu;
 
@@ -50,11 +58,14 @@ struct hisi_uncore_ops {
 	void (*stop_counters)(struct hisi_pmu *);
 	u32 (*get_int_status)(struct hisi_pmu *hisi_pmu);
 	void (*clear_int_status)(struct hisi_pmu *hisi_pmu, int idx);
+	void (*enable_filter)(struct perf_event *event);
+	void (*disable_filter)(struct perf_event *event);
 };
 
 struct hisi_pmu_hwevents {
 	struct perf_event *hw_events[HISI_MAX_COUNTERS];
 	DECLARE_BITMAP(used_mask, HISI_MAX_COUNTERS);
+	const struct attribute_group **attr_groups;
 };
 
 /* Generic pmu struct for different pmu types */
