@@ -207,7 +207,7 @@ static bool nfs_has_xattr_cache(const struct nfs_inode *nfsi)
 }
 #endif
 
-static void nfs_set_cache_invalid(struct inode *inode, unsigned long flags)
+void nfs_set_cache_invalid(struct inode *inode, unsigned long flags)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	bool have_delegation = NFS_PROTO(inode)->have_delegation(inode, FMODE_READ);

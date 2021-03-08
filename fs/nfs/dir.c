@@ -1403,10 +1403,8 @@ out_force:
 
 static void nfs_mark_dir_for_revalidate(struct inode *inode)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
-
 	spin_lock(&inode->i_lock);
-	nfsi->cache_validity |= NFS_INO_REVAL_PAGECACHE;
+	nfs_set_cache_invalid(inode, NFS_INO_REVAL_PAGECACHE);
 	spin_unlock(&inode->i_lock);
 }
 
