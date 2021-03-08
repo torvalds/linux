@@ -830,7 +830,8 @@ static int usb_audio_probe(struct usb_interface *intf,
 		snd_media_device_create(chip, intf);
 	}
 
-	chip->quirk_type = quirk->type;
+	if (quirk)
+		chip->quirk_type = quirk->type;
 
 	usb_chip[chip->index] = chip;
 	chip->intf[chip->num_interfaces] = intf;
