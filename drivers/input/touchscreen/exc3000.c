@@ -30,6 +30,7 @@
 #define EXC3000_LEN_MODEL_NAME		16
 #define EXC3000_LEN_FW_VERSION		16
 
+#define EXC3000_VENDOR_EVENT		0x03
 #define EXC3000_MT1_EVENT		0x06
 #define EXC3000_MT2_EVENT		0x18
 
@@ -105,14 +106,15 @@ static void exc3000_timer(struct timer_list *t)
 	input_sync(data->input);
 }
 
+static inline void exc3000_schedule_timer(struct exc3000_data *data)
+{
+	mod_timer(&data->timer, jiffies + msecs_to_jiffies(EXC3000_TIMEOUT_MS));
+}
+
 static int exc3000_read_frame(struct exc3000_data *data, u8 *buf)
 {
 	struct i2c_client *client = data->client;
-	u8 expected_event = EXC3000_MT1_EVENT;
 	int ret;
-
-	if (data->info->max_xy == SZ_16K - 1)
-		expected_event = EXC3000_MT2_EVENT;
 
 	ret = i2c_master_send(client, "'", 2);
 	if (ret < 0)
@@ -131,47 +133,62 @@ static int exc3000_read_frame(struct exc3000_data *data, u8 *buf)
 	if (get_unaligned_le16(buf) != EXC3000_LEN_FRAME)
 		return -EINVAL;
 
-	if (buf[2] != expected_event)
-		return -EINVAL;
-
 	return 0;
 }
 
-static int exc3000_read_data(struct exc3000_data *data,
-			     u8 *buf, int *n_slots)
+static int exc3000_handle_mt_event(struct exc3000_data *data)
 {
-	int error;
+	struct input_dev *input = data->input;
+	int ret, total_slots;
+	u8 *buf = data->buf;
 
-	error = exc3000_read_frame(data, buf);
-	if (error)
-		return error;
-
-	*n_slots = buf[3];
-	if (!*n_slots || *n_slots > EXC3000_NUM_SLOTS)
-		return -EINVAL;
-
-	if (*n_slots > EXC3000_SLOTS_PER_FRAME) {
-		/* Read 2nd frame to get the rest of the contacts. */
-		error = exc3000_read_frame(data, buf + EXC3000_LEN_FRAME);
-		if (error)
-			return error;
-
-		/* 2nd chunk must have number of contacts set to 0. */
-		if (buf[EXC3000_LEN_FRAME + 3] != 0)
-			return -EINVAL;
+	total_slots = buf[3];
+	if (!total_slots || total_slots > EXC3000_NUM_SLOTS) {
+		ret = -EINVAL;
+		goto out_fail;
 	}
 
+	if (total_slots > EXC3000_SLOTS_PER_FRAME) {
+		/* Read 2nd frame to get the rest of the contacts. */
+		ret = exc3000_read_frame(data, buf + EXC3000_LEN_FRAME);
+		if (ret)
+			goto out_fail;
+
+		/* 2nd chunk must have number of contacts set to 0. */
+		if (buf[EXC3000_LEN_FRAME + 3] != 0) {
+			ret = -EINVAL;
+			goto out_fail;
+		}
+	}
+
+	/*
+	 * We read full state successfully, no contacts will be "stuck".
+	 */
+	del_timer_sync(&data->timer);
+
+	while (total_slots > 0) {
+		int slots = min(total_slots, EXC3000_SLOTS_PER_FRAME);
+
+		exc3000_report_slots(input, &data->prop, buf + 4, slots);
+		total_slots -= slots;
+		buf += EXC3000_LEN_FRAME;
+	}
+
+	input_mt_sync_frame(input);
+	input_sync(input);
+
 	return 0;
+
+out_fail:
+	/* Schedule a timer to release "stuck" contacts */
+	exc3000_schedule_timer(data);
+
+	return ret;
 }
 
 static int exc3000_query_interrupt(struct exc3000_data *data)
 {
 	u8 *buf = data->buf;
-	int error;
-
-	error = i2c_master_recv(data->client, buf, EXC3000_LEN_FRAME);
-	if (error < 0)
-		return error;
 
 	if (buf[0] != 'B')
 		return -EPROTO;
@@ -189,39 +206,30 @@ static int exc3000_query_interrupt(struct exc3000_data *data)
 static irqreturn_t exc3000_interrupt(int irq, void *dev_id)
 {
 	struct exc3000_data *data = dev_id;
-	struct input_dev *input = data->input;
 	u8 *buf = data->buf;
-	int slots, total_slots;
-	int error;
+	int ret;
 
-	if (mutex_is_locked(&data->query_lock)) {
+	ret = exc3000_read_frame(data, buf);
+	if (ret) {
+		/* Schedule a timer to release "stuck" contacts */
+		exc3000_schedule_timer(data);
+		goto out;
+	}
+
+	switch (buf[2]) {
+	case EXC3000_VENDOR_EVENT:
 		data->query_result = exc3000_query_interrupt(data);
 		complete(&data->wait_event);
-		goto out;
+		break;
+
+	case EXC3000_MT1_EVENT:
+	case EXC3000_MT2_EVENT:
+		exc3000_handle_mt_event(data);
+		break;
+
+	default:
+		break;
 	}
-
-	error = exc3000_read_data(data, buf, &total_slots);
-	if (error) {
-		/* Schedule a timer to release "stuck" contacts */
-		mod_timer(&data->timer,
-			  jiffies + msecs_to_jiffies(EXC3000_TIMEOUT_MS));
-		goto out;
-	}
-
-	/*
-	 * We read full state successfully, no contacts will be "stuck".
-	 */
-	del_timer_sync(&data->timer);
-
-	while (total_slots > 0) {
-		slots = min(total_slots, EXC3000_SLOTS_PER_FRAME);
-		exc3000_report_slots(input, &data->prop, buf + 4, slots);
-		total_slots -= slots;
-		buf += EXC3000_LEN_FRAME;
-	}
-
-	input_mt_sync_frame(input);
-	input_sync(input);
 
 out:
 	return IRQ_HANDLED;
