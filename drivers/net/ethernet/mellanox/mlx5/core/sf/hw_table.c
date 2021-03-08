@@ -41,7 +41,7 @@ int mlx5_sf_hw_table_sf_alloc(struct mlx5_core_dev *dev, u32 usr_sfnum)
 	int err;
 	int i;
 
-	if (!table->max_local_functions)
+	if (!table || !table->max_local_functions)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&table->table_lock);
@@ -229,4 +229,9 @@ void mlx5_sf_hw_table_destroy(struct mlx5_core_dev *dev)
 	mlx5_vhca_event_notifier_unregister(dev, &table->vhca_nb);
 	/* Dealloc SFs whose firmware event has been missed. */
 	mlx5_sf_hw_dealloc_all(table);
+}
+
+bool mlx5_sf_hw_table_supported(const struct mlx5_core_dev *dev)
+{
+	return !!dev->priv.sf_hw_table;
 }

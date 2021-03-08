@@ -17,5 +17,6 @@ u16 mlx5_sf_sw_to_hw_id(const struct mlx5_core_dev *dev, u16 sw_id);
 int mlx5_sf_hw_table_sf_alloc(struct mlx5_core_dev *dev, u32 usr_sfnum);
 void mlx5_sf_hw_table_sf_free(struct mlx5_core_dev *dev, u16 id);
 void mlx5_sf_hw_table_sf_deferred_free(struct mlx5_core_dev *dev, u16 id);
+bool mlx5_sf_hw_table_supported(const struct mlx5_core_dev *dev);
 
 #endif

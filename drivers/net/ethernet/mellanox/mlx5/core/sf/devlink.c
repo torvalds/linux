@@ -437,9 +437,6 @@ sf_err:
 
 static void mlx5_sf_table_enable(struct mlx5_sf_table *table)
 {
-	if (!mlx5_sf_max_functions(table->dev))
-		return;
-
 	init_completion(&table->disable_complete);
 	refcount_set(&table->refcount, 1);
 }
@@ -462,9 +459,6 @@ static void mlx5_sf_deactivate_all(struct mlx5_sf_table *table)
 
 static void mlx5_sf_table_disable(struct mlx5_sf_table *table)
 {
-	if (!mlx5_sf_max_functions(table->dev))
-		return;
-
 	if (!refcount_read(&table->refcount))
 		return;
 
@@ -498,7 +492,8 @@ static int mlx5_sf_esw_event(struct notifier_block *nb, unsigned long event, voi
 
 static bool mlx5_sf_table_supported(const struct mlx5_core_dev *dev)
 {
-	return dev->priv.eswitch && MLX5_ESWITCH_MANAGER(dev) && mlx5_sf_supported(dev);
+	return dev->priv.eswitch && MLX5_ESWITCH_MANAGER(dev) &&
+	       mlx5_sf_hw_table_supported(dev);
 }
 
 int mlx5_sf_table_init(struct mlx5_core_dev *dev)
