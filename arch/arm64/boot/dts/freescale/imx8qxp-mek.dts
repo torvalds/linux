@@ -173,7 +173,7 @@
 };
 
 &usdhc1 {
-	assigned-clocks = <&clk IMX_CONN_SDHC0_CLK>;
+	assigned-clocks = <&clk IMX_SC_R_SDHC_0 IMX_SC_PM_CLK_PER>;
 	assigned-clock-rates = <200000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
@@ -185,7 +185,7 @@
 };
 
 &usdhc2 {
-	assigned-clocks = <&clk IMX_CONN_SDHC1_CLK>;
+	assigned-clocks = <&clk IMX_SC_R_SDHC_1 IMX_SC_PM_CLK_PER>;
 	assigned-clock-rates = <200000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
