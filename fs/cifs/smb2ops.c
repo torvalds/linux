@@ -693,14 +693,14 @@ smb2_close_cached_fid(struct kref *ref)
 	}
 }
 
-void close_shroot(struct cached_fid *cfid)
+void close_cached_dir(struct cached_fid *cfid)
 {
 	mutex_lock(&cfid->fid_mutex);
 	kref_put(&cfid->refcount, smb2_close_cached_fid);
 	mutex_unlock(&cfid->fid_mutex);
 }
 
-void close_shroot_lease_locked(struct cached_fid *cfid)
+void close_cached_dir_lease_locked(struct cached_fid *cfid)
 {
 	if (cfid->has_lease) {
 		cfid->has_lease = false;
@@ -708,10 +708,10 @@ void close_shroot_lease_locked(struct cached_fid *cfid)
 	}
 }
 
-void close_shroot_lease(struct cached_fid *cfid)
+void close_cached_dir_lease(struct cached_fid *cfid)
 {
 	mutex_lock(&cfid->fid_mutex);
-	close_shroot_lease_locked(cfid);
+	close_cached_dir_lease_locked(cfid);
 	mutex_unlock(&cfid->fid_mutex);
 }
 
@@ -721,13 +721,14 @@ smb2_cached_lease_break(struct work_struct *work)
 	struct cached_fid *cfid = container_of(work,
 				struct cached_fid, lease_break);
 
-	close_shroot_lease(cfid);
+	close_cached_dir_lease(cfid);
 }
 
 /*
- * Open the directory at the root of a share
+ * Open the and cache a directory handle.
+ * Only supported for the root handle.
  */
-int open_shroot(unsigned int xid, struct cifs_tcon *tcon,
+int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 		const char *path,
 		struct cifs_sb_info *cifs_sb,
 		struct cached_fid **cfid)
@@ -930,7 +931,7 @@ smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon,
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	rc = open_shroot(xid, tcon, "", cifs_sb, &cfid);
+	rc = open_cached_dir(xid, tcon, "", cifs_sb, &cfid);
 	if (rc == 0)
 		memcpy(&fid, cfid->fid, sizeof(struct cifs_fid));
 	else
@@ -952,7 +953,7 @@ smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon,
 	if (cfid == NULL)
 		SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
 	else
-		close_shroot(cfid);
+		close_cached_dir(cfid);
 }
 
 static void

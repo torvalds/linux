@@ -524,7 +524,7 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 		return -ENOMEM;
 
 	/* If it is a root and its handle is cached then use it */
-	rc = open_shroot(xid, tcon, full_path, cifs_sb, &cfid);
+	rc = open_cached_dir(xid, tcon, full_path, cifs_sb, &cfid);
 	if (!rc) {
 		if (tcon->crfid.file_all_info_is_valid) {
 			move_smb2_info_to_cifs(data,
@@ -536,7 +536,7 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 			if (!rc)
 				move_smb2_info_to_cifs(data, smb2_data);
 		}
-		close_shroot(cfid);
+		close_cached_dir(cfid);
 		goto out;
 	}
 
