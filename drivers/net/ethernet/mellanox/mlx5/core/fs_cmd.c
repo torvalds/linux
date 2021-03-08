@@ -49,9 +49,11 @@ static int mlx5_cmd_stub_update_root_ft(struct mlx5_flow_root_namespace *ns,
 
 static int mlx5_cmd_stub_create_flow_table(struct mlx5_flow_root_namespace *ns,
 					   struct mlx5_flow_table *ft,
-					   unsigned int log_size,
+					   unsigned int size,
 					   struct mlx5_flow_table *next_ft)
 {
+	ft->max_fte = size ? roundup_pow_of_two(size) : 1;
+
 	return 0;
 }
 
@@ -181,7 +183,7 @@ static int mlx5_cmd_update_root_ft(struct mlx5_flow_root_namespace *ns,
 
 static int mlx5_cmd_create_flow_table(struct mlx5_flow_root_namespace *ns,
 				      struct mlx5_flow_table *ft,
-				      unsigned int log_size,
+				      unsigned int size,
 				      struct mlx5_flow_table *next_ft)
 {
 	int en_encap = !!(ft->flags & MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT);
@@ -190,7 +192,11 @@ static int mlx5_cmd_create_flow_table(struct mlx5_flow_root_namespace *ns,
 	u32 out[MLX5_ST_SZ_DW(create_flow_table_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(create_flow_table_in)] = {};
 	struct mlx5_core_dev *dev = ns->dev;
+	unsigned int log_size = 0;
 	int err;
+
+	log_size = size ? ilog2(roundup_pow_of_two(size)) : 0;
+	ft->max_fte = 1 << log_size;
 
 	MLX5_SET(create_flow_table_in, in, opcode,
 		 MLX5_CMD_OP_CREATE_FLOW_TABLE);

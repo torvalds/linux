@@ -752,7 +752,7 @@ static struct mlx5_flow_group *alloc_insert_flow_group(struct mlx5_flow_table *f
 	return fg;
 }
 
-static struct mlx5_flow_table *alloc_flow_table(int level, u16 vport, int max_fte,
+static struct mlx5_flow_table *alloc_flow_table(int level, u16 vport,
 						enum fs_flow_table_type table_type,
 						enum fs_flow_table_op_mod op_mod,
 						u32 flags)
@@ -775,7 +775,6 @@ static struct mlx5_flow_table *alloc_flow_table(int level, u16 vport, int max_ft
 	ft->op_mod = op_mod;
 	ft->type = table_type;
 	ft->vport = vport;
-	ft->max_fte = max_fte;
 	ft->flags = flags;
 	INIT_LIST_HEAD(&ft->fwd_rules);
 	mutex_init(&ft->lock);
@@ -1070,7 +1069,6 @@ static struct mlx5_flow_table *__mlx5_create_flow_table(struct mlx5_flow_namespa
 	struct mlx5_flow_table *next_ft;
 	struct fs_prio *fs_prio = NULL;
 	struct mlx5_flow_table *ft;
-	int log_table_sz;
 	int err;
 
 	if (!root) {
@@ -1101,7 +1099,6 @@ static struct mlx5_flow_table *__mlx5_create_flow_table(struct mlx5_flow_namespa
 	 */
 	ft = alloc_flow_table(ft_attr->level,
 			      vport,
-			      ft_attr->max_fte ? roundup_pow_of_two(ft_attr->max_fte) : 0,
 			      root->table_type,
 			      op_mod, ft_attr->flags);
 	if (IS_ERR(ft)) {
@@ -1110,12 +1107,11 @@ static struct mlx5_flow_table *__mlx5_create_flow_table(struct mlx5_flow_namespa
 	}
 
 	tree_init_node(&ft->node, del_hw_flow_table, del_sw_flow_table);
-	log_table_sz = ft->max_fte ? ilog2(ft->max_fte) : 0;
 	next_ft = unmanaged ? ft_attr->next_ft :
 			      find_next_chained_ft(fs_prio);
 	ft->def_miss_action = ns->def_miss_action;
 	ft->ns = ns;
-	err = root->cmds->create_flow_table(root, ft, log_table_sz, next_ft);
+	err = root->cmds->create_flow_table(root, ft, ft_attr->max_fte, next_ft);
 	if (err)
 		goto free_ft;
 

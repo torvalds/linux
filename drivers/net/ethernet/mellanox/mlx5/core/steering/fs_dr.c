@@ -62,7 +62,7 @@ static int set_miss_action(struct mlx5_flow_root_namespace *ns,
 
 static int mlx5_cmd_dr_create_flow_table(struct mlx5_flow_root_namespace *ns,
 					 struct mlx5_flow_table *ft,
-					 unsigned int log_size,
+					 unsigned int size,
 					 struct mlx5_flow_table *next_ft)
 {
 	struct mlx5dr_table *tbl;
@@ -71,7 +71,7 @@ static int mlx5_cmd_dr_create_flow_table(struct mlx5_flow_root_namespace *ns,
 
 	if (mlx5_dr_is_fw_table(ft->flags))
 		return mlx5_fs_cmd_get_fw_cmds()->create_flow_table(ns, ft,
-								    log_size,
+								    size,
 								    next_ft);
 	flags = ft->flags;
 	/* turn off encap/decap if not supported for sw-str by fw */
@@ -96,6 +96,8 @@ static int mlx5_cmd_dr_create_flow_table(struct mlx5_flow_root_namespace *ns,
 			return err;
 		}
 	}
+
+	ft->max_fte = size ? roundup_pow_of_two(size) : 1;
 
 	return 0;
 }
