@@ -90,10 +90,11 @@
 &rk809_codec {
 	#sound-dai-cells = <1>;
 	compatible = "rockchip,rk809-codec", "rockchip,rk817-codec";
-	clocks = <&cru I2S1_MCLKOUT_TX>;
+	clocks = <&cru I2S1_MCLKOUT>;
 	clock-names = "mclk";
-	assigned-clocks = <&cru I2S1_MCLKOUT_TX>;
-	assigned-clock-parents = <&cru CLK_I2S1_8CH_TX>;
+	assigned-clocks = <&cru I2S1_MCLKOUT>, <&cru I2S1_MCLK_TX_IOE>;
+	assigned-clock-rates = <12288000>;
+	assigned-clock-parents = <&cru I2S1_MCLKOUT_TX>, <&cru I2S1_MCLKOUT_TX>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2s1m0_mclk>;
 	pdmdata-out-enable;
