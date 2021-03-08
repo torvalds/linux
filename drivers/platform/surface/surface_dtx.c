@@ -27,6 +27,7 @@
 #include <linux/workqueue.h>
 
 #include <linux/surface_aggregator/controller.h>
+#include <linux/surface_aggregator/device.h>
 #include <linux/surface_aggregator/dtx.h>
 
 
@@ -1194,7 +1195,94 @@ static struct platform_driver surface_dtx_platform_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
-module_platform_driver(surface_dtx_platform_driver);
+
+
+/* -- SSAM device driver. --------------------------------------------------- */
+
+#ifdef CONFIG_SURFACE_AGGREGATOR_BUS
+
+static int surface_dtx_ssam_probe(struct ssam_device *sdev)
+{
+	struct sdtx_device *ddev;
+
+	ddev = sdtx_device_create(&sdev->dev, sdev->ctrl);
+	if (IS_ERR(ddev))
+		return PTR_ERR(ddev);
+
+	ssam_device_set_drvdata(sdev, ddev);
+	return 0;
+}
+
+static void surface_dtx_ssam_remove(struct ssam_device *sdev)
+{
+	sdtx_device_destroy(ssam_device_get_drvdata(sdev));
+}
+
+static const struct ssam_device_id surface_dtx_ssam_match[] = {
+	{ SSAM_SDEV(BAS, 0x01, 0x00, 0x00) },
+	{ },
+};
+MODULE_DEVICE_TABLE(ssam, surface_dtx_ssam_match);
+
+static struct ssam_device_driver surface_dtx_ssam_driver = {
+	.probe = surface_dtx_ssam_probe,
+	.remove = surface_dtx_ssam_remove,
+	.match_table = surface_dtx_ssam_match,
+	.driver = {
+		.name = "surface_dtx",
+		.pm = &surface_dtx_pm_ops,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+	},
+};
+
+static int ssam_dtx_driver_register(void)
+{
+	return ssam_device_driver_register(&surface_dtx_ssam_driver);
+}
+
+static void ssam_dtx_driver_unregister(void)
+{
+	ssam_device_driver_unregister(&surface_dtx_ssam_driver);
+}
+
+#else /* CONFIG_SURFACE_AGGREGATOR_BUS */
+
+static int ssam_dtx_driver_register(void)
+{
+	return 0;
+}
+
+static void ssam_dtx_driver_unregister(void)
+{
+}
+
+#endif /* CONFIG_SURFACE_AGGREGATOR_BUS */
+
+
+/* -- Module setup. --------------------------------------------------------- */
+
+static int __init surface_dtx_init(void)
+{
+	int status;
+
+	status = ssam_dtx_driver_register();
+	if (status)
+		return status;
+
+	status = platform_driver_register(&surface_dtx_platform_driver);
+	if (status)
+		ssam_dtx_driver_unregister();
+
+	return status;
+}
+module_init(surface_dtx_init);
+
+static void __exit surface_dtx_exit(void)
+{
+	platform_driver_unregister(&surface_dtx_platform_driver);
+	ssam_dtx_driver_unregister();
+}
+module_exit(surface_dtx_exit);
 
 MODULE_AUTHOR("Maximilian Luz <luzmaximilian@gmail.com>");
 MODULE_DESCRIPTION("Detachment-system driver for Surface System Aggregator Module");

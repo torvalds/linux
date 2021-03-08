@@ -120,6 +120,10 @@ config SURFACE_DTX
 	  behavior of this process, which includes the option to abort it in
 	  case the base is still in use or speed it up in case it is not.
 
+	  Note that this module can be built without support for the Surface
+	  Aggregator Bus (i.e. CONFIG_SURFACE_AGGREGATOR_BUS=n). In that case,
+	  some devices, specifically the Surface Book 3, will not be supported.
+
 config SURFACE_GPE
 	tristate "Surface GPE/Lid Support Driver"
 	depends on DMI
