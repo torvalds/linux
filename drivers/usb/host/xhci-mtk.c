@@ -417,6 +417,8 @@ static int xhci_mtk_setup(struct usb_hcd *hcd)
 
 static const struct xhci_driver_overrides xhci_mtk_overrides __initconst = {
 	.reset = xhci_mtk_setup,
+	.add_endpoint = xhci_mtk_add_ep,
+	.drop_endpoint = xhci_mtk_drop_ep,
 	.check_bandwidth = xhci_mtk_check_bandwidth,
 	.reset_bandwidth = xhci_mtk_reset_bandwidth,
 };

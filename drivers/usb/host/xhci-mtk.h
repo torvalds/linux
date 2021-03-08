@@ -161,38 +161,13 @@ static inline struct xhci_hcd_mtk *hcd_to_mtk(struct usb_hcd *hcd)
 	return dev_get_drvdata(hcd->self.controller);
 }
 
-#if IS_ENABLED(CONFIG_USB_XHCI_MTK)
 int xhci_mtk_sch_init(struct xhci_hcd_mtk *mtk);
 void xhci_mtk_sch_exit(struct xhci_hcd_mtk *mtk);
-int xhci_mtk_add_ep_quirk(struct usb_hcd *hcd, struct usb_device *udev,
-		struct usb_host_endpoint *ep);
-void xhci_mtk_drop_ep_quirk(struct usb_hcd *hcd, struct usb_device *udev,
-		struct usb_host_endpoint *ep);
+int xhci_mtk_add_ep(struct usb_hcd *hcd, struct usb_device *udev,
+		    struct usb_host_endpoint *ep);
+int xhci_mtk_drop_ep(struct usb_hcd *hcd, struct usb_device *udev,
+		     struct usb_host_endpoint *ep);
 int xhci_mtk_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev);
 void xhci_mtk_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev);
-
-#else
-static inline int xhci_mtk_add_ep_quirk(struct usb_hcd *hcd,
-	struct usb_device *udev, struct usb_host_endpoint *ep)
-{
-	return 0;
-}
-
-static inline void xhci_mtk_drop_ep_quirk(struct usb_hcd *hcd,
-	struct usb_device *udev, struct usb_host_endpoint *ep)
-{
-}
-
-static inline int xhci_mtk_check_bandwidth(struct usb_hcd *hcd,
-		struct usb_device *udev)
-{
-	return 0;
-}
-
-static inline void xhci_mtk_reset_bandwidth(struct usb_hcd *hcd,
-		struct usb_device *udev)
-{
-}
-#endif
 
 #endif		/* _XHCI_MTK_H_ */

@@ -691,25 +691,22 @@ int xhci_mtk_sch_init(struct xhci_hcd_mtk *mtk)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(xhci_mtk_sch_init);
 
 void xhci_mtk_sch_exit(struct xhci_hcd_mtk *mtk)
 {
 	kfree(mtk->sch_array);
 }
-EXPORT_SYMBOL_GPL(xhci_mtk_sch_exit);
 
-int xhci_mtk_add_ep_quirk(struct usb_hcd *hcd, struct usb_device *udev,
-		struct usb_host_endpoint *ep)
+static int add_ep_quirk(struct usb_hcd *hcd, struct usb_device *udev,
+			struct usb_host_endpoint *ep)
 {
 	struct xhci_hcd_mtk *mtk = hcd_to_mtk(hcd);
-	struct xhci_hcd *xhci;
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	struct xhci_ep_ctx *ep_ctx;
 	struct xhci_virt_device *virt_dev;
 	struct mu3h_sch_ep_info *sch_ep;
 	unsigned int ep_index;
 
-	xhci = hcd_to_xhci(hcd);
 	virt_dev = xhci->devs[udev->slot_id];
 	ep_index = xhci_get_endpoint_index(&ep->desc);
 	ep_ctx = xhci_get_ep_ctx(xhci, virt_dev->in_ctx, ep_index);
@@ -741,18 +738,16 @@ int xhci_mtk_add_ep_quirk(struct usb_hcd *hcd, struct usb_device *udev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(xhci_mtk_add_ep_quirk);
 
-void xhci_mtk_drop_ep_quirk(struct usb_hcd *hcd, struct usb_device *udev,
-		struct usb_host_endpoint *ep)
+static void drop_ep_quirk(struct usb_hcd *hcd, struct usb_device *udev,
+			  struct usb_host_endpoint *ep)
 {
 	struct xhci_hcd_mtk *mtk = hcd_to_mtk(hcd);
-	struct xhci_hcd *xhci;
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	struct xhci_virt_device *virt_dev;
 	struct mu3h_sch_bw_info *sch_bw;
 	struct mu3h_sch_ep_info *sch_ep, *tmp;
 
-	xhci = hcd_to_xhci(hcd);
 	virt_dev = xhci->devs[udev->slot_id];
 
 	xhci_dbg(xhci, "%s() type:%d, speed:%d, mpks:%d, dir:%d, ep:%p\n",
@@ -772,7 +767,6 @@ void xhci_mtk_drop_ep_quirk(struct usb_hcd *hcd, struct usb_device *udev,
 		}
 	}
 }
-EXPORT_SYMBOL_GPL(xhci_mtk_drop_ep_quirk);
 
 int xhci_mtk_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 {
@@ -818,7 +812,6 @@ int xhci_mtk_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 
 	return xhci_check_bandwidth(hcd, udev);
 }
-EXPORT_SYMBOL_GPL(xhci_mtk_check_bandwidth);
 
 void xhci_mtk_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 {
@@ -836,4 +829,31 @@ void xhci_mtk_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 
 	xhci_reset_bandwidth(hcd, udev);
 }
-EXPORT_SYMBOL_GPL(xhci_mtk_reset_bandwidth);
+
+int xhci_mtk_add_ep(struct usb_hcd *hcd, struct usb_device *udev,
+		    struct usb_host_endpoint *ep)
+{
+	int ret;
+
+	ret = xhci_add_endpoint(hcd, udev, ep);
+	if (ret)
+		return ret;
+
+	if (ep->hcpriv)
+		ret = add_ep_quirk(hcd, udev, ep);
+
+	return ret;
+}
+
+int xhci_mtk_drop_ep(struct usb_hcd *hcd, struct usb_device *udev,
+		     struct usb_host_endpoint *ep)
+{
+	int ret;
+
+	ret = xhci_drop_endpoint(hcd, udev, ep);
+	if (ret)
+		return ret;
+
+	drop_ep_quirk(hcd, udev, ep);
+	return 0;
+}
