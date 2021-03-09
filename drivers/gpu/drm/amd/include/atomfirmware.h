@@ -2635,7 +2635,18 @@ struct atom_umc_info_v3_3
   uint32_t pstate_uclk_10khz[4];
   uint16_t umcgoldenoffset;
   uint16_t densitygoldenoffset;
-  uint32_t reserved[4];
+  uint32_t umc_config1;
+  uint32_t bist_data_startaddr;
+  uint32_t reserved[2];
+};
+
+enum atom_umc_config1_def {
+	UMC_CONFIG1__ENABLE_PSTATE_PHASE_STORE_TRAIN = 0x00000001,
+	UMC_CONFIG1__ENABLE_AUTO_FRAMING = 0x00000002,
+	UMC_CONFIG1__ENABLE_RESTORE_BIST_DATA = 0x00000004,
+	UMC_CONFIG1__DISABLE_STROBE_MODE = 0x00000008,
+	UMC_CONFIG1__DEBUG_DATA_PARITY_EN = 0x00000010,
+	UMC_CONFIG1__ENABLE_ECC_CAPABLE = 0x00010000,
 };
 
 /* 
