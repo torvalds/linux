@@ -3443,31 +3443,14 @@ static void sienna_cichlid_dump_pptable(struct smu_context *smu)
 }
 
 static int sienna_cichlid_i2c_xfer(struct i2c_adapter *i2c_adap,
-				   struct i2c_msg *msgs, int num)
+				   struct i2c_msg *msg, int num_msgs)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(i2c_adap);
 	struct smu_table_context *smu_table = &adev->smu.smu_table;
 	struct smu_table *table = &smu_table->driver_table;
 	SwI2cRequest_t *req, *res = (SwI2cRequest_t *)table->cpu_addr;
-	short available_bytes = MAX_SW_I2C_COMMANDS;
-	int i, j, r, c, num_done = 0;
-	u8 slave;
-
-	/* only support a single slave addr per transaction */
-	slave = msgs[0].addr;
-	for (i = 0; i < num; i++) {
-		if (slave != msgs[i].addr)
-			return -EINVAL;
-
-		available_bytes -= msgs[i].len;
-		if (available_bytes >= 0) {
-			num_done++;
-		} else {
-			/* This message and all the follwing won't be processed */
-			available_bytes += msgs[i].len;
-			break;
-		}
-	}
+	int i, j, r, c;
+	u16 dir;
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
@@ -3475,33 +3458,38 @@ static int sienna_cichlid_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 	req->I2CcontrollerPort = 1;
 	req->I2CSpeed = I2C_SPEED_FAST_400K;
-	req->SlaveAddress = slave << 1; /* 8 bit addresses */
-	req->NumCmds = MAX_SW_I2C_COMMANDS - available_bytes;;
+	req->SlaveAddress = msg[0].addr << 1; /* wants an 8-bit address */
+	dir = msg[0].flags & I2C_M_RD;
 
-	c = 0;
-	for (i = 0; i < num_done; i++) {
-		struct i2c_msg *msg = &msgs[i];
-
-		for (j = 0; j < msg->len; j++) {
-			SwI2cCmd_t *cmd = &req->SwI2cCmds[c++];
+	for (c = i = 0; i < num_msgs; i++) {
+		for (j = 0; j < msg[i].len; j++, c++) {
+			SwI2cCmd_t *cmd = &req->SwI2cCmds[c];
 
 			if (!(msg[i].flags & I2C_M_RD)) {
 				/* write */
 				cmd->CmdConfig |= CMDCONFIG_READWRITE_MASK;
-				cmd->ReadWriteData = msg->buf[j];
+				cmd->ReadWriteData = msg[i].buf[j];
 			}
+
+			if ((dir ^ msg[i].flags) & I2C_M_RD) {
+				/* The direction changes.
+				 */
+				dir = msg[i].flags & I2C_M_RD;
+				cmd->CmdConfig |= CMDCONFIG_RESTART_MASK;
+			}
+
+			req->NumCmds++;
 
 			/*
 			 * Insert STOP if we are at the last byte of either last
 			 * message for the transaction or the client explicitly
 			 * requires a STOP at this particular message.
 			 */
-			if ((j == msg->len -1 ) &&
-			    ((i == num_done - 1) || (msg[i].flags & I2C_M_STOP)))
+			if ((j == msg[i].len - 1) &&
+			    ((i == num_msgs - 1) || (msg[i].flags & I2C_M_STOP))) {
+				cmd->CmdConfig &= ~CMDCONFIG_RESTART_MASK;
 				cmd->CmdConfig |= CMDCONFIG_STOP_MASK;
-
-			if ((j == 0) && !(msg[i].flags & I2C_M_NOSTART))
-				cmd->CmdConfig |= CMDCONFIG_RESTART_BIT;
+			}
 		}
 	}
 	mutex_lock(&adev->smu.mutex);
@@ -3510,22 +3498,20 @@ static int sienna_cichlid_i2c_xfer(struct i2c_adapter *i2c_adap,
 	if (r)
 		goto fail;
 
-	c = 0;
-	for (i = 0; i < num_done; i++) {
-		struct i2c_msg *msg = &msgs[i];
+	for (c = i = 0; i < num_msgs; i++) {
+		if (!(msg[i].flags & I2C_M_RD)) {
+			c += msg[i].len;
+			continue;
+		}
+		for (j = 0; j < msg[i].len; j++, c++) {
+			SwI2cCmd_t *cmd = &res->SwI2cCmds[c];
 
-		for (j = 0; j < msg->len; j++) {
-			SwI2cCmd_t *cmd = &res->SwI2cCmds[c++];
-
-			if (msg[i].flags & I2C_M_RD)
-				msg->buf[j] = cmd->ReadWriteData;
+			msg[i].buf[j] = cmd->ReadWriteData;
 		}
 	}
-	r = num_done;
-
+	r = num_msgs;
 fail:
 	kfree(req);
-
 	return r;
 }
 
