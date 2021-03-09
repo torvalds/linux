@@ -60,7 +60,7 @@ void irqtime_account_irq(struct task_struct *curr, unsigned int offset)
 	cpu = smp_processor_id();
 	delta = sched_clock_cpu(cpu) - irqtime->irq_start_time;
 	irqtime->irq_start_time += delta;
-	pc = preempt_count() - offset;
+	pc = irq_count() - offset;
 
 	/*
 	 * We do not account for softirq time from ksoftirqd here.
@@ -421,7 +421,7 @@ void vtime_task_switch(struct task_struct *prev)
 
 void vtime_account_irq(struct task_struct *tsk, unsigned int offset)
 {
-	unsigned int pc = preempt_count() - offset;
+	unsigned int pc = irq_count() - offset;
 
 	if (pc & HARDIRQ_OFFSET) {
 		vtime_account_hardirq(tsk);
