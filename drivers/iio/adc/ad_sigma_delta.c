@@ -475,8 +475,9 @@ static int ad_sd_probe_trigger(struct iio_dev *indio_dev)
 	struct ad_sigma_delta *sigma_delta = iio_device_get_drvdata(indio_dev);
 	int ret;
 
-	sigma_delta->trig = iio_trigger_alloc("%s-dev%d", indio_dev->name,
-						indio_dev->id);
+	sigma_delta->trig = iio_trigger_alloc(&sigma_delta->spi->dev,
+					      "%s-dev%d", indio_dev->name,
+					      indio_dev->id);
 	if (sigma_delta->trig == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -496,7 +497,6 @@ static int ad_sd_probe_trigger(struct iio_dev *indio_dev)
 		sigma_delta->irq_dis = true;
 		disable_irq_nosync(sigma_delta->spi->irq);
 	}
-	sigma_delta->trig->dev.parent = &sigma_delta->spi->dev;
 	iio_trigger_set_drvdata(sigma_delta->trig, sigma_delta);
 
 	ret = iio_trigger_register(sigma_delta->trig);
