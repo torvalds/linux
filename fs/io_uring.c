@@ -7079,12 +7079,9 @@ static void io_sq_thread_stop(struct io_sq_data *sqd)
 	if (test_bit(IO_SQ_THREAD_SHOULD_STOP, &sqd->state))
 		return;
 	down_write(&sqd->rw_lock);
-	if (!sqd->thread) {
-		up_write(&sqd->rw_lock);
-		return;
-	}
 	set_bit(IO_SQ_THREAD_SHOULD_STOP, &sqd->state);
-	wake_up_process(sqd->thread);
+	if (sqd->thread)
+		wake_up_process(sqd->thread);
 	up_write(&sqd->rw_lock);
 	wait_for_completion(&sqd->exited);
 }
@@ -7849,9 +7846,9 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 
 			ret = -EINVAL;
 			if (cpu >= nr_cpu_ids)
-				goto err;
+				goto err_sqpoll;
 			if (!cpu_online(cpu))
-				goto err;
+				goto err_sqpoll;
 
 			sqd->sq_cpu = cpu;
 		} else {
@@ -7862,7 +7859,7 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 		tsk = create_io_thread(io_sq_thread, sqd, NUMA_NO_NODE);
 		if (IS_ERR(tsk)) {
 			ret = PTR_ERR(tsk);
-			goto err;
+			goto err_sqpoll;
 		}
 
 		sqd->thread = tsk;
@@ -7881,6 +7878,9 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 err:
 	io_sq_thread_finish(ctx);
 	return ret;
+err_sqpoll:
+	complete(&ctx->sq_data->exited);
+	goto err;
 }
 
 static inline void __io_unaccount_mem(struct user_struct *user,
