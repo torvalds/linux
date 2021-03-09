@@ -264,14 +264,6 @@ struct clk_mgr_funcs {
 	void (*get_memclk_states_from_smu)(struct clk_mgr *clk_mgr);
 };
 
-struct dpm_clocks;
-struct wartermarks;
-
-struct smu_watermark_set {
-	struct watermarks *wm_set;
-	union large_integer mc_address;
-};
-
 struct clk_mgr {
 	struct dc_context *ctx;
 	struct clk_mgr_funcs *funcs;
@@ -283,7 +275,6 @@ struct clk_mgr {
 	struct clk_state_registers_and_bypass boot_snapshot;
 	struct clk_bw_params *bw_params;
 	struct pp_smu_wm_range_sets ranges;
-	struct smu_watermark_set smu_wm_set;
 };
 
 /* forward declarations */

@@ -55,7 +55,6 @@
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"
 #include "virtual/virtual_stream_encoder.h"
-#include "dce110/dce110_resource.h"
 #include "dml/display_mode_vba.h"
 #include "dcn20/dcn20_dccg.h"
 #include "dcn21/dcn21_dccg.h"
