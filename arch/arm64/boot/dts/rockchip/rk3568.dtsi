@@ -136,7 +136,7 @@
 		rockchip,low-temp = <0>;
 		rockchip,low-temp-adjust-volt = <
 			/* MHz    MHz    uV */
-			1104      1104   75000
+			1104      1608   75000
 		>;
 
 		nvmem-cells = <&cpu_leakage>;
@@ -1057,6 +1057,13 @@
 
 	npu_opp_table: npu-opp-table {
 		compatible = "operating-points-v2";
+
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <0>;
+		rockchip,low-temp-adjust-volt = <
+			/* MHz    MHz    uV */
+			700       700    50000
+		>;
 
 		nvmem-cells = <&npu_leakage>;
 		nvmem-cell-names = "leakage";
@@ -2047,6 +2054,13 @@
 
 	dmc_opp_table: dmc-opp-table {
 		compatible = "operating-points-v2";
+
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <0>;
+		rockchip,low-temp-adjust-volt = <
+			/* MHz    MHz    uV */
+			0         1560   25000
+		>;
 
 		opp-324000000 {
 			opp-hz = /bits/ 64 <324000000>;
