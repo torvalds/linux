@@ -5,6 +5,10 @@
 
 #include "iavf.h"
 
+#define GTPU_PORT	2152
+#define NAT_T_ESP_PORT	4500
+#define PFCP_PORT	8805
+
 static const struct in6_addr ipv6_addr_full_mask = {
 	.in6_u = {
 		.u6_addr8 = {
@@ -13,6 +17,206 @@ static const struct in6_addr ipv6_addr_full_mask = {
 		}
 	}
 };
+
+/**
+ * iavf_pkt_udp_no_pay_len - the length of UDP packet without payload
+ * @fltr: Flow Director filter data structure
+ */
+static u16 iavf_pkt_udp_no_pay_len(struct iavf_fdir_fltr *fltr)
+{
+	return sizeof(struct ethhdr) +
+	       (fltr->ip_ver == 4 ? sizeof(struct iphdr) : sizeof(struct ipv6hdr)) +
+	       sizeof(struct udphdr);
+}
+
+/**
+ * iavf_fill_fdir_gtpu_hdr - fill the GTP-U protocol header
+ * @fltr: Flow Director filter data structure
+ * @proto_hdrs: Flow Director protocol headers data structure
+ *
+ * Returns 0 if the GTP-U protocol header is set successfully
+ */
+static int
+iavf_fill_fdir_gtpu_hdr(struct iavf_fdir_fltr *fltr,
+			struct virtchnl_proto_hdrs *proto_hdrs)
+{
+	struct virtchnl_proto_hdr *uhdr = &proto_hdrs->proto_hdr[proto_hdrs->count - 1];
+	struct virtchnl_proto_hdr *ghdr = &proto_hdrs->proto_hdr[proto_hdrs->count++];
+	struct virtchnl_proto_hdr *ehdr = NULL; /* Extension Header if it exists */
+	u16 adj_offs, hdr_offs;
+	int i;
+
+	VIRTCHNL_SET_PROTO_HDR_TYPE(ghdr, GTPU_IP);
+
+	adj_offs = iavf_pkt_udp_no_pay_len(fltr);
+
+	for (i = 0; i < fltr->flex_cnt; i++) {
+#define IAVF_GTPU_HDR_TEID_OFFS0	4
+#define IAVF_GTPU_HDR_TEID_OFFS1	6
+#define IAVF_GTPU_HDR_N_PDU_AND_NEXT_EXTHDR_OFFS	10
+#define IAVF_GTPU_HDR_PSC_PDU_TYPE_AND_QFI_OFFS		13
+#define IAVF_GTPU_PSC_EXTHDR_TYPE	0x85 /* PDU Session Container Extension Header */
+		if (fltr->flex_words[i].offset < adj_offs)
+			return -EINVAL;
+
+		hdr_offs = fltr->flex_words[i].offset - adj_offs;
+
+		switch (hdr_offs) {
+		case IAVF_GTPU_HDR_TEID_OFFS0:
+		case IAVF_GTPU_HDR_TEID_OFFS1: {
+			__be16 *pay_word = (__be16 *)ghdr->buffer;
+
+			pay_word[hdr_offs >> 1] = htons(fltr->flex_words[i].word);
+			VIRTCHNL_ADD_PROTO_HDR_FIELD_BIT(ghdr, GTPU_IP, TEID);
+			}
+			break;
+		case IAVF_GTPU_HDR_N_PDU_AND_NEXT_EXTHDR_OFFS:
+			if ((fltr->flex_words[i].word & 0xff) != IAVF_GTPU_PSC_EXTHDR_TYPE)
+				return -EOPNOTSUPP;
+			if (!ehdr)
+				ehdr = &proto_hdrs->proto_hdr[proto_hdrs->count++];
+			VIRTCHNL_SET_PROTO_HDR_TYPE(ehdr, GTPU_EH);
+			break;
+		case IAVF_GTPU_HDR_PSC_PDU_TYPE_AND_QFI_OFFS:
+			if (!ehdr)
+				return -EINVAL;
+			ehdr->buffer[1] = fltr->flex_words[i].word & 0x3F;
+			VIRTCHNL_ADD_PROTO_HDR_FIELD_BIT(ehdr, GTPU_EH, QFI);
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	uhdr->field_selector = 0; /* The PF ignores the UDP header fields */
+
+	return 0;
+}
+
+/**
+ * iavf_fill_fdir_pfcp_hdr - fill the PFCP protocol header
+ * @fltr: Flow Director filter data structure
+ * @proto_hdrs: Flow Director protocol headers data structure
+ *
+ * Returns 0 if the PFCP protocol header is set successfully
+ */
+static int
+iavf_fill_fdir_pfcp_hdr(struct iavf_fdir_fltr *fltr,
+			struct virtchnl_proto_hdrs *proto_hdrs)
+{
+	struct virtchnl_proto_hdr *uhdr = &proto_hdrs->proto_hdr[proto_hdrs->count - 1];
+	struct virtchnl_proto_hdr *hdr = &proto_hdrs->proto_hdr[proto_hdrs->count++];
+	u16 adj_offs, hdr_offs;
+	int i;
+
+	VIRTCHNL_SET_PROTO_HDR_TYPE(hdr, PFCP);
+
+	adj_offs = iavf_pkt_udp_no_pay_len(fltr);
+
+	for (i = 0; i < fltr->flex_cnt; i++) {
+#define IAVF_PFCP_HDR_SFIELD_AND_MSG_TYPE_OFFS	0
+		if (fltr->flex_words[i].offset < adj_offs)
+			return -EINVAL;
+
+		hdr_offs = fltr->flex_words[i].offset - adj_offs;
+
+		switch (hdr_offs) {
+		case IAVF_PFCP_HDR_SFIELD_AND_MSG_TYPE_OFFS:
+			hdr->buffer[0] = (fltr->flex_words[i].word >> 8) & 0xff;
+			VIRTCHNL_ADD_PROTO_HDR_FIELD_BIT(hdr, PFCP, S_FIELD);
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	uhdr->field_selector = 0; /* The PF ignores the UDP header fields */
+
+	return 0;
+}
+
+/**
+ * iavf_fill_fdir_nat_t_esp_hdr - fill the NAT-T-ESP protocol header
+ * @fltr: Flow Director filter data structure
+ * @proto_hdrs: Flow Director protocol headers data structure
+ *
+ * Returns 0 if the NAT-T-ESP protocol header is set successfully
+ */
+static int
+iavf_fill_fdir_nat_t_esp_hdr(struct iavf_fdir_fltr *fltr,
+			     struct virtchnl_proto_hdrs *proto_hdrs)
+{
+	struct virtchnl_proto_hdr *uhdr = &proto_hdrs->proto_hdr[proto_hdrs->count - 1];
+	struct virtchnl_proto_hdr *hdr = &proto_hdrs->proto_hdr[proto_hdrs->count++];
+	u16 adj_offs, hdr_offs;
+	u32 spi = 0;
+	int i;
+
+	VIRTCHNL_SET_PROTO_HDR_TYPE(hdr, ESP);
+
+	adj_offs = iavf_pkt_udp_no_pay_len(fltr);
+
+	for (i = 0; i < fltr->flex_cnt; i++) {
+#define IAVF_NAT_T_ESP_SPI_OFFS0	0
+#define IAVF_NAT_T_ESP_SPI_OFFS1	2
+		if (fltr->flex_words[i].offset < adj_offs)
+			return -EINVAL;
+
+		hdr_offs = fltr->flex_words[i].offset - adj_offs;
+
+		switch (hdr_offs) {
+		case IAVF_NAT_T_ESP_SPI_OFFS0:
+			spi |= fltr->flex_words[i].word << 16;
+			break;
+		case IAVF_NAT_T_ESP_SPI_OFFS1:
+			spi |= fltr->flex_words[i].word;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	if (!spi)
+		return -EOPNOTSUPP; /* Not support IKE Header Format with SPI 0 */
+
+	*(__be32 *)hdr->buffer = htonl(spi);
+	VIRTCHNL_ADD_PROTO_HDR_FIELD_BIT(hdr, ESP, SPI);
+
+	uhdr->field_selector = 0; /* The PF ignores the UDP header fields */
+
+	return 0;
+}
+
+/**
+ * iavf_fill_fdir_udp_flex_pay_hdr - fill the UDP payload header
+ * @fltr: Flow Director filter data structure
+ * @proto_hdrs: Flow Director protocol headers data structure
+ *
+ * Returns 0 if the UDP payload defined protocol header is set successfully
+ */
+static int
+iavf_fill_fdir_udp_flex_pay_hdr(struct iavf_fdir_fltr *fltr,
+				struct virtchnl_proto_hdrs *proto_hdrs)
+{
+	int err;
+
+	switch (ntohs(fltr->ip_data.dst_port)) {
+	case GTPU_PORT:
+		err = iavf_fill_fdir_gtpu_hdr(fltr, proto_hdrs);
+		break;
+	case NAT_T_ESP_PORT:
+		err = iavf_fill_fdir_nat_t_esp_hdr(fltr, proto_hdrs);
+		break;
+	case PFCP_PORT:
+		err = iavf_fill_fdir_pfcp_hdr(fltr, proto_hdrs);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
+}
 
 /**
  * iavf_fill_fdir_ip4_hdr - fill the IPv4 protocol header
@@ -49,6 +253,8 @@ iavf_fill_fdir_ip4_hdr(struct iavf_fdir_fltr *fltr,
 		iph->daddr = fltr->ip_data.v4_addrs.dst_ip;
 		VIRTCHNL_ADD_PROTO_HDR_FIELD_BIT(hdr, IPV4, DST);
 	}
+
+	fltr->ip_ver = 4;
 
 	return 0;
 }
@@ -93,6 +299,8 @@ iavf_fill_fdir_ip6_hdr(struct iavf_fdir_fltr *fltr,
 		       sizeof(struct in6_addr));
 		VIRTCHNL_ADD_PROTO_HDR_FIELD_BIT(hdr, IPV6, DST);
 	}
+
+	fltr->ip_ver = 6;
 
 	return 0;
 }
@@ -152,7 +360,10 @@ iavf_fill_fdir_udp_hdr(struct iavf_fdir_fltr *fltr,
 		VIRTCHNL_ADD_PROTO_HDR_FIELD_BIT(hdr, UDP, DST_PORT);
 	}
 
-	return 0;
+	if (!fltr->flex_cnt)
+		return 0;
+
+	return iavf_fill_fdir_udp_flex_pay_hdr(fltr, proto_hdrs);
 }
 
 /**
@@ -511,7 +722,9 @@ bool iavf_fdir_is_dup_fltr(struct iavf_adapter *adapter, struct iavf_fdir_fltr *
 		if (!memcmp(&tmp->eth_data, &fltr->eth_data,
 			    sizeof(fltr->eth_data)) &&
 		    !memcmp(&tmp->ip_data, &fltr->ip_data,
-			    sizeof(fltr->ip_data))) {
+			    sizeof(fltr->ip_data)) &&
+		    !memcmp(&tmp->ext_data, &fltr->ext_data,
+			    sizeof(fltr->ext_data))) {
 			ret = true;
 			break;
 		}

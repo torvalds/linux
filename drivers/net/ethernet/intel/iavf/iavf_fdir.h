@@ -35,6 +35,11 @@ enum iavf_fdir_flow_type {
 	IAVF_FDIR_FLOW_PTYPE_MAX,
 };
 
+struct iavf_flex_word {
+	u16 offset;
+	u16 word;
+};
+
 struct iavf_ipv4_addrs {
 	__be32 src_ip;
 	__be32 dst_ip;
@@ -64,6 +69,11 @@ struct iavf_fdir_ip {
 	};
 	u8 proto;
 };
+
+struct iavf_fdir_extra {
+	u32 usr_def[2];
+};
+
 /* bookkeeping of Flow Director filters */
 struct iavf_fdir_fltr {
 	enum iavf_fdir_fltr_state_t state;
@@ -77,7 +87,16 @@ struct iavf_fdir_fltr {
 	struct iavf_fdir_ip ip_data;
 	struct iavf_fdir_ip ip_mask;
 
+	struct iavf_fdir_extra ext_data;
+	struct iavf_fdir_extra ext_mask;
+
 	enum virtchnl_action action;
+
+	/* flex byte filter data */
+	u8 ip_ver; /* used to adjust the flex offset, 4 : IPv4, 6 : IPv6 */
+	u8 flex_cnt;
+	struct iavf_flex_word flex_words[2];
+
 	u32 flow_id;
 
 	u32 loc;	/* Rule location inside the flow table */

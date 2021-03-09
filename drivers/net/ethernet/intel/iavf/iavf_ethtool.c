@@ -910,6 +910,85 @@ static enum iavf_fdir_flow_type iavf_ethtool_flow_to_fltr(int eth)
 }
 
 /**
+ * iavf_is_mask_valid - check mask field set
+ * @mask: full mask to check
+ * @field: field for which mask should be valid
+ *
+ * If the mask is fully set return true. If it is not valid for field return
+ * false.
+ */
+static bool iavf_is_mask_valid(u64 mask, u64 field)
+{
+	return (mask & field) == field;
+}
+
+/**
+ * iavf_parse_rx_flow_user_data - deconstruct user-defined data
+ * @fsp: pointer to ethtool Rx flow specification
+ * @fltr: pointer to Flow Director filter for userdef data storage
+ *
+ * Returns 0 on success, negative error value on failure
+ */
+static int
+iavf_parse_rx_flow_user_data(struct ethtool_rx_flow_spec *fsp,
+			     struct iavf_fdir_fltr *fltr)
+{
+	struct iavf_flex_word *flex;
+	int i, cnt = 0;
+
+	if (!(fsp->flow_type & FLOW_EXT))
+		return 0;
+
+	for (i = 0; i < 2; i++) {
+#define IAVF_USERDEF_FLEX_WORD_M	GENMASK(15, 0)
+#define IAVF_USERDEF_FLEX_OFFS_S	16
+#define IAVF_USERDEF_FLEX_OFFS_M	GENMASK(31, IAVF_USERDEF_FLEX_OFFS_S)
+#define IAVF_USERDEF_FLEX_FLTR_M	GENMASK(31, 0)
+		u32 value = be32_to_cpu(fsp->h_ext.data[i]);
+		u32 mask = be32_to_cpu(fsp->m_ext.data[i]);
+
+		if (!value || !mask)
+			continue;
+
+		if (!iavf_is_mask_valid(mask, IAVF_USERDEF_FLEX_FLTR_M))
+			return -EINVAL;
+
+		/* 504 is the maximum value for offsets, and offset is measured
+		 * from the start of the MAC address.
+		 */
+#define IAVF_USERDEF_FLEX_MAX_OFFS_VAL 504
+		flex = &fltr->flex_words[cnt++];
+		flex->word = value & IAVF_USERDEF_FLEX_WORD_M;
+		flex->offset = (value & IAVF_USERDEF_FLEX_OFFS_M) >>
+			     IAVF_USERDEF_FLEX_OFFS_S;
+		if (flex->offset > IAVF_USERDEF_FLEX_MAX_OFFS_VAL)
+			return -EINVAL;
+	}
+
+	fltr->flex_cnt = cnt;
+
+	return 0;
+}
+
+/**
+ * iavf_fill_rx_flow_ext_data - fill the additional data
+ * @fsp: pointer to ethtool Rx flow specification
+ * @fltr: pointer to Flow Director filter to get additional data
+ */
+static void
+iavf_fill_rx_flow_ext_data(struct ethtool_rx_flow_spec *fsp,
+			   struct iavf_fdir_fltr *fltr)
+{
+	if (!fltr->ext_mask.usr_def[0] && !fltr->ext_mask.usr_def[1])
+		return;
+
+	fsp->flow_type |= FLOW_EXT;
+
+	memcpy(fsp->h_ext.data, fltr->ext_data.usr_def, sizeof(fsp->h_ext.data));
+	memcpy(fsp->m_ext.data, fltr->ext_mask.usr_def, sizeof(fsp->m_ext.data));
+}
+
+/**
  * iavf_get_ethtool_fdir_entry - fill ethtool structure with Flow Director filter data
  * @adapter: the VF adapter structure that contains filter list
  * @cmd: ethtool command data structure to receive the filter data
@@ -1038,6 +1117,8 @@ iavf_get_ethtool_fdir_entry(struct iavf_adapter *adapter,
 		break;
 	}
 
+	iavf_fill_rx_flow_ext_data(fsp, rule);
+
 	if (rule->action == VIRTCHNL_ACTION_DROP)
 		fsp->ring_cookie = RX_CLS_FLOW_DISC;
 	else
@@ -1100,6 +1181,7 @@ iavf_add_fdir_fltr_info(struct iavf_adapter *adapter, struct ethtool_rx_flow_spe
 {
 	u32 flow_type, q_index = 0;
 	enum virtchnl_action act;
+	int err;
 
 	if (fsp->ring_cookie == RX_CLS_FLOW_DISC) {
 		act = VIRTCHNL_ACTION_DROP;
@@ -1114,6 +1196,13 @@ iavf_add_fdir_fltr_info(struct iavf_adapter *adapter, struct ethtool_rx_flow_spe
 	fltr->action = act;
 	fltr->loc = fsp->location;
 	fltr->q_index = q_index;
+
+	if (fsp->flow_type & FLOW_EXT) {
+		memcpy(fltr->ext_data.usr_def, fsp->h_ext.data,
+		       sizeof(fltr->ext_data.usr_def));
+		memcpy(fltr->ext_mask.usr_def, fsp->m_ext.data,
+		       sizeof(fltr->ext_mask.usr_def));
+	}
 
 	flow_type = fsp->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT | FLOW_RSS);
 	fltr->flow_type = iavf_ethtool_flow_to_fltr(flow_type);
@@ -1216,6 +1305,10 @@ iavf_add_fdir_fltr_info(struct iavf_adapter *adapter, struct ethtool_rx_flow_spe
 
 	if (iavf_fdir_is_dup_fltr(adapter, fltr))
 		return -EEXIST;
+
+	err = iavf_parse_rx_flow_user_data(fsp, fltr);
+	if (err)
+		return err;
 
 	return iavf_fill_fdir_add_msg(adapter, fltr);
 }
