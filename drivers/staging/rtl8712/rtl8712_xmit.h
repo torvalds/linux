@@ -36,9 +36,7 @@
 #define MAX_AMSDU_XMITBUF_SZ 8704
 #define MAX_TXAGG_XMITBUF_SZ 16384 /*16k*/
 
-
 #define tx_cmd tx_desc
-
 
 /*
  *defined for TX DESC Operation
@@ -88,7 +86,6 @@ struct tx_desc {
 	__le32 txdw6;
 	__le32 txdw7;
 };
-
 
 union txdesc {
 	struct tx_desc txdesc;
