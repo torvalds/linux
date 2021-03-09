@@ -6327,6 +6327,9 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	refcount_set(&req->refs, 2);
 	req->task = current;
 	req->result = 0;
+	req->work.list.next = NULL;
+	req->work.creds = NULL;
+	req->work.flags = 0;
 
 	/* enforce forwards compatibility on users */
 	if (unlikely(sqe_flags & ~SQE_VALID_FLAGS)) {
@@ -6344,17 +6347,13 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	    !io_op_defs[req->opcode].buffer_select)
 		return -EOPNOTSUPP;
 
-	req->work.list.next = NULL;
 	personality = READ_ONCE(sqe->personality);
 	if (personality) {
 		req->work.creds = xa_load(&ctx->personalities, personality);
 		if (!req->work.creds)
 			return -EINVAL;
 		get_cred(req->work.creds);
-	} else {
-		req->work.creds = NULL;
 	}
-	req->work.flags = 0;
 	state = &ctx->submit_state;
 
 	/*
