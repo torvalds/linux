@@ -831,6 +831,8 @@ module. It will call functions exported by the **6-list-sync**
 task. The exported functions are the ones marked with **extern** in
 :file:`list-test.c` file.
 
+Uncomment the commented code from :file:`7-list-test.c`. Look for ``TODO 1``.
+
 To export the above functions from the module located at :file:`6-list-sync/`
 directory, the following steps are required:
 
