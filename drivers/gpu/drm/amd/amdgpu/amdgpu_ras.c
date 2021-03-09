@@ -1963,11 +1963,11 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev,
 		return;
 
 	if (amdgpu_atomfirmware_mem_ecc_supported(adev)) {
-		dev_info(adev->dev, "HBM ECC is active.\n");
+		dev_info(adev->dev, "MEM ECC is active.\n");
 		*hw_supported |= (1 << AMDGPU_RAS_BLOCK__UMC |
 				1 << AMDGPU_RAS_BLOCK__DF);
 	} else
-		dev_info(adev->dev, "HBM ECC is not presented.\n");
+		dev_info(adev->dev, "MEM ECC is not presented.\n");
 
 	if (amdgpu_atomfirmware_sram_ecc_supported(adev)) {
 		dev_info(adev->dev, "SRAM ECC is active.\n");
