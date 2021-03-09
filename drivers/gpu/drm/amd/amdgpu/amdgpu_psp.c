@@ -2365,7 +2365,6 @@ static int psp_hw_init(void *handle)
 {
 	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	enum ta_rap_status status = TA_RAP_STATUS__SUCCESS;
 
 	mutex_lock(&adev->firmware.mutex);
 	/*
@@ -2383,14 +2382,7 @@ static int psp_hw_init(void *handle)
 	}
 
 	mutex_unlock(&adev->firmware.mutex);
-
-	ret = psp_rap_invoke(&adev->psp, TA_CMD_RAP__VALIDATE_L0, &status);
-	if (ret || status != TA_RAP_STATUS__SUCCESS) {
-		dev_err(adev->dev, "RAP: (%d) Failed to Invoke Validate L0, status %d\n",
-			ret, status);
-	}
-
-	return ret;
+	return 0;
 
 failed:
 	adev->firmware.load_type = AMDGPU_FW_LOAD_DIRECT;
