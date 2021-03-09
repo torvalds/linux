@@ -803,6 +803,11 @@ static inline void cancel_dirty_page(struct page *page)
 }
 bool folio_clear_dirty_for_io(struct folio *folio);
 bool clear_page_dirty_for_io(struct page *page);
+int __must_check folio_write_one(struct folio *folio);
+static inline int __must_check write_one_page(struct page *page)
+{
+	return folio_write_one(page_folio(page));
+}
 
 int __set_page_dirty_nobuffers(struct page *page);
 int __set_page_dirty_no_writeback(struct page *page);
