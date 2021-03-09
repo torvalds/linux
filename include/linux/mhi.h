@@ -296,7 +296,7 @@ struct mhi_controller_config {
  * @wake_db: MHI WAKE doorbell register address
  * @iova_start: IOMMU starting address for data (required)
  * @iova_stop: IOMMU stop address for data (required)
- * @fw_image: Firmware image name for normal booting (required)
+ * @fw_image: Firmware image name for normal booting (optional)
  * @edl_image: Firmware image name for emergency download mode (optional)
  * @rddm_size: RAM dump size that host should allocate for debugging purpose
  * @sbl_size: SBL image size downloaded through BHIe (optional)
