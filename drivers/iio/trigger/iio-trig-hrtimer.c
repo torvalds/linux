@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * The industrial I/O periodic hrtimer trigger driver
  *
  * Copyright (C) Intuitive Aerial AB
