@@ -311,6 +311,12 @@ static const struct power_supply_desc sbsm_default_psy_desc = {
 	.property_is_writeable = &sbsm_prop_is_writeable,
 };
 
+static void sbsm_del_mux_adapter(void *data)
+{
+	struct sbsm_data *sbsm = data;
+	i2c_mux_del_adapters(sbsm->muxc);
+}
+
 static int sbsm_probe(struct i2c_client *client,
 		      const struct i2c_device_id *id)
 {
@@ -349,6 +355,10 @@ static int sbsm_probe(struct i2c_client *client,
 		goto err_mux_alloc;
 	}
 	data->muxc->priv = data;
+
+	ret = devm_add_action_or_reset(dev, sbsm_del_mux_adapter, data);
+	if (ret)
+		return ret;
 
 	/* register muxed i2c channels. One for each supported battery */
 	for (i = 0; i < SBSM_MAX_BATS; ++i) {
@@ -395,18 +405,8 @@ static int sbsm_probe(struct i2c_client *client,
 
 err_psy:
 err_mux_register:
-	i2c_mux_del_adapters(data->muxc);
-
 err_mux_alloc:
 	return ret;
-}
-
-static int sbsm_remove(struct i2c_client *client)
-{
-	struct sbsm_data *data = i2c_get_clientdata(client);
-
-	i2c_mux_del_adapters(data->muxc);
-	return 0;
 }
 
 static const struct i2c_device_id sbsm_ids[] = {
@@ -431,7 +431,6 @@ static struct i2c_driver sbsm_driver = {
 		.of_match_table = of_match_ptr(sbsm_dt_ids),
 	},
 	.probe		= sbsm_probe,
-	.remove		= sbsm_remove,
 	.alert		= sbsm_alert,
 	.id_table	= sbsm_ids
 };
