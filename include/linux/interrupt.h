@@ -658,7 +658,7 @@ enum
 	TASKLET_STATE_RUN	/* Tasklet is running (SMP only) */
 };
 
-#ifdef CONFIG_SMP
+#if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT_RT)
 static inline int tasklet_trylock(struct tasklet_struct *t)
 {
 	return !test_and_set_bit(TASKLET_STATE_RUN, &(t)->state);
@@ -666,16 +666,8 @@ static inline int tasklet_trylock(struct tasklet_struct *t)
 
 void tasklet_unlock(struct tasklet_struct *t);
 void tasklet_unlock_wait(struct tasklet_struct *t);
+void tasklet_unlock_spin_wait(struct tasklet_struct *t);
 
-/*
- * Do not use in new code. Waiting for tasklets from atomic contexts is
- * error prone and should be avoided.
- */
-static inline void tasklet_unlock_spin_wait(struct tasklet_struct *t)
-{
-	while (test_bit(TASKLET_STATE_RUN, &t->state))
-		cpu_relax();
-}
 #else
 static inline int tasklet_trylock(struct tasklet_struct *t) { return 1; }
 static inline void tasklet_unlock(struct tasklet_struct *t) { }
