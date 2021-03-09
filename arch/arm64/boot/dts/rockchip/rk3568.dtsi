@@ -2537,6 +2537,17 @@
 		arm,pl330-periph-burst;
 	};
 
+	scr: rkscr@fe560000 {
+		compatible = "rockchip-scr";
+		reg = <0x0 0xfe560000 0x0 0x10000>;
+		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&scr_pins>;
+		clocks = <&cru PCLK_SCR>;
+		clock-names = "g_pclk_sim_card";
+		status = "disabled";
+	};
+
 	can0: can@fe570000 {
 		compatible = "rockchip,canfd-1.0";
 		reg = <0x0 0xfe570000 0x0 0x1000>;

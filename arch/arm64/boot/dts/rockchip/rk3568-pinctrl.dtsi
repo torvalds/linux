@@ -1816,9 +1816,9 @@
 				/* scr_clk */
 				<1 RK_PA2 3 &pcfg_pull_none>,
 				/* scr_det */
-				<1 RK_PA7 3 &pcfg_pull_none>,
+				<1 RK_PA7 3 &pcfg_pull_up>,
 				/* scr_io */
-				<1 RK_PA3 3 &pcfg_pull_none>,
+				<1 RK_PA3 3 &pcfg_pull_up>,
 				/* scr_rst */
 				<1 RK_PA5 3 &pcfg_pull_none>;
 		};
