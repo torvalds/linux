@@ -184,12 +184,12 @@ static int rt715_sdca_sdw_probe(struct sdw_slave *slave,
 
 	/* Regmap Initialization */
 	mbq_regmap = devm_regmap_init_sdw_mbq(slave, &rt715_sdca_mbq_regmap);
-	if (!mbq_regmap)
-		return -EINVAL;
+	if (IS_ERR(mbq_regmap))
+		return PTR_ERR(mbq_regmap);
 
 	regmap = devm_regmap_init_sdw(slave, &rt715_sdca_regmap);
-	if (!regmap)
-		return -EINVAL;
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
 
 	return rt715_sdca_init(&slave->dev, mbq_regmap, regmap, slave);
 }
