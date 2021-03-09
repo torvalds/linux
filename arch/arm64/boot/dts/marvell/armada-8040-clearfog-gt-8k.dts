@@ -31,6 +31,13 @@
 		ethernet2 = &cp1_eth2;
 	};
 
+	pwm {
+		compatible = "pwm-fan";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cp0_fan_pwm_pins>;
+		pwms = <&cp0_gpio2 16 40000>;
+	};
+
 	v_3_3: regulator-3-3v {
 		compatible = "regulator-fixed";
 		regulator-name = "v_3_3";
