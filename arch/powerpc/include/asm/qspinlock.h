@@ -72,6 +72,13 @@ static inline void pv_spinlocks_init(void)
 
 #endif
 
+/*
+ * Queued spinlocks rely heavily on smp_cond_load_relaxed() to busy-wait,
+ * which was found to have performance problems if implemented with
+ * the preferred spin_begin()/spin_end() SMT priority pattern. Use the
+ * generic version instead.
+ */
+
 #include <asm-generic/qspinlock.h>
 
 #endif /* _ASM_POWERPC_QSPINLOCK_H */
