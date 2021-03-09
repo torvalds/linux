@@ -776,9 +776,9 @@ static int pcan_usb_pro_encode_msg(struct peak_usb_device *dev,
 
 	flags = 0;
 	if (cf->can_id & CAN_EFF_FLAG)
-		flags |= 0x02;
+		flags |= PCAN_USBPRO_EXT;
 	if (cf->can_id & CAN_RTR_FLAG)
-		flags |= 0x01;
+		flags |= PCAN_USBPRO_RTR;
 
 	pcan_msg_add_rec(&usb_msg, data_type, 0, flags, len, cf->can_id,
 			 cf->data);
