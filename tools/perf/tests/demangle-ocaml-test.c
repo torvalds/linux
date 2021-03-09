@@ -26,7 +26,7 @@ int test__demangle_ocaml(struct test *test __maybe_unused, int subtest __maybe_u
 		  "Stdlib.bytes.++" },
 	};
 
-	for (i = 0; i < sizeof(test_cases) / sizeof(test_cases[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(test_cases); i++) {
 		buf = ocaml_demangle_sym(test_cases[i].mangled);
 		if ((buf == NULL && test_cases[i].demangled != NULL)
 				|| (buf != NULL && test_cases[i].demangled == NULL)
