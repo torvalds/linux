@@ -689,6 +689,44 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 	return soc_pcm_clean(substream, 0);
 }
 
+static int soc_hw_sanity_check(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_pcm_hardware *hw = &substream->runtime->hw;
+	const char *name_cpu = soc_cpu_dai_name(rtd);
+	const char *name_codec = soc_codec_dai_name(rtd);
+	const char *err_msg;
+	struct device *dev = rtd->dev;
+
+	err_msg = "rates";
+	if (!hw->rates)
+		goto config_err;
+
+	err_msg = "formats";
+	if (!hw->formats)
+		goto config_err;
+
+	err_msg = "channels";
+	if (!hw->channels_min || !hw->channels_max ||
+	     hw->channels_min  >  hw->channels_max)
+		goto config_err;
+
+	dev_dbg(dev, "ASoC: %s <-> %s info:\n",		name_codec,
+							name_cpu);
+	dev_dbg(dev, "ASoC: rate mask 0x%x\n",		hw->rates);
+	dev_dbg(dev, "ASoC: ch   min %d max %d\n",	hw->channels_min,
+							hw->channels_max);
+	dev_dbg(dev, "ASoC: rate min %d max %d\n",	hw->rate_min,
+							hw->rate_max);
+
+	return 0;
+
+config_err:
+	dev_err(dev, "ASoC: %s <-> %s No matching %s\n",
+		name_codec, name_cpu, err_msg);
+	return -EINVAL;
+}
+
 /*
  * Called by ALSA when a PCM substream is opened, the runtime->hw record is
  * then initialized and any private data can be allocated. This also calls
@@ -697,11 +735,8 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 static int soc_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_component *component;
 	struct snd_soc_dai *dai;
-	const char *codec_dai_name = soc_codec_dai_name(rtd);
-	const char *cpu_dai_name = soc_cpu_dai_name(rtd);
 	int i, ret = 0;
 
 	for_each_rtd_components(rtd, i, component)
@@ -742,23 +777,9 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 
 	soc_pcm_update_symmetry(substream);
 
-	ret = -EINVAL;
-	if (!runtime->hw.rates) {
-		printk(KERN_ERR "ASoC: %s <-> %s No matching rates\n",
-			codec_dai_name, cpu_dai_name);
+	ret = soc_hw_sanity_check(substream);
+	if (ret < 0)
 		goto err;
-	}
-	if (!runtime->hw.formats) {
-		printk(KERN_ERR "ASoC: %s <-> %s No matching formats\n",
-			codec_dai_name, cpu_dai_name);
-		goto err;
-	}
-	if (!runtime->hw.channels_min || !runtime->hw.channels_max ||
-	    runtime->hw.channels_min > runtime->hw.channels_max) {
-		printk(KERN_ERR "ASoC: %s <-> %s No matching channels\n",
-				codec_dai_name, cpu_dai_name);
-		goto err;
-	}
 
 	soc_pcm_apply_msb(substream);
 
@@ -768,14 +789,6 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 		if (ret != 0)
 			goto err;
 	}
-
-	pr_debug("ASoC: %s <-> %s info:\n",
-		 codec_dai_name, cpu_dai_name);
-	pr_debug("ASoC: rate mask 0x%x\n", runtime->hw.rates);
-	pr_debug("ASoC: min ch %d max ch %d\n", runtime->hw.channels_min,
-		 runtime->hw.channels_max);
-	pr_debug("ASoC: min rate %d max rate %d\n", runtime->hw.rate_min,
-		 runtime->hw.rate_max);
 dynamic:
 	snd_soc_runtime_activate(rtd, substream->stream);
 	ret = 0;
