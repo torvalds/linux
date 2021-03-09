@@ -91,7 +91,9 @@ struct v4l2_jpeg_scan_header {
  * struct v4l2_jpeg_header - parsed JPEG header
  * @sof: pointer to frame header and size
  * @sos: pointer to scan header and size
+ * @num_dht: number of entries in @dht
  * @dht: pointers to huffman tables and sizes
+ * @num_dqt: number of entries in @dqt
  * @dqt: pointers to quantization tables and sizes
  * @frame: parsed frame header
  * @scan: pointer to parsed scan header, optional
