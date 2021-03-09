@@ -11,29 +11,6 @@
 #include <linux/xattr.h>
 #include "internal.h"
 
-static const char afs_xattr_list[] =
-	"afs.acl\0"
-	"afs.cell\0"
-	"afs.fid\0"
-	"afs.volume\0"
-	"afs.yfs.acl\0"
-	"afs.yfs.acl_inherited\0"
-	"afs.yfs.acl_num_cleaned\0"
-	"afs.yfs.vol_acl";
-
-/*
- * Retrieve a list of the supported xattrs.
- */
-ssize_t afs_listxattr(struct dentry *dentry, char *buffer, size_t size)
-{
-	if (size == 0)
-		return sizeof(afs_xattr_list);
-	if (size < sizeof(afs_xattr_list))
-		return -ERANGE;
-	memcpy(buffer, afs_xattr_list, sizeof(afs_xattr_list));
-	return sizeof(afs_xattr_list);
-}
-
 /*
  * Deal with the result of a successful fetch ACL operation.
  */
