@@ -1313,4 +1313,10 @@ bool dc_process_dmub_aux_transfer_async(struct dc *dc,
  * DSC Interfaces
  ******************************************************************************/
 #include "dc_dsc.h"
+
+/*******************************************************************************
+ * Disable acc mode Interfaces
+ ******************************************************************************/
+void dc_disable_accelerated_mode(struct dc *dc);
+
 #endif /* DC_INTERFACE_H_ */

@@ -41,6 +41,7 @@
 #include "dc_bios_types.h"
 
 #include "bios_parser_interface.h"
+#include "bios/bios_parser_helper.h"
 #include "include/irq_service_interface.h"
 #include "transform.h"
 #include "dmcu.h"
@@ -3371,4 +3372,21 @@ bool dc_process_dmub_aux_transfer_async(struct dc *dc,
 	dc_dmub_srv_wait_idle(dmub_srv);
 
 	return true;
+}
+
+/**
+ *****************************************************************************
+ *  Function: dc_disable_accelerated_mode
+ *
+ *  @brief
+ *		disable accelerated mode
+ *
+ *  @param
+ *		[in] dc: dc structure
+ *
+ *****************************************************************************
+ */
+void dc_disable_accelerated_mode(struct dc *dc)
+{
+	bios_set_scratch_acc_mode_change(dc->ctx->dc_bios, 0);
 }

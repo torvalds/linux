@@ -1750,7 +1750,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 		if (edp_link_with_sink && !keep_edp_vdd_on)
 			dc->hwss.edp_power_control(edp_link_with_sink, false);
 	}
-	bios_set_scratch_acc_mode_change(dc->ctx->dc_bios);
+	bios_set_scratch_acc_mode_change(dc->ctx->dc_bios, 1);
 }
 
 static uint32_t compute_pstate_blackout_duration(
