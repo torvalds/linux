@@ -586,12 +586,9 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	if (!gdev)
 		return -ENOMEM;
 	gdev->dev.bus = &gpio_bus_type;
+	gdev->dev.parent = gc->parent;
 	gdev->chip = gc;
 	gc->gpiodev = gdev;
-	if (gc->parent) {
-		gdev->dev.parent = gc->parent;
-		gdev->dev.of_node = gc->parent->of_node;
-	}
 
 	of_gpio_dev_init(gc, gdev);
 
@@ -4218,11 +4215,13 @@ EXPORT_SYMBOL_GPL(gpiod_put_array);
 
 static int gpio_bus_match(struct device *dev, struct device_driver *drv)
 {
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
+
 	/*
 	 * Only match if the fwnode doesn't already have a proper struct device
 	 * created for it.
 	 */
-	if (dev->fwnode && dev->fwnode->dev != dev)
+	if (fwnode && fwnode->dev != dev)
 		return 0;
 	return 1;
 }
