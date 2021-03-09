@@ -33,4 +33,8 @@ int __init default_rootfs(void);
 void __init wait_initrd_hw_decom_done(void);
 #endif
 
+#if defined(CONFIG_ROCKCHIP_THUNDER_BOOT_CRYPTO)
+int __init rk_tb_crypto_sha256_wait_compare_done(void);
+#endif
+
 #endif /* _LINUX_INITRAMFS_H */

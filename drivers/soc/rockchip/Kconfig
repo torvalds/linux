@@ -140,6 +140,12 @@ config ROCKCHIP_THUNDER_BOOT_SFC
 	help
 	  Say y if boot from SPI Flash from SFC controller.
 
+config ROCKCHIP_THUNDER_BOOT_CRYPTO
+	bool "Rockchip Thunder Boot support hardware crypto"
+	depends on ROCKCHIP_THUNDER_BOOT
+	help
+	  Say y if boot need hardware crypto.
+
 config ROCKCHIP_SCHED_PERFORMANCE_BIAS
 	bool "Rockchip task scheduler optimization"
 	default y
