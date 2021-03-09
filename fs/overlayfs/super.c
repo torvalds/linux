@@ -945,6 +945,16 @@ static int ovl_lower_dir(const char *name, struct path *path,
 		pr_warn("fs on '%s' does not support file handles, falling back to index=off,nfs_export=off.\n",
 			name);
 	}
+	/*
+	 * Decoding origin file handle is required for persistent st_ino.
+	 * Without persistent st_ino, xino=auto falls back to xino=off.
+	 */
+	if (ofs->config.xino == OVL_XINO_AUTO &&
+	    ofs->config.upperdir && !fh_type) {
+		ofs->config.xino = OVL_XINO_OFF;
+		pr_warn("fs on '%s' does not support file handles, falling back to xino=off.\n",
+			name);
+	}
 
 	/* Check if lower fs has 32bit inode numbers */
 	if (fh_type != FILEID_INO32_GEN)
@@ -1401,9 +1411,19 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 	err = ovl_do_setxattr(ofs, ofs->workdir, OVL_XATTR_OPAQUE, "0", 1);
 	if (err) {
 		ofs->noxattr = true;
-		ofs->config.index = false;
-		ofs->config.metacopy = false;
-		pr_warn("upper fs does not support xattr, falling back to index=off and metacopy=off.\n");
+		if (ofs->config.index || ofs->config.metacopy) {
+			ofs->config.index = false;
+			ofs->config.metacopy = false;
+			pr_warn("upper fs does not support xattr, falling back to index=off,metacopy=off.\n");
+		}
+		/*
+		 * xattr support is required for persistent st_ino.
+		 * Without persistent st_ino, xino=auto falls back to xino=off.
+		 */
+		if (ofs->config.xino == OVL_XINO_AUTO) {
+			ofs->config.xino = OVL_XINO_OFF;
+			pr_warn("upper fs does not support xattr, falling back to xino=off.\n");
+		}
 		err = 0;
 	} else {
 		ovl_do_removexattr(ofs, ofs->workdir, OVL_XATTR_OPAQUE);
@@ -1580,7 +1600,8 @@ static bool ovl_lower_uuid_ok(struct ovl_fs *ofs, const uuid_t *uuid)
 	 * user opted-in to one of the new features that require following the
 	 * lower inode of non-dir upper.
 	 */
-	if (!ofs->config.index && !ofs->config.metacopy && !ofs->config.xino &&
+	if (!ofs->config.index && !ofs->config.metacopy &&
+	    ofs->config.xino != OVL_XINO_ON &&
 	    uuid_is_null(uuid))
 		return false;
 
@@ -1609,6 +1630,7 @@ static int ovl_get_fsid(struct ovl_fs *ofs, const struct path *path)
 	dev_t dev;
 	int err;
 	bool bad_uuid = false;
+	bool warn = false;
 
 	for (i = 0; i < ofs->numfs; i++) {
 		if (ofs->fs[i].sb == sb)
@@ -1617,13 +1639,20 @@ static int ovl_get_fsid(struct ovl_fs *ofs, const struct path *path)
 
 	if (!ovl_lower_uuid_ok(ofs, &sb->s_uuid)) {
 		bad_uuid = true;
+		if (ofs->config.xino == OVL_XINO_AUTO) {
+			ofs->config.xino = OVL_XINO_OFF;
+			warn = true;
+		}
 		if (ofs->config.index || ofs->config.nfs_export) {
 			ofs->config.index = false;
 			ofs->config.nfs_export = false;
-			pr_warn("%s uuid detected in lower fs '%pd2', falling back to index=off,nfs_export=off.\n",
+			warn = true;
+		}
+		if (warn) {
+			pr_warn("%s uuid detected in lower fs '%pd2', falling back to xino=%s,index=off,nfs_export=off.\n",
 				uuid_is_null(&sb->s_uuid) ? "null" :
 							    "conflicting",
-				path->dentry);
+				path->dentry, ovl_xino_str[ofs->config.xino]);
 		}
 	}
 
