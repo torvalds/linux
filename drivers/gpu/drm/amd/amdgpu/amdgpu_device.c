@@ -2685,7 +2685,7 @@ static int amdgpu_device_ip_suspend_phase1(struct amdgpu_device *adev)
 {
 	int i, r;
 
-	if (adev->in_poweroff_reboot_com ||
+	if (adev->in_poweroff_reboot_com || adev->in_hibernate ||
 	    !amdgpu_acpi_is_s0ix_supported(adev) || amdgpu_in_reset(adev)) {
 		amdgpu_device_set_pg_state(adev, AMD_PG_STATE_UNGATE);
 		amdgpu_device_set_cg_state(adev, AMD_CG_STATE_UNGATE);
@@ -3766,7 +3766,11 @@ int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
 
 	amdgpu_fence_driver_suspend(adev);
 
-	if (adev->in_poweroff_reboot_com ||
+	/*
+	 * TODO: Need figure out the each GNB IP idle off dependency and then
+	 * improve the AMDGPU suspend/resume sequence for system-wide Sx entry/exit.
+	 */
+	if (adev->in_poweroff_reboot_com || adev->in_hibernate ||
 	    !amdgpu_acpi_is_s0ix_supported(adev) || amdgpu_in_reset(adev))
 		r = amdgpu_device_ip_suspend_phase2(adev);
 	else
