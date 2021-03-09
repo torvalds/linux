@@ -13,6 +13,10 @@
  */
 struct binder_transaction;
 struct task_struct;
+struct binder_alloc;
+struct binder_proc;
+struct binder_thread;
+struct binder_transaction_data;
 DECLARE_HOOK(android_vh_binder_transaction_init,
 	TP_PROTO(struct binder_transaction *t),
 	TP_ARGS(t));
@@ -33,6 +37,21 @@ DECLARE_HOOK(android_vh_binder_wait_for_work,
 DECLARE_HOOK(android_vh_sync_txn_recvd,
 	TP_PROTO(struct task_struct *tsk, struct task_struct *from),
 	TP_ARGS(tsk, from));
+DECLARE_HOOK(android_vh_binder_alloc_new_buf_locked,
+	TP_PROTO(size_t size, struct binder_alloc *alloc, int is_async),
+	TP_ARGS(size, alloc, is_async));
+DECLARE_HOOK(android_vh_binder_reply,
+	TP_PROTO(struct binder_proc *target_proc, struct binder_proc *proc,
+		struct binder_thread *thread, struct binder_transaction_data *tr),
+	TP_ARGS(target_proc, proc, thread, tr));
+DECLARE_HOOK(android_vh_binder_trans,
+	TP_PROTO(struct binder_proc *target_proc, struct binder_proc *proc,
+		struct binder_thread *thread, struct binder_transaction_data *tr),
+	TP_ARGS(target_proc, proc, thread, tr));
+DECLARE_HOOK(android_vh_binder_preset,
+	TP_PROTO(struct hlist_head *hhead, struct mutex *lock),
+	TP_ARGS(hhead, lock));
+
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_BINDER_H */
