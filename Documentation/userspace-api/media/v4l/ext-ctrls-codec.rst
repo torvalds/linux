@@ -580,7 +580,7 @@ enum v4l2_mpeg_video_bitrate_mode -
 
 
 ``V4L2_CID_MPEG_VIDEO_BITRATE (integer)``
-    Video bitrate in bits per second.
+    Average video bitrate in bits per second.
 
 ``V4L2_CID_MPEG_VIDEO_BITRATE_PEAK (integer)``
     Peak video bitrate in bits per second. Must be larger or equal to
