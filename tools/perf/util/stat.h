@@ -187,11 +187,10 @@ struct perf_aggr_thread_value {
 	u64 ena;
 };
 
-bool __perf_evsel_stat__is(struct evsel *evsel,
-			   enum perf_stat_evsel_id id);
+bool __perf_stat_evsel__is(struct evsel *evsel, enum perf_stat_evsel_id id);
 
 #define perf_stat_evsel__is(evsel, id) \
-	__perf_evsel_stat__is(evsel, PERF_STAT_EVSEL_ID__ ## id)
+	__perf_stat_evsel__is(evsel, PERF_STAT_EVSEL_ID__ ## id)
 
 extern struct runtime_stat rt_stat;
 extern struct stats walltime_nsecs_stats;
