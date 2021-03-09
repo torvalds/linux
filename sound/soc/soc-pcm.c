@@ -165,9 +165,6 @@ static const struct file_operations dpcm_state_fops = {
 
 void soc_dpcm_debugfs_add(struct snd_soc_pcm_runtime *rtd)
 {
-	if (!rtd->dai_link)
-		return;
-
 	if (!rtd->dai_link->dynamic)
 		return;
 
