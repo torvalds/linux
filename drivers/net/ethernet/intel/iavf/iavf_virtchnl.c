@@ -1464,6 +1464,7 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 					dev_info(&adapter->pdev->dev, "Failed to add Flow Director filter, error %s\n",
 						 iavf_stat_str(&adapter->hw,
 							       v_retval));
+					iavf_print_fdir_fltr(adapter, fdir);
 					if (msglen)
 						dev_err(&adapter->pdev->dev,
 							"%s\n", msg);
@@ -1486,6 +1487,7 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 					dev_info(&adapter->pdev->dev, "Failed to del Flow Director filter, error %s\n",
 						 iavf_stat_str(&adapter->hw,
 							       v_retval));
+					iavf_print_fdir_fltr(adapter, fdir);
 				}
 			}
 			spin_unlock_bh(&adapter->fdir_fltr_lock);
@@ -1638,11 +1640,14 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 					 list) {
 			if (fdir->state == IAVF_FDIR_FLTR_ADD_PENDING) {
 				if (add_fltr->status == VIRTCHNL_FDIR_SUCCESS) {
+					dev_info(&adapter->pdev->dev, "Flow Director filter with location %u is added\n",
+						 fdir->loc);
 					fdir->state = IAVF_FDIR_FLTR_ACTIVE;
 					fdir->flow_id = add_fltr->flow_id;
 				} else {
 					dev_info(&adapter->pdev->dev, "Failed to add Flow Director filter with status: %d\n",
 						 add_fltr->status);
+					iavf_print_fdir_fltr(adapter, fdir);
 					list_del(&fdir->list);
 					kfree(fdir);
 					adapter->fdir_active_fltr--;
@@ -1661,6 +1666,8 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 					 list) {
 			if (fdir->state == IAVF_FDIR_FLTR_DEL_PENDING) {
 				if (del_fltr->status == VIRTCHNL_FDIR_SUCCESS) {
+					dev_info(&adapter->pdev->dev, "Flow Director filter with location %u is deleted\n",
+						 fdir->loc);
 					list_del(&fdir->list);
 					kfree(fdir);
 					adapter->fdir_active_fltr--;
@@ -1668,6 +1675,7 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 					fdir->state = IAVF_FDIR_FLTR_ACTIVE;
 					dev_info(&adapter->pdev->dev, "Failed to delete Flow Director filter with status: %d\n",
 						 del_fltr->status);
+					iavf_print_fdir_fltr(adapter, fdir);
 				}
 			}
 		}
