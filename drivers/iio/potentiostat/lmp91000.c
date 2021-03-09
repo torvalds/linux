@@ -322,7 +322,7 @@ static int lmp91000_probe(struct i2c_client *client,
 		return PTR_ERR(data->regmap);
 	}
 
-	data->trig = devm_iio_trigger_alloc(data->dev, "%s-mux%d",
+	data->trig = devm_iio_trigger_alloc(dev, "%s-mux%d",
 					    indio_dev->name, indio_dev->id);
 	if (!data->trig) {
 		dev_err(dev, "cannot allocate iio trigger.\n");
@@ -330,7 +330,6 @@ static int lmp91000_probe(struct i2c_client *client,
 	}
 
 	data->trig->ops = &lmp91000_trigger_ops;
-	data->trig->dev.parent = dev;
 	init_completion(&data->completion);
 
 	ret = lmp91000_read_config(data);
