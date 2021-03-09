@@ -4718,3 +4718,46 @@ bool dc_link_set_default_brightness_aux(struct dc_link *link)
 	}
 	return false;
 }
+
+bool is_edp_ilr_optimization_required(struct dc_link *link, struct dc_crtc_timing *crtc_timing)
+{
+	struct dc_link_settings link_setting;
+	uint8_t link_bw_set;
+	uint8_t link_rate_set;
+	uint32_t req_bw;
+	union lane_count_set lane_count_set = { {0} };
+
+	ASSERT(link || crtc_timing); // invalid input
+
+	if (link->dpcd_caps.edp_supported_link_rates_count == 0 ||
+			!link->dc->debug.optimize_edp_link_rate)
+		return false;
+
+
+	// Read DPCD 00100h to find if standard link rates are set
+	core_link_read_dpcd(link, DP_LINK_BW_SET,
+				&link_bw_set, sizeof(link_bw_set));
+
+	if (link_bw_set)
+		return true;
+
+	// Read DPCD 00115h to find the edp link rate set used
+	core_link_read_dpcd(link, DP_LINK_RATE_SET,
+			    &link_rate_set, sizeof(link_rate_set));
+
+	// Read DPCD 00101h to find out the number of lanes currently set
+	core_link_read_dpcd(link, DP_LANE_COUNT_SET,
+				&lane_count_set.raw, sizeof(lane_count_set));
+
+	req_bw = dc_bandwidth_in_kbps_from_timing(crtc_timing);
+
+	decide_edp_link_settings(link, &link_setting, req_bw);
+
+	if (link->dpcd_caps.edp_supported_link_rates[link_rate_set] != link_setting.link_rate ||
+			lane_count_set.bits.LANE_COUNT_SET != link_setting.lane_count)
+		return true;
+
+	return false;
+}
+
+

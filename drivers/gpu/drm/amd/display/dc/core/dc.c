@@ -55,6 +55,7 @@
 #include "link_encoder.h"
 #include "link_enc_cfg.h"
 
+#include "dc_link.h"
 #include "dc_link_ddc.h"
 #include "dm_helpers.h"
 #include "mem_input.h"
@@ -1426,6 +1427,10 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 	}
 
 	if (link->dpcd_caps.dprx_feature.bits.VSC_SDP_COLORIMETRY_SUPPORTED) {
+		return false;
+	}
+
+	if (is_edp_ilr_optimization_required(link, crtc_timing)) {
 		return false;
 	}
 

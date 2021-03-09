@@ -48,6 +48,7 @@
 #include "stream_encoder.h"
 #include "link_encoder.h"
 #include "link_hwss.h"
+#include "dc_link_dp.h"
 #include "clock_source.h"
 #include "clk_mgr.h"
 #include "abm.h"
@@ -1714,8 +1715,9 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 				/* Set optimization flag on eDP stream*/
 				if (edp_stream_num && edp_link->link_status.link_active) {
 					edp_stream = edp_streams[0];
-					edp_stream->apply_edp_fast_boot_optimization = true;
-					can_apply_edp_fast_boot = true;
+					can_apply_edp_fast_boot = !is_edp_ilr_optimization_required(edp_stream->link, &edp_stream->timing);
+					edp_stream->apply_edp_fast_boot_optimization = can_apply_edp_fast_boot;
+
 					break;
 				}
 			}
