@@ -758,7 +758,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 	for (i = 0; i < n; i++) {
 		char *end;
 		pid_t _pid;
-		bool kernel_thread;
+		bool kernel_thread = false;
 
 		_pid = strtol(dirent[i]->d_name, &end, 10);
 		if (*end)
