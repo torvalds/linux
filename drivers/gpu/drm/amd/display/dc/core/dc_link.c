@@ -1379,7 +1379,9 @@ bool dc_link_get_hpd_state(struct dc_link *dc_link)
 static enum hpd_source_id get_hpd_line(struct dc_link *link)
 {
 	struct gpio *hpd;
-	enum hpd_source_id hpd_id = HPD_SOURCEID_UNKNOWN;
+	enum hpd_source_id hpd_id;
+
+	hpd_id = HPD_SOURCEID_UNKNOWN;
 
 	hpd = get_hpd_gpio(link->ctx->dc_bios, link->link_id,
 			   link->ctx->gpio_service);
@@ -1418,7 +1420,9 @@ static enum hpd_source_id get_hpd_line(struct dc_link *link)
 static enum channel_id get_ddc_line(struct dc_link *link)
 {
 	struct ddc *ddc;
-	enum channel_id channel = CHANNEL_ID_UNKNOWN;
+	enum channel_id channel;
+
+	channel = CHANNEL_ID_UNKNOWN;
 
 	ddc = dal_ddc_service_get_ddc_pin(link->ddc);
 

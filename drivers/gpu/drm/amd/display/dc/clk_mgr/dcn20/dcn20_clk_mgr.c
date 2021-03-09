@@ -436,7 +436,6 @@ void dcn2_read_clocks_from_hw_dentist(struct clk_mgr *clk_mgr_base)
 		clk_mgr_base->clks.dppclk_khz = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
 				* clk_mgr->base.dentist_vco_freq_khz) / dpp_divider;
 	}
-
 }
 
 void dcn2_get_clock(struct clk_mgr *clk_mgr,
