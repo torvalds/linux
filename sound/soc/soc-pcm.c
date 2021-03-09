@@ -349,6 +349,9 @@ static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	int ret;
 
+	if (!snd_soc_dai_active(soc_dai))
+		return 0;
+
 #define __soc_pcm_apply_symmetry(name, NAME)				\
 	if (soc_dai->name && (soc_dai->driver->symmetric_##name ||	\
 			      rtd->dai_link->symmetric_##name)) {	\
@@ -765,11 +768,9 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 
 	/* Symmetry only applies if we've already got an active stream. */
 	for_each_rtd_dais(rtd, i, dai) {
-		if (snd_soc_dai_active(dai)) {
-			ret = soc_pcm_apply_symmetry(substream, dai);
-			if (ret != 0)
-				goto err;
-		}
+		ret = soc_pcm_apply_symmetry(substream, dai);
+		if (ret != 0)
+			goto err;
 	}
 
 	pr_debug("ASoC: %s <-> %s info:\n",
@@ -1693,11 +1694,9 @@ static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
 
 	for_each_rtd_cpu_dais (fe, i, fe_cpu_dai) {
 		/* Symmetry only applies if we've got an active stream. */
-		if (snd_soc_dai_active(fe_cpu_dai)) {
-			err = soc_pcm_apply_symmetry(fe_substream, fe_cpu_dai);
-			if (err < 0)
-				return err;
-		}
+		err = soc_pcm_apply_symmetry(fe_substream, fe_cpu_dai);
+		if (err < 0)
+			return err;
 	}
 
 	/* apply symmetry for BE */
@@ -1721,11 +1720,9 @@ static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
 
 		/* Symmetry only applies if we've got an active stream. */
 		for_each_rtd_dais(rtd, i, dai) {
-			if (snd_soc_dai_active(dai)) {
-				err = soc_pcm_apply_symmetry(fe_substream, dai);
-				if (err < 0)
-					return err;
-			}
+			err = soc_pcm_apply_symmetry(fe_substream, dai);
+			if (err < 0)
+				return err;
 		}
 	}
 
