@@ -906,8 +906,7 @@ static inline int temperature_from_RAM(struct w1_slave *sl, u8 rom[9])
 static inline s8 int_to_short(int i)
 {
 	/* Prepare to cast to short by eliminating out of range values */
-	i = i > MAX_TEMP ? MAX_TEMP : i;
-	i = i < MIN_TEMP ? MIN_TEMP : i;
+	i = clamp(i, MIN_TEMP, MAX_TEMP);
 	return (s8) i;
 }
 
