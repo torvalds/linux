@@ -1837,6 +1837,7 @@ int f2fs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	int ret = 0;
 	bool compr_cluster = false;
 	unsigned int cluster_size = F2FS_I(inode)->i_cluster_size;
+	loff_t maxbytes;
 
 	if (fieinfo->fi_flags & FIEMAP_FLAG_CACHE) {
 		ret = f2fs_precache_extents(inode);
@@ -1849,6 +1850,15 @@ int f2fs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		return ret;
 
 	inode_lock(inode);
+
+	maxbytes = max_file_blocks(inode) << F2FS_BLKSIZE_BITS;
+	if (start > maxbytes) {
+		ret = -EFBIG;
+		goto out;
+	}
+
+	if (len > maxbytes || (maxbytes - len) < start)
+		len = maxbytes - start;
 
 	if (fieinfo->fi_flags & FIEMAP_FLAG_XATTR) {
 		ret = f2fs_xattr_fiemap(inode, fieinfo);
