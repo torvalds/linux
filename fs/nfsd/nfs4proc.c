@@ -1302,7 +1302,7 @@ nfsd4_cleanup_inter_ssc(struct vfsmount *ss_mnt, struct nfsd_file *src,
 			struct nfsd_file *dst)
 {
 	nfs42_ssc_close(src->nf_file);
-	/* 'src' is freed by nfsd4_do_async_copy */
+	fput(src->nf_file);
 	nfsd_file_put(dst);
 	mntput(ss_mnt);
 }
