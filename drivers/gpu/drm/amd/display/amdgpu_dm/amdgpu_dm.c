@@ -1086,6 +1086,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	init_data.flags.power_down_display_on_boot = true;
 
+	INIT_LIST_HEAD(&adev->dm.da_list);
 	/* Display Core create. */
 	adev->dm.dc = dc_create(&init_data);
 

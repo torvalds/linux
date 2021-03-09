@@ -133,6 +133,16 @@ struct amdgpu_dm_backlight_caps {
 };
 
 /**
+ * struct dal_allocation - Tracks mapped FB memory for SMU communication
+ */
+struct dal_allocation {
+	struct list_head list;
+	struct amdgpu_bo *bo;
+	void *cpu_ptr;
+	u64 gpu_addr;
+};
+
+/**
  * struct amdgpu_display_manager - Central amdgpu display manager device
  *
  * @dc: Display Core control structure
@@ -385,6 +395,12 @@ struct amdgpu_display_manager {
 	 */
 	struct amdgpu_encoder mst_encoders[AMDGPU_DM_MAX_CRTC];
 	bool force_timing_sync;
+	/**
+	 * @da_list:
+	 *
+	 * DAL fb memory allocation list, for communication with SMU.
+	 */
+	struct list_head da_list;
 };
 
 enum dsc_clock_force_state {
