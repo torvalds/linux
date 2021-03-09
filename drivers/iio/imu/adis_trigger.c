@@ -27,13 +27,6 @@ static const struct iio_trigger_ops adis_trigger_ops = {
 	.set_trigger_state = &adis_data_rdy_trigger_set_state,
 };
 
-static void adis_trigger_setup(struct adis *adis)
-{
-	adis->trig->dev.parent = &adis->spi->dev;
-	adis->trig->ops = &adis_trigger_ops;
-	iio_trigger_set_drvdata(adis->trig, adis);
-}
-
 static int adis_validate_irq_flag(struct adis *adis)
 {
 	/*
@@ -72,7 +65,8 @@ int devm_adis_probe_trigger(struct adis *adis, struct iio_dev *indio_dev)
 	if (!adis->trig)
 		return -ENOMEM;
 
-	adis_trigger_setup(adis);
+	adis->trig->ops = &adis_trigger_ops;
+	iio_trigger_set_drvdata(adis->trig, adis);
 
 	ret = adis_validate_irq_flag(adis);
 	if (ret)
