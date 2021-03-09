@@ -91,6 +91,9 @@ int devfreq_update_target(struct devfreq *devfreq, unsigned long freq);
 
 static inline int devfreq_update_stats(struct devfreq *df)
 {
+	if (!df->profile->get_dev_status)
+		return -EINVAL;
+
 	return df->profile->get_dev_status(df->dev.parent, &df->last_status);
 }
 #endif /* _GOVERNOR_H */
