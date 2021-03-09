@@ -29,6 +29,15 @@
 
 #define DPCM_MAX_BE_USERS	8
 
+static inline const char *soc_cpu_dai_name(struct snd_soc_pcm_runtime *rtd)
+{
+	return (rtd)->num_cpus == 1 ? asoc_rtd_to_cpu(rtd, 0)->name : "multicpu";
+}
+static inline const char *soc_codec_dai_name(struct snd_soc_pcm_runtime *rtd)
+{
+	return (rtd)->num_codecs == 1 ? asoc_rtd_to_codec(rtd, 0)->name : "multicodec";
+}
+
 #ifdef CONFIG_DEBUG_FS
 static const char *dpcm_state_string(enum snd_soc_dpcm_state state)
 {
@@ -697,8 +706,8 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_component *component;
 	struct snd_soc_dai *dai;
-	const char *codec_dai_name = "multicodec";
-	const char *cpu_dai_name = "multicpu";
+	const char *codec_dai_name = soc_codec_dai_name(rtd);
+	const char *cpu_dai_name = soc_cpu_dai_name(rtd);
 	int i, ret = 0;
 
 	for_each_rtd_components(rtd, i, component)
@@ -736,12 +745,6 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 
 	/* Check that the codec and cpu DAIs are compatible */
 	soc_pcm_init_runtime_hw(substream);
-
-	if (rtd->num_codecs == 1)
-		codec_dai_name = asoc_rtd_to_codec(rtd, 0)->name;
-
-	if (rtd->num_cpus == 1)
-		cpu_dai_name = asoc_rtd_to_cpu(rtd, 0)->name;
 
 	if (soc_pcm_has_symmetry(substream))
 		runtime->hw.info |= SNDRV_PCM_INFO_JOINT_DUPLEX;
@@ -2741,8 +2744,7 @@ static int soc_create_pcm(struct snd_pcm **pcm,
 		else
 			snprintf(new_name, sizeof(new_name), "%s %s-%d",
 				rtd->dai_link->stream_name,
-				(rtd->num_codecs > 1) ?
-				"multicodec" : asoc_rtd_to_codec(rtd, 0)->name, num);
+				soc_codec_dai_name(rtd), num);
 
 		ret = snd_pcm_new(rtd->card->snd_card, new_name, num, playback,
 			capture, pcm);
@@ -2841,8 +2843,7 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	pcm->no_device_suspend = true;
 out:
 	dev_dbg(rtd->card->dev, "%s <-> %s mapping ok\n",
-		(rtd->num_codecs > 1) ? "multicodec" : asoc_rtd_to_codec(rtd, 0)->name,
-		(rtd->num_cpus > 1)   ? "multicpu"   : asoc_rtd_to_cpu(rtd, 0)->name);
+		soc_codec_dai_name(rtd), soc_cpu_dai_name(rtd));
 	return ret;
 }
 
