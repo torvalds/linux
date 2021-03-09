@@ -849,6 +849,18 @@ static int iavf_fltr_to_ethtool_flow(enum iavf_fdir_flow_type flow)
 		return ESP_V4_FLOW;
 	case IAVF_FDIR_FLOW_IPV4_OTHER:
 		return IPV4_USER_FLOW;
+	case IAVF_FDIR_FLOW_IPV6_TCP:
+		return TCP_V6_FLOW;
+	case IAVF_FDIR_FLOW_IPV6_UDP:
+		return UDP_V6_FLOW;
+	case IAVF_FDIR_FLOW_IPV6_SCTP:
+		return SCTP_V6_FLOW;
+	case IAVF_FDIR_FLOW_IPV6_AH:
+		return AH_V6_FLOW;
+	case IAVF_FDIR_FLOW_IPV6_ESP:
+		return ESP_V6_FLOW;
+	case IAVF_FDIR_FLOW_IPV6_OTHER:
+		return IPV6_USER_FLOW;
 	default:
 		/* 0 is undefined ethtool flow */
 		return 0;
@@ -876,6 +888,18 @@ static enum iavf_fdir_flow_type iavf_ethtool_flow_to_fltr(int eth)
 		return IAVF_FDIR_FLOW_IPV4_ESP;
 	case IPV4_USER_FLOW:
 		return IAVF_FDIR_FLOW_IPV4_OTHER;
+	case TCP_V6_FLOW:
+		return IAVF_FDIR_FLOW_IPV6_TCP;
+	case UDP_V6_FLOW:
+		return IAVF_FDIR_FLOW_IPV6_UDP;
+	case SCTP_V6_FLOW:
+		return IAVF_FDIR_FLOW_IPV6_SCTP;
+	case AH_V6_FLOW:
+		return IAVF_FDIR_FLOW_IPV6_AH;
+	case ESP_V6_FLOW:
+		return IAVF_FDIR_FLOW_IPV6_ESP;
+	case IPV6_USER_FLOW:
+		return IAVF_FDIR_FLOW_IPV6_OTHER;
 	default:
 		return IAVF_FDIR_FLOW_NONE;
 	}
@@ -951,6 +975,55 @@ iavf_get_ethtool_fdir_entry(struct iavf_adapter *adapter,
 		fsp->m_u.usr_ip4_spec.tos = rule->ip_mask.tos;
 		fsp->m_u.usr_ip4_spec.ip_ver = 0xFF;
 		fsp->m_u.usr_ip4_spec.proto = rule->ip_mask.proto;
+		break;
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+	case SCTP_V6_FLOW:
+		memcpy(fsp->h_u.usr_ip6_spec.ip6src, &rule->ip_data.v6_addrs.src_ip,
+		       sizeof(struct in6_addr));
+		memcpy(fsp->h_u.usr_ip6_spec.ip6dst, &rule->ip_data.v6_addrs.dst_ip,
+		       sizeof(struct in6_addr));
+		fsp->h_u.tcp_ip6_spec.psrc = rule->ip_data.src_port;
+		fsp->h_u.tcp_ip6_spec.pdst = rule->ip_data.dst_port;
+		fsp->h_u.tcp_ip6_spec.tclass = rule->ip_data.tclass;
+		memcpy(fsp->m_u.usr_ip6_spec.ip6src, &rule->ip_mask.v6_addrs.src_ip,
+		       sizeof(struct in6_addr));
+		memcpy(fsp->m_u.usr_ip6_spec.ip6dst, &rule->ip_mask.v6_addrs.dst_ip,
+		       sizeof(struct in6_addr));
+		fsp->m_u.tcp_ip6_spec.psrc = rule->ip_mask.src_port;
+		fsp->m_u.tcp_ip6_spec.pdst = rule->ip_mask.dst_port;
+		fsp->m_u.tcp_ip6_spec.tclass = rule->ip_mask.tclass;
+		break;
+	case AH_V6_FLOW:
+	case ESP_V6_FLOW:
+		memcpy(fsp->h_u.ah_ip6_spec.ip6src, &rule->ip_data.v6_addrs.src_ip,
+		       sizeof(struct in6_addr));
+		memcpy(fsp->h_u.ah_ip6_spec.ip6dst, &rule->ip_data.v6_addrs.dst_ip,
+		       sizeof(struct in6_addr));
+		fsp->h_u.ah_ip6_spec.spi = rule->ip_data.spi;
+		fsp->h_u.ah_ip6_spec.tclass = rule->ip_data.tclass;
+		memcpy(fsp->m_u.ah_ip6_spec.ip6src, &rule->ip_mask.v6_addrs.src_ip,
+		       sizeof(struct in6_addr));
+		memcpy(fsp->m_u.ah_ip6_spec.ip6dst, &rule->ip_mask.v6_addrs.dst_ip,
+		       sizeof(struct in6_addr));
+		fsp->m_u.ah_ip6_spec.spi = rule->ip_mask.spi;
+		fsp->m_u.ah_ip6_spec.tclass = rule->ip_mask.tclass;
+		break;
+	case IPV6_USER_FLOW:
+		memcpy(fsp->h_u.usr_ip6_spec.ip6src, &rule->ip_data.v6_addrs.src_ip,
+		       sizeof(struct in6_addr));
+		memcpy(fsp->h_u.usr_ip6_spec.ip6dst, &rule->ip_data.v6_addrs.dst_ip,
+		       sizeof(struct in6_addr));
+		fsp->h_u.usr_ip6_spec.l4_4_bytes = rule->ip_data.l4_header;
+		fsp->h_u.usr_ip6_spec.tclass = rule->ip_data.tclass;
+		fsp->h_u.usr_ip6_spec.l4_proto = rule->ip_data.proto;
+		memcpy(fsp->m_u.usr_ip6_spec.ip6src, &rule->ip_mask.v6_addrs.src_ip,
+		       sizeof(struct in6_addr));
+		memcpy(fsp->m_u.usr_ip6_spec.ip6dst, &rule->ip_mask.v6_addrs.dst_ip,
+		       sizeof(struct in6_addr));
+		fsp->m_u.usr_ip6_spec.l4_4_bytes = rule->ip_mask.l4_header;
+		fsp->m_u.usr_ip6_spec.tclass = rule->ip_mask.tclass;
+		fsp->m_u.usr_ip6_spec.l4_proto = rule->ip_mask.proto;
 		break;
 	default:
 		ret = -EINVAL;
@@ -1074,6 +1147,55 @@ iavf_add_fdir_fltr_info(struct iavf_adapter *adapter, struct ethtool_rx_flow_spe
 		fltr->ip_mask.l4_header = fsp->m_u.usr_ip4_spec.l4_4_bytes;
 		fltr->ip_mask.tos = fsp->m_u.usr_ip4_spec.tos;
 		fltr->ip_mask.proto = fsp->m_u.usr_ip4_spec.proto;
+		break;
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+	case SCTP_V6_FLOW:
+		memcpy(&fltr->ip_data.v6_addrs.src_ip, fsp->h_u.usr_ip6_spec.ip6src,
+		       sizeof(struct in6_addr));
+		memcpy(&fltr->ip_data.v6_addrs.dst_ip, fsp->h_u.usr_ip6_spec.ip6dst,
+		       sizeof(struct in6_addr));
+		fltr->ip_data.src_port = fsp->h_u.tcp_ip6_spec.psrc;
+		fltr->ip_data.dst_port = fsp->h_u.tcp_ip6_spec.pdst;
+		fltr->ip_data.tclass = fsp->h_u.tcp_ip6_spec.tclass;
+		memcpy(&fltr->ip_mask.v6_addrs.src_ip, fsp->m_u.usr_ip6_spec.ip6src,
+		       sizeof(struct in6_addr));
+		memcpy(&fltr->ip_mask.v6_addrs.dst_ip, fsp->m_u.usr_ip6_spec.ip6dst,
+		       sizeof(struct in6_addr));
+		fltr->ip_mask.src_port = fsp->m_u.tcp_ip6_spec.psrc;
+		fltr->ip_mask.dst_port = fsp->m_u.tcp_ip6_spec.pdst;
+		fltr->ip_mask.tclass = fsp->m_u.tcp_ip6_spec.tclass;
+		break;
+	case AH_V6_FLOW:
+	case ESP_V6_FLOW:
+		memcpy(&fltr->ip_data.v6_addrs.src_ip, fsp->h_u.ah_ip6_spec.ip6src,
+		       sizeof(struct in6_addr));
+		memcpy(&fltr->ip_data.v6_addrs.dst_ip, fsp->h_u.ah_ip6_spec.ip6dst,
+		       sizeof(struct in6_addr));
+		fltr->ip_data.spi = fsp->h_u.ah_ip6_spec.spi;
+		fltr->ip_data.tclass = fsp->h_u.ah_ip6_spec.tclass;
+		memcpy(&fltr->ip_mask.v6_addrs.src_ip, fsp->m_u.ah_ip6_spec.ip6src,
+		       sizeof(struct in6_addr));
+		memcpy(&fltr->ip_mask.v6_addrs.dst_ip, fsp->m_u.ah_ip6_spec.ip6dst,
+		       sizeof(struct in6_addr));
+		fltr->ip_mask.spi = fsp->m_u.ah_ip6_spec.spi;
+		fltr->ip_mask.tclass = fsp->m_u.ah_ip6_spec.tclass;
+		break;
+	case IPV6_USER_FLOW:
+		memcpy(&fltr->ip_data.v6_addrs.src_ip, fsp->h_u.usr_ip6_spec.ip6src,
+		       sizeof(struct in6_addr));
+		memcpy(&fltr->ip_data.v6_addrs.dst_ip, fsp->h_u.usr_ip6_spec.ip6dst,
+		       sizeof(struct in6_addr));
+		fltr->ip_data.l4_header = fsp->h_u.usr_ip6_spec.l4_4_bytes;
+		fltr->ip_data.tclass = fsp->h_u.usr_ip6_spec.tclass;
+		fltr->ip_data.proto = fsp->h_u.usr_ip6_spec.l4_proto;
+		memcpy(&fltr->ip_mask.v6_addrs.src_ip, fsp->m_u.usr_ip6_spec.ip6src,
+		       sizeof(struct in6_addr));
+		memcpy(&fltr->ip_mask.v6_addrs.dst_ip, fsp->m_u.usr_ip6_spec.ip6dst,
+		       sizeof(struct in6_addr));
+		fltr->ip_mask.l4_header = fsp->m_u.usr_ip6_spec.l4_4_bytes;
+		fltr->ip_mask.tclass = fsp->m_u.usr_ip6_spec.tclass;
+		fltr->ip_mask.proto = fsp->m_u.usr_ip6_spec.l4_proto;
 		break;
 	default:
 		/* not doing un-parsed flow types */

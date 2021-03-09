@@ -24,6 +24,12 @@ enum iavf_fdir_flow_type {
 	IAVF_FDIR_FLOW_IPV4_AH,
 	IAVF_FDIR_FLOW_IPV4_ESP,
 	IAVF_FDIR_FLOW_IPV4_OTHER,
+	IAVF_FDIR_FLOW_IPV6_TCP,
+	IAVF_FDIR_FLOW_IPV6_UDP,
+	IAVF_FDIR_FLOW_IPV6_SCTP,
+	IAVF_FDIR_FLOW_IPV6_AH,
+	IAVF_FDIR_FLOW_IPV6_ESP,
+	IAVF_FDIR_FLOW_IPV6_OTHER,
 	/* MAX - this must be last and add anything new just above it */
 	IAVF_FDIR_FLOW_PTYPE_MAX,
 };
@@ -33,9 +39,15 @@ struct iavf_ipv4_addrs {
 	__be32 dst_ip;
 };
 
+struct iavf_ipv6_addrs {
+	struct in6_addr src_ip;
+	struct in6_addr dst_ip;
+};
+
 struct iavf_fdir_ip {
 	union {
 		struct iavf_ipv4_addrs v4_addrs;
+		struct iavf_ipv6_addrs v6_addrs;
 	};
 	__be16 src_port;
 	__be16 dst_port;
@@ -43,6 +55,7 @@ struct iavf_fdir_ip {
 	__be32 spi;		/* security parameter index for AH/ESP */
 	union {
 		u8 tos;
+		u8 tclass;
 	};
 	u8 proto;
 };

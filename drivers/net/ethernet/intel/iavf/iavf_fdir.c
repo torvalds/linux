@@ -5,6 +5,15 @@
 
 #include "iavf.h"
 
+static const struct in6_addr ipv6_addr_full_mask = {
+	.in6_u = {
+		.u6_addr8 = {
+			0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+			0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+		}
+	}
+};
+
 /**
  * iavf_fill_fdir_ip4_hdr - fill the IPv4 protocol header
  * @fltr: Flow Director filter data structure
@@ -39,6 +48,50 @@ iavf_fill_fdir_ip4_hdr(struct iavf_fdir_fltr *fltr,
 	if (fltr->ip_mask.v4_addrs.dst_ip == htonl(U32_MAX)) {
 		iph->daddr = fltr->ip_data.v4_addrs.dst_ip;
 		VIRTCHNL_ADD_PROTO_HDR_FIELD_BIT(hdr, IPV4, DST);
+	}
+
+	return 0;
+}
+
+/**
+ * iavf_fill_fdir_ip6_hdr - fill the IPv6 protocol header
+ * @fltr: Flow Director filter data structure
+ * @proto_hdrs: Flow Director protocol headers data structure
+ *
+ * Returns 0 if the IPv6 protocol header is set successfully
+ */
+static int
+iavf_fill_fdir_ip6_hdr(struct iavf_fdir_fltr *fltr,
+		       struct virtchnl_proto_hdrs *proto_hdrs)
+{
+	struct virtchnl_proto_hdr *hdr = &proto_hdrs->proto_hdr[proto_hdrs->count++];
+	struct ipv6hdr *iph = (struct ipv6hdr *)hdr->buffer;
+
+	VIRTCHNL_SET_PROTO_HDR_TYPE(hdr, IPV6);
+
+	if (fltr->ip_mask.tclass == U8_MAX) {
+		iph->priority = (fltr->ip_data.tclass >> 4) & 0xF;
+		iph->flow_lbl[0] = (fltr->ip_data.tclass << 4) & 0xF0;
+		VIRTCHNL_ADD_PROTO_HDR_FIELD_BIT(hdr, IPV6, TC);
+	}
+
+	if (fltr->ip_mask.proto == U8_MAX) {
+		iph->nexthdr = fltr->ip_data.proto;
+		VIRTCHNL_ADD_PROTO_HDR_FIELD_BIT(hdr, IPV6, PROT);
+	}
+
+	if (!memcmp(&fltr->ip_mask.v6_addrs.src_ip, &ipv6_addr_full_mask,
+		    sizeof(struct in6_addr))) {
+		memcpy(&iph->saddr, &fltr->ip_data.v6_addrs.src_ip,
+		       sizeof(struct in6_addr));
+		VIRTCHNL_ADD_PROTO_HDR_FIELD_BIT(hdr, IPV6, SRC);
+	}
+
+	if (!memcmp(&fltr->ip_mask.v6_addrs.dst_ip, &ipv6_addr_full_mask,
+		    sizeof(struct in6_addr))) {
+		memcpy(&iph->daddr, &fltr->ip_data.v6_addrs.dst_ip,
+		       sizeof(struct in6_addr));
+		VIRTCHNL_ADD_PROTO_HDR_FIELD_BIT(hdr, IPV6, DST);
 	}
 
 	return 0;
@@ -274,6 +327,30 @@ int iavf_fill_fdir_add_msg(struct iavf_adapter *adapter, struct iavf_fdir_fltr *
 		err = iavf_fill_fdir_ip4_hdr(fltr, proto_hdrs) |
 		      iavf_fill_fdir_l4_hdr(fltr, proto_hdrs);
 		break;
+	case IAVF_FDIR_FLOW_IPV6_TCP:
+		err = iavf_fill_fdir_ip6_hdr(fltr, proto_hdrs) |
+		      iavf_fill_fdir_tcp_hdr(fltr, proto_hdrs);
+		break;
+	case IAVF_FDIR_FLOW_IPV6_UDP:
+		err = iavf_fill_fdir_ip6_hdr(fltr, proto_hdrs) |
+		      iavf_fill_fdir_udp_hdr(fltr, proto_hdrs);
+		break;
+	case IAVF_FDIR_FLOW_IPV6_SCTP:
+		err = iavf_fill_fdir_ip6_hdr(fltr, proto_hdrs) |
+		      iavf_fill_fdir_sctp_hdr(fltr, proto_hdrs);
+		break;
+	case IAVF_FDIR_FLOW_IPV6_AH:
+		err = iavf_fill_fdir_ip6_hdr(fltr, proto_hdrs) |
+		      iavf_fill_fdir_ah_hdr(fltr, proto_hdrs);
+		break;
+	case IAVF_FDIR_FLOW_IPV6_ESP:
+		err = iavf_fill_fdir_ip6_hdr(fltr, proto_hdrs) |
+		      iavf_fill_fdir_esp_hdr(fltr, proto_hdrs);
+		break;
+	case IAVF_FDIR_FLOW_IPV6_OTHER:
+		err = iavf_fill_fdir_ip6_hdr(fltr, proto_hdrs) |
+		      iavf_fill_fdir_l4_hdr(fltr, proto_hdrs);
+		break;
 	default:
 		err = -EINVAL;
 		break;
@@ -298,16 +375,22 @@ static const char *iavf_fdir_flow_proto_name(enum iavf_fdir_flow_type flow_type)
 {
 	switch (flow_type) {
 	case IAVF_FDIR_FLOW_IPV4_TCP:
+	case IAVF_FDIR_FLOW_IPV6_TCP:
 		return "TCP";
 	case IAVF_FDIR_FLOW_IPV4_UDP:
+	case IAVF_FDIR_FLOW_IPV6_UDP:
 		return "UDP";
 	case IAVF_FDIR_FLOW_IPV4_SCTP:
+	case IAVF_FDIR_FLOW_IPV6_SCTP:
 		return "SCTP";
 	case IAVF_FDIR_FLOW_IPV4_AH:
+	case IAVF_FDIR_FLOW_IPV6_AH:
 		return "AH";
 	case IAVF_FDIR_FLOW_IPV4_ESP:
+	case IAVF_FDIR_FLOW_IPV6_ESP:
 		return "ESP";
 	case IAVF_FDIR_FLOW_IPV4_OTHER:
+	case IAVF_FDIR_FLOW_IPV6_OTHER:
 		return "Other";
 	default:
 		return NULL;
@@ -354,6 +437,34 @@ void iavf_print_fdir_fltr(struct iavf_adapter *adapter, struct iavf_fdir_fltr *f
 			 fltr->loc,
 			 &fltr->ip_data.v4_addrs.dst_ip,
 			 &fltr->ip_data.v4_addrs.src_ip,
+			 fltr->ip_data.proto,
+			 ntohl(fltr->ip_data.l4_header));
+		break;
+	case IAVF_FDIR_FLOW_IPV6_TCP:
+	case IAVF_FDIR_FLOW_IPV6_UDP:
+	case IAVF_FDIR_FLOW_IPV6_SCTP:
+		dev_info(&adapter->pdev->dev, "Rule ID: %u dst_ip: %pI6 src_ip %pI6 %s: dst_port %hu src_port %hu\n",
+			 fltr->loc,
+			 &fltr->ip_data.v6_addrs.dst_ip,
+			 &fltr->ip_data.v6_addrs.src_ip,
+			 proto,
+			 ntohs(fltr->ip_data.dst_port),
+			 ntohs(fltr->ip_data.src_port));
+		break;
+	case IAVF_FDIR_FLOW_IPV6_AH:
+	case IAVF_FDIR_FLOW_IPV6_ESP:
+		dev_info(&adapter->pdev->dev, "Rule ID: %u dst_ip: %pI6 src_ip %pI6 %s: SPI %u\n",
+			 fltr->loc,
+			 &fltr->ip_data.v6_addrs.dst_ip,
+			 &fltr->ip_data.v6_addrs.src_ip,
+			 proto,
+			 ntohl(fltr->ip_data.spi));
+		break;
+	case IAVF_FDIR_FLOW_IPV6_OTHER:
+		dev_info(&adapter->pdev->dev, "Rule ID: %u dst_ip: %pI6 src_ip %pI6 proto: %u L4_bytes: 0x%x\n",
+			 fltr->loc,
+			 &fltr->ip_data.v6_addrs.dst_ip,
+			 &fltr->ip_data.v6_addrs.src_ip,
 			 fltr->ip_data.proto,
 			 ntohl(fltr->ip_data.l4_header));
 		break;
