@@ -7574,7 +7574,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 			event_type, cause);
 		break;
 
-	case GAUDI_EVENT_BMC_RESET_CMD:
+	case GAUDI_EVENT_DEV_RESET_REQ:
 		gaudi_print_irq_info(hdev, event_type, false);
 		goto reset_device;
 
