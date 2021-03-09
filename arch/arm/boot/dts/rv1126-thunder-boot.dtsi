@@ -86,6 +86,10 @@
 	/delete-property/ assigned-clock-parents;
 };
 
+&crypto {
+	status = "okay";
+};
+
 &ddr_timing {
 	status = "disabled";
 };
