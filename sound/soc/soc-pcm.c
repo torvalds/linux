@@ -1417,17 +1417,23 @@ void dpcm_clear_pending_state(struct snd_soc_pcm_runtime *fe, int stream)
 	spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
 }
 
-static void dpcm_be_dai_startup_unwind(struct snd_soc_pcm_runtime *fe,
-	int stream)
+void dpcm_be_dai_stop(struct snd_soc_pcm_runtime *fe, int stream,
+		      int do_hw_free, struct snd_soc_dpcm *last)
 {
 	struct snd_soc_dpcm *dpcm;
 
 	/* disable any enabled and non active backends */
 	for_each_dpcm_be(fe, stream, dpcm) {
-
 		struct snd_soc_pcm_runtime *be = dpcm->be;
 		struct snd_pcm_substream *be_substream =
 			snd_soc_dpcm_get_substream(be, stream);
+
+		if (dpcm == last)
+			return;
+
+		/* is this op for this BE ? */
+		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
+			continue;
 
 		if (be->dpcm[stream].users == 0) {
 			dev_err(be->dev, "ASoC: no users %s at close - state %d\n",
@@ -1439,8 +1445,15 @@ static void dpcm_be_dai_startup_unwind(struct snd_soc_pcm_runtime *fe,
 		if (--be->dpcm[stream].users != 0)
 			continue;
 
-		if (be->dpcm[stream].state != SND_SOC_DPCM_STATE_OPEN)
-			continue;
+		if (be->dpcm[stream].state != SND_SOC_DPCM_STATE_OPEN) {
+			if (!do_hw_free)
+				continue;
+
+			if (be->dpcm[stream].state != SND_SOC_DPCM_STATE_HW_FREE) {
+				soc_pcm_hw_free(be_substream);
+				be->dpcm[stream].state = SND_SOC_DPCM_STATE_HW_FREE;
+			}
+		}
 
 		soc_pcm_close(be_substream);
 		be_substream->runtime = NULL;
@@ -1509,32 +1522,7 @@ int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 	return count;
 
 unwind:
-	/* disable any enabled and non active backends */
-	for_each_dpcm_be_rollback(fe, stream, dpcm) {
-		struct snd_soc_pcm_runtime *be = dpcm->be;
-		struct snd_pcm_substream *be_substream =
-			snd_soc_dpcm_get_substream(be, stream);
-
-		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
-			continue;
-
-		if (be->dpcm[stream].users == 0) {
-			dev_err(be->dev, "ASoC: no users %s at close %d\n",
-				stream ? "capture" : "playback",
-				be->dpcm[stream].state);
-			continue;
-		}
-
-		if (--be->dpcm[stream].users != 0)
-			continue;
-
-		if (be->dpcm[stream].state != SND_SOC_DPCM_STATE_OPEN)
-			continue;
-
-		soc_pcm_close(be_substream);
-		be_substream->runtime = NULL;
-		be->dpcm[stream].state = SND_SOC_DPCM_STATE_CLOSE;
-	}
+	dpcm_be_dai_startup_rollback(fe, stream, dpcm);
 
 	return err;
 }
@@ -1780,46 +1768,6 @@ unwind:
 be_err:
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
 	return ret;
-}
-
-int dpcm_be_dai_shutdown(struct snd_soc_pcm_runtime *fe, int stream)
-{
-	struct snd_soc_dpcm *dpcm;
-
-	/* only shutdown BEs that are either sinks or sources to this FE DAI */
-	for_each_dpcm_be(fe, stream, dpcm) {
-
-		struct snd_soc_pcm_runtime *be = dpcm->be;
-		struct snd_pcm_substream *be_substream =
-			snd_soc_dpcm_get_substream(be, stream);
-
-		/* is this op for this BE ? */
-		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
-			continue;
-
-		if (be->dpcm[stream].users == 0)
-			dev_err(be->dev, "ASoC: no users %s at close - state %d\n",
-				stream ? "capture" : "playback",
-				be->dpcm[stream].state);
-
-		if (--be->dpcm[stream].users != 0)
-			continue;
-
-		if ((be->dpcm[stream].state != SND_SOC_DPCM_STATE_HW_FREE) &&
-		    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_OPEN)) {
-			soc_pcm_hw_free(be_substream);
-			be->dpcm[stream].state = SND_SOC_DPCM_STATE_HW_FREE;
-		}
-
-		dev_dbg(be->dev, "ASoC: close BE %s\n",
-			be->dai_link->name);
-
-		soc_pcm_close(be_substream);
-		be_substream->runtime = NULL;
-
-		be->dpcm[stream].state = SND_SOC_DPCM_STATE_CLOSE;
-	}
-	return 0;
 }
 
 static int dpcm_fe_dai_shutdown(struct snd_pcm_substream *substream)
@@ -2371,9 +2319,7 @@ static int dpcm_run_update_shutdown(struct snd_soc_pcm_runtime *fe, int stream)
 	if (err < 0)
 		dev_err(fe->dev,"ASoC: hw_free FE failed %d\n", err);
 
-	err = dpcm_be_dai_shutdown(fe, stream);
-	if (err < 0)
-		dev_err(fe->dev,"ASoC: shutdown FE failed %d\n", err);
+	dpcm_be_dai_shutdown(fe, stream);
 
 	/* run the stream event for each BE */
 	dpcm_dapm_stream_event(fe, stream, SND_SOC_DAPM_STREAM_NOP);
