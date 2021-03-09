@@ -532,10 +532,12 @@ void __tasklet_hi_schedule(struct tasklet_struct *t)
 }
 EXPORT_SYMBOL(__tasklet_hi_schedule);
 
-static bool tasklet_should_run(struct tasklet_struct *t)
+static bool tasklet_clear_sched(struct tasklet_struct *t)
 {
-	if (test_and_clear_bit(TASKLET_STATE_SCHED, &t->state))
+	if (test_and_clear_bit(TASKLET_STATE_SCHED, &t->state)) {
+		wake_up_var(&t->state);
 		return true;
+	}
 
 	WARN_ONCE(1, "tasklet SCHED state not set: %s %pS\n",
 		  t->use_callback ? "callback" : "func",
@@ -563,7 +565,7 @@ static void tasklet_action_common(struct softirq_action *a,
 
 		if (tasklet_trylock(t)) {
 			if (!atomic_read(&t->count)) {
-				if (tasklet_should_run(t)) {
+				if (tasklet_clear_sched(t)) {
 					if (t->use_callback)
 						t->callback(t);
 					else
@@ -623,13 +625,11 @@ void tasklet_kill(struct tasklet_struct *t)
 	if (in_interrupt())
 		pr_notice("Attempt to kill tasklet from interrupt\n");
 
-	while (test_and_set_bit(TASKLET_STATE_SCHED, &t->state)) {
-		do {
-			yield();
-		} while (test_bit(TASKLET_STATE_SCHED, &t->state));
-	}
+	while (test_and_set_bit(TASKLET_STATE_SCHED, &t->state))
+		wait_var_event(&t->state, !test_bit(TASKLET_STATE_SCHED, &t->state));
+
 	tasklet_unlock_wait(t);
-	clear_bit(TASKLET_STATE_SCHED, &t->state);
+	tasklet_clear_sched(t);
 }
 EXPORT_SYMBOL(tasklet_kill);
 
