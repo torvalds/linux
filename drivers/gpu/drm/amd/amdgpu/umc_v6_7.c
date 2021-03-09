@@ -27,6 +27,13 @@
 #include "umc/umc_6_7_0_offset.h"
 #include "umc/umc_6_7_0_sh_mask.h"
 
+static inline uint32_t get_umc_v6_7_reg_offset(struct amdgpu_device *adev,
+					      uint32_t umc_inst,
+					      uint32_t ch_inst)
+{
+	return adev->umc.channel_offs * ch_inst + UMC_V6_7_INST_DIST * umc_inst;
+}
+
 static void umc_v6_7_query_correctable_error_count(struct amdgpu_device *adev,
 						   uint32_t umc_reg_offset,
 						   unsigned long *error_count)
@@ -94,6 +101,89 @@ static void umc_v6_7_querry_uncorrectable_error_count(struct amdgpu_device *adev
 		*error_count += 1;
 }
 
+static void umc_v6_7_reset_error_count_per_channel(struct amdgpu_device *adev,
+						   uint32_t umc_reg_offset)
+{
+	uint32_t ecc_err_cnt_addr;
+	uint32_t ecc_err_cnt_sel, ecc_err_cnt_sel_addr;
+
+	ecc_err_cnt_sel_addr =
+		SOC15_REG_OFFSET(UMC, 0,
+				regUMCCH0_0_EccErrCntSel);
+	ecc_err_cnt_addr =
+		SOC15_REG_OFFSET(UMC, 0,
+				regUMCCH0_0_EccErrCnt);
+
+	/* select the lower chip */
+	ecc_err_cnt_sel = RREG32_PCIE((ecc_err_cnt_sel_addr +
+				       umc_reg_offset) * 4);
+	ecc_err_cnt_sel = REG_SET_FIELD(ecc_err_cnt_sel,
+					UMCCH0_0_EccErrCntSel,
+					EccErrCntCsSel, 0);
+	WREG32_PCIE((ecc_err_cnt_sel_addr + umc_reg_offset) * 4,
+			ecc_err_cnt_sel);
+
+	/* clear lower chip error count */
+	WREG32_PCIE((ecc_err_cnt_addr + umc_reg_offset) * 4,
+			UMC_V6_7_CE_CNT_INIT);
+
+	/* select the higher chip */
+	ecc_err_cnt_sel = RREG32_PCIE((ecc_err_cnt_sel_addr +
+					umc_reg_offset) * 4);
+	ecc_err_cnt_sel = REG_SET_FIELD(ecc_err_cnt_sel,
+					UMCCH0_0_EccErrCntSel,
+					EccErrCntCsSel, 1);
+	WREG32_PCIE((ecc_err_cnt_sel_addr + umc_reg_offset) * 4,
+			ecc_err_cnt_sel);
+
+	/* clear higher chip error count */
+	WREG32_PCIE((ecc_err_cnt_addr + umc_reg_offset) * 4,
+			UMC_V6_7_CE_CNT_INIT);
+}
+
+static void umc_v6_7_reset_error_count(struct amdgpu_device *adev)
+{
+	uint32_t umc_inst        = 0;
+	uint32_t ch_inst         = 0;
+	uint32_t umc_reg_offset  = 0;
+
+	LOOP_UMC_INST_AND_CH(umc_inst, ch_inst) {
+		umc_reg_offset = get_umc_v6_7_reg_offset(adev,
+							 umc_inst,
+							 ch_inst);
+
+		umc_v6_7_reset_error_count_per_channel(adev,
+						       umc_reg_offset);
+	}
+}
+
+static void umc_v6_7_query_ras_error_count(struct amdgpu_device *adev,
+					   void *ras_error_status)
+{
+	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
+
+	uint32_t umc_inst        = 0;
+	uint32_t ch_inst         = 0;
+	uint32_t umc_reg_offset  = 0;
+
+	/*TODO: driver needs to toggle DF Cstate to ensure
+	 * safe access of UMC registers. Will add the protection */
+	LOOP_UMC_INST_AND_CH(umc_inst, ch_inst) {
+		umc_reg_offset = get_umc_v6_7_reg_offset(adev,
+							 umc_inst,
+							 ch_inst);
+		umc_v6_7_query_correctable_error_count(adev,
+						       umc_reg_offset,
+						       &(err_data->ce_count));
+		umc_v6_7_querry_uncorrectable_error_count(adev,
+							  umc_reg_offset,
+							  &(err_data->ue_count));
+	}
+
+	umc_v6_7_reset_error_count(adev);
+}
+
 const struct amdgpu_umc_funcs umc_v6_7_funcs = {
 	.ras_late_init = amdgpu_umc_ras_late_init,
+	.query_ras_error_count = umc_v6_7_query_ras_error_count,
 };
