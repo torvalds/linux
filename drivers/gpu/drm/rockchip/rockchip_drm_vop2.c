@@ -4160,6 +4160,7 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 			vop2_load_sdr2hdr_table(vp, sdr2hdr_tf);
 		VOP_MODULE_SET(vop2, vp, sdr2hdr_r2r_mode, sdr2hdr_r2r_mode);
 	}
+	VOP_MODULE_SET(vop2, vp, sdr2hdr_path_en, sdr2hdr_en);
 	VOP_MODULE_SET(vop2, vp, sdr2hdr_oetf_en, sdr2hdr_en);
 	VOP_MODULE_SET(vop2, vp, sdr2hdr_eotf_en, sdr2hdr_en);
 	VOP_MODULE_SET(vop2, vp, sdr2hdr_r2r_en, sdr2hdr_en);

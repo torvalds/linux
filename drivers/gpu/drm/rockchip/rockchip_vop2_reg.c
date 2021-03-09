@@ -471,6 +471,7 @@ static const struct vop2_video_port_regs rk3568_vop_vp0_regs = {
 	.sdr2hdr_oetf_en = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 3),
 	.sdr2hdr_bypass_en = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 8),
 	.sdr2hdr_auto_gating_en = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 9),
+	.sdr2hdr_path_en = VOP_REG(RK3568_OVL_CTRL, 0x1, 5),
 	.hdr2sdr_en = VOP_REG(RK3568_HDR2SDR_CTRL, 0x1, 0),
 	.hdr2sdr_bypass_en = VOP_REG(RK3568_HDR2SDR_CTRL, 0x1, 8),
 	.hdr2sdr_auto_gating_en = VOP_REG(RK3568_HDR2SDR_CTRL, 0x1, 9),
