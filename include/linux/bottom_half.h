@@ -4,7 +4,7 @@
 
 #include <linux/preempt.h>
 
-#ifdef CONFIG_TRACE_IRQFLAGS
+#if defined(CONFIG_PREEMPT_RT) || defined(CONFIG_TRACE_IRQFLAGS)
 extern void __local_bh_disable_ip(unsigned long ip, unsigned int cnt);
 #else
 static __always_inline void __local_bh_disable_ip(unsigned long ip, unsigned int cnt)
