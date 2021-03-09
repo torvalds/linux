@@ -130,7 +130,6 @@ int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(set_foreign_p2m_mapping);
 
 int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
 			      struct gnttab_unmap_grant_ref *kunmap_ops,
@@ -145,7 +144,6 @@ int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(clear_foreign_p2m_mapping);
 
 bool __set_phys_to_machine_multi(unsigned long pfn,
 		unsigned long mfn, unsigned long nr_pages)
