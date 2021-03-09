@@ -44,18 +44,6 @@ static __always_inline void queued_spin_lock(struct qspinlock *lock)
 }
 #define queued_spin_lock queued_spin_lock
 
-static __always_inline int queued_spin_is_locked(struct qspinlock *lock)
-{
-	/*
-	 * This barrier was added to simple spinlocks by commit 51d7d5205d338,
-	 * but it should now be possible to remove it, asm arm64 has done with
-	 * commit c6f5d02b6a0f.
-	 */
-	smp_mb();
-	return atomic_read(&lock->val);
-}
-#define queued_spin_is_locked queued_spin_is_locked
-
 #ifdef CONFIG_PARAVIRT_SPINLOCKS
 #define SPIN_THRESHOLD (1<<15) /* not tuned */
 

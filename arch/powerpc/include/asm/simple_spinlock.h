@@ -38,8 +38,7 @@ static __always_inline int arch_spin_value_unlocked(arch_spinlock_t lock)
 
 static inline int arch_spin_is_locked(arch_spinlock_t *lock)
 {
-	smp_mb();
-	return !arch_spin_value_unlocked(*lock);
+	return !arch_spin_value_unlocked(READ_ONCE(*lock));
 }
 
 /*
