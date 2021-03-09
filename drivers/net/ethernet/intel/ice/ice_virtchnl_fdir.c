@@ -1,0 +1,1034 @@
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (C) 2021, Intel Corporation. */
+
+#include "ice.h"
+#include "ice_base.h"
+#include "ice_lib.h"
+#include "ice_flow.h"
+
+#define to_fltr_conf_from_desc(p) \
+	container_of(p, struct virtchnl_fdir_fltr_conf, input)
+
+#define ICE_FLOW_PROF_TYPE_S	0
+#define ICE_FLOW_PROF_TYPE_M	(0xFFFFFFFFULL << ICE_FLOW_PROF_TYPE_S)
+#define ICE_FLOW_PROF_VSI_S	32
+#define ICE_FLOW_PROF_VSI_M	(0xFFFFFFFFULL << ICE_FLOW_PROF_VSI_S)
+
+/* Flow profile ID format:
+ * [0:31] - flow type, flow + tun_offs
+ * [32:63] - VSI index
+ */
+#define ICE_FLOW_PROF_FD(vsi, flow, tun_offs) \
+	((u64)(((((flow) + (tun_offs)) & ICE_FLOW_PROF_TYPE_M)) | \
+	      (((u64)(vsi) << ICE_FLOW_PROF_VSI_S) & ICE_FLOW_PROF_VSI_M)))
+
+struct virtchnl_fdir_fltr_conf {
+	struct ice_fdir_fltr input;
+};
+
+struct virtchnl_fdir_inset_map {
+	enum virtchnl_proto_hdr_field field;
+	enum ice_flow_field fld;
+};
+
+static const struct virtchnl_fdir_inset_map fdir_inset_map[] = {
+	{VIRTCHNL_PROTO_HDR_IPV4_SRC, ICE_FLOW_FIELD_IDX_IPV4_SA},
+	{VIRTCHNL_PROTO_HDR_IPV4_DST, ICE_FLOW_FIELD_IDX_IPV4_DA},
+	{VIRTCHNL_PROTO_HDR_IPV4_DSCP, ICE_FLOW_FIELD_IDX_IPV4_DSCP},
+	{VIRTCHNL_PROTO_HDR_IPV4_TTL, ICE_FLOW_FIELD_IDX_IPV4_TTL},
+	{VIRTCHNL_PROTO_HDR_IPV4_PROT, ICE_FLOW_FIELD_IDX_IPV4_PROT},
+	{VIRTCHNL_PROTO_HDR_IPV6_SRC, ICE_FLOW_FIELD_IDX_IPV6_SA},
+	{VIRTCHNL_PROTO_HDR_IPV6_DST, ICE_FLOW_FIELD_IDX_IPV6_DA},
+	{VIRTCHNL_PROTO_HDR_IPV6_TC, ICE_FLOW_FIELD_IDX_IPV6_DSCP},
+	{VIRTCHNL_PROTO_HDR_IPV6_HOP_LIMIT, ICE_FLOW_FIELD_IDX_IPV6_TTL},
+	{VIRTCHNL_PROTO_HDR_IPV6_PROT, ICE_FLOW_FIELD_IDX_IPV6_PROT},
+	{VIRTCHNL_PROTO_HDR_UDP_SRC_PORT, ICE_FLOW_FIELD_IDX_UDP_SRC_PORT},
+	{VIRTCHNL_PROTO_HDR_UDP_DST_PORT, ICE_FLOW_FIELD_IDX_UDP_DST_PORT},
+	{VIRTCHNL_PROTO_HDR_TCP_SRC_PORT, ICE_FLOW_FIELD_IDX_TCP_SRC_PORT},
+	{VIRTCHNL_PROTO_HDR_TCP_DST_PORT, ICE_FLOW_FIELD_IDX_TCP_DST_PORT},
+	{VIRTCHNL_PROTO_HDR_SCTP_SRC_PORT, ICE_FLOW_FIELD_IDX_SCTP_SRC_PORT},
+	{VIRTCHNL_PROTO_HDR_SCTP_DST_PORT, ICE_FLOW_FIELD_IDX_SCTP_DST_PORT},
+};
+
+/**
+ * ice_vc_fdir_param_check
+ * @vf: pointer to the VF structure
+ * @vsi_id: VF relative VSI ID
+ *
+ * Check for the valid VSI ID, PF's state and VF's state
+ *
+ * Return: 0 on success, and -EINVAL on error.
+ */
+static int
+ice_vc_fdir_param_check(struct ice_vf *vf, u16 vsi_id)
+{
+	struct ice_pf *pf = vf->pf;
+
+	if (!test_bit(ICE_FLAG_FD_ENA, pf->flags))
+		return -EINVAL;
+
+	if (!test_bit(ICE_VF_STATE_ACTIVE, vf->vf_states))
+		return -EINVAL;
+
+	if (!(vf->driver_caps & VIRTCHNL_VF_OFFLOAD_FDIR_PF))
+		return -EINVAL;
+
+	if (vsi_id != vf->lan_vsi_num)
+		return -EINVAL;
+
+	if (!ice_vc_isvalid_vsi_id(vf, vsi_id))
+		return -EINVAL;
+
+	if (!pf->vsi[vf->lan_vsi_idx])
+		return -EINVAL;
+
+	return 0;
+}
+
+/**
+ * ice_vf_start_ctrl_vsi
+ * @vf: pointer to the VF structure
+ *
+ * Allocate ctrl_vsi for the first time and open the ctrl_vsi port for VF
+ *
+ * Return: 0 on success, and other on error.
+ */
+static int ice_vf_start_ctrl_vsi(struct ice_vf *vf)
+{
+	struct ice_pf *pf = vf->pf;
+	struct ice_vsi *ctrl_vsi;
+	struct device *dev;
+	int err;
+
+	dev = ice_pf_to_dev(pf);
+	if (vf->ctrl_vsi_idx != ICE_NO_VSI)
+		return -EEXIST;
+
+	ctrl_vsi = ice_vf_ctrl_vsi_setup(vf);
+	if (!ctrl_vsi) {
+		dev_dbg(dev, "Could not setup control VSI for VF %d\n",
+			vf->vf_id);
+		return -ENOMEM;
+	}
+
+	err = ice_vsi_open_ctrl(ctrl_vsi);
+	if (err) {
+		dev_dbg(dev, "Could not open control VSI for VF %d\n",
+			vf->vf_id);
+		goto err_vsi_open;
+	}
+
+	return 0;
+
+err_vsi_open:
+	ice_vsi_release(ctrl_vsi);
+	if (vf->ctrl_vsi_idx != ICE_NO_VSI) {
+		pf->vsi[vf->ctrl_vsi_idx] = NULL;
+		vf->ctrl_vsi_idx = ICE_NO_VSI;
+	}
+	return err;
+}
+
+/**
+ * ice_vc_fdir_alloc_prof - allocate profile for this filter flow type
+ * @vf: pointer to the VF structure
+ * @flow: filter flow type
+ *
+ * Return: 0 on success, and other on error.
+ */
+static int
+ice_vc_fdir_alloc_prof(struct ice_vf *vf, enum ice_fltr_ptype flow)
+{
+	struct ice_vf_fdir *fdir = &vf->fdir;
+
+	if (!fdir->fdir_prof) {
+		fdir->fdir_prof = devm_kcalloc(ice_pf_to_dev(vf->pf),
+					       ICE_FLTR_PTYPE_MAX,
+					       sizeof(*fdir->fdir_prof),
+					       GFP_KERNEL);
+		if (!fdir->fdir_prof)
+			return -ENOMEM;
+	}
+
+	if (!fdir->fdir_prof[flow]) {
+		fdir->fdir_prof[flow] = devm_kzalloc(ice_pf_to_dev(vf->pf),
+						     sizeof(**fdir->fdir_prof),
+						     GFP_KERNEL);
+		if (!fdir->fdir_prof[flow])
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+/**
+ * ice_vc_fdir_free_prof - free profile for this filter flow type
+ * @vf: pointer to the VF structure
+ * @flow: filter flow type
+ */
+static void
+ice_vc_fdir_free_prof(struct ice_vf *vf, enum ice_fltr_ptype flow)
+{
+	struct ice_vf_fdir *fdir = &vf->fdir;
+
+	if (!fdir->fdir_prof)
+		return;
+
+	if (!fdir->fdir_prof[flow])
+		return;
+
+	devm_kfree(ice_pf_to_dev(vf->pf), fdir->fdir_prof[flow]);
+	fdir->fdir_prof[flow] = NULL;
+}
+
+/**
+ * ice_vc_fdir_free_prof_all - free all the profile for this VF
+ * @vf: pointer to the VF structure
+ */
+static void ice_vc_fdir_free_prof_all(struct ice_vf *vf)
+{
+	struct ice_vf_fdir *fdir = &vf->fdir;
+	enum ice_fltr_ptype flow;
+
+	if (!fdir->fdir_prof)
+		return;
+
+	for (flow = ICE_FLTR_PTYPE_NONF_NONE; flow < ICE_FLTR_PTYPE_MAX; flow++)
+		ice_vc_fdir_free_prof(vf, flow);
+
+	devm_kfree(ice_pf_to_dev(vf->pf), fdir->fdir_prof);
+	fdir->fdir_prof = NULL;
+}
+
+/**
+ * ice_vc_fdir_parse_flow_fld
+ * @proto_hdr: virtual channel protocol filter header
+ * @conf: FDIR configuration for each filter
+ * @fld: field type array
+ * @fld_cnt: field counter
+ *
+ * Parse the virtual channel filter header and store them into field type array
+ *
+ * Return: 0 on success, and other on error.
+ */
+static int
+ice_vc_fdir_parse_flow_fld(struct virtchnl_proto_hdr *proto_hdr,
+			   struct virtchnl_fdir_fltr_conf *conf,
+			   enum ice_flow_field *fld, int *fld_cnt)
+{
+	struct virtchnl_proto_hdr hdr;
+	u32 i;
+
+	memcpy(&hdr, proto_hdr, sizeof(hdr));
+
+	for (i = 0; (i < ARRAY_SIZE(fdir_inset_map)) &&
+	     VIRTCHNL_GET_PROTO_HDR_FIELD(&hdr); i++)
+		if (VIRTCHNL_TEST_PROTO_HDR(&hdr, fdir_inset_map[i].field)) {
+			fld[*fld_cnt] = fdir_inset_map[i].fld;
+			*fld_cnt += 1;
+			if (*fld_cnt >= ICE_FLOW_FIELD_IDX_MAX)
+				return -EINVAL;
+			VIRTCHNL_DEL_PROTO_HDR_FIELD(&hdr,
+						     fdir_inset_map[i].field);
+		}
+
+	return 0;
+}
+
+/**
+ * ice_vc_fdir_set_flow_fld
+ * @vf: pointer to the VF structure
+ * @fltr: virtual channel add cmd buffer
+ * @conf: FDIR configuration for each filter
+ * @seg: array of one or more packet segments that describe the flow
+ *
+ * Parse the virtual channel add msg buffer's field vector and store them into
+ * flow's packet segment field
+ *
+ * Return: 0 on success, and other on error.
+ */
+static int
+ice_vc_fdir_set_flow_fld(struct ice_vf *vf, struct virtchnl_fdir_add *fltr,
+			 struct virtchnl_fdir_fltr_conf *conf,
+			 struct ice_flow_seg_info *seg)
+{
+	struct virtchnl_fdir_rule *rule = &fltr->rule_cfg;
+	enum ice_flow_field fld[ICE_FLOW_FIELD_IDX_MAX];
+	struct device *dev = ice_pf_to_dev(vf->pf);
+	struct virtchnl_proto_hdrs *proto;
+	int fld_cnt = 0;
+	int i;
+
+	proto = &rule->proto_hdrs;
+	for (i = 0; i < proto->count; i++) {
+		struct virtchnl_proto_hdr *hdr = &proto->proto_hdr[i];
+		int ret;
+
+		ret = ice_vc_fdir_parse_flow_fld(hdr, conf, fld, &fld_cnt);
+		if (ret)
+			return ret;
+	}
+
+	if (fld_cnt == 0) {
+		dev_dbg(dev, "Empty input set for VF %d\n", vf->vf_id);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < fld_cnt; i++)
+		ice_flow_set_fld(seg, fld[i],
+				 ICE_FLOW_FLD_OFF_INVAL,
+				 ICE_FLOW_FLD_OFF_INVAL,
+				 ICE_FLOW_FLD_OFF_INVAL, false);
+
+	return 0;
+}
+
+/**
+ * ice_vc_fdir_set_flow_hdr - config the flow's packet segment header
+ * @vf: pointer to the VF structure
+ * @conf: FDIR configuration for each filter
+ * @seg: array of one or more packet segments that describe the flow
+ *
+ * Return: 0 on success, and other on error.
+ */
+static int
+ice_vc_fdir_set_flow_hdr(struct ice_vf *vf,
+			 struct virtchnl_fdir_fltr_conf *conf,
+			 struct ice_flow_seg_info *seg)
+{
+	enum ice_fltr_ptype flow = conf->input.flow_type;
+	struct device *dev = ice_pf_to_dev(vf->pf);
+
+	switch (flow) {
+	case ICE_FLTR_PTYPE_NONF_IPV4_OTHER:
+		ICE_FLOW_SET_HDRS(seg, ICE_FLOW_SEG_HDR_IPV4 |
+				  ICE_FLOW_SEG_HDR_IPV_OTHER);
+		break;
+	case ICE_FLTR_PTYPE_NONF_IPV4_TCP:
+		ICE_FLOW_SET_HDRS(seg, ICE_FLOW_SEG_HDR_TCP |
+				  ICE_FLOW_SEG_HDR_IPV4 |
+				  ICE_FLOW_SEG_HDR_IPV_OTHER);
+		break;
+	case ICE_FLTR_PTYPE_NONF_IPV4_UDP:
+		ICE_FLOW_SET_HDRS(seg, ICE_FLOW_SEG_HDR_UDP |
+				  ICE_FLOW_SEG_HDR_IPV4 |
+				  ICE_FLOW_SEG_HDR_IPV_OTHER);
+		break;
+	case ICE_FLTR_PTYPE_NONF_IPV4_SCTP:
+		ICE_FLOW_SET_HDRS(seg, ICE_FLOW_SEG_HDR_SCTP |
+				  ICE_FLOW_SEG_HDR_IPV4 |
+				  ICE_FLOW_SEG_HDR_IPV_OTHER);
+		break;
+	case ICE_FLTR_PTYPE_NONF_IPV6_OTHER:
+		ICE_FLOW_SET_HDRS(seg, ICE_FLOW_SEG_HDR_IPV6 |
+				  ICE_FLOW_SEG_HDR_IPV_OTHER);
+		break;
+	case ICE_FLTR_PTYPE_NONF_IPV6_TCP:
+		ICE_FLOW_SET_HDRS(seg, ICE_FLOW_SEG_HDR_TCP |
+				  ICE_FLOW_SEG_HDR_IPV6 |
+				  ICE_FLOW_SEG_HDR_IPV_OTHER);
+		break;
+	case ICE_FLTR_PTYPE_NONF_IPV6_UDP:
+		ICE_FLOW_SET_HDRS(seg, ICE_FLOW_SEG_HDR_UDP |
+				  ICE_FLOW_SEG_HDR_IPV6 |
+				  ICE_FLOW_SEG_HDR_IPV_OTHER);
+		break;
+	case ICE_FLTR_PTYPE_NONF_IPV6_SCTP:
+		ICE_FLOW_SET_HDRS(seg, ICE_FLOW_SEG_HDR_SCTP |
+				  ICE_FLOW_SEG_HDR_IPV6 |
+				  ICE_FLOW_SEG_HDR_IPV_OTHER);
+		break;
+	default:
+		dev_dbg(dev, "Invalid flow type 0x%x for VF %d failed\n",
+			flow, vf->vf_id);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * ice_vc_fdir_rem_prof - remove profile for this filter flow type
+ * @vf: pointer to the VF structure
+ * @flow: filter flow type
+ * @tun: 0 implies non-tunnel type filter, 1 implies tunnel type filter
+ */
+static void
+ice_vc_fdir_rem_prof(struct ice_vf *vf, enum ice_fltr_ptype flow, int tun)
+{
+	struct ice_vf_fdir *fdir = &vf->fdir;
+	struct ice_fd_hw_prof *vf_prof;
+	struct ice_pf *pf = vf->pf;
+	struct ice_vsi *vf_vsi;
+	struct device *dev;
+	struct ice_hw *hw;
+	u64 prof_id;
+	int i;
+
+	dev = ice_pf_to_dev(pf);
+	hw = &pf->hw;
+	if (!fdir->fdir_prof || !fdir->fdir_prof[flow])
+		return;
+
+	vf_prof = fdir->fdir_prof[flow];
+
+	vf_vsi = pf->vsi[vf->lan_vsi_idx];
+	if (!vf_vsi) {
+		dev_dbg(dev, "NULL vf %d vsi pointer\n", vf->vf_id);
+		return;
+	}
+
+	if (!fdir->prof_entry_cnt[flow][tun])
+		return;
+
+	prof_id = ICE_FLOW_PROF_FD(vf_vsi->vsi_num,
+				   flow, tun ? ICE_FLTR_PTYPE_MAX : 0);
+
+	for (i = 0; i < fdir->prof_entry_cnt[flow][tun]; i++)
+		if (vf_prof->entry_h[i][tun]) {
+			u16 vsi_num = ice_get_hw_vsi_num(hw, vf_prof->vsi_h[i]);
+
+			ice_rem_prof_id_flow(hw, ICE_BLK_FD, vsi_num, prof_id);
+			ice_flow_rem_entry(hw, ICE_BLK_FD,
+					   vf_prof->entry_h[i][tun]);
+			vf_prof->entry_h[i][tun] = 0;
+		}
+
+	ice_flow_rem_prof(hw, ICE_BLK_FD, prof_id);
+	devm_kfree(dev, vf_prof->fdir_seg[tun]);
+	vf_prof->fdir_seg[tun] = NULL;
+
+	for (i = 0; i < vf_prof->cnt; i++)
+		vf_prof->vsi_h[i] = 0;
+
+	fdir->prof_entry_cnt[flow][tun] = 0;
+}
+
+/**
+ * ice_vc_fdir_rem_prof_all - remove profile for this VF
+ * @vf: pointer to the VF structure
+ */
+static void ice_vc_fdir_rem_prof_all(struct ice_vf *vf)
+{
+	enum ice_fltr_ptype flow;
+
+	for (flow = ICE_FLTR_PTYPE_NONF_NONE;
+	     flow < ICE_FLTR_PTYPE_MAX; flow++) {
+		ice_vc_fdir_rem_prof(vf, flow, 0);
+		ice_vc_fdir_rem_prof(vf, flow, 1);
+	}
+}
+
+/**
+ * ice_vc_fdir_write_flow_prof
+ * @vf: pointer to the VF structure
+ * @flow: filter flow type
+ * @seg: array of one or more packet segments that describe the flow
+ * @tun: 0 implies non-tunnel type filter, 1 implies tunnel type filter
+ *
+ * Write the flow's profile config and packet segment into the hardware
+ *
+ * Return: 0 on success, and other on error.
+ */
+static int
+ice_vc_fdir_write_flow_prof(struct ice_vf *vf, enum ice_fltr_ptype flow,
+			    struct ice_flow_seg_info *seg, int tun)
+{
+	struct ice_vf_fdir *fdir = &vf->fdir;
+	struct ice_vsi *vf_vsi, *ctrl_vsi;
+	struct ice_flow_seg_info *old_seg;
+	struct ice_flow_prof *prof = NULL;
+	struct ice_fd_hw_prof *vf_prof;
+	enum ice_status status;
+	struct device *dev;
+	struct ice_pf *pf;
+	struct ice_hw *hw;
+	u64 entry1_h = 0;
+	u64 entry2_h = 0;
+	u64 prof_id;
+	int ret;
+
+	pf = vf->pf;
+	dev = ice_pf_to_dev(pf);
+	hw = &pf->hw;
+	vf_vsi = pf->vsi[vf->lan_vsi_idx];
+	if (!vf_vsi)
+		return -EINVAL;
+
+	ctrl_vsi = pf->vsi[vf->ctrl_vsi_idx];
+	if (!ctrl_vsi)
+		return -EINVAL;
+
+	vf_prof = fdir->fdir_prof[flow];
+	old_seg = vf_prof->fdir_seg[tun];
+	if (old_seg) {
+		if (!memcmp(old_seg, seg, sizeof(*seg))) {
+			dev_dbg(dev, "Duplicated profile for VF %d!\n",
+				vf->vf_id);
+			return -EEXIST;
+		}
+
+		if (fdir->fdir_fltr_cnt[flow][tun]) {
+			ret = -EINVAL;
+			dev_dbg(dev, "Input set conflicts for VF %d\n",
+				vf->vf_id);
+			goto err_exit;
+		}
+
+		/* remove previously allocated profile */
+		ice_vc_fdir_rem_prof(vf, flow, tun);
+	}
+
+	prof_id = ICE_FLOW_PROF_FD(vf_vsi->vsi_num, flow,
+				   tun ? ICE_FLTR_PTYPE_MAX : 0);
+
+	status = ice_flow_add_prof(hw, ICE_BLK_FD, ICE_FLOW_RX, prof_id, seg,
+				   tun + 1, &prof);
+	ret = ice_status_to_errno(status);
+	if (ret) {
+		dev_dbg(dev, "Could not add VSI flow 0x%x for VF %d\n",
+			flow, vf->vf_id);
+		goto err_exit;
+	}
+
+	status = ice_flow_add_entry(hw, ICE_BLK_FD, prof_id, vf_vsi->idx,
+				    vf_vsi->idx, ICE_FLOW_PRIO_NORMAL,
+				    seg, &entry1_h);
+	ret = ice_status_to_errno(status);
+	if (ret) {
+		dev_dbg(dev, "Could not add flow 0x%x VSI entry for VF %d\n",
+			flow, vf->vf_id);
+		goto err_prof;
+	}
+
+	status = ice_flow_add_entry(hw, ICE_BLK_FD, prof_id, vf_vsi->idx,
+				    ctrl_vsi->idx, ICE_FLOW_PRIO_NORMAL,
+				    seg, &entry2_h);
+	ret = ice_status_to_errno(status);
+	if (ret) {
+		dev_dbg(dev,
+			"Could not add flow 0x%x Ctrl VSI entry for VF %d\n",
+			flow, vf->vf_id);
+		goto err_entry_1;
+	}
+
+	vf_prof->fdir_seg[tun] = seg;
+	vf_prof->cnt = 0;
+	fdir->prof_entry_cnt[flow][tun] = 0;
+
+	vf_prof->entry_h[vf_prof->cnt][tun] = entry1_h;
+	vf_prof->vsi_h[vf_prof->cnt] = vf_vsi->idx;
+	vf_prof->cnt++;
+	fdir->prof_entry_cnt[flow][tun]++;
+
+	vf_prof->entry_h[vf_prof->cnt][tun] = entry2_h;
+	vf_prof->vsi_h[vf_prof->cnt] = ctrl_vsi->idx;
+	vf_prof->cnt++;
+	fdir->prof_entry_cnt[flow][tun]++;
+
+	return 0;
+
+err_entry_1:
+	ice_rem_prof_id_flow(hw, ICE_BLK_FD,
+			     ice_get_hw_vsi_num(hw, vf_vsi->idx), prof_id);
+	ice_flow_rem_entry(hw, ICE_BLK_FD, entry1_h);
+err_prof:
+	ice_flow_rem_prof(hw, ICE_BLK_FD, prof_id);
+err_exit:
+	return ret;
+}
+
+/**
+ * ice_vc_fdir_config_input_set
+ * @vf: pointer to the VF structure
+ * @fltr: virtual channel add cmd buffer
+ * @conf: FDIR configuration for each filter
+ * @tun: 0 implies non-tunnel type filter, 1 implies tunnel type filter
+ *
+ * Config the input set type and value for virtual channel add msg buffer
+ *
+ * Return: 0 on success, and other on error.
+ */
+static int
+ice_vc_fdir_config_input_set(struct ice_vf *vf, struct virtchnl_fdir_add *fltr,
+			     struct virtchnl_fdir_fltr_conf *conf, int tun)
+{
+	struct ice_fdir_fltr *input = &conf->input;
+	struct device *dev = ice_pf_to_dev(vf->pf);
+	struct ice_flow_seg_info *seg;
+	enum ice_fltr_ptype flow;
+	int ret;
+
+	flow = input->flow_type;
+	ret = ice_vc_fdir_alloc_prof(vf, flow);
+	if (ret) {
+		dev_dbg(dev, "Alloc flow prof for VF %d failed\n", vf->vf_id);
+		return ret;
+	}
+
+	seg = devm_kzalloc(dev, sizeof(*seg), GFP_KERNEL);
+	if (!seg)
+		return -ENOMEM;
+
+	ret = ice_vc_fdir_set_flow_fld(vf, fltr, conf, seg);
+	if (ret) {
+		dev_dbg(dev, "Set flow field for VF %d failed\n", vf->vf_id);
+		goto err_exit;
+	}
+
+	ret = ice_vc_fdir_set_flow_hdr(vf, conf, seg);
+	if (ret) {
+		dev_dbg(dev, "Set flow hdr for VF %d failed\n", vf->vf_id);
+		goto err_exit;
+	}
+
+	ret = ice_vc_fdir_write_flow_prof(vf, flow, seg, tun);
+	if (ret == -EEXIST) {
+		devm_kfree(dev, seg);
+	} else if (ret) {
+		dev_dbg(dev, "Write flow profile for VF %d failed\n",
+			vf->vf_id);
+		goto err_exit;
+	}
+
+	return 0;
+
+err_exit:
+	devm_kfree(dev, seg);
+	return ret;
+}
+
+/**
+ * ice_vc_validate_fdir_fltr - validate the virtual channel filter
+ * @vf: pointer to the VF info
+ * @fltr: virtual channel add cmd buffer
+ * @conf: FDIR configuration for each filter
+ *
+ * Return: 0 on success, and other on error.
+ */
+static int
+ice_vc_validate_fdir_fltr(struct ice_vf *vf, struct virtchnl_fdir_add *fltr,
+			  struct virtchnl_fdir_fltr_conf *conf)
+{
+	/* Todo: rule validation */
+	return -EINVAL;
+}
+
+/**
+ * ice_vc_fdir_comp_rules - compare if two filter rules have the same value
+ * @conf_a: FDIR configuration for filter a
+ * @conf_b: FDIR configuration for filter b
+ *
+ * Return: 0 on success, and other on error.
+ */
+static bool
+ice_vc_fdir_comp_rules(struct virtchnl_fdir_fltr_conf *conf_a,
+		       struct virtchnl_fdir_fltr_conf *conf_b)
+{
+	struct ice_fdir_fltr *a = &conf_a->input;
+	struct ice_fdir_fltr *b = &conf_b->input;
+
+	if (a->flow_type != b->flow_type)
+		return false;
+	if (memcmp(&a->ip, &b->ip, sizeof(a->ip)))
+		return false;
+	if (memcmp(&a->mask, &b->mask, sizeof(a->mask)))
+		return false;
+	if (memcmp(&a->ext_data, &b->ext_data, sizeof(a->ext_data)))
+		return false;
+	if (memcmp(&a->ext_mask, &b->ext_mask, sizeof(a->ext_mask)))
+		return false;
+
+	return true;
+}
+
+/**
+ * ice_vc_fdir_is_dup_fltr
+ * @vf: pointer to the VF info
+ * @conf: FDIR configuration for each filter
+ *
+ * Check if there is duplicated rule with same conf value
+ *
+ * Return: 0 true success, and false on error.
+ */
+static bool
+ice_vc_fdir_is_dup_fltr(struct ice_vf *vf, struct virtchnl_fdir_fltr_conf *conf)
+{
+	struct ice_fdir_fltr *desc;
+	bool ret;
+
+	list_for_each_entry(desc, &vf->fdir.fdir_rule_list, fltr_node) {
+		struct virtchnl_fdir_fltr_conf *node =
+				to_fltr_conf_from_desc(desc);
+
+		ret = ice_vc_fdir_comp_rules(node, conf);
+		if (ret)
+			return true;
+	}
+
+	return false;
+}
+
+/**
+ * ice_vc_fdir_insert_entry
+ * @vf: pointer to the VF info
+ * @conf: FDIR configuration for each filter
+ * @id: pointer to ID value allocated by driver
+ *
+ * Insert FDIR conf entry into list and allocate ID for this filter
+ *
+ * Return: 0 true success, and other on error.
+ */
+static int
+ice_vc_fdir_insert_entry(struct ice_vf *vf,
+			 struct virtchnl_fdir_fltr_conf *conf, u32 *id)
+{
+	struct ice_fdir_fltr *input = &conf->input;
+	int i;
+
+	/* alloc ID corresponding with conf */
+	i = idr_alloc(&vf->fdir.fdir_rule_idr, conf, 0,
+		      ICE_FDIR_MAX_FLTRS, GFP_KERNEL);
+	if (i < 0)
+		return -EINVAL;
+	*id = i;
+
+	list_add(&input->fltr_node, &vf->fdir.fdir_rule_list);
+	return 0;
+}
+
+/**
+ * ice_vc_fdir_remove_entry - remove FDIR conf entry by ID value
+ * @vf: pointer to the VF info
+ * @conf: FDIR configuration for each filter
+ * @id: filter rule's ID
+ */
+static void
+ice_vc_fdir_remove_entry(struct ice_vf *vf,
+			 struct virtchnl_fdir_fltr_conf *conf, u32 id)
+{
+	struct ice_fdir_fltr *input = &conf->input;
+
+	idr_remove(&vf->fdir.fdir_rule_idr, id);
+	list_del(&input->fltr_node);
+}
+
+/**
+ * ice_vc_fdir_lookup_entry - lookup FDIR conf entry by ID value
+ * @vf: pointer to the VF info
+ * @id: filter rule's ID
+ *
+ * Return: NULL on error, and other on success.
+ */
+static struct virtchnl_fdir_fltr_conf *
+ice_vc_fdir_lookup_entry(struct ice_vf *vf, u32 id)
+{
+	return idr_find(&vf->fdir.fdir_rule_idr, id);
+}
+
+/**
+ * ice_vc_fdir_flush_entry - remove all FDIR conf entry
+ * @vf: pointer to the VF info
+ */
+static void ice_vc_fdir_flush_entry(struct ice_vf *vf)
+{
+	struct virtchnl_fdir_fltr_conf *conf;
+	struct ice_fdir_fltr *desc, *temp;
+
+	list_for_each_entry_safe(desc, temp,
+				 &vf->fdir.fdir_rule_list, fltr_node) {
+		conf = to_fltr_conf_from_desc(desc);
+		list_del(&desc->fltr_node);
+		devm_kfree(ice_pf_to_dev(vf->pf), conf);
+	}
+}
+
+/**
+ * ice_vc_fdir_write_fltr - write filter rule into hardware
+ * @vf: pointer to the VF info
+ * @conf: FDIR configuration for each filter
+ * @add: true implies add rule, false implies del rules
+ * @is_tun: false implies non-tunnel type filter, true implies tunnel filter
+ *
+ * Return: 0 on success, and other on error.
+ */
+static int ice_vc_fdir_write_fltr(struct ice_vf *vf,
+				  struct virtchnl_fdir_fltr_conf *conf,
+				  bool add, bool is_tun)
+{
+	struct ice_fdir_fltr *input = &conf->input;
+	struct ice_vsi *vsi, *ctrl_vsi;
+	struct ice_fltr_desc desc;
+	enum ice_status status;
+	struct device *dev;
+	struct ice_pf *pf;
+	struct ice_hw *hw;
+	int ret;
+	u8 *pkt;
+
+	pf = vf->pf;
+	dev = ice_pf_to_dev(pf);
+	hw = &pf->hw;
+	vsi = pf->vsi[vf->lan_vsi_idx];
+	if (!vsi) {
+		dev_dbg(dev, "Invalid vsi for VF %d\n", vf->vf_id);
+		return -EINVAL;
+	}
+
+	input->dest_vsi = vsi->idx;
+	input->comp_report = ICE_FXD_FLTR_QW0_COMP_REPORT_SW_FAIL;
+
+	ctrl_vsi = pf->vsi[vf->ctrl_vsi_idx];
+	if (!ctrl_vsi) {
+		dev_dbg(dev, "Invalid ctrl_vsi for VF %d\n", vf->vf_id);
+		return -EINVAL;
+	}
+
+	pkt = devm_kzalloc(dev, ICE_FDIR_MAX_RAW_PKT_SIZE, GFP_KERNEL);
+	if (!pkt)
+		return -ENOMEM;
+
+	ice_fdir_get_prgm_desc(hw, input, &desc, add);
+	status = ice_fdir_get_gen_prgm_pkt(hw, input, pkt, false, is_tun);
+	ret = ice_status_to_errno(status);
+	if (ret) {
+		dev_dbg(dev, "Gen training pkt for VF %d ptype %d failed\n",
+			vf->vf_id, input->flow_type);
+		goto err_free_pkt;
+	}
+
+	ret = ice_prgm_fdir_fltr(ctrl_vsi, &desc, pkt);
+	if (ret)
+		goto err_free_pkt;
+
+	return 0;
+
+err_free_pkt:
+	devm_kfree(dev, pkt);
+	return ret;
+}
+
+/**
+ * ice_vc_add_fdir_fltr - add a FDIR filter for VF by the msg buffer
+ * @vf: pointer to the VF info
+ * @msg: pointer to the msg buffer
+ *
+ * Return: 0 on success, and other on error.
+ */
+int ice_vc_add_fdir_fltr(struct ice_vf *vf, u8 *msg)
+{
+	struct virtchnl_fdir_add *fltr = (struct virtchnl_fdir_add *)msg;
+	struct virtchnl_fdir_add *stat = NULL;
+	struct virtchnl_fdir_fltr_conf *conf;
+	enum virtchnl_status_code v_ret;
+	struct device *dev;
+	struct ice_pf *pf;
+	int is_tun = 0;
+	int len = 0;
+	int ret;
+
+	pf = vf->pf;
+	dev = ice_pf_to_dev(pf);
+	ret = ice_vc_fdir_param_check(vf, fltr->vsi_id);
+	if (ret) {
+		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
+		dev_dbg(dev, "Parameter check for VF %d failed\n", vf->vf_id);
+		goto err_exit;
+	}
+
+	ret = ice_vf_start_ctrl_vsi(vf);
+	if (ret && (ret != -EEXIST)) {
+		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
+		dev_err(dev, "Init FDIR for VF %d failed, ret:%d\n",
+			vf->vf_id, ret);
+		goto err_exit;
+	}
+
+	stat = kzalloc(sizeof(*stat), GFP_KERNEL);
+	if (!stat) {
+		v_ret = VIRTCHNL_STATUS_ERR_NO_MEMORY;
+		dev_dbg(dev, "Alloc stat for VF %d failed\n", vf->vf_id);
+		goto err_exit;
+	}
+
+	conf = devm_kzalloc(dev, sizeof(*conf), GFP_KERNEL);
+	if (!conf) {
+		v_ret = VIRTCHNL_STATUS_ERR_NO_MEMORY;
+		dev_dbg(dev, "Alloc conf for VF %d failed\n", vf->vf_id);
+		goto err_exit;
+	}
+
+	len = sizeof(*stat);
+	ret = ice_vc_validate_fdir_fltr(vf, fltr, conf);
+	if (ret) {
+		v_ret = VIRTCHNL_STATUS_SUCCESS;
+		stat->status = VIRTCHNL_FDIR_FAILURE_RULE_INVALID;
+		dev_dbg(dev, "Invalid FDIR filter from VF %d\n", vf->vf_id);
+		goto err_free_conf;
+	}
+
+	if (fltr->validate_only) {
+		v_ret = VIRTCHNL_STATUS_SUCCESS;
+		stat->status = VIRTCHNL_FDIR_SUCCESS;
+		devm_kfree(dev, conf);
+		ret = ice_vc_send_msg_to_vf(vf, VIRTCHNL_OP_ADD_FDIR_FILTER,
+					    v_ret, (u8 *)stat, len);
+		goto exit;
+	}
+
+	ret = ice_vc_fdir_config_input_set(vf, fltr, conf, is_tun);
+	if (ret) {
+		v_ret = VIRTCHNL_STATUS_SUCCESS;
+		stat->status = VIRTCHNL_FDIR_FAILURE_RULE_CONFLICT;
+		dev_err(dev, "VF %d: FDIR input set configure failed, ret:%d\n",
+			vf->vf_id, ret);
+		goto err_free_conf;
+	}
+
+	ret = ice_vc_fdir_is_dup_fltr(vf, conf);
+	if (ret) {
+		v_ret = VIRTCHNL_STATUS_SUCCESS;
+		stat->status = VIRTCHNL_FDIR_FAILURE_RULE_EXIST;
+		dev_dbg(dev, "VF %d: duplicated FDIR rule detected\n",
+			vf->vf_id);
+		goto err_free_conf;
+	}
+
+	ret = ice_vc_fdir_insert_entry(vf, conf, &stat->flow_id);
+	if (ret) {
+		v_ret = VIRTCHNL_STATUS_SUCCESS;
+		stat->status = VIRTCHNL_FDIR_FAILURE_RULE_NORESOURCE;
+		dev_dbg(dev, "VF %d: insert FDIR list failed\n", vf->vf_id);
+		goto err_free_conf;
+	}
+
+	ret = ice_vc_fdir_write_fltr(vf, conf, true, is_tun);
+	if (ret) {
+		v_ret = VIRTCHNL_STATUS_SUCCESS;
+		stat->status = VIRTCHNL_FDIR_FAILURE_RULE_NORESOURCE;
+		dev_err(dev, "VF %d: writing FDIR rule failed, ret:%d\n",
+			vf->vf_id, ret);
+		goto err_rem_entry;
+	}
+
+	vf->fdir.fdir_fltr_cnt[conf->input.flow_type][is_tun]++;
+
+	v_ret = VIRTCHNL_STATUS_SUCCESS;
+	stat->status = VIRTCHNL_FDIR_SUCCESS;
+exit:
+	ret = ice_vc_send_msg_to_vf(vf, VIRTCHNL_OP_ADD_FDIR_FILTER, v_ret,
+				    (u8 *)stat, len);
+	kfree(stat);
+	return ret;
+
+err_rem_entry:
+	ice_vc_fdir_remove_entry(vf, conf, stat->flow_id);
+err_free_conf:
+	devm_kfree(dev, conf);
+err_exit:
+	ret = ice_vc_send_msg_to_vf(vf, VIRTCHNL_OP_ADD_FDIR_FILTER, v_ret,
+				    (u8 *)stat, len);
+	kfree(stat);
+	return ret;
+}
+
+/**
+ * ice_vc_del_fdir_fltr - delete a FDIR filter for VF by the msg buffer
+ * @vf: pointer to the VF info
+ * @msg: pointer to the msg buffer
+ *
+ * Return: 0 on success, and other on error.
+ */
+int ice_vc_del_fdir_fltr(struct ice_vf *vf, u8 *msg)
+{
+	struct virtchnl_fdir_del *fltr = (struct virtchnl_fdir_del *)msg;
+	struct virtchnl_fdir_del *stat = NULL;
+	struct virtchnl_fdir_fltr_conf *conf;
+	enum virtchnl_status_code v_ret;
+	struct device *dev;
+	struct ice_pf *pf;
+	int is_tun = 0;
+	int len = 0;
+	int ret;
+
+	pf = vf->pf;
+	dev = ice_pf_to_dev(pf);
+	ret = ice_vc_fdir_param_check(vf, fltr->vsi_id);
+	if (ret) {
+		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
+		dev_dbg(dev, "Parameter check for VF %d failed\n", vf->vf_id);
+		goto err_exit;
+	}
+
+	stat = kzalloc(sizeof(*stat), GFP_KERNEL);
+	if (!stat) {
+		v_ret = VIRTCHNL_STATUS_ERR_NO_MEMORY;
+		dev_dbg(dev, "Alloc stat for VF %d failed\n", vf->vf_id);
+		goto err_exit;
+	}
+
+	len = sizeof(*stat);
+
+	conf = ice_vc_fdir_lookup_entry(vf, fltr->flow_id);
+	if (!conf) {
+		v_ret = VIRTCHNL_STATUS_SUCCESS;
+		stat->status = VIRTCHNL_FDIR_FAILURE_RULE_NONEXIST;
+		dev_dbg(dev, "VF %d: FDIR invalid flow_id:0x%X\n",
+			vf->vf_id, fltr->flow_id);
+		goto err_exit;
+	}
+
+	/* Just return failure when ctrl_vsi idx is invalid */
+	if (vf->ctrl_vsi_idx == ICE_NO_VSI) {
+		v_ret = VIRTCHNL_STATUS_SUCCESS;
+		stat->status = VIRTCHNL_FDIR_FAILURE_RULE_NORESOURCE;
+		dev_err(dev, "Invalid FDIR ctrl_vsi for VF %d\n", vf->vf_id);
+		goto err_exit;
+	}
+
+	ret = ice_vc_fdir_write_fltr(vf, conf, false, is_tun);
+	if (ret) {
+		v_ret = VIRTCHNL_STATUS_SUCCESS;
+		stat->status = VIRTCHNL_FDIR_FAILURE_RULE_NORESOURCE;
+		dev_err(dev, "VF %d: writing FDIR rule failed, ret:%d\n",
+			vf->vf_id, ret);
+		goto err_exit;
+	}
+
+	ice_vc_fdir_remove_entry(vf, conf, fltr->flow_id);
+	devm_kfree(dev, conf);
+	vf->fdir.fdir_fltr_cnt[conf->input.flow_type][is_tun]--;
+
+	v_ret = VIRTCHNL_STATUS_SUCCESS;
+	stat->status = VIRTCHNL_FDIR_SUCCESS;
+
+err_exit:
+	ret = ice_vc_send_msg_to_vf(vf, VIRTCHNL_OP_DEL_FDIR_FILTER, v_ret,
+				    (u8 *)stat, len);
+	kfree(stat);
+	return ret;
+}
+
+/**
+ * ice_vf_fdir_init - init FDIR resource for VF
+ * @vf: pointer to the VF info
+ */
+void ice_vf_fdir_init(struct ice_vf *vf)
+{
+	struct ice_vf_fdir *fdir = &vf->fdir;
+
+	idr_init(&fdir->fdir_rule_idr);
+	INIT_LIST_HEAD(&fdir->fdir_rule_list);
+}
+
+/**
+ * ice_vf_fdir_exit - destroy FDIR resource for VF
+ * @vf: pointer to the VF info
+ */
+void ice_vf_fdir_exit(struct ice_vf *vf)
+{
+	ice_vc_fdir_flush_entry(vf);
+	idr_destroy(&vf->fdir.fdir_rule_idr);
+	ice_vc_fdir_rem_prof_all(vf);
+	ice_vc_fdir_free_prof_all(vf);
+}
