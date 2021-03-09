@@ -631,7 +631,6 @@ static int ad7768_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	st->trig->ops = &ad7768_trigger_ops;
-	st->trig->dev.parent = &spi->dev;
 	iio_trigger_set_drvdata(st->trig, indio_dev);
 	ret = devm_iio_trigger_register(&spi->dev, st->trig);
 	if (ret)

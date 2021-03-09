@@ -1453,7 +1453,6 @@ static int sx9310_probe(struct i2c_client *client)
 		if (!data->trig)
 			return -ENOMEM;
 
-		data->trig->dev.parent = dev;
 		data->trig->ops = &sx9310_trigger_ops;
 		iio_trigger_set_drvdata(data->trig, indio_dev);
 

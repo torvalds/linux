@@ -473,7 +473,6 @@ static int max1027_probe(struct spi_device *spi)
 		}
 
 		st->trig->ops = &max1027_trigger_ops;
-		st->trig->dev.parent = &spi->dev;
 		iio_trigger_set_drvdata(st->trig, indio_dev);
 		ret = devm_iio_trigger_register(&indio_dev->dev,
 						st->trig);

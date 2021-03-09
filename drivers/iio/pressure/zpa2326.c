@@ -1413,7 +1413,6 @@ static int zpa2326_init_managed_trigger(struct device          *parent,
 		return -ENOMEM;
 
 	/* Basic setup. */
-	trigger->dev.parent = parent;
 	trigger->ops = &zpa2326_trigger_ops;
 
 	private->trigger = trigger;

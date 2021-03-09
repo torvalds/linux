@@ -1465,7 +1465,6 @@ static int mma8452_trigger_setup(struct iio_dev *indio_dev)
 	if (!trig)
 		return -ENOMEM;
 
-	trig->dev.parent = &data->client->dev;
 	trig->ops = &mma8452_trigger_ops;
 	iio_trigger_set_drvdata(trig, indio_dev);
 
