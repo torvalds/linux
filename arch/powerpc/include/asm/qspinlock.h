@@ -44,8 +44,6 @@ static __always_inline void queued_spin_lock(struct qspinlock *lock)
 }
 #define queued_spin_lock queued_spin_lock
 
-#define smp_mb__after_spinlock()   smp_mb()
-
 static __always_inline int queued_spin_is_locked(struct qspinlock *lock)
 {
 	/*

@@ -282,7 +282,4 @@ static inline void arch_write_unlock(arch_rwlock_t *rw)
 #define arch_read_relax(lock)	rw_yield(lock)
 #define arch_write_relax(lock)	rw_yield(lock)
 
-/* See include/linux/spinlock.h */
-#define smp_mb__after_spinlock()   smp_mb()
-
 #endif /* _ASM_POWERPC_SIMPLE_SPINLOCK_H */
