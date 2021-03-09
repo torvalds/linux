@@ -2918,7 +2918,7 @@ static void disconnect(struct AdapterCtlBlk *acb)
 	} else {
 		if ((srb->state & (SRB_START_ + SRB_MSGOUT))
 		    || !(srb->
-			 state & (SRB_DISCONNECT + SRB_COMPLETED))) {
+			 state & (SRB_DISCONNECT | SRB_COMPLETED))) {
 			/*
 			 * Selection time out 
 			 * SRB_START_ || SRB_MSGOUT || (!SRB_DISCONNECT && !SRB_COMPLETED)
