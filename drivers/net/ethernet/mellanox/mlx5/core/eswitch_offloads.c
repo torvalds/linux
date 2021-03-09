@@ -1446,7 +1446,7 @@ esw_add_restore_rule(struct mlx5_eswitch *esw, u32 tag)
 	if (!mlx5_eswitch_reg_c1_loopback_supported(esw))
 		return ERR_PTR(-EOPNOTSUPP);
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return ERR_PTR(-ENOMEM);
 
@@ -1469,7 +1469,7 @@ esw_add_restore_rule(struct mlx5_eswitch *esw, u32 tag)
 	dest.ft = esw->offloads.ft_offloads;
 
 	flow_rule = mlx5_add_flow_rules(ft, spec, &flow_act, &dest, 1);
-	kfree(spec);
+	kvfree(spec);
 
 	if (IS_ERR(flow_rule))
 		esw_warn(esw->dev,

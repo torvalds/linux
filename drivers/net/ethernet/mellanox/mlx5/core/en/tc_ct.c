@@ -695,7 +695,7 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 
 	zone_rule->nat = nat;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return -ENOMEM;
 
@@ -737,7 +737,7 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 
 	zone_rule->attr = attr;
 
-	kfree(spec);
+	kvfree(spec);
 	ct_dbg("Offloaded ct entry rule in zone %d", entry->tuple.zone);
 
 	return 0;
@@ -749,7 +749,7 @@ err_rule:
 err_mod_hdr:
 	kfree(attr);
 err_attr:
-	kfree(spec);
+	kvfree(spec);
 	return err;
 }
 
@@ -1684,10 +1684,10 @@ __mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *ct_priv,
 	struct mlx5_ct_ft *ft;
 	u32 fte_id = 1;
 
-	post_ct_spec = kzalloc(sizeof(*post_ct_spec), GFP_KERNEL);
+	post_ct_spec = kvzalloc(sizeof(*post_ct_spec), GFP_KERNEL);
 	ct_flow = kzalloc(sizeof(*ct_flow), GFP_KERNEL);
 	if (!post_ct_spec || !ct_flow) {
-		kfree(post_ct_spec);
+		kvfree(post_ct_spec);
 		kfree(ct_flow);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -1822,7 +1822,7 @@ __mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *ct_priv,
 
 	attr->ct_attr.ct_flow = ct_flow;
 	dealloc_mod_hdr_actions(&pre_mod_acts);
-	kfree(post_ct_spec);
+	kvfree(post_ct_spec);
 
 	return rule;
 
@@ -1843,7 +1843,7 @@ err_alloc_pre:
 err_idr:
 	mlx5_tc_ct_del_ft_cb(ct_priv, ft);
 err_ft:
-	kfree(post_ct_spec);
+	kvfree(post_ct_spec);
 	kfree(ct_flow);
 	netdev_warn(priv->netdev, "Failed to offload ct flow, err %d\n", err);
 	return ERR_PTR(err);
