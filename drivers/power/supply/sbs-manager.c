@@ -13,7 +13,7 @@
  * Karl-Heinz Schneider <karl-heinz@schneider-inet.de>
  */
 
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
