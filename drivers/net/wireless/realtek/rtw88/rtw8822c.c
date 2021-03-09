@@ -1396,6 +1396,15 @@ static int rtw8822c_mac_init(struct rtw_dev *rtwdev)
 	return 0;
 }
 
+static void rtw8822c_dump_fw_crash(struct rtw_dev *rtwdev)
+{
+	rtw_dump_reg(rtwdev, 0x0, 0x2000, "rtw8822c reg_");
+	rtw_dump_fw(rtwdev, OCPBASE_DMEM_88XX, 0x10000, "rtw8822c DMEM_");
+	rtw_dump_fw(rtwdev, OCPBASE_IMEM_88XX, 0x10000, "rtw8822c IMEM_");
+	rtw_dump_fw(rtwdev, OCPBASE_EMEM_88XX, 0x20000, "rtw8822c EMEM_");
+	rtw_dump_fw(rtwdev, OCPBASE_ROM_88XX, 0x10000, "rtw8822c ROM_");
+}
+
 static void rtw8822c_rstb_3wire(struct rtw_dev *rtwdev, bool enable)
 {
 	if (enable) {
@@ -3971,6 +3980,7 @@ static struct rtw_chip_ops rtw8822c_ops = {
 	.query_rx_desc		= rtw8822c_query_rx_desc,
 	.set_channel		= rtw8822c_set_channel,
 	.mac_init		= rtw8822c_mac_init,
+	.dump_fw_crash		= rtw8822c_dump_fw_crash,
 	.read_rf		= rtw_phy_read_rf,
 	.write_rf		= rtw_phy_write_rf_reg_mix,
 	.set_tx_power_index	= rtw8822c_set_tx_power_index,
