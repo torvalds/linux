@@ -156,7 +156,7 @@
 			status = "disabled";
 		};
 
-		ethernet-switch@80000 {
+		bus@80000 {
 			compatible = "simple-bus";
 			#size-cells = <1>;
 			#address-cells = <1>;
