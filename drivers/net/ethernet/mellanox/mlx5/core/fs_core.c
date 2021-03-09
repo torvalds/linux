@@ -3165,9 +3165,7 @@ void mlx5_modify_header_dealloc(struct mlx5_core_dev *dev,
 EXPORT_SYMBOL(mlx5_modify_header_dealloc);
 
 struct mlx5_pkt_reformat *mlx5_packet_reformat_alloc(struct mlx5_core_dev *dev,
-						     int reformat_type,
-						     size_t size,
-						     void *reformat_data,
+						     struct mlx5_pkt_reformat_params *params,
 						     enum mlx5_flow_namespace_type ns_type)
 {
 	struct mlx5_pkt_reformat *pkt_reformat;
@@ -3183,9 +3181,8 @@ struct mlx5_pkt_reformat *mlx5_packet_reformat_alloc(struct mlx5_core_dev *dev,
 		return ERR_PTR(-ENOMEM);
 
 	pkt_reformat->ns_type = ns_type;
-	pkt_reformat->reformat_type = reformat_type;
-	err = root->cmds->packet_reformat_alloc(root, reformat_type, size,
-						reformat_data, ns_type,
+	pkt_reformat->reformat_type = params->type;
+	err = root->cmds->packet_reformat_alloc(root, params, ns_type,
 						pkt_reformat);
 	if (err) {
 		kfree(pkt_reformat);

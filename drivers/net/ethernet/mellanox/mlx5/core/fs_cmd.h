@@ -77,9 +77,7 @@ struct mlx5_flow_cmds {
 			      bool disconnect);
 
 	int (*packet_reformat_alloc)(struct mlx5_flow_root_namespace *ns,
-				     int reformat_type,
-				     size_t size,
-				     void *reformat_data,
+				     struct mlx5_pkt_reformat_params *params,
 				     enum mlx5_flow_namespace_type namespace,
 				     struct mlx5_pkt_reformat *pkt_reformat);
 

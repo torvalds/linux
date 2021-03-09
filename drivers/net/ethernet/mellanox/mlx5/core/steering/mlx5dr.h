@@ -105,6 +105,8 @@ mlx5dr_action_create_flow_counter(u32 counter_id);
 struct mlx5dr_action *
 mlx5dr_action_create_packet_reformat(struct mlx5dr_domain *dmn,
 				     enum mlx5dr_action_reformat_type reformat_type,
+				     u8 reformat_param_0,
+				     u8 reformat_param_1,
 				     size_t data_sz,
 				     void *data);
 
