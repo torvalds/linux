@@ -458,6 +458,12 @@ static char * __init unpack_to_rootfs(char *buf, unsigned long len)
 	state = Start;
 	this_header = 0;
 	message = NULL;
+
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT_CRYPTO
+	if (rk_tb_crypto_sha256_wait_compare_done())
+		panic("Timeout, campare the sha256 digest fail, the ramdisk is untrusted.\n");
+#endif
+
 #if defined(CONFIG_ROCKCHIP_THUNDER_BOOT) && defined(CONFIG_ROCKCHIP_HW_DECOMPRESS) && defined(CONFIG_INITRD_ASYNC)
 	wait_initrd_hw_decom_done();
 #endif
