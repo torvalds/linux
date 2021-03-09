@@ -265,10 +265,8 @@ static void cap_show_by_dw(struct seq_file *s, struct tb_switch *sw,
 		else
 			ret = tb_sw_read(sw, &data, TB_CFG_SWITCH, cap + offset + i, 1);
 		if (ret) {
-			seq_printf(s, "0x%04x <not accessible>\n", cap + offset);
-			if (dwords - i > 1)
-				seq_printf(s, "0x%04x ...\n", cap + offset + 1);
-			return;
+			seq_printf(s, "0x%04x <not accessible>\n", cap + offset + i);
+			continue;
 		}
 
 		seq_printf(s, "0x%04x %4d 0x%02x 0x%02x 0x%08x\n", cap + offset + i,
@@ -292,7 +290,7 @@ static void cap_show(struct seq_file *s, struct tb_switch *sw,
 		else
 			ret = tb_sw_read(sw, data, TB_CFG_SWITCH, cap + offset, dwords);
 		if (ret) {
-			cap_show_by_dw(s, sw, port, cap, offset, cap_id, vsec_id, dwords);
+			cap_show_by_dw(s, sw, port, cap, offset, cap_id, vsec_id, length);
 			return;
 		}
 
