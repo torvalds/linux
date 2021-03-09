@@ -170,3 +170,12 @@ failures:
 .. _2: https://reviews.llvm.org/D85174
 .. _3: https://reviews.llvm.org/D83878
 .. _4: https://reviews.llvm.org/D83242
+
+Floating-point tests and Clang version
+======================================
+
+Certain selftests, e.g. core_reloc, require support for the floating-point
+types, which was introduced in `Clang 13`__. The older Clang versions will
+either crash when compiling these tests, or generate an incorrect BTF.
+
+__  https://reviews.llvm.org/D83289
