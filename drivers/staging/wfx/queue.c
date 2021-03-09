@@ -5,9 +5,13 @@
  * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  */
+#include <linux/sched.h>
 #include <net/mac80211.h>
 
+#include "queue.h"
 #include "wfx.h"
+#include "sta.h"
+#include "data_tx.h"
 #include "traces.h"
 
 void wfx_tx_lock(struct wfx_dev *wdev)

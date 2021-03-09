@@ -8,6 +8,8 @@
 #ifndef WFX_STA_H
 #define WFX_STA_H
 
+#include <net/mac80211.h>
+
 struct wfx_dev;
 struct wfx_vif;
 

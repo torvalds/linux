@@ -10,21 +10,28 @@
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
  */
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
+#include <linux/gpio/consumer.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/spi/spi.h>
+#include <linux/etherdevice.h>
 #include <linux/firmware.h>
 
+#include "main.h"
 #include "wfx.h"
 #include "fwio.h"
 #include "hwio.h"
 #include "bus.h"
+#include "bh.h"
 #include "sta.h"
 #include "key.h"
 #include "scan.h"
 #include "debug.h"
+#include "data_tx.h"
 #include "hif_tx_mib.h"
+#include "hif_api_cmd.h"
 
 #define WFX_PDS_MAX_SIZE 1500
 
