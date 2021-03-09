@@ -1115,6 +1115,11 @@ int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 		dma_rmb();
 
 		if (rx_desc->wb.rxdid == FDIR_DESC_RXDID || !rx_ring->netdev) {
+			struct ice_vsi *ctrl_vsi = rx_ring->vsi;
+
+			if (rx_desc->wb.rxdid == FDIR_DESC_RXDID &&
+			    ctrl_vsi->vf_id != ICE_INVAL_VFID)
+				ice_vc_fdir_irq_handler(ctrl_vsi, rx_desc);
 			ice_put_rx_buf(rx_ring, NULL, 0);
 			cleaned_count++;
 			continue;

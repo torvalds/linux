@@ -44,6 +44,7 @@ struct virtchnl_fdir_fltr_conf {
 	struct ice_fdir_fltr input;
 	enum ice_fdir_tunnel_type ttype;
 	u64 inset_flag;
+	u32 flow_id;
 };
 
 static enum virtchnl_proto_hdr_type vc_pattern_ether[] = {
@@ -1483,7 +1484,7 @@ static int ice_vc_fdir_write_fltr(struct ice_vf *vf,
 	}
 
 	input->dest_vsi = vsi->idx;
-	input->comp_report = ICE_FXD_FLTR_QW0_COMP_REPORT_SW_FAIL;
+	input->comp_report = ICE_FXD_FLTR_QW0_COMP_REPORT_SW;
 
 	ctrl_vsi = pf->vsi[vf->ctrl_vsi_idx];
 	if (!ctrl_vsi) {
@@ -1513,6 +1514,454 @@ static int ice_vc_fdir_write_fltr(struct ice_vf *vf,
 err_free_pkt:
 	devm_kfree(dev, pkt);
 	return ret;
+}
+
+/**
+ * ice_vf_fdir_timer - FDIR program waiting timer interrupt handler
+ * @t: pointer to timer_list
+ */
+static void ice_vf_fdir_timer(struct timer_list *t)
+{
+	struct ice_vf_fdir_ctx *ctx_irq = from_timer(ctx_irq, t, rx_tmr);
+	struct ice_vf_fdir_ctx *ctx_done;
+	struct ice_vf_fdir *fdir;
+	unsigned long flags;
+	struct ice_vf *vf;
+	struct ice_pf *pf;
+
+	fdir = container_of(ctx_irq, struct ice_vf_fdir, ctx_irq);
+	vf = container_of(fdir, struct ice_vf, fdir);
+	ctx_done = &fdir->ctx_done;
+	pf = vf->pf;
+	spin_lock_irqsave(&fdir->ctx_lock, flags);
+	if (!(ctx_irq->flags & ICE_VF_FDIR_CTX_VALID)) {
+		spin_unlock_irqrestore(&fdir->ctx_lock, flags);
+		WARN_ON_ONCE(1);
+		return;
+	}
+
+	ctx_irq->flags &= ~ICE_VF_FDIR_CTX_VALID;
+
+	ctx_done->flags |= ICE_VF_FDIR_CTX_VALID;
+	ctx_done->conf = ctx_irq->conf;
+	ctx_done->stat = ICE_FDIR_CTX_TIMEOUT;
+	ctx_done->v_opcode = ctx_irq->v_opcode;
+	spin_unlock_irqrestore(&fdir->ctx_lock, flags);
+
+	set_bit(__ICE_FD_VF_FLUSH_CTX, pf->state);
+	ice_service_task_schedule(pf);
+}
+
+/**
+ * ice_vc_fdir_irq_handler - ctrl_vsi Rx queue interrupt handler
+ * @ctrl_vsi: pointer to a VF's CTRL VSI
+ * @rx_desc: pointer to FDIR Rx queue descriptor
+ */
+void
+ice_vc_fdir_irq_handler(struct ice_vsi *ctrl_vsi,
+			union ice_32b_rx_flex_desc *rx_desc)
+{
+	struct ice_pf *pf = ctrl_vsi->back;
+	struct ice_vf_fdir_ctx *ctx_done;
+	struct ice_vf_fdir_ctx *ctx_irq;
+	struct ice_vf_fdir *fdir;
+	unsigned long flags;
+	struct device *dev;
+	struct ice_vf *vf;
+	int ret;
+
+	vf = &pf->vf[ctrl_vsi->vf_id];
+
+	fdir = &vf->fdir;
+	ctx_done = &fdir->ctx_done;
+	ctx_irq = &fdir->ctx_irq;
+	dev = ice_pf_to_dev(pf);
+	spin_lock_irqsave(&fdir->ctx_lock, flags);
+	if (!(ctx_irq->flags & ICE_VF_FDIR_CTX_VALID)) {
+		spin_unlock_irqrestore(&fdir->ctx_lock, flags);
+		WARN_ON_ONCE(1);
+		return;
+	}
+
+	ctx_irq->flags &= ~ICE_VF_FDIR_CTX_VALID;
+
+	ctx_done->flags |= ICE_VF_FDIR_CTX_VALID;
+	ctx_done->conf = ctx_irq->conf;
+	ctx_done->stat = ICE_FDIR_CTX_IRQ;
+	ctx_done->v_opcode = ctx_irq->v_opcode;
+	memcpy(&ctx_done->rx_desc, rx_desc, sizeof(*rx_desc));
+	spin_unlock_irqrestore(&fdir->ctx_lock, flags);
+
+	ret = del_timer(&ctx_irq->rx_tmr);
+	if (!ret)
+		dev_err(dev, "VF %d: Unexpected inactive timer!\n", vf->vf_id);
+
+	set_bit(__ICE_FD_VF_FLUSH_CTX, pf->state);
+	ice_service_task_schedule(pf);
+}
+
+/**
+ * ice_vf_fdir_dump_info - dump FDIR information for diagnosis
+ * @vf: pointer to the VF info
+ */
+static void ice_vf_fdir_dump_info(struct ice_vf *vf)
+{
+	struct ice_vsi *vf_vsi;
+	u32 fd_size, fd_cnt;
+	struct device *dev;
+	struct ice_pf *pf;
+	struct ice_hw *hw;
+	u16 vsi_num;
+
+	pf = vf->pf;
+	hw = &pf->hw;
+	dev = ice_pf_to_dev(pf);
+	vf_vsi = pf->vsi[vf->lan_vsi_idx];
+	vsi_num = ice_get_hw_vsi_num(hw, vf_vsi->idx);
+
+	fd_size = rd32(hw, VSIQF_FD_SIZE(vsi_num));
+	fd_cnt = rd32(hw, VSIQF_FD_CNT(vsi_num));
+	dev_dbg(dev, "VF %d: space allocated: guar:0x%x, be:0x%x, space consumed: guar:0x%x, be:0x%x",
+		vf->vf_id,
+		(fd_size & VSIQF_FD_CNT_FD_GCNT_M) >> VSIQF_FD_CNT_FD_GCNT_S,
+		(fd_size & VSIQF_FD_CNT_FD_BCNT_M) >> VSIQF_FD_CNT_FD_BCNT_S,
+		(fd_cnt & VSIQF_FD_CNT_FD_GCNT_M) >> VSIQF_FD_CNT_FD_GCNT_S,
+		(fd_cnt & VSIQF_FD_CNT_FD_BCNT_M) >> VSIQF_FD_CNT_FD_BCNT_S);
+}
+
+/**
+ * ice_vf_verify_rx_desc - verify received FDIR programming status descriptor
+ * @vf: pointer to the VF info
+ * @ctx: FDIR context info for post processing
+ * @status: virtchnl FDIR program status
+ *
+ * Return: 0 on success, and other on error.
+ */
+static int
+ice_vf_verify_rx_desc(struct ice_vf *vf, struct ice_vf_fdir_ctx *ctx,
+		      enum virtchnl_fdir_prgm_status *status)
+{
+	struct device *dev = ice_pf_to_dev(vf->pf);
+	u32 stat_err, error, prog_id;
+	int ret;
+
+	stat_err = le16_to_cpu(ctx->rx_desc.wb.status_error0);
+	if (((stat_err & ICE_FXD_FLTR_WB_QW1_DD_M) >>
+	    ICE_FXD_FLTR_WB_QW1_DD_S) != ICE_FXD_FLTR_WB_QW1_DD_YES) {
+		*status = VIRTCHNL_FDIR_FAILURE_RULE_NORESOURCE;
+		dev_err(dev, "VF %d: Desc Done not set\n", vf->vf_id);
+		ret = -EINVAL;
+		goto err_exit;
+	}
+
+	prog_id = (stat_err & ICE_FXD_FLTR_WB_QW1_PROG_ID_M) >>
+		ICE_FXD_FLTR_WB_QW1_PROG_ID_S;
+	if (prog_id == ICE_FXD_FLTR_WB_QW1_PROG_ADD &&
+	    ctx->v_opcode != VIRTCHNL_OP_ADD_FDIR_FILTER) {
+		dev_err(dev, "VF %d: Desc show add, but ctx not",
+			vf->vf_id);
+		*status = VIRTCHNL_FDIR_FAILURE_RULE_INVALID;
+		ret = -EINVAL;
+		goto err_exit;
+	}
+
+	if (prog_id == ICE_FXD_FLTR_WB_QW1_PROG_DEL &&
+	    ctx->v_opcode != VIRTCHNL_OP_DEL_FDIR_FILTER) {
+		dev_err(dev, "VF %d: Desc show del, but ctx not",
+			vf->vf_id);
+		*status = VIRTCHNL_FDIR_FAILURE_RULE_INVALID;
+		ret = -EINVAL;
+		goto err_exit;
+	}
+
+	error = (stat_err & ICE_FXD_FLTR_WB_QW1_FAIL_M) >>
+		ICE_FXD_FLTR_WB_QW1_FAIL_S;
+	if (error == ICE_FXD_FLTR_WB_QW1_FAIL_YES) {
+		if (prog_id == ICE_FXD_FLTR_WB_QW1_PROG_ADD) {
+			dev_err(dev, "VF %d, Failed to add FDIR rule due to no space in the table",
+				vf->vf_id);
+			*status = VIRTCHNL_FDIR_FAILURE_RULE_NORESOURCE;
+		} else {
+			dev_err(dev, "VF %d, Failed to remove FDIR rule, attempt to remove non-existent entry",
+				vf->vf_id);
+			*status = VIRTCHNL_FDIR_FAILURE_RULE_NONEXIST;
+		}
+		ret = -EINVAL;
+		goto err_exit;
+	}
+
+	error = (stat_err & ICE_FXD_FLTR_WB_QW1_FAIL_PROF_M) >>
+		ICE_FXD_FLTR_WB_QW1_FAIL_PROF_S;
+	if (error == ICE_FXD_FLTR_WB_QW1_FAIL_PROF_YES) {
+		dev_err(dev, "VF %d: Profile matching error", vf->vf_id);
+		*status = VIRTCHNL_FDIR_FAILURE_RULE_NORESOURCE;
+		ret = -EINVAL;
+		goto err_exit;
+	}
+
+	*status = VIRTCHNL_FDIR_SUCCESS;
+
+	return 0;
+
+err_exit:
+	ice_vf_fdir_dump_info(vf);
+	return ret;
+}
+
+/**
+ * ice_vc_add_fdir_fltr_post
+ * @vf: pointer to the VF structure
+ * @ctx: FDIR context info for post processing
+ * @status: virtchnl FDIR program status
+ * @success: true implies success, false implies failure
+ *
+ * Post process for flow director add command. If success, then do post process
+ * and send back success msg by virtchnl. Otherwise, do context reversion and
+ * send back failure msg by virtchnl.
+ *
+ * Return: 0 on success, and other on error.
+ */
+static int
+ice_vc_add_fdir_fltr_post(struct ice_vf *vf, struct ice_vf_fdir_ctx *ctx,
+			  enum virtchnl_fdir_prgm_status status,
+			  bool success)
+{
+	struct virtchnl_fdir_fltr_conf *conf = ctx->conf;
+	struct device *dev = ice_pf_to_dev(vf->pf);
+	enum virtchnl_status_code v_ret;
+	struct virtchnl_fdir_add *resp;
+	int ret, len, is_tun;
+
+	v_ret = VIRTCHNL_STATUS_SUCCESS;
+	len = sizeof(*resp);
+	resp = kzalloc(len, GFP_KERNEL);
+	if (!resp) {
+		len = 0;
+		v_ret = VIRTCHNL_STATUS_ERR_NO_MEMORY;
+		dev_dbg(dev, "VF %d: Alloc resp buf fail", vf->vf_id);
+		goto err_exit;
+	}
+
+	if (!success)
+		goto err_exit;
+
+	is_tun = 0;
+	resp->status = status;
+	resp->flow_id = conf->flow_id;
+	vf->fdir.fdir_fltr_cnt[conf->input.flow_type][is_tun]++;
+
+	ret = ice_vc_send_msg_to_vf(vf, ctx->v_opcode, v_ret,
+				    (u8 *)resp, len);
+	kfree(resp);
+
+	dev_dbg(dev, "VF %d: flow_id:0x%X, FDIR %s success!\n",
+		vf->vf_id, conf->flow_id,
+		(ctx->v_opcode == VIRTCHNL_OP_ADD_FDIR_FILTER) ?
+		"add" : "del");
+	return ret;
+
+err_exit:
+	if (resp)
+		resp->status = status;
+	ice_vc_fdir_remove_entry(vf, conf, conf->flow_id);
+	devm_kfree(dev, conf);
+
+	ret = ice_vc_send_msg_to_vf(vf, ctx->v_opcode, v_ret,
+				    (u8 *)resp, len);
+	kfree(resp);
+	return ret;
+}
+
+/**
+ * ice_vc_del_fdir_fltr_post
+ * @vf: pointer to the VF structure
+ * @ctx: FDIR context info for post processing
+ * @status: virtchnl FDIR program status
+ * @success: true implies success, false implies failure
+ *
+ * Post process for flow director del command. If success, then do post process
+ * and send back success msg by virtchnl. Otherwise, do context reversion and
+ * send back failure msg by virtchnl.
+ *
+ * Return: 0 on success, and other on error.
+ */
+static int
+ice_vc_del_fdir_fltr_post(struct ice_vf *vf, struct ice_vf_fdir_ctx *ctx,
+			  enum virtchnl_fdir_prgm_status status,
+			  bool success)
+{
+	struct virtchnl_fdir_fltr_conf *conf = ctx->conf;
+	struct device *dev = ice_pf_to_dev(vf->pf);
+	enum virtchnl_status_code v_ret;
+	struct virtchnl_fdir_del *resp;
+	int ret, len, is_tun;
+
+	v_ret = VIRTCHNL_STATUS_SUCCESS;
+	len = sizeof(*resp);
+	resp = kzalloc(len, GFP_KERNEL);
+	if (!resp) {
+		len = 0;
+		v_ret = VIRTCHNL_STATUS_ERR_NO_MEMORY;
+		dev_dbg(dev, "VF %d: Alloc resp buf fail", vf->vf_id);
+		goto err_exit;
+	}
+
+	if (!success)
+		goto err_exit;
+
+	is_tun = 0;
+	resp->status = status;
+	ice_vc_fdir_remove_entry(vf, conf, conf->flow_id);
+	vf->fdir.fdir_fltr_cnt[conf->input.flow_type][is_tun]--;
+
+	ret = ice_vc_send_msg_to_vf(vf, ctx->v_opcode, v_ret,
+				    (u8 *)resp, len);
+	kfree(resp);
+
+	dev_dbg(dev, "VF %d: flow_id:0x%X, FDIR %s success!\n",
+		vf->vf_id, conf->flow_id,
+		(ctx->v_opcode == VIRTCHNL_OP_ADD_FDIR_FILTER) ?
+		"add" : "del");
+	devm_kfree(dev, conf);
+	return ret;
+
+err_exit:
+	if (resp)
+		resp->status = status;
+	if (success)
+		devm_kfree(dev, conf);
+
+	ret = ice_vc_send_msg_to_vf(vf, ctx->v_opcode, v_ret,
+				    (u8 *)resp, len);
+	kfree(resp);
+	return ret;
+}
+
+/**
+ * ice_flush_fdir_ctx
+ * @pf: pointer to the PF structure
+ *
+ * Flush all the pending event on ctx_done list and process them.
+ */
+void ice_flush_fdir_ctx(struct ice_pf *pf)
+{
+	int i;
+
+	if (!test_and_clear_bit(__ICE_FD_VF_FLUSH_CTX, pf->state))
+		return;
+
+	ice_for_each_vf(pf, i) {
+		struct device *dev = ice_pf_to_dev(pf);
+		enum virtchnl_fdir_prgm_status status;
+		struct ice_vf *vf = &pf->vf[i];
+		struct ice_vf_fdir_ctx *ctx;
+		unsigned long flags;
+		int ret;
+
+		if (!test_bit(ICE_VF_STATE_ACTIVE, vf->vf_states))
+			continue;
+
+		if (vf->ctrl_vsi_idx == ICE_NO_VSI)
+			continue;
+
+		ctx = &vf->fdir.ctx_done;
+		spin_lock_irqsave(&vf->fdir.ctx_lock, flags);
+		if (!(ctx->flags & ICE_VF_FDIR_CTX_VALID)) {
+			spin_unlock_irqrestore(&vf->fdir.ctx_lock, flags);
+			continue;
+		}
+		spin_unlock_irqrestore(&vf->fdir.ctx_lock, flags);
+
+		WARN_ON(ctx->stat == ICE_FDIR_CTX_READY);
+		if (ctx->stat == ICE_FDIR_CTX_TIMEOUT) {
+			status = VIRTCHNL_FDIR_FAILURE_RULE_TIMEOUT;
+			dev_err(dev, "VF %d: ctrl_vsi irq timeout\n",
+				vf->vf_id);
+			goto err_exit;
+		}
+
+		ret = ice_vf_verify_rx_desc(vf, ctx, &status);
+		if (ret)
+			goto err_exit;
+
+		if (ctx->v_opcode == VIRTCHNL_OP_ADD_FDIR_FILTER)
+			ice_vc_add_fdir_fltr_post(vf, ctx, status, true);
+		else if (ctx->v_opcode == VIRTCHNL_OP_DEL_FDIR_FILTER)
+			ice_vc_del_fdir_fltr_post(vf, ctx, status, true);
+		else
+			dev_err(dev, "VF %d: Unsupported opcode\n", vf->vf_id);
+
+		spin_lock_irqsave(&vf->fdir.ctx_lock, flags);
+		ctx->flags &= ~ICE_VF_FDIR_CTX_VALID;
+		spin_unlock_irqrestore(&vf->fdir.ctx_lock, flags);
+		continue;
+err_exit:
+		if (ctx->v_opcode == VIRTCHNL_OP_ADD_FDIR_FILTER)
+			ice_vc_add_fdir_fltr_post(vf, ctx, status, false);
+		else if (ctx->v_opcode == VIRTCHNL_OP_DEL_FDIR_FILTER)
+			ice_vc_del_fdir_fltr_post(vf, ctx, status, false);
+		else
+			dev_err(dev, "VF %d: Unsupported opcode\n", vf->vf_id);
+
+		spin_lock_irqsave(&vf->fdir.ctx_lock, flags);
+		ctx->flags &= ~ICE_VF_FDIR_CTX_VALID;
+		spin_unlock_irqrestore(&vf->fdir.ctx_lock, flags);
+	}
+}
+
+/**
+ * ice_vc_fdir_set_irq_ctx - set FDIR context info for later IRQ handler
+ * @vf: pointer to the VF structure
+ * @conf: FDIR configuration for each filter
+ * @v_opcode: virtual channel operation code
+ *
+ * Return: 0 on success, and other on error.
+ */
+static int
+ice_vc_fdir_set_irq_ctx(struct ice_vf *vf, struct virtchnl_fdir_fltr_conf *conf,
+			enum virtchnl_ops v_opcode)
+{
+	struct device *dev = ice_pf_to_dev(vf->pf);
+	struct ice_vf_fdir_ctx *ctx;
+	unsigned long flags;
+
+	ctx = &vf->fdir.ctx_irq;
+	spin_lock_irqsave(&vf->fdir.ctx_lock, flags);
+	if ((vf->fdir.ctx_irq.flags & ICE_VF_FDIR_CTX_VALID) ||
+	    (vf->fdir.ctx_done.flags & ICE_VF_FDIR_CTX_VALID)) {
+		spin_unlock_irqrestore(&vf->fdir.ctx_lock, flags);
+		dev_dbg(dev, "VF %d: Last request is still in progress\n",
+			vf->vf_id);
+		return -EBUSY;
+	}
+	ctx->flags |= ICE_VF_FDIR_CTX_VALID;
+	spin_unlock_irqrestore(&vf->fdir.ctx_lock, flags);
+
+	ctx->conf = conf;
+	ctx->v_opcode = v_opcode;
+	ctx->stat = ICE_FDIR_CTX_READY;
+	timer_setup(&ctx->rx_tmr, ice_vf_fdir_timer, 0);
+
+	mod_timer(&ctx->rx_tmr, round_jiffies(msecs_to_jiffies(10) + jiffies));
+
+	return 0;
+}
+
+/**
+ * ice_vc_fdir_clear_irq_ctx - clear FDIR context info for IRQ handler
+ * @vf: pointer to the VF structure
+ *
+ * Return: 0 on success, and other on error.
+ */
+static void ice_vc_fdir_clear_irq_ctx(struct ice_vf *vf)
+{
+	struct ice_vf_fdir_ctx *ctx = &vf->fdir.ctx_irq;
+	unsigned long flags;
+
+	del_timer(&ctx->rx_tmr);
+	spin_lock_irqsave(&vf->fdir.ctx_lock, flags);
+	ctx->flags &= ~ICE_VF_FDIR_CTX_VALID;
+	spin_unlock_irqrestore(&vf->fdir.ctx_lock, flags);
 }
 
 /**
@@ -1601,11 +2050,19 @@ int ice_vc_add_fdir_fltr(struct ice_vf *vf, u8 *msg)
 		goto err_free_conf;
 	}
 
-	ret = ice_vc_fdir_insert_entry(vf, conf, &stat->flow_id);
+	ret = ice_vc_fdir_insert_entry(vf, conf, &conf->flow_id);
 	if (ret) {
 		v_ret = VIRTCHNL_STATUS_SUCCESS;
 		stat->status = VIRTCHNL_FDIR_FAILURE_RULE_NORESOURCE;
 		dev_dbg(dev, "VF %d: insert FDIR list failed\n", vf->vf_id);
+		goto err_free_conf;
+	}
+
+	ret = ice_vc_fdir_set_irq_ctx(vf, conf, VIRTCHNL_OP_ADD_FDIR_FILTER);
+	if (ret) {
+		v_ret = VIRTCHNL_STATUS_SUCCESS;
+		stat->status = VIRTCHNL_FDIR_FAILURE_RULE_NORESOURCE;
+		dev_dbg(dev, "VF %d: set FDIR context failed\n", vf->vf_id);
 		goto err_free_conf;
 	}
 
@@ -1618,18 +2075,13 @@ int ice_vc_add_fdir_fltr(struct ice_vf *vf, u8 *msg)
 		goto err_rem_entry;
 	}
 
-	vf->fdir.fdir_fltr_cnt[conf->input.flow_type][is_tun]++;
-
-	v_ret = VIRTCHNL_STATUS_SUCCESS;
-	stat->status = VIRTCHNL_FDIR_SUCCESS;
 exit:
-	ret = ice_vc_send_msg_to_vf(vf, VIRTCHNL_OP_ADD_FDIR_FILTER, v_ret,
-				    (u8 *)stat, len);
 	kfree(stat);
 	return ret;
 
 err_rem_entry:
-	ice_vc_fdir_remove_entry(vf, conf, stat->flow_id);
+	ice_vc_fdir_clear_irq_ctx(vf);
+	ice_vc_fdir_remove_entry(vf, conf, conf->flow_id);
 err_free_conf:
 	devm_kfree(dev, conf);
 err_exit:
@@ -1693,22 +2145,29 @@ int ice_vc_del_fdir_fltr(struct ice_vf *vf, u8 *msg)
 		goto err_exit;
 	}
 
+	ret = ice_vc_fdir_set_irq_ctx(vf, conf, VIRTCHNL_OP_DEL_FDIR_FILTER);
+	if (ret) {
+		v_ret = VIRTCHNL_STATUS_SUCCESS;
+		stat->status = VIRTCHNL_FDIR_FAILURE_RULE_NORESOURCE;
+		dev_dbg(dev, "VF %d: set FDIR context failed\n", vf->vf_id);
+		goto err_exit;
+	}
+
 	ret = ice_vc_fdir_write_fltr(vf, conf, false, is_tun);
 	if (ret) {
 		v_ret = VIRTCHNL_STATUS_SUCCESS;
 		stat->status = VIRTCHNL_FDIR_FAILURE_RULE_NORESOURCE;
 		dev_err(dev, "VF %d: writing FDIR rule failed, ret:%d\n",
 			vf->vf_id, ret);
-		goto err_exit;
+		goto err_del_tmr;
 	}
 
-	ice_vc_fdir_remove_entry(vf, conf, fltr->flow_id);
-	devm_kfree(dev, conf);
-	vf->fdir.fdir_fltr_cnt[conf->input.flow_type][is_tun]--;
+	kfree(stat);
 
-	v_ret = VIRTCHNL_STATUS_SUCCESS;
-	stat->status = VIRTCHNL_FDIR_SUCCESS;
+	return ret;
 
+err_del_tmr:
+	ice_vc_fdir_clear_irq_ctx(vf);
 err_exit:
 	ret = ice_vc_send_msg_to_vf(vf, VIRTCHNL_OP_DEL_FDIR_FILTER, v_ret,
 				    (u8 *)stat, len);
@@ -1726,6 +2185,10 @@ void ice_vf_fdir_init(struct ice_vf *vf)
 
 	idr_init(&fdir->fdir_rule_idr);
 	INIT_LIST_HEAD(&fdir->fdir_rule_list);
+
+	spin_lock_init(&fdir->ctx_lock);
+	fdir->ctx_irq.flags = 0;
+	fdir->ctx_done.flags = 0;
 }
 
 /**

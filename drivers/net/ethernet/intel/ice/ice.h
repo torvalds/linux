@@ -231,6 +231,7 @@ enum ice_state {
 	__ICE_VF_RESETS_DISABLED,	/* disable resets during ice_remove */
 	__ICE_LINK_DEFAULT_OVERRIDE_PENDING,
 	__ICE_PHY_INIT_COMPLETE,
+	__ICE_FD_VF_FLUSH_CTX,		/* set at FD Rx IRQ or timeout */
 	__ICE_STATE_NBITS		/* must be last */
 };
 

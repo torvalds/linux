@@ -2071,6 +2071,7 @@ static void ice_service_task(struct work_struct *work)
 	ice_process_vflr_event(pf);
 	ice_clean_mailboxq_subtask(pf);
 	ice_sync_arfs_fltrs(pf);
+	ice_flush_fdir_ctx(pf);
 	/* Clear __ICE_SERVICE_SCHED flag to allow scheduling next event */
 	ice_service_task_complete(pf);
 
@@ -2082,6 +2083,7 @@ static void ice_service_task(struct work_struct *work)
 	    test_bit(__ICE_MDD_EVENT_PENDING, pf->state) ||
 	    test_bit(__ICE_VFLR_EVENT_PENDING, pf->state) ||
 	    test_bit(__ICE_MAILBOXQ_EVENT_PENDING, pf->state) ||
+	    test_bit(__ICE_FD_VF_FLUSH_CTX, pf->state) ||
 	    test_bit(__ICE_ADMINQ_EVENT_PENDING, pf->state))
 		mod_timer(&pf->serv_tmr, jiffies);
 }

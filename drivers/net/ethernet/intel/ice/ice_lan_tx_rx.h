@@ -140,6 +140,26 @@ struct ice_fltr_desc {
 			(0xFFFFFFFFULL << ICE_FXD_FLTR_QW1_FDID_S)
 #define ICE_FXD_FLTR_QW1_FDID_ZERO	0x0ULL
 
+/* definition for FD filter programming status descriptor WB format */
+#define ICE_FXD_FLTR_WB_QW1_DD_S	0
+#define ICE_FXD_FLTR_WB_QW1_DD_M	(0x1ULL << ICE_FXD_FLTR_WB_QW1_DD_S)
+#define ICE_FXD_FLTR_WB_QW1_DD_YES	0x1ULL
+
+#define ICE_FXD_FLTR_WB_QW1_PROG_ID_S	1
+#define ICE_FXD_FLTR_WB_QW1_PROG_ID_M	\
+				(0x3ULL << ICE_FXD_FLTR_WB_QW1_PROG_ID_S)
+#define ICE_FXD_FLTR_WB_QW1_PROG_ADD	0x0ULL
+#define ICE_FXD_FLTR_WB_QW1_PROG_DEL	0x1ULL
+
+#define ICE_FXD_FLTR_WB_QW1_FAIL_S	4
+#define ICE_FXD_FLTR_WB_QW1_FAIL_M	(0x1ULL << ICE_FXD_FLTR_WB_QW1_FAIL_S)
+#define ICE_FXD_FLTR_WB_QW1_FAIL_YES	0x1ULL
+
+#define ICE_FXD_FLTR_WB_QW1_FAIL_PROF_S	5
+#define ICE_FXD_FLTR_WB_QW1_FAIL_PROF_M	\
+				(0x1ULL << ICE_FXD_FLTR_WB_QW1_FAIL_PROF_S)
+#define ICE_FXD_FLTR_WB_QW1_FAIL_PROF_YES	0x1ULL
+
 struct ice_rx_ptype_decoded {
 	u32 ptype:10;
 	u32 known:1;
