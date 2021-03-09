@@ -30,6 +30,7 @@ enum iavf_fdir_flow_type {
 	IAVF_FDIR_FLOW_IPV6_AH,
 	IAVF_FDIR_FLOW_IPV6_ESP,
 	IAVF_FDIR_FLOW_IPV6_OTHER,
+	IAVF_FDIR_FLOW_NON_IP_L2,
 	/* MAX - this must be last and add anything new just above it */
 	IAVF_FDIR_FLOW_PTYPE_MAX,
 };
@@ -42,6 +43,10 @@ struct iavf_ipv4_addrs {
 struct iavf_ipv6_addrs {
 	struct in6_addr src_ip;
 	struct in6_addr dst_ip;
+};
+
+struct iavf_fdir_eth {
+	__be16 etype;
 };
 
 struct iavf_fdir_ip {
@@ -65,6 +70,9 @@ struct iavf_fdir_fltr {
 	struct list_head list;
 
 	enum iavf_fdir_flow_type flow_type;
+
+	struct iavf_fdir_eth eth_data;
+	struct iavf_fdir_eth eth_mask;
 
 	struct iavf_fdir_ip ip_data;
 	struct iavf_fdir_ip ip_mask;
