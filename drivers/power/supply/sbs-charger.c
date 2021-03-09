@@ -16,9 +16,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
 #include <linux/regmap.h>
-#include <linux/of_gpio.h>
 #include <linux/bitops.h>
 
 #define SBS_CHARGER_REG_SPEC_INFO		0x11
