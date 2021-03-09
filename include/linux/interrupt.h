@@ -711,8 +711,7 @@ static inline void tasklet_disable_in_atomic(struct tasklet_struct *t)
 static inline void tasklet_disable(struct tasklet_struct *t)
 {
 	tasklet_disable_nosync(t);
-	/* Spin wait until all atomic users are converted */
-	tasklet_unlock_spin_wait(t);
+	tasklet_unlock_wait(t);
 	smp_mb();
 }
 
