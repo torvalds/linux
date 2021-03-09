@@ -1432,10 +1432,12 @@ static void dpcm_be_dai_startup_unwind(struct snd_soc_pcm_runtime *fe,
 		struct snd_pcm_substream *be_substream =
 			snd_soc_dpcm_get_substream(be, stream);
 
-		if (be->dpcm[stream].users == 0)
+		if (be->dpcm[stream].users == 0) {
 			dev_err(be->dev, "ASoC: no users %s at close - state %d\n",
 				stream ? "capture" : "playback",
 				be->dpcm[stream].state);
+			continue;
+		}
 
 		if (--be->dpcm[stream].users != 0)
 			continue;
@@ -1472,10 +1474,12 @@ int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 			continue;
 
 		/* first time the dpcm is open ? */
-		if (be->dpcm[stream].users == DPCM_MAX_BE_USERS)
+		if (be->dpcm[stream].users == DPCM_MAX_BE_USERS) {
 			dev_err(be->dev, "ASoC: too many users %s at open %d\n",
 				stream ? "capture" : "playback",
 				be->dpcm[stream].state);
+			continue;
+		}
 
 		if (be->dpcm[stream].users++ != 0)
 			continue;
@@ -1517,10 +1521,12 @@ unwind:
 		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
 			continue;
 
-		if (be->dpcm[stream].users == 0)
+		if (be->dpcm[stream].users == 0) {
 			dev_err(be->dev, "ASoC: no users %s at close %d\n",
 				stream ? "capture" : "playback",
 				be->dpcm[stream].state);
+			continue;
+		}
 
 		if (--be->dpcm[stream].users != 0)
 			continue;
