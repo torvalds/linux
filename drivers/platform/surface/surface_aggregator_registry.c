@@ -191,7 +191,7 @@ static const struct software_node *ssam_node_group_sp6[] = {
 	NULL,
 };
 
-/* Devices for Surface Pro 7. */
+/* Devices for Surface Pro 7 and Surface Pro 7+. */
 static const struct software_node *ssam_node_group_sp7[] = {
 	&ssam_node_root,
 	&ssam_node_bat_ac,
@@ -520,6 +520,9 @@ static const struct acpi_device_id ssam_platform_hub_match[] = {
 
 	/* Surface Pro 7 */
 	{ "MSHW0116", (unsigned long)ssam_node_group_sp7 },
+
+	/* Surface Pro 7+ */
+	{ "MSHW0119", (unsigned long)ssam_node_group_sp7 },
 
 	/* Surface Book 2 */
 	{ "MSHW0107", (unsigned long)ssam_node_group_sb2 },
