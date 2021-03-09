@@ -352,7 +352,7 @@ static struct attribute *ssam_base_hub_attrs[] = {
 	NULL,
 };
 
-const struct attribute_group ssam_base_hub_group = {
+static const struct attribute_group ssam_base_hub_group = {
 	.attrs = ssam_base_hub_attrs,
 };
 
