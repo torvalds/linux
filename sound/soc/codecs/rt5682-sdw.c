@@ -677,7 +677,7 @@ static int rt5682_interrupt_callback(struct sdw_slave *slave,
 
 	if (status->control_port & 0x4) {
 		mod_delayed_work(system_power_efficient_wq,
-			&rt5682->jack_detect_work, msecs_to_jiffies(250));
+			&rt5682->jack_detect_work, msecs_to_jiffies(rt5682->irq_work_delay_time));
 	}
 
 	return 0;
