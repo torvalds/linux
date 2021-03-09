@@ -123,11 +123,9 @@ static inline bool mlx5e_accel_tx_begin(struct net_device *dev,
 		mlx5e_udp_gso_handle_tx_skb(skb);
 
 #ifdef CONFIG_MLX5_EN_TLS
-	if (test_bit(MLX5E_SQ_STATE_TLS, &sq->state)) {
-		/* May send SKBs and WQEs. */
-		if (unlikely(!mlx5e_tls_handle_tx_skb(dev, sq, skb, &state->tls)))
-			return false;
-	}
+	/* May send SKBs and WQEs. */
+	if (unlikely(!mlx5e_tls_handle_tx_skb(dev, sq, skb, &state->tls)))
+		return false;
 #endif
 
 #ifdef CONFIG_MLX5_EN_IPSEC
