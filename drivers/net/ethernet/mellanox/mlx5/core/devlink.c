@@ -137,12 +137,12 @@ static int mlx5_devlink_reload_down(struct devlink *devlink, bool netns_change,
 		 * unregistering devlink instance while holding devlink_mutext.
 		 * Hence, do not support reload.
 		 */
-		NL_SET_ERR_MSG_MOD(extack, "reload is unsupported when SFs are allocated\n");
+		NL_SET_ERR_MSG_MOD(extack, "reload is unsupported when SFs are allocated");
 		return -EOPNOTSUPP;
 	}
 
 	if (mlx5_lag_is_active(dev)) {
-		NL_SET_ERR_MSG_MOD(extack, "reload is unsupported in Lag mode\n");
+		NL_SET_ERR_MSG_MOD(extack, "reload is unsupported in Lag mode");
 		return -EOPNOTSUPP;
 	}
 
