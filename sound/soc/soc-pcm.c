@@ -410,7 +410,7 @@ static int soc_pcm_params_symmetry(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static bool soc_pcm_has_symmetry(struct snd_pcm_substream *substream)
+static void soc_pcm_update_symmetry(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai_link *link = rtd->dai_link;
@@ -427,7 +427,8 @@ static bool soc_pcm_has_symmetry(struct snd_pcm_substream *substream)
 			dai->driver->symmetric_channels ||
 			dai->driver->symmetric_sample_bits;
 
-	return symmetry;
+	if (symmetry)
+		substream->runtime->hw.info |= SNDRV_PCM_INFO_JOINT_DUPLEX;
 }
 
 static void soc_pcm_set_msb(struct snd_pcm_substream *substream, int bits)
@@ -739,8 +740,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	/* Check that the codec and cpu DAIs are compatible */
 	soc_pcm_init_runtime_hw(substream);
 
-	if (soc_pcm_has_symmetry(substream))
-		runtime->hw.info |= SNDRV_PCM_INFO_JOINT_DUPLEX;
+	soc_pcm_update_symmetry(substream);
 
 	ret = -EINVAL;
 	if (!runtime->hw.rates) {
@@ -1685,8 +1685,7 @@ static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
 	int i;
 
 	/* apply symmetry for FE */
-	if (soc_pcm_has_symmetry(fe_substream))
-		fe_substream->runtime->hw.info |= SNDRV_PCM_INFO_JOINT_DUPLEX;
+	soc_pcm_update_symmetry(fe_substream);
 
 	for_each_rtd_cpu_dais (fe, i, fe_cpu_dai) {
 		/* Symmetry only applies if we've got an active stream. */
@@ -1711,8 +1710,7 @@ static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
 		if (rtd->dai_link->be_hw_params_fixup)
 			continue;
 
-		if (soc_pcm_has_symmetry(be_substream))
-			be_substream->runtime->hw.info |= SNDRV_PCM_INFO_JOINT_DUPLEX;
+		soc_pcm_update_symmetry(be_substream);
 
 		/* Symmetry only applies if we've got an active stream. */
 		for_each_rtd_dais(rtd, i, dai) {
