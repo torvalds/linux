@@ -24,7 +24,10 @@ extern void (*board_ebase_setup)(void);
 extern void (*board_cache_error_setup)(void);
 
 extern int register_nmi_notifier(struct notifier_block *nb);
+extern void reserve_exception_space(phys_addr_t addr, unsigned long size);
 extern char except_vec_nmi[];
+
+#define VECTORSPACING 0x100	/* for EI/VI mode */
 
 #define nmi_notifier(fn, pri)						\
 ({									\
