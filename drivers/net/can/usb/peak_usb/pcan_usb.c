@@ -11,6 +11,7 @@
 #include <linux/netdevice.h>
 #include <linux/usb.h>
 #include <linux/module.h>
+#include <linux/ethtool.h>
 
 #include <linux/can.h>
 #include <linux/can/dev.h>
@@ -40,6 +41,7 @@
 #define PCAN_USB_CMD_REGISTER	9
 #define PCAN_USB_CMD_EXT_VCC	10
 #define PCAN_USB_CMD_ERR_FR	11
+#define PCAN_USB_CMD_LED	12
 
 /* PCAN_USB_CMD_SET_BUS number arg */
 #define PCAN_USB_BUS_XCVER		2
@@ -246,6 +248,15 @@ static int pcan_usb_set_ext_vcc(struct peak_usb_device *dev, u8 onoff)
 	};
 
 	return pcan_usb_send_cmd(dev, PCAN_USB_CMD_EXT_VCC, PCAN_USB_SET, args);
+}
+
+static int pcan_usb_set_led(struct peak_usb_device *dev, u8 onoff)
+{
+	u8 args[PCAN_USB_CMD_ARGS_LEN] = {
+		[0] = !!onoff,
+	};
+
+	return pcan_usb_send_cmd(dev, PCAN_USB_CMD_LED, PCAN_USB_SET, args);
 }
 
 /*
@@ -971,6 +982,40 @@ static int pcan_usb_probe(struct usb_interface *intf)
 	return 0;
 }
 
+static int pcan_usb_set_phys_id(struct net_device *netdev,
+				enum ethtool_phys_id_state state)
+{
+	struct peak_usb_device *dev = netdev_priv(netdev);
+	int err = 0;
+
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		/* call ON/OFF twice a second */
+		return 2;
+
+	case ETHTOOL_ID_OFF:
+		err = pcan_usb_set_led(dev, 0);
+		break;
+
+	case ETHTOOL_ID_ON:
+		fallthrough;
+
+	case ETHTOOL_ID_INACTIVE:
+		/* restore LED default */
+		err = pcan_usb_set_led(dev, 1);
+		break;
+
+	default:
+		break;
+	}
+
+	return err;
+}
+
+static const struct ethtool_ops pcan_usb_ethtool_ops = {
+	.set_phys_id = pcan_usb_set_phys_id,
+};
+
 /*
  * describe the PCAN-USB adapter
  */
@@ -1000,6 +1045,8 @@ const struct peak_usb_adapter pcan_usb = {
 
 	/* size of device private data */
 	.sizeof_dev_private = sizeof(struct pcan_usb),
+
+	.ethtool_ops = &pcan_usb_ethtool_ops,
 
 	/* timestamps usage */
 	.ts_used_bits = 16,

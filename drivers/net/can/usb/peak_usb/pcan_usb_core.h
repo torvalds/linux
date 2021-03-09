@@ -46,6 +46,8 @@ struct peak_usb_adapter {
 	const struct can_bittiming_const * const data_bittiming_const;
 	unsigned int ctrl_count;
 
+	const struct ethtool_ops *ethtool_ops;
+
 	int (*intf_probe)(struct usb_interface *intf);
 
 	int (*dev_init)(struct peak_usb_device *dev);
