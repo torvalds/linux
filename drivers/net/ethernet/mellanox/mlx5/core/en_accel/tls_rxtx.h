@@ -47,6 +47,12 @@ u16 mlx5e_tls_get_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *par
 
 bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 			     struct sk_buff *skb, struct mlx5e_accel_tx_tls_state *state);
+
+static inline bool mlx5e_tls_skb_offloaded(struct sk_buff *skb)
+{
+	return skb->sk && tls_is_sk_tx_device_offloaded(skb->sk);
+}
+
 void mlx5e_tls_handle_tx_wqe(struct mlx5e_txqsq *sq, struct mlx5_wqe_ctrl_seg *cseg,
 			     struct mlx5e_accel_tx_tls_state *state);
 

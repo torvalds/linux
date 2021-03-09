@@ -263,9 +263,6 @@ bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 	int datalen;
 	u32 skb_seq;
 
-	if (!skb->sk || !tls_is_sk_tx_device_offloaded(skb->sk))
-		return true;
-
 	datalen = skb->len - (skb_transport_offset(skb) + tcp_hdrlen(skb));
 	if (!datalen)
 		return true;
