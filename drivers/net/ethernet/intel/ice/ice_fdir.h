@@ -25,6 +25,12 @@
 #define ICE_IPV6_UDP_DST_PORT_OFFSET	56
 #define ICE_IPV6_SCTP_SRC_PORT_OFFSET	54
 #define ICE_IPV6_SCTP_DST_PORT_OFFSET	56
+#define ICE_IPV4_TOS_OFFSET		15
+#define ICE_IPV4_TTL_OFFSET		22
+#define ICE_IPV6_TC_OFFSET		14
+#define ICE_IPV6_HLIM_OFFSET		21
+#define ICE_IPV6_PROTO_OFFSET		20
+
 /* IP v4 has 2 flag bits that enable fragment processing: DF and MF. DF
  * requests that the packet not be fragmented. MF indicates that a packet has
  * been fragmented.
@@ -86,6 +92,7 @@ struct ice_fdir_v4 {
 	u8 tos;
 	u8 ip_ver;
 	u8 proto;
+	u8 ttl;
 };
 
 #define ICE_IPV6_ADDR_LEN_AS_U32		4
@@ -99,6 +106,7 @@ struct ice_fdir_v6 {
 	__be32 sec_parm_idx; /* security parameter index */
 	u8 tc;
 	u8 proto;
+	u8 hlim;
 };
 
 struct ice_fdir_extra {

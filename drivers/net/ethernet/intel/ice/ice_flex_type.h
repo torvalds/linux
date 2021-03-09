@@ -335,6 +335,7 @@ struct ice_es {
 	u16 count;
 	u16 fvw;
 	u16 *ref_count;
+	u32 *mask_ena;
 	struct list_head prof_map;
 	struct ice_fv_word *t;
 	struct mutex prof_map_lock;	/* protect access to profiles list */
@@ -478,6 +479,21 @@ struct ice_prof_redir {
 	u16 count;
 };
 
+struct ice_mask {
+	u16 mask;	/* 16-bit mask */
+	u16 idx;	/* index */
+	u16 ref;	/* reference count */
+	u8 in_use;	/* non-zero if used */
+};
+
+struct ice_masks {
+	struct mutex lock; /* lock to protect this structure */
+	u16 first;	/* first mask owned by the PF */
+	u16 count;	/* number of masks owned by the PF */
+#define ICE_PROF_MASK_COUNT 32
+	struct ice_mask masks[ICE_PROF_MASK_COUNT];
+};
+
 /* Tables per block */
 struct ice_blk_info {
 	struct ice_xlt1 xlt1;
@@ -485,6 +501,7 @@ struct ice_blk_info {
 	struct ice_prof_tcam prof;
 	struct ice_prof_redir prof_redir;
 	struct ice_es es;
+	struct ice_masks masks;
 	u8 overwrite; /* set to true to allow overwrite of table entries */
 	u8 is_list_init;
 };
