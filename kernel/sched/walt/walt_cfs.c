@@ -665,7 +665,7 @@ walt_select_task_rq_fair(void *unused, struct task_struct *p, int prev_cpu,
 	int sync;
 	int sibling_count_hint;
 
-	if (static_branch_unlikely(&walt_disabled))
+	if (unlikely(walt_disabled))
 		return;
 
 	sync = (wake_flags & WF_SYNC) && !(current->flags & PF_EXITING);
@@ -684,7 +684,7 @@ static inline struct task_struct *task_of(struct sched_entity *se)
 
 static void walt_place_entity(void *unused, struct sched_entity *se, u64 *vruntime)
 {
-	if (static_branch_unlikely(&walt_disabled))
+	if (unlikely(walt_disabled))
 		return;
 	if (entity_is_task(se)) {
 		unsigned long thresh = sysctl_sched_latency;
@@ -710,7 +710,7 @@ static void walt_binder_low_latency_set(void *unused, struct task_struct *task)
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) task->android_vendor_data1;
 
-	if (static_branch_unlikely(&walt_disabled))
+	if (unlikely(walt_disabled))
 		return;
 	if (task && current->signal &&
 			(current->signal->oom_score_adj == 0) &&
@@ -723,7 +723,7 @@ static void walt_binder_low_latency_clear(void *unused, struct binder_transactio
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) current->android_vendor_data1;
 
-	if (static_branch_unlikely(&walt_disabled))
+	if (unlikely(walt_disabled))
 		return;
 	if (wts->low_latency & WALT_LOW_LATENCY_BINDER)
 		wts->low_latency &= ~WALT_LOW_LATENCY_BINDER;

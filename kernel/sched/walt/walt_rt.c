@@ -24,7 +24,7 @@ static void walt_rt_energy_aware_wake_cpu(void *unused, struct task_struct *task
 	int cluster;
 	int order_index = (boost_on_big && num_sched_clusters > 1) ? 1 : 0;
 
-	if (static_branch_unlikely(&walt_disabled))
+	if (unlikely(walt_disabled))
 		return;
 
 	if (!ret)
@@ -119,7 +119,7 @@ static void walt_select_task_rq_rt(void *unused, struct task_struct *task, int c
 	int ret, target = -1;
 	struct cpumask *lowest_mask;
 
-	if (static_branch_unlikely(&walt_disabled))
+	if (unlikely(walt_disabled))
 		return;
 
 	/* For anything but wake ups, just return the task_cpu */

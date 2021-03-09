@@ -32,7 +32,7 @@
 /* MAX_MARGIN_LEVELS should be one less than MAX_CLUSTERS */
 #define MAX_MARGIN_LEVELS (MAX_CLUSTERS - 1)
 
-extern struct static_key_true walt_disabled;
+extern bool walt_disabled;
 
 enum task_event {
 	PUT_PREV_TASK	= 0,
