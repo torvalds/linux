@@ -65,8 +65,8 @@ int config = 0;
 int result = 0;
 
 SEC("kprobe/virtqueue_add_sgs")
-BPF_KPROBE(trace_virtqueue_add_sgs, void *unused, struct scatterlist **sgs,
-	   unsigned int out_sgs, unsigned int in_sgs)
+int BPF_KPROBE(trace_virtqueue_add_sgs, void *unused, struct scatterlist **sgs,
+	       unsigned int out_sgs, unsigned int in_sgs)
 {
 	struct scatterlist *sgp = NULL;
 	__u64 length1 = 0, length2 = 0;
