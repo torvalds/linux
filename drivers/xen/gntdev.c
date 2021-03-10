@@ -186,11 +186,11 @@ struct gntdev_grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count,
 		goto err;
 
 	for (i = 0; i < count; i++) {
-		add->map_ops[i].handle = -1;
-		add->unmap_ops[i].handle = -1;
+		add->map_ops[i].handle = INVALID_GRANT_HANDLE;
+		add->unmap_ops[i].handle = INVALID_GRANT_HANDLE;
 		if (use_ptemod) {
-			add->kmap_ops[i].handle = -1;
-			add->kunmap_ops[i].handle = -1;
+			add->kmap_ops[i].handle = INVALID_GRANT_HANDLE;
+			add->kunmap_ops[i].handle = INVALID_GRANT_HANDLE;
 		}
 	}
 
@@ -279,7 +279,7 @@ static int find_grant_ptes(pte_t *pte, unsigned long addr, void *data)
 			  map->grants[pgnr].ref,
 			  map->grants[pgnr].domid);
 	gnttab_set_unmap_op(&map->unmap_ops[pgnr], pte_maddr, flags,
-			    -1 /* handle */);
+			    INVALID_GRANT_HANDLE);
 	return 0;
 }
 
@@ -297,7 +297,7 @@ int gntdev_map_grant_pages(struct gntdev_grant_map *map)
 
 	if (!use_ptemod) {
 		/* Note: it could already be mapped */
-		if (map->map_ops[0].handle != -1)
+		if (map->map_ops[0].handle != INVALID_GRANT_HANDLE)
 			return 0;
 		for (i = 0; i < map->count; i++) {
 			unsigned long addr = (unsigned long)
@@ -306,7 +306,7 @@ int gntdev_map_grant_pages(struct gntdev_grant_map *map)
 				map->grants[i].ref,
 				map->grants[i].domid);
 			gnttab_set_unmap_op(&map->unmap_ops[i], addr,
-				map->flags, -1 /* handle */);
+				map->flags, INVALID_GRANT_HANDLE);
 		}
 	} else {
 		/*
@@ -332,7 +332,7 @@ int gntdev_map_grant_pages(struct gntdev_grant_map *map)
 				map->grants[i].ref,
 				map->grants[i].domid);
 			gnttab_set_unmap_op(&map->kunmap_ops[i], address,
-				flags, -1);
+				flags, INVALID_GRANT_HANDLE);
 		}
 	}
 
@@ -390,7 +390,7 @@ static int __unmap_grant_pages(struct gntdev_grant_map *map, int offset,
 		pr_debug("unmap handle=%d st=%d\n",
 			map->unmap_ops[offset+i].handle,
 			map->unmap_ops[offset+i].status);
-		map->unmap_ops[offset+i].handle = -1;
+		map->unmap_ops[offset+i].handle = INVALID_GRANT_HANDLE;
 	}
 	return err;
 }
@@ -406,13 +406,15 @@ static int unmap_grant_pages(struct gntdev_grant_map *map, int offset,
 	 * already unmapped some of the grants. Only unmap valid ranges.
 	 */
 	while (pages && !err) {
-		while (pages && map->unmap_ops[offset].handle == -1) {
+		while (pages &&
+		       map->unmap_ops[offset].handle == INVALID_GRANT_HANDLE) {
 			offset++;
 			pages--;
 		}
 		range = 0;
 		while (range < pages) {
-			if (map->unmap_ops[offset+range].handle == -1)
+			if (map->unmap_ops[offset + range].handle ==
+			    INVALID_GRANT_HANDLE)
 				break;
 			range++;
 		}
