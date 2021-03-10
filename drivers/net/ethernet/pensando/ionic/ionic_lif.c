@@ -2204,6 +2204,9 @@ static void ionic_swap_queues(struct ionic_qcq *a, struct ionic_qcq *b)
 	swap(a->cq_base,      b->cq_base);
 	swap(a->cq_base_pa,   b->cq_base_pa);
 	swap(a->cq_size,      b->cq_size);
+
+	ionic_debugfs_del_qcq(a);
+	ionic_debugfs_add_qcq(a->q.lif, a);
 }
 
 int ionic_reconfigure_queues(struct ionic_lif *lif,
