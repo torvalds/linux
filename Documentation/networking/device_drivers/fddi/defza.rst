@@ -60,4 +60,4 @@ To do:
 
 Both success and failure reports are welcome.
 
-Maciej W. Rozycki  <macro@linux-mips.org>
+Maciej W. Rozycki  <macro@orcam.me.uk>
