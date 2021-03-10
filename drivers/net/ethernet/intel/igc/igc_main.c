@@ -941,7 +941,7 @@ static void igc_tx_ctxtdesc(struct igc_ring *tx_ring,
 		struct igc_adapter *adapter = netdev_priv(tx_ring->netdev);
 		ktime_t txtime = first->skb->tstamp;
 
-		first->skb->tstamp = ktime_set(0, 0);
+		skb_txtime_consumed(first->skb);
 		context_desc->launch_time = igc_tx_launchtime(adapter,
 							      txtime);
 	} else {
