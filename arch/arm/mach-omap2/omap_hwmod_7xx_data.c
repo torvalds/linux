@@ -81,7 +81,7 @@ static struct omap_hwmod dra7xx_l3_main_2_hwmod = {
 
 /*
  * 'l4' class
- * instance(s): l4_cfg, l4_per2, l4_per3
+ * instance(s): l4_cfg, l4_per3
  */
 static struct omap_hwmod_class dra7xx_l4_hwmod_class = {
 	.name	= "l4",
@@ -100,19 +100,6 @@ static struct omap_hwmod dra7xx_l4_cfg_hwmod = {
 	},
 };
 
-/* l4_per2 */
-static struct omap_hwmod dra7xx_l4_per2_hwmod = {
-	.name		= "l4_per2",
-	.class		= &dra7xx_l4_hwmod_class,
-	.clkdm_name	= "l4per2_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4PER2_L4_PER2_CLKCTRL_OFFSET,
-			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
-		},
-	},
-};
-
 /* l4_per3 */
 static struct omap_hwmod dra7xx_l4_per3_hwmod = {
 	.name		= "l4_per3",
@@ -122,30 +109,6 @@ static struct omap_hwmod dra7xx_l4_per3_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L4PER3_L4_PER3_CLKCTRL_OFFSET,
 			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
-		},
-	},
-};
-
-/*
- * 'atl' class
- *
- */
-
-static struct omap_hwmod_class dra7xx_atl_hwmod_class = {
-	.name	= "atl",
-};
-
-/* atl */
-static struct omap_hwmod dra7xx_atl_hwmod = {
-	.name		= "atl",
-	.class		= &dra7xx_atl_hwmod_class,
-	.clkdm_name	= "atl_clkdm",
-	.main_clk	= "atl_gfclk_mux",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_ATL_ATL_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_ATL_ATL_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 };
@@ -257,26 +220,10 @@ static struct omap_hwmod_ocp_if dra7xx_l3_main_1__l4_cfg = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l3_main_1 -> l4_per2 */
-static struct omap_hwmod_ocp_if dra7xx_l3_main_1__l4_per2 = {
-	.master		= &dra7xx_l3_main_1_hwmod,
-	.slave		= &dra7xx_l4_per2_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l3_main_1 -> l4_per3 */
 static struct omap_hwmod_ocp_if dra7xx_l3_main_1__l4_per3 = {
 	.master		= &dra7xx_l3_main_1_hwmod,
 	.slave		= &dra7xx_l4_per3_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per2 -> atl */
-static struct omap_hwmod_ocp_if dra7xx_l4_per2__atl = {
-	.master		= &dra7xx_l4_per2_hwmod,
-	.slave		= &dra7xx_atl_hwmod,
 	.clk		= "l3_iclk_div",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
@@ -297,25 +244,9 @@ static struct omap_hwmod_ocp_if dra7xx_l3_main_1__vcp1 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_per2 -> vcp1 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per2__vcp1 = {
-	.master		= &dra7xx_l4_per2_hwmod,
-	.slave		= &dra7xx_vcp1_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l3_main_1 -> vcp2 */
 static struct omap_hwmod_ocp_if dra7xx_l3_main_1__vcp2 = {
 	.master		= &dra7xx_l3_main_1_hwmod,
-	.slave		= &dra7xx_vcp2_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_per2 -> vcp2 */
-static struct omap_hwmod_ocp_if dra7xx_l4_per2__vcp2 = {
-	.master		= &dra7xx_l4_per2_hwmod,
 	.slave		= &dra7xx_vcp2_hwmod,
 	.clk		= "l3_iclk_div",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
@@ -327,14 +258,10 @@ static struct omap_hwmod_ocp_if *dra7xx_hwmod_ocp_ifs[] __initdata = {
 	&dra7xx_l3_main_1__l3_main_2,
 	&dra7xx_l4_cfg__l3_main_2,
 	&dra7xx_l3_main_1__l4_cfg,
-	&dra7xx_l3_main_1__l4_per2,
 	&dra7xx_l3_main_1__l4_per3,
-	&dra7xx_l4_per2__atl,
 	&dra7xx_l3_main_1__bb2d,
 	&dra7xx_l3_main_1__vcp1,
-	&dra7xx_l4_per2__vcp1,
 	&dra7xx_l3_main_1__vcp2,
-	&dra7xx_l4_per2__vcp2,
 	NULL,
 };
 
