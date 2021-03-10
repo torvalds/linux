@@ -2972,6 +2972,19 @@ int smu_gfx_state_change_set(struct smu_context *smu, uint32_t state)
 	return ret;
 }
 
+int smu_set_light_sbr(struct smu_context *smu, bool enable)
+{
+	int ret = 0;
+
+	mutex_lock(&smu->mutex);
+	if (smu->ppt_funcs->set_light_sbr)
+		ret = smu->ppt_funcs->set_light_sbr(smu, enable);
+	mutex_unlock(&smu->mutex);
+
+	return ret;
+}
+
+
 static const struct amd_pm_funcs swsmu_pm_funcs = {
 	/* export for sysfs */
 	.set_fan_control_mode    = smu_pp_set_fan_control_mode,

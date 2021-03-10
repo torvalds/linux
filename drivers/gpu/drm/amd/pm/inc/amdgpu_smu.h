@@ -1153,6 +1153,11 @@ struct pptable_funcs {
 	 *                                      parameters to defaults.
 	 */
 	int (*set_fine_grain_gfx_freq_parameters)(struct smu_context *smu);
+
+	/**
+	 * @set_light_sbr:  Set light sbr mode for the SMU.
+	 */
+	int (*set_light_sbr)(struct smu_context *smu, bool enable);
 };
 
 typedef enum {
@@ -1355,6 +1360,8 @@ ssize_t smu_sys_get_gpu_metrics(void *handle, void **table);
 
 int smu_enable_mgpu_fan_boost(void *handle);
 int smu_gfx_state_change_set(struct smu_context *smu, uint32_t state);
+
+int smu_set_light_sbr(struct smu_context *smu, bool enable);
 
 #endif
 #endif
