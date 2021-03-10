@@ -9136,6 +9136,16 @@ F:	drivers/hwmon/intel-m10-bmc-hwmon.c
 F:	drivers/mfd/intel-m10-bmc.c
 F:	include/linux/mfd/intel-m10-bmc.h
 
+INTEL MAX 10 BMC MFD DRIVER
+M:	Xu Yilun <yilun.xu@intel.com>
+R:	Tom Rix <trix@redhat.com>
+S:	Maintained
+F:	Documentation/ABI/testing/sysfs-driver-intel-m10-bmc
+F:	Documentation/hwmon/intel-m10-bmc-hwmon.rst
+F:	drivers/hwmon/intel-m10-bmc-hwmon.c
+F:	drivers/mfd/intel-m10-bmc.c
+F:	include/linux/mfd/intel-m10-bmc.h
+
 INTEL MENLOW THERMAL DRIVER
 M:	Sujith Thomas <sujith.thomas@intel.com>
 L:	platform-driver-x86@vger.kernel.org
