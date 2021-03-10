@@ -3521,11 +3521,11 @@ fence_driver_init:
 			adev->virt.caps &= ~AMDGPU_SRIOV_CAPS_RUNTIME;
 			adev->virt.ops = NULL;
 			r = -EAGAIN;
-			goto failed;
+			goto release_ras_con;
 		}
 		dev_err(adev->dev, "amdgpu_device_ip_init failed\n");
 		amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_AMDGPU_INIT_FAIL, 0, 0);
-		goto failed;
+		goto release_ras_con;
 	}
 
 	dev_info(adev->dev,
@@ -3591,7 +3591,7 @@ fence_driver_init:
 		if (r) {
 			dev_err(adev->dev, "amdgpu_device_ip_late_init failed\n");
 			amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_AMDGPU_LATE_INIT_FAIL, 0, r);
-			goto failed;
+			goto release_ras_con;
 		}
 		/* must succeed. */
 		amdgpu_ras_resume(adev);
@@ -3624,6 +3624,9 @@ fence_driver_init:
 				   msecs_to_jiffies(AMDGPU_RESUME_MS));
 
 	return 0;
+
+release_ras_con:
+	amdgpu_release_ras_context(adev);
 
 failed:
 	amdgpu_vf_error_trans_all(adev);

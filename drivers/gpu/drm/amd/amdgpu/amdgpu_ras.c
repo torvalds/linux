@@ -463,7 +463,7 @@ static struct ras_manager *amdgpu_ras_create_obj(struct amdgpu_device *adev,
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj;
 
-	if (!con)
+	if (!adev->ras_features || !con)
 		return NULL;
 
 	if (head->block >= AMDGPU_RAS_BLOCK_COUNT)
@@ -490,7 +490,7 @@ struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
 	struct ras_manager *obj;
 	int i;
 
-	if (!con)
+	if (!adev->ras_features || !con)
 		return NULL;
 
 	if (head) {
@@ -590,7 +590,11 @@ static int __amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 		con->features |= BIT(head->block);
 	} else {
 		if (obj && amdgpu_ras_is_feature_enabled(adev, head)) {
-			con->features &= ~BIT(head->block);
+			/* skip clean gfx ras context feature for VEGA20 Gaming.
+			 * will clean later
+			 */
+			if (!(!adev->ras_features && con->features & BIT(AMDGPU_RAS_BLOCK__GFX)))
+				con->features &= ~BIT(head->block);
 			put_obj(obj);
 		}
 	}
@@ -692,6 +696,10 @@ int amdgpu_ras_feature_enable_on_boot(struct amdgpu_device *adev,
 			ret = __amdgpu_ras_feature_enable(adev, head, 1);
 			if (ret)
 				return ret;
+
+			/* gfx block ras dsiable cmd must send to ras-ta */
+			if (head->block == AMDGPU_RAS_BLOCK__GFX)
+				con->features |= BIT(head->block);
 
 			ret = amdgpu_ras_feature_enable(adev, head, 0);
 		}
@@ -948,7 +956,7 @@ unsigned long amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 	struct ras_manager *obj;
 	struct ras_err_data data = {0, 0};
 
-	if (!con)
+	if (!adev->ras_features || !con)
 		return 0;
 
 	list_for_each_entry(obj, &con->head, node) {
@@ -1469,7 +1477,7 @@ static void amdgpu_ras_log_on_err_counter(struct amdgpu_device *adev)
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj;
 
-	if (!con)
+	if (!adev->ras_features || !con)
 		return;
 
 	list_for_each_entry(obj, &con->head, node) {
@@ -1517,7 +1525,7 @@ static void amdgpu_ras_query_err_status(struct amdgpu_device *adev)
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj;
 
-	if (!con)
+	if (!adev->ras_features || !con)
 		return;
 
 	list_for_each_entry(obj, &con->head, node) {
@@ -1830,7 +1838,7 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 	bool exc_err_limit = false;
 	int ret;
 
-	if (con)
+	if (adev->ras_features && con)
 		data = &con->eh_data;
 	else
 		return 0;
@@ -2005,6 +2013,15 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 	amdgpu_ras_check_supported(adev, &con->hw_supported,
 			&con->supported);
 	if (!con->hw_supported || (adev->asic_type == CHIP_VEGA10)) {
+		/* set gfx block ras context feature for VEGA20 Gaming
+		 * send ras disable cmd to ras ta during ras late init.
+		 */
+		if (!adev->ras_features && adev->asic_type == CHIP_VEGA20) {
+			con->features |= BIT(AMDGPU_RAS_BLOCK__GFX);
+
+			return 0;
+		}
+
 		r = 0;
 		goto release_con;
 	}
@@ -2118,8 +2135,12 @@ void amdgpu_ras_resume(struct amdgpu_device *adev)
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj, *tmp;
 
-	if (!con)
+	if (!adev->ras_features || !con) {
+		/* clean ras context for VEGA20 Gaming after send ras disable cmd */
+		amdgpu_release_ras_context(adev);
+
 		return;
+	}
 
 	if (con->flags & AMDGPU_RAS_FLAG_INIT_BY_VBIOS) {
 		/* Set up all other IPs which are not implemented. There is a
@@ -2160,7 +2181,7 @@ void amdgpu_ras_suspend(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 
-	if (!con)
+	if (!adev->ras_features || !con)
 		return;
 
 	amdgpu_ras_disable_all_features(adev, 0);
@@ -2174,7 +2195,7 @@ int amdgpu_ras_pre_fini(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 
-	if (!con)
+	if (!adev->ras_features || !con)
 		return 0;
 
 	/* Need disable ras on all IPs here before ip [hw/sw]fini */
@@ -2187,7 +2208,7 @@ int amdgpu_ras_fini(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 
-	if (!con)
+	if (!adev->ras_features || !con)
 		return 0;
 
 	amdgpu_ras_fs_fini(adev);
@@ -2229,4 +2250,18 @@ bool amdgpu_ras_need_emergency_restart(struct amdgpu_device *adev)
 	}
 
 	return false;
+}
+
+void amdgpu_release_ras_context(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+
+	if (!con)
+		return;
+
+	if (!adev->ras_features && con->features & BIT(AMDGPU_RAS_BLOCK__GFX)) {
+		con->features &= ~BIT(AMDGPU_RAS_BLOCK__GFX);
+		amdgpu_ras_set_context(adev, NULL);
+		kfree(con);
+	}
 }

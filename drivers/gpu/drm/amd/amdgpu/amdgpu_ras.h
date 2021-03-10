@@ -626,4 +626,6 @@ void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev);
 void amdgpu_ras_set_error_query_ready(struct amdgpu_device *adev, bool ready);
 
 bool amdgpu_ras_need_emergency_restart(struct amdgpu_device *adev);
+
+void amdgpu_release_ras_context(struct amdgpu_device *adev);
 #endif
