@@ -53,11 +53,6 @@ static inline bool __access_ok(unsigned long addr, unsigned long size)
 #define __put_user(x, ptr) \
 	__put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 
-#define __get_user_inatomic(x, ptr) \
-	__get_user_nosleep((x), (ptr), sizeof(*(ptr)))
-#define __put_user_inatomic(x, ptr) \
-	__put_user_nosleep((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
-
 #ifdef CONFIG_PPC64
 
 #define ___get_user_instr(gu_op, dest, ptr)				\
@@ -91,9 +86,6 @@ static inline bool __access_ok(unsigned long addr, unsigned long size)
 
 #define __get_user_instr(x, ptr) \
 	___get_user_instr(__get_user, x, ptr)
-
-#define __get_user_instr_inatomic(x, ptr) \
-	___get_user_instr(__get_user_inatomic, x, ptr)
 
 extern long __put_user_bad(void);
 
@@ -140,20 +132,6 @@ __pu_failed:							\
 									\
 	__pu_err;							\
 })
-
-#define __put_user_nosleep(x, ptr, size)			\
-({								\
-	long __pu_err;						\
-	__typeof__(*(ptr)) __user *__pu_addr = (ptr);		\
-	__typeof__(*(ptr)) __pu_val = (x);			\
-	__typeof__(size) __pu_size = (size);			\
-								\
-	__chk_user_ptr(__pu_addr);				\
-	__put_user_size(__pu_val, __pu_addr, __pu_size, __pu_err); \
-								\
-	__pu_err;						\
-})
-
 
 /*
  * We don't tell gcc that we are accessing memory, but this is OK
@@ -319,21 +297,6 @@ do {								\
 									\
 	__gu_err;							\
 })
-
-#define __get_user_nosleep(x, ptr, size)			\
-({								\
-	long __gu_err;						\
-	__long_type(*(ptr)) __gu_val;				\
-	__typeof__(*(ptr)) __user *__gu_addr = (ptr);	\
-	__typeof__(size) __gu_size = (size);			\
-								\
-	__chk_user_ptr(__gu_addr);				\
-	__get_user_size(__gu_val, __gu_addr, __gu_size, __gu_err); \
-	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
-								\
-	__gu_err;						\
-})
-
 
 /* more complex routines */
 
