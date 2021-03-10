@@ -13,44 +13,6 @@
 #define ENETC_MAX_SKB_FRAGS	13
 #define ENETC_TXBDS_MAX_NEEDED	ENETC_TXBDS_NEEDED(ENETC_MAX_SKB_FRAGS + 1)
 
-static int enetc_map_tx_buffs(struct enetc_bdr *tx_ring, struct sk_buff *skb,
-			      int active_offloads);
-
-netdev_tx_t enetc_xmit(struct sk_buff *skb, struct net_device *ndev)
-{
-	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	struct enetc_bdr *tx_ring;
-	int count;
-
-	tx_ring = priv->tx_ring[skb->queue_mapping];
-
-	if (unlikely(skb_shinfo(skb)->nr_frags > ENETC_MAX_SKB_FRAGS))
-		if (unlikely(skb_linearize(skb)))
-			goto drop_packet_err;
-
-	count = skb_shinfo(skb)->nr_frags + 1; /* fragments + head */
-	if (enetc_bd_unused(tx_ring) < ENETC_TXBDS_NEEDED(count)) {
-		netif_stop_subqueue(ndev, tx_ring->index);
-		return NETDEV_TX_BUSY;
-	}
-
-	enetc_lock_mdio();
-	count = enetc_map_tx_buffs(tx_ring, skb, priv->active_offloads);
-	enetc_unlock_mdio();
-
-	if (unlikely(!count))
-		goto drop_packet_err;
-
-	if (enetc_bd_unused(tx_ring) < ENETC_TXBDS_MAX_NEEDED)
-		netif_stop_subqueue(ndev, tx_ring->index);
-
-	return NETDEV_TX_OK;
-
-drop_packet_err:
-	dev_kfree_skb_any(skb);
-	return NETDEV_TX_OK;
-}
-
 static void enetc_unmap_tx_buff(struct enetc_bdr *tx_ring,
 				struct enetc_tx_swbd *tx_swbd)
 {
@@ -219,6 +181,41 @@ dma_err:
 	} while (count--);
 
 	return 0;
+}
+
+netdev_tx_t enetc_xmit(struct sk_buff *skb, struct net_device *ndev)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	struct enetc_bdr *tx_ring;
+	int count;
+
+	tx_ring = priv->tx_ring[skb->queue_mapping];
+
+	if (unlikely(skb_shinfo(skb)->nr_frags > ENETC_MAX_SKB_FRAGS))
+		if (unlikely(skb_linearize(skb)))
+			goto drop_packet_err;
+
+	count = skb_shinfo(skb)->nr_frags + 1; /* fragments + head */
+	if (enetc_bd_unused(tx_ring) < ENETC_TXBDS_NEEDED(count)) {
+		netif_stop_subqueue(ndev, tx_ring->index);
+		return NETDEV_TX_BUSY;
+	}
+
+	enetc_lock_mdio();
+	count = enetc_map_tx_buffs(tx_ring, skb, priv->active_offloads);
+	enetc_unlock_mdio();
+
+	if (unlikely(!count))
+		goto drop_packet_err;
+
+	if (enetc_bd_unused(tx_ring) < ENETC_TXBDS_MAX_NEEDED)
+		netif_stop_subqueue(ndev, tx_ring->index);
+
+	return NETDEV_TX_OK;
+
+drop_packet_err:
+	dev_kfree_skb_any(skb);
+	return NETDEV_TX_OK;
 }
 
 static irqreturn_t enetc_msix(int irq, void *data)
