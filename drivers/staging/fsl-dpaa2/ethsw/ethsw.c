@@ -295,31 +295,6 @@ static int dpaa2_switch_port_fdb_del_mc(struct ethsw_port_priv *port_priv,
 	return err;
 }
 
-static int dpaa2_switch_port_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
-				     struct net_device *dev, const unsigned char *addr,
-				     u16 vid, u16 flags,
-				     struct netlink_ext_ack *extack)
-{
-	if (is_unicast_ether_addr(addr))
-		return dpaa2_switch_port_fdb_add_uc(netdev_priv(dev),
-						    addr);
-	else
-		return dpaa2_switch_port_fdb_add_mc(netdev_priv(dev),
-						    addr);
-}
-
-static int dpaa2_switch_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
-				     struct net_device *dev,
-				     const unsigned char *addr, u16 vid)
-{
-	if (is_unicast_ether_addr(addr))
-		return dpaa2_switch_port_fdb_del_uc(netdev_priv(dev),
-						    addr);
-	else
-		return dpaa2_switch_port_fdb_del_mc(netdev_priv(dev),
-						    addr);
-}
-
 static void dpaa2_switch_port_get_stats(struct net_device *netdev,
 					struct rtnl_link_stats64 *stats)
 {
@@ -726,8 +701,6 @@ static const struct net_device_ops dpaa2_switch_port_ops = {
 	.ndo_change_mtu		= dpaa2_switch_port_change_mtu,
 	.ndo_has_offload_stats	= dpaa2_switch_port_has_offload_stats,
 	.ndo_get_offload_stats	= dpaa2_switch_port_get_offload_stats,
-	.ndo_fdb_add		= dpaa2_switch_port_fdb_add,
-	.ndo_fdb_del		= dpaa2_switch_port_fdb_del,
 	.ndo_fdb_dump		= dpaa2_switch_port_fdb_dump,
 
 	.ndo_start_xmit		= dpaa2_switch_port_dropframe,
