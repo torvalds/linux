@@ -334,9 +334,9 @@ static int mlx5e_create_rq_umr_mkey(struct mlx5_core_dev *mdev, struct mlx5e_rq 
 				     rq->wqe_overflow.addr);
 }
 
-static inline u64 mlx5e_get_mpwqe_offset(struct mlx5e_rq *rq, u16 wqe_ix)
+static u64 mlx5e_get_mpwqe_offset(u16 wqe_ix)
 {
-	return (wqe_ix << MLX5E_LOG_ALIGNED_MPWQE_PPW) << PAGE_SHIFT;
+	return MLX5E_REQUIRED_MTTS(wqe_ix) << PAGE_SHIFT;
 }
 
 static void mlx5e_init_frags_partition(struct mlx5e_rq *rq)
@@ -577,7 +577,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 				mlx5_wq_ll_get_wqe(&rq->mpwqe.wq, i);
 			u32 byte_count =
 				rq->mpwqe.num_strides << rq->mpwqe.log_stride_sz;
-			u64 dma_offset = mlx5e_get_mpwqe_offset(rq, i);
+			u64 dma_offset = mlx5e_get_mpwqe_offset(i);
 
 			wqe->data[0].addr = cpu_to_be64(dma_offset + rq->buff.headroom);
 			wqe->data[0].byte_count = cpu_to_be32(byte_count);
@@ -2368,8 +2368,9 @@ static u8 mlx5e_build_icosq_log_wq_sz(struct mlx5e_params *params,
 {
 	switch (params->rq_wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
-		return order_base_2(MLX5E_UMR_WQEBBS) +
-			mlx5e_get_rq_log_wq_sz(rqp->rqc);
+		return max_t(u8, MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE,
+			     order_base_2(MLX5E_UMR_WQEBBS) +
+			     mlx5e_get_rq_log_wq_sz(rqp->rqc));
 	default: /* MLX5_WQ_TYPE_CYCLIC */
 		return MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE;
 	}
@@ -2502,8 +2503,10 @@ void mlx5e_close_channels(struct mlx5e_channels *chs)
 {
 	int i;
 
-	if (chs->port_ptp)
+	if (chs->port_ptp) {
 		mlx5e_port_ptp_close(chs->port_ptp);
+		chs->port_ptp = NULL;
+	}
 
 	for (i = 0; i < chs->num; i++)
 		mlx5e_close_channel(chs->c[i]);
@@ -3815,6 +3818,15 @@ void mlx5e_fold_sw_stats64(struct mlx5e_priv *priv, struct rtnl_link_stats64 *s)
 			s->tx_dropped    += sq_stats->dropped;
 		}
 	}
+	if (priv->port_ptp_opened) {
+		for (i = 0; i < priv->max_opened_tc; i++) {
+			struct mlx5e_sq_stats *sq_stats = &priv->port_ptp_stats.sq[i];
+
+			s->tx_packets    += sq_stats->packets;
+			s->tx_bytes      += sq_stats->bytes;
+			s->tx_dropped    += sq_stats->dropped;
+		}
+	}
 }
 
 void
@@ -4683,8 +4695,10 @@ static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 		struct mlx5e_channel *c = priv->channels.c[i];
 
 		mlx5e_rq_replace_xdp_prog(&c->rq, prog);
-		if (test_bit(MLX5E_CHANNEL_STATE_XSK, c->state))
+		if (test_bit(MLX5E_CHANNEL_STATE_XSK, c->state)) {
+			bpf_prog_inc(prog);
 			mlx5e_rq_replace_xdp_prog(&c->xskrq, prog);
+		}
 	}
 
 unlock:
@@ -5474,8 +5488,6 @@ int mlx5e_priv_init(struct mlx5e_priv *priv,
 		    struct net_device *netdev,
 		    struct mlx5_core_dev *mdev)
 {
-	memset(priv, 0, sizeof(*priv));
-
 	/* priv init */
 	priv->mdev        = mdev;
 	priv->netdev      = netdev;
@@ -5508,12 +5520,18 @@ void mlx5e_priv_cleanup(struct mlx5e_priv *priv)
 {
 	int i;
 
+	/* bail if change profile failed and also rollback failed */
+	if (!priv->mdev)
+		return;
+
 	destroy_workqueue(priv->wq);
 	free_cpumask_var(priv->scratchpad.cpumask);
 
 	for (i = 0; i < priv->htb.max_qos_sqs; i++)
 		kfree(priv->htb.qos_sq_stats[i]);
 	kvfree(priv->htb.qos_sq_stats);
+
+	memset(priv, 0, sizeof(*priv));
 }
 
 struct net_device *
@@ -5630,11 +5648,10 @@ void mlx5e_detach_netdev(struct mlx5e_priv *priv)
 }
 
 static int
-mlx5e_netdev_attach_profile(struct mlx5e_priv *priv,
+mlx5e_netdev_attach_profile(struct net_device *netdev, struct mlx5_core_dev *mdev,
 			    const struct mlx5e_profile *new_profile, void *new_ppriv)
 {
-	struct net_device *netdev = priv->netdev;
-	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_priv *priv = netdev_priv(netdev);
 	int err;
 
 	err = mlx5e_priv_init(priv, netdev, mdev);
@@ -5647,10 +5664,16 @@ mlx5e_netdev_attach_profile(struct mlx5e_priv *priv,
 	priv->ppriv = new_ppriv;
 	err = new_profile->init(priv->mdev, priv->netdev);
 	if (err)
-		return err;
+		goto priv_cleanup;
 	err = mlx5e_attach_netdev(priv);
 	if (err)
-		new_profile->cleanup(priv);
+		goto profile_cleanup;
+	return err;
+
+profile_cleanup:
+	new_profile->cleanup(priv);
+priv_cleanup:
+	mlx5e_priv_cleanup(priv);
 	return err;
 }
 
@@ -5659,13 +5682,14 @@ int mlx5e_netdev_change_profile(struct mlx5e_priv *priv,
 {
 	unsigned int new_max_nch = mlx5e_calc_max_nch(priv, new_profile);
 	const struct mlx5e_profile *orig_profile = priv->profile;
+	struct net_device *netdev = priv->netdev;
+	struct mlx5_core_dev *mdev = priv->mdev;
 	void *orig_ppriv = priv->ppriv;
 	int err, rollback_err;
 
 	/* sanity */
 	if (new_max_nch != priv->max_nch) {
-		netdev_warn(priv->netdev,
-			    "%s: Replacing profile with different max channels\n",
+		netdev_warn(netdev, "%s: Replacing profile with different max channels\n",
 			    __func__);
 		return -EINVAL;
 	}
@@ -5675,22 +5699,19 @@ int mlx5e_netdev_change_profile(struct mlx5e_priv *priv,
 	priv->profile->cleanup(priv);
 	mlx5e_priv_cleanup(priv);
 
-	err = mlx5e_netdev_attach_profile(priv, new_profile, new_ppriv);
+	err = mlx5e_netdev_attach_profile(netdev, mdev, new_profile, new_ppriv);
 	if (err) { /* roll back to original profile */
-		netdev_warn(priv->netdev, "%s: new profile init failed, %d\n",
-			    __func__, err);
+		netdev_warn(netdev, "%s: new profile init failed, %d\n", __func__, err);
 		goto rollback;
 	}
 
 	return 0;
 
 rollback:
-	rollback_err = mlx5e_netdev_attach_profile(priv, orig_profile, orig_ppriv);
-	if (rollback_err) {
-		netdev_err(priv->netdev,
-			   "%s: failed to rollback to orig profile, %d\n",
+	rollback_err = mlx5e_netdev_attach_profile(netdev, mdev, orig_profile, orig_ppriv);
+	if (rollback_err)
+		netdev_err(netdev, "%s: failed to rollback to orig profile, %d\n",
 			   __func__, rollback_err);
-	}
 	return err;
 }
 

@@ -4445,7 +4445,8 @@ static int apply_police_params(struct mlx5e_priv *priv, u64 rate,
 	 */
 	if (rate) {
 		rate = (rate * BITS_PER_BYTE) + 500000;
-		rate_mbps = max_t(u64, do_div(rate, 1000000), 1);
+		do_div(rate, 1000000);
+		rate_mbps = max_t(u32, rate, 1);
 	}
 
 	err = mlx5_esw_modify_vport_rate(esw, vport_num, rate_mbps);

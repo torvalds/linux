@@ -2014,8 +2014,13 @@ static int set_pflag_tx_port_ts(struct net_device *netdev, bool enable)
 	 */
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
+		struct mlx5e_params old_params;
+
+		old_params = priv->channels.params;
 		priv->channels.params = new_channels.params;
 		err = mlx5e_num_channels_changed(priv);
+		if (err)
+			priv->channels.params = old_params;
 		goto out;
 	}
 

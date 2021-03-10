@@ -64,7 +64,7 @@ int mlx5_sf_hw_table_sf_alloc(struct mlx5_core_dev *dev, u32 usr_sfnum)
 	}
 	if (sw_id == -ENOSPC) {
 		err = -ENOSPC;
-		goto err;
+		goto exist_err;
 	}
 
 	hw_fn_id = mlx5_sf_sw_to_hw_id(table->dev, sw_id);
