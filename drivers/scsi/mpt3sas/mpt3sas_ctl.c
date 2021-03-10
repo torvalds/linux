@@ -3203,7 +3203,7 @@ BRM_status_show(struct device *cdev, struct device_attribute *attr,
 {
 	struct Scsi_Host *shost = class_to_shost(cdev);
 	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
-	Mpi2IOUnitPage3_t *io_unit_pg3 = NULL;
+	Mpi2IOUnitPage3_t io_unit_pg3;
 	Mpi2ConfigReply_t mpi_reply;
 	u16 backup_rail_monitor_status = 0;
 	u16 ioc_status;
@@ -3220,17 +3220,10 @@ BRM_status_show(struct device *cdev, struct device_attribute *attr,
 	if (ioc->pci_error_recovery || ioc->remove_host)
 		goto out;
 
-	/* allocate upto GPIOVal 36 entries */
-	sz = offsetof(Mpi2IOUnitPage3_t, GPIOVal) + (sizeof(u16) * 36);
-	io_unit_pg3 = kzalloc(sz, GFP_KERNEL);
-	if (!io_unit_pg3) {
-		rc = -ENOMEM;
-		ioc_err(ioc, "%s: failed allocating memory for iounit_pg3: (%d) bytes\n",
-			__func__, sz);
-		goto out;
-	}
+	sz = sizeof(io_unit_pg3);
+	memset(&io_unit_pg3, 0, sz);
 
-	if (mpt3sas_config_get_iounit_pg3(ioc, &mpi_reply, io_unit_pg3, sz) !=
+	if (mpt3sas_config_get_iounit_pg3(ioc, &mpi_reply, &io_unit_pg3, sz) !=
 	    0) {
 		ioc_err(ioc, "%s: failed reading iounit_pg3\n",
 			__func__);
@@ -3246,19 +3239,18 @@ BRM_status_show(struct device *cdev, struct device_attribute *attr,
 		goto out;
 	}
 
-	if (io_unit_pg3->GPIOCount < 25) {
-		ioc_err(ioc, "%s: iounit_pg3->GPIOCount less than 25 entries, detected (%d) entries\n",
-			__func__, io_unit_pg3->GPIOCount);
+	if (io_unit_pg3.GPIOCount < 25) {
+		ioc_err(ioc, "%s: iounit_pg3.GPIOCount less than 25 entries, detected (%d) entries\n",
+			__func__, io_unit_pg3.GPIOCount);
 		rc = -EINVAL;
 		goto out;
 	}
 
 	/* BRM status is in bit zero of GPIOVal[24] */
-	backup_rail_monitor_status = le16_to_cpu(io_unit_pg3->GPIOVal[24]);
+	backup_rail_monitor_status = le16_to_cpu(io_unit_pg3.GPIOVal[24]);
 	rc = snprintf(buf, PAGE_SIZE, "%d\n", (backup_rail_monitor_status & 1));
 
  out:
-	kfree(io_unit_pg3);
 	mutex_unlock(&ioc->pci_access_mutex);
 	return rc;
 }
