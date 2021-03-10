@@ -691,11 +691,33 @@
 		};
 
 		target-module@40000 {			/* 0x4a140000, ap 101 16.0 */
-			compatible = "ti,sysc";
-			status = "disabled";
-			#address-cells = <1>;
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x400fc 4>,
+			      <0x41100 4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			power-domains = <&prm_l3init>;
+			clocks = <&l3init_clkctrl OMAP5_SATA_CLKCTRL 0>;
+			clock-names = "fck";
 			#size-cells = <1>;
+			#address-cells = <1>;
 			ranges = <0x0 0x40000 0x10000>;
+
+			sata: sata@0 {
+				compatible = "snps,dwc-ahci";
+				reg = <0 0x1100>, <0x1100 0x8>;
+				interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+				phys = <&sata_phy>;
+				phy-names = "sata-phy";
+				clocks = <&l3init_clkctrl OMAP5_SATA_CLKCTRL 8>;
+				ports-implemented = <0x1>;
+			};
 		};
 	};
 
