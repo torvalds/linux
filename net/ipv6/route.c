@@ -2378,7 +2378,7 @@ u32 rt6_multipath_hash(const struct net *net, const struct flowi6 *fl6,
 
 			memset(&hash_keys, 0, sizeof(hash_keys));
 
-                        if (!flkeys) {
+			if (!flkeys) {
 				skb_flow_dissect_flow_keys(skb, &keys, flag);
 				flkeys = &keys;
 			}
@@ -2518,20 +2518,20 @@ struct dst_entry *ip6_route_output_flags(struct net *net,
 					 struct flowi6 *fl6,
 					 int flags)
 {
-        struct dst_entry *dst;
-        struct rt6_info *rt6;
+	struct dst_entry *dst;
+	struct rt6_info *rt6;
 
-        rcu_read_lock();
-        dst = ip6_route_output_flags_noref(net, sk, fl6, flags);
-        rt6 = (struct rt6_info *)dst;
-        /* For dst cached in uncached_list, refcnt is already taken. */
-        if (list_empty(&rt6->rt6i_uncached) && !dst_hold_safe(dst)) {
-                dst = &net->ipv6.ip6_null_entry->dst;
-                dst_hold(dst);
-        }
-        rcu_read_unlock();
+	rcu_read_lock();
+	dst = ip6_route_output_flags_noref(net, sk, fl6, flags);
+	rt6 = (struct rt6_info *)dst;
+	/* For dst cached in uncached_list, refcnt is already taken. */
+	if (list_empty(&rt6->rt6i_uncached) && !dst_hold_safe(dst)) {
+		dst = &net->ipv6.ip6_null_entry->dst;
+		dst_hold(dst);
+	}
+	rcu_read_unlock();
 
-        return dst;
+	return dst;
 }
 EXPORT_SYMBOL_GPL(ip6_route_output_flags);
 
