@@ -7829,13 +7829,13 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 
 		ctx->sq_creds = get_current_cred();
 		ctx->sq_data = sqd;
-		io_sq_thread_park(sqd);
-		list_add(&ctx->sqd_list, &sqd->ctx_new_list);
-		io_sq_thread_unpark(sqd);
-
 		ctx->sq_thread_idle = msecs_to_jiffies(p->sq_thread_idle);
 		if (!ctx->sq_thread_idle)
 			ctx->sq_thread_idle = HZ;
+
+		io_sq_thread_park(sqd);
+		list_add(&ctx->sqd_list, &sqd->ctx_new_list);
+		io_sq_thread_unpark(sqd);
 
 		if (sqd->thread)
 			return 0;
