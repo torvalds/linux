@@ -160,7 +160,7 @@ static int acrn_irqfd_assign(struct acrn_vm *vm, struct acrn_irqfd *args)
 	/* Check the pending event in this stage */
 	events = vfs_poll(f.file, &irqfd->pt);
 
-	if (events & POLLIN)
+	if (events & EPOLLIN)
 		acrn_irqfd_inject(irqfd);
 
 	fdput(f);
