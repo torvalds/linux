@@ -44,20 +44,17 @@ int enetc_setup_cbdr(struct device *dev, struct enetc_hw *hw,
 	return 0;
 }
 
-void enetc_free_cbdr(struct enetc_cbdr *cbdr)
+void enetc_teardown_cbdr(struct enetc_cbdr *cbdr)
 {
 	int size = cbdr->bd_count * sizeof(struct enetc_cbd);
+
+	/* disable ring */
+	enetc_wr_reg(cbdr->mr, 0);
 
 	dma_free_coherent(cbdr->dma_dev, size, cbdr->bd_base,
 			  cbdr->bd_dma_base);
 	cbdr->bd_base = NULL;
 	cbdr->dma_dev = NULL;
-}
-
-void enetc_clear_cbdr(struct enetc_cbdr *cbdr)
-{
-	/* disable ring */
-	enetc_wr_reg(cbdr->mr, 0);
 }
 
 static void enetc_clean_cbdr(struct enetc_cbdr *ring)

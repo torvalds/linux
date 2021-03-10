@@ -1074,8 +1074,7 @@ int enetc_alloc_si_resources(struct enetc_ndev_priv *priv)
 	return 0;
 
 err_alloc_cls:
-	enetc_clear_cbdr(&si->cbd_ring);
-	enetc_free_cbdr(&si->cbd_ring);
+	enetc_teardown_cbdr(&si->cbd_ring);
 
 	return err;
 }
@@ -1084,8 +1083,7 @@ void enetc_free_si_resources(struct enetc_ndev_priv *priv)
 {
 	struct enetc_si *si = priv->si;
 
-	enetc_clear_cbdr(&si->cbd_ring);
-	enetc_free_cbdr(&si->cbd_ring);
+	enetc_teardown_cbdr(&si->cbd_ring);
 
 	kfree(priv->cls_rules);
 }
