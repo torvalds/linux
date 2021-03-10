@@ -89,6 +89,11 @@ enum {
 	DR_STE_SIZE_REDUCED = DR_STE_SIZE - DR_STE_SIZE_MASK,
 };
 
+enum mlx5dr_ste_ctx_action_cap {
+	DR_STE_CTX_ACTION_CAP_NONE = 0,
+	DR_STE_CTX_ACTION_CAP_RX_ENCAP = 1 << 0,
+};
+
 enum {
 	DR_MODIFY_ACTION_SIZE = 8,
 };

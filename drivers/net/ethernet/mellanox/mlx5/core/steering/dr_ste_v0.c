@@ -1893,6 +1893,7 @@ struct mlx5dr_ste_ctx ste_ctx_v0 = {
 	.get_byte_mask			= &dr_ste_v0_get_byte_mask,
 
 	/* Actions */
+	.actions_caps			= DR_STE_CTX_ACTION_CAP_NONE,
 	.set_actions_rx			= &dr_ste_v0_set_actions_rx,
 	.set_actions_tx			= &dr_ste_v0_set_actions_tx,
 	.modify_field_arr_sz		= ARRAY_SIZE(dr_ste_v0_action_modify_field_arr),
