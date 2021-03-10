@@ -555,6 +555,11 @@ static int goya_init_iatu(struct hl_device *hdev)
 	struct hl_outbound_pci_region outbound_region;
 	int rc;
 
+	if (hdev->asic_prop.iatu_done_by_fw) {
+		hdev->asic_funcs->set_dma_mask_from_fw(hdev);
+		return 0;
+	}
+
 	/* Inbound Region 0 - Bar 0 - Point to SRAM and CFG */
 	inbound_region.mode = PCI_BAR_MATCH_MODE;
 	inbound_region.bar = SRAM_CFG_BAR_ID;
@@ -602,7 +607,7 @@ static int goya_early_init(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct pci_dev *pdev = hdev->pdev;
-	u32 val;
+	u32 fw_boot_status, val;
 	int rc;
 
 	rc = goya_get_fixed_properties(hdev);
@@ -636,6 +641,23 @@ static int goya_early_init(struct hl_device *hdev)
 
 	prop->dram_pci_bar_size = pci_resource_len(pdev, DDR_BAR_ID);
 
+	/* If FW security is enabled at this point it means no access to ELBI */
+	if (!hdev->asic_prop.fw_security_disabled) {
+		hdev->asic_prop.iatu_done_by_fw = true;
+		goto pci_init;
+	}
+
+	rc = hl_pci_elbi_read(hdev, CFG_BASE + mmCPU_BOOT_DEV_STS0,
+				&fw_boot_status);
+	if (rc)
+		goto free_queue_props;
+
+	/* Check whether FW is configuring iATU */
+	if ((fw_boot_status & CPU_BOOT_DEV_STS0_ENABLED) &&
+			(fw_boot_status & CPU_BOOT_DEV_STS0_FW_IATU_CONF_EN))
+		hdev->asic_prop.iatu_done_by_fw = true;
+
+pci_init:
 	rc = hl_pci_init(hdev);
 	if (rc)
 		goto free_queue_props;

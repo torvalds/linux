@@ -445,6 +445,7 @@ struct hl_mmu_properties {
  * @dram_supports_virtual_memory: is there an MMU towards the DRAM
  * @hard_reset_done_by_fw: true if firmware is handling hard reset flow
  * @num_functional_hbms: number of functional HBMs in each DCORE.
+ * @iatu_done_by_fw: true if iATU configuration is being done by FW.
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	*hw_queues_props;
@@ -508,6 +509,7 @@ struct asic_fixed_properties {
 	u8				dram_supports_virtual_memory;
 	u8				hard_reset_done_by_fw;
 	u8				num_functional_hbms;
+	u8				iatu_done_by_fw;
 };
 
 /**
@@ -2400,6 +2402,7 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 
 int hl_pci_bars_map(struct hl_device *hdev, const char * const name[3],
 			bool is_wc[3]);
+int hl_pci_elbi_read(struct hl_device *hdev, u64 addr, u32 *data);
 int hl_pci_iatu_write(struct hl_device *hdev, u32 addr, u32 data);
 int hl_pci_set_inbound_region(struct hl_device *hdev, u8 region,
 		struct hl_inbound_pci_region *pci_region);
