@@ -1590,6 +1590,21 @@ static int dpaa2_switch_port_bridge_leave(struct net_device *netdev)
 					  BRIDGE_VLAN_INFO_UNTAGGED | BRIDGE_VLAN_INFO_PVID);
 }
 
+static int dpaa2_switch_prevent_bridging_with_8021q_upper(struct net_device *netdev)
+{
+	struct net_device *upper_dev;
+	struct list_head *iter;
+
+	/* RCU read lock not necessary because we have write-side protection
+	 * (rtnl_mutex), however a non-rcu iterator does not exist.
+	 */
+	netdev_for_each_upper_dev_rcu(netdev, upper_dev, iter)
+		if (is_vlan_dev(upper_dev))
+			return -EOPNOTSUPP;
+
+	return 0;
+}
+
 static int dpaa2_switch_port_netdevice_event(struct notifier_block *nb,
 					     unsigned long event, void *ptr)
 {
@@ -1607,10 +1622,22 @@ static int dpaa2_switch_port_netdevice_event(struct notifier_block *nb,
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
 		upper_dev = info->upper_dev;
-		if (netif_is_bridge_master(upper_dev) && !br_vlan_enabled(upper_dev)) {
+		if (!netif_is_bridge_master(upper_dev))
+			break;
+
+		if (!br_vlan_enabled(upper_dev)) {
 			NL_SET_ERR_MSG_MOD(extack, "Cannot join a VLAN-unaware bridge");
 			err = -EOPNOTSUPP;
+			goto out;
 		}
+
+		err = dpaa2_switch_prevent_bridging_with_8021q_upper(netdev);
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Cannot join a bridge while VLAN uppers are present");
+			goto out;
+		}
+
 		break;
 	case NETDEV_CHANGEUPPER:
 		upper_dev = info->upper_dev;
@@ -1623,6 +1650,7 @@ static int dpaa2_switch_port_netdevice_event(struct notifier_block *nb,
 		break;
 	}
 
+out:
 	return notifier_from_errno(err);
 }
 
