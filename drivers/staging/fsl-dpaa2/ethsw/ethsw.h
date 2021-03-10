@@ -128,9 +128,6 @@ struct ethsw_core {
 
 	u8				vlans[VLAN_VID_MASK + 1];
 
-	struct notifier_block		port_nb;
-	struct notifier_block		port_switchdev_nb;
-	struct notifier_block		port_switchdevb_nb;
 	struct workqueue_struct		*workqueue;
 
 	struct dpaa2_switch_fq		fq[DPAA2_SWITCH_RX_NUM_FQS];
@@ -167,7 +164,6 @@ static inline bool dpaa2_switch_supports_cpu_traffic(struct ethsw_core *ethsw)
 	return true;
 }
 
-bool dpaa2_switch_port_dev_check(const struct net_device *netdev,
-				 struct notifier_block *nb);
+bool dpaa2_switch_port_dev_check(const struct net_device *netdev);
 
 #endif	/* __ETHSW_H */

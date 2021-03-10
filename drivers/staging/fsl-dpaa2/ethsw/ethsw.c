@@ -80,7 +80,7 @@ static u16 dpaa2_switch_port_set_fdb(struct ethsw_port_priv *port_priv,
 	 * to be present in that bridge
 	 */
 	netdev_for_each_lower_dev(bridge_dev, other_dev, iter) {
-		if (!dpaa2_switch_port_dev_check(other_dev, NULL))
+		if (!dpaa2_switch_port_dev_check(other_dev))
 			continue;
 
 		if (other_dev == port_priv->netdev)
@@ -987,18 +987,9 @@ static const struct net_device_ops dpaa2_switch_port_ops = {
 	.ndo_get_phys_port_name = dpaa2_switch_port_get_phys_name,
 };
 
-bool dpaa2_switch_port_dev_check(const struct net_device *netdev,
-				 struct notifier_block *nb)
+bool dpaa2_switch_port_dev_check(const struct net_device *netdev)
 {
-	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
-
-	if (netdev->netdev_ops == &dpaa2_switch_port_ops &&
-	    (!nb || &port_priv->ethsw_data->port_nb == nb ||
-	     &port_priv->ethsw_data->port_switchdev_nb == nb ||
-	     &port_priv->ethsw_data->port_switchdevb_nb == nb))
-		return true;
-
-	return false;
+	return netdev->netdev_ops == &dpaa2_switch_port_ops;
 }
 
 static void dpaa2_switch_links_state_update(struct ethsw_core *ethsw)
@@ -1429,7 +1420,7 @@ static int dpaa2_switch_port_bridge_join(struct net_device *netdev,
 	int err;
 
 	netdev_for_each_lower_dev(upper_dev, other_dev, iter) {
-		if (!dpaa2_switch_port_dev_check(other_dev, NULL))
+		if (!dpaa2_switch_port_dev_check(other_dev))
 			continue;
 
 		other_port_priv = netdev_priv(other_dev);
@@ -1529,7 +1520,7 @@ static int dpaa2_switch_port_netdevice_event(struct notifier_block *nb,
 	struct net_device *upper_dev;
 	int err = 0;
 
-	if (!dpaa2_switch_port_dev_check(netdev, nb))
+	if (!dpaa2_switch_port_dev_check(netdev))
 		return NOTIFY_DONE;
 
 	/* Handle just upper dev link/unlink for the moment */
@@ -1606,7 +1597,7 @@ static int dpaa2_switch_port_event(struct notifier_block *nb,
 	struct switchdev_notifier_fdb_info *fdb_info = ptr;
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 
-	if (!dpaa2_switch_port_dev_check(dev, nb))
+	if (!dpaa2_switch_port_dev_check(dev))
 		return NOTIFY_DONE;
 
 	if (event == SWITCHDEV_PORT_ATTR_SET)
@@ -1673,7 +1664,7 @@ static int dpaa2_switch_port_blocking_event(struct notifier_block *nb,
 {
 	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
 
-	if (!dpaa2_switch_port_dev_check(dev, nb))
+	if (!dpaa2_switch_port_dev_check(dev))
 		return NOTIFY_DONE;
 
 	switch (event) {
@@ -1685,41 +1676,6 @@ static int dpaa2_switch_port_blocking_event(struct notifier_block *nb,
 	}
 
 	return NOTIFY_DONE;
-}
-
-static int dpaa2_switch_register_notifier(struct device *dev)
-{
-	struct ethsw_core *ethsw = dev_get_drvdata(dev);
-	int err;
-
-	ethsw->port_nb.notifier_call = dpaa2_switch_port_netdevice_event;
-	err = register_netdevice_notifier(&ethsw->port_nb);
-	if (err) {
-		dev_err(dev, "Failed to register netdev notifier\n");
-		return err;
-	}
-
-	ethsw->port_switchdev_nb.notifier_call = dpaa2_switch_port_event;
-	err = register_switchdev_notifier(&ethsw->port_switchdev_nb);
-	if (err) {
-		dev_err(dev, "Failed to register switchdev notifier\n");
-		goto err_switchdev_nb;
-	}
-
-	ethsw->port_switchdevb_nb.notifier_call = dpaa2_switch_port_blocking_event;
-	err = register_switchdev_blocking_notifier(&ethsw->port_switchdevb_nb);
-	if (err) {
-		dev_err(dev, "Failed to register switchdev blocking notifier\n");
-		goto err_switchdev_blocking_nb;
-	}
-
-	return 0;
-
-err_switchdev_blocking_nb:
-	unregister_switchdev_notifier(&ethsw->port_switchdev_nb);
-err_switchdev_nb:
-	unregister_netdevice_notifier(&ethsw->port_nb);
-	return err;
 }
 
 /* Build a linear skb based on a single-buffer frame descriptor */
@@ -2426,10 +2382,6 @@ static int dpaa2_switch_init(struct fsl_mc_device *sw_dev)
 	if (err)
 		goto err_destroy_ordered_workqueue;
 
-	err = dpaa2_switch_register_notifier(dev);
-	if (err)
-		goto err_destroy_ordered_workqueue;
-
 	return 0;
 
 err_destroy_ordered_workqueue:
@@ -2496,37 +2448,11 @@ static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
 	return err;
 }
 
-static void dpaa2_switch_unregister_notifier(struct device *dev)
-{
-	struct ethsw_core *ethsw = dev_get_drvdata(dev);
-	struct notifier_block *nb;
-	int err;
-
-	nb = &ethsw->port_switchdevb_nb;
-	err = unregister_switchdev_blocking_notifier(nb);
-	if (err)
-		dev_err(dev,
-			"Failed to unregister switchdev blocking notifier (%d)\n",
-			err);
-
-	err = unregister_switchdev_notifier(&ethsw->port_switchdev_nb);
-	if (err)
-		dev_err(dev,
-			"Failed to unregister switchdev notifier (%d)\n", err);
-
-	err = unregister_netdevice_notifier(&ethsw->port_nb);
-	if (err)
-		dev_err(dev,
-			"Failed to unregister netdev notifier (%d)\n", err);
-}
-
 static void dpaa2_switch_takedown(struct fsl_mc_device *sw_dev)
 {
 	struct device *dev = &sw_dev->dev;
 	struct ethsw_core *ethsw = dev_get_drvdata(dev);
 	int err;
-
-	dpaa2_switch_unregister_notifier(dev);
 
 	err = dpsw_close(ethsw->mc_io, 0, ethsw->dpsw_handle);
 	if (err)
@@ -2761,7 +2687,93 @@ static struct fsl_mc_driver dpaa2_switch_drv = {
 	.match_id_table = dpaa2_switch_match_id_table
 };
 
-module_fsl_mc_driver(dpaa2_switch_drv);
+static struct notifier_block dpaa2_switch_port_nb __read_mostly = {
+	.notifier_call = dpaa2_switch_port_netdevice_event,
+};
+
+static struct notifier_block dpaa2_switch_port_switchdev_nb = {
+	.notifier_call = dpaa2_switch_port_event,
+};
+
+static struct notifier_block dpaa2_switch_port_switchdev_blocking_nb = {
+	.notifier_call = dpaa2_switch_port_blocking_event,
+};
+
+static int dpaa2_switch_register_notifiers(void)
+{
+	int err;
+
+	err = register_netdevice_notifier(&dpaa2_switch_port_nb);
+	if (err) {
+		pr_err("dpaa2-switch: failed to register net_device notifier (%d)\n", err);
+		return err;
+	}
+
+	err = register_switchdev_notifier(&dpaa2_switch_port_switchdev_nb);
+	if (err) {
+		pr_err("dpaa2-switch: failed to register switchdev notifier (%d)\n", err);
+		goto err_switchdev_nb;
+	}
+
+	err = register_switchdev_blocking_notifier(&dpaa2_switch_port_switchdev_blocking_nb);
+	if (err) {
+		pr_err("dpaa2-switch: failed to register switchdev blocking notifier (%d)\n", err);
+		goto err_switchdev_blocking_nb;
+	}
+
+	return 0;
+
+err_switchdev_blocking_nb:
+	unregister_switchdev_notifier(&dpaa2_switch_port_switchdev_nb);
+err_switchdev_nb:
+	unregister_netdevice_notifier(&dpaa2_switch_port_nb);
+
+	return err;
+}
+
+static void dpaa2_switch_unregister_notifiers(void)
+{
+	int err;
+
+	err = unregister_switchdev_blocking_notifier(&dpaa2_switch_port_switchdev_blocking_nb);
+	if (err)
+		pr_err("dpaa2-switch: failed to unregister switchdev blocking notifier (%d)\n",
+		       err);
+
+	err = unregister_switchdev_notifier(&dpaa2_switch_port_switchdev_nb);
+	if (err)
+		pr_err("dpaa2-switch: failed to unregister switchdev notifier (%d)\n", err);
+
+	err = unregister_netdevice_notifier(&dpaa2_switch_port_nb);
+	if (err)
+		pr_err("dpaa2-switch: failed to unregister net_device notifier (%d)\n", err);
+}
+
+static int __init dpaa2_switch_driver_init(void)
+{
+	int err;
+
+	err = fsl_mc_driver_register(&dpaa2_switch_drv);
+	if (err)
+		return err;
+
+	err = dpaa2_switch_register_notifiers();
+	if (err) {
+		fsl_mc_driver_unregister(&dpaa2_switch_drv);
+		return err;
+	}
+
+	return 0;
+}
+
+static void __exit dpaa2_switch_driver_exit(void)
+{
+	dpaa2_switch_unregister_notifiers();
+	fsl_mc_driver_unregister(&dpaa2_switch_drv);
+}
+
+module_init(dpaa2_switch_driver_init);
+module_exit(dpaa2_switch_driver_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("DPAA2 Ethernet Switch Driver");
