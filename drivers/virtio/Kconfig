@@ -167,6 +167,15 @@ config VIRTIO_MMIO_SWIOTLB
 	  shared with another virtual machine which is hosting virtio
 	  backend drivers.
 
+config GH_VIRTIO_DEBUG
+	bool "Enable debug features for virtio front-end drivers on Gunyah Hypervisor"
+	depends on VIRTIO_MMIO
+	help
+	  Activating this feature provides additional tracepoints in various
+	  virtio drivers that will be useful to debug virtio transactions.
+	  Currently virtio block driver and mmio transport provide few
+	  tracepoints when this feature is enabled.
+
 config VIRTIO_MMIO_CMDLINE_DEVICES
 	bool "Memory mapped virtio devices parameter parsing"
 	depends on VIRTIO_MMIO
