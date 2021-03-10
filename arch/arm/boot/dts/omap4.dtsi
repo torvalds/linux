@@ -107,7 +107,7 @@
 	 * hierarchy.
 	 */
 	ocp {
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		power-domains = <&prm_l4per>;
 		clocks = <&l3_1_clkctrl OMAP4_L3_MAIN_1_CLKCTRL 0>,
 			 <&l3_2_clkctrl OMAP4_L3_MAIN_2_CLKCTRL 0>,
@@ -115,7 +115,6 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
-		ti,hwmods = "l3_main_1", "l3_main_2", "l3_main_3";
 
 		l3-noc@44000000 {
 			compatible = "ti,omap4-l3-noc";
@@ -192,7 +191,6 @@
 
 		target-module@52000000 {
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "iss";
 			reg = <0x52000000 0x4>,
 			      <0x52000010 0x4>;
 			reg-names = "rev", "sysc";
@@ -224,7 +222,6 @@
 		 */
 		target-module@54000000 {
 			compatible = "ti,sysc-omap4-simple", "ti,sysc";
-			ti,hwmods = "debugss";
 			power-domains = <&prm_emu>;
 			clocks = <&emu_sys_clkctrl OMAP4_DEBUGSS_CLKCTRL 0>;
 			clock-names = "fck";
@@ -288,7 +285,6 @@
 
 		target-module@4e000000 {
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "dmm";
 			reg = <0x4e000000 0x4>,
 			      <0x4e000010 0x4>;
 			reg-names = "rev", "sysc";
@@ -308,7 +304,6 @@
 
 		target-module@4c000000 {
 			compatible = "ti,sysc-omap4-simple", "ti,sysc";
-			ti,hwmods = "emif1";
 			reg = <0x4c000000 0x4>;
 			reg-names = "rev";
 			clocks = <&l3_emif_clkctrl OMAP4_EMIF1_CLKCTRL 0>;
@@ -331,7 +326,6 @@
 
 		target-module@4d000000 {
 			compatible = "ti,sysc-omap4-simple", "ti,sysc";
-			ti,hwmods = "emif2";
 			reg = <0x4d000000 0x4>;
 			reg-names = "rev";
 			clocks = <&l3_emif_clkctrl OMAP4_EMIF2_CLKCTRL 0>;

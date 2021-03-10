@@ -214,7 +214,6 @@
 				#interrupt-cells = <1>;
 				num-lanes = <1>;
 				linux,pci-domain = <0>;
-				ti,hwmods = "pcie1";
 				phys = <&pcie1_phy>;
 				phy-names = "pcie-phy0";
 				ti,syscon-lane-sel = <&scm_conf_pcie 0x18>;
@@ -242,7 +241,6 @@
 				num-lanes = <1>;
 				num-ib-windows = <4>;
 				num-ob-windows = <16>;
-				ti,hwmods = "pcie1";
 				phys = <&pcie1_phy>;
 				phy-names = "pcie-phy0";
 				ti,syscon-unaligned-access = <&scm_conf1 0x14 1>;
@@ -287,7 +285,6 @@
 				#interrupt-cells = <1>;
 				num-lanes = <1>;
 				linux,pci-domain = <1>;
-				ti,hwmods = "pcie2";
 				phys = <&pcie2_phy>;
 				phy-names = "pcie-phy0";
 				interrupt-map-mask = <0 0 0 7>;
@@ -468,7 +465,6 @@
 
 		target-module@4e000000 {
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "dmm";
 			reg = <0x4e000000 0x4>,
 			      <0x4e000010 0x4>;
 			reg-names = "rev", "sysc";
@@ -772,7 +768,6 @@
 
 		target-module@4b300000 {
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "qspi";
 			reg = <0x4b300000 0x4>,
 			      <0x4b300010 0x4>;
 			reg-names = "rev", "sysc";

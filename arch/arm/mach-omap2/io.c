@@ -615,7 +615,6 @@ void __init omap4430_init_early(void)
 	omap44xx_voltagedomains_init();
 	omap44xx_powerdomains_init();
 	omap44xx_clockdomains_init();
-	omap44xx_hwmod_init();
 	omap_hwmod_init_postsetup();
 	omap_l2_cache_init();
 	omap_clk_soc_init = omap4xxx_dt_clk_init;
@@ -643,8 +642,6 @@ void __init omap5_init_early(void)
 	omap54xx_voltagedomains_init();
 	omap54xx_powerdomains_init();
 	omap54xx_clockdomains_init();
-	omap54xx_hwmod_init();
-	omap_hwmod_init_postsetup();
 	omap_clk_soc_init = omap5xxx_dt_clk_init;
 	omap_secure_init();
 }
@@ -667,8 +664,6 @@ void __init dra7xx_init_early(void)
 	dra7xxx_check_revision();
 	dra7xx_powerdomains_init();
 	dra7xx_clockdomains_init();
-	dra7xx_hwmod_init();
-	omap_hwmod_init_postsetup();
 	omap_clk_soc_init = dra7xx_dt_clk_init;
 	omap_secure_init();
 }

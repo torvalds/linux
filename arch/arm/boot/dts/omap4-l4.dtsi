@@ -46,7 +46,6 @@
 
 		target-module@2000 {			/* 0x4a002000, ap 3 06.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "ctrl_module_core";
 			reg = <0x2000 0x4>,
 			      <0x2010 0x4>;
 			reg-names = "rev", "sysc";
@@ -656,7 +655,6 @@
 
 		target-module@0 {			/* 0x4a100000, ap 21 2a.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "ctrl_module_pad_core";
 			reg = <0x0 0x4>,
 			      <0x10 0x4>;
 			reg-names = "rev", "sysc";
@@ -1047,7 +1045,6 @@
 
 		target-module@c000 {			/* 0x4a30c000, ap 19 2c.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "ctrl_module_wkup";
 			reg = <0xc000 0x4>,
 			      <0xc010 0x4>;
 			reg-names = "rev", "sysc";
@@ -1208,7 +1205,6 @@
 
 		target-module@e000 {			/* 0x4a31e000, ap 21 30.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "ctrl_module_pad_wkup";
 			reg = <0xe000 0x4>,
 			      <0xe010 0x4>;
 			reg-names = "rev", "sysc";
