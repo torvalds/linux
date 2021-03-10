@@ -133,9 +133,12 @@ struct gntdev_grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count,
 	if (NULL == add)
 		return NULL;
 
-	add->grants    = kvcalloc(count, sizeof(add->grants[0]), GFP_KERNEL);
-	add->map_ops   = kvcalloc(count, sizeof(add->map_ops[0]), GFP_KERNEL);
-	add->unmap_ops = kvcalloc(count, sizeof(add->unmap_ops[0]), GFP_KERNEL);
+	add->grants    = kvmalloc_array(count, sizeof(add->grants[0]),
+					GFP_KERNEL);
+	add->map_ops   = kvmalloc_array(count, sizeof(add->map_ops[0]),
+					GFP_KERNEL);
+	add->unmap_ops = kvmalloc_array(count, sizeof(add->unmap_ops[0]),
+					GFP_KERNEL);
 	add->pages     = kvcalloc(count, sizeof(add->pages[0]), GFP_KERNEL);
 	if (NULL == add->grants    ||
 	    NULL == add->map_ops   ||
@@ -143,10 +146,10 @@ struct gntdev_grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count,
 	    NULL == add->pages)
 		goto err;
 	if (use_ptemod) {
-		add->kmap_ops   = kvcalloc(count, sizeof(add->kmap_ops[0]),
-					   GFP_KERNEL);
-		add->kunmap_ops = kvcalloc(count, sizeof(add->kunmap_ops[0]),
-					   GFP_KERNEL);
+		add->kmap_ops   = kvmalloc_array(count, sizeof(add->kmap_ops[0]),
+						 GFP_KERNEL);
+		add->kunmap_ops = kvmalloc_array(count, sizeof(add->kunmap_ops[0]),
+						 GFP_KERNEL);
 		if (NULL == add->kmap_ops || NULL == add->kunmap_ops)
 			goto err;
 	}
@@ -186,6 +189,8 @@ struct gntdev_grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count,
 		goto err;
 
 	for (i = 0; i < count; i++) {
+		add->grants[i].domid = DOMID_INVALID;
+		add->grants[i].ref = INVALID_GRANT_REF;
 		add->map_ops[i].handle = INVALID_GRANT_HANDLE;
 		add->unmap_ops[i].handle = INVALID_GRANT_HANDLE;
 		if (use_ptemod) {
