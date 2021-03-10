@@ -219,52 +219,6 @@ static struct omap_hwmod omap44xx_debugss_hwmod = {
 };
 
 /*
- * 'emif' class
- * external memory interface no1
- */
-
-static struct omap_hwmod_class_sysconfig omap44xx_emif_sysc = {
-	.rev_offs	= 0x0000,
-};
-
-static struct omap_hwmod_class omap44xx_emif_hwmod_class = {
-	.name	= "emif",
-	.sysc	= &omap44xx_emif_sysc,
-};
-
-/* emif1 */
-static struct omap_hwmod omap44xx_emif1_hwmod = {
-	.name		= "emif1",
-	.class		= &omap44xx_emif_hwmod_class,
-	.clkdm_name	= "l3_emif_clkdm",
-	.flags		= HWMOD_INIT_NO_IDLE,
-	.main_clk	= "ddrphy_ck",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_MEMIF_EMIF_1_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_MEMIF_EMIF_1_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
-		},
-	},
-};
-
-/* emif2 */
-static struct omap_hwmod omap44xx_emif2_hwmod = {
-	.name		= "emif2",
-	.class		= &omap44xx_emif_hwmod_class,
-	.clkdm_name	= "l3_emif_clkdm",
-	.flags		= HWMOD_INIT_NO_IDLE,
-	.main_clk	= "ddrphy_ck",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_MEMIF_EMIF_2_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_MEMIF_EMIF_2_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
-		},
-	},
-};
-
-/*
  * 'mpu' class
  * mpu sub-system
  */
@@ -611,22 +565,6 @@ static struct omap_hwmod_ocp_if __maybe_unused omap44xx_l3_main_2__sl2if = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* mpu -> emif1 */
-static struct omap_hwmod_ocp_if omap44xx_mpu__emif1 = {
-	.master		= &omap44xx_mpu_hwmod,
-	.slave		= &omap44xx_emif1_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* mpu -> emif2 */
-static struct omap_hwmod_ocp_if omap44xx_mpu__emif2 = {
-	.master		= &omap44xx_mpu_hwmod,
-	.slave		= &omap44xx_emif2_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l3_main_3__l3_instr,
 	&omap44xx_ocp_wp_noc__l3_instr,
@@ -652,8 +590,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_wkup__prm,
 	&omap44xx_l4_wkup__scrm,
 	/* &omap44xx_l3_main_2__sl2if, */
-	&omap44xx_mpu__emif1,
-	&omap44xx_mpu__emif2,
 	NULL,
 };
 
