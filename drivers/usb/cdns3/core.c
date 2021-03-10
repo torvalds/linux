@@ -527,7 +527,7 @@ int cdns_resume(struct cdns *cdns, u8 set_active)
 	struct device *dev = cdns->dev;
 	enum usb_role real_role;
 	bool role_changed = false;
-	int ret;
+	int ret = 0;
 
 	if (cdns_power_is_lost(cdns)) {
 		if (cdns->role_sw) {
