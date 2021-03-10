@@ -172,4 +172,7 @@ int dpaa2_switch_port_vlans_add(struct net_device *netdev,
 int dpaa2_switch_port_vlans_del(struct net_device *netdev,
 				const struct switchdev_obj_port_vlan *vlan);
 
+typedef int dpaa2_switch_fdb_cb_t(struct ethsw_port_priv *port_priv,
+				  struct fdb_dump_entry *fdb_entry,
+				  void *data);
 #endif	/* __ETHSW_H */

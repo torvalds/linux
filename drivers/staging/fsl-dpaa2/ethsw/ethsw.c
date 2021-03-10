@@ -729,21 +729,14 @@ static int dpaa2_switch_port_fdb_valid_entry(struct fdb_dump_entry *entry,
 	return valid;
 }
 
-static int dpaa2_switch_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
-				      struct net_device *net_dev,
-				      struct net_device *filter_dev, int *idx)
+static int dpaa2_switch_fdb_iterate(struct ethsw_port_priv *port_priv,
+				    dpaa2_switch_fdb_cb_t cb, void *data)
 {
-	struct ethsw_port_priv *port_priv = netdev_priv(net_dev);
+	struct net_device *net_dev = port_priv->netdev;
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 	struct device *dev = net_dev->dev.parent;
 	struct fdb_dump_entry *fdb_entries;
 	struct fdb_dump_entry fdb_entry;
-	struct ethsw_dump_ctx dump = {
-		.dev = net_dev,
-		.skb = skb,
-		.cb = cb,
-		.idx = *idx,
-	};
 	dma_addr_t fdb_dump_iova;
 	u16 num_fdb_entries;
 	u32 fdb_dump_size;
@@ -778,17 +771,12 @@ static int dpaa2_switch_port_fdb_dump(struct sk_buff *skb, struct netlink_callba
 	for (i = 0; i < num_fdb_entries; i++) {
 		fdb_entry = fdb_entries[i];
 
-		if (!dpaa2_switch_port_fdb_valid_entry(&fdb_entry, port_priv))
-			continue;
-
-		err = dpaa2_switch_fdb_dump_nl(&fdb_entry, &dump);
+		err = cb(port_priv, &fdb_entry, data);
 		if (err)
 			goto end;
 	}
 
 end:
-	*idx = dump.idx;
-
 	kfree(dma_mem);
 
 	return 0;
@@ -798,6 +786,59 @@ err_dump:
 err_map:
 	kfree(dma_mem);
 	return err;
+}
+
+static int dpaa2_switch_fdb_entry_dump(struct ethsw_port_priv *port_priv,
+				       struct fdb_dump_entry *fdb_entry,
+				       void *data)
+{
+	if (!dpaa2_switch_port_fdb_valid_entry(fdb_entry, port_priv))
+		return 0;
+
+	return dpaa2_switch_fdb_dump_nl(fdb_entry, data);
+}
+
+static int dpaa2_switch_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
+				      struct net_device *net_dev,
+				      struct net_device *filter_dev, int *idx)
+{
+	struct ethsw_port_priv *port_priv = netdev_priv(net_dev);
+	struct ethsw_dump_ctx dump = {
+		.dev = net_dev,
+		.skb = skb,
+		.cb = cb,
+		.idx = *idx,
+	};
+	int err;
+
+	err = dpaa2_switch_fdb_iterate(port_priv, dpaa2_switch_fdb_entry_dump, &dump);
+	*idx = dump.idx;
+
+	return err;
+}
+
+static int dpaa2_switch_fdb_entry_fast_age(struct ethsw_port_priv *port_priv,
+					   struct fdb_dump_entry *fdb_entry,
+					   void *data __always_unused)
+{
+	if (!dpaa2_switch_port_fdb_valid_entry(fdb_entry, port_priv))
+		return 0;
+
+	if (!(fdb_entry->type & DPSW_FDB_ENTRY_TYPE_DYNAMIC))
+		return 0;
+
+	if (fdb_entry->type & DPSW_FDB_ENTRY_TYPE_UNICAST)
+		dpaa2_switch_port_fdb_del_uc(port_priv, fdb_entry->mac_addr);
+	else
+		dpaa2_switch_port_fdb_del_mc(port_priv, fdb_entry->mac_addr);
+
+	return 0;
+}
+
+static void dpaa2_switch_port_fast_age(struct ethsw_port_priv *port_priv)
+{
+	dpaa2_switch_fdb_iterate(port_priv,
+				 dpaa2_switch_fdb_entry_fast_age, NULL);
 }
 
 static int dpaa2_switch_port_vlan_add(struct net_device *netdev, __be16 proto,
@@ -1510,6 +1551,9 @@ static int dpaa2_switch_port_bridge_leave(struct net_device *netdev)
 	struct dpaa2_switch_fdb *old_fdb = port_priv->fdb;
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 	int err;
+
+	/* First of all, fast age any learn FDB addresses on this switch port */
+	dpaa2_switch_port_fast_age(port_priv);
 
 	/* Clear all RX VLANs installed through vlan_vid_add() either as VLAN
 	 * upper devices or otherwise from the FDB table that we are about to
