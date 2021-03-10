@@ -53,7 +53,7 @@ static uint8_t is_cp_desired_hdcp1(struct mod_hdcp *hdcp)
 	 */
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
 		if (hdcp->displays[i].state != MOD_HDCP_DISPLAY_INACTIVE &&
-				!hdcp->displays[i].adjust.disable) {
+				hdcp->displays[i].adjust.disable != MOD_HDCP_DISPLAY_DISABLE_AUTHENTICATION) {
 			is_auth_needed = 1;
 			break;
 		}
@@ -74,7 +74,7 @@ static uint8_t is_cp_desired_hdcp2(struct mod_hdcp *hdcp)
 	 */
 	for (i = 0; i < MAX_NUM_OF_DISPLAYS; i++) {
 		if (hdcp->displays[i].state != MOD_HDCP_DISPLAY_INACTIVE &&
-				!hdcp->displays[i].adjust.disable) {
+				hdcp->displays[i].adjust.disable != MOD_HDCP_DISPLAY_DISABLE_AUTHENTICATION) {
 			is_auth_needed = 1;
 			break;
 		}
