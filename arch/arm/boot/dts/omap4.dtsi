@@ -58,6 +58,15 @@
 		};
 	};
 
+	/*
+	 * Needed early by omap4_sram_init() for barrier, do not move to l3
+	 * interconnect as simple-pm-bus probes at module_init() time.
+	 */
+	ocmcram: sram@40304000 {
+		compatible = "mmio-sram";
+		reg = <0x40304000 0xa000>; /* 40k */
+	};
+
 	gic: interrupt-controller@48241000 {
 		compatible = "arm,cortex-a9-gic";
 		interrupt-controller;
@@ -134,11 +143,6 @@
 		};
 
 		l4_abe: interconnect@40100000 {
-		};
-
-		ocmcram: sram@40304000 {
-			compatible = "mmio-sram";
-			reg = <0x40304000 0xa000>; /* 40k */
 		};
 
 		target-module@50000000 {
