@@ -23,11 +23,11 @@ static inline unsigned long topology_get_cpu_scale(int cpu)
 
 void topology_set_cpu_scale(unsigned int cpu, unsigned long capacity);
 
-DECLARE_PER_CPU(unsigned long, freq_scale);
+DECLARE_PER_CPU(unsigned long, arch_freq_scale);
 
 static inline unsigned long topology_get_freq_scale(int cpu)
 {
-	return per_cpu(freq_scale, cpu);
+	return per_cpu(arch_freq_scale, cpu);
 }
 
 void topology_set_freq_scale(const struct cpumask *cpus, unsigned long cur_freq,

@@ -256,8 +256,8 @@ static int init_amu_fie_callback(struct notifier_block *nb, unsigned long val,
 	 * initialized AMU support and enabled invariance. The AMU counters will
 	 * keep on working just fine in the absence of the cpufreq driver, and
 	 * for the CPUs for which there are no counters available, the last set
-	 * value of freq_scale will remain valid as that is the frequency those
-	 * CPUs are running at.
+	 * value of arch_freq_scale will remain valid as that is the frequency
+	 * those CPUs are running at.
 	 */
 
 	return 0;
@@ -327,7 +327,7 @@ void topology_scale_freq_tick(void)
 			  const_cnt - prev_const_cnt);
 
 	scale = min_t(unsigned long, scale, SCHED_CAPACITY_SCALE);
-	this_cpu_write(freq_scale, (unsigned long)scale);
+	this_cpu_write(arch_freq_scale, (unsigned long)scale);
 }
 
 #ifdef CONFIG_ACPI_CPPC_LIB
