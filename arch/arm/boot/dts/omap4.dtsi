@@ -108,6 +108,10 @@
 	 */
 	ocp {
 		compatible = "simple-bus";
+		power-domains = <&prm_l4per>;
+		clocks = <&l3_1_clkctrl OMAP4_L3_MAIN_1_CLKCTRL 0>,
+			 <&l3_2_clkctrl OMAP4_L3_MAIN_2_CLKCTRL 0>,
+			 <&l3_instr_clkctrl OMAP4_L3_MAIN_3_CLKCTRL 0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
