@@ -200,7 +200,7 @@
 
  The complete socket opening and closing is done by a thread.
  When the thread opened a socket, the hc->socket descriptor is set. Whenever a
- packet shall be sent to the socket, the hc->socket must be checked wheter not
+ packet shall be sent to the socket, the hc->socket must be checked whether not
  NULL. To prevent change in socket descriptor, the hc->socket_lock must be used.
  To change the socket, a recall of l1oip_socket_open() will safely kill the
  socket process and create a new one.
