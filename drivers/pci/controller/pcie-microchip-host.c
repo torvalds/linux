@@ -1023,10 +1023,8 @@ static int mc_platform_init(struct pci_config_window *cfg)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "unable to request IRQ%d\n", irq);
+	if (irq < 0)
 		return -ENODEV;
-	}
 
 	for (i = 0; i < NUM_EVENTS; i++) {
 		event_irq = irq_create_mapping(port->event_domain, i);
