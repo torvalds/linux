@@ -140,50 +140,6 @@ static struct omap_hwmod omap54xx_l4_wkup_hwmod = {
 };
 
 /*
- * 'mpu_bus' class
- * instance(s): mpu_private
- */
-static struct omap_hwmod_class omap54xx_mpu_bus_hwmod_class = {
-	.name	= "mpu_bus",
-};
-
-/* mpu_private */
-static struct omap_hwmod omap54xx_mpu_private_hwmod = {
-	.name		= "mpu_private",
-	.class		= &omap54xx_mpu_bus_hwmod_class,
-	.clkdm_name	= "mpu_clkdm",
-	.prcm = {
-		.omap4 = {
-			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
-		},
-	},
-};
-
-/*
- * 'mpu' class
- * mpu sub-system
- */
-
-static struct omap_hwmod_class omap54xx_mpu_hwmod_class = {
-	.name	= "mpu",
-};
-
-/* mpu */
-static struct omap_hwmod omap54xx_mpu_hwmod = {
-	.name		= "mpu",
-	.class		= &omap54xx_mpu_hwmod_class,
-	.clkdm_name	= "mpu_clkdm",
-	.flags		= HWMOD_INIT_NO_IDLE,
-	.main_clk	= "dpll_mpu_m2_ck",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP54XX_CM_MPU_MPU_CLKCTRL_OFFSET,
-			.context_offs = OMAP54XX_RM_MPU_MPU_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/*
  * 'sata' class
  * sata:  serial ata interface  gen2 compliant   ( 1 rx/ 1 tx)
  */
@@ -256,14 +212,6 @@ static struct omap_hwmod_ocp_if omap54xx_l4_cfg__l3_main_1 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* mpu -> l3_main_1 */
-static struct omap_hwmod_ocp_if omap54xx_mpu__l3_main_1 = {
-	.master		= &omap54xx_mpu_hwmod,
-	.slave		= &omap54xx_l3_main_1_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU,
-};
-
 /* l3_main_1 -> l3_main_2 */
 static struct omap_hwmod_ocp_if omap54xx_l3_main_1__l3_main_2 = {
 	.master		= &omap54xx_l3_main_1_hwmod,
@@ -328,27 +276,10 @@ static struct omap_hwmod_ocp_if omap54xx_l3_main_1__l4_wkup = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* mpu -> mpu_private */
-static struct omap_hwmod_ocp_if omap54xx_mpu__mpu_private = {
-	.master		= &omap54xx_mpu_hwmod,
-	.slave		= &omap54xx_mpu_private_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_cfg -> mpu */
-static struct omap_hwmod_ocp_if omap54xx_l4_cfg__mpu = {
-	.master		= &omap54xx_l4_cfg_hwmod,
-	.slave		= &omap54xx_mpu_hwmod,
-	.clk		= "l4_root_clk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 static struct omap_hwmod_ocp_if *omap54xx_hwmod_ocp_ifs[] __initdata = {
 	&omap54xx_l3_main_3__l3_instr,
 	&omap54xx_l3_main_2__l3_main_1,
 	&omap54xx_l4_cfg__l3_main_1,
-	&omap54xx_mpu__l3_main_1,
 	&omap54xx_l3_main_1__l3_main_2,
 	&omap54xx_l4_cfg__l3_main_2,
 	&omap54xx_l3_main_1__l3_main_3,
@@ -357,8 +288,6 @@ static struct omap_hwmod_ocp_if *omap54xx_hwmod_ocp_ifs[] __initdata = {
 	&omap54xx_l3_main_1__l4_cfg,
 	&omap54xx_l3_main_2__l4_per,
 	&omap54xx_l3_main_1__l4_wkup,
-	&omap54xx_mpu__mpu_private,
-	&omap54xx_l4_cfg__mpu,
 	&omap54xx_l4_cfg__sata,
 	NULL,
 };
