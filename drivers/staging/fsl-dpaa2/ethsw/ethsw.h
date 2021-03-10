@@ -53,6 +53,19 @@
 
 #define DPAA2_SWITCH_STORE_SIZE 16
 
+/* Buffer management */
+#define BUFS_PER_CMD			7
+#define DPAA2_ETHSW_NUM_BUFS		(1024 * BUFS_PER_CMD)
+#define DPAA2_ETHSW_REFILL_THRESH	(DPAA2_ETHSW_NUM_BUFS * 5 / 6)
+
+/* Number of times to retry DPIO portal operations while waiting
+ * for portal to finish executing current command and become
+ * available. We want to avoid being stuck in a while loop in case
+ * hardware becomes unresponsive, but not give up too easily if
+ * the portal really is busy for valid reasons
+ */
+#define DPAA2_SWITCH_SWP_BUSY_RETRIES		1000
+
 extern const struct ethtool_ops dpaa2_switch_port_ethtool_ops;
 
 struct ethsw_core;
@@ -62,6 +75,7 @@ struct dpaa2_switch_fq {
 	enum dpsw_queue_type type;
 	struct dpaa2_io_store *store;
 	struct dpaa2_io_notification_ctx nctx;
+	struct napi_struct napi;
 	u32 fqid;
 };
 
@@ -89,6 +103,7 @@ struct ethsw_core {
 	unsigned long			features;
 	int				dev_id;
 	struct ethsw_port_priv		**ports;
+	struct iommu_domain		*iommu_domain;
 
 	u8				vlans[VLAN_VID_MASK + 1];
 
@@ -99,7 +114,9 @@ struct ethsw_core {
 
 	struct dpaa2_switch_fq		fq[DPAA2_SWITCH_RX_NUM_FQS];
 	struct fsl_mc_device		*dpbp_dev;
+	int				buf_count;
 	u16				bpid;
+	int				napi_users;
 };
 
 static inline bool dpaa2_switch_supports_cpu_traffic(struct ethsw_core *ethsw)
