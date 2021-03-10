@@ -262,7 +262,6 @@ struct io_sq_data {
 
 	/* ctx's that are using this sqd */
 	struct list_head	ctx_list;
-	struct list_head	ctx_new_list;
 
 	struct task_struct	*thread;
 	struct wait_queue_head	wait;
@@ -398,7 +397,6 @@ struct io_ring_ctx {
 	struct user_struct	*user;
 
 	struct completion	ref_comp;
-	struct completion	sq_thread_comp;
 
 #if defined(CONFIG_UNIX)
 	struct socket		*ring_sock;
@@ -1137,7 +1135,6 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	init_waitqueue_head(&ctx->cq_wait);
 	INIT_LIST_HEAD(&ctx->cq_overflow_list);
 	init_completion(&ctx->ref_comp);
-	init_completion(&ctx->sq_thread_comp);
 	idr_init(&ctx->io_buffer_idr);
 	xa_init_flags(&ctx->personalities, XA_FLAGS_ALLOC1);
 	mutex_init(&ctx->uring_lock);
@@ -6640,19 +6637,6 @@ static void io_sqd_update_thread_idle(struct io_sq_data *sqd)
 	sqd->sq_thread_idle = sq_thread_idle;
 }
 
-static void io_sqd_init_new(struct io_sq_data *sqd)
-{
-	struct io_ring_ctx *ctx;
-
-	while (!list_empty(&sqd->ctx_new_list)) {
-		ctx = list_first_entry(&sqd->ctx_new_list, struct io_ring_ctx, sqd_list);
-		list_move_tail(&ctx->sqd_list, &sqd->ctx_list);
-		complete(&ctx->sq_thread_comp);
-	}
-
-	io_sqd_update_thread_idle(sqd);
-}
-
 static int io_sq_thread(void *data)
 {
 	struct io_sq_data *sqd = data;
@@ -6683,11 +6667,8 @@ static int io_sq_thread(void *data)
 			up_read(&sqd->rw_lock);
 			cond_resched();
 			down_read(&sqd->rw_lock);
-			continue;
-		}
-		if (unlikely(!list_empty(&sqd->ctx_new_list))) {
-			io_sqd_init_new(sqd);
 			timeout = jiffies + sqd->sq_thread_idle;
+			continue;
 		}
 		if (fatal_signal_pending(current))
 			break;
@@ -7099,9 +7080,6 @@ static void io_sq_thread_finish(struct io_ring_ctx *ctx)
 
 	if (sqd) {
 		complete(&sqd->startup);
-		if (sqd->thread)
-			wait_for_completion(&ctx->sq_thread_comp);
-
 		io_sq_thread_park(sqd);
 		list_del(&ctx->sqd_list);
 		io_sqd_update_thread_idle(sqd);
@@ -7153,7 +7131,6 @@ static struct io_sq_data *io_get_sq_data(struct io_uring_params *p)
 
 	refcount_set(&sqd->refs, 1);
 	INIT_LIST_HEAD(&sqd->ctx_list);
-	INIT_LIST_HEAD(&sqd->ctx_new_list);
 	init_rwsem(&sqd->rw_lock);
 	init_waitqueue_head(&sqd->wait);
 	init_completion(&sqd->startup);
@@ -7834,7 +7811,8 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 			ctx->sq_thread_idle = HZ;
 
 		io_sq_thread_park(sqd);
-		list_add(&ctx->sqd_list, &sqd->ctx_new_list);
+		list_add(&ctx->sqd_list, &sqd->ctx_list);
+		io_sqd_update_thread_idle(sqd);
 		io_sq_thread_unpark(sqd);
 
 		if (sqd->thread)
