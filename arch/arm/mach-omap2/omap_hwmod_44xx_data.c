@@ -94,7 +94,7 @@ static struct omap_hwmod omap44xx_l3_main_3_hwmod = {
 
 /*
  * 'l4' class
- * instance(s): l4_abe, l4_cfg, l4_per, l4_wkup
+ * instance(s): l4_abe, l4_cfg, l4_per
  */
 static struct omap_hwmod_class omap44xx_l4_hwmod_class = {
 	.name	= "l4",
@@ -122,19 +122,6 @@ static struct omap_hwmod omap44xx_l4_per_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = OMAP4_CM_L4PER_L4PER_CLKCTRL_OFFSET,
 			.context_offs = OMAP4_RM_L4PER_L4_PER_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/* l4_wkup */
-static struct omap_hwmod omap44xx_l4_wkup_hwmod = {
-	.name		= "l4_wkup",
-	.class		= &omap44xx_l4_hwmod_class,
-	.clkdm_name	= "l4_wkup_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_WKUP_L4WKUP_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_WKUP_L4WKUP_CONTEXT_OFFSET,
 		},
 	},
 };
@@ -205,57 +192,11 @@ static struct omap_hwmod_class omap44xx_prcm_hwmod_class = {
 	.name	= "prcm",
 };
 
-/* cm_core_aon */
-static struct omap_hwmod omap44xx_cm_core_aon_hwmod = {
-	.name		= "cm_core_aon",
-	.class		= &omap44xx_prcm_hwmod_class,
-	.flags		= HWMOD_NO_IDLEST,
-	.prcm = {
-		.omap4 = {
-			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
-		},
-	},
-};
-
 /* cm_core */
 static struct omap_hwmod omap44xx_cm_core_hwmod = {
 	.name		= "cm_core",
 	.class		= &omap44xx_prcm_hwmod_class,
 	.flags		= HWMOD_NO_IDLEST,
-	.prcm = {
-		.omap4 = {
-			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
-		},
-	},
-};
-
-/* prm */
-static struct omap_hwmod_rst_info omap44xx_prm_resets[] = {
-	{ .name = "rst_global_warm_sw", .rst_shift = 0 },
-	{ .name = "rst_global_cold_sw", .rst_shift = 1 },
-};
-
-static struct omap_hwmod omap44xx_prm_hwmod = {
-	.name		= "prm",
-	.class		= &omap44xx_prcm_hwmod_class,
-	.rst_lines	= omap44xx_prm_resets,
-	.rst_lines_cnt	= ARRAY_SIZE(omap44xx_prm_resets),
-};
-
-/*
- * 'scrm' class
- * system clock and reset manager
- */
-
-static struct omap_hwmod_class omap44xx_scrm_hwmod_class = {
-	.name	= "scrm",
-};
-
-/* scrm */
-static struct omap_hwmod omap44xx_scrm_hwmod = {
-	.name		= "scrm",
-	.class		= &omap44xx_scrm_hwmod_class,
-	.clkdm_name	= "l4_wkup_clkdm",
 	.prcm = {
 		.omap4 = {
 			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
@@ -378,14 +319,6 @@ static struct omap_hwmod_ocp_if omap44xx_l3_main_2__l4_per = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_cfg -> l4_wkup */
-static struct omap_hwmod_ocp_if omap44xx_l4_cfg__l4_wkup = {
-	.master		= &omap44xx_l4_cfg_hwmod,
-	.slave		= &omap44xx_l4_wkup_hwmod,
-	.clk		= "l4_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l4_cfg -> ocp_wp_noc */
 static struct omap_hwmod_ocp_if omap44xx_l4_cfg__ocp_wp_noc = {
 	.master		= &omap44xx_l4_cfg_hwmod,
@@ -402,35 +335,11 @@ static struct omap_hwmod_ocp_if omap44xx_l3_main_2__ocmc_ram = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_wkup -> cm_core_aon */
-static struct omap_hwmod_ocp_if omap44xx_l4_wkup__cm_core_aon = {
-	.master		= &omap44xx_l4_wkup_hwmod,
-	.slave		= &omap44xx_cm_core_aon_hwmod,
-	.clk		= "l4_wkup_clk_mux_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l4_cfg -> cm_core */
 static struct omap_hwmod_ocp_if omap44xx_l4_cfg__cm_core = {
 	.master		= &omap44xx_l4_cfg_hwmod,
 	.slave		= &omap44xx_cm_core_hwmod,
 	.clk		= "l4_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_wkup -> prm */
-static struct omap_hwmod_ocp_if omap44xx_l4_wkup__prm = {
-	.master		= &omap44xx_l4_wkup_hwmod,
-	.slave		= &omap44xx_prm_hwmod,
-	.clk		= "l4_wkup_clk_mux_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_wkup -> scrm */
-static struct omap_hwmod_ocp_if omap44xx_l4_wkup__scrm = {
-	.master		= &omap44xx_l4_wkup_hwmod,
-	.slave		= &omap44xx_scrm_hwmod,
-	.clk		= "l4_wkup_clk_mux_ck",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -454,13 +363,9 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_cfg__l3_main_3,
 	&omap44xx_l3_main_1__l4_cfg,
 	&omap44xx_l3_main_2__l4_per,
-	&omap44xx_l4_cfg__l4_wkup,
 	&omap44xx_l4_cfg__ocp_wp_noc,
 	&omap44xx_l3_main_2__ocmc_ram,
-	&omap44xx_l4_wkup__cm_core_aon,
 	&omap44xx_l4_cfg__cm_core,
-	&omap44xx_l4_wkup__prm,
-	&omap44xx_l4_wkup__scrm,
 	/* &omap44xx_l3_main_2__sl2if, */
 	NULL,
 };
