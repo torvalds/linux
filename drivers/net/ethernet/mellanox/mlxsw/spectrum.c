@@ -4283,7 +4283,7 @@ static int mlxsw_sp_netdevice_bridge_event(struct net_device *br_dev,
 		if (br_vlan_enabled(br_dev)) {
 			br_vlan_get_proto(br_dev, &proto);
 			if (proto == ETH_P_8021AD) {
-				NL_SET_ERR_MSG_MOD(extack, "Uppers are not supported on top of an 802.1ad bridge");
+				NL_SET_ERR_MSG_MOD(extack, "Upper devices are not supported on top of an 802.1ad bridge");
 				return -EOPNOTSUPP;
 			}
 		}
