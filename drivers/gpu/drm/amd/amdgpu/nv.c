@@ -967,6 +967,7 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT &&
 		    is_support_sw_smu(adev))
 			amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &vcn_v3_0_ip_block);
 		break;
 	default:
 		return -EINVAL;
@@ -1277,7 +1278,8 @@ static int nv_common_early_init(void *handle)
 		break;
 	case CHIP_BEIGE_GOBY:
 		adev->cg_flags = 0;
-		adev->pg_flags = 0;
+		adev->pg_flags = AMD_PG_SUPPORT_VCN |
+			AMD_PG_SUPPORT_VCN_DPG;
 		adev->external_rev_id = adev->rev_id + 0x46;
 		break;
 	default:
