@@ -222,7 +222,7 @@ do {									      \
 } while (0)
 #endif /* __powerpc64__ */
 
-static inline void set_trap(struct pt_regs *regs, unsigned long val)
+static __always_inline void set_trap(struct pt_regs *regs, unsigned long val)
 {
 	regs->trap = (regs->trap & TRAP_FLAGS_MASK) | (val & ~TRAP_FLAGS_MASK);
 }

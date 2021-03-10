@@ -111,7 +111,7 @@ static unsigned long get_user_msr(struct task_struct *task)
 	return task->thread.regs->msr | task->thread.fpexc_mode;
 }
 
-static int set_user_msr(struct task_struct *task, unsigned long msr)
+static __always_inline int set_user_msr(struct task_struct *task, unsigned long msr)
 {
 	task->thread.regs->msr &= ~MSR_DEBUGCHANGE;
 	task->thread.regs->msr |= msr & MSR_DEBUGCHANGE;
@@ -147,7 +147,7 @@ static int set_user_dscr(struct task_struct *task, unsigned long dscr)
  * We prevent mucking around with the reserved area of trap
  * which are used internally by the kernel.
  */
-static int set_user_trap(struct task_struct *task, unsigned long trap)
+static __always_inline int set_user_trap(struct task_struct *task, unsigned long trap)
 {
 	set_trap(task->thread.regs, trap);
 	return 0;
@@ -661,6 +661,9 @@ int gpr32_set_common(struct task_struct *target,
 	const compat_ulong_t __user *u = ubuf;
 	compat_ulong_t reg;
 
+	if (!kbuf && !user_read_access_begin(u, count))
+		return -EFAULT;
+
 	pos /= sizeof(reg);
 	count /= sizeof(reg);
 
@@ -669,8 +672,7 @@ int gpr32_set_common(struct task_struct *target,
 			regs[pos++] = *k++;
 	else
 		for (; count > 0 && pos < PT_MSR; --count) {
-			if (__get_user(reg, u++))
-				return -EFAULT;
+			unsafe_get_user(reg, u++, Efault);
 			regs[pos++] = reg;
 		}
 
@@ -678,8 +680,8 @@ int gpr32_set_common(struct task_struct *target,
 	if (count > 0 && pos == PT_MSR) {
 		if (kbuf)
 			reg = *k++;
-		else if (__get_user(reg, u++))
-			return -EFAULT;
+		else
+			unsafe_get_user(reg, u++, Efault);
 		set_user_msr(target, reg);
 		++pos;
 		--count;
@@ -692,24 +694,24 @@ int gpr32_set_common(struct task_struct *target,
 			++k;
 	} else {
 		for (; count > 0 && pos <= PT_MAX_PUT_REG; --count) {
-			if (__get_user(reg, u++))
-				return -EFAULT;
+			unsafe_get_user(reg, u++, Efault);
 			regs[pos++] = reg;
 		}
 		for (; count > 0 && pos < PT_TRAP; --count, ++pos)
-			if (__get_user(reg, u++))
-				return -EFAULT;
+			unsafe_get_user(reg, u++, Efault);
 	}
 
 	if (count > 0 && pos == PT_TRAP) {
 		if (kbuf)
 			reg = *k++;
-		else if (__get_user(reg, u++))
-			return -EFAULT;
+		else
+			unsafe_get_user(reg, u++, Efault);
 		set_user_trap(target, reg);
 		++pos;
 		--count;
 	}
+	if (!kbuf)
+		user_read_access_end();
 
 	kbuf = k;
 	ubuf = u;
@@ -717,6 +719,10 @@ int gpr32_set_common(struct task_struct *target,
 	count *= sizeof(reg);
 	return user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
 					 (PT_TRAP + 1) * sizeof(reg), -1);
+
+Efault:
+	user_read_access_end();
+	return -EFAULT;
 }
 
 static int gpr32_get(struct task_struct *target,
