@@ -43,21 +43,6 @@ static inline bool __access_ok(unsigned long addr, unsigned long size)
  * exception handling means that it's no longer "just"...)
  *
  */
-#define __put_user_size(x, ptr, size, retval)			\
-do {								\
-	__label__ __pu_failed;					\
-								\
-	retval = 0;						\
-	allow_write_to_user(ptr, size);				\
-	__put_user_size_goto(x, ptr, size, __pu_failed);	\
-	prevent_write_to_user(ptr, size);			\
-	break;							\
-								\
-__pu_failed:							\
-	retval = -EFAULT;					\
-	prevent_write_to_user(ptr, size);			\
-} while (0)
-
 #define __put_user(x, ptr)					\
 ({								\
 	long __pu_err;						\
@@ -66,23 +51,29 @@ __pu_failed:							\
 	__typeof__(sizeof(*(ptr))) __pu_size = sizeof(*(ptr));	\
 								\
 	might_fault();						\
-	__put_user_size(__pu_val, __pu_addr, __pu_size, __pu_err);	\
+	do {							\
+		__label__ __pu_failed;				\
+								\
+		allow_write_to_user(__pu_addr, __pu_size);	\
+		__put_user_size_goto(__pu_val, __pu_addr, __pu_size, __pu_failed);	\
+		prevent_write_to_user(__pu_addr, __pu_size);	\
+		__pu_err = 0;					\
+		break;						\
+								\
+__pu_failed:							\
+		prevent_write_to_user(__pu_addr, __pu_size);	\
+		__pu_err = -EFAULT;				\
+	} while (0);						\
 								\
 	__pu_err;						\
 })
 
 #define put_user(x, ptr)						\
 ({									\
-	long __pu_err = -EFAULT;					\
-	__typeof__(*(ptr)) __user *__pu_addr = (ptr);			\
-	__typeof__(*(ptr)) __pu_val = (__typeof__(*(ptr)))(x);		\
-	__typeof__(sizeof(*(ptr))) __pu_size = sizeof(*(ptr));		\
+	__typeof__(*(ptr)) __user *_pu_addr = (ptr);			\
 									\
-	might_fault();							\
-	if (access_ok(__pu_addr, __pu_size))				\
-		__put_user_size(__pu_val, __pu_addr, __pu_size, __pu_err); \
-									\
-	__pu_err;							\
+	access_ok(_pu_addr, sizeof(*(ptr))) ?				\
+		  __put_user(x, _pu_addr) : -EFAULT;			\
 })
 
 /*
@@ -192,13 +183,6 @@ do {								\
 	}							\
 } while (0)
 
-#define __get_user_size(x, ptr, size, retval)			\
-do {								\
-	allow_read_from_user(ptr, size);			\
-	__get_user_size_allowed(x, ptr, size, retval);		\
-	prevent_read_from_user(ptr, size);			\
-} while (0)
-
 /*
  * This is a type: either unsigned long, if the argument fits into
  * that type, or otherwise unsigned long long.
@@ -214,7 +198,9 @@ do {								\
 	__typeof__(sizeof(*(ptr))) __gu_size = sizeof(*(ptr));	\
 								\
 	might_fault();					\
-	__get_user_size(__gu_val, __gu_addr, __gu_size, __gu_err);	\
+	allow_read_from_user(__gu_addr, __gu_size);		\
+	__get_user_size_allowed(__gu_val, __gu_addr, __gu_size, __gu_err);	\
+	prevent_read_from_user(__gu_addr, __gu_size);		\
 	(x) = (__typeof__(*(ptr)))__gu_val;			\
 								\
 	__gu_err;						\
@@ -222,17 +208,11 @@ do {								\
 
 #define get_user(x, ptr)						\
 ({									\
-	long __gu_err = -EFAULT;					\
-	__long_type(*(ptr)) __gu_val = 0;				\
-	__typeof__(*(ptr)) __user *__gu_addr = (ptr);		\
-	__typeof__(sizeof(*(ptr))) __gu_size = sizeof(*(ptr));		\
+	__typeof__(*(ptr)) __user *_gu_addr = (ptr);			\
 									\
-	might_fault();							\
-	if (access_ok(__gu_addr, __gu_size))				\
-		__get_user_size(__gu_val, __gu_addr, __gu_size, __gu_err); \
-	(x) = (__force __typeof__(*(ptr)))__gu_val;				\
-									\
-	__gu_err;							\
+	access_ok(_gu_addr, sizeof(*(ptr))) ?				\
+		  __get_user(x, _gu_addr) :				\
+		  ((x) = (__force __typeof__(*(ptr)))0, -EFAULT);	\
 })
 
 /* more complex routines */
