@@ -764,10 +764,8 @@ struct smt_sif_operation {
 	struct smt_p_setcount	setcount ;	 /* Set Count mandatory */
 #endif
 	/* must be last */
-	struct smt_p_lem	lem[1] ;	/* phy lem status */
+	struct smt_p_lem	lem[];		/* phy lem status */
 } ;
-#define SIZEOF_SMT_SIF_OPERATION	(sizeof(struct smt_sif_operation)- \
-					 sizeof(struct smt_p_lem))
 
 /*
  * ECF : echo frame
