@@ -125,9 +125,8 @@ static bool ionic_rx_buf_recycle(struct ionic_queue *q,
 
 static struct sk_buff *ionic_rx_frags(struct ionic_queue *q,
 				      struct ionic_desc_info *desc_info,
-				      struct ionic_cq_info *cq_info)
+				      struct ionic_rxq_comp *comp)
 {
-	struct ionic_rxq_comp *comp = cq_info->cq_desc;
 	struct net_device *netdev = q->lif->netdev;
 	struct ionic_buf_info *buf_info;
 	struct ionic_rx_stats *stats;
@@ -155,9 +154,6 @@ static struct sk_buff *ionic_rx_frags(struct ionic_queue *q,
 	i = comp->num_sg_elems + 1;
 	do {
 		if (unlikely(!buf_info->page)) {
-			struct napi_struct *napi = &q_to_qcq(q)->napi;
-
-			napi->skb = NULL;
 			dev_kfree_skb(skb);
 			return NULL;
 		}
@@ -189,9 +185,8 @@ static struct sk_buff *ionic_rx_frags(struct ionic_queue *q,
 
 static struct sk_buff *ionic_rx_copybreak(struct ionic_queue *q,
 					  struct ionic_desc_info *desc_info,
-					  struct ionic_cq_info *cq_info)
+					  struct ionic_rxq_comp *comp)
 {
-	struct ionic_rxq_comp *comp = cq_info->cq_desc;
 	struct net_device *netdev = q->lif->netdev;
 	struct ionic_buf_info *buf_info;
 	struct ionic_rx_stats *stats;
@@ -234,7 +229,7 @@ static void ionic_rx_clean(struct ionic_queue *q,
 			   struct ionic_cq_info *cq_info,
 			   void *cb_arg)
 {
-	struct ionic_rxq_comp *comp = cq_info->cq_desc;
+	struct ionic_rxq_comp *comp = cq_info->rxcq;
 	struct net_device *netdev = q->lif->netdev;
 	struct ionic_qcq *qcq = q_to_qcq(q);
 	struct ionic_rx_stats *stats;
@@ -251,9 +246,9 @@ static void ionic_rx_clean(struct ionic_queue *q,
 	stats->bytes += le16_to_cpu(comp->len);
 
 	if (le16_to_cpu(comp->len) <= q->lif->rx_copybreak)
-		skb = ionic_rx_copybreak(q, desc_info, cq_info);
+		skb = ionic_rx_copybreak(q, desc_info, comp);
 	else
-		skb = ionic_rx_frags(q, desc_info, cq_info);
+		skb = ionic_rx_frags(q, desc_info, comp);
 
 	if (unlikely(!skb)) {
 		stats->dropped++;
@@ -309,7 +304,7 @@ static void ionic_rx_clean(struct ionic_queue *q,
 
 static bool ionic_rx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
 {
-	struct ionic_rxq_comp *comp = cq_info->cq_desc;
+	struct ionic_rxq_comp *comp = cq_info->rxcq;
 	struct ionic_queue *q = cq->bound_q;
 	struct ionic_desc_info *desc_info;
 
@@ -661,7 +656,7 @@ static void ionic_tx_clean(struct ionic_queue *q,
 
 static bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
 {
-	struct ionic_txq_comp *comp = cq_info->cq_desc;
+	struct ionic_txq_comp *comp = cq_info->txcq;
 	struct ionic_queue *q = cq->bound_q;
 	struct ionic_desc_info *desc_info;
 	u16 index;
