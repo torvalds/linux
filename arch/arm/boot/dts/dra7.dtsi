@@ -125,18 +125,6 @@
 	};
 
 	/*
-	 * The soc node represents the soc top level view. It is used for IPs
-	 * that are not memory mapped in the MPU view or for the MPU itself.
-	 */
-	soc {
-		compatible = "ti,omap-infra";
-		mpu {
-			compatible = "ti,omap5-mpu";
-			ti,hwmods = "mpu";
-		};
-	};
-
-	/*
 	 * XXX: Use a flat representation of the SOC interconnect.
 	 * The real OMAP interconnect network is quite complex.
 	 * Since it will not bring real advantage to represent that in DT for
@@ -165,6 +153,21 @@
 		};
 		l4_per1: interconnect@48000000 {
 		};
+
+		target-module@48210000 {
+			compatible = "ti,sysc-omap4-simple", "ti,sysc";
+			power-domains = <&prm_mpu>;
+			clocks = <&mpu_clkctrl DRA7_MPU_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x48210000 0x1f0000>;
+
+			mpu {
+				compatible = "ti,omap5-mpu";
+			};
+		};
+
 		l4_per2: interconnect@48400000 {
 		};
 		l4_per3: interconnect@48800000 {
