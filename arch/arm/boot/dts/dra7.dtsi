@@ -166,8 +166,21 @@
 		l4_per3: interconnect@48800000 {
 		};
 
-		axi@0 {
-			compatible = "simple-bus";
+		/*
+		 * Register access seems to have complex dependencies and also
+		 * seems to need an enabled phy. See the TRM chapter for "Table
+		 * 26-678. Main Sequence PCIe Controller Global Initialization"
+		 * and also dra7xx_pcie_probe().
+		 */
+		axi0: target-module@51000000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			power-domains = <&prm_l3init>;
+			resets = <&prm_l3init 0>;
+			reset-names = "rstctrl";
+			clocks = <&pcie_clkctrl DRA7_PCIE_PCIE1_CLKCTRL 0>,
+				 <&pcie_clkctrl DRA7_PCIE_PCIE1_CLKCTRL 9>,
+				 <&pcie_clkctrl DRA7_PCIE_PCIE1_CLKCTRL 10>;
+			clock-names = "fck", "phy-clk", "phy-clk-div";
 			#size-cells = <1>;
 			#address-cells = <1>;
 			ranges = <0x51000000 0x51000000 0x3000>,
@@ -229,8 +242,21 @@
 			};
 		};
 
-		axi@1 {
-			compatible = "simple-bus";
+		/*
+		 * Register access seems to have complex dependencies and also
+		 * seems to need an enabled phy. See the TRM chapter for "Table
+		 * 26-678. Main Sequence PCIe Controller Global Initialization"
+		 * and also dra7xx_pcie_probe().
+		 */
+		axi1: target-module@51800000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			clocks = <&pcie_clkctrl DRA7_PCIE_PCIE2_CLKCTRL 0>,
+				 <&pcie_clkctrl DRA7_PCIE_PCIE2_CLKCTRL 9>,
+				 <&pcie_clkctrl DRA7_PCIE_PCIE2_CLKCTRL 10>;
+			clock-names = "fck", "phy-clk", "phy-clk-div";
+			power-domains = <&prm_l3init>;
+			resets = <&prm_l3init 1>;
+			reset-names = "rstctrl";
 			#size-cells = <1>;
 			#address-cells = <1>;
 			ranges = <0x51800000 0x51800000 0x3000>,
