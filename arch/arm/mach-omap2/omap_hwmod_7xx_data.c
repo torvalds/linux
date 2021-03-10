@@ -266,84 +266,6 @@ static struct omap_hwmod dra7xx_mpu_hwmod = {
 	},
 };
 
-
-/*
- * 'PCIE' class
- *
- */
-
-/*
- * As noted in documentation for _reset() in omap_hwmod.c, the stock reset
- * functionality of OMAP HWMOD layer does not deassert the hardreset lines
- * associated with an IP automatically leaving the driver to handle that
- * by itself. This does not work for PCIeSS which needs the reset lines
- * deasserted for the driver to start accessing registers.
- *
- * We use a PCIeSS HWMOD class specific reset handler to deassert the hardreset
- * lines after asserting them.
- */
-int dra7xx_pciess_reset(struct omap_hwmod *oh)
-{
-	int i;
-
-	for (i = 0; i < oh->rst_lines_cnt; i++) {
-		omap_hwmod_assert_hardreset(oh, oh->rst_lines[i].name);
-		omap_hwmod_deassert_hardreset(oh, oh->rst_lines[i].name);
-	}
-
-	return 0;
-}
-
-static struct omap_hwmod_class dra7xx_pciess_hwmod_class = {
-	.name	= "pcie",
-	.reset	= dra7xx_pciess_reset,
-};
-
-/* pcie1 */
-static struct omap_hwmod_rst_info dra7xx_pciess1_resets[] = {
-	{ .name = "pcie", .rst_shift = 0 },
-};
-
-static struct omap_hwmod dra7xx_pciess1_hwmod = {
-	.name		= "pcie1",
-	.class		= &dra7xx_pciess_hwmod_class,
-	.clkdm_name	= "pcie_clkdm",
-	.rst_lines	= dra7xx_pciess1_resets,
-	.rst_lines_cnt	= ARRAY_SIZE(dra7xx_pciess1_resets),
-	.main_clk	= "l4_root_clk_div",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L3INIT_PCIESS1_CLKCTRL_OFFSET,
-			.rstctrl_offs = DRA7XX_RM_L3INIT_PCIESS_RSTCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L3INIT_PCIESS1_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/* pcie2 */
-static struct omap_hwmod_rst_info dra7xx_pciess2_resets[] = {
-	{ .name = "pcie", .rst_shift = 1 },
-};
-
-/* pcie2 */
-static struct omap_hwmod dra7xx_pciess2_hwmod = {
-	.name		= "pcie2",
-	.class		= &dra7xx_pciess_hwmod_class,
-	.clkdm_name	= "pcie_clkdm",
-	.rst_lines	= dra7xx_pciess2_resets,
-	.rst_lines_cnt	= ARRAY_SIZE(dra7xx_pciess2_resets),
-	.main_clk	= "l4_root_clk_div",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L3INIT_PCIESS2_CLKCTRL_OFFSET,
-			.rstctrl_offs = DRA7XX_RM_L3INIT_PCIESS_RSTCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L3INIT_PCIESS2_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
 /*
  * 'qspi' class
  *
@@ -579,38 +501,6 @@ static struct omap_hwmod_ocp_if dra7xx_l4_cfg__mpu = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l3_main_1 -> pciess1 */
-static struct omap_hwmod_ocp_if dra7xx_l3_main_1__pciess1 = {
-	.master		= &dra7xx_l3_main_1_hwmod,
-	.slave		= &dra7xx_pciess1_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_cfg -> pciess1 */
-static struct omap_hwmod_ocp_if dra7xx_l4_cfg__pciess1 = {
-	.master		= &dra7xx_l4_cfg_hwmod,
-	.slave		= &dra7xx_pciess1_hwmod,
-	.clk		= "l4_root_clk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l3_main_1 -> pciess2 */
-static struct omap_hwmod_ocp_if dra7xx_l3_main_1__pciess2 = {
-	.master		= &dra7xx_l3_main_1_hwmod,
-	.slave		= &dra7xx_pciess2_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_cfg -> pciess2 */
-static struct omap_hwmod_ocp_if dra7xx_l4_cfg__pciess2 = {
-	.master		= &dra7xx_l4_cfg_hwmod,
-	.slave		= &dra7xx_pciess2_hwmod,
-	.clk		= "l4_root_clk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l3_main_1 -> qspi */
 static struct omap_hwmod_ocp_if dra7xx_l3_main_1__qspi = {
 	.master		= &dra7xx_l3_main_1_hwmod,
@@ -675,10 +565,6 @@ static struct omap_hwmod_ocp_if *dra7xx_hwmod_ocp_ifs[] __initdata = {
 	&dra7xx_l3_main_1__bb2d,
 	&dra7xx_l4_wkup__ctrl_module_wkup,
 	&dra7xx_l4_cfg__mpu,
-	&dra7xx_l3_main_1__pciess1,
-	&dra7xx_l4_cfg__pciess1,
-	&dra7xx_l3_main_1__pciess2,
-	&dra7xx_l4_cfg__pciess2,
 	&dra7xx_l3_main_1__qspi,
 	&dra7xx_l4_cfg__sata,
 	&dra7xx_l3_main_1__vcp1,
