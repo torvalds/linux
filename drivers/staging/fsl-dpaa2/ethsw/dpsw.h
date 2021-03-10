@@ -222,6 +222,29 @@ struct dpsw_ctrl_if_pools_cfg {
 int dpsw_ctrl_if_set_pools(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 			   const struct dpsw_ctrl_if_pools_cfg *cfg);
 
+#define DPSW_CTRL_IF_QUEUE_OPT_USER_CTX		0x00000001
+#define DPSW_CTRL_IF_QUEUE_OPT_DEST		0x00000002
+
+enum dpsw_ctrl_if_dest {
+	DPSW_CTRL_IF_DEST_NONE = 0,
+	DPSW_CTRL_IF_DEST_DPIO = 1,
+};
+
+struct dpsw_ctrl_if_dest_cfg {
+	enum dpsw_ctrl_if_dest dest_type;
+	int dest_id;
+	u8 priority;
+};
+
+struct dpsw_ctrl_if_queue_cfg {
+	u32 options;
+	u64 user_ctx;
+	struct dpsw_ctrl_if_dest_cfg dest_cfg;
+};
+
+int dpsw_ctrl_if_set_queue(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			   enum dpsw_queue_type qtype,
+			   const struct dpsw_ctrl_if_queue_cfg *cfg);
 /**
  * enum dpsw_action - Action selection for special/control frames
  * @DPSW_ACTION_DROP: Drop frame

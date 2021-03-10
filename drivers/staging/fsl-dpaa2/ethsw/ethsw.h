@@ -61,6 +61,7 @@ struct dpaa2_switch_fq {
 	struct ethsw_core *ethsw;
 	enum dpsw_queue_type type;
 	struct dpaa2_io_store *store;
+	struct dpaa2_io_notification_ctx nctx;
 	u32 fqid;
 };
 

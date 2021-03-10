@@ -76,6 +76,7 @@
 
 #define DPSW_CMDID_CTRL_IF_GET_ATTR         DPSW_CMD_ID(0x0A0)
 #define DPSW_CMDID_CTRL_IF_SET_POOLS        DPSW_CMD_ID(0x0A1)
+#define DPSW_CMDID_CTRL_IF_SET_QUEUE        DPSW_CMD_ID(0x0A6)
 
 /* Macros for accessing command fields smaller than 1byte */
 #define DPSW_MASK(field)        \
@@ -366,6 +367,20 @@ struct dpsw_cmd_ctrl_if_set_pools {
 	__le16 pad;
 	__le32 dpbp_id[DPSW_MAX_DPBP];
 	__le16 buffer_size[DPSW_MAX_DPBP];
+};
+
+#define DPSW_DEST_TYPE_SHIFT	0
+#define DPSW_DEST_TYPE_SIZE	4
+
+struct dpsw_cmd_ctrl_if_set_queue {
+	__le32 dest_id;
+	u8 dest_priority;
+	u8 pad;
+	/* from LSB: dest_type:4 */
+	u8 dest_type;
+	u8 qtype;
+	__le64 user_ctx;
+	__le32 options;
 };
 
 struct dpsw_rsp_get_api_version {
