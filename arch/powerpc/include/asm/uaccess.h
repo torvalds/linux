@@ -183,6 +183,15 @@ do {								\
 	}							\
 } while (0)
 
+#define __get_user_size_goto(x, ptr, size, label)		\
+do {								\
+	long __gus_retval;					\
+								\
+	__get_user_size_allowed(x, ptr, size, __gus_retval);	\
+	if (__gus_retval)					\
+		goto label;					\
+} while (0)
+
 /*
  * This is a type: either unsigned long, if the argument fits into
  * that type, or otherwise unsigned long long.
@@ -351,13 +360,10 @@ user_write_access_begin(const void __user *ptr, size_t len)
 #define user_write_access_end		prevent_current_write_to_user
 
 #define unsafe_get_user(x, p, e) do {					\
-	long __gu_err;						\
 	__long_type(*(p)) __gu_val;				\
 	__typeof__(*(p)) __user *__gu_addr = (p);		\
 								\
-	__get_user_size_allowed(__gu_val, __gu_addr, sizeof(*(p)), __gu_err); \
-	if (__gu_err)						\
-		goto e;						\
+	__get_user_size_goto(__gu_val, __gu_addr, sizeof(*(p)), e); \
 	(x) = (__typeof__(*(p)))__gu_val;			\
 } while (0)
 
@@ -409,14 +415,8 @@ do {									\
 #define HAVE_GET_KERNEL_NOFAULT
 
 #define __get_kernel_nofault(dst, src, type, err_label)			\
-do {									\
-	int __kr_err;							\
-									\
-	__get_user_size_allowed(*((type *)(dst)), (__force type __user *)(src),\
-			sizeof(type), __kr_err);			\
-	if (unlikely(__kr_err))						\
-		goto err_label;						\
-} while (0)
+	__get_user_size_goto(*((type *)(dst)),				\
+		(__force type __user *)(src), sizeof(type), err_label)
 
 #define __put_kernel_nofault(dst, src, type, err_label)			\
 	__put_user_size_goto(*((type *)(src)),				\
