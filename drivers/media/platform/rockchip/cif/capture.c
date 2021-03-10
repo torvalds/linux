@@ -1904,6 +1904,8 @@ static void rkcif_destroy_dummy_buf(struct rkcif_stream *stream)
 	if (dummy_buf->vaddr)
 		dma_free_coherent(hw_dev->dev, dummy_buf->size,
 				  dummy_buf->vaddr, dummy_buf->dma_addr);
+	dummy_buf->dma_addr = 0;
+	dummy_buf->vaddr = NULL;
 }
 
 static void rkcif_do_cru_reset(struct rkcif_device *dev)
@@ -2056,9 +2058,10 @@ static void rkcif_stop_streaming(struct vb2_queue *queue)
 		dev->can_be_reset = true;
 	}
 
-	if (dev->can_be_reset) {
+	if (dev->can_be_reset && !atomic_read(&(dev->pipe.stream_cnt))) {
 		rkcif_do_cru_reset(dev);
 		dev->can_be_reset = false;
+		dev->reset_work_cancel = true;
 	}
 	pm_runtime_put(dev->dev);
 
@@ -2712,6 +2715,8 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 				dev->stream[RKCIF_STREAM_MIPI_ID0].cif_fmt_in);
 		}
 	}
+
+	dev->reset_work_cancel = false;
 
 	goto out;
 
@@ -4510,14 +4515,17 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 	int i, j, ret = 0;
 	u32 on;
 
+	mutex_lock(&cif_dev->stream_lock);
+
+	if (cif_dev->reset_work_cancel)
+		goto unlock_stream;
+
 	v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev, "do rkcif reset\n");
 
 	for (i = 0, j = 0; i < RKCIF_MAX_STREAM_MIPI; i++) {
 		stream = &cif_dev->stream[i];
 
 		if (stream->state == RKCIF_STATE_STREAMING) {
-
-			mutex_lock(&cif_dev->stream_lock);
 
 			v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev,
 				 "stream[%d] stopping\n", stream->id);
@@ -4538,8 +4546,6 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 			stream->state = RKCIF_STATE_RESET_IN_STREAMING;
 			resume_stream[j] = stream;
 			j += 1;
-
-			mutex_unlock(&cif_dev->stream_lock);
 
 			v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev,
 				 "%s stop stream[%d] in streaming, frm_id:%d, csi_sof:%d\n",
@@ -4586,7 +4592,7 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 	ret = rkcif_enable_sys_clk(cif_dev->hw_dev);
 	if (ret < 0) {
 		v4l2_err(&cif_dev->v4l2_dev, "%s:resume cif clk failed\n", __func__);
-		return ret;
+		goto unlock_stream;
 	}
 
 	for (i = 0; i < j; i++) {
@@ -4594,7 +4600,7 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 		if (ret) {
 			v4l2_err(&cif_dev->v4l2_dev, "%s:resume stream[%d] failed\n",
 				 __func__, stream->id);
-			return ret;
+			goto unlock_stream;
 		}
 
 		v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev,
@@ -4641,7 +4647,12 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 
 	v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev, "do rkcif reset successfully!\n");
 
+	mutex_unlock(&cif_dev->stream_lock);
 	return 0;
+
+unlock_stream:
+	mutex_unlock(&cif_dev->stream_lock);
+	return ret;
 }
 
 static void rkcif_reset_work(struct work_struct *work)
