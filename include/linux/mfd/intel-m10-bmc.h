@@ -9,7 +9,7 @@
 
 #include <linux/regmap.h>
 
-#define M10BMC_LEGACY_SYS_BASE		0x300400
+#define M10BMC_LEGACY_BUILD_VER		0x300468
 #define M10BMC_SYS_BASE			0x300800
 #define M10BMC_MEM_END			0x1fffffff
 

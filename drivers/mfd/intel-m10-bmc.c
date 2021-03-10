@@ -116,17 +116,14 @@ static int check_m10bmc_version(struct intel_m10bmc *ddata)
 	int ret;
 
 	/*
-	 * This check is to filter out the very old legacy BMC versions,
-	 * M10BMC_LEGACY_SYS_BASE is the offset to this old block of mmio
-	 * registers. In the old BMC chips, the BMC version info is stored
-	 * in this old version register (M10BMC_LEGACY_SYS_BASE +
-	 * M10BMC_BUILD_VER), so its read out value would have not been
-	 * LEGACY_INVALID (0xffffffff). But in new BMC chips that the
-	 * driver supports, the value of this register should be
-	 * LEGACY_INVALID.
+	 * This check is to filter out the very old legacy BMC versions. In the
+	 * old BMC chips, the BMC version info is stored in the old version
+	 * register (M10BMC_LEGACY_BUILD_VER), so its read out value would have
+	 * not been M10BMC_VER_LEGACY_INVALID (0xffffffff). But in new BMC
+	 * chips that the driver supports, the value of this register should be
+	 * M10BMC_VER_LEGACY_INVALID.
 	 */
-	ret = m10bmc_raw_read(ddata,
-			      M10BMC_LEGACY_SYS_BASE + M10BMC_BUILD_VER, &v);
+	ret = m10bmc_raw_read(ddata, M10BMC_LEGACY_BUILD_VER, &v);
 	if (ret)
 		return -ENODEV;
 
