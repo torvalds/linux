@@ -976,12 +976,10 @@ static void event_mall_stutter(struct work_struct *work)
 	else
 		dm->active_vblank_irq_count--;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	dc_allow_idle_optimizations(
 		dm->dc, dm->active_vblank_irq_count == 0);
 
 	DRM_DEBUG_DRIVER("Allow idle optimizations (MALL): %d\n", dm->active_vblank_irq_count == 0);
-#endif
 
 
 	mutex_unlock(&dm->dc_lock);
