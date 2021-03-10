@@ -226,7 +226,7 @@ struct device *cec_notifier_parse_hdmi_phandle(struct device *dev)
 	hdmi_pdev = of_find_device_by_node(np);
 	if (hdmi_pdev)
 		hdmi_dev = &hdmi_pdev->dev;
-#if IS_ENABLED(CONFIG_I2C)
+#if IS_REACHABLE(CONFIG_I2C)
 	if (!hdmi_dev) {
 		struct i2c_client *hdmi_client = of_find_i2c_device_by_node(np);
 
