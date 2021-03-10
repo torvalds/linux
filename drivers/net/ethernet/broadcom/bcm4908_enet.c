@@ -9,6 +9,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_net.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -620,6 +621,7 @@ static int bcm4908_enet_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct net_device *netdev;
 	struct bcm4908_enet *enet;
+	const u8 *mac;
 	int err;
 
 	netdev = devm_alloc_etherdev(dev, sizeof(*enet));
@@ -647,7 +649,11 @@ static int bcm4908_enet_probe(struct platform_device *pdev)
 		return err;
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
-	eth_hw_addr_random(netdev);
+	mac = of_get_mac_address(dev->of_node);
+	if (!IS_ERR(mac))
+		ether_addr_copy(netdev->dev_addr, mac);
+	else
+		eth_hw_addr_random(netdev);
 	netdev->netdev_ops = &bcm4908_enet_netdev_ops;
 	netdev->min_mtu = ETH_ZLEN;
 	netdev->mtu = ETH_DATA_LEN;
