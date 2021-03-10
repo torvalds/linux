@@ -170,9 +170,15 @@ typedef void (*ionic_desc_cb)(struct ionic_queue *q,
 			      struct ionic_desc_info *desc_info,
 			      struct ionic_cq_info *cq_info, void *cb_arg);
 
-struct ionic_page_info {
+#define IONIC_PAGE_SIZE				PAGE_SIZE
+#define IONIC_PAGE_SPLIT_SZ			(PAGE_SIZE / 2)
+#define IONIC_PAGE_GFP_MASK			(GFP_ATOMIC | __GFP_NOWARN |\
+						 __GFP_COMP | __GFP_MEMALLOC)
+
+struct ionic_buf_info {
 	struct page *page;
 	dma_addr_t dma_addr;
+	u32 page_offset;
 };
 
 struct ionic_desc_info {
@@ -187,8 +193,8 @@ struct ionic_desc_info {
 		struct ionic_txq_sg_desc *txq_sg_desc;
 		struct ionic_rxq_sg_desc *rxq_sgl_desc;
 	};
-	unsigned int npages;
-	struct ionic_page_info pages[IONIC_RX_MAX_SG_ELEMS + 1];
+	unsigned int nbufs;
+	struct ionic_buf_info bufs[IONIC_RX_MAX_SG_ELEMS + 1];
 	ionic_desc_cb cb;
 	void *cb_arg;
 };
