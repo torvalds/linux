@@ -78,7 +78,6 @@ __pu_failed:							\
 	__typeof__(size) __pu_size = (size);			\
 								\
 	might_fault();						\
-	__chk_user_ptr(__pu_addr);				\
 	__put_user_size(__pu_val, __pu_addr, __pu_size, __pu_err);	\
 								\
 	__pu_err;						\
@@ -197,7 +196,6 @@ extern long __get_user_bad(void);
 #define __get_user_size_allowed(x, ptr, size, retval)		\
 do {								\
 	retval = 0;						\
-	__chk_user_ptr(ptr);					\
 	if (size > sizeof(x))					\
 		(x) = __get_user_bad();				\
 	switch (size) {						\
@@ -230,7 +228,6 @@ do {								\
 	__typeof__(*(ptr)) __user *__gu_addr = (ptr);	\
 	__typeof__(size) __gu_size = (size);			\
 								\
-	__chk_user_ptr(__gu_addr);				\
 	if (do_allow) {								\
 		might_fault();					\
 		__get_user_size(__gu_val, __gu_addr, __gu_size, __gu_err);	\
