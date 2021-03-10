@@ -309,7 +309,7 @@ static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 		phys_addr_t pud_phys;
 		BUG_ON(!pgtable_alloc);
 		pud_phys = pgtable_alloc(PUD_SHIFT);
-		__p4d_populate(p4dp, pud_phys, PUD_TYPE_TABLE);
+		__p4d_populate(p4dp, pud_phys, P4D_TYPE_TABLE);
 		p4d = READ_ONCE(*p4dp);
 	}
 	BUG_ON(p4d_bad(p4d));
@@ -1210,11 +1210,11 @@ void __init early_fixmap_init(void)
 		pudp = pud_offset_kimg(p4dp, addr);
 	} else {
 		if (p4d_none(p4d))
-			__p4d_populate(p4dp, __pa_symbol(bm_pud), PUD_TYPE_TABLE);
+			__p4d_populate(p4dp, __pa_symbol(bm_pud), P4D_TYPE_TABLE);
 		pudp = fixmap_pud(addr);
 	}
 	if (pud_none(READ_ONCE(*pudp)))
-		__pud_populate(pudp, __pa_symbol(bm_pmd), PMD_TYPE_TABLE);
+		__pud_populate(pudp, __pa_symbol(bm_pmd), PUD_TYPE_TABLE);
 	pmdp = fixmap_pmd(addr);
 	__pmd_populate(pmdp, __pa_symbol(bm_pte), PMD_TYPE_TABLE);
 

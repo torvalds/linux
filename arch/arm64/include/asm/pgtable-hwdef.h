@@ -94,6 +94,15 @@
 /*
  * Hardware page table definitions.
  *
+ * Level 0 descriptor (P4D).
+ */
+#define P4D_TYPE_TABLE		(_AT(p4dval_t, 3) << 0)
+#define P4D_TABLE_BIT		(_AT(p4dval_t, 1) << 1)
+#define P4D_TYPE_MASK		(_AT(p4dval_t, 3) << 0)
+#define P4D_TYPE_SECT		(_AT(p4dval_t, 1) << 0)
+#define P4D_SECT_RDONLY		(_AT(p4dval_t, 1) << 7)		/* AP[2] */
+
+/*
  * Level 1 descriptor (PUD).
  */
 #define PUD_TYPE_TABLE		(_AT(pudval_t, 3) << 0)

@@ -79,7 +79,7 @@ static pmd_t *__init kasan_pmd_offset(pud_t *pudp, unsigned long addr, int node,
 		phys_addr_t pmd_phys = early ?
 				__pa_symbol(kasan_early_shadow_pmd)
 					: kasan_alloc_zeroed_page(node);
-		__pud_populate(pudp, pmd_phys, PMD_TYPE_TABLE);
+		__pud_populate(pudp, pmd_phys, PUD_TYPE_TABLE);
 	}
 
 	return early ? pmd_offset_kimg(pudp, addr) : pmd_offset(pudp, addr);
@@ -92,7 +92,7 @@ static pud_t *__init kasan_pud_offset(p4d_t *p4dp, unsigned long addr, int node,
 		phys_addr_t pud_phys = early ?
 				__pa_symbol(kasan_early_shadow_pud)
 					: kasan_alloc_zeroed_page(node);
-		__p4d_populate(p4dp, pud_phys, PMD_TYPE_TABLE);
+		__p4d_populate(p4dp, pud_phys, P4D_TYPE_TABLE);
 	}
 
 	return early ? pud_offset_kimg(p4dp, addr) : pud_offset(p4dp, addr);
