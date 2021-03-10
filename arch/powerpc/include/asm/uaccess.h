@@ -136,6 +136,59 @@ do {								\
 		: "=r" (err)			\
 		: "b" (uaddr), "b" (kaddr), "i" (-EFAULT), "0" (err))
 
+#ifdef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
+
+#define __get_user_asm_goto(x, addr, label, op)			\
+	asm_volatile_goto(					\
+		"1:	"op"%U1%X1 %0, %1	# get_user\n"	\
+		EX_TABLE(1b, %l2)				\
+		: "=r" (x)					\
+		: "m"UPD_CONSTR (*addr)				\
+		:						\
+		: label)
+
+#ifdef __powerpc64__
+#define __get_user_asm2_goto(x, addr, label)			\
+	__get_user_asm_goto(x, addr, label, "ld")
+#else /* __powerpc64__ */
+#define __get_user_asm2_goto(x, addr, label)			\
+	asm_volatile_goto(					\
+		"1:	lwz%X1 %0, %1\n"			\
+		"2:	lwz%X1 %L0, %L1\n"			\
+		EX_TABLE(1b, %l2)				\
+		EX_TABLE(2b, %l2)				\
+		: "=r" (x)					\
+		: "m" (*addr)					\
+		:						\
+		: label)
+#endif /* __powerpc64__ */
+
+#define __get_user_size_goto(x, ptr, size, label)				\
+do {										\
+	BUILD_BUG_ON(size > sizeof(x));						\
+	switch (size) {								\
+	case 1: __get_user_asm_goto(x, (u8 __user *)ptr, label, "lbz"); break;	\
+	case 2: __get_user_asm_goto(x, (u16 __user *)ptr, label, "lhz"); break;	\
+	case 4: __get_user_asm_goto(x, (u32 __user *)ptr, label, "lwz"); break;	\
+	case 8: __get_user_asm2_goto(x, (u64 __user *)ptr, label);  break;	\
+	default: x = 0; BUILD_BUG();						\
+	}									\
+} while (0)
+
+#define __get_user_size_allowed(x, ptr, size, retval)			\
+do {									\
+		__label__ __gus_failed;					\
+									\
+		__get_user_size_goto(x, ptr, size, __gus_failed);	\
+		retval = 0;						\
+		break;							\
+__gus_failed:								\
+		x = 0;							\
+		retval = -EFAULT;					\
+} while (0)
+
+#else /* CONFIG_CC_HAS_ASM_GOTO_OUTPUT */
+
 #define __get_user_asm(x, addr, err, op)		\
 	__asm__ __volatile__(				\
 		"1:	"op"%U2%X2 %1, %2	# get_user\n"	\
@@ -191,6 +244,8 @@ do {								\
 	if (__gus_retval)					\
 		goto label;					\
 } while (0)
+
+#endif /* CONFIG_CC_HAS_ASM_GOTO_OUTPUT */
 
 /*
  * This is a type: either unsigned long, if the argument fits into
