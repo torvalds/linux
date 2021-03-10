@@ -43,30 +43,34 @@ void rga2_dma_flush_range(void *pstart, void *pend)
 	dma_sync_single_for_device(rga2_drvdata->dev, virt_to_phys(pstart), pend - pstart, DMA_TO_DEVICE);
 }
 
-void rga2_dma_flush_page(struct page *page, int map)
+dma_addr_t rga2_dma_flush_page(struct page *page, int map)
 {
 	dma_addr_t paddr;
 
-	paddr = page_to_phys(page);
-
+	/*
+	 * Through dma_map_page to ensure that the physical address
+	 * will not exceed the addressing range of dma.
+	 */
 	if (map & MMU_MAP_MASK) {
 		switch (map) {
 		case MMU_MAP_CLEAN:
-			dma_map_page(rga2_drvdata->dev, page, 0,
-				     PAGE_SIZE, DMA_TO_DEVICE);
+			paddr = dma_map_page(rga2_drvdata->dev, page, 0,
+					     PAGE_SIZE, DMA_TO_DEVICE);
 			break;
 		case MMU_MAP_INVALID:
-			dma_map_page(rga2_drvdata->dev, page, 0,
-				     PAGE_SIZE, DMA_FROM_DEVICE);
+			paddr = dma_map_page(rga2_drvdata->dev, page, 0,
+					     PAGE_SIZE, DMA_FROM_DEVICE);
 			break;
 		case MMU_MAP_CLEAN | MMU_MAP_INVALID:
-			dma_map_page(rga2_drvdata->dev, page, 0,
-				     PAGE_SIZE, DMA_TO_DEVICE);
-			dma_map_page(rga2_drvdata->dev, page, 0,
-				     PAGE_SIZE, DMA_FROM_DEVICE);
+			paddr = dma_map_page(rga2_drvdata->dev, page, 0,
+					     PAGE_SIZE, DMA_BIDIRECTIONAL);
 			break;
 		}
+
+		return paddr;
 	} else if (map & MMU_UNMAP_MASK) {
+		paddr = page_to_phys(page);
+
 		switch (map) {
 		case MMU_UNMAP_CLEAN:
 			dma_unmap_page(rga2_drvdata->dev, paddr,
@@ -78,12 +82,15 @@ void rga2_dma_flush_page(struct page *page, int map)
 			break;
 		case MMU_UNMAP_CLEAN | MMU_UNMAP_INVALID:
 			dma_unmap_page(rga2_drvdata->dev, paddr,
-				       PAGE_SIZE, DMA_TO_DEVICE);
-			dma_unmap_page(rga2_drvdata->dev, paddr,
-				       PAGE_SIZE, DMA_FROM_DEVICE);
+				       PAGE_SIZE, DMA_BIDIRECTIONAL);
 			break;
 		}
+
+		return paddr;
 	}
+
+	pr_err("RGA2 failed to flush page, map= %x\n", map);
+	return 0;
 }
 
 #if 0
@@ -471,9 +478,9 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 		/* Fill the page table. */
 		for (i = 0; i < pageCount; i++) {
 			/* Get the physical address from page struct. */
-			pageTable[i] = page_to_phys(pages[i]);
-			rga2_dma_flush_page(pages[i], map);
+			pageTable[i] = rga2_dma_flush_page(pages[i], map);
 		}
+
 		for (i = 0; i < result; i++)
 			put_page(pages[i]);
 		up_read(&current->mm->mmap_sem);
@@ -523,10 +530,11 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 			break;
 		}
 		pfn = pte_pfn(*pte);
-		Address = ((pfn << PAGE_SHIFT) | (((unsigned long)((Memory + i)
-			   << PAGE_SHIFT)) & ~PAGE_MASK));
-		pageTable[i] = (uint32_t)Address;
-		rga2_dma_flush_page(pfn_to_page(pfn), map);
+		Address = ((pfn << PAGE_SHIFT) |
+			  (((unsigned long)((Memory + i) << PAGE_SHIFT)) & ~PAGE_MASK));
+
+		pageTable[i] = rga2_dma_flush_page(phys_to_page(Address), map);
+
 		pte_unmap_unlock(pte, ptl);
 	}
 	up_read(&current->mm->mmap_sem);
@@ -550,7 +558,11 @@ static int rga2_MapION(struct sg_table *sg,
     Address = 0;
     do {
         len = sg_dma_len(sgl) >> PAGE_SHIFT;
-        Address = sg_phys(sgl);
+	/*
+	 * The fd passed by user space gets sg through dma_buf_map_attachment,
+	 * so dma_address can be use here.
+	 */
+        Address = sg_dma_address(sgl);
 
         for(i=0; i<len; i++) {
             if (mapped_size + i >= pageCount) {
@@ -734,11 +746,17 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 						 Src0Start, Src0PageCount,
 						 0, MMU_MAP_CLEAN);
 #if RGA2_DEBUGFS
-		if (RGA2_CHECK_MODE)
-			rga2_UserMemory_cheeck(&pages[0], req->src.vir_w,
-					       req->src.vir_h, req->src.format,
-					       1);
+			if (RGA2_CHECK_MODE)
+				rga2_UserMemory_cheeck(&pages[0],
+						       req->src.vir_w,
+						       req->src.vir_h,
+						       req->src.format,
+						       1);
 #endif
+
+			/* Save pagetable to unmap. */
+			reg->MMU_src0_base = MMU_Base;
+			reg->MMU_src0_count = Src0PageCount;
 		}
 
 		if (ret < 0) {
@@ -760,14 +778,19 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 							(v_size << PAGE_SHIFT);
 	}
         if (Src1MemSize) {
-		if (req->sg_src1)
+		if (req->sg_src1) {
 			ret = rga2_MapION(req->sg_src1,
 					MMU_Base + Src0MemSize, Src1MemSize);
-		else
+		} else {
 			ret = rga2_MapUserMemory(&pages[0],
 						 MMU_Base + Src0MemSize,
 						 Src1Start, Src1PageCount,
 						 0, MMU_MAP_CLEAN);
+
+			/* Save pagetable to unmap. */
+			reg->MMU_src1_base = MMU_Base + Src0MemSize;
+			reg->MMU_src1_count = Src1PageCount;
+		}
 		if (ret < 0) {
 			pr_err("rga2 map src1 memory failed\n");
 			status = ret;
@@ -791,29 +814,34 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 #if RGA2_DEBUGFS
 			if (RGA2_CHECK_MODE)
 				rga2_UserMemory_cheeck(&pages[0],
-						       req->src.vir_w,
-						       req->src.vir_h,
-						       req->src.format,
+						       req->dst.vir_w,
+						       req->dst.vir_h,
+						       req->dst.format,
 						       2);
 #endif
-			/* Save the physical address of dst to invalid cache */
-			reg->MMU_base = (MMU_Base + Src0MemSize + Src1MemSize);
-			reg->MMU_count = DstPageCount;
+
+			/* Save pagetable to invalid cache and unmap. */
+			reg->MMU_dst_base = MMU_Base + Src0MemSize + Src1MemSize;
+			reg->MMU_dst_count = DstPageCount;
 		} else {
 			ret = rga2_MapUserMemory(&pages[0], MMU_Base
 						 + Src0MemSize + Src1MemSize,
 						 DstStart, DstPageCount,
 						 1, MMU_MAP_INVALID);
 #if RGA2_DEBUGFS
-		if (RGA2_CHECK_MODE)
-			rga2_UserMemory_cheeck(&pages[0], req->src.vir_w,
-					       req->src.vir_h, req->src.format,
-					       2);
+			if (RGA2_CHECK_MODE)
+				rga2_UserMemory_cheeck(&pages[0],
+						       req->dst.vir_w,
+						       req->dst.vir_h,
+						       req->dst.format,
+						       2);
 #endif
-			/* Save the physical address of dst to invalid cache */
-			reg->MMU_base = (MMU_Base + Src0MemSize + Src1MemSize);
-			reg->MMU_count = DstPageCount;
+
+			/* Save pagetable to invalid cache and unmap. */
+			reg->MMU_dst_base = MMU_Base + Src0MemSize + Src1MemSize;
+			reg->MMU_dst_count = DstPageCount;
 		}
+
 		if (ret < 0) {
 			pr_err("rga2 map dst memory failed\n");
 			status = ret;
@@ -837,6 +865,7 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 			req->mmu_info.src1_mmu_flag  = req->mmu_info.dst_mmu_flag;
 		}
 	}
+
 	/* flush data to DDR */
 	rga2_dma_flush_range(MMU_Base, (MMU_Base + AllSize));
 	rga2_mmu_buf_get(&rga2_mmu_buf, AllSize);
