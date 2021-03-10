@@ -300,7 +300,7 @@ static int rkisp_create_hdr_buf(struct rkisp_device *dev)
 
 void hdr_destroy_buf(struct rkisp_device *dev)
 {
-	int i, j, max_dma, max_buf = 1;
+	int i, j;
 	struct rkisp_dummy_buffer *buf;
 
 	if (atomic_read(&dev->cap_dev.refcnt) > 1 ||
@@ -310,21 +310,14 @@ void hdr_destroy_buf(struct rkisp_device *dev)
 		return;
 
 	atomic_set(&dev->hdr.refcnt, 0);
-	max_dma = hdr_dma_frame(dev);
-	if (IS_HDR_RDBK(dev->hdr.op_mode)) {
-		if (!dev->dmarx_dev.trigger)
-			max_buf = HDR_MAX_DUMMY_BUF;
-		else
-			max_buf = 0;
-	}
-	for (i = 0; i < max_dma; i++) {
+	for (i = 0; i < HDR_DMA_MAX; i++) {
 		buf = dev->hdr.rx_cur_buf[i];
 		if (buf) {
 			rkisp_free_buffer(dev, buf);
 			dev->hdr.rx_cur_buf[i] = NULL;
 		}
 
-		for (j = 0; j < max_buf; j++) {
+		for (j = 0; j < HDR_MAX_DUMMY_BUF; j++) {
 			buf = hdr_dqbuf(&dev->hdr.q_tx[i]);
 			if (buf)
 				rkisp_free_buffer(dev, buf);
@@ -458,7 +451,7 @@ int hdr_config_dmatx(struct rkisp_device *dev)
 			pixm = stream->out_fmt;
 			stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2];
 			rkisp_dmarx_set_fmt(stream, pixm);
-			mi_raw_length(stream);
+			stream->ops->config_mi(stream);
 		}
 	}
 
@@ -563,7 +556,8 @@ static int rkisp_stream_config_dcrop(struct rkisp_stream *stream, bool async)
 
 	if (dev->isp_ver == ISP_V20 &&
 	    dev->csi_dev.rd_mode == HDR_RDBK_FRAME1 &&
-	    dev->isp_sdev.in_fmt.fmt_type == FMT_BAYER)
+	    dev->isp_sdev.in_fmt.fmt_type == FMT_BAYER &&
+	    dev->isp_sdev.out_fmt.fmt_type == FMT_YUV)
 		src_h += RKMODULE_EXTEND_LINE;
 
 	if (dcrop->width == src_w &&
