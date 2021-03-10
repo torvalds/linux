@@ -111,6 +111,45 @@ available in 10.0.1. The patch is available in llvm 11.0.0 trunk.
 
 __  https://reviews.llvm.org/D78466
 
+bpf_verif_scale/loop6.o test failure with Clang 12
+==================================================
+
+With Clang 12, the following bpf_verif_scale test failed:
+  * ``bpf_verif_scale/loop6.o``
+
+The verifier output looks like
+
+.. code-block:: c
+
+  R1 type=ctx expected=fp
+  The sequence of 8193 jumps is too complex.
+
+The reason is compiler generating the following code
+
+.. code-block:: c
+
+  ;       for (i = 0; (i < VIRTIO_MAX_SGS) && (i < num); i++) {
+      14:       16 05 40 00 00 00 00 00 if w5 == 0 goto +64 <LBB0_6>
+      15:       bc 51 00 00 00 00 00 00 w1 = w5
+      16:       04 01 00 00 ff ff ff ff w1 += -1
+      17:       67 05 00 00 20 00 00 00 r5 <<= 32
+      18:       77 05 00 00 20 00 00 00 r5 >>= 32
+      19:       a6 01 01 00 05 00 00 00 if w1 < 5 goto +1 <LBB0_4>
+      20:       b7 05 00 00 06 00 00 00 r5 = 6
+  00000000000000a8 <LBB0_4>:
+      21:       b7 02 00 00 00 00 00 00 r2 = 0
+      22:       b7 01 00 00 00 00 00 00 r1 = 0
+  ;       for (i = 0; (i < VIRTIO_MAX_SGS) && (i < num); i++) {
+      23:       7b 1a e0 ff 00 00 00 00 *(u64 *)(r10 - 32) = r1
+      24:       7b 5a c0 ff 00 00 00 00 *(u64 *)(r10 - 64) = r5
+
+Note that insn #15 has w1 = w5 and w1 is refined later but
+r5(w5) is eventually saved on stack at insn #24 for later use.
+This cause later verifier failure. The bug has been `fixed`__ in
+Clang 13.
+
+__  https://reviews.llvm.org/D97479
+
 BPF CO-RE-based tests and Clang version
 =======================================
 
@@ -131,3 +170,12 @@ failures:
 .. _2: https://reviews.llvm.org/D85174
 .. _3: https://reviews.llvm.org/D83878
 .. _4: https://reviews.llvm.org/D83242
+
+Floating-point tests and Clang version
+======================================
+
+Certain selftests, e.g. core_reloc, require support for the floating-point
+types, which was introduced in `Clang 13`__. The older Clang versions will
+either crash when compiling these tests, or generate an incorrect BTF.
+
+__  https://reviews.llvm.org/D83289

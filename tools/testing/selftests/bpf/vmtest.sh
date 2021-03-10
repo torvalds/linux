@@ -17,6 +17,9 @@ KCONFIG_URL="https://raw.githubusercontent.com/libbpf/libbpf/master/travis-ci/vm
 KCONFIG_API_URL="https://api.github.com/repos/libbpf/libbpf/contents/travis-ci/vmtest/configs/latest.config"
 INDEX_URL="https://raw.githubusercontent.com/libbpf/libbpf/master/travis-ci/vmtest/configs/INDEX"
 NUM_COMPILE_JOBS="$(nproc)"
+LOG_FILE_BASE="$(date +"bpf_selftests.%Y-%m-%d_%H-%M-%S")"
+LOG_FILE="${LOG_FILE_BASE}.log"
+EXIT_STATUS_FILE="${LOG_FILE_BASE}.exit_status"
 
 usage()
 {
@@ -146,7 +149,6 @@ update_init_script()
 	local init_script_dir="${OUTPUT_DIR}/${MOUNT_DIR}/etc/rcS.d"
 	local init_script="${init_script_dir}/S50-startup"
 	local command="$1"
-	local log_file="$2"
 
 	mount_image
 
@@ -163,11 +165,16 @@ EOF
 	sudo bash -c "cat >${init_script}" <<EOF
 #!/bin/bash
 
+# Have a default value in the exit status file
+# incase the VM is forcefully stopped.
+echo "130" > "/root/${EXIT_STATUS_FILE}"
+
 {
 	cd /root/bpf
 	echo ${command}
 	stdbuf -oL -eL ${command}
-} 2>&1 | tee /root/${log_file}
+	echo "\$?" > "/root/${EXIT_STATUS_FILE}"
+} 2>&1 | tee "/root/${LOG_FILE}"
 poweroff -f
 EOF
 
@@ -221,10 +228,12 @@ EOF
 copy_logs()
 {
 	local mount_dir="${OUTPUT_DIR}/${MOUNT_DIR}"
-	local log_file="${mount_dir}/root/$1"
+	local log_file="${mount_dir}/root/${LOG_FILE}"
+	local exit_status_file="${mount_dir}/root/${EXIT_STATUS_FILE}"
 
 	mount_image
 	sudo cp ${log_file} "${OUTPUT_DIR}"
+	sudo cp ${exit_status_file} "${OUTPUT_DIR}"
 	sudo rm -f ${log_file}
 	unmount_image
 }
@@ -263,7 +272,6 @@ main()
 {
 	local script_dir="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 	local kernel_checkout=$(realpath "${script_dir}"/../../../../)
-	local log_file="$(date +"bpf_selftests.%Y-%m-%d_%H-%M-%S.log")"
 	# By default the script searches for the kernel in the checkout directory but
 	# it also obeys environment variables O= and KBUILD_OUTPUT=
 	local kernel_bzimage="${kernel_checkout}/${X86_BZIMAGE}"
@@ -347,19 +355,23 @@ main()
 	fi
 
 	update_selftests "${kernel_checkout}" "${make_command}"
-	update_init_script "${command}" "${log_file}"
+	update_init_script "${command}"
 	run_vm "${kernel_bzimage}"
-	copy_logs "${log_file}"
-	echo "Logs saved in ${OUTPUT_DIR}/${log_file}"
+	copy_logs
+	echo "Logs saved in ${OUTPUT_DIR}/${LOG_FILE}"
 }
 
 catch()
 {
 	local exit_code=$1
+	local exit_status_file="${OUTPUT_DIR}/${EXIT_STATUS_FILE}"
 	# This is just a cleanup and the directory may
 	# have already been unmounted. So, don't let this
 	# clobber the error code we intend to return.
 	unmount_image || true
+	if [[ -f "${exit_status_file}" ]]; then
+		exit_code="$(cat ${exit_status_file})"
+	fi
 	exit ${exit_code}
 }
 

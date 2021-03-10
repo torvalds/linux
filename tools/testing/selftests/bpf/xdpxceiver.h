@@ -41,33 +41,59 @@
 #define BATCH_SIZE 64
 #define POLL_TMOUT 1000
 #define NEED_WAKEUP true
+#define DEFAULT_PKT_CNT 10000
+#define RX_FULL_RXQSIZE 32
+
+#define print_verbose(x...) do { if (opt_verbose) ksft_print_msg(x); } while (0)
 
 typedef __u32 u32;
 typedef __u16 u16;
 typedef __u8 u8;
 
-enum TESTS {
-	ORDER_CONTENT_VALIDATE_XDP_SKB = 0,
-	ORDER_CONTENT_VALIDATE_XDP_DRV = 1,
+enum TEST_MODES {
+	TEST_MODE_UNCONFIGURED = -1,
+	TEST_MODE_SKB,
+	TEST_MODE_DRV,
+	TEST_MODE_MAX
 };
 
-u8 uut;
-u8 debug_pkt_dump;
-u32 num_frames;
-u8 switching_notify;
-u8 bidi_pass;
+enum TEST_TYPES {
+	TEST_TYPE_NOPOLL,
+	TEST_TYPE_POLL,
+	TEST_TYPE_TEARDOWN,
+	TEST_TYPE_BIDI,
+	TEST_TYPE_STATS,
+	TEST_TYPE_MAX
+};
 
-static u32 opt_xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
+enum STAT_TEST_TYPES {
+	STAT_TEST_RX_DROPPED,
+	STAT_TEST_TX_INVALID,
+	STAT_TEST_RX_FULL,
+	STAT_TEST_RX_FILL_EMPTY,
+	STAT_TEST_TYPE_MAX
+};
+
+static int configured_mode = TEST_MODE_UNCONFIGURED;
+static u8 debug_pkt_dump;
+static u32 num_frames;
+static u8 switching_notify;
+static u8 bidi_pass;
+static int test_type;
+
 static int opt_queue;
 static int opt_pkt_count;
-static int opt_poll;
-static int opt_teardown;
-static int opt_bidi;
-static u32 opt_xdp_bind_flags = XDP_USE_NEED_WAKEUP;
+static u8 opt_verbose;
+
+static u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
+static u32 xdp_bind_flags = XDP_USE_NEED_WAKEUP | XDP_COPY;
 static u8 pkt_data[XSK_UMEM__DEFAULT_FRAME_SIZE];
 static u32 pkt_counter;
-static u32 prev_pkt = -1;
+static long prev_pkt = -1;
 static int sigvar;
+static int stat_test_type;
+static u32 rxqsize;
+static u32 frame_headroom;
 
 struct xsk_umem_info {
 	struct xsk_ring_prod fq;
@@ -137,8 +163,9 @@ pthread_t t0, t1, ns_thread;
 pthread_attr_t attr;
 
 struct targs {
-	bool retptr;
+	u8 retptr;
 	int idx;
+	u32 flags;
 };
 
 TAILQ_HEAD(head_s, pkt) head = TAILQ_HEAD_INITIALIZER(head);

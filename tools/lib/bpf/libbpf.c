@@ -178,6 +178,8 @@ enum kern_feature_id {
 	FEAT_PROG_BIND_MAP,
 	/* Kernel support for module BTFs */
 	FEAT_MODULE_BTF,
+	/* BTF_KIND_FLOAT support */
+	FEAT_BTF_FLOAT,
 	__FEAT_CNT,
 };
 
@@ -188,6 +190,7 @@ enum reloc_type {
 	RELO_CALL,
 	RELO_DATA,
 	RELO_EXTERN,
+	RELO_SUBPROG_ADDR,
 };
 
 struct reloc_desc {
@@ -572,6 +575,16 @@ static bool insn_is_subprog_call(const struct bpf_insn *insn)
 	       insn->src_reg == BPF_PSEUDO_CALL &&
 	       insn->dst_reg == 0 &&
 	       insn->off == 0;
+}
+
+static bool is_ldimm64(struct bpf_insn *insn)
+{
+	return insn->code == (BPF_LD | BPF_IMM | BPF_DW);
+}
+
+static bool insn_is_pseudo_func(struct bpf_insn *insn)
+{
+	return is_ldimm64(insn) && insn->src_reg == BPF_PSEUDO_FUNC;
 }
 
 static int
@@ -1935,6 +1948,7 @@ static const char *btf_kind_str(const struct btf_type *t)
 	case BTF_KIND_FUNC_PROTO: return "func_proto";
 	case BTF_KIND_VAR: return "var";
 	case BTF_KIND_DATASEC: return "datasec";
+	case BTF_KIND_FLOAT: return "float";
 	default: return "unknown";
 	}
 }
@@ -2384,15 +2398,17 @@ static bool btf_needs_sanitization(struct bpf_object *obj)
 {
 	bool has_func_global = kernel_supports(FEAT_BTF_GLOBAL_FUNC);
 	bool has_datasec = kernel_supports(FEAT_BTF_DATASEC);
+	bool has_float = kernel_supports(FEAT_BTF_FLOAT);
 	bool has_func = kernel_supports(FEAT_BTF_FUNC);
 
-	return !has_func || !has_datasec || !has_func_global;
+	return !has_func || !has_datasec || !has_func_global || !has_float;
 }
 
 static void bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
 {
 	bool has_func_global = kernel_supports(FEAT_BTF_GLOBAL_FUNC);
 	bool has_datasec = kernel_supports(FEAT_BTF_DATASEC);
+	bool has_float = kernel_supports(FEAT_BTF_FLOAT);
 	bool has_func = kernel_supports(FEAT_BTF_FUNC);
 	struct btf_type *t;
 	int i, j, vlen;
@@ -2445,6 +2461,13 @@ static void bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
 		} else if (!has_func_global && btf_is_func(t)) {
 			/* replace BTF_FUNC_GLOBAL with BTF_FUNC_STATIC */
 			t->info = BTF_INFO_ENC(BTF_KIND_FUNC, 0, 0);
+		} else if (!has_float && btf_is_float(t)) {
+			/* replace FLOAT with an equally-sized empty STRUCT;
+			 * since C compilers do not accept e.g. "float" as a
+			 * valid struct name, make it anonymous
+			 */
+			t->name_off = 0;
+			t->info = BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 0);
 		}
 	}
 }
@@ -2974,6 +2997,23 @@ static bool sym_is_extern(const GElf_Sym *sym)
 	       GELF_ST_TYPE(sym->st_info) == STT_NOTYPE;
 }
 
+static bool sym_is_subprog(const GElf_Sym *sym, int text_shndx)
+{
+	int bind = GELF_ST_BIND(sym->st_info);
+	int type = GELF_ST_TYPE(sym->st_info);
+
+	/* in .text section */
+	if (sym->st_shndx != text_shndx)
+		return false;
+
+	/* local function */
+	if (bind == STB_LOCAL && type == STT_SECTION)
+		return true;
+
+	/* global function */
+	return bind == STB_GLOBAL && type == STT_FUNC;
+}
+
 static int find_extern_btf_id(const struct btf *btf, const char *ext_name)
 {
 	const struct btf_type *t;
@@ -3395,7 +3435,7 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 		return 0;
 	}
 
-	if (insn->code != (BPF_LD | BPF_IMM | BPF_DW)) {
+	if (!is_ldimm64(insn)) {
 		pr_warn("prog '%s': invalid relo against '%s' for insns[%d].code 0x%x\n",
 			prog->name, sym_name, insn_idx, insn->code);
 		return -LIBBPF_ERRNO__RELOC;
@@ -3428,6 +3468,23 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 		pr_warn("prog '%s': invalid relo against '%s' in special section 0x%x; forgot to initialize global var?..\n",
 			prog->name, sym_name, shdr_idx);
 		return -LIBBPF_ERRNO__RELOC;
+	}
+
+	/* loading subprog addresses */
+	if (sym_is_subprog(sym, obj->efile.text_shndx)) {
+		/* global_func: sym->st_value = offset in the section, insn->imm = 0.
+		 * local_func: sym->st_value = 0, insn->imm = offset in the section.
+		 */
+		if ((sym->st_value % BPF_INSN_SZ) || (insn->imm % BPF_INSN_SZ)) {
+			pr_warn("prog '%s': bad subprog addr relo against '%s' at offset %zu+%d\n",
+				prog->name, sym_name, (size_t)sym->st_value, insn->imm);
+			return -LIBBPF_ERRNO__RELOC;
+		}
+
+		reloc_desc->type = RELO_SUBPROG_ADDR;
+		reloc_desc->insn_idx = insn_idx;
+		reloc_desc->sym_off = sym->st_value;
+		return 0;
 	}
 
 	type = bpf_object__section_to_libbpf_map_type(obj, shdr_idx);
@@ -3882,6 +3939,18 @@ static int probe_kern_btf_datasec(void)
 					     strs, sizeof(strs)));
 }
 
+static int probe_kern_btf_float(void)
+{
+	static const char strs[] = "\0float";
+	__u32 types[] = {
+		/* float */
+		BTF_TYPE_FLOAT_ENC(1, 4),
+	};
+
+	return probe_fd(libbpf__load_raw_btf((char *)types, sizeof(types),
+					     strs, sizeof(strs)));
+}
+
 static int probe_kern_array_mmap(void)
 {
 	struct bpf_create_map_attr attr = {
@@ -4060,6 +4129,9 @@ static struct kern_feature_desc {
 	},
 	[FEAT_MODULE_BTF] = {
 		"module BTF support", probe_module_btf,
+	},
+	[FEAT_BTF_FLOAT] = {
+		"BTF_KIND_FLOAT support", probe_kern_btf_float,
 	},
 };
 
@@ -5566,11 +5638,6 @@ static void bpf_core_poison_insn(struct bpf_program *prog, int relo_idx,
 	insn->imm = 195896080; /* => 0xbad2310 => "bad relo" */
 }
 
-static bool is_ldimm64(struct bpf_insn *insn)
-{
-	return insn->code == (BPF_LD | BPF_IMM | BPF_DW);
-}
-
 static int insn_bpf_size_to_bytes(struct bpf_insn *insn)
 {
 	switch (BPF_SIZE(insn->code)) {
@@ -6172,6 +6239,10 @@ bpf_object__relocate_data(struct bpf_object *obj, struct bpf_program *prog)
 			}
 			relo->processed = true;
 			break;
+		case RELO_SUBPROG_ADDR:
+			insn[0].src_reg = BPF_PSEUDO_FUNC;
+			/* will be handled as a follow up pass */
+			break;
 		case RELO_CALL:
 			/* will be handled as a follow up pass */
 			break;
@@ -6358,11 +6429,11 @@ bpf_object__reloc_code(struct bpf_object *obj, struct bpf_program *main_prog,
 
 	for (insn_idx = 0; insn_idx < prog->sec_insn_cnt; insn_idx++) {
 		insn = &main_prog->insns[prog->sub_insn_off + insn_idx];
-		if (!insn_is_subprog_call(insn))
+		if (!insn_is_subprog_call(insn) && !insn_is_pseudo_func(insn))
 			continue;
 
 		relo = find_prog_insn_relo(prog, insn_idx);
-		if (relo && relo->type != RELO_CALL) {
+		if (relo && relo->type != RELO_CALL && relo->type != RELO_SUBPROG_ADDR) {
 			pr_warn("prog '%s': unexpected relo for insn #%zu, type %d\n",
 				prog->name, insn_idx, relo->type);
 			return -LIBBPF_ERRNO__RELOC;
@@ -6374,8 +6445,22 @@ bpf_object__reloc_code(struct bpf_object *obj, struct bpf_program *main_prog,
 			 * call always has imm = -1, but for static functions
 			 * relocation is against STT_SECTION and insn->imm
 			 * points to a start of a static function
+			 *
+			 * for subprog addr relocation, the relo->sym_off + insn->imm is
+			 * the byte offset in the corresponding section.
 			 */
-			sub_insn_idx = relo->sym_off / BPF_INSN_SZ + insn->imm + 1;
+			if (relo->type == RELO_CALL)
+				sub_insn_idx = relo->sym_off / BPF_INSN_SZ + insn->imm + 1;
+			else
+				sub_insn_idx = (relo->sym_off + insn->imm) / BPF_INSN_SZ;
+		} else if (insn_is_pseudo_func(insn)) {
+			/*
+			 * RELO_SUBPROG_ADDR relo is always emitted even if both
+			 * functions are in the same section, so it shouldn't reach here.
+			 */
+			pr_warn("prog '%s': missing subprog addr relo for insn #%zu\n",
+				prog->name, insn_idx);
+			return -LIBBPF_ERRNO__RELOC;
 		} else {
 			/* if subprogram call is to a static function within
 			 * the same ELF section, there won't be any relocation

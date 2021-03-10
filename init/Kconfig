@@ -1709,6 +1709,7 @@ config BPF_SYSCALL
 	select BPF
 	select IRQ_WORK
 	select TASKS_TRACE_RCU
+	select NET_SOCK_MSG if INET
 	default n
 	help
 	  Enable the bpf() system call that allows to manipulate eBPF
