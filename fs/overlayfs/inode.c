@@ -573,6 +573,9 @@ int ovl_fileattr_set(struct user_namespace *mnt_userns,
 		BUILD_BUG_ON(OVL_PROT_I_FLAGS_MASK & ~OVL_COPY_I_FLAGS_MASK);
 		flags |= inode->i_flags & OVL_PROT_I_FLAGS_MASK;
 		inode_set_flags(inode, flags, OVL_COPY_I_FLAGS_MASK);
+
+		/* Update ctime */
+		ovl_copyattr(ovl_inode_real(inode), inode);
 	}
 	ovl_drop_write(dentry);
 out:
