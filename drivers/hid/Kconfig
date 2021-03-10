@@ -1206,4 +1206,6 @@ source "drivers/hid/intel-ish-hid/Kconfig"
 
 source "drivers/hid/amd-sfh-hid/Kconfig"
 
+source "drivers/hid/surface-hid/Kconfig"
+
 endmenu

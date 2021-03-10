@@ -145,3 +145,5 @@ obj-$(CONFIG_INTEL_ISH_HID)	+= intel-ish-hid/
 obj-$(INTEL_ISH_FIRMWARE_DOWNLOADER)	+= intel-ish-hid/
 
 obj-$(CONFIG_AMD_SFH_HID)       += amd-sfh-hid/
+
+obj-$(CONFIG_SURFACE_HID_CORE)  += surface-hid/
