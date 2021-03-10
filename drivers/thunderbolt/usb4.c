@@ -36,6 +36,20 @@ enum usb4_sb_target {
 
 #define USB4_NVM_SECTOR_SIZE_MASK	GENMASK(23, 0)
 
+#define USB4_BA_LENGTH_MASK		GENMASK(7, 0)
+#define USB4_BA_INDEX_MASK		GENMASK(15, 0)
+
+enum usb4_ba_index {
+	USB4_BA_MAX_USB3 = 0x1,
+	USB4_BA_MIN_DP_AUX = 0x2,
+	USB4_BA_MIN_DP_MAIN = 0x3,
+	USB4_BA_MAX_PCIE = 0x4,
+	USB4_BA_MAX_HI = 0x5,
+};
+
+#define USB4_BA_VALUE_MASK		GENMASK(31, 16)
+#define USB4_BA_VALUE_SHIFT		16
+
 static int usb4_switch_wait_for_bit(struct tb_switch *sw, u32 offset, u32 bit,
 				    u32 value, int timeout_msec)
 {
@@ -667,6 +681,147 @@ int usb4_switch_nvm_authenticate_status(struct tb_switch *sw, u32 *status)
 	}
 
 	return 0;
+}
+
+/**
+ * usb4_switch_credits_init() - Read buffer allocation parameters
+ * @sw: USB4 router
+ *
+ * Reads @sw buffer allocation parameters and initializes @sw buffer
+ * allocation fields accordingly. Specifically @sw->credits_allocation
+ * is set to %true if these parameters can be used in tunneling.
+ *
+ * Returns %0 on success and negative errno otherwise.
+ */
+int usb4_switch_credits_init(struct tb_switch *sw)
+{
+	int max_usb3, min_dp_aux, min_dp_main, max_pcie, max_dma;
+	int ret, length, i, nports;
+	const struct tb_port *port;
+	u32 data[NVM_DATA_DWORDS];
+	u32 metadata = 0;
+	u8 status = 0;
+
+	memset(data, 0, sizeof(data));
+	ret = usb4_switch_op_data(sw, USB4_SWITCH_OP_BUFFER_ALLOC, &metadata,
+				  &status, NULL, 0, data, ARRAY_SIZE(data));
+	if (ret)
+		return ret;
+	if (status)
+		return -EIO;
+
+	length = metadata & USB4_BA_LENGTH_MASK;
+	if (WARN_ON(length > ARRAY_SIZE(data)))
+		return -EMSGSIZE;
+
+	max_usb3 = -1;
+	min_dp_aux = -1;
+	min_dp_main = -1;
+	max_pcie = -1;
+	max_dma = -1;
+
+	tb_sw_dbg(sw, "credit allocation parameters:\n");
+
+	for (i = 0; i < length; i++) {
+		u16 index, value;
+
+		index = data[i] & USB4_BA_INDEX_MASK;
+		value = (data[i] & USB4_BA_VALUE_MASK) >> USB4_BA_VALUE_SHIFT;
+
+		switch (index) {
+		case USB4_BA_MAX_USB3:
+			tb_sw_dbg(sw, " USB3: %u\n", value);
+			max_usb3 = value;
+			break;
+		case USB4_BA_MIN_DP_AUX:
+			tb_sw_dbg(sw, " DP AUX: %u\n", value);
+			min_dp_aux = value;
+			break;
+		case USB4_BA_MIN_DP_MAIN:
+			tb_sw_dbg(sw, " DP main: %u\n", value);
+			min_dp_main = value;
+			break;
+		case USB4_BA_MAX_PCIE:
+			tb_sw_dbg(sw, " PCIe: %u\n", value);
+			max_pcie = value;
+			break;
+		case USB4_BA_MAX_HI:
+			tb_sw_dbg(sw, " DMA: %u\n", value);
+			max_dma = value;
+			break;
+		default:
+			tb_sw_dbg(sw, " unknown credit allocation index %#x, skipping\n",
+				  index);
+			break;
+		}
+	}
+
+	/*
+	 * Validate the buffer allocation preferences. If we find
+	 * issues, log a warning and fall back using the hard-coded
+	 * values.
+	 */
+
+	/* Host router must report baMaxHI */
+	if (!tb_route(sw) && max_dma < 0) {
+		tb_sw_warn(sw, "host router is missing baMaxHI\n");
+		goto err_invalid;
+	}
+
+	nports = 0;
+	tb_switch_for_each_port(sw, port) {
+		if (tb_port_is_null(port))
+			nports++;
+	}
+
+	/* Must have DP buffer allocation (multiple USB4 ports) */
+	if (nports > 2 && (min_dp_aux < 0 || min_dp_main < 0)) {
+		tb_sw_warn(sw, "multiple USB4 ports require baMinDPaux/baMinDPmain\n");
+		goto err_invalid;
+	}
+
+	tb_switch_for_each_port(sw, port) {
+		if (tb_port_is_dpout(port) && min_dp_main < 0) {
+			tb_sw_warn(sw, "missing baMinDPmain");
+			goto err_invalid;
+		}
+		if ((tb_port_is_dpin(port) || tb_port_is_dpout(port)) &&
+		    min_dp_aux < 0) {
+			tb_sw_warn(sw, "missing baMinDPaux");
+			goto err_invalid;
+		}
+		if ((tb_port_is_usb3_down(port) || tb_port_is_usb3_up(port)) &&
+		    max_usb3 < 0) {
+			tb_sw_warn(sw, "missing baMaxUSB3");
+			goto err_invalid;
+		}
+		if ((tb_port_is_pcie_down(port) || tb_port_is_pcie_up(port)) &&
+		    max_pcie < 0) {
+			tb_sw_warn(sw, "missing baMaxPCIe");
+			goto err_invalid;
+		}
+	}
+
+	/*
+	 * Buffer allocation passed the validation so we can use it in
+	 * path creation.
+	 */
+	sw->credit_allocation = true;
+	if (max_usb3 > 0)
+		sw->max_usb3_credits = max_usb3;
+	if (min_dp_aux > 0)
+		sw->min_dp_aux_credits = min_dp_aux;
+	if (min_dp_main > 0)
+		sw->min_dp_main_credits = min_dp_main;
+	if (max_pcie > 0)
+		sw->max_pcie_credits = max_pcie;
+	if (max_dma > 0)
+		sw->max_dma_credits = max_dma;
+
+	return 0;
+
+err_invalid:
+	return -EINVAL;
 }
 
 /**

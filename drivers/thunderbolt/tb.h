@@ -136,6 +136,12 @@ struct tb_switch_tmu {
  * @rpm_complete: Completion used to wait for runtime resume to
  *		  complete (ICM only)
  * @quirks: Quirks used for this Thunderbolt switch
+ * @credit_allocation: Are the below buffer allocation parameters valid
+ * @max_usb3_credits: Router preferred number of buffers for USB 3.x
+ * @min_dp_aux_credits: Router preferred minimum number of buffers for DP AUX
+ * @min_dp_main_credits: Router preferred minimum number of buffers for DP MAIN
+ * @max_pcie_credits: Router preferred number of buffers for PCIe
+ * @max_dma_credits: Router preferred number of buffers for DMA/P2P
  *
  * When the switch is being added or removed to the domain (other
  * switches) you need to have domain lock held.
@@ -178,6 +184,12 @@ struct tb_switch {
 	u8 depth;
 	struct completion rpm_complete;
 	unsigned long quirks;
+	bool credit_allocation;
+	unsigned int max_usb3_credits;
+	unsigned int min_dp_aux_credits;
+	unsigned int min_dp_main_credits;
+	unsigned int max_pcie_credits;
+	unsigned int max_dma_credits;
 };
 
 /**
@@ -199,6 +211,8 @@ struct tb_switch {
  * @in_hopids: Currently allocated input HopIDs
  * @out_hopids: Currently allocated output HopIDs
  * @list: Used to link ports to DP resources list
+ * @total_credits: Total number of buffers available for this port
+ * @ctl_credits: Buffers reserved for control path
  *
  * In USB4 terminology this structure represents an adapter (protocol or
  * lane adapter).
@@ -220,6 +234,8 @@ struct tb_port {
 	struct ida in_hopids;
 	struct ida out_hopids;
 	struct list_head list;
+	unsigned int total_credits;
+	unsigned int ctl_credits;
 };
 
 /**
@@ -866,6 +882,11 @@ void tb_port_release_out_hopid(struct tb_port *port, int hopid);
 struct tb_port *tb_next_port_on_path(struct tb_port *start, struct tb_port *end,
 				     struct tb_port *prev);
 
+static inline bool tb_port_use_credit_allocation(const struct tb_port *port)
+{
+	return tb_port_is_null(port) && port->sw->credit_allocation;
+}
+
 /**
  * tb_for_each_port_on_path() - Iterate over each port on path
  * @src: Source port
@@ -994,6 +1015,7 @@ int usb4_switch_nvm_write(struct tb_switch *sw, unsigned int address,
 			  const void *buf, size_t size);
 int usb4_switch_nvm_authenticate(struct tb_switch *sw);
 int usb4_switch_nvm_authenticate_status(struct tb_switch *sw, u32 *status);
+int usb4_switch_credits_init(struct tb_switch *sw);
 bool usb4_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in);
 int usb4_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in);
 int usb4_switch_dealloc_dp_resource(struct tb_switch *sw, struct tb_port *in);

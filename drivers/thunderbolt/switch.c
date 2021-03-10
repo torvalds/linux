@@ -488,17 +488,21 @@ static const char *tb_port_type(const struct tb_regs_port_header *port)
 	}
 }
 
-static void tb_dump_port(struct tb *tb, struct tb_regs_port_header *port)
+static void tb_dump_port(struct tb *tb, const struct tb_port *port)
 {
+	const struct tb_regs_port_header *regs = &port->config;
+
 	tb_dbg(tb,
 	       " Port %d: %x:%x (Revision: %d, TB Version: %d, Type: %s (%#x))\n",
-	       port->port_number, port->vendor_id, port->device_id,
-	       port->revision, port->thunderbolt_version, tb_port_type(port),
-	       port->type);
+	       regs->port_number, regs->vendor_id, regs->device_id,
+	       regs->revision, regs->thunderbolt_version, tb_port_type(regs),
+	       regs->type);
 	tb_dbg(tb, "  Max hop id (in/out): %d/%d\n",
-	       port->max_in_hop_id, port->max_out_hop_id);
-	tb_dbg(tb, "  Max counters: %d\n", port->max_counters);
-	tb_dbg(tb, "  NFC Credits: %#x\n", port->nfc_credits);
+	       regs->max_in_hop_id, regs->max_out_hop_id);
+	tb_dbg(tb, "  Max counters: %d\n", regs->max_counters);
+	tb_dbg(tb, "  NFC Credits: %#x\n", regs->nfc_credits);
+	tb_dbg(tb, "  Credits (total/control): %u/%u\n", port->total_credits,
+	       port->ctl_credits);
 }
 
 /**
@@ -738,13 +742,32 @@ static int tb_init_port(struct tb_port *port)
 		cap = tb_port_find_cap(port, TB_PORT_CAP_USB4);
 		if (cap > 0)
 			port->cap_usb4 = cap;
+
+		/*
+		 * USB4 ports the buffers allocated for the control path
+		 * can be read from the path config space. Legacy
+		 * devices we use hard-coded value.
+		 */
+		if (tb_switch_is_usb4(port->sw)) {
+			struct tb_regs_hop hop;
+
+			if (!tb_port_read(port, &hop, TB_CFG_HOPS, 0, 2))
+				port->ctl_credits = hop.initial_credits;
+		}
+		if (!port->ctl_credits)
+			port->ctl_credits = 2;
+
 	} else if (port->port != 0) {
 		cap = tb_port_find_cap(port, TB_PORT_CAP_ADAP);
 		if (cap > 0)
 			port->cap_adap = cap;
 	}
 
-	tb_dump_port(port->sw->tb, &port->config);
+	port->total_credits =
+		(port->config.nfc_credits & ADP_CS_4_TOTAL_BUFFERS_MASK) >>
+		ADP_CS_4_TOTAL_BUFFERS_SHIFT;
+
+	tb_dump_port(port->sw->tb, port);
 
 	INIT_LIST_HEAD(&port->list);
 	return 0;
@@ -2575,6 +2598,16 @@ void tb_switch_unconfigure_link(struct tb_switch *sw)
 		tb_lc_unconfigure_port(down);
 }
 
+static void tb_switch_credits_init(struct tb_switch *sw)
+{
+	if (tb_switch_is_icm(sw))
+		return;
+	if (!tb_switch_is_usb4(sw))
+		return;
+	if (usb4_switch_credits_init(sw))
+		tb_sw_info(sw, "failed to determine preferred buffer allocation, using defaults\n");
+}
+
 /**
  * tb_switch_add() - Add a switch to the domain
  * @sw: Switch to add
@@ -2605,6 +2638,8 @@ int tb_switch_add(struct tb_switch *sw)
 	}
 
 	if (!sw->safe_mode) {
+		tb_switch_credits_init(sw);
+
 		/* read drom */
 		ret = tb_drom_read(sw);
 		if (ret) {

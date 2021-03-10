@@ -229,6 +229,7 @@ enum usb4_switch_op {
 	USB4_SWITCH_OP_NVM_SET_OFFSET = 0x23,
 	USB4_SWITCH_OP_DROM_READ = 0x24,
 	USB4_SWITCH_OP_NVM_SECTOR_SIZE = 0x25,
+	USB4_SWITCH_OP_BUFFER_ALLOC = 0x33,
 };
 
 /* Router TMU configuration */
