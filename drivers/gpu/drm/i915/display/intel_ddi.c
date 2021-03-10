@@ -3716,6 +3716,9 @@ void intel_ddi_get_clock(struct intel_encoder *encoder,
 	struct icl_port_dpll *port_dpll = &crtc_state->icl_port_dplls[port_dpll_id];
 	bool pll_active;
 
+	if (drm_WARN_ON(&i915->drm, !pll))
+		return;
+
 	port_dpll->pll = pll;
 	pll_active = intel_dpll_get_hw_state(i915, pll, &port_dpll->hw_state);
 	drm_WARN_ON(&i915->drm, !pll_active);
@@ -3754,16 +3757,17 @@ static void icl_ddi_combo_get_config(struct intel_encoder *encoder,
 	intel_ddi_get_config(encoder, crtc_state);
 }
 
-static void icl_ddi_tc_get_config(struct intel_encoder *encoder,
-				  struct intel_crtc_state *crtc_state)
+static void icl_ddi_tc_get_clock(struct intel_encoder *encoder,
+				 struct intel_crtc_state *crtc_state,
+				 struct intel_shared_dpll *pll)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	enum icl_port_dpll_id port_dpll_id;
 	struct icl_port_dpll *port_dpll;
-	struct intel_shared_dpll *pll;
 	bool pll_active;
 
-	pll = icl_ddi_tc_get_pll(encoder);
+	if (drm_WARN_ON(&i915->drm, !pll))
+		return;
 
 	if (intel_get_shared_dpll_id(i915, pll) == DPLL_ID_ICL_TBTPLL)
 		port_dpll_id = ICL_PORT_DPLL_DEFAULT;
@@ -3783,7 +3787,12 @@ static void icl_ddi_tc_get_config(struct intel_encoder *encoder,
 	else
 		crtc_state->port_clock = intel_dpll_get_freq(i915, crtc_state->shared_dpll,
 							     &crtc_state->dpll_hw_state);
+}
 
+static void icl_ddi_tc_get_config(struct intel_encoder *encoder,
+				  struct intel_crtc_state *crtc_state)
+{
+	icl_ddi_tc_get_clock(encoder, crtc_state, icl_ddi_tc_get_pll(encoder));
 	intel_ddi_get_config(encoder, crtc_state);
 }
 
