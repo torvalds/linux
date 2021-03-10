@@ -1390,6 +1390,8 @@ void amdgpu_pci_resume(struct pci_dev *pdev);
 bool amdgpu_device_cache_pci_state(struct pci_dev *pdev);
 bool amdgpu_device_load_pci_state(struct pci_dev *pdev);
 
+bool amdgpu_device_skip_hw_access(struct amdgpu_device *adev);
+
 #include "amdgpu_object.h"
 
 static inline bool amdgpu_is_tmz(struct amdgpu_device *adev)

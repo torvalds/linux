@@ -326,6 +326,35 @@ void amdgpu_device_vram_access(struct amdgpu_device *adev, loff_t pos,
 /*
  * register access helper functions.
  */
+
+/* Check if hw access should be skipped because of hotplug or device error */
+bool amdgpu_device_skip_hw_access(struct amdgpu_device *adev)
+{
+	if (adev->in_pci_err_recovery)
+		return true;
+
+#ifdef CONFIG_LOCKDEP
+	/*
+	 * This is a bit complicated to understand, so worth a comment. What we assert
+	 * here is that the GPU reset is not running on another thread in parallel.
+	 *
+	 * For this we trylock the read side of the reset semaphore, if that succeeds
+	 * we know that the reset is not running in paralell.
+	 *
+	 * If the trylock fails we assert that we are either already holding the read
+	 * side of the lock or are the reset thread itself and hold the write side of
+	 * the lock.
+	 */
+	if (in_task()) {
+		if (down_read_trylock(&adev->reset_sem))
+			up_read(&adev->reset_sem);
+		else
+			lockdep_assert_held(&adev->reset_sem);
+	}
+#endif
+	return false;
+}
+
 /**
  * amdgpu_device_rreg - read a memory mapped IO or indirect register
  *
@@ -340,7 +369,7 @@ uint32_t amdgpu_device_rreg(struct amdgpu_device *adev,
 {
 	uint32_t ret;
 
-	if (adev->in_pci_err_recovery)
+	if (amdgpu_device_skip_hw_access(adev))
 		return 0;
 
 	if ((reg * 4) < adev->rmmio_size) {
@@ -377,7 +406,7 @@ uint32_t amdgpu_device_rreg(struct amdgpu_device *adev,
  */
 uint8_t amdgpu_mm_rreg8(struct amdgpu_device *adev, uint32_t offset)
 {
-	if (adev->in_pci_err_recovery)
+	if (amdgpu_device_skip_hw_access(adev))
 		return 0;
 
 	if (offset < adev->rmmio_size)
@@ -402,7 +431,7 @@ uint8_t amdgpu_mm_rreg8(struct amdgpu_device *adev, uint32_t offset)
  */
 void amdgpu_mm_wreg8(struct amdgpu_device *adev, uint32_t offset, uint8_t value)
 {
-	if (adev->in_pci_err_recovery)
+	if (amdgpu_device_skip_hw_access(adev))
 		return;
 
 	if (offset < adev->rmmio_size)
@@ -425,7 +454,7 @@ void amdgpu_device_wreg(struct amdgpu_device *adev,
 			uint32_t reg, uint32_t v,
 			uint32_t acc_flags)
 {
-	if (adev->in_pci_err_recovery)
+	if (amdgpu_device_skip_hw_access(adev))
 		return;
 
 	if ((reg * 4) < adev->rmmio_size) {
@@ -452,7 +481,7 @@ void amdgpu_device_wreg(struct amdgpu_device *adev,
 void amdgpu_mm_wreg_mmio_rlc(struct amdgpu_device *adev,
 			     uint32_t reg, uint32_t v)
 {
-	if (adev->in_pci_err_recovery)
+	if (amdgpu_device_skip_hw_access(adev))
 		return;
 
 	if (amdgpu_sriov_fullaccess(adev) &&
@@ -476,7 +505,7 @@ void amdgpu_mm_wreg_mmio_rlc(struct amdgpu_device *adev,
  */
 u32 amdgpu_mm_rdoorbell(struct amdgpu_device *adev, u32 index)
 {
-	if (adev->in_pci_err_recovery)
+	if (amdgpu_device_skip_hw_access(adev))
 		return 0;
 
 	if (index < adev->doorbell.num_doorbells) {
@@ -499,7 +528,7 @@ u32 amdgpu_mm_rdoorbell(struct amdgpu_device *adev, u32 index)
  */
 void amdgpu_mm_wdoorbell(struct amdgpu_device *adev, u32 index, u32 v)
 {
-	if (adev->in_pci_err_recovery)
+	if (amdgpu_device_skip_hw_access(adev))
 		return;
 
 	if (index < adev->doorbell.num_doorbells) {
@@ -520,7 +549,7 @@ void amdgpu_mm_wdoorbell(struct amdgpu_device *adev, u32 index, u32 v)
  */
 u64 amdgpu_mm_rdoorbell64(struct amdgpu_device *adev, u32 index)
 {
-	if (adev->in_pci_err_recovery)
+	if (amdgpu_device_skip_hw_access(adev))
 		return 0;
 
 	if (index < adev->doorbell.num_doorbells) {
@@ -543,7 +572,7 @@ u64 amdgpu_mm_rdoorbell64(struct amdgpu_device *adev, u32 index)
  */
 void amdgpu_mm_wdoorbell64(struct amdgpu_device *adev, u32 index, u64 v)
 {
-	if (adev->in_pci_err_recovery)
+	if (amdgpu_device_skip_hw_access(adev))
 		return;
 
 	if (index < adev->doorbell.num_doorbells) {
