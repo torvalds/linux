@@ -121,30 +121,31 @@ u16 mlx5e_get_rq_headroom(struct mlx5_core_dev *mdev,
 /* Build queue parameters */
 
 void mlx5e_build_create_cq_param(struct mlx5e_create_cq_param *ccp, struct mlx5e_channel *c);
-void mlx5e_build_rq_param(struct mlx5e_priv *priv,
+void mlx5e_build_rq_param(struct mlx5_core_dev *mdev,
 			  struct mlx5e_params *params,
 			  struct mlx5e_xsk_param *xsk,
 			  u16 q_counter,
 			  struct mlx5e_rq_param *param);
-void mlx5e_build_drop_rq_param(struct mlx5e_priv *priv,
+void mlx5e_build_drop_rq_param(struct mlx5_core_dev *mdev,
 			       u16 q_counter,
 			       struct mlx5e_rq_param *param);
-void mlx5e_build_sq_param_common(struct mlx5e_priv *priv,
+void mlx5e_build_sq_param_common(struct mlx5_core_dev *mdev,
 				 struct mlx5e_sq_param *param);
-void mlx5e_build_sq_param(struct mlx5e_priv *priv, struct mlx5e_params *params,
+void mlx5e_build_sq_param(struct mlx5_core_dev *mdev,
+			  struct mlx5e_params *params,
 			  struct mlx5e_sq_param *param);
-void mlx5e_build_tx_cq_param(struct mlx5e_priv *priv,
+void mlx5e_build_tx_cq_param(struct mlx5_core_dev *mdev,
 			     struct mlx5e_params *params,
 			     struct mlx5e_cq_param *param);
-void mlx5e_build_xdpsq_param(struct mlx5e_priv *priv,
+void mlx5e_build_xdpsq_param(struct mlx5_core_dev *mdev,
 			     struct mlx5e_params *params,
 			     struct mlx5e_sq_param *param);
-void mlx5e_build_channel_param(struct mlx5e_priv *priv,
+void mlx5e_build_channel_param(struct mlx5_core_dev *mdev,
 			       struct mlx5e_params *params,
 			       u16 q_counter,
 			       struct mlx5e_channel_param *cparam);
 
 u16 mlx5e_calc_sq_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *params);
-int mlx5e_validate_params(struct mlx5e_priv *priv, struct mlx5e_params *params);
+int mlx5e_validate_params(struct mlx5_core_dev *mdev, struct mlx5e_params *params);
 
 #endif /* __MLX5_EN_PARAMS_H__ */

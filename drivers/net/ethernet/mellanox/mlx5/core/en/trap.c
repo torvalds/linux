@@ -238,14 +238,16 @@ static void mlx5e_deactivate_trap_rq(struct mlx5e_rq *rq)
 	clear_bit(MLX5E_RQ_STATE_ENABLED, &rq->state);
 }
 
-static void mlx5e_build_trap_params(struct mlx5e_priv *priv, struct mlx5e_trap *t)
+static void mlx5e_build_trap_params(struct mlx5_core_dev *mdev,
+				    int max_mtu, u16 q_counter,
+				    struct mlx5e_trap *t)
 {
 	struct mlx5e_params *params = &t->params;
 
 	params->rq_wq_type = MLX5_WQ_TYPE_CYCLIC;
-	mlx5e_init_rq_type_params(priv->mdev, params);
-	params->sw_mtu = priv->netdev->max_mtu;
-	mlx5e_build_rq_param(priv, params, NULL, priv->q_counter, &t->rq_param);
+	mlx5e_init_rq_type_params(mdev, params);
+	params->sw_mtu = max_mtu;
+	mlx5e_build_rq_param(mdev, params, NULL, q_counter, &t->rq_param);
 }
 
 static struct mlx5e_trap *mlx5e_open_trap(struct mlx5e_priv *priv)
@@ -259,7 +261,7 @@ static struct mlx5e_trap *mlx5e_open_trap(struct mlx5e_priv *priv)
 	if (!t)
 		return ERR_PTR(-ENOMEM);
 
-	mlx5e_build_trap_params(priv, t);
+	mlx5e_build_trap_params(priv->mdev, netdev->max_mtu, priv->q_counter, t);
 
 	t->priv     = priv;
 	t->mdev     = priv->mdev;

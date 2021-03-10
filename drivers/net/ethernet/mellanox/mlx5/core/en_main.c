@@ -2070,7 +2070,7 @@ int mlx5e_open_channels(struct mlx5e_priv *priv,
 	if (!chs->c || !cparam)
 		goto err_free;
 
-	mlx5e_build_channel_param(priv, &chs->params, priv->q_counter, cparam);
+	mlx5e_build_channel_param(priv->mdev, &chs->params, priv->q_counter, cparam);
 	for (i = 0; i < chs->num; i++) {
 		struct xsk_buff_pool *xsk_pool = NULL;
 
@@ -3031,7 +3031,7 @@ int mlx5e_open_drop_rq(struct mlx5e_priv *priv,
 	struct mlx5e_cq *cq = &drop_rq->cq;
 	int err;
 
-	mlx5e_build_drop_rq_param(priv, priv->drop_rq_q_counter, &rq_param);
+	mlx5e_build_drop_rq_param(mdev, priv->drop_rq_q_counter, &rq_param);
 
 	err = mlx5e_alloc_drop_cq(priv, cq, &cq_param);
 	if (err)
@@ -3874,7 +3874,7 @@ int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
 
 	new_channels.params = *params;
 	new_channels.params.sw_mtu = new_mtu;
-	err = mlx5e_validate_params(priv, &new_channels.params);
+	err = mlx5e_validate_params(priv->mdev, &new_channels.params);
 	if (err)
 		goto out;
 

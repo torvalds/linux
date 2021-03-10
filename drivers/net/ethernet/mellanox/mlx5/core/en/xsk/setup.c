@@ -35,13 +35,14 @@ bool mlx5e_validate_xsk_param(struct mlx5e_params *params,
 	}
 }
 
-static void mlx5e_build_xsk_cparam(struct mlx5e_priv *priv,
+static void mlx5e_build_xsk_cparam(struct mlx5_core_dev *mdev,
 				   struct mlx5e_params *params,
 				   struct mlx5e_xsk_param *xsk,
+				   u16 q_counter,
 				   struct mlx5e_channel_param *cparam)
 {
-	mlx5e_build_rq_param(priv, params, xsk, priv->q_counter, &cparam->rq);
-	mlx5e_build_xdpsq_param(priv, params, &cparam->xdp_sq);
+	mlx5e_build_rq_param(mdev, params, xsk, q_counter, &cparam->rq);
+	mlx5e_build_xdpsq_param(mdev, params, &cparam->xdp_sq);
 }
 
 int mlx5e_open_xsk(struct mlx5e_priv *priv, struct mlx5e_params *params,
@@ -61,7 +62,7 @@ int mlx5e_open_xsk(struct mlx5e_priv *priv, struct mlx5e_params *params,
 	if (!cparam)
 		return -ENOMEM;
 
-	mlx5e_build_xsk_cparam(priv, params, xsk, cparam);
+	mlx5e_build_xsk_cparam(priv->mdev, params, xsk, priv->q_counter, cparam);
 
 	err = mlx5e_open_cq(c->priv, params->rx_cq_moderation, &cparam->rq.cqp, &ccp,
 			    &c->xskrq.cq);

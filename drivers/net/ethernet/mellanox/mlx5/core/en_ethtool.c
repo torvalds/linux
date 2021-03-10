@@ -368,7 +368,7 @@ int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,
 	new_channels.params.log_rq_mtu_frames = log_rq_size;
 	new_channels.params.log_sq_size = log_sq_size;
 
-	err = mlx5e_validate_params(priv, &new_channels.params);
+	err = mlx5e_validate_params(priv->mdev, &new_channels.params);
 	if (err)
 		goto unlock;
 
