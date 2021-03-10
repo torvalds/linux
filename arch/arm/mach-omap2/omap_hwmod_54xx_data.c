@@ -94,7 +94,7 @@ static struct omap_hwmod omap54xx_l3_main_3_hwmod = {
 
 /*
  * 'l4' class
- * instance(s): l4_abe, l4_cfg, l4_per
+ * instance(s): l4_abe, l4_cfg
  */
 static struct omap_hwmod_class omap54xx_l4_hwmod_class = {
 	.name	= "l4",
@@ -109,19 +109,6 @@ static struct omap_hwmod omap54xx_l4_cfg_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = OMAP54XX_CM_L4CFG_L4_CFG_CLKCTRL_OFFSET,
 			.context_offs = OMAP54XX_RM_L4CFG_L4_CFG_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/* l4_per */
-static struct omap_hwmod omap54xx_l4_per_hwmod = {
-	.name		= "l4_per",
-	.class		= &omap54xx_l4_hwmod_class,
-	.clkdm_name	= "l4per_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP54XX_CM_L4PER_L4_PER_CLKCTRL_OFFSET,
-			.context_offs = OMAP54XX_RM_L4PER_L4_PER_CONTEXT_OFFSET,
 		},
 	},
 };
@@ -202,14 +189,6 @@ static struct omap_hwmod_ocp_if omap54xx_l3_main_1__l4_cfg = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l3_main_2 -> l4_per */
-static struct omap_hwmod_ocp_if omap54xx_l3_main_2__l4_per = {
-	.master		= &omap54xx_l3_main_2_hwmod,
-	.slave		= &omap54xx_l4_per_hwmod,
-	.clk		= "l4_root_clk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 static struct omap_hwmod_ocp_if *omap54xx_hwmod_ocp_ifs[] __initdata = {
 	&omap54xx_l3_main_3__l3_instr,
 	&omap54xx_l3_main_2__l3_main_1,
@@ -220,7 +199,6 @@ static struct omap_hwmod_ocp_if *omap54xx_hwmod_ocp_ifs[] __initdata = {
 	&omap54xx_l3_main_2__l3_main_3,
 	&omap54xx_l4_cfg__l3_main_3,
 	&omap54xx_l3_main_1__l4_cfg,
-	&omap54xx_l3_main_2__l4_per,
 	NULL,
 };
 
