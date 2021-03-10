@@ -282,28 +282,50 @@
 			};
 		};
 
-		emif1: emif@4c000000 {
-			compatible = "ti,emif-4d";
-			reg = <0x4c000000 0x100>;
-			interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
+		target-module@4c000000 {
+			compatible = "ti,sysc-omap4-simple", "ti,sysc";
 			ti,hwmods = "emif1";
-			ti,no-idle-on-init;
-			phy-type = <1>;
-			hw-caps-read-idle-ctrl;
-			hw-caps-ll-interface;
-			hw-caps-temp-alert;
+			reg = <0x4c000000 0x4>;
+			reg-names = "rev";
+			clocks = <&l3_emif_clkctrl OMAP4_EMIF1_CLKCTRL 0>;
+			clock-names = "fck";
+			ti,no-idle;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x4c000000 0x1000000>;
+
+			emif1: emif@0 {
+				compatible = "ti,emif-4d";
+				reg = <0 0x100>;
+				interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
+				phy-type = <1>;
+				hw-caps-read-idle-ctrl;
+				hw-caps-ll-interface;
+				hw-caps-temp-alert;
+			};
 		};
 
-		emif2: emif@4d000000 {
-			compatible = "ti,emif-4d";
-			reg = <0x4d000000 0x100>;
-			interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
+		target-module@4d000000 {
+			compatible = "ti,sysc-omap4-simple", "ti,sysc";
 			ti,hwmods = "emif2";
-			ti,no-idle-on-init;
-			phy-type = <1>;
-			hw-caps-read-idle-ctrl;
-			hw-caps-ll-interface;
-			hw-caps-temp-alert;
+			reg = <0x4d000000 0x4>;
+			reg-names = "rev";
+			clocks = <&l3_emif_clkctrl OMAP4_EMIF2_CLKCTRL 0>;
+			clock-names = "fck";
+			ti,no-idle;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x4d000000 0x1000000>;
+
+			emif2: emif@0 {
+				compatible = "ti,emif-4d";
+				reg = <0 0x100>;
+				interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
+				phy-type = <1>;
+				hw-caps-read-idle-ctrl;
+				hw-caps-ll-interface;
+				hw-caps-temp-alert;
+			};
 		};
 
 		dsp: dsp {
