@@ -10979,6 +10979,13 @@ MLXSW_ITEM32(reg, mfde, log_address, 0x10, 0, 32);
  */
 MLXSW_ITEM32(reg, mfde, log_id, 0x14, 0, 4);
 
+/* reg_mfde_log_ip
+ * IP (instruction pointer) that triggered the timeout.
+ * Valid in case event_id == MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, mfde, log_ip, 0x18, 0, 64);
+
 /* reg_mfde_pipes_mask
  * Bit per kvh pipe.
  * Access: RO
