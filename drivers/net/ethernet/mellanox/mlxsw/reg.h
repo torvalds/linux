@@ -5637,7 +5637,7 @@ static inline void mlxsw_reg_pspa_pack(char *payload, u8 swid, u8 local_port)
 
 MLXSW_REG_DEFINE(pmaos, MLXSW_REG_PMAOS_ID, MLXSW_REG_PMAOS_LEN);
 
-/* reg_slot_index
+/* reg_pmaos_slot_index
  * Slot index.
  * Access: Index
  */
