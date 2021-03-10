@@ -1812,6 +1812,14 @@ config SND_SOC_MT6359
 	  Enable support for the platform which uses MT6359 as
 	  external codec device.
 
+config SND_SOC_MT6359_ACCDET
+	tristate "MediaTek MT6359 ACCDET driver"
+	depends on MTK_PMIC_WRAP
+	help
+	  ACCDET means Accessory Detection technology, MediaTek develop it
+	  for ASoC codec soc-jack detection mechanism.
+	  Select N if you don't have jack on board.
+
 config SND_SOC_MT6660
 	tristate "Mediatek MT6660 Speaker Amplifier"
 	depends on I2C
