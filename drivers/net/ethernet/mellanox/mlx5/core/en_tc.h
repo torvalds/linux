@@ -198,10 +198,10 @@ enum mlx5e_tc_attr_to_reg {
 
 struct mlx5e_tc_attr_to_reg_mapping {
 	int mfield; /* rewrite field */
-	int moffset; /* offset of mfield */
-	int mlen; /* bytes to rewrite/match */
+	int moffset; /* bit offset of mfield */
+	int mlen; /* bits to rewrite/match */
 
-	int soffset; /* offset of spec for match */
+	int soffset; /* byte offset of spec for match */
 };
 
 extern struct mlx5e_tc_attr_to_reg_mapping mlx5e_tc_attr_to_reg_mappings[];

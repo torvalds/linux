@@ -33,15 +33,15 @@ struct mlx5_ct_attr {
 #define zone_to_reg_ct {\
 	.mfield = MLX5_ACTION_IN_FIELD_METADATA_REG_C_2,\
 	.moffset = 0,\
-	.mlen = 2,\
+	.mlen = 16,\
 	.soffset = MLX5_BYTE_OFF(fte_match_param,\
-				 misc_parameters_2.metadata_reg_c_2) + 2,\
+				 misc_parameters_2.metadata_reg_c_2),\
 }
 
 #define ctstate_to_reg_ct {\
 	.mfield = MLX5_ACTION_IN_FIELD_METADATA_REG_C_2,\
-	.moffset = 2,\
-	.mlen = 2,\
+	.moffset = 16,\
+	.mlen = 16,\
 	.soffset = MLX5_BYTE_OFF(fte_match_param,\
 				 misc_parameters_2.metadata_reg_c_2),\
 }
@@ -49,7 +49,7 @@ struct mlx5_ct_attr {
 #define mark_to_reg_ct {\
 	.mfield = MLX5_ACTION_IN_FIELD_METADATA_REG_C_3,\
 	.moffset = 0,\
-	.mlen = 4,\
+	.mlen = 32,\
 	.soffset = MLX5_BYTE_OFF(fte_match_param,\
 				 misc_parameters_2.metadata_reg_c_3),\
 }
@@ -57,7 +57,7 @@ struct mlx5_ct_attr {
 #define labels_to_reg_ct {\
 	.mfield = MLX5_ACTION_IN_FIELD_METADATA_REG_C_4,\
 	.moffset = 0,\
-	.mlen = 4,\
+	.mlen = 32,\
 	.soffset = MLX5_BYTE_OFF(fte_match_param,\
 				 misc_parameters_2.metadata_reg_c_4),\
 }
@@ -65,7 +65,7 @@ struct mlx5_ct_attr {
 #define fteid_to_reg_ct {\
 	.mfield = MLX5_ACTION_IN_FIELD_METADATA_REG_C_5,\
 	.moffset = 0,\
-	.mlen = 4,\
+	.mlen = 32,\
 	.soffset = MLX5_BYTE_OFF(fte_match_param,\
 				 misc_parameters_2.metadata_reg_c_5),\
 }
@@ -73,20 +73,19 @@ struct mlx5_ct_attr {
 #define zone_restore_to_reg_ct {\
 	.mfield = MLX5_ACTION_IN_FIELD_METADATA_REG_C_1,\
 	.moffset = 0,\
-	.mlen = (ESW_ZONE_ID_BITS / 8),\
+	.mlen = ESW_ZONE_ID_BITS,\
 	.soffset = MLX5_BYTE_OFF(fte_match_param,\
-				 misc_parameters_2.metadata_reg_c_1) + 3,\
+				 misc_parameters_2.metadata_reg_c_1),\
 }
 
 #define nic_zone_restore_to_reg_ct {\
 	.mfield = MLX5_ACTION_IN_FIELD_METADATA_REG_B,\
-	.moffset = 2,\
-	.mlen = (ESW_ZONE_ID_BITS / 8),\
+	.moffset = 16,\
+	.mlen = ESW_ZONE_ID_BITS,\
 }
 
 #define REG_MAPPING_MLEN(reg) (mlx5e_tc_attr_to_reg_mappings[reg].mlen)
 #define REG_MAPPING_MOFFSET(reg) (mlx5e_tc_attr_to_reg_mappings[reg].moffset)
-#define REG_MAPPING_SHIFT(reg) (REG_MAPPING_MOFFSET(reg) * 8)
 
 #if IS_ENABLED(CONFIG_MLX5_TC_CT)
 

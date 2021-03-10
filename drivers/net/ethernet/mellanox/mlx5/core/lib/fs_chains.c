@@ -336,9 +336,10 @@ create_chain_restore(struct fs_chain *chain)
 	MLX5_SET(set_action_in, modact, field,
 		 mlx5e_tc_attr_to_reg_mappings[chain_to_reg].mfield);
 	MLX5_SET(set_action_in, modact, offset,
-		 mlx5e_tc_attr_to_reg_mappings[chain_to_reg].moffset * 8);
+		 mlx5e_tc_attr_to_reg_mappings[chain_to_reg].moffset);
 	MLX5_SET(set_action_in, modact, length,
-		 mlx5e_tc_attr_to_reg_mappings[chain_to_reg].mlen * 8);
+		 mlx5e_tc_attr_to_reg_mappings[chain_to_reg].mlen == 32 ?
+		 0 : mlx5e_tc_attr_to_reg_mappings[chain_to_reg].mlen);
 	MLX5_SET(set_action_in, modact, data, chain->id);
 	mod_hdr = mlx5_modify_header_alloc(chains->dev, chains->ns,
 					   1, modact);
