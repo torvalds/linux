@@ -192,7 +192,6 @@
 
 		target-module@52000000 {
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "iss";
 			reg = <0x52000000 0x4>,
 			      <0x52000010 0x4>;
 			reg-names = "rev", "sysc";

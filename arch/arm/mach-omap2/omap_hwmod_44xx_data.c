@@ -354,57 +354,6 @@ static struct omap_hwmod omap44xx_emif2_hwmod = {
 };
 
 /*
- * 'iss' class
- * external images sensor pixel data processor
- */
-
-static struct omap_hwmod_class_sysconfig omap44xx_iss_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	/*
-	 * ISS needs 100 OCP clk cycles delay after a softreset before
-	 * accessing sysconfig again.
-	 * The lowest frequency at the moment for L3 bus is 100 MHz, so
-	 * 1usec delay is needed. Add an x2 margin to be safe (2 usecs).
-	 *
-	 * TODO: Indicate errata when available.
-	 */
-	.srst_udelay	= 2,
-	.sysc_flags	= (SYSC_HAS_MIDLEMODE | SYSC_HAS_RESET_STATUS |
-			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   SIDLE_SMART_WKUP | MSTANDBY_FORCE | MSTANDBY_NO |
-			   MSTANDBY_SMART | MSTANDBY_SMART_WKUP),
-	.sysc_fields	= &omap_hwmod_sysc_type2,
-};
-
-static struct omap_hwmod_class omap44xx_iss_hwmod_class = {
-	.name	= "iss",
-	.sysc	= &omap44xx_iss_sysc,
-};
-
-/* iss */
-static struct omap_hwmod_opt_clk iss_opt_clks[] = {
-	{ .role = "ctrlclk", .clk = "iss_ctrlclk" },
-};
-
-static struct omap_hwmod omap44xx_iss_hwmod = {
-	.name		= "iss",
-	.class		= &omap44xx_iss_hwmod_class,
-	.clkdm_name	= "iss_clkdm",
-	.main_clk	= "ducati_clk_mux_ck",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_CAM_ISS_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_CAM_ISS_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-	.opt_clks	= iss_opt_clks,
-	.opt_clks_cnt	= ARRAY_SIZE(iss_opt_clks),
-};
-
-/*
  * 'mpu' class
  * mpu sub-system
  */
@@ -623,14 +572,6 @@ static struct omap_hwmod_ocp_if omap44xx_debugss__l3_main_2 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* iss -> l3_main_2 */
-static struct omap_hwmod_ocp_if omap44xx_iss__l3_main_2 = {
-	.master		= &omap44xx_iss_hwmod,
-	.slave		= &omap44xx_l3_main_2_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l3_main_1 -> l3_main_2 */
 static struct omap_hwmod_ocp_if omap44xx_l3_main_1__l3_main_2 = {
 	.master		= &omap44xx_l3_main_1_hwmod,
@@ -751,14 +692,6 @@ static struct omap_hwmod_ocp_if omap44xx_l3_instr__debugss = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l3_main_2 -> iss */
-static struct omap_hwmod_ocp_if omap44xx_l3_main_2__iss = {
-	.master		= &omap44xx_l3_main_2_hwmod,
-	.slave		= &omap44xx_iss_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l3_main_2 -> ocmc_ram */
 static struct omap_hwmod_ocp_if omap44xx_l3_main_2__ocmc_ram = {
 	.master		= &omap44xx_l3_main_2_hwmod,
@@ -840,7 +773,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_cfg__l3_main_1,
 	&omap44xx_mpu__l3_main_1,
 	&omap44xx_debugss__l3_main_2,
-	&omap44xx_iss__l3_main_2,
 	&omap44xx_l3_main_1__l3_main_2,
 	&omap44xx_l4_cfg__l3_main_2,
 	&omap44xx_l3_main_1__l3_main_3,
@@ -856,7 +788,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_wkup__ctrl_module_wkup,
 	&omap44xx_l4_wkup__ctrl_module_pad_wkup,
 	&omap44xx_l3_instr__debugss,
-	&omap44xx_l3_main_2__iss,
 	&omap44xx_l3_main_2__ocmc_ram,
 	&omap44xx_mpu_private__prcm_mpu,
 	&omap44xx_l4_wkup__cm_core_aon,
