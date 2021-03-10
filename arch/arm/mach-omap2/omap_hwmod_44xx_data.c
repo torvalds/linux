@@ -93,27 +93,6 @@ static struct omap_hwmod omap44xx_l3_main_3_hwmod = {
 };
 
 /*
- * 'l4' class
- * instance(s): l4_abe, l4_cfg
- */
-static struct omap_hwmod_class omap44xx_l4_hwmod_class = {
-	.name	= "l4",
-};
-
-/* l4_cfg */
-static struct omap_hwmod omap44xx_l4_cfg_hwmod = {
-	.name		= "l4_cfg",
-	.class		= &omap44xx_l4_hwmod_class,
-	.clkdm_name	= "l4_cfg_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_L4CFG_L4_CFG_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_L4CFG_L4_CFG_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/*
  * 'ocp_wp_noc' class
  * instance(s): ocp_wp_noc
  */
@@ -164,29 +143,6 @@ static struct omap_hwmod omap44xx_ocmc_ram_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = OMAP4_CM_L3_2_OCMC_RAM_CLKCTRL_OFFSET,
 			.context_offs = OMAP4_RM_L3_2_OCMC_RAM_CONTEXT_OFFSET,
-		},
-	},
-};
-
-
-/*
- * 'prcm' class
- * power and reset manager (part of the prcm infrastructure) + clock manager 2
- * + clock manager 1 (in always on power domain) + local prm in mpu
- */
-
-static struct omap_hwmod_class omap44xx_prcm_hwmod_class = {
-	.name	= "prcm",
-};
-
-/* cm_core */
-static struct omap_hwmod omap44xx_cm_core_hwmod = {
-	.name		= "cm_core",
-	.class		= &omap44xx_prcm_hwmod_class,
-	.flags		= HWMOD_NO_IDLEST,
-	.prcm = {
-		.omap4 = {
-			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
 		},
 	},
 };
@@ -242,28 +198,12 @@ static struct omap_hwmod_ocp_if omap44xx_l3_main_2__l3_main_1 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_cfg -> l3_main_1 */
-static struct omap_hwmod_ocp_if omap44xx_l4_cfg__l3_main_1 = {
-	.master		= &omap44xx_l4_cfg_hwmod,
-	.slave		= &omap44xx_l3_main_1_hwmod,
-	.clk		= "l4_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l3_main_1 -> l3_main_2 */
 static struct omap_hwmod_ocp_if omap44xx_l3_main_1__l3_main_2 = {
 	.master		= &omap44xx_l3_main_1_hwmod,
 	.slave		= &omap44xx_l3_main_2_hwmod,
 	.clk		= "l3_div_ck",
 	.user		= OCP_USER_MPU,
-};
-
-/* l4_cfg -> l3_main_2 */
-static struct omap_hwmod_ocp_if omap44xx_l4_cfg__l3_main_2 = {
-	.master		= &omap44xx_l4_cfg_hwmod,
-	.slave		= &omap44xx_l3_main_2_hwmod,
-	.clk		= "l4_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
 /* l3_main_1 -> l3_main_3 */
@@ -282,43 +222,11 @@ static struct omap_hwmod_ocp_if omap44xx_l3_main_2__l3_main_3 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_cfg -> l3_main_3 */
-static struct omap_hwmod_ocp_if omap44xx_l4_cfg__l3_main_3 = {
-	.master		= &omap44xx_l4_cfg_hwmod,
-	.slave		= &omap44xx_l3_main_3_hwmod,
-	.clk		= "l4_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l3_main_1 -> l4_cfg */
-static struct omap_hwmod_ocp_if omap44xx_l3_main_1__l4_cfg = {
-	.master		= &omap44xx_l3_main_1_hwmod,
-	.slave		= &omap44xx_l4_cfg_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_cfg -> ocp_wp_noc */
-static struct omap_hwmod_ocp_if omap44xx_l4_cfg__ocp_wp_noc = {
-	.master		= &omap44xx_l4_cfg_hwmod,
-	.slave		= &omap44xx_ocp_wp_noc_hwmod,
-	.clk		= "l4_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l3_main_2 -> ocmc_ram */
 static struct omap_hwmod_ocp_if omap44xx_l3_main_2__ocmc_ram = {
 	.master		= &omap44xx_l3_main_2_hwmod,
 	.slave		= &omap44xx_ocmc_ram_hwmod,
 	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_cfg -> cm_core */
-static struct omap_hwmod_ocp_if omap44xx_l4_cfg__cm_core = {
-	.master		= &omap44xx_l4_cfg_hwmod,
-	.slave		= &omap44xx_cm_core_hwmod,
-	.clk		= "l4_div_ck",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -334,16 +242,10 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l3_main_3__l3_instr,
 	&omap44xx_ocp_wp_noc__l3_instr,
 	&omap44xx_l3_main_2__l3_main_1,
-	&omap44xx_l4_cfg__l3_main_1,
 	&omap44xx_l3_main_1__l3_main_2,
-	&omap44xx_l4_cfg__l3_main_2,
 	&omap44xx_l3_main_1__l3_main_3,
 	&omap44xx_l3_main_2__l3_main_3,
-	&omap44xx_l4_cfg__l3_main_3,
-	&omap44xx_l3_main_1__l4_cfg,
-	&omap44xx_l4_cfg__ocp_wp_noc,
 	&omap44xx_l3_main_2__ocmc_ram,
-	&omap44xx_l4_cfg__cm_core,
 	/* &omap44xx_l3_main_2__sl2if, */
 	NULL,
 };
