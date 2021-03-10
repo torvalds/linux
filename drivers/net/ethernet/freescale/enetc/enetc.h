@@ -121,19 +121,26 @@ static inline union enetc_rx_bd *enetc_rxbd(struct enetc_bdr *rx_ring, int i)
 	return &(((union enetc_rx_bd *)rx_ring->bd_base)[hw_idx]);
 }
 
-static inline union enetc_rx_bd *enetc_rxbd_next(struct enetc_bdr *rx_ring,
-						 union enetc_rx_bd *rxbd,
-						 int i)
+static inline void enetc_rxbd_next(struct enetc_bdr *rx_ring,
+				   union enetc_rx_bd **old_rxbd, int *old_index)
 {
-	rxbd++;
+	union enetc_rx_bd *new_rxbd = *old_rxbd;
+	int new_index = *old_index;
+
+	new_rxbd++;
+
 #ifdef CONFIG_FSL_ENETC_PTP_CLOCK
 	if (rx_ring->ext_en)
-		rxbd++;
+		new_rxbd++;
 #endif
-	if (unlikely(++i == rx_ring->bd_count))
-		rxbd = rx_ring->bd_base;
 
-	return rxbd;
+	if (unlikely(++new_index == rx_ring->bd_count)) {
+		new_rxbd = rx_ring->bd_base;
+		new_index = 0;
+	}
+
+	*old_rxbd = new_rxbd;
+	*old_index = new_index;
 }
 
 static inline union enetc_rx_bd *enetc_rxbd_ext(union enetc_rx_bd *rxbd)

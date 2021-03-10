@@ -479,13 +479,8 @@ static int enetc_refill_rx_ring(struct enetc_bdr *rx_ring, const int buff_cnt)
 		/* clear 'R" as well */
 		rxbd->r.lstatus = 0;
 
-		rxbd = enetc_rxbd_next(rx_ring, rxbd, i);
-		rx_swbd++;
-		i++;
-		if (unlikely(i == rx_ring->bd_count)) {
-			i = 0;
-			rx_swbd = rx_ring->rx_swbd;
-		}
+		enetc_rxbd_next(rx_ring, &rxbd, &i);
+		rx_swbd = &rx_ring->rx_swbd[i];
 	}
 
 	if (likely(j)) {
@@ -700,9 +695,7 @@ static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
 
 		cleaned_cnt++;
 
-		rxbd = enetc_rxbd_next(rx_ring, rxbd, i);
-		if (unlikely(++i == rx_ring->bd_count))
-			i = 0;
+		enetc_rxbd_next(rx_ring, &rxbd, &i);
 
 		if (unlikely(bd_status &
 			     ENETC_RXBD_LSTATUS(ENETC_RXBD_ERR_MASK))) {
@@ -711,9 +704,7 @@ static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
 				dma_rmb();
 				bd_status = le32_to_cpu(rxbd->r.lstatus);
 
-				rxbd = enetc_rxbd_next(rx_ring, rxbd, i);
-				if (unlikely(++i == rx_ring->bd_count))
-					i = 0;
+				enetc_rxbd_next(rx_ring, &rxbd, &i);
 			}
 
 			rx_ring->ndev->stats.rx_dropped++;
@@ -736,9 +727,7 @@ static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
 
 			cleaned_cnt++;
 
-			rxbd = enetc_rxbd_next(rx_ring, rxbd, i);
-			if (unlikely(++i == rx_ring->bd_count))
-				i = 0;
+			enetc_rxbd_next(rx_ring, &rxbd, &i);
 		}
 
 		rx_byte_cnt += skb->len;
