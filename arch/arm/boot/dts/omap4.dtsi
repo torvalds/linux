@@ -223,7 +223,6 @@
 		 */
 		target-module@54000000 {
 			compatible = "ti,sysc-omap4-simple", "ti,sysc";
-			ti,hwmods = "debugss";
 			power-domains = <&prm_emu>;
 			clocks = <&emu_sys_clkctrl OMAP4_DEBUGSS_CLKCTRL 0>;
 			clock-names = "fck";
