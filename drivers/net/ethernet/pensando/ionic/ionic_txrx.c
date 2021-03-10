@@ -10,12 +10,6 @@
 #include "ionic_lif.h"
 #include "ionic_txrx.h"
 
-static void ionic_rx_clean(struct ionic_queue *q,
-			   struct ionic_desc_info *desc_info,
-			   struct ionic_cq_info *cq_info,
-			   void *cb_arg);
-
-static bool ionic_rx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info);
 
 static bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info);
 
@@ -40,32 +34,6 @@ static inline struct netdev_queue *q_to_ndq(struct ionic_queue *q)
 	return netdev_get_tx_queue(q->lif->netdev, q->index);
 }
 
-static struct sk_buff *ionic_rx_skb_alloc(struct ionic_queue *q,
-					  unsigned int len, bool frags)
-{
-	struct ionic_lif *lif = q->lif;
-	struct ionic_rx_stats *stats;
-	struct net_device *netdev;
-	struct sk_buff *skb;
-
-	netdev = lif->netdev;
-	stats = &q->lif->rxqstats[q->index];
-
-	if (frags)
-		skb = napi_get_frags(&q_to_qcq(q)->napi);
-	else
-		skb = napi_alloc_skb(&q_to_qcq(q)->napi, len);
-
-	if (unlikely(!skb)) {
-		net_warn_ratelimited("%s: SKB alloc failed on %s!\n",
-				     netdev->name, q->name);
-		stats->alloc_err++;
-		return NULL;
-	}
-
-	return skb;
-}
-
 static void ionic_rx_buf_reset(struct ionic_buf_info *buf_info)
 {
 	buf_info->page = NULL;
@@ -76,12 +44,10 @@ static void ionic_rx_buf_reset(struct ionic_buf_info *buf_info)
 static int ionic_rx_page_alloc(struct ionic_queue *q,
 			       struct ionic_buf_info *buf_info)
 {
-	struct ionic_lif *lif = q->lif;
+	struct net_device *netdev = q->lif->netdev;
 	struct ionic_rx_stats *stats;
-	struct net_device *netdev;
 	struct device *dev;
 
-	netdev = lif->netdev;
 	dev = q->dev;
 	stats = q_to_rx_stats(q);
 
@@ -162,21 +128,29 @@ static struct sk_buff *ionic_rx_frags(struct ionic_queue *q,
 				      struct ionic_cq_info *cq_info)
 {
 	struct ionic_rxq_comp *comp = cq_info->cq_desc;
+	struct net_device *netdev = q->lif->netdev;
 	struct ionic_buf_info *buf_info;
+	struct ionic_rx_stats *stats;
 	struct device *dev = q->dev;
 	struct sk_buff *skb;
 	unsigned int i;
 	u16 frag_len;
 	u16 len;
 
+	stats = q_to_rx_stats(q);
+
 	buf_info = &desc_info->bufs[0];
 	len = le16_to_cpu(comp->len);
 
 	prefetch(buf_info->page);
 
-	skb = ionic_rx_skb_alloc(q, len, true);
-	if (unlikely(!skb))
+	skb = napi_get_frags(&q_to_qcq(q)->napi);
+	if (unlikely(!skb)) {
+		net_warn_ratelimited("%s: SKB alloc failed on %s!\n",
+				     netdev->name, q->name);
+		stats->alloc_err++;
 		return NULL;
+	}
 
 	i = comp->num_sg_elems + 1;
 	do {
@@ -218,17 +192,25 @@ static struct sk_buff *ionic_rx_copybreak(struct ionic_queue *q,
 					  struct ionic_cq_info *cq_info)
 {
 	struct ionic_rxq_comp *comp = cq_info->cq_desc;
+	struct net_device *netdev = q->lif->netdev;
 	struct ionic_buf_info *buf_info;
+	struct ionic_rx_stats *stats;
 	struct device *dev = q->dev;
 	struct sk_buff *skb;
 	u16 len;
 
+	stats = q_to_rx_stats(q);
+
 	buf_info = &desc_info->bufs[0];
 	len = le16_to_cpu(comp->len);
 
-	skb = ionic_rx_skb_alloc(q, len, false);
-	if (unlikely(!skb))
+	skb = napi_alloc_skb(&q_to_qcq(q)->napi, len);
+	if (unlikely(!skb)) {
+		net_warn_ratelimited("%s: SKB alloc failed on %s!\n",
+				     netdev->name, q->name);
+		stats->alloc_err++;
 		return NULL;
+	}
 
 	if (unlikely(!buf_info->page)) {
 		dev_kfree_skb(skb);
@@ -253,13 +235,12 @@ static void ionic_rx_clean(struct ionic_queue *q,
 			   void *cb_arg)
 {
 	struct ionic_rxq_comp *comp = cq_info->cq_desc;
+	struct net_device *netdev = q->lif->netdev;
 	struct ionic_qcq *qcq = q_to_qcq(q);
 	struct ionic_rx_stats *stats;
-	struct net_device *netdev;
 	struct sk_buff *skb;
 
 	stats = q_to_rx_stats(q);
-	netdev = q->lif->netdev;
 
 	if (comp->status) {
 		stats->dropped++;
