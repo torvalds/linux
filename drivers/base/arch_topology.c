@@ -78,6 +78,7 @@ void topology_set_scale_freq_source(struct scale_freq_data *data,
 
 	update_scale_freq_invariant(true);
 }
+EXPORT_SYMBOL_GPL(topology_set_scale_freq_source);
 
 void topology_clear_scale_freq_source(enum scale_freq_source source,
 				      const struct cpumask *cpus)
@@ -96,6 +97,7 @@ void topology_clear_scale_freq_source(enum scale_freq_source source,
 
 	update_scale_freq_invariant(false);
 }
+EXPORT_SYMBOL_GPL(topology_clear_scale_freq_source);
 
 void topology_scale_freq_tick(void)
 {
@@ -106,6 +108,7 @@ void topology_scale_freq_tick(void)
 }
 
 DEFINE_PER_CPU(unsigned long, arch_freq_scale) = SCHED_CAPACITY_SCALE;
+EXPORT_PER_CPU_SYMBOL_GPL(arch_freq_scale);
 
 void topology_set_freq_scale(const struct cpumask *cpus, unsigned long cur_freq,
 			     unsigned long max_freq)
