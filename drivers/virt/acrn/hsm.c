@@ -333,7 +333,7 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 		acrn_ioreq_request_clear(vm);
 		break;
 	case ACRN_IOCTL_PM_GET_CPU_STATE:
-		if (copy_from_user(&cstate_cmd, (void *)ioctl_param,
+		if (copy_from_user(&cstate_cmd, (void __user *)ioctl_param,
 				   sizeof(cstate_cmd)))
 			return -EFAULT;
 
