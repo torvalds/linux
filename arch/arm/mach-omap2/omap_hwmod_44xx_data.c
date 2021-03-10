@@ -217,74 +217,6 @@ static struct omap_hwmod omap44xx_ocp_wp_noc_hwmod = {
  */
 
 /*
- * 'ctrl_module' class
- * attila core control module + core pad control module + wkup pad control
- * module + attila wkup control module
- */
-
-static struct omap_hwmod_class_sysconfig omap44xx_ctrl_module_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.sysc_flags	= SYSC_HAS_SIDLEMODE,
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   SIDLE_SMART_WKUP),
-	.sysc_fields	= &omap_hwmod_sysc_type2,
-};
-
-static struct omap_hwmod_class omap44xx_ctrl_module_hwmod_class = {
-	.name	= "ctrl_module",
-	.sysc	= &omap44xx_ctrl_module_sysc,
-};
-
-/* ctrl_module_core */
-static struct omap_hwmod omap44xx_ctrl_module_core_hwmod = {
-	.name		= "ctrl_module_core",
-	.class		= &omap44xx_ctrl_module_hwmod_class,
-	.clkdm_name	= "l4_cfg_clkdm",
-	.prcm = {
-		.omap4 = {
-			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
-		},
-	},
-};
-
-/* ctrl_module_pad_core */
-static struct omap_hwmod omap44xx_ctrl_module_pad_core_hwmod = {
-	.name		= "ctrl_module_pad_core",
-	.class		= &omap44xx_ctrl_module_hwmod_class,
-	.clkdm_name	= "l4_cfg_clkdm",
-	.prcm = {
-		.omap4 = {
-			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
-		},
-	},
-};
-
-/* ctrl_module_wkup */
-static struct omap_hwmod omap44xx_ctrl_module_wkup_hwmod = {
-	.name		= "ctrl_module_wkup",
-	.class		= &omap44xx_ctrl_module_hwmod_class,
-	.clkdm_name	= "l4_wkup_clkdm",
-	.prcm = {
-		.omap4 = {
-			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
-		},
-	},
-};
-
-/* ctrl_module_pad_wkup */
-static struct omap_hwmod omap44xx_ctrl_module_pad_wkup_hwmod = {
-	.name		= "ctrl_module_pad_wkup",
-	.class		= &omap44xx_ctrl_module_hwmod_class,
-	.clkdm_name	= "l4_wkup_clkdm",
-	.prcm = {
-		.omap4 = {
-			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
-		},
-	},
-};
-
-/*
  * 'debugss' class
  * debug and emulation sub system
  */
@@ -652,38 +584,6 @@ static struct omap_hwmod_ocp_if omap44xx_l4_cfg__ocp_wp_noc = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_cfg -> ctrl_module_core */
-static struct omap_hwmod_ocp_if omap44xx_l4_cfg__ctrl_module_core = {
-	.master		= &omap44xx_l4_cfg_hwmod,
-	.slave		= &omap44xx_ctrl_module_core_hwmod,
-	.clk		= "l4_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_cfg -> ctrl_module_pad_core */
-static struct omap_hwmod_ocp_if omap44xx_l4_cfg__ctrl_module_pad_core = {
-	.master		= &omap44xx_l4_cfg_hwmod,
-	.slave		= &omap44xx_ctrl_module_pad_core_hwmod,
-	.clk		= "l4_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_wkup -> ctrl_module_wkup */
-static struct omap_hwmod_ocp_if omap44xx_l4_wkup__ctrl_module_wkup = {
-	.master		= &omap44xx_l4_wkup_hwmod,
-	.slave		= &omap44xx_ctrl_module_wkup_hwmod,
-	.clk		= "l4_wkup_clk_mux_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_wkup -> ctrl_module_pad_wkup */
-static struct omap_hwmod_ocp_if omap44xx_l4_wkup__ctrl_module_pad_wkup = {
-	.master		= &omap44xx_l4_wkup_hwmod,
-	.slave		= &omap44xx_ctrl_module_pad_wkup_hwmod,
-	.clk		= "l4_wkup_clk_mux_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l3_instr -> debugss */
 static struct omap_hwmod_ocp_if omap44xx_l3_instr__debugss = {
 	.master		= &omap44xx_l3_instr_hwmod,
@@ -783,10 +683,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_cfg__l4_wkup,
 	&omap44xx_mpu__mpu_private,
 	&omap44xx_l4_cfg__ocp_wp_noc,
-	&omap44xx_l4_cfg__ctrl_module_core,
-	&omap44xx_l4_cfg__ctrl_module_pad_core,
-	&omap44xx_l4_wkup__ctrl_module_wkup,
-	&omap44xx_l4_wkup__ctrl_module_pad_wkup,
 	&omap44xx_l3_instr__debugss,
 	&omap44xx_l3_main_2__ocmc_ram,
 	&omap44xx_mpu_private__prcm_mpu,
