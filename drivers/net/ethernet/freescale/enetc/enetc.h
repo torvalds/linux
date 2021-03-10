@@ -98,6 +98,7 @@ struct enetc_cbdr {
 	void *bd_base; /* points to Rx or Tx BD ring */
 	void __iomem *pir;
 	void __iomem *cir;
+	void __iomem *mr; /* mode register */
 
 	int bd_count; /* # of BDs */
 	int next_to_use;
@@ -314,7 +315,7 @@ void enetc_set_ethtool_ops(struct net_device *ndev);
 int enetc_setup_cbdr(struct device *dev, struct enetc_hw *hw,
 		     struct enetc_cbdr *cbdr);
 void enetc_free_cbdr(struct enetc_cbdr *cbdr);
-void enetc_clear_cbdr(struct enetc_hw *hw);
+void enetc_clear_cbdr(struct enetc_cbdr *cbdr);
 int enetc_set_mac_flt_entry(struct enetc_si *si, int index,
 			    char *mac_addr, int si_map);
 int enetc_clear_mac_flt_entry(struct enetc_si *si, int index);

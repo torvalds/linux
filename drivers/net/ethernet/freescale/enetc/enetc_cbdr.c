@@ -24,6 +24,10 @@ int enetc_setup_cbdr(struct device *dev, struct enetc_hw *hw,
 	cbdr->next_to_use = 0;
 	cbdr->dma_dev = dev;
 
+	cbdr->pir = hw->reg + ENETC_SICBDRPIR;
+	cbdr->cir = hw->reg + ENETC_SICBDRCIR;
+	cbdr->mr = hw->reg + ENETC_SICBDRMR;
+
 	/* set CBDR cache attributes */
 	enetc_wr(hw, ENETC_SICAR2,
 		 ENETC_SICAR_RD_COHERENT | ENETC_SICAR_WR_COHERENT);
@@ -32,14 +36,10 @@ int enetc_setup_cbdr(struct device *dev, struct enetc_hw *hw,
 	enetc_wr(hw, ENETC_SICBDRBAR1, upper_32_bits(cbdr->bd_dma_base));
 	enetc_wr(hw, ENETC_SICBDRLENR, ENETC_RTBLENR_LEN(cbdr->bd_count));
 
-	enetc_wr(hw, ENETC_SICBDRPIR, 0);
-	enetc_wr(hw, ENETC_SICBDRCIR, 0);
-
+	enetc_wr_reg(cbdr->pir, cbdr->next_to_clean);
+	enetc_wr_reg(cbdr->cir, cbdr->next_to_use);
 	/* enable ring */
-	enetc_wr(hw, ENETC_SICBDRMR, BIT(31));
-
-	cbdr->pir = hw->reg + ENETC_SICBDRPIR;
-	cbdr->cir = hw->reg + ENETC_SICBDRCIR;
+	enetc_wr_reg(cbdr->mr, BIT(31));
 
 	return 0;
 }
@@ -54,9 +54,10 @@ void enetc_free_cbdr(struct enetc_cbdr *cbdr)
 	cbdr->dma_dev = NULL;
 }
 
-void enetc_clear_cbdr(struct enetc_hw *hw)
+void enetc_clear_cbdr(struct enetc_cbdr *cbdr)
 {
-	enetc_wr(hw, ENETC_SICBDRMR, 0);
+	/* disable ring */
+	enetc_wr_reg(cbdr->mr, 0);
 }
 
 static void enetc_clean_cbdr(struct enetc_cbdr *ring)
