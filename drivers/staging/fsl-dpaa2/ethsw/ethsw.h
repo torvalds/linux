@@ -92,6 +92,12 @@ struct dpaa2_switch_fq {
 	u32 fqid;
 };
 
+struct dpaa2_switch_fdb {
+	struct net_device	*bridge_dev;
+	u16			fdb_id;
+	bool			in_use;
+};
+
 /* Per port private data */
 struct ethsw_port_priv {
 	struct net_device	*netdev;
@@ -103,8 +109,9 @@ struct ethsw_port_priv {
 
 	u8			vlans[VLAN_VID_MASK + 1];
 	u16			pvid;
-	struct net_device	*bridge_dev;
 	u16			tx_qdid;
+
+	struct dpaa2_switch_fdb	*fdb;
 };
 
 /* Switch data */
@@ -131,6 +138,8 @@ struct ethsw_core {
 	int				buf_count;
 	u16				bpid;
 	int				napi_users;
+
+	struct dpaa2_switch_fdb		*fdbs;
 };
 
 static inline bool dpaa2_switch_supports_cpu_traffic(struct ethsw_core *ethsw)
@@ -140,6 +149,25 @@ static inline bool dpaa2_switch_supports_cpu_traffic(struct ethsw_core *ethsw)
 		return false;
 	}
 
+	if (ethsw->sw_attr.flooding_cfg != DPSW_FLOODING_PER_FDB) {
+		dev_err(ethsw->dev, "Flooding domain is not per FDB, cannot probe\n");
+		return false;
+	}
+
+	if (ethsw->sw_attr.broadcast_cfg != DPSW_BROADCAST_PER_FDB) {
+		dev_err(ethsw->dev, "Broadcast domain is not per FDB, cannot probe\n");
+		return false;
+	}
+
+	if (ethsw->sw_attr.max_fdbs < ethsw->sw_attr.num_ifs) {
+		dev_err(ethsw->dev, "The number of FDBs is lower than the number of ports, cannot probe\n");
+		return false;
+	}
+
 	return true;
 }
+
+bool dpaa2_switch_port_dev_check(const struct net_device *netdev,
+				 struct notifier_block *nb);
+
 #endif	/* __ETHSW_H */

@@ -75,6 +75,35 @@ enum dpsw_component_type {
 	DPSW_COMPONENT_TYPE_S_VLAN
 };
 
+/**
+ *  enum dpsw_flooding_cfg - flooding configuration requested
+ * @DPSW_FLOODING_PER_VLAN: Flooding replicators are allocated per VLAN and
+ * interfaces present in each of them can be configured using
+ * dpsw_vlan_add_if_flooding()/dpsw_vlan_remove_if_flooding().
+ * This is the default configuration.
+ *
+ * @DPSW_FLOODING_PER_FDB: Flooding replicators are allocated per FDB and
+ * interfaces present in each of them can be configured using
+ * dpsw_set_egress_flood().
+ */
+enum dpsw_flooding_cfg {
+	DPSW_FLOODING_PER_VLAN = 0,
+	DPSW_FLOODING_PER_FDB,
+};
+
+/**
+ * enum dpsw_broadcast_cfg - broadcast configuration requested
+ * @DPSW_BROADCAST_PER_OBJECT: There is only one broadcast replicator per DPSW
+ * object. This is the default configuration.
+ * @DPSW_BROADCAST_PER_FDB: Broadcast replicators are allocated per FDB and
+ * interfaces present in each of them can be configured using
+ * dpsw_set_egress_flood().
+ */
+enum dpsw_broadcast_cfg {
+	DPSW_BROADCAST_PER_OBJECT = 0,
+	DPSW_BROADCAST_PER_FDB,
+};
+
 int dpsw_enable(struct fsl_mc_io *mc_io,
 		u32 cmd_flags,
 		u16 token);
@@ -153,6 +182,8 @@ int dpsw_clear_irq_status(struct fsl_mc_io *mc_io,
  * @num_vlans: Current number of VLANs
  * @num_fdbs: Current number of FDBs
  * @component_type: Component type of this bridge
+ * @flooding_cfg: Flooding configuration (PER_VLAN - default, PER_FDB)
+ * @broadcast_cfg: Broadcast configuration (PER_OBJECT - default, PER_FDB)
  */
 struct dpsw_attr {
 	int id;
@@ -168,6 +199,8 @@ struct dpsw_attr {
 	u16 num_vlans;
 	u8 num_fdbs;
 	enum dpsw_component_type component_type;
+	enum dpsw_flooding_cfg flooding_cfg;
+	enum dpsw_broadcast_cfg broadcast_cfg;
 };
 
 int dpsw_get_attributes(struct fsl_mc_io *mc_io,
@@ -483,6 +516,8 @@ int dpsw_vlan_add(struct fsl_mc_io *mc_io,
 		  u16 vlan_id,
 		  const struct dpsw_vlan_cfg *cfg);
 
+#define DPSW_VLAN_ADD_IF_OPT_FDB_ID            0x0001
+
 /**
  * struct dpsw_vlan_if_cfg - Set of VLAN Interfaces
  * @num_ifs: The number of interfaces that are assigned to the egress
@@ -492,7 +527,9 @@ int dpsw_vlan_add(struct fsl_mc_io *mc_io,
  */
 struct dpsw_vlan_if_cfg {
 	u16 num_ifs;
+	u16 options;
 	u16 if_id[DPSW_MAX_IF];
+	u16 fdb_id;
 };
 
 int dpsw_vlan_add_if(struct fsl_mc_io *mc_io,
@@ -649,14 +686,14 @@ enum dpsw_fdb_learning_mode {
 /**
  * struct dpsw_fdb_attr - FDB Attributes
  * @max_fdb_entries: Number of FDB entries
- * @fdb_aging_time: Aging time in seconds
+ * @fdb_ageing_time: Ageing time in seconds
  * @learning_mode: Learning mode
  * @num_fdb_mc_groups: Current number of multicast groups
  * @max_fdb_mc_groups: Maximum number of multicast groups
  */
 struct dpsw_fdb_attr {
 	u16 max_fdb_entries;
-	u16 fdb_aging_time;
+	u16 fdb_ageing_time;
 	enum dpsw_fdb_learning_mode learning_mode;
 	u16 num_fdb_mc_groups;
 	u16 max_fdb_mc_groups;
@@ -675,5 +712,40 @@ int dpsw_if_get_primary_mac_addr(struct fsl_mc_io *mc_io, u32 cmd_flags,
 
 int dpsw_if_set_primary_mac_addr(struct fsl_mc_io *mc_io, u32 cmd_flags,
 				 u16 token, u16 if_id, u8 mac_addr[6]);
+
+/**
+ * struct dpsw_fdb_cfg  - FDB Configuration
+ * @num_fdb_entries: Number of FDB entries
+ * @fdb_ageing_time: Ageing time in seconds
+ */
+struct dpsw_fdb_cfg {
+	u16 num_fdb_entries;
+	u16 fdb_ageing_time;
+};
+
+int dpsw_fdb_add(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token, u16 *fdb_id,
+		 const struct dpsw_fdb_cfg *cfg);
+
+int dpsw_fdb_remove(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token, u16 fdb_id);
+
+/**
+ * enum dpsw_flood_type - Define the flood type of a DPSW object
+ * @DPSW_BROADCAST: Broadcast flooding
+ * @DPSW_FLOODING: Unknown flooding
+ */
+enum dpsw_flood_type {
+	DPSW_BROADCAST = 0,
+	DPSW_FLOODING,
+};
+
+struct dpsw_egress_flood_cfg {
+	u16 fdb_id;
+	enum dpsw_flood_type flood_type;
+	u16 num_ifs;
+	u16 if_id[DPSW_MAX_IF];
+};
+
+int dpsw_set_egress_flood(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			  const struct dpsw_egress_flood_cfg *cfg);
 
 #endif /* __FSL_DPSW_H */

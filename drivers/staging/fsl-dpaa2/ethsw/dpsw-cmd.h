@@ -29,7 +29,7 @@
 
 #define DPSW_CMDID_ENABLE                   DPSW_CMD_ID(0x002)
 #define DPSW_CMDID_DISABLE                  DPSW_CMD_ID(0x003)
-#define DPSW_CMDID_GET_ATTR                 DPSW_CMD_ID(0x004)
+#define DPSW_CMDID_GET_ATTR                 DPSW_CMD_V2(0x004)
 #define DPSW_CMDID_RESET                    DPSW_CMD_ID(0x005)
 
 #define DPSW_CMDID_SET_IRQ_ENABLE           DPSW_CMD_ID(0x012)
@@ -58,7 +58,7 @@
 #define DPSW_CMDID_IF_SET_LINK_CFG          DPSW_CMD_ID(0x04C)
 
 #define DPSW_CMDID_VLAN_ADD                 DPSW_CMD_ID(0x060)
-#define DPSW_CMDID_VLAN_ADD_IF              DPSW_CMD_ID(0x061)
+#define DPSW_CMDID_VLAN_ADD_IF              DPSW_CMD_V2(0x061)
 #define DPSW_CMDID_VLAN_ADD_IF_UNTAGGED     DPSW_CMD_ID(0x062)
 
 #define DPSW_CMDID_VLAN_REMOVE_IF           DPSW_CMD_ID(0x064)
@@ -66,6 +66,8 @@
 #define DPSW_CMDID_VLAN_REMOVE_IF_FLOODING  DPSW_CMD_ID(0x066)
 #define DPSW_CMDID_VLAN_REMOVE              DPSW_CMD_ID(0x067)
 
+#define DPSW_CMDID_FDB_ADD                  DPSW_CMD_ID(0x082)
+#define DPSW_CMDID_FDB_REMOVE               DPSW_CMD_ID(0x083)
 #define DPSW_CMDID_FDB_ADD_UNICAST          DPSW_CMD_ID(0x084)
 #define DPSW_CMDID_FDB_REMOVE_UNICAST       DPSW_CMD_ID(0x085)
 #define DPSW_CMDID_FDB_ADD_MULTICAST        DPSW_CMD_ID(0x086)
@@ -81,6 +83,8 @@
 #define DPSW_CMDID_CTRL_IF_ENABLE           DPSW_CMD_ID(0x0A2)
 #define DPSW_CMDID_CTRL_IF_DISABLE          DPSW_CMD_ID(0x0A3)
 #define DPSW_CMDID_CTRL_IF_SET_QUEUE        DPSW_CMD_ID(0x0A6)
+
+#define DPSW_CMDID_SET_EGRESS_FLOOD         DPSW_CMD_ID(0x0AC)
 
 /* Macros for accessing command fields smaller than 1byte */
 #define DPSW_MASK(field)        \
@@ -176,6 +180,12 @@ struct dpsw_cmd_clear_irq_status {
 #define DPSW_COMPONENT_TYPE_SHIFT	0
 #define DPSW_COMPONENT_TYPE_SIZE	4
 
+#define DPSW_FLOODING_CFG_SHIFT		0
+#define DPSW_FLOODING_CFG_SIZE		4
+
+#define DPSW_BROADCAST_CFG_SHIFT	4
+#define DPSW_BROADCAST_CFG_SIZE		4
+
 struct dpsw_rsp_get_attr {
 	/* cmd word 0 */
 	__le16 num_ifs;
@@ -193,7 +203,11 @@ struct dpsw_rsp_get_attr {
 	u8 max_meters_per_if;
 	/* from LSB only the first 4 bits */
 	u8 component_type;
-	__le16 pad;
+	/* [0:3] - flooding configuration
+	 * [4:7] - broadcast configuration
+	 */
+	u8 repl_cfg;
+	u8 pad;
 	/* cmd word 3 */
 	__le64 options;
 };
@@ -312,6 +326,16 @@ struct dpsw_vlan_add {
 	__le16 vlan_id;
 };
 
+struct dpsw_cmd_vlan_add_if {
+	/* cmd word 0 */
+	__le16 options;
+	__le16 vlan_id;
+	__le16 fdb_id;
+	__le16 pad0;
+	/* cmd word 1-4 */
+	__le64 if_id;
+};
+
 struct dpsw_cmd_vlan_manage_if {
 	/* cmd word 0 */
 	__le16 pad0;
@@ -328,7 +352,7 @@ struct dpsw_cmd_vlan_remove {
 
 struct dpsw_cmd_fdb_add {
 	__le32 pad;
-	__le16 fdb_aging_time;
+	__le16 fdb_ageing_time;
 	__le16 num_fdb_entries;
 };
 
@@ -424,5 +448,11 @@ struct dpsw_cmd_if_set_mac_addr {
 	u8 mac_addr[6];
 };
 
+struct dpsw_cmd_set_egress_flood {
+	__le16 fdb_id;
+	u8 flood_type;
+	u8 pad[5];
+	__le64 if_id;
+};
 #pragma pack(pop)
 #endif /* __FSL_DPSW_CMD_H */

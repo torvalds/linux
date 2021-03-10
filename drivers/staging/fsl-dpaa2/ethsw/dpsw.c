@@ -351,9 +351,9 @@ int dpsw_get_attributes(struct fsl_mc_io *mc_io,
 	attr->max_fdb_mc_groups = le16_to_cpu(rsp_params->max_fdb_mc_groups);
 	attr->max_meters_per_if = rsp_params->max_meters_per_if;
 	attr->options = le64_to_cpu(rsp_params->options);
-	attr->component_type = dpsw_get_field(rsp_params->component_type,
-					      COMPONENT_TYPE);
-
+	attr->component_type = dpsw_get_field(rsp_params->component_type, COMPONENT_TYPE);
+	attr->flooding_cfg = dpsw_get_field(rsp_params->repl_cfg, FLOODING_CFG);
+	attr->broadcast_cfg = dpsw_get_field(rsp_params->repl_cfg, BROADCAST_CFG);
 	return 0;
 }
 
@@ -925,6 +925,66 @@ int dpsw_vlan_remove(struct fsl_mc_io *mc_io,
 }
 
 /**
+ * dpsw_fdb_add() - Add FDB to switch and Returns handle to FDB table for
+ *		the reference
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @fdb_id:	Returned Forwarding Database Identifier
+ * @cfg:	FDB Configuration
+ *
+ * Return:	Completion status. '0' on Success; Error code otherwise.
+ */
+int dpsw_fdb_add(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token, u16 *fdb_id,
+		 const struct dpsw_fdb_cfg *cfg)
+{
+	struct dpsw_cmd_fdb_add *cmd_params;
+	struct dpsw_rsp_fdb_add *rsp_params;
+	struct fsl_mc_command cmd = { 0 };
+	int err;
+
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_FDB_ADD,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpsw_cmd_fdb_add *)cmd.params;
+	cmd_params->fdb_ageing_time = cpu_to_le16(cfg->fdb_ageing_time);
+	cmd_params->num_fdb_entries = cpu_to_le16(cfg->num_fdb_entries);
+
+	err = mc_send_command(mc_io, &cmd);
+	if (err)
+		return err;
+
+	rsp_params = (struct dpsw_rsp_fdb_add *)cmd.params;
+	*fdb_id = le16_to_cpu(rsp_params->fdb_id);
+
+	return 0;
+}
+
+/**
+ * dpsw_fdb_remove() - Remove FDB from switch
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @fdb_id:	Forwarding Database Identifier
+ *
+ * Return:	Completion status. '0' on Success; Error code otherwise.
+ */
+int dpsw_fdb_remove(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token, u16 fdb_id)
+{
+	struct dpsw_cmd_fdb_remove *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_FDB_REMOVE,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpsw_cmd_fdb_remove *)cmd.params;
+	cmd_params->fdb_id = cpu_to_le16(fdb_id);
+
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
  * dpsw_fdb_add_unicast() - Function adds an unicast entry into MAC lookup table
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
@@ -1397,6 +1457,30 @@ int dpsw_ctrl_if_disable(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token)
 	cmd.header = mc_encode_cmd_header(DPSW_CMDID_CTRL_IF_DISABLE,
 					  cmd_flags,
 					  token);
+
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
+ * dpsw_set_egress_flood() - Set egress parameters associated with an FDB ID
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @cfg:	Egress flooding configuration
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dpsw_set_egress_flood(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			  const struct dpsw_egress_flood_cfg *cfg)
+{
+	struct dpsw_cmd_set_egress_flood *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_SET_EGRESS_FLOOD, cmd_flags, token);
+	cmd_params = (struct dpsw_cmd_set_egress_flood *)cmd.params;
+	cmd_params->fdb_id = cpu_to_le16(cfg->fdb_id);
+	cmd_params->flood_type = cfg->flood_type;
+	build_if_id_bitmap(&cmd_params->if_id, cfg->if_id, cfg->num_ifs);
 
 	return mc_send_command(mc_io, &cmd);
 }
