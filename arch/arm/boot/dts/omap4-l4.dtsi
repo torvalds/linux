@@ -944,7 +944,10 @@
 };
 
 &l4_wkup {						/* 0x4a300000 */
-	compatible = "ti,omap4-l4-wkup", "simple-bus";
+	compatible = "ti,omap4-l4-wkup", "simple-pm-bus";
+	power-domains = <&prm_wkup>;
+	clocks = <&l4_wkup_clkctrl OMAP4_L4_WKUP_CLKCTRL 0>;
+	clock-names = "fck";
 	reg = <0x4a300000 0x800>,
 	      <0x4a300800 0x800>,
 	      <0x4a301000 0x1000>;
@@ -956,7 +959,7 @@
 		 <0x00020000 0x4a320000 0x010000>;	/* segment 2 */
 
 	segment@0 {					/* 0x4a300000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00000000 0x00000000 0x000800>,	/* ap 0 */
@@ -1062,7 +1065,7 @@
 	};
 
 	segment@10000 {					/* 0x4a310000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00000000 0x00010000 0x001000>,	/* ap 5 */
@@ -1231,7 +1234,7 @@
 	};
 
 	segment@20000 {					/* 0x4a320000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00006000 0x00026000 0x001000>,	/* ap 13 */
