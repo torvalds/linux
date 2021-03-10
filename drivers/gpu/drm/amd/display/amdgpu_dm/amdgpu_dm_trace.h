@@ -618,6 +618,25 @@ TRACE_EVENT(amdgpu_dmub_trace_high_irq,
 		  __entry->param0, __entry->param1)
 );
 
+TRACE_EVENT(amdgpu_refresh_rate_track,
+	TP_PROTO(int crtc_index, ktime_t refresh_rate_ns, uint32_t refresh_rate_hz),
+	TP_ARGS(crtc_index, refresh_rate_ns, refresh_rate_hz),
+	TP_STRUCT__entry(
+		__field(int, crtc_index)
+		__field(ktime_t, refresh_rate_ns)
+		__field(uint32_t, refresh_rate_hz)
+		),
+	TP_fast_assign(
+		__entry->crtc_index = crtc_index;
+		__entry->refresh_rate_ns = refresh_rate_ns;
+		__entry->refresh_rate_hz = refresh_rate_hz;
+	),
+	TP_printk("crtc_index=%d refresh_rate=%dHz (%lld)",
+		  __entry->crtc_index,
+		  __entry->refresh_rate_hz,
+		  __entry->refresh_rate_ns)
+);
+
 #endif /* _AMDGPU_DM_TRACE_H_ */
 
 #undef TRACE_INCLUDE_PATH

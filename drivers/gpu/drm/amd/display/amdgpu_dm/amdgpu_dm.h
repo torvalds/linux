@@ -66,6 +66,7 @@ struct dc_plane_state;
 struct common_irq_params {
 	struct amdgpu_device *adev;
 	enum dc_irq_source irq_src;
+	atomic64_t previous_timestamp;
 };
 
 /**
