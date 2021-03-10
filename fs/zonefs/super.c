@@ -744,6 +744,68 @@ out_release:
 }
 
 /*
+ * Do not exceed the LFS limits nor the file zone size. If pos is under the
+ * limit it becomes a short access. If it exceeds the limit, return -EFBIG.
+ */
+static loff_t zonefs_write_check_limits(struct file *file, loff_t pos,
+					loff_t count)
+{
+	struct inode *inode = file_inode(file);
+	struct zonefs_inode_info *zi = ZONEFS_I(inode);
+	loff_t limit = rlimit(RLIMIT_FSIZE);
+	loff_t max_size = zi->i_max_size;
+
+	if (limit != RLIM_INFINITY) {
+		if (pos >= limit) {
+			send_sig(SIGXFSZ, current, 0);
+			return -EFBIG;
+		}
+		count = min(count, limit - pos);
+	}
+
+	if (!(file->f_flags & O_LARGEFILE))
+		max_size = min_t(loff_t, MAX_NON_LFS, max_size);
+
+	if (unlikely(pos >= max_size))
+		return -EFBIG;
+
+	return min(count, max_size - pos);
+}
+
+static ssize_t zonefs_write_checks(struct kiocb *iocb, struct iov_iter *from)
+{
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file_inode(file);
+	struct zonefs_inode_info *zi = ZONEFS_I(inode);
+	loff_t count;
+
+	if (IS_SWAPFILE(inode))
+		return -ETXTBSY;
+
+	if (!iov_iter_count(from))
+		return 0;
+
+	if ((iocb->ki_flags & IOCB_NOWAIT) && !(iocb->ki_flags & IOCB_DIRECT))
+		return -EINVAL;
+
+	if (iocb->ki_flags & IOCB_APPEND) {
+		if (zi->i_ztype != ZONEFS_ZTYPE_SEQ)
+			return -EINVAL;
+		mutex_lock(&zi->i_truncate_mutex);
+		iocb->ki_pos = zi->i_wpoffset;
+		mutex_unlock(&zi->i_truncate_mutex);
+	}
+
+	count = zonefs_write_check_limits(file, iocb->ki_pos,
+					  iov_iter_count(from));
+	if (count < 0)
+		return count;
+
+	iov_iter_truncate(from, count);
+	return iov_iter_count(from);
+}
+
+/*
  * Handle direct writes. For sequential zone files, this is the only possible
  * write path. For these files, check that the user is issuing writes
  * sequentially from the end of the file. This code assumes that the block layer
@@ -760,8 +822,7 @@ static ssize_t zonefs_file_dio_write(struct kiocb *iocb, struct iov_iter *from)
 	struct super_block *sb = inode->i_sb;
 	bool sync = is_sync_kiocb(iocb);
 	bool append = false;
-	size_t count;
-	ssize_t ret;
+	ssize_t ret, count;
 
 	/*
 	 * For async direct IOs to sequential zone files, refuse IOCB_NOWAIT
@@ -779,12 +840,11 @@ static ssize_t zonefs_file_dio_write(struct kiocb *iocb, struct iov_iter *from)
 		inode_lock(inode);
 	}
 
-	ret = generic_write_checks(iocb, from);
-	if (ret <= 0)
+	count = zonefs_write_checks(iocb, from);
+	if (count <= 0) {
+		ret = count;
 		goto inode_unlock;
-
-	iov_iter_truncate(from, zi->i_max_size - iocb->ki_pos);
-	count = iov_iter_count(from);
+	}
 
 	if ((iocb->ki_pos | count) & (sb->s_blocksize - 1)) {
 		ret = -EINVAL;
@@ -844,11 +904,9 @@ static ssize_t zonefs_file_buffered_write(struct kiocb *iocb,
 		inode_lock(inode);
 	}
 
-	ret = generic_write_checks(iocb, from);
+	ret = zonefs_write_checks(iocb, from);
 	if (ret <= 0)
 		goto inode_unlock;
-
-	iov_iter_truncate(from, zi->i_max_size - iocb->ki_pos);
 
 	ret = iomap_file_buffered_write(iocb, from, &zonefs_iomap_ops);
 	if (ret > 0)
