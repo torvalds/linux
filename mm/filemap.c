@@ -2395,29 +2395,29 @@ static int filemap_read_folio(struct file *file, struct address_space *mapping,
 }
 
 static bool filemap_range_uptodate(struct address_space *mapping,
-		loff_t pos, struct iov_iter *iter, struct page *page)
+		loff_t pos, struct iov_iter *iter, struct folio *folio)
 {
 	int count;
 
-	if (PageUptodate(page))
+	if (folio_test_uptodate(folio))
 		return true;
 	/* pipes can't handle partially uptodate pages */
 	if (iov_iter_is_pipe(iter))
 		return false;
 	if (!mapping->a_ops->is_partially_uptodate)
 		return false;
-	if (mapping->host->i_blkbits >= (PAGE_SHIFT + thp_order(page)))
+	if (mapping->host->i_blkbits >= folio_shift(folio))
 		return false;
 
 	count = iter->count;
-	if (page_offset(page) > pos) {
-		count -= page_offset(page) - pos;
+	if (folio_pos(folio) > pos) {
+		count -= folio_pos(folio) - pos;
 		pos = 0;
 	} else {
-		pos -= page_offset(page);
+		pos -= folio_pos(folio);
 	}
 
-	return mapping->a_ops->is_partially_uptodate(page, pos, count);
+	return mapping->a_ops->is_partially_uptodate(&folio->page, pos, count);
 }
 
 static int filemap_update_page(struct kiocb *iocb,
@@ -2457,7 +2457,7 @@ static int filemap_update_page(struct kiocb *iocb,
 		goto unlock;
 
 	error = 0;
-	if (filemap_range_uptodate(mapping, iocb->ki_pos, iter, &folio->page))
+	if (filemap_range_uptodate(mapping, iocb->ki_pos, iter, folio))
 		goto unlock;
 
 	error = -EAGAIN;
