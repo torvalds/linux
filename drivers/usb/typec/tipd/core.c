@@ -6,8 +6,6 @@
  * Author: Heikki Krogerus <heikki.krogerus@linux.intel.com>
  */
 
-#include "tps6598x.h"
-
 #include <linux/i2c.h>
 #include <linux/acpi.h>
 #include <linux/module.h>
@@ -17,8 +15,8 @@
 #include <linux/usb/typec.h>
 #include <linux/usb/role.h>
 
-#define CREATE_TRACE_POINTS
-#include "tps6598x_trace.h"
+#include "tps6598x.h"
+#include "trace.h"
 
 /* Register offsets */
 #define TPS_REG_VID			0x00

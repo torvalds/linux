@@ -277,7 +277,7 @@ TRACE_EVENT(tps6598x_data_status,
 
 /* This part must be outside protection */
 #undef TRACE_INCLUDE_FILE
-#define TRACE_INCLUDE_FILE tps6598x_trace
+#define TRACE_INCLUDE_FILE trace
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
 #include <trace/define_trace.h>
