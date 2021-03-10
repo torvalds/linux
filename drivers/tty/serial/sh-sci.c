@@ -2124,7 +2124,7 @@ static void sci_break_ctl(struct uart_port *port, int break_state)
 	unsigned short scscr, scsptr;
 	unsigned long flags;
 
-	/* check wheter the port has SCSPTR */
+	/* check whether the port has SCSPTR */
 	if (!sci_getreg(port, SCSPTR)->size) {
 		/*
 		 * Not supported by hardware. Most parts couple break and rx
