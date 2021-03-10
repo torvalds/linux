@@ -107,7 +107,7 @@
 	 * hierarchy.
 	 */
 	ocp {
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		power-domains = <&prm_l4per>;
 		clocks = <&l3_1_clkctrl OMAP4_L3_MAIN_1_CLKCTRL 0>,
 			 <&l3_2_clkctrl OMAP4_L3_MAIN_2_CLKCTRL 0>,
@@ -115,7 +115,6 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
-		ti,hwmods = "l3_main_1", "l3_main_2", "l3_main_3";
 
 		l3-noc@44000000 {
 			compatible = "ti,omap4-l3-noc";
