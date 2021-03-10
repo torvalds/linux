@@ -1806,6 +1806,10 @@ static int mlxsw_core_health_fw_fatal_dump(struct devlink_health_reporter *repor
 		err = devlink_fmsg_u8_pair_put(fmsg, "log_irisc_id", val);
 		if (err)
 			return err;
+		val = mlxsw_reg_mfde_log_ip_get(mfde_pl);
+		err = devlink_fmsg_u64_pair_put(fmsg, "log_ip", val);
+		if (err)
+			return err;
 	} else if (event_id == MLXSW_REG_MFDE_EVENT_ID_KVD_IM_STOP) {
 		val = mlxsw_reg_mfde_pipes_mask_get(mfde_pl);
 		err = devlink_fmsg_u32_pair_put(fmsg, "pipes_mask", val);
