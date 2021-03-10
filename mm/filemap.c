@@ -2475,47 +2475,48 @@ unlock_mapping:
 	return error;
 }
 
-static int filemap_create_page(struct file *file,
+static int filemap_create_folio(struct file *file,
 		struct address_space *mapping, pgoff_t index,
 		struct pagevec *pvec)
 {
-	struct page *page;
+	struct folio *folio;
 	int error;
 
-	page = page_cache_alloc(mapping);
-	if (!page)
+	folio = filemap_alloc_folio(mapping_gfp_mask(mapping), 0);
+	if (!folio)
 		return -ENOMEM;
 
 	/*
-	 * Protect against truncate / hole punch. Grabbing invalidate_lock here
-	 * assures we cannot instantiate and bring uptodate new pagecache pages
-	 * after evicting page cache during truncate and before actually
-	 * freeing blocks.  Note that we could release invalidate_lock after
-	 * inserting the page into page cache as the locked page would then be
-	 * enough to synchronize with hole punching. But there are code paths
-	 * such as filemap_update_page() filling in partially uptodate pages or
-	 * ->readpages() that need to hold invalidate_lock while mapping blocks
-	 * for IO so let's hold the lock here as well to keep locking rules
-	 * simple.
+	 * Protect against truncate / hole punch. Grabbing invalidate_lock
+	 * here assures we cannot instantiate and bring uptodate new
+	 * pagecache folios after evicting page cache during truncate
+	 * and before actually freeing blocks.	Note that we could
+	 * release invalidate_lock after inserting the folio into
+	 * the page cache as the locked folio would then be enough to
+	 * synchronize with hole punching. But there are code paths
+	 * such as filemap_update_page() filling in partially uptodate
+	 * pages or ->readpages() that need to hold invalidate_lock
+	 * while mapping blocks for IO so let's hold the lock here as
+	 * well to keep locking rules simple.
 	 */
 	filemap_invalidate_lock_shared(mapping);
-	error = add_to_page_cache_lru(page, mapping, index,
+	error = filemap_add_folio(mapping, folio, index,
 			mapping_gfp_constraint(mapping, GFP_KERNEL));
 	if (error == -EEXIST)
 		error = AOP_TRUNCATED_PAGE;
 	if (error)
 		goto error;
 
-	error = filemap_read_folio(file, mapping, page_folio(page));
+	error = filemap_read_folio(file, mapping, folio);
 	if (error)
 		goto error;
 
 	filemap_invalidate_unlock_shared(mapping);
-	pagevec_add(pvec, page);
+	pagevec_add(pvec, &folio->page);
 	return 0;
 error:
 	filemap_invalidate_unlock_shared(mapping);
-	put_page(page);
+	folio_put(folio);
 	return error;
 }
 
@@ -2557,7 +2558,7 @@ retry:
 	if (!pagevec_count(pvec)) {
 		if (iocb->ki_flags & (IOCB_NOWAIT | IOCB_WAITQ))
 			return -EAGAIN;
-		err = filemap_create_page(filp, mapping,
+		err = filemap_create_folio(filp, mapping,
 				iocb->ki_pos >> PAGE_SHIFT, pvec);
 		if (err == AOP_TRUNCATED_PAGE)
 			goto retry;
