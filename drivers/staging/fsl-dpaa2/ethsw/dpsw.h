@@ -245,6 +245,11 @@ struct dpsw_ctrl_if_queue_cfg {
 int dpsw_ctrl_if_set_queue(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 			   enum dpsw_queue_type qtype,
 			   const struct dpsw_ctrl_if_queue_cfg *cfg);
+
+int dpsw_ctrl_if_enable(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token);
+
+int dpsw_ctrl_if_disable(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token);
+
 /**
  * enum dpsw_action - Action selection for special/control frames
  * @DPSW_ACTION_DROP: Drop frame
