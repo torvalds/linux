@@ -261,7 +261,7 @@ struct enetc_ndev_priv {
 	u16 rx_bd_count, tx_bd_count;
 
 	u16 msg_enable;
-	int active_offloads;
+	enum enetc_active_offloads active_offloads;
 
 	u32 speed; /* store speed for compare update pspeed */
 
