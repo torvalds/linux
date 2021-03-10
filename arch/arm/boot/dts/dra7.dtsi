@@ -369,8 +369,15 @@
 
 		target-module@43300000 {
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			reg = <0x43300000 0x4>;
-			reg-names = "rev";
+			reg = <0x43300000 0x4>,
+			      <0x43300010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
 			clocks = <&l3main1_clkctrl DRA7_L3MAIN1_TPCC_CLKCTRL 0>;
 			clock-names = "fck";
 			#address-cells = <1>;
@@ -402,8 +409,15 @@
 
 		target-module@43400000 {
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			reg = <0x43400000 0x4>;
-			reg-names = "rev";
+			reg = <0x43400000 0x4>,
+			      <0x43400010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
 			clocks = <&l3main1_clkctrl DRA7_L3MAIN1_TPTC0_CLKCTRL 0>;
 			clock-names = "fck";
 			#address-cells = <1>;
@@ -420,8 +434,15 @@
 
 		target-module@43500000 {
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			reg = <0x43500000 0x4>;
-			reg-names = "rev";
+			reg = <0x43500000 0x4>,
+			      <0x43500010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
 			clocks = <&l3main1_clkctrl DRA7_L3MAIN1_TPTC1_CLKCTRL 0>;
 			clock-names = "fck";
 			#address-cells = <1>;
