@@ -268,10 +268,6 @@ void rtl8723bs_cancle_checkbthang_workqueue(struct adapter *adapter);
 void rtl8723bs_hal_check_bt_hang(struct adapter *adapter);
 #endif
 
-#ifdef CONFIG_GPIO_WAKEUP
-void HalSetOutPutGPIO(struct adapter *padapter, u8 index, u8 OutPutValue);
-#endif
-
 int FirmwareDownloadBT(struct adapter *adapter, struct rt_firmware *firmware);
 
 void CCX_FwC2HTxRpt_8723b(struct adapter *padapter, u8 *pdata, u8 len);

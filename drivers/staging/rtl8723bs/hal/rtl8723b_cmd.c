@@ -1183,11 +1183,6 @@ static void rtl8723b_set_FwWoWlanCtrl_Cmd(struct adapter *padapter, u8 bFuncEn)
 	u8 gpio_high_active = 0; /* 0: low active, 1: high active */
 	u8 magic_pkt = 0;
 
-#ifdef CONFIG_GPIO_WAKEUP
-	gpionum = WAKEUP_GPIO_IDX;
-	sdio_wakeup_enable = 0;
-#endif
-
 #ifdef CONFIG_PNO_SUPPORT
 	if (!ppwrpriv->wowlan_pno_enable)
 		magic_pkt = 1;
@@ -1358,9 +1353,6 @@ static void rtl8723b_set_FwAPWoWlanCtrl_Cmd(struct adapter *padapter, u8 bFuncEn
 	u8 gpionum = 0, gpio_dur = 0;
 	u8 gpio_high_active = 1; /* 0: low active, 1: high active */
 	u8 gpio_pulse = bFuncEn;
-#ifdef CONFIG_GPIO_WAKEUP
-	gpionum = WAKEUP_GPIO_IDX;
-#endif
 
 	DBG_871X("%s(): bFuncEn =%d\n", __func__, bFuncEn);
 
