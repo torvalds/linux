@@ -21,6 +21,20 @@ config SURFACE_HID
 	  integrated touchpad and keyboard, on 7th generation Microsoft Surface
 	  models.
 
+config SURFACE_KBD
+	tristate "HID keyboard transport driver for Surface System Aggregator Module"
+	select SURFACE_HID_CORE
+	help
+	  Driver to support HID keyboards on Surface Laptop 1 and 2 devices.
+
+	  This driver provides support for the HID transport protocol provided
+	  by the Surface Aggregator Module (i.e. the embedded controller) on
+	  Microsoft Surface Laptops 1 and 2. It is used to connect the
+	  integrated keyboard on those devices.
+
+	  Say M or Y here, if you want support for the integrated keyboard on
+	  Microsoft Surface Laptops 1 and 2.
+
 endmenu
 
 config SURFACE_HID_CORE
