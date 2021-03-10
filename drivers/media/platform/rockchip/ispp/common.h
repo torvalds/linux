@@ -124,7 +124,6 @@ void rkispp_finish_buffer(struct rkispp_device *dev,
 
 int rkispp_attach_hw(struct rkispp_device *ispp);
 int rkispp_event_handle(struct rkispp_device *ispp, u32 cmd, void *arg);
-void rkispp_soft_reset(struct rkispp_device *ispp);
 int rkispp_alloc_common_dummy_buf(struct rkispp_device *dev);
 void rkispp_free_common_dummy_buf(struct rkispp_device *dev);
 int rkispp_find_regbuf_by_id(struct rkispp_device *ispp, struct rkisp_ispp_reg **free_buf,
