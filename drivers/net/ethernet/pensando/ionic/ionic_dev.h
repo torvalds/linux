@@ -205,10 +205,12 @@ struct ionic_queue {
 	struct device *dev;
 	struct ionic_lif *lif;
 	struct ionic_desc_info *info;
+	u64 dbval;
 	u16 head_idx;
 	u16 tail_idx;
 	unsigned int index;
 	unsigned int num_descs;
+	unsigned int max_sg_elems;
 	u64 dbell_count;
 	u64 stop;
 	u64 wake;
@@ -217,7 +219,6 @@ struct ionic_queue {
 	unsigned int type;
 	unsigned int hw_index;
 	unsigned int hw_type;
-	u64 dbval;
 	union {
 		void *base;
 		struct ionic_txq_desc *txq;
@@ -235,7 +236,7 @@ struct ionic_queue {
 	unsigned int sg_desc_size;
 	unsigned int pid;
 	char name[IONIC_QUEUE_NAME_MAX_SZ];
-};
+} ____cacheline_aligned_in_smp;
 
 #define IONIC_INTR_INDEX_NOT_ASSIGNED	-1
 #define IONIC_INTR_NAME_MAX_SZ		32
@@ -262,7 +263,7 @@ struct ionic_cq {
 	u64 compl_count;
 	void *base;
 	dma_addr_t base_pa;
-};
+} ____cacheline_aligned_in_smp;
 
 struct ionic;
 

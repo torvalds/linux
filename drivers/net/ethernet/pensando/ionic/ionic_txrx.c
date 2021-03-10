@@ -82,7 +82,7 @@ static int ionic_rx_page_alloc(struct ionic_queue *q,
 	struct device *dev;
 
 	netdev = lif->netdev;
-	dev = lif->ionic->dev;
+	dev = q->dev;
 	stats = q_to_rx_stats(q);
 
 	if (unlikely(!buf_info)) {
@@ -118,7 +118,7 @@ static void ionic_rx_page_free(struct ionic_queue *q,
 			       struct ionic_buf_info *buf_info)
 {
 	struct net_device *netdev = q->lif->netdev;
-	struct device *dev = q->lif->ionic->dev;
+	struct device *dev = q->dev;
 
 	if (unlikely(!buf_info)) {
 		net_err_ratelimited("%s: %s invalid buf_info in free\n",
@@ -162,8 +162,8 @@ static struct sk_buff *ionic_rx_frags(struct ionic_queue *q,
 				      struct ionic_cq_info *cq_info)
 {
 	struct ionic_rxq_comp *comp = cq_info->cq_desc;
-	struct device *dev = q->lif->ionic->dev;
 	struct ionic_buf_info *buf_info;
+	struct device *dev = q->dev;
 	struct sk_buff *skb;
 	unsigned int i;
 	u16 frag_len;
@@ -218,8 +218,8 @@ static struct sk_buff *ionic_rx_copybreak(struct ionic_queue *q,
 					  struct ionic_cq_info *cq_info)
 {
 	struct ionic_rxq_comp *comp = cq_info->cq_desc;
-	struct device *dev = q->lif->ionic->dev;
 	struct ionic_buf_info *buf_info;
+	struct device *dev = q->dev;
 	struct sk_buff *skb;
 	u16 len;
 
@@ -362,7 +362,6 @@ void ionic_rx_fill(struct ionic_queue *q)
 	struct ionic_rxq_sg_elem *sg_elem;
 	struct ionic_buf_info *buf_info;
 	struct ionic_rxq_desc *desc;
-	unsigned int max_sg_elems;
 	unsigned int remain_len;
 	unsigned int frag_len;
 	unsigned int nfrags;
@@ -370,7 +369,6 @@ void ionic_rx_fill(struct ionic_queue *q)
 	unsigned int len;
 
 	len = netdev->mtu + ETH_HLEN + VLAN_HLEN;
-	max_sg_elems = q->lif->qtype_info[IONIC_QTYPE_RXQ].max_sg_elems;
 
 	for (i = ionic_q_space_avail(q); i; i--) {
 		nfrags = 0;
@@ -397,7 +395,7 @@ void ionic_rx_fill(struct ionic_queue *q)
 
 		/* fill sg descriptors - buf[1..n] */
 		sg_desc = desc_info->sg_desc;
-		for (j = 0; remain_len > 0 && j < max_sg_elems; j++) {
+		for (j = 0; remain_len > 0 && j < q->max_sg_elems; j++) {
 			sg_elem = &sg_desc->elems[j];
 			if (!buf_info->page) { /* alloc a new sg buffer? */
 				if (unlikely(ionic_rx_page_alloc(q, buf_info))) {
@@ -416,7 +414,7 @@ void ionic_rx_fill(struct ionic_queue *q)
 		}
 
 		/* clear end sg element as a sentinel */
-		if (j < max_sg_elems) {
+		if (j < q->max_sg_elems) {
 			sg_elem = &sg_desc->elems[j];
 			memset(sg_elem, 0, sizeof(*sg_elem));
 		}
@@ -568,7 +566,7 @@ int ionic_txrx_napi(struct napi_struct *napi, int budget)
 	idev = &lif->ionic->idev;
 	txcq = &lif->txqcqs[qi]->cq;
 
-	tx_work_done = ionic_cq_service(txcq, lif->tx_budget,
+	tx_work_done = ionic_cq_service(txcq, IONIC_TX_BUDGET_DEFAULT,
 					ionic_tx_service, NULL, NULL);
 
 	rx_work_done = ionic_cq_service(rxcq, budget,
@@ -601,7 +599,7 @@ static dma_addr_t ionic_tx_map_single(struct ionic_queue *q,
 				      void *data, size_t len)
 {
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
-	struct device *dev = q->lif->ionic->dev;
+	struct device *dev = q->dev;
 	dma_addr_t dma_addr;
 
 	dma_addr = dma_map_single(dev, data, len, DMA_TO_DEVICE);
@@ -619,7 +617,7 @@ static dma_addr_t ionic_tx_map_frag(struct ionic_queue *q,
 				    size_t offset, size_t len)
 {
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
-	struct device *dev = q->lif->ionic->dev;
+	struct device *dev = q->dev;
 	dma_addr_t dma_addr;
 
 	dma_addr = skb_frag_dma_map(dev, frag, offset, len, DMA_TO_DEVICE);
@@ -640,7 +638,7 @@ static void ionic_tx_clean(struct ionic_queue *q,
 	struct ionic_txq_sg_elem *elem = sg_desc->elems;
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
 	struct ionic_txq_desc *desc = desc_info->desc;
-	struct device *dev = q->lif->ionic->dev;
+	struct device *dev = q->dev;
 	u8 opcode, flags, nsge;
 	u16 queue_index;
 	unsigned int i;
@@ -822,8 +820,8 @@ static int ionic_tx_tso(struct ionic_queue *q, struct sk_buff *skb)
 {
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
 	struct ionic_desc_info *rewind_desc_info;
-	struct device *dev = q->lif->ionic->dev;
 	struct ionic_txq_sg_elem *elem;
+	struct device *dev = q->dev;
 	struct ionic_txq_desc *desc;
 	unsigned int frag_left = 0;
 	unsigned int offset = 0;
@@ -994,7 +992,7 @@ static int ionic_tx_calc_csum(struct ionic_queue *q, struct sk_buff *skb)
 {
 	struct ionic_txq_desc *desc = q->info[q->head_idx].txq_desc;
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
-	struct device *dev = q->lif->ionic->dev;
+	struct device *dev = q->dev;
 	dma_addr_t dma_addr;
 	bool has_vlan;
 	u8 flags = 0;
@@ -1034,7 +1032,7 @@ static int ionic_tx_calc_no_csum(struct ionic_queue *q, struct sk_buff *skb)
 {
 	struct ionic_txq_desc *desc = q->info[q->head_idx].txq_desc;
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
-	struct device *dev = q->lif->ionic->dev;
+	struct device *dev = q->dev;
 	dma_addr_t dma_addr;
 	bool has_vlan;
 	u8 flags = 0;
@@ -1071,7 +1069,7 @@ static int ionic_tx_skb_frags(struct ionic_queue *q, struct sk_buff *skb)
 	unsigned int len_left = skb->len - skb_headlen(skb);
 	struct ionic_txq_sg_elem *elem = sg_desc->elems;
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
-	struct device *dev = q->lif->ionic->dev;
+	struct device *dev = q->dev;
 	dma_addr_t dma_addr;
 	skb_frag_t *frag;
 	u16 len;
@@ -1120,7 +1118,6 @@ static int ionic_tx(struct ionic_queue *q, struct sk_buff *skb)
 
 static int ionic_tx_descs_needed(struct ionic_queue *q, struct sk_buff *skb)
 {
-	int sg_elems = q->lif->qtype_info[IONIC_QTYPE_TXQ].max_sg_elems;
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
 	int err;
 
@@ -1129,7 +1126,7 @@ static int ionic_tx_descs_needed(struct ionic_queue *q, struct sk_buff *skb)
 		return (skb->len / skb_shinfo(skb)->gso_size) + 1;
 
 	/* If non-TSO, just need 1 desc and nr_frags sg elems */
-	if (skb_shinfo(skb)->nr_frags <= sg_elems)
+	if (skb_shinfo(skb)->nr_frags <= q->max_sg_elems)
 		return 1;
 
 	/* Too many frags, so linearize */

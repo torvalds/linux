@@ -159,16 +159,11 @@ struct ionic_qtype_info {
 
 #define IONIC_LIF_NAME_MAX_SZ		32
 struct ionic_lif {
-	char name[IONIC_LIF_NAME_MAX_SZ];
-	struct list_head list;
 	struct net_device *netdev;
 	DECLARE_BITMAP(state, IONIC_LIF_F_STATE_SIZE);
 	struct ionic *ionic;
-	bool registered;
 	unsigned int index;
 	unsigned int hw_index;
-	unsigned int kern_pid;
-	u64 __iomem *kern_dbpage;
 	struct mutex queue_lock;	/* lock for queue structures */
 	spinlock_t adminq_lock;		/* lock for AdminQ operations */
 	struct ionic_qcq *adminqcq;
@@ -177,20 +172,25 @@ struct ionic_lif {
 	struct ionic_tx_stats *txqstats;
 	struct ionic_qcq **rxqcqs;
 	struct ionic_rx_stats *rxqstats;
+	struct ionic_deferred deferred;
+	struct work_struct tx_timeout_work;
 	u64 last_eid;
+	unsigned int kern_pid;
+	u64 __iomem *kern_dbpage;
 	unsigned int neqs;
 	unsigned int nxqs;
 	unsigned int ntxq_descs;
 	unsigned int nrxq_descs;
 	u32 rx_copybreak;
-	u32 tx_budget;
 	unsigned int rx_mode;
 	u64 hw_features;
+	bool registered;
 	bool mc_overflow;
-	unsigned int nmcast;
 	bool uc_overflow;
 	u16 lif_type;
+	unsigned int nmcast;
 	unsigned int nucast;
+	char name[IONIC_LIF_NAME_MAX_SZ];
 
 	union ionic_lif_identity *identity;
 	struct ionic_lif_info *info;
@@ -205,16 +205,14 @@ struct ionic_lif {
 	u32 rss_ind_tbl_sz;
 
 	struct ionic_rx_filters rx_filters;
-	struct ionic_deferred deferred;
-	unsigned long *dbid_inuse;
-	unsigned int dbid_count;
-	struct dentry *dentry;
 	u32 rx_coalesce_usecs;		/* what the user asked for */
 	u32 rx_coalesce_hw;		/* what the hw is using */
 	u32 tx_coalesce_usecs;		/* what the user asked for */
 	u32 tx_coalesce_hw;		/* what the hw is using */
+	unsigned long *dbid_inuse;
+	unsigned int dbid_count;
 
-	struct work_struct tx_timeout_work;
+	struct dentry *dentry;
 };
 
 struct ionic_queue_params {
