@@ -38,25 +38,6 @@ config DEFXX
 	  To compile this driver as a module, choose M here: the module
 	  will be called defxx.  If unsure, say N.
 
-config DEFXX_MMIO
-	bool
-	prompt "Use MMIO instead of IOP" if PCI || EISA
-	depends on DEFXX
-	default n if EISA
-	default y
-	help
-	  This instructs the driver to use EISA or PCI memory-mapped I/O
-	  (MMIO) as appropriate instead of programmed I/O ports (IOP).
-	  Enabling this gives an improvement in processing time in parts
-	  of the driver, but it requires a memory window to be configured
-	  for EISA (DEFEA) adapters that may not always be available.
-	  Conversely some PCIe host bridges do not support IOP, so MMIO
-	  may be required to access PCI (DEFPA) adapters on downstream PCI
-	  buses with some systems.  TURBOchannel does not have the concept
-	  of I/O ports, so MMIO is always used for these (DEFTA) adapters.
-
-	  If unsure, say N.
-
 config SKFP
 	tristate "SysKonnect FDDI PCI support"
 	depends on FDDI && PCI
