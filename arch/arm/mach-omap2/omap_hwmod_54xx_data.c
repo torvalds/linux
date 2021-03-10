@@ -93,27 +93,6 @@ static struct omap_hwmod omap54xx_l3_main_3_hwmod = {
 };
 
 /*
- * 'l4' class
- * instance(s): l4_abe, l4_cfg
- */
-static struct omap_hwmod_class omap54xx_l4_hwmod_class = {
-	.name	= "l4",
-};
-
-/* l4_cfg */
-static struct omap_hwmod omap54xx_l4_cfg_hwmod = {
-	.name		= "l4_cfg",
-	.class		= &omap54xx_l4_hwmod_class,
-	.clkdm_name	= "l4cfg_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP54XX_CM_L4CFG_L4_CFG_CLKCTRL_OFFSET,
-			.context_offs = OMAP54XX_RM_L4CFG_L4_CFG_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/*
  * Interfaces
  */
 
@@ -133,14 +112,6 @@ static struct omap_hwmod_ocp_if omap54xx_l3_main_2__l3_main_1 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_cfg -> l3_main_1 */
-static struct omap_hwmod_ocp_if omap54xx_l4_cfg__l3_main_1 = {
-	.master		= &omap54xx_l4_cfg_hwmod,
-	.slave		= &omap54xx_l3_main_1_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l3_main_1 -> l3_main_2 */
 static struct omap_hwmod_ocp_if omap54xx_l3_main_1__l3_main_2 = {
 	.master		= &omap54xx_l3_main_1_hwmod,
@@ -149,15 +120,6 @@ static struct omap_hwmod_ocp_if omap54xx_l3_main_1__l3_main_2 = {
 	.user		= OCP_USER_MPU,
 };
 
-/* l4_cfg -> l3_main_2 */
-static struct omap_hwmod_ocp_if omap54xx_l4_cfg__l3_main_2 = {
-	.master		= &omap54xx_l4_cfg_hwmod,
-	.slave		= &omap54xx_l3_main_2_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l3_main_1 -> l3_main_3 */
 static struct omap_hwmod_ocp_if omap54xx_l3_main_1__l3_main_3 = {
 	.master		= &omap54xx_l3_main_1_hwmod,
 	.slave		= &omap54xx_l3_main_3_hwmod,
@@ -173,32 +135,12 @@ static struct omap_hwmod_ocp_if omap54xx_l3_main_2__l3_main_3 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_cfg -> l3_main_3 */
-static struct omap_hwmod_ocp_if omap54xx_l4_cfg__l3_main_3 = {
-	.master		= &omap54xx_l4_cfg_hwmod,
-	.slave		= &omap54xx_l3_main_3_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l3_main_1 -> l4_cfg */
-static struct omap_hwmod_ocp_if omap54xx_l3_main_1__l4_cfg = {
-	.master		= &omap54xx_l3_main_1_hwmod,
-	.slave		= &omap54xx_l4_cfg_hwmod,
-	.clk		= "l4_root_clk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 static struct omap_hwmod_ocp_if *omap54xx_hwmod_ocp_ifs[] __initdata = {
 	&omap54xx_l3_main_3__l3_instr,
 	&omap54xx_l3_main_2__l3_main_1,
-	&omap54xx_l4_cfg__l3_main_1,
 	&omap54xx_l3_main_1__l3_main_2,
-	&omap54xx_l4_cfg__l3_main_2,
 	&omap54xx_l3_main_1__l3_main_3,
 	&omap54xx_l3_main_2__l3_main_3,
-	&omap54xx_l4_cfg__l3_main_3,
-	&omap54xx_l3_main_1__l4_cfg,
 	NULL,
 };
 
