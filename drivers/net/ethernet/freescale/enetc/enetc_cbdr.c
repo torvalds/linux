@@ -3,6 +3,60 @@
 
 #include "enetc.h"
 
+int enetc_alloc_cbdr(struct device *dev, struct enetc_cbdr *cbdr)
+{
+	int size = cbdr->bd_count * sizeof(struct enetc_cbd);
+
+	cbdr->bd_base = dma_alloc_coherent(dev, size, &cbdr->bd_dma_base,
+					   GFP_KERNEL);
+	if (!cbdr->bd_base)
+		return -ENOMEM;
+
+	/* h/w requires 128B alignment */
+	if (!IS_ALIGNED(cbdr->bd_dma_base, 128)) {
+		dma_free_coherent(dev, size, cbdr->bd_base, cbdr->bd_dma_base);
+		return -EINVAL;
+	}
+
+	cbdr->next_to_clean = 0;
+	cbdr->next_to_use = 0;
+
+	return 0;
+}
+
+void enetc_free_cbdr(struct device *dev, struct enetc_cbdr *cbdr)
+{
+	int size = cbdr->bd_count * sizeof(struct enetc_cbd);
+
+	dma_free_coherent(dev, size, cbdr->bd_base, cbdr->bd_dma_base);
+	cbdr->bd_base = NULL;
+}
+
+void enetc_setup_cbdr(struct enetc_hw *hw, struct enetc_cbdr *cbdr)
+{
+	/* set CBDR cache attributes */
+	enetc_wr(hw, ENETC_SICAR2,
+		 ENETC_SICAR_RD_COHERENT | ENETC_SICAR_WR_COHERENT);
+
+	enetc_wr(hw, ENETC_SICBDRBAR0, lower_32_bits(cbdr->bd_dma_base));
+	enetc_wr(hw, ENETC_SICBDRBAR1, upper_32_bits(cbdr->bd_dma_base));
+	enetc_wr(hw, ENETC_SICBDRLENR, ENETC_RTBLENR_LEN(cbdr->bd_count));
+
+	enetc_wr(hw, ENETC_SICBDRPIR, 0);
+	enetc_wr(hw, ENETC_SICBDRCIR, 0);
+
+	/* enable ring */
+	enetc_wr(hw, ENETC_SICBDRMR, BIT(31));
+
+	cbdr->pir = hw->reg + ENETC_SICBDRPIR;
+	cbdr->cir = hw->reg + ENETC_SICBDRCIR;
+}
+
+void enetc_clear_cbdr(struct enetc_hw *hw)
+{
+	enetc_wr(hw, ENETC_SICBDRMR, 0);
+}
+
 static void enetc_clean_cbdr(struct enetc_si *si)
 {
 	struct enetc_cbdr *ring = &si->cbd_ring;
