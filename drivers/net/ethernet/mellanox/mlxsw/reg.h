@@ -5637,7 +5637,7 @@ static inline void mlxsw_reg_pspa_pack(char *payload, u8 swid, u8 local_port)
 
 MLXSW_REG_DEFINE(pmaos, MLXSW_REG_PMAOS_ID, MLXSW_REG_PMAOS_LEN);
 
-/* reg_slot_index
+/* reg_pmaos_slot_index
  * Slot index.
  * Access: Index
  */
@@ -10919,7 +10919,7 @@ MLXSW_REG_DEFINE(mfde, MLXSW_REG_MFDE_ID, MLXSW_REG_MFDE_LEN);
  * Which irisc triggered the event
  * Access: RO
  */
-MLXSW_ITEM32(reg, mfde, irisc_id, 0x00, 8, 4);
+MLXSW_ITEM32(reg, mfde, irisc_id, 0x00, 24, 8);
 
 enum mlxsw_reg_mfde_event_id {
 	MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO = 1,
@@ -10930,7 +10930,7 @@ enum mlxsw_reg_mfde_event_id {
 /* reg_mfde_event_id
  * Access: RO
  */
-MLXSW_ITEM32(reg, mfde, event_id, 0x00, 0, 8);
+MLXSW_ITEM32(reg, mfde, event_id, 0x00, 0, 16);
 
 enum mlxsw_reg_mfde_method {
 	MLXSW_REG_MFDE_METHOD_QUERY,
@@ -10978,6 +10978,13 @@ MLXSW_ITEM32(reg, mfde, log_address, 0x10, 0, 32);
  * Access: RO
  */
 MLXSW_ITEM32(reg, mfde, log_id, 0x14, 0, 4);
+
+/* reg_mfde_log_ip
+ * IP (instruction pointer) that triggered the timeout.
+ * Valid in case event_id == MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, mfde, log_ip, 0x18, 0, 64);
 
 /* reg_mfde_pipes_mask
  * Bit per kvh pipe.
