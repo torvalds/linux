@@ -1005,7 +1005,7 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen,
 	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
 	int prev_state, ret = 0;
 
-	if (num_active_cpus() == 1)
+	if (num_active_cpus() == 1 && cpu_active(cpu))
 		return -EBUSY;
 
 	if (!cpu_present(cpu))
