@@ -298,7 +298,6 @@
 
 		target-module@4c000000 {
 			compatible = "ti,sysc-omap4-simple", "ti,sysc";
-			ti,hwmods = "emif1";
 			reg = <0x4c000000 0x4>;
 			reg-names = "rev";
 			clocks = <&emif_clkctrl OMAP5_EMIF1_CLKCTRL 0>;
@@ -321,7 +320,6 @@
 
 		target-module@4d000000 {
 			compatible = "ti,sysc-omap4-simple", "ti,sysc";
-			ti,hwmods = "emif2";
 			reg = <0x4d000000 0x4>;
 			reg-names = "rev";
 			clocks = <&emif_clkctrl OMAP5_EMIF2_CLKCTRL 0>;

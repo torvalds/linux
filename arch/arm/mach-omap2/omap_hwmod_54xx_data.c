@@ -160,55 +160,6 @@ static struct omap_hwmod omap54xx_mpu_private_hwmod = {
 };
 
 /*
- * 'emif' class
- * external memory interface no1 (wrapper)
- */
-
-static struct omap_hwmod_class_sysconfig omap54xx_emif_sysc = {
-	.rev_offs	= 0x0000,
-};
-
-static struct omap_hwmod_class omap54xx_emif_hwmod_class = {
-	.name	= "emif",
-	.sysc	= &omap54xx_emif_sysc,
-};
-
-/* emif1 */
-static struct omap_hwmod omap54xx_emif1_hwmod = {
-	.name		= "emif1",
-	.class		= &omap54xx_emif_hwmod_class,
-	.clkdm_name	= "emif_clkdm",
-	.flags		= HWMOD_INIT_NO_IDLE,
-	.main_clk	= "dpll_core_h11x2_ck",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP54XX_CM_EMIF_EMIF1_CLKCTRL_OFFSET,
-			.context_offs = OMAP54XX_RM_EMIF_EMIF1_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
-		},
-	},
-};
-
-/* emif2 */
-static struct omap_hwmod omap54xx_emif2_hwmod = {
-	.name		= "emif2",
-	.class		= &omap54xx_emif_hwmod_class,
-	.clkdm_name	= "emif_clkdm",
-	.flags		= HWMOD_INIT_NO_IDLE,
-	.main_clk	= "dpll_core_h11x2_ck",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP54XX_CM_EMIF_EMIF2_CLKCTRL_OFFSET,
-			.context_offs = OMAP54XX_RM_EMIF_EMIF2_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_HWCTRL,
-		},
-	},
-};
-
-
-
-
-/*
  * 'mpu' class
  * mpu sub-system
  */
@@ -385,22 +336,6 @@ static struct omap_hwmod_ocp_if omap54xx_mpu__mpu_private = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* mpu -> emif1 */
-static struct omap_hwmod_ocp_if omap54xx_mpu__emif1 = {
-	.master		= &omap54xx_mpu_hwmod,
-	.slave		= &omap54xx_emif1_hwmod,
-	.clk		= "dpll_core_h11x2_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* mpu -> emif2 */
-static struct omap_hwmod_ocp_if omap54xx_mpu__emif2 = {
-	.master		= &omap54xx_mpu_hwmod,
-	.slave		= &omap54xx_emif2_hwmod,
-	.clk		= "dpll_core_h11x2_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l4_cfg -> mpu */
 static struct omap_hwmod_ocp_if omap54xx_l4_cfg__mpu = {
 	.master		= &omap54xx_l4_cfg_hwmod,
@@ -423,8 +358,6 @@ static struct omap_hwmod_ocp_if *omap54xx_hwmod_ocp_ifs[] __initdata = {
 	&omap54xx_l3_main_2__l4_per,
 	&omap54xx_l3_main_1__l4_wkup,
 	&omap54xx_mpu__mpu_private,
-	&omap54xx_mpu__emif1,
-	&omap54xx_mpu__emif2,
 	&omap54xx_l4_cfg__mpu,
 	&omap54xx_l4_cfg__sata,
 	NULL,
