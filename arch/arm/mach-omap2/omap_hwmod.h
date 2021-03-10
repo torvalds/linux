@@ -671,7 +671,6 @@ extern int omap2420_hwmod_init(void);
 extern int omap2430_hwmod_init(void);
 extern int omap3xxx_hwmod_init(void);
 extern int omap44xx_hwmod_init(void);
-extern int omap54xx_hwmod_init(void);
 extern int am33xx_hwmod_init(void);
 extern int dm814x_hwmod_init(void);
 extern int dm816x_hwmod_init(void);
