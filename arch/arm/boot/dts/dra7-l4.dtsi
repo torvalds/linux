@@ -2302,7 +2302,10 @@
 };
 
 &l4_per2 {						/* 0x48400000 */
-	compatible = "ti,dra7-l4-per2", "simple-bus";
+	compatible = "ti,dra7-l4-per2", "simple-pm-bus";
+	power-domains = <&prm_l4per>;
+	clocks = <&l4per2_clkctrl DRA7_L4PER2_L4_PER2_CLKCTRL 0>;
+	clock-names = "fck";
 	reg = <0x48400000 0x800>,
 	      <0x48400800 0x800>,
 	      <0x48401000 0x400>,
@@ -2322,7 +2325,7 @@
 		 <0x48454000 0x48454000 0x400000>;	/* L3 data port */
 
 	segment@0 {					/* 0x48400000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00000000 0x00000000 0x000800>,	/* ap 0 */
