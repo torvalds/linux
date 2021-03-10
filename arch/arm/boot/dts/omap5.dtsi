@@ -142,7 +142,11 @@
 	 * hierarchy.
 	 */
 	ocp {
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
+		power-domains = <&prm_core>;
+		clocks = <&l3main1_clkctrl OMAP5_L3_MAIN_1_CLKCTRL 0>,
+			 <&l3main2_clkctrl OMAP5_L3_MAIN_2_CLKCTRL 0>,
+			 <&l3instr_clkctrl OMAP5_L3_MAIN_3_CLKCTRL 0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0 0 0xc0000000>;
