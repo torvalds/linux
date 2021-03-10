@@ -3,7 +3,8 @@
 
 #include "enetc.h"
 
-int enetc_alloc_cbdr(struct device *dev, struct enetc_cbdr *cbdr)
+int enetc_setup_cbdr(struct device *dev, struct enetc_hw *hw,
+		     struct enetc_cbdr *cbdr)
 {
 	int size = cbdr->bd_count * sizeof(struct enetc_cbd);
 
@@ -23,21 +24,6 @@ int enetc_alloc_cbdr(struct device *dev, struct enetc_cbdr *cbdr)
 	cbdr->next_to_use = 0;
 	cbdr->dma_dev = dev;
 
-	return 0;
-}
-
-void enetc_free_cbdr(struct enetc_cbdr *cbdr)
-{
-	int size = cbdr->bd_count * sizeof(struct enetc_cbd);
-
-	dma_free_coherent(cbdr->dma_dev, size, cbdr->bd_base,
-			  cbdr->bd_dma_base);
-	cbdr->bd_base = NULL;
-	cbdr->dma_dev = NULL;
-}
-
-void enetc_setup_cbdr(struct enetc_hw *hw, struct enetc_cbdr *cbdr)
-{
 	/* set CBDR cache attributes */
 	enetc_wr(hw, ENETC_SICAR2,
 		 ENETC_SICAR_RD_COHERENT | ENETC_SICAR_WR_COHERENT);
@@ -54,6 +40,18 @@ void enetc_setup_cbdr(struct enetc_hw *hw, struct enetc_cbdr *cbdr)
 
 	cbdr->pir = hw->reg + ENETC_SICBDRPIR;
 	cbdr->cir = hw->reg + ENETC_SICBDRCIR;
+
+	return 0;
+}
+
+void enetc_free_cbdr(struct enetc_cbdr *cbdr)
+{
+	int size = cbdr->bd_count * sizeof(struct enetc_cbd);
+
+	dma_free_coherent(cbdr->dma_dev, size, cbdr->bd_base,
+			  cbdr->bd_dma_base);
+	cbdr->bd_base = NULL;
+	cbdr->dma_dev = NULL;
 }
 
 void enetc_clear_cbdr(struct enetc_hw *hw)

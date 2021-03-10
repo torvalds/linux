@@ -1060,11 +1060,9 @@ int enetc_alloc_si_resources(struct enetc_ndev_priv *priv)
 	struct enetc_si *si = priv->si;
 	int err;
 
-	err = enetc_alloc_cbdr(priv->dev, &si->cbd_ring);
+	err = enetc_setup_cbdr(priv->dev, &si->hw, &si->cbd_ring);
 	if (err)
 		return err;
-
-	enetc_setup_cbdr(&si->hw, &si->cbd_ring);
 
 	priv->cls_rules = kcalloc(si->num_fs_entries, sizeof(*priv->cls_rules),
 				  GFP_KERNEL);
