@@ -243,30 +243,6 @@ static struct omap_hwmod dra7xx_ctrl_module_wkup_hwmod = {
 };
 
 /*
- * 'mpu' class
- *
- */
-
-static struct omap_hwmod_class dra7xx_mpu_hwmod_class = {
-	.name	= "mpu",
-};
-
-/* mpu */
-static struct omap_hwmod dra7xx_mpu_hwmod = {
-	.name		= "mpu",
-	.class		= &dra7xx_mpu_hwmod_class,
-	.clkdm_name	= "mpu_clkdm",
-	.flags		= HWMOD_INIT_NO_IDLE | HWMOD_INIT_NO_RESET,
-	.main_clk	= "dpll_mpu_m2_ck",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_MPU_MPU_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_MPU_MPU_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/*
  * 'vcp' class
  *
  */
@@ -331,14 +307,6 @@ static struct omap_hwmod_ocp_if dra7xx_l4_cfg__l3_main_1 = {
 	.slave		= &dra7xx_l3_main_1_hwmod,
 	.clk		= "l3_iclk_div",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* mpu -> l3_main_1 */
-static struct omap_hwmod_ocp_if dra7xx_mpu__l3_main_1 = {
-	.master		= &dra7xx_mpu_hwmod,
-	.slave		= &dra7xx_l3_main_1_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU,
 };
 
 /* l3_main_1 -> l3_main_2 */
@@ -421,14 +389,6 @@ static struct omap_hwmod_ocp_if dra7xx_l4_wkup__ctrl_module_wkup = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_cfg -> mpu */
-static struct omap_hwmod_ocp_if dra7xx_l4_cfg__mpu = {
-	.master		= &dra7xx_l4_cfg_hwmod,
-	.slave		= &dra7xx_mpu_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l3_main_1 -> vcp1 */
 static struct omap_hwmod_ocp_if dra7xx_l3_main_1__vcp1 = {
 	.master		= &dra7xx_l3_main_1_hwmod,
@@ -465,7 +425,6 @@ static struct omap_hwmod_ocp_if *dra7xx_hwmod_ocp_ifs[] __initdata = {
 	&dra7xx_l3_main_1__dmm,
 	&dra7xx_l3_main_2__l3_instr,
 	&dra7xx_l4_cfg__l3_main_1,
-	&dra7xx_mpu__l3_main_1,
 	&dra7xx_l3_main_1__l3_main_2,
 	&dra7xx_l4_cfg__l3_main_2,
 	&dra7xx_l3_main_1__l4_cfg,
@@ -476,7 +435,6 @@ static struct omap_hwmod_ocp_if *dra7xx_hwmod_ocp_ifs[] __initdata = {
 	&dra7xx_l4_per2__atl,
 	&dra7xx_l3_main_1__bb2d,
 	&dra7xx_l4_wkup__ctrl_module_wkup,
-	&dra7xx_l4_cfg__mpu,
 	&dra7xx_l3_main_1__vcp1,
 	&dra7xx_l4_per2__vcp1,
 	&dra7xx_l3_main_1__vcp2,
