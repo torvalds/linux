@@ -785,18 +785,6 @@
 			};
 		};
 
-		/* OCP2SCP3 */
-		sata: sata@4a141100 {
-			compatible = "snps,dwc-ahci";
-			reg = <0x4a140000 0x1100>, <0x4a141100 0x7>;
-			interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
-			phys = <&sata_phy>;
-			phy-names = "sata-phy";
-			clocks = <&l3init_clkctrl DRA7_L3INIT_SATA_CLKCTRL 8>;
-			ti,hwmods = "sata";
-			ports-implemented = <0x1>;
-		};
-
 		/* OCP2SCP1 */
 		/* IRQ for DWC3_3 and DWC3_4 need IRQ crossbar */
 
