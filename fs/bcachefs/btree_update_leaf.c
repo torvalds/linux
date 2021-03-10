@@ -929,8 +929,13 @@ int __bch2_trans_commit(struct btree_trans *trans)
 	}
 
 	trans_for_each_update2(trans, i) {
-		BUG_ON(i->iter->uptodate > BTREE_ITER_NEED_PEEK);
 		BUG_ON(i->iter->locks_want < 1);
+
+		ret = bch2_btree_iter_traverse(i->iter);
+		if (unlikely(ret)) {
+			trace_trans_restart_traverse(trans->ip);
+			goto out;
+		}
 
 		u64s = jset_u64s(i->k->k.u64s);
 		if (btree_iter_type(i->iter) == BTREE_ITER_CACHED &&
