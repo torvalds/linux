@@ -1857,6 +1857,12 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 			goto out;
 	}
 
+	/* Todo: During test the SMU might fail to read the eeprom through I2C
+	 * when the GPU is pending on XGMI reset during probe time
+	 * (Mostly after second bus reset), skip it now
+	 */
+	if (adev->gmc.xgmi.pending_reset)
+		return 0;
 	ret = amdgpu_ras_eeprom_init(&con->eeprom_control, &exc_err_limit);
 	/*
 	 * This calling fails when exc_err_limit is true or
