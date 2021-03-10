@@ -34,27 +34,6 @@
  */
 
 /*
- * 'dmm' class
- * instance(s): dmm
- */
-static struct omap_hwmod_class omap44xx_dmm_hwmod_class = {
-	.name	= "dmm",
-};
-
-/* dmm */
-static struct omap_hwmod omap44xx_dmm_hwmod = {
-	.name		= "dmm",
-	.class		= &omap44xx_dmm_hwmod_class,
-	.clkdm_name	= "l3_emif_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_MEMIF_DMM_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_MEMIF_DMM_CONTEXT_OFFSET,
-		},
-	},
-};
-
-/*
  * 'l3' class
  * instance(s): l3_instr, l3_main_1, l3_main_2, l3_main_3
  */
@@ -440,22 +419,6 @@ static struct omap_hwmod omap44xx_sl2if_hwmod = {
  * interfaces
  */
 
-/* l3_main_1 -> dmm */
-static struct omap_hwmod_ocp_if omap44xx_l3_main_1__dmm = {
-	.master		= &omap44xx_l3_main_1_hwmod,
-	.slave		= &omap44xx_dmm_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_SDMA,
-};
-
-/* mpu -> dmm */
-static struct omap_hwmod_ocp_if omap44xx_mpu__dmm = {
-	.master		= &omap44xx_mpu_hwmod,
-	.slave		= &omap44xx_dmm_hwmod,
-	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU,
-};
-
 /* l3_main_3 -> l3_instr */
 static struct omap_hwmod_ocp_if omap44xx_l3_main_3__l3_instr = {
 	.master		= &omap44xx_l3_main_3_hwmod,
@@ -665,8 +628,6 @@ static struct omap_hwmod_ocp_if omap44xx_mpu__emif2 = {
 };
 
 static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
-	&omap44xx_l3_main_1__dmm,
-	&omap44xx_mpu__dmm,
 	&omap44xx_l3_main_3__l3_instr,
 	&omap44xx_ocp_wp_noc__l3_instr,
 	&omap44xx_l3_main_2__l3_main_1,
