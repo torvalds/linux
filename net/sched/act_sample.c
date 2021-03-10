@@ -194,6 +194,16 @@ static int tcf_sample_act(struct sk_buff *skb, const struct tc_action *a,
 	return retval;
 }
 
+static void tcf_sample_stats_update(struct tc_action *a, u64 bytes, u64 packets,
+				    u64 drops, u64 lastuse, bool hw)
+{
+	struct tcf_sample *s = to_sample(a);
+	struct tcf_t *tm = &s->tcf_tm;
+
+	tcf_action_update_stats(a, bytes, packets, drops, hw);
+	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
+}
+
 static int tcf_sample_dump(struct sk_buff *skb, struct tc_action *a,
 			   int bind, int ref)
 {
@@ -280,6 +290,7 @@ static struct tc_action_ops act_sample_ops = {
 	.id	  = TCA_ID_SAMPLE,
 	.owner	  = THIS_MODULE,
 	.act	  = tcf_sample_act,
+	.stats_update = tcf_sample_stats_update,
 	.dump	  = tcf_sample_dump,
 	.init	  = tcf_sample_init,
 	.cleanup  = tcf_sample_cleanup,
