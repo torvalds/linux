@@ -10919,7 +10919,7 @@ MLXSW_REG_DEFINE(mfde, MLXSW_REG_MFDE_ID, MLXSW_REG_MFDE_LEN);
  * Which irisc triggered the event
  * Access: RO
  */
-MLXSW_ITEM32(reg, mfde, irisc_id, 0x00, 8, 4);
+MLXSW_ITEM32(reg, mfde, irisc_id, 0x00, 24, 8);
 
 enum mlxsw_reg_mfde_event_id {
 	MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO = 1,
@@ -10930,7 +10930,7 @@ enum mlxsw_reg_mfde_event_id {
 /* reg_mfde_event_id
  * Access: RO
  */
-MLXSW_ITEM32(reg, mfde, event_id, 0x00, 0, 8);
+MLXSW_ITEM32(reg, mfde, event_id, 0x00, 0, 16);
 
 enum mlxsw_reg_mfde_method {
 	MLXSW_REG_MFDE_METHOD_QUERY,
