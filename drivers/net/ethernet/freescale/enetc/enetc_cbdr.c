@@ -3,10 +3,10 @@
 
 #include "enetc.h"
 
-int enetc_setup_cbdr(struct device *dev, struct enetc_hw *hw,
+int enetc_setup_cbdr(struct device *dev, struct enetc_hw *hw, int bd_count,
 		     struct enetc_cbdr *cbdr)
 {
-	int size = cbdr->bd_count * sizeof(struct enetc_cbd);
+	int size = bd_count * sizeof(struct enetc_cbd);
 
 	cbdr->bd_base = dma_alloc_coherent(dev, size, &cbdr->bd_dma_base,
 					   GFP_KERNEL);
@@ -23,6 +23,7 @@ int enetc_setup_cbdr(struct device *dev, struct enetc_hw *hw,
 	cbdr->next_to_clean = 0;
 	cbdr->next_to_use = 0;
 	cbdr->dma_dev = dev;
+	cbdr->bd_count = bd_count;
 
 	cbdr->pir = hw->reg + ENETC_SICBDRPIR;
 	cbdr->cir = hw->reg + ENETC_SICBDRCIR;

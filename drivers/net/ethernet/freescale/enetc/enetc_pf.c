@@ -1087,8 +1087,7 @@ static void enetc_init_unused_port(struct enetc_si *si)
 	struct enetc_hw *hw = &si->hw;
 	int err;
 
-	si->cbd_ring.bd_count = ENETC_CBDR_DEFAULT_SIZE;
-	err = enetc_setup_cbdr(dev, hw, &si->cbd_ring);
+	err = enetc_setup_cbdr(dev, hw, ENETC_CBDR_DEFAULT_SIZE, &si->cbd_ring);
 	if (err)
 		return;
 

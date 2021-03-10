@@ -1050,9 +1050,6 @@ void enetc_init_si_rings_params(struct enetc_ndev_priv *priv)
 	priv->bdr_int_num = cpus;
 	priv->ic_mode = ENETC_IC_RX_ADAPTIVE | ENETC_IC_TX_MANUAL;
 	priv->tx_ictt = ENETC_TXIC_TIMETHR;
-
-	/* SI specific */
-	si->cbd_ring.bd_count = ENETC_CBDR_DEFAULT_SIZE;
 }
 
 int enetc_alloc_si_resources(struct enetc_ndev_priv *priv)
@@ -1060,7 +1057,8 @@ int enetc_alloc_si_resources(struct enetc_ndev_priv *priv)
 	struct enetc_si *si = priv->si;
 	int err;
 
-	err = enetc_setup_cbdr(priv->dev, &si->hw, &si->cbd_ring);
+	err = enetc_setup_cbdr(priv->dev, &si->hw, ENETC_CBDR_DEFAULT_SIZE,
+			       &si->cbd_ring);
 	if (err)
 		return err;
 
