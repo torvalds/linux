@@ -495,6 +495,7 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 		goto err_out;
 	}
 
+	new->q.dev = dev;
 	new->flags = flags;
 
 	new->q.info = devm_kcalloc(dev, num_descs, sizeof(*new->q.info),
@@ -506,6 +507,7 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 	}
 
 	new->q.type = type;
+	new->q.max_sg_elems = lif->qtype_info[type].max_sg_elems;
 
 	err = ionic_q_init(lif, idev, &new->q, index, name, num_descs,
 			   desc_size, sg_desc_size, pid);
@@ -2202,6 +2204,9 @@ static void ionic_swap_queues(struct ionic_qcq *a, struct ionic_qcq *b)
 	swap(a->cq_base,      b->cq_base);
 	swap(a->cq_base_pa,   b->cq_base_pa);
 	swap(a->cq_size,      b->cq_size);
+
+	ionic_debugfs_del_qcq(a);
+	ionic_debugfs_add_qcq(a->q.lif, a);
 }
 
 int ionic_reconfigure_queues(struct ionic_lif *lif,
@@ -2450,7 +2455,6 @@ int ionic_lif_alloc(struct ionic *ionic)
 	lif->index = 0;
 	lif->ntxq_descs = IONIC_DEF_TXRX_DESC;
 	lif->nrxq_descs = IONIC_DEF_TXRX_DESC;
-	lif->tx_budget = IONIC_TX_BUDGET_DEFAULT;
 
 	/* Convert the default coalesce value to actual hw resolution */
 	lif->rx_coalesce_usecs = IONIC_ITR_COAL_USEC_DEFAULT;
