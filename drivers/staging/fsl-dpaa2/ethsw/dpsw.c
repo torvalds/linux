@@ -643,6 +643,47 @@ int dpsw_if_disable(struct fsl_mc_io *mc_io,
 }
 
 /**
+ * dpsw_if_get_attributes() - Function obtains attributes of interface
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @if_id:	Interface Identifier
+ * @attr:	Returned interface attributes
+ *
+ * Return:	Completion status. '0' on Success; Error code otherwise.
+ */
+int dpsw_if_get_attributes(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			   u16 if_id, struct dpsw_if_attr *attr)
+{
+	struct dpsw_rsp_if_get_attr *rsp_params;
+	struct fsl_mc_command cmd = { 0 };
+	struct dpsw_cmd_if *cmd_params;
+	int err;
+
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_IF_GET_ATTR, cmd_flags,
+					  token);
+	cmd_params = (struct dpsw_cmd_if *)cmd.params;
+	cmd_params->if_id = cpu_to_le16(if_id);
+
+	err = mc_send_command(mc_io, &cmd);
+	if (err)
+		return err;
+
+	rsp_params = (struct dpsw_rsp_if_get_attr *)cmd.params;
+	attr->num_tcs = rsp_params->num_tcs;
+	attr->rate = le32_to_cpu(rsp_params->rate);
+	attr->options = le32_to_cpu(rsp_params->options);
+	attr->qdid = le16_to_cpu(rsp_params->qdid);
+	attr->enabled = dpsw_get_field(rsp_params->conf, ENABLED);
+	attr->accept_all_vlan = dpsw_get_field(rsp_params->conf,
+					       ACCEPT_ALL_VLAN);
+	attr->admit_untagged = dpsw_get_field(rsp_params->conf,
+					      ADMIT_UNTAGGED);
+
+	return 0;
+}
+
+/**
  * dpsw_if_set_max_frame_length() - Set Maximum Receive frame length.
  * @mc_io:		Pointer to MC portal's I/O object
  * @cmd_flags:		Command flags; one or more of 'MC_CMD_FLAG_'

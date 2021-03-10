@@ -66,6 +66,19 @@
  */
 #define DPAA2_SWITCH_SWP_BUSY_RETRIES		1000
 
+/* Hardware annotation buffer size */
+#define DPAA2_SWITCH_HWA_SIZE			64
+/* Software annotation buffer size */
+#define DPAA2_SWITCH_SWA_SIZE			64
+
+#define DPAA2_SWITCH_TX_BUF_ALIGN		64
+
+#define DPAA2_SWITCH_TX_DATA_OFFSET \
+	(DPAA2_SWITCH_HWA_SIZE + DPAA2_SWITCH_SWA_SIZE)
+
+#define DPAA2_SWITCH_NEEDED_HEADROOM \
+	(DPAA2_SWITCH_TX_DATA_OFFSET + DPAA2_SWITCH_TX_BUF_ALIGN)
+
 extern const struct ethtool_ops dpaa2_switch_port_ethtool_ops;
 
 struct ethsw_core;
@@ -91,6 +104,7 @@ struct ethsw_port_priv {
 	u8			vlans[VLAN_VID_MASK + 1];
 	u16			pvid;
 	struct net_device	*bridge_dev;
+	u16			tx_qdid;
 };
 
 /* Switch data */

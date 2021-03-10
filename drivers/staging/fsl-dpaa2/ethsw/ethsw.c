@@ -434,10 +434,13 @@ static int dpaa2_switch_port_carrier_state_sync(struct net_device *netdev)
 	WARN_ONCE(state.up > 1, "Garbage read into link_state");
 
 	if (state.up != port_priv->link_state) {
-		if (state.up)
+		if (state.up) {
 			netif_carrier_on(netdev);
-		else
+			netif_tx_start_all_queues(netdev);
+		} else {
 			netif_carrier_off(netdev);
+			netif_tx_stop_all_queues(netdev);
+		}
 		port_priv->link_state = state.up;
 	}
 
@@ -491,9 +494,6 @@ static int dpaa2_switch_port_open(struct net_device *netdev)
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 	int err;
 
-	/* No need to allow Tx as control interface is disabled */
-	netif_tx_stop_all_queues(netdev);
-
 	/* Explicitly set carrier off, otherwise
 	 * netif_carrier_ok() will return true and cause 'ip link show'
 	 * to report the LOWER_UP flag, even though the link
@@ -545,15 +545,6 @@ static int dpaa2_switch_port_stop(struct net_device *netdev)
 	dpaa2_switch_disable_ctrl_if_napi(ethsw);
 
 	return 0;
-}
-
-static netdev_tx_t dpaa2_switch_port_dropframe(struct sk_buff *skb,
-					       struct net_device *netdev)
-{
-	/* we don't support I/O for now, drop the frame */
-	dev_kfree_skb_any(skb);
-
-	return NETDEV_TX_OK;
 }
 
 static int dpaa2_switch_port_parent_id(struct net_device *dev,
@@ -772,6 +763,115 @@ static void dpaa2_switch_free_fd(const struct ethsw_core *ethsw,
 	dev_kfree_skb(skb);
 }
 
+static int dpaa2_switch_build_single_fd(struct ethsw_core *ethsw,
+					struct sk_buff *skb,
+					struct dpaa2_fd *fd)
+{
+	struct device *dev = ethsw->dev;
+	struct sk_buff **skbh;
+	dma_addr_t addr;
+	u8 *buff_start;
+	void *hwa;
+
+	buff_start = PTR_ALIGN(skb->data - DPAA2_SWITCH_TX_DATA_OFFSET -
+			       DPAA2_SWITCH_TX_BUF_ALIGN,
+			       DPAA2_SWITCH_TX_BUF_ALIGN);
+
+	/* Clear FAS to have consistent values for TX confirmation. It is
+	 * located in the first 8 bytes of the buffer's hardware annotation
+	 * area
+	 */
+	hwa = buff_start + DPAA2_SWITCH_SWA_SIZE;
+	memset(hwa, 0, 8);
+
+	/* Store a backpointer to the skb at the beginning of the buffer
+	 * (in the private data area) such that we can release it
+	 * on Tx confirm
+	 */
+	skbh = (struct sk_buff **)buff_start;
+	*skbh = skb;
+
+	addr = dma_map_single(dev, buff_start,
+			      skb_tail_pointer(skb) - buff_start,
+			      DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(dev, addr)))
+		return -ENOMEM;
+
+	/* Setup the FD fields */
+	memset(fd, 0, sizeof(*fd));
+
+	dpaa2_fd_set_addr(fd, addr);
+	dpaa2_fd_set_offset(fd, (u16)(skb->data - buff_start));
+	dpaa2_fd_set_len(fd, skb->len);
+	dpaa2_fd_set_format(fd, dpaa2_fd_single);
+
+	return 0;
+}
+
+static netdev_tx_t dpaa2_switch_port_tx(struct sk_buff *skb,
+					struct net_device *net_dev)
+{
+	struct ethsw_port_priv *port_priv = netdev_priv(net_dev);
+	struct ethsw_core *ethsw = port_priv->ethsw_data;
+	int retries = DPAA2_SWITCH_SWP_BUSY_RETRIES;
+	struct dpaa2_fd fd;
+	int err;
+
+	if (unlikely(skb_headroom(skb) < DPAA2_SWITCH_NEEDED_HEADROOM)) {
+		struct sk_buff *ns;
+
+		ns = skb_realloc_headroom(skb, DPAA2_SWITCH_NEEDED_HEADROOM);
+		if (unlikely(!ns)) {
+			net_err_ratelimited("%s: Error reallocating skb headroom\n", net_dev->name);
+			goto err_free_skb;
+		}
+		dev_consume_skb_any(skb);
+		skb = ns;
+	}
+
+	/* We'll be holding a back-reference to the skb until Tx confirmation */
+	skb = skb_unshare(skb, GFP_ATOMIC);
+	if (unlikely(!skb)) {
+		/* skb_unshare() has already freed the skb */
+		net_err_ratelimited("%s: Error copying the socket buffer\n", net_dev->name);
+		goto err_exit;
+	}
+
+	/* At this stage, we do not support non-linear skbs so just try to
+	 * linearize the skb and if that's not working, just drop the packet.
+	 */
+	err = skb_linearize(skb);
+	if (err) {
+		net_err_ratelimited("%s: skb_linearize error (%d)!\n", net_dev->name, err);
+		goto err_free_skb;
+	}
+
+	err = dpaa2_switch_build_single_fd(ethsw, skb, &fd);
+	if (unlikely(err)) {
+		net_err_ratelimited("%s: ethsw_build_*_fd() %d\n", net_dev->name, err);
+		goto err_free_skb;
+	}
+
+	do {
+		err = dpaa2_io_service_enqueue_qd(NULL,
+						  port_priv->tx_qdid,
+						  8, 0, &fd);
+		retries--;
+	} while (err == -EBUSY && retries);
+
+	if (unlikely(err < 0)) {
+		dpaa2_switch_free_fd(ethsw, &fd);
+		goto err_exit;
+	}
+
+	return NETDEV_TX_OK;
+
+err_free_skb:
+	dev_kfree_skb(skb);
+err_exit:
+	return NETDEV_TX_OK;
+}
+
 static const struct net_device_ops dpaa2_switch_port_ops = {
 	.ndo_open		= dpaa2_switch_port_open,
 	.ndo_stop		= dpaa2_switch_port_stop,
@@ -783,7 +883,7 @@ static const struct net_device_ops dpaa2_switch_port_ops = {
 	.ndo_get_offload_stats	= dpaa2_switch_port_get_offload_stats,
 	.ndo_fdb_dump		= dpaa2_switch_port_fdb_dump,
 
-	.ndo_start_xmit		= dpaa2_switch_port_dropframe,
+	.ndo_start_xmit		= dpaa2_switch_port_tx,
 	.ndo_get_port_parent_id	= dpaa2_switch_port_parent_id,
 	.ndo_get_phys_port_name = dpaa2_switch_port_get_phys_name,
 };
@@ -1436,6 +1536,12 @@ static struct sk_buff *dpaa2_switch_build_linear_skb(struct ethsw_core *ethsw,
 	return skb;
 }
 
+static void dpaa2_switch_tx_conf(struct dpaa2_switch_fq *fq,
+				 const struct dpaa2_fd *fd)
+{
+	dpaa2_switch_free_fd(fq->ethsw, fd);
+}
+
 static void dpaa2_switch_rx(struct dpaa2_switch_fq *fq,
 			    const struct dpaa2_fd *fd)
 {
@@ -1813,7 +1919,10 @@ static int dpaa2_switch_store_consume(struct dpaa2_switch_fq *fq)
 			continue;
 		}
 
-		dpaa2_switch_rx(fq, dpaa2_dq_fd(dq));
+		if (fq->type == DPSW_QUEUE_RX)
+			dpaa2_switch_rx(fq, dpaa2_dq_fd(dq));
+		else
+			dpaa2_switch_tx_conf(fq, dpaa2_dq_fd(dq));
 		cleaned++;
 
 	} while (!is_last);
@@ -2111,7 +2220,18 @@ static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
 		.flags = BRIDGE_VLAN_INFO_UNTAGGED | BRIDGE_VLAN_INFO_PVID,
 	};
 	struct net_device *netdev = port_priv->netdev;
+	struct ethsw_core *ethsw = port_priv->ethsw_data;
+	struct dpsw_if_attr dpsw_if_attr;
 	int err;
+
+	/* Get the Tx queue for this specific port */
+	err = dpsw_if_get_attributes(ethsw->mc_io, 0, ethsw->dpsw_handle,
+				     port_priv->idx, &dpsw_if_attr);
+	if (err) {
+		netdev_err(netdev, "dpsw_if_get_attributes err %d\n", err);
+		return err;
+	}
+	port_priv->tx_qdid = dpsw_if_attr.qdid;
 
 	/* We need to add VLAN 1 as the PVID on this port until it is under a
 	 * bridge since the DPAA2 switch is not able to handle the traffic in a
@@ -2229,6 +2349,8 @@ static int dpaa2_switch_probe_port(struct ethsw_core *ethsw,
 	SET_NETDEV_DEV(port_netdev, dev);
 	port_netdev->netdev_ops = &dpaa2_switch_port_ops;
 	port_netdev->ethtool_ops = &dpaa2_switch_port_ethtool_ops;
+
+	port_netdev->needed_headroom = DPAA2_SWITCH_NEEDED_HEADROOM;
 
 	/* Set MTU limits */
 	port_netdev->min_mtu = ETH_MIN_MTU;

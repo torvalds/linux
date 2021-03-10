@@ -47,6 +47,8 @@
 #define DPSW_CMDID_IF_ENABLE                DPSW_CMD_ID(0x03D)
 #define DPSW_CMDID_IF_DISABLE               DPSW_CMD_ID(0x03E)
 
+#define DPSW_CMDID_IF_GET_ATTR              DPSW_CMD_ID(0x042)
+
 #define DPSW_CMDID_IF_SET_MAX_FRAME_LENGTH  DPSW_CMD_ID(0x044)
 
 #define DPSW_CMDID_IF_GET_LINK_STATE        DPSW_CMD_ID(0x046)
@@ -244,6 +246,28 @@ struct dpsw_rsp_if_get_counter {
 
 struct dpsw_cmd_if {
 	__le16 if_id;
+};
+
+#define DPSW_ADMIT_UNTAGGED_SHIFT	0
+#define DPSW_ADMIT_UNTAGGED_SIZE	4
+#define DPSW_ENABLED_SHIFT		5
+#define DPSW_ENABLED_SIZE		1
+#define DPSW_ACCEPT_ALL_VLAN_SHIFT	6
+#define DPSW_ACCEPT_ALL_VLAN_SIZE	1
+
+struct dpsw_rsp_if_get_attr {
+	/* cmd word 0 */
+	/* from LSB: admit_untagged:4 enabled:1 accept_all_vlan:1 */
+	u8 conf;
+	u8 pad1;
+	u8 num_tcs;
+	u8 pad2;
+	__le16 qdid;
+	/* cmd word 1 */
+	__le32 options;
+	__le32 pad3;
+	/* cmd word 2 */
+	__le32 rate;
 };
 
 struct dpsw_cmd_if_set_max_frame_length {

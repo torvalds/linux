@@ -430,6 +430,34 @@ int dpsw_if_disable(struct fsl_mc_io *mc_io,
 		    u16 token,
 		    u16 if_id);
 
+/**
+ * struct dpsw_if_attr - Structure representing DPSW interface attributes
+ * @num_tcs: Number of traffic classes
+ * @rate: Transmit rate in bits per second
+ * @options: Interface configuration options (bitmap)
+ * @enabled: Indicates if interface is enabled
+ * @accept_all_vlan: The device discards/accepts incoming frames
+ *		for VLANs that do not include this interface
+ * @admit_untagged: When set to 'DPSW_ADMIT_ONLY_VLAN_TAGGED', the device
+ *		discards untagged frames or priority-tagged frames received on
+ *		this interface;
+ *		When set to 'DPSW_ADMIT_ALL', untagged frames or priority-
+ *		tagged frames received on this interface are accepted
+ * @qdid: control frames transmit qdid
+ */
+struct dpsw_if_attr {
+	u8 num_tcs;
+	u32 rate;
+	u32 options;
+	int enabled;
+	int accept_all_vlan;
+	enum dpsw_accepted_frames admit_untagged;
+	u16 qdid;
+};
+
+int dpsw_if_get_attributes(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			   u16 if_id, struct dpsw_if_attr *attr);
+
 int dpsw_if_set_max_frame_length(struct fsl_mc_io *mc_io,
 				 u32 cmd_flags,
 				 u16 token,
