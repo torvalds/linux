@@ -570,6 +570,9 @@ struct rga2_mmu_buf_t {
     unsigned int *buf_virtual;
 
     struct page **pages;
+
+    u8 buf_order;
+    u8 pages_order;
 };
 
 enum
