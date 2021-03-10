@@ -17,6 +17,8 @@
 #include <uapi/linux/if_bridge.h>
 #include <net/switchdev.h>
 #include <linux/if_bridge.h>
+#include <linux/fsl/mc.h>
+#include <soc/fsl/dpaa2-io.h>
 
 #include "dpsw.h"
 
@@ -42,6 +44,15 @@
 /* Number of receive queues (one RX and one TX_CONF) */
 #define DPAA2_SWITCH_RX_NUM_FQS	2
 
+/* Hardware requires alignment for ingress/egress buffer addresses */
+#define DPAA2_SWITCH_RX_BUF_RAW_SIZE	PAGE_SIZE
+#define DPAA2_SWITCH_RX_BUF_TAILROOM \
+	SKB_DATA_ALIGN(sizeof(struct skb_shared_info))
+#define DPAA2_SWITCH_RX_BUF_SIZE \
+	(DPAA2_SWITCH_RX_BUF_RAW_SIZE - DPAA2_SWITCH_RX_BUF_TAILROOM)
+
+#define DPAA2_SWITCH_STORE_SIZE 16
+
 extern const struct ethtool_ops dpaa2_switch_port_ethtool_ops;
 
 struct ethsw_core;
@@ -49,6 +60,7 @@ struct ethsw_core;
 struct dpaa2_switch_fq {
 	struct ethsw_core *ethsw;
 	enum dpsw_queue_type type;
+	struct dpaa2_io_store *store;
 	u32 fqid;
 };
 
@@ -85,6 +97,8 @@ struct ethsw_core {
 	struct workqueue_struct		*workqueue;
 
 	struct dpaa2_switch_fq		fq[DPAA2_SWITCH_RX_NUM_FQS];
+	struct fsl_mc_device		*dpbp_dev;
+	u16				bpid;
 };
 
 static inline bool dpaa2_switch_supports_cpu_traffic(struct ethsw_core *ethsw)

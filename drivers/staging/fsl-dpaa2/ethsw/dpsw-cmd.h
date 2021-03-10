@@ -8,6 +8,8 @@
 #ifndef __FSL_DPSW_CMD_H
 #define __FSL_DPSW_CMD_H
 
+#include "dpsw.h"
+
 /* DPSW Version */
 #define DPSW_VER_MAJOR		8
 #define DPSW_VER_MINOR		9
@@ -73,6 +75,7 @@
 #define DPSW_CMDID_IF_SET_PRIMARY_MAC_ADDR  DPSW_CMD_ID(0x0A9)
 
 #define DPSW_CMDID_CTRL_IF_GET_ATTR         DPSW_CMD_ID(0x0A0)
+#define DPSW_CMDID_CTRL_IF_SET_POOLS        DPSW_CMD_ID(0x0A1)
 
 /* Macros for accessing command fields smaller than 1byte */
 #define DPSW_MASK(field)        \
@@ -354,6 +357,15 @@ struct dpsw_rsp_ctrl_if_get_attr {
 	__le32 rx_fqid;
 	__le32 rx_err_fqid;
 	__le32 tx_err_conf_fqid;
+};
+
+#define DPSW_BACKUP_POOL(val, order)	(((val) & 0x1) << (order))
+struct dpsw_cmd_ctrl_if_set_pools {
+	u8 num_dpbp;
+	u8 backup_pool_mask;
+	__le16 pad;
+	__le32 dpbp_id[DPSW_MAX_DPBP];
+	__le16 buffer_size[DPSW_MAX_DPBP];
 };
 
 struct dpsw_rsp_get_api_version {

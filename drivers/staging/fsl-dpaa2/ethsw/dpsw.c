@@ -1121,6 +1121,37 @@ int dpsw_ctrl_if_get_attributes(struct fsl_mc_io *mc_io, u32 cmd_flags,
 }
 
 /**
+ * dpsw_ctrl_if_set_pools() - Set control interface buffer pools
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @cfg:	Buffer pools configuration
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dpsw_ctrl_if_set_pools(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			   const struct dpsw_ctrl_if_pools_cfg *cfg)
+{
+	struct dpsw_cmd_ctrl_if_set_pools *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+	int i;
+
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_CTRL_IF_SET_POOLS,
+					  cmd_flags, token);
+	cmd_params = (struct dpsw_cmd_ctrl_if_set_pools *)cmd.params;
+	cmd_params->num_dpbp = cfg->num_dpbp;
+	for (i = 0; i < DPSW_MAX_DPBP; i++) {
+		cmd_params->dpbp_id[i] = cpu_to_le32(cfg->pools[i].dpbp_id);
+		cmd_params->buffer_size[i] =
+			cpu_to_le16(cfg->pools[i].buffer_size);
+		cmd_params->backup_pool_mask |=
+			DPSW_BACKUP_POOL(cfg->pools[i].backup_pool, i);
+	}
+
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
  * dpsw_get_api_version() - Get Data Path Switch API version
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
