@@ -69,7 +69,6 @@ struct ethsw_core {
 	struct ethsw_port_priv		**ports;
 
 	u8				vlans[VLAN_VID_MASK + 1];
-	bool				learning;
 
 	struct notifier_block		port_nb;
 	struct notifier_block		port_switchdev_nb;

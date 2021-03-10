@@ -235,18 +235,6 @@ int dpsw_if_get_link_state(struct fsl_mc_io *mc_io,
 			   u16 if_id,
 			   struct dpsw_link_state *state);
 
-int dpsw_if_set_flooding(struct fsl_mc_io *mc_io,
-			 u32 cmd_flags,
-			 u16 token,
-			 u16 if_id,
-			 u8 en);
-
-int dpsw_if_set_broadcast(struct fsl_mc_io *mc_io,
-			  u32 cmd_flags,
-			  u16 token,
-			  u16 if_id,
-			  u8 en);
-
 /**
  * struct dpsw_tci_cfg - Tag Control Information (TCI) configuration
  * @pcp: Priority Code Point (PCP): a 3-bit field which refers
@@ -554,12 +542,6 @@ enum dpsw_fdb_learning_mode {
 	DPSW_FDB_LEARNING_MODE_NON_SECURE = 2,
 	DPSW_FDB_LEARNING_MODE_SECURE = 3
 };
-
-int dpsw_fdb_set_learning_mode(struct fsl_mc_io *mc_io,
-			       u32 cmd_flags,
-			       u16 token,
-			       u16 fdb_id,
-			       enum dpsw_fdb_learning_mode mode);
 
 /**
  * struct dpsw_fdb_attr - FDB Attributes

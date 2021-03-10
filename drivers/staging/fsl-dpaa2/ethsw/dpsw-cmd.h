@@ -48,8 +48,6 @@
 #define DPSW_CMDID_IF_SET_MAX_FRAME_LENGTH  DPSW_CMD_ID(0x044)
 
 #define DPSW_CMDID_IF_GET_LINK_STATE        DPSW_CMD_ID(0x046)
-#define DPSW_CMDID_IF_SET_FLOODING          DPSW_CMD_ID(0x047)
-#define DPSW_CMDID_IF_SET_BROADCAST         DPSW_CMD_ID(0x048)
 
 #define DPSW_CMDID_IF_GET_TCI               DPSW_CMD_ID(0x04A)
 
@@ -68,7 +66,6 @@
 #define DPSW_CMDID_FDB_REMOVE_UNICAST       DPSW_CMD_ID(0x085)
 #define DPSW_CMDID_FDB_ADD_MULTICAST        DPSW_CMD_ID(0x086)
 #define DPSW_CMDID_FDB_REMOVE_MULTICAST     DPSW_CMD_ID(0x087)
-#define DPSW_CMDID_FDB_SET_LEARNING_MODE    DPSW_CMD_ID(0x088)
 #define DPSW_CMDID_FDB_DUMP                 DPSW_CMD_ID(0x08A)
 
 #define DPSW_CMDID_IF_GET_PORT_MAC_ADDR     DPSW_CMD_ID(0x0A7)
@@ -189,18 +186,6 @@ struct dpsw_rsp_get_attr {
 	__le16 pad;
 	/* cmd word 3 */
 	__le64 options;
-};
-
-struct dpsw_cmd_if_set_flooding {
-	__le16 if_id;
-	/* from LSB: enable:1 */
-	u8 enable;
-};
-
-struct dpsw_cmd_if_set_broadcast {
-	__le16 if_id;
-	/* from LSB: enable:1 */
-	u8 enable;
 };
 
 #define DPSW_VLAN_ID_SHIFT	0
@@ -348,15 +333,6 @@ struct dpsw_cmd_fdb_multicast_op {
 	__le16 pad2;
 	/* cmd word 2-5 */
 	__le64 if_id[4];
-};
-
-#define DPSW_LEARNING_MODE_SHIFT	0
-#define DPSW_LEARNING_MODE_SIZE		4
-
-struct dpsw_cmd_fdb_set_learning_mode {
-	__le16 fdb_id;
-	/* only the first 4 bits from LSB */
-	u8 mode;
 };
 
 struct dpsw_cmd_fdb_dump {

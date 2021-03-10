@@ -161,44 +161,6 @@ static int dpaa2_switch_port_add_vlan(struct ethsw_port_priv *port_priv,
 	return 0;
 }
 
-static int dpaa2_switch_set_learning(struct ethsw_core *ethsw, bool enable)
-{
-	enum dpsw_fdb_learning_mode learn_mode;
-	int err;
-
-	if (enable)
-		learn_mode = DPSW_FDB_LEARNING_MODE_HW;
-	else
-		learn_mode = DPSW_FDB_LEARNING_MODE_DIS;
-
-	err = dpsw_fdb_set_learning_mode(ethsw->mc_io, 0, ethsw->dpsw_handle, 0,
-					 learn_mode);
-	if (err) {
-		dev_err(ethsw->dev, "dpsw_fdb_set_learning_mode err %d\n", err);
-		return err;
-	}
-	ethsw->learning = enable;
-
-	return 0;
-}
-
-static int dpaa2_switch_port_set_flood(struct ethsw_port_priv *port_priv, bool enable)
-{
-	int err;
-
-	err = dpsw_if_set_flooding(port_priv->ethsw_data->mc_io, 0,
-				   port_priv->ethsw_data->dpsw_handle,
-				   port_priv->idx, enable);
-	if (err) {
-		netdev_err(port_priv->netdev,
-			   "dpsw_if_set_flooding err %d\n", err);
-		return err;
-	}
-	port_priv->flood = enable;
-
-	return 0;
-}
-
 static int dpaa2_switch_port_set_stp_state(struct ethsw_port_priv *port_priv, u8 state)
 {
 	struct dpsw_stp_cfg stp_cfg = {
@@ -908,41 +870,6 @@ static int dpaa2_switch_port_attr_stp_state_set(struct net_device *netdev,
 	return dpaa2_switch_port_set_stp_state(port_priv, state);
 }
 
-static int
-dpaa2_switch_port_attr_br_flags_pre_set(struct net_device *netdev,
-					struct switchdev_brport_flags flags)
-{
-	if (flags.mask & ~(BR_LEARNING | BR_FLOOD))
-		return -EINVAL;
-
-	return 0;
-}
-
-static int
-dpaa2_switch_port_attr_br_flags_set(struct net_device *netdev,
-				    struct switchdev_brport_flags flags)
-{
-	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
-	int err = 0;
-
-	if (flags.mask & BR_LEARNING) {
-		/* Learning is enabled per switch */
-		err = dpaa2_switch_set_learning(port_priv->ethsw_data,
-						!!(flags.val & BR_LEARNING));
-		if (err)
-			return err;
-	}
-
-	if (flags.mask & BR_FLOOD) {
-		err = dpaa2_switch_port_set_flood(port_priv,
-						  !!(flags.val & BR_FLOOD));
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
 static int dpaa2_switch_port_attr_set(struct net_device *netdev,
 				      const struct switchdev_attr *attr)
 {
@@ -952,14 +879,6 @@ static int dpaa2_switch_port_attr_set(struct net_device *netdev,
 	case SWITCHDEV_ATTR_ID_PORT_STP_STATE:
 		err = dpaa2_switch_port_attr_stp_state_set(netdev,
 							   attr->u.stp_state);
-		break;
-	case SWITCHDEV_ATTR_ID_PORT_PRE_BRIDGE_FLAGS:
-		err = dpaa2_switch_port_attr_br_flags_pre_set(netdev,
-							      attr->u.brport_flags);
-		break;
-	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS:
-		err = dpaa2_switch_port_attr_br_flags_set(netdev,
-							  attr->u.brport_flags);
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING:
 		/* VLANs are supported by default  */
@@ -1232,24 +1151,6 @@ static int dpaa2_switch_port_bridge_join(struct net_device *netdev,
 		}
 	}
 
-	/* Enable flooding */
-	err = dpaa2_switch_port_set_flood(port_priv, 1);
-	if (!err)
-		port_priv->bridge_dev = upper_dev;
-
-	return err;
-}
-
-static int dpaa2_switch_port_bridge_leave(struct net_device *netdev)
-{
-	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
-	int err;
-
-	/* Disable flooding */
-	err = dpaa2_switch_port_set_flood(port_priv, 0);
-	if (!err)
-		port_priv->bridge_dev = NULL;
-
 	return err;
 }
 
@@ -1270,8 +1171,6 @@ static int dpaa2_switch_port_netdevice_event(struct notifier_block *nb,
 		if (netif_is_bridge_master(upper_dev)) {
 			if (info->linking)
 				err = dpaa2_switch_port_bridge_join(netdev, upper_dev);
-			else
-				err = dpaa2_switch_port_bridge_leave(netdev);
 		}
 	}
 
@@ -1513,13 +1412,6 @@ static int dpaa2_switch_init(struct fsl_mc_device *sw_dev)
 		goto err_close;
 	}
 
-	err = dpsw_fdb_set_learning_mode(ethsw->mc_io, 0, ethsw->dpsw_handle, 0,
-					 DPSW_FDB_LEARNING_MODE_HW);
-	if (err) {
-		dev_err(dev, "dpsw_fdb_set_learning_mode err %d\n", err);
-		goto err_close;
-	}
-
 	stp_cfg.vlan_id = DEFAULT_VLAN_ID;
 	stp_cfg.state = DPSW_STP_STATE_FORWARDING;
 
@@ -1528,15 +1420,6 @@ static int dpaa2_switch_init(struct fsl_mc_device *sw_dev)
 				      &stp_cfg);
 		if (err) {
 			dev_err(dev, "dpsw_if_set_stp err %d for port %d\n",
-				err, i);
-			goto err_close;
-		}
-
-		err = dpsw_if_set_broadcast(ethsw->mc_io, 0,
-					    ethsw->dpsw_handle, i, 1);
-		if (err) {
-			dev_err(dev,
-				"dpsw_if_set_broadcast err %d for port %d\n",
 				err, i);
 			goto err_close;
 		}
@@ -1689,9 +1572,6 @@ static int dpaa2_switch_probe_port(struct ethsw_core *ethsw,
 	port_priv->idx = port_idx;
 	port_priv->stp_state = BR_STATE_FORWARDING;
 
-	/* Flooding is implicitly enabled */
-	port_priv->flood = true;
-
 	SET_NETDEV_DEV(port_netdev, dev);
 	port_netdev->netdev_ops = &dpaa2_switch_port_ops;
 	port_netdev->ethtool_ops = &dpaa2_switch_port_ethtool_ops;
@@ -1755,9 +1635,6 @@ static int dpaa2_switch_probe(struct fsl_mc_device *sw_dev)
 
 	/* DEFAULT_VLAN_ID is implicitly configured on the switch */
 	ethsw->vlans[DEFAULT_VLAN_ID] = ETHSW_VLAN_MEMBER;
-
-	/* Learning is implicitly enabled */
-	ethsw->learning = true;
 
 	ethsw->ports = kcalloc(ethsw->sw_attr.num_ifs, sizeof(*ethsw->ports),
 			       GFP_KERNEL);

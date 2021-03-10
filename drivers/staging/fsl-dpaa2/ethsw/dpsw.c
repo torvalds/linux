@@ -432,68 +432,6 @@ int dpsw_if_get_link_state(struct fsl_mc_io *mc_io,
 }
 
 /**
- * dpsw_if_set_flooding() - Enable Disable flooding for particular interface
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPSW object
- * @if_id:	Interface Identifier
- * @en:		1 - enable, 0 - disable
- *
- * Return:	Completion status. '0' on Success; Error code otherwise.
- */
-int dpsw_if_set_flooding(struct fsl_mc_io *mc_io,
-			 u32 cmd_flags,
-			 u16 token,
-			 u16 if_id,
-			 u8 en)
-{
-	struct fsl_mc_command cmd = { 0 };
-	struct dpsw_cmd_if_set_flooding *cmd_params;
-
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPSW_CMDID_IF_SET_FLOODING,
-					  cmd_flags,
-					  token);
-	cmd_params = (struct dpsw_cmd_if_set_flooding *)cmd.params;
-	cmd_params->if_id = cpu_to_le16(if_id);
-	dpsw_set_field(cmd_params->enable, ENABLE, en);
-
-	/* send command to mc*/
-	return mc_send_command(mc_io, &cmd);
-}
-
-/**
- * dpsw_if_set_broadcast() - Enable/disable broadcast for particular interface
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPSW object
- * @if_id:	Interface Identifier
- * @en:		1 - enable, 0 - disable
- *
- * Return:	Completion status. '0' on Success; Error code otherwise.
- */
-int dpsw_if_set_broadcast(struct fsl_mc_io *mc_io,
-			  u32 cmd_flags,
-			  u16 token,
-			  u16 if_id,
-			  u8 en)
-{
-	struct fsl_mc_command cmd = { 0 };
-	struct dpsw_cmd_if_set_broadcast *cmd_params;
-
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPSW_CMDID_IF_SET_BROADCAST,
-					  cmd_flags,
-					  token);
-	cmd_params = (struct dpsw_cmd_if_set_broadcast *)cmd.params;
-	cmd_params->if_id = cpu_to_le16(if_id);
-	dpsw_set_field(cmd_params->enable, ENABLE, en);
-
-	/* send command to mc*/
-	return mc_send_command(mc_io, &cmd);
-}
-
-/**
  * dpsw_if_set_tci() - Set default VLAN Tag Control Information (TCI)
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
@@ -1146,37 +1084,6 @@ int dpsw_fdb_remove_multicast(struct fsl_mc_io *mc_io,
 	build_if_id_bitmap(cmd_params->if_id, cfg->if_id, cfg->num_ifs);
 	for (i = 0; i < 6; i++)
 		cmd_params->mac_addr[i] = cfg->mac_addr[5 - i];
-
-	/* send command to mc*/
-	return mc_send_command(mc_io, &cmd);
-}
-
-/**
- * dpsw_fdb_set_learning_mode() - Define FDB learning mode
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPSW object
- * @fdb_id:	Forwarding Database Identifier
- * @mode:	Learning mode
- *
- * Return:	Completion status. '0' on Success; Error code otherwise.
- */
-int dpsw_fdb_set_learning_mode(struct fsl_mc_io *mc_io,
-			       u32 cmd_flags,
-			       u16 token,
-			       u16 fdb_id,
-			       enum dpsw_fdb_learning_mode mode)
-{
-	struct fsl_mc_command cmd = { 0 };
-	struct dpsw_cmd_fdb_set_learning_mode *cmd_params;
-
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPSW_CMDID_FDB_SET_LEARNING_MODE,
-					  cmd_flags,
-					  token);
-	cmd_params = (struct dpsw_cmd_fdb_set_learning_mode *)cmd.params;
-	cmd_params->fdb_id = cpu_to_le16(fdb_id);
-	dpsw_set_field(cmd_params->mode, LEARNING_MODE, mode);
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
