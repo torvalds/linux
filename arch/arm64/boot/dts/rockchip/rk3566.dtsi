@@ -62,6 +62,7 @@
 	snps,dis_u2_susphy_quirk;
 };
 
+/delete-node/ &combphy0_us;
 /delete-node/ &gmac0_clkin;
 /delete-node/ &gmac0_xpcsclk;
 /delete-node/ &gmac0;

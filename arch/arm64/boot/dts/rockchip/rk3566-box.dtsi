@@ -168,10 +168,6 @@
 	};
 };
 
-&combphy0_us {
-	status = "okay";
-};
-
 &cpu0 {
 	cpu-supply = <&vdd_cpu>;
 };
