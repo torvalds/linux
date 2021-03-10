@@ -637,23 +637,12 @@ int ufshcd_wait_for_register(struct ufs_hba *hba, u32 reg, u32 mask,
  */
 static inline u32 ufshcd_get_intr_mask(struct ufs_hba *hba)
 {
-	u32 intr_mask = 0;
+	if (hba->ufs_version == ufshci_version(1, 0))
+		return INTERRUPT_MASK_ALL_VER_10;
+	if (hba->ufs_version <= ufshci_version(2, 0))
+		return INTERRUPT_MASK_ALL_VER_11;
 
-	switch (hba->ufs_version) {
-	case UFSHCI_VERSION_10:
-		intr_mask = INTERRUPT_MASK_ALL_VER_10;
-		break;
-	case UFSHCI_VERSION_11:
-	case UFSHCI_VERSION_20:
-		intr_mask = INTERRUPT_MASK_ALL_VER_11;
-		break;
-	case UFSHCI_VERSION_21:
-	default:
-		intr_mask = INTERRUPT_MASK_ALL_VER_21;
-		break;
-	}
-
-	return intr_mask;
+	return INTERRUPT_MASK_ALL_VER_21;
 }
 
 /**
@@ -664,10 +653,22 @@ static inline u32 ufshcd_get_intr_mask(struct ufs_hba *hba)
  */
 static inline u32 ufshcd_get_ufs_version(struct ufs_hba *hba)
 {
-	if (hba->quirks & UFSHCD_QUIRK_BROKEN_UFS_HCI_VERSION)
-		return ufshcd_vops_get_ufs_hci_version(hba);
+	u32 ufshci_ver;
 
-	return ufshcd_readl(hba, REG_UFS_VERSION);
+	if (hba->quirks & UFSHCD_QUIRK_BROKEN_UFS_HCI_VERSION)
+		ufshci_ver = ufshcd_vops_get_ufs_hci_version(hba);
+	else
+		ufshci_ver = ufshcd_readl(hba, REG_UFS_VERSION);
+
+	/*
+	 * UFSHCI v1.x uses a different version scheme, in order
+	 * to allow the use of comparisons with the ufshci_version
+	 * function, we convert it to the same scheme as ufs 2.0+.
+	 */
+	if (ufshci_ver & 0x00010000)
+		return ufshci_version(1, ufshci_ver & 0x00000100);
+
+	return ufshci_ver;
 }
 
 /**
@@ -899,8 +900,7 @@ static inline bool ufshcd_is_hba_active(struct ufs_hba *hba)
 u32 ufshcd_get_local_unipro_ver(struct ufs_hba *hba)
 {
 	/* HCI version 1.0 and 1.1 supports UniPro 1.41 */
-	if ((hba->ufs_version == UFSHCI_VERSION_10) ||
-	    (hba->ufs_version == UFSHCI_VERSION_11))
+	if (hba->ufs_version <= ufshci_version(1, 1))
 		return UFS_UNIPRO_VER_1_41;
 	else
 		return UFS_UNIPRO_VER_1_6;
@@ -2367,7 +2367,7 @@ static void ufshcd_enable_intr(struct ufs_hba *hba, u32 intrs)
 {
 	u32 set = ufshcd_readl(hba, REG_INTERRUPT_ENABLE);
 
-	if (hba->ufs_version == UFSHCI_VERSION_10) {
+	if (hba->ufs_version == ufshci_version(1, 0)) {
 		u32 rw;
 		rw = set & INTERRUPT_MASK_RW_VER_10;
 		set = rw | ((set ^ intrs) & intrs);
@@ -2387,7 +2387,7 @@ static void ufshcd_disable_intr(struct ufs_hba *hba, u32 intrs)
 {
 	u32 set = ufshcd_readl(hba, REG_INTERRUPT_ENABLE);
 
-	if (hba->ufs_version == UFSHCI_VERSION_10) {
+	if (hba->ufs_version == ufshci_version(1, 0)) {
 		u32 rw;
 		rw = (set & INTERRUPT_MASK_RW_VER_10) &
 			~(intrs & INTERRUPT_MASK_RW_VER_10);
@@ -2550,8 +2550,7 @@ static int ufshcd_compose_devman_upiu(struct ufs_hba *hba,
 	u8 upiu_flags;
 	int ret = 0;
 
-	if ((hba->ufs_version == UFSHCI_VERSION_10) ||
-	    (hba->ufs_version == UFSHCI_VERSION_11))
+	if (hba->ufs_version <= ufshci_version(1, 1))
 		lrbp->command_type = UTP_CMD_TYPE_DEV_MANAGE;
 	else
 		lrbp->command_type = UTP_CMD_TYPE_UFS_STORAGE;
@@ -2578,8 +2577,7 @@ static int ufshcd_comp_scsi_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 	u8 upiu_flags;
 	int ret = 0;
 
-	if ((hba->ufs_version == UFSHCI_VERSION_10) ||
-	    (hba->ufs_version == UFSHCI_VERSION_11))
+	if (hba->ufs_version <= ufshci_version(1, 1))
 		lrbp->command_type = UTP_CMD_TYPE_SCSI;
 	else
 		lrbp->command_type = UTP_CMD_TYPE_UFS_STORAGE;
@@ -6620,15 +6618,10 @@ static int ufshcd_issue_devman_upiu_cmd(struct ufs_hba *hba,
 	ufshcd_prepare_lrbp_crypto(NULL, lrbp);
 	hba->dev_cmd.type = cmd_type;
 
-	switch (hba->ufs_version) {
-	case UFSHCI_VERSION_10:
-	case UFSHCI_VERSION_11:
+	if (hba->ufs_version <= ufshci_version(1, 1))
 		lrbp->command_type = UTP_CMD_TYPE_DEV_MANAGE;
-		break;
-	default:
+	else
 		lrbp->command_type = UTP_CMD_TYPE_UFS_STORAGE;
-		break;
-	}
 
 	/* update the task tag in the request upiu */
 	req_upiu->header.dword_0 |= cpu_to_be32(tag);
@@ -9314,10 +9307,7 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	/* Get UFS version supported by the controller */
 	hba->ufs_version = ufshcd_get_ufs_version(hba);
 
-	if ((hba->ufs_version != UFSHCI_VERSION_10) &&
-	    (hba->ufs_version != UFSHCI_VERSION_11) &&
-	    (hba->ufs_version != UFSHCI_VERSION_20) &&
-	    (hba->ufs_version != UFSHCI_VERSION_21))
+	if (hba->ufs_version < ufshci_version(1, 0))
 		dev_err(hba->dev, "invalid UFS version 0x%x\n",
 			hba->ufs_version);
 
