@@ -150,6 +150,14 @@ static inline void svm_range_unlock(struct svm_range *prange)
 	mutex_unlock(&prange->lock);
 }
 
+static inline struct svm_range_bo *svm_range_bo_ref(struct svm_range_bo *svm_bo)
+{
+	if (svm_bo)
+		kref_get(&svm_bo->kref);
+
+	return svm_bo;
+}
+
 int svm_range_list_init(struct kfd_process *p);
 void svm_range_list_fini(struct kfd_process *p);
 int svm_ioctl(struct kfd_process *p, enum kfd_ioctl_svm_op op, uint64_t start,
@@ -186,6 +194,7 @@ svm_range_get_pdd_by_adev(struct svm_range *prange, struct amdgpu_device *adev);
  */
 #define KFD_IS_SVM_API_SUPPORTED(dev) ((dev)->pgmap.type != 0)
 
+void svm_range_bo_unref(struct svm_range_bo *svm_bo);
 #else
 
 struct kfd_process;

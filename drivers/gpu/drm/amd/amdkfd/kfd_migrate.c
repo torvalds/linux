@@ -218,7 +218,8 @@ svm_migrate_get_vram_page(struct svm_range *prange, unsigned long pfn)
 	struct page *page;
 
 	page = pfn_to_page(pfn);
-	page->zone_device_data = prange;
+	svm_range_bo_ref(prange->svm_bo);
+	page->zone_device_data = prange->svm_bo;
 	get_page(page);
 	lock_page(page);
 }
@@ -502,7 +503,12 @@ svm_migrate_ram_to_vram(struct svm_range *prange, uint32_t best_loc,
 
 static void svm_migrate_page_free(struct page *page)
 {
-	/* Keep this function to avoid warning */
+	struct svm_range_bo *svm_bo = page->zone_device_data;
+
+	if (svm_bo) {
+		pr_debug("svm_bo ref left: %d\n", kref_read(&svm_bo->kref));
+		svm_range_bo_unref(svm_bo);
+	}
 }
 
 static int
