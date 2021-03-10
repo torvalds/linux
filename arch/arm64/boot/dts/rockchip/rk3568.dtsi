@@ -418,6 +418,34 @@
 		#clock-cells = <0>;
 	};
 
+	i2s1_mclkin_rx: i2s1-mclkin-rx {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <12288000>;
+		clock-output-names = "i2s1_mclkin_rx";
+	};
+
+	i2s1_mclkin_tx: i2s1-mclkin-tx {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <12288000>;
+		clock-output-names = "i2s1_mclkin_tx";
+	};
+
+	i2s2_mclkin: i2s2-mclkin {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <12288000>;
+		clock-output-names = "i2s2_mclkin";
+	};
+
+	i2s3_mclkin: i2s3-mclkin {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <12288000>;
+		clock-output-names = "i2s3_mclkin";
+	};
+
 	mpll: mpll {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
