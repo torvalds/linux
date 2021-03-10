@@ -333,7 +333,6 @@ fw_error:
 	negop->icversion_data[1].minor = icmsg_minor;
 	return found_match;
 }
-
 EXPORT_SYMBOL_GPL(vmbus_prep_negotiate_resp);
 
 /*
@@ -593,10 +592,10 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	 * CPUS_READ_UNLOCK		CPUS_WRITE_UNLOCK
 	 *
 	 * Forbids: CPU1's LOAD from *not* seing CPU2's STORE &&
-	 * 		CPU2's SEARCH from *not* seeing CPU1's INSERT
+	 *              CPU2's SEARCH from *not* seeing CPU1's INSERT
 	 *
 	 * Forbids: CPU2's SEARCH from seeing CPU1's INSERT &&
-	 * 		CPU2's LOAD from *not* seing CPU1's STORE
+	 *              CPU2's LOAD from *not* seing CPU1's STORE
 	 */
 	cpus_read_lock();
 
@@ -980,7 +979,7 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 		 *					UNLOCK channel_mutex
 		 *
 		 * Forbids: r1 == valid_relid &&
-		 * 		channels[valid_relid] == channel
+		 *              channels[valid_relid] == channel
 		 *
 		 * Note.  r1 can be INVALID_RELID only for an hv_sock channel.
 		 * None of the hv_sock channels which were present before the
