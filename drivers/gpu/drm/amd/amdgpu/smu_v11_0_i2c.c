@@ -111,12 +111,15 @@ static void smu_v11_0_i2c_set_clock(struct i2c_adapter *control)
 	WREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_SDA_HOLD, 20);
 }
 
-static void smu_v11_0_i2c_set_address(struct i2c_adapter *control, uint8_t address)
+static void smu_v11_0_i2c_set_address(struct i2c_adapter *control, u16 address)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 
-	/* We take 7-bit addresses raw */
-	WREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_TAR, (address & 0xFF));
+	/* The IC_TAR::IC_TAR field is 10-bits wide.
+	 * It takes a 7-bit or 10-bit addresses as an address,
+	 * i.e. no read/write bit--no wire format, just the address.
+	 */
+	WREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_TAR, address & 0x3FF);
 }
 
 static uint32_t smu_v11_0_i2c_poll_tx_status(struct i2c_adapter *control)
@@ -215,8 +218,8 @@ static uint32_t smu_v11_0_i2c_poll_rx_status(struct i2c_adapter *control)
  * Returns 0 on success or error.
  */
 static uint32_t smu_v11_0_i2c_transmit(struct i2c_adapter *control,
-				  uint8_t address, uint8_t *data,
-				  uint32_t numbytes, uint32_t i2c_flag)
+				       u16 address, u8 *data,
+				       u32 numbytes, u32 i2c_flag)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 	uint32_t bytes_sent, reg, ret = 0;
@@ -225,7 +228,7 @@ static uint32_t smu_v11_0_i2c_transmit(struct i2c_adapter *control,
 	bytes_sent = 0;
 
 	DRM_DEBUG_DRIVER("I2C_Transmit(), address = %x, bytes = %d , data: ",
-		 (uint16_t)address, numbytes);
+			 address, numbytes);
 
 	if (drm_debug_enabled(DRM_UT_DRIVER)) {
 		print_hex_dump(KERN_INFO, "data: ", DUMP_PREFIX_NONE,
@@ -318,8 +321,8 @@ Err:
  * Returns 0 on success or error.
  */
 static uint32_t smu_v11_0_i2c_receive(struct i2c_adapter *control,
-				 uint8_t address, uint8_t *data,
-				 uint32_t numbytes, uint8_t i2c_flag)
+				      u16 address, u8 *data,
+				      u32 numbytes, u32 i2c_flag)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 	uint32_t bytes_received, ret = I2C_OK;
