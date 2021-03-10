@@ -21,7 +21,7 @@
  *		Alan Cox	:	Added BSD route gw semantics
  *		Alan Cox	:	Super /proc >4K
  *		Alan Cox	:	MTU in route table
- *		Alan Cox	: 	MSS actually. Also added the window
+ *		Alan Cox	:	MSS actually. Also added the window
  *					clamper.
  *		Sam Lantinga	:	Fixed route matching in rt_del()
  *		Alan Cox	:	Routing cache support.
@@ -41,7 +41,7 @@
  *		Olaf Erb	:	irtt wasn't being copied right.
  *		Bjorn Ekwall	:	Kerneld route support.
  *		Alan Cox	:	Multicast fixed (I hope)
- * 		Pavel Krauz	:	Limited broadcast fixed
+ *		Pavel Krauz	:	Limited broadcast fixed
  *		Mike McLagan	:	Routing by source
  *	Alexey Kuznetsov	:	End of old history. Split to fib.c and
  *					route.c and rewritten from scratch.
@@ -54,8 +54,8 @@
  *	Robert Olsson		:	Added rt_cache statistics
  *	Arnaldo C. Melo		:	Convert proc stuff to seq_file
  *	Eric Dumazet		:	hashed spinlocks and rt_check_expire() fixes.
- * 	Ilia Sotnikov		:	Ignore TOS on PMTUD and Redirect
- * 	Ilia Sotnikov		:	Removed TOS from hash calculations
+ *	Ilia Sotnikov		:	Ignore TOS on PMTUD and Redirect
+ *	Ilia Sotnikov		:	Removed TOS from hash calculations
  */
 
 #define pr_fmt(fmt) "IPv4: " fmt
@@ -2246,7 +2246,7 @@ local_input:
 	if (res->type == RTN_UNREACHABLE) {
 		rth->dst.input= ip_error;
 		rth->dst.error= -err;
-		rth->rt_flags 	&= ~RTCF_LOCAL;
+		rth->rt_flags	&= ~RTCF_LOCAL;
 	}
 
 	if (do_cache) {
