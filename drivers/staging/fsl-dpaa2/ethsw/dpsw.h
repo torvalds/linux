@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright 2014-2016 Freescale Semiconductor Inc.
- * Copyright 2017-2018 NXP
+ * Copyright 2017-2021 NXP
  *
  */
 
@@ -174,6 +174,27 @@ int dpsw_get_attributes(struct fsl_mc_io *mc_io,
 			u32 cmd_flags,
 			u16 token,
 			struct dpsw_attr *attr);
+
+/**
+ * struct dpsw_ctrl_if_attr - Control interface attributes
+ * @rx_fqid:		Receive FQID
+ * @rx_err_fqid:	Receive error FQID
+ * @tx_err_conf_fqid:	Transmit error and confirmation FQID
+ */
+struct dpsw_ctrl_if_attr {
+	u32 rx_fqid;
+	u32 rx_err_fqid;
+	u32 tx_err_conf_fqid;
+};
+
+int dpsw_ctrl_if_get_attributes(struct fsl_mc_io *mc_io, u32 cmd_flags,
+				u16 token, struct dpsw_ctrl_if_attr *attr);
+
+enum dpsw_queue_type {
+	DPSW_QUEUE_RX,
+	DPSW_QUEUE_TX_ERR_CONF,
+	DPSW_QUEUE_RX_ERR,
+};
 
 /**
  * enum dpsw_action - Action selection for special/control frames

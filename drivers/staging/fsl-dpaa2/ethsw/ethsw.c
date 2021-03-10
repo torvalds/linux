@@ -20,7 +20,7 @@
 
 /* Minimal supported DPSW version */
 #define DPSW_MIN_VER_MAJOR		8
-#define DPSW_MIN_VER_MINOR		1
+#define DPSW_MIN_VER_MINOR		9
 
 #define DEFAULT_VLAN_ID			1
 
@@ -1334,6 +1334,43 @@ static void dpaa2_switch_detect_features(struct ethsw_core *ethsw)
 		ethsw->features |= ETHSW_FEATURE_MAC_ADDR;
 }
 
+static int dpaa2_switch_setup_fqs(struct ethsw_core *ethsw)
+{
+	struct dpsw_ctrl_if_attr ctrl_if_attr;
+	struct device *dev = ethsw->dev;
+	int i = 0;
+	int err;
+
+	err = dpsw_ctrl_if_get_attributes(ethsw->mc_io, 0, ethsw->dpsw_handle,
+					  &ctrl_if_attr);
+	if (err) {
+		dev_err(dev, "dpsw_ctrl_if_get_attributes() = %d\n", err);
+		return err;
+	}
+
+	ethsw->fq[i].fqid = ctrl_if_attr.rx_fqid;
+	ethsw->fq[i].ethsw = ethsw;
+	ethsw->fq[i++].type = DPSW_QUEUE_RX;
+
+	ethsw->fq[i].fqid = ctrl_if_attr.tx_err_conf_fqid;
+	ethsw->fq[i].ethsw = ethsw;
+	ethsw->fq[i++].type = DPSW_QUEUE_TX_ERR_CONF;
+
+	return 0;
+}
+
+static int dpaa2_switch_ctrl_if_setup(struct ethsw_core *ethsw)
+{
+	int err;
+
+	/* setup FQs for Rx and Tx Conf */
+	err = dpaa2_switch_setup_fqs(ethsw);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 static int dpaa2_switch_init(struct fsl_mc_device *sw_dev)
 {
 	struct device *dev = &sw_dev->dev;
@@ -1371,11 +1408,14 @@ static int dpaa2_switch_init(struct fsl_mc_device *sw_dev)
 	if (ethsw->major < DPSW_MIN_VER_MAJOR ||
 	    (ethsw->major == DPSW_MIN_VER_MAJOR &&
 	     ethsw->minor < DPSW_MIN_VER_MINOR)) {
-		dev_err(dev, "DPSW version %d:%d not supported. Use %d.%d or greater.\n",
-			ethsw->major,
-			ethsw->minor,
-			DPSW_MIN_VER_MAJOR, DPSW_MIN_VER_MINOR);
-		err = -ENOTSUPP;
+		dev_err(dev, "DPSW version %d:%d not supported. Use firmware 10.28.0 or greater.\n",
+			ethsw->major, ethsw->minor);
+		err = -EOPNOTSUPP;
+		goto err_close;
+	}
+
+	if (!dpaa2_switch_supports_cpu_traffic(ethsw)) {
+		err = -EOPNOTSUPP;
 		goto err_close;
 	}
 
@@ -1446,6 +1486,10 @@ static int dpaa2_switch_init(struct fsl_mc_device *sw_dev)
 		err = -ENOMEM;
 		goto err_close;
 	}
+
+	err = dpaa2_switch_ctrl_if_setup(ethsw);
+	if (err)
+		goto err_destroy_ordered_workqueue;
 
 	err = dpaa2_switch_register_notifier(dev);
 	if (err)

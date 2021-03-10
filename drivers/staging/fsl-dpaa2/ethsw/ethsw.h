@@ -3,7 +3,7 @@
  * DPAA2 Ethernet Switch declarations
  *
  * Copyright 2014-2016 Freescale Semiconductor Inc.
- * Copyright 2017-2018 NXP
+ * Copyright 2017-2021 NXP
  *
  */
 
@@ -39,9 +39,18 @@
 
 #define ETHSW_FEATURE_MAC_ADDR	BIT(0)
 
+/* Number of receive queues (one RX and one TX_CONF) */
+#define DPAA2_SWITCH_RX_NUM_FQS	2
+
 extern const struct ethtool_ops dpaa2_switch_port_ethtool_ops;
 
 struct ethsw_core;
+
+struct dpaa2_switch_fq {
+	struct ethsw_core *ethsw;
+	enum dpsw_queue_type type;
+	u32 fqid;
+};
 
 /* Per port private data */
 struct ethsw_port_priv {
@@ -74,6 +83,17 @@ struct ethsw_core {
 	struct notifier_block		port_switchdev_nb;
 	struct notifier_block		port_switchdevb_nb;
 	struct workqueue_struct		*workqueue;
+
+	struct dpaa2_switch_fq		fq[DPAA2_SWITCH_RX_NUM_FQS];
 };
 
+static inline bool dpaa2_switch_supports_cpu_traffic(struct ethsw_core *ethsw)
+{
+	if (ethsw->sw_attr.options & DPSW_OPT_CTRL_IF_DIS) {
+		dev_err(ethsw->dev, "Control Interface is disabled, cannot probe\n");
+		return false;
+	}
+
+	return true;
+}
 #endif	/* __ETHSW_H */

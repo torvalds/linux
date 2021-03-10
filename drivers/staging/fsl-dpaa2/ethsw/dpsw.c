@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright 2014-2016 Freescale Semiconductor Inc.
- * Copyright 2017-2018 NXP
+ * Copyright 2017-2021 NXP
  *
  */
 
@@ -1087,6 +1087,37 @@ int dpsw_fdb_remove_multicast(struct fsl_mc_io *mc_io,
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
+}
+
+/**
+ * dpsw_ctrl_if_get_attributes() - Obtain control interface attributes
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @attr:	Returned control interface attributes
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dpsw_ctrl_if_get_attributes(struct fsl_mc_io *mc_io, u32 cmd_flags,
+				u16 token, struct dpsw_ctrl_if_attr *attr)
+{
+	struct dpsw_rsp_ctrl_if_get_attr *rsp_params;
+	struct fsl_mc_command cmd = { 0 };
+	int err;
+
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_CTRL_IF_GET_ATTR,
+					  cmd_flags, token);
+
+	err = mc_send_command(mc_io, &cmd);
+	if (err)
+		return err;
+
+	rsp_params = (struct dpsw_rsp_ctrl_if_get_attr *)cmd.params;
+	attr->rx_fqid = le32_to_cpu(rsp_params->rx_fqid);
+	attr->rx_err_fqid = le32_to_cpu(rsp_params->rx_err_fqid);
+	attr->tx_err_conf_fqid = le32_to_cpu(rsp_params->tx_err_conf_fqid);
+
+	return 0;
 }
 
 /**
