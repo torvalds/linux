@@ -1687,8 +1687,8 @@ static int ath11k_qmi_respond_fw_mem_request(struct ath11k_base *ab)
 			req->mem_seg[i].size = ab->qmi.target_mem[i].size;
 			req->mem_seg[i].type = ab->qmi.target_mem[i].type;
 			ath11k_dbg(ab, ATH11K_DBG_QMI,
-				   "qmi req mem_seg[%d] 0x%llx %u %u\n", i,
-				    ab->qmi.target_mem[i].paddr,
+				   "qmi req mem_seg[%d] %pad %u %u\n", i,
+				    &ab->qmi.target_mem[i].paddr,
 				    ab->qmi.target_mem[i].size,
 				    ab->qmi.target_mem[i].type);
 		}

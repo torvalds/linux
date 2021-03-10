@@ -35,12 +35,6 @@ Rules on what kind of patches are accepted, and which ones are not, into the
 Procedure for submitting patches to the -stable tree
 ----------------------------------------------------
 
- - If the patch covers files in net/ or drivers/net please follow netdev stable
-   submission guidelines as described in
-   :ref:`Documentation/networking/netdev-FAQ.rst <netdev-FAQ>`
-   after first checking the stable networking queue at
-   https://patchwork.kernel.org/bundle/netdev/stable/?state=*
-   to ensure the requested patch is not already queued up.
  - Security patches should not be handled (solely) by the -stable review
    process but should follow the procedures in
    :ref:`Documentation/admin-guide/security-bugs.rst <securitybugs>`.

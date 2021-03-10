@@ -406,7 +406,7 @@ static int bcm_sf2_sw_rst(struct bcm_sf2_priv *priv)
 	/* The watchdog reset does not work on 7278, we need to hit the
 	 * "external" reset line through the reset controller.
 	 */
-	if (priv->type == BCM7278_DEVICE_ID && !IS_ERR(priv->rcdev)) {
+	if (priv->type == BCM7278_DEVICE_ID) {
 		ret = reset_control_assert(priv->rcdev);
 		if (ret)
 			return ret;
@@ -1265,7 +1265,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 
 	priv->rcdev = devm_reset_control_get_optional_exclusive(&pdev->dev,
 								"switch");
-	if (PTR_ERR(priv->rcdev) == -EPROBE_DEFER)
+	if (IS_ERR(priv->rcdev))
 		return PTR_ERR(priv->rcdev);
 
 	/* Auto-detection using standard registers will not work, so
@@ -1426,7 +1426,7 @@ static int bcm_sf2_sw_remove(struct platform_device *pdev)
 	bcm_sf2_mdio_unregister(priv);
 	clk_disable_unprepare(priv->clk_mdiv);
 	clk_disable_unprepare(priv->clk);
-	if (priv->type == BCM7278_DEVICE_ID && !IS_ERR(priv->rcdev))
+	if (priv->type == BCM7278_DEVICE_ID)
 		reset_control_assert(priv->rcdev);
 
 	return 0;

@@ -1118,6 +1118,8 @@ static void bpf_prog_clone_free(struct bpf_prog *fp)
 	 * clone is guaranteed to not be locked.
 	 */
 	fp->aux = NULL;
+	fp->stats = NULL;
+	fp->active = NULL;
 	__bpf_prog_free(fp);
 }
 
@@ -2342,6 +2344,10 @@ bool __weak bpf_helper_changes_pkt_data(void *func)
 /* Return TRUE if the JIT backend wants verifier to enable sub-register usage
  * analysis code and wants explicit zero extension inserted by verifier.
  * Otherwise, return FALSE.
+ *
+ * The verifier inserts an explicit zero extension after BPF_CMPXCHGs even if
+ * you don't override this. JITs that don't want these extra insns can detect
+ * them using insn_is_zext.
  */
 bool __weak bpf_jit_needs_zext(void)
 {

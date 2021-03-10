@@ -3659,6 +3659,8 @@ unsigned int skb_find_text(struct sk_buff *skb, unsigned int from,
 	struct ts_state state;
 	unsigned int ret;
 
+	BUILD_BUG_ON(sizeof(struct skb_seq_state) > sizeof(state.cb));
+
 	config->get_next_block = skb_ts_get_next_block;
 	config->finish = skb_ts_finish;
 

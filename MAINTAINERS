@@ -10716,7 +10716,8 @@ F:	drivers/net/ethernet/marvell/mvpp2/
 
 MARVELL MWIFIEX WIRELESS DRIVER
 M:	Amitkumar Karwar <amitkarwar@gmail.com>
-M:	Ganapathi Bhat <ganapathi.bhat@nxp.com>
+M:	Ganapathi Bhat <ganapathi017@gmail.com>
+M:	Sharvari Harisangam <sharvari.harisangam@nxp.com>
 M:	Xinming Hu <huxinming820@gmail.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
