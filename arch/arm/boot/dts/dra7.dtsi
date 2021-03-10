@@ -132,12 +132,14 @@
 	 * hierarchy.
 	 */
 	ocp: ocp {
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
+		power-domains = <&prm_core>;
+		clocks = <&l3main1_clkctrl DRA7_L3MAIN1_L3_MAIN_1_CLKCTRL 0>,
+			 <&l3instr_clkctrl DRA7_L3INSTR_L3_MAIN_2_CLKCTRL 0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x0 0xc0000000>;
 		dma-ranges = <0x80000000 0x0 0x80000000 0x80000000>;
-		ti,hwmods = "l3_main_1", "l3_main_2";
 
 		l3-noc@44000000 {
 			compatible = "ti,dra7-l3-noc";
