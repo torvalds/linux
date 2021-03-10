@@ -2369,8 +2369,8 @@ retry:
 	rcu_read_unlock();
 }
 
-static int filemap_read_page(struct file *file, struct address_space *mapping,
-		struct page *page)
+static int filemap_read_folio(struct file *file, struct address_space *mapping,
+		struct folio *folio)
 {
 	int error;
 
@@ -2379,16 +2379,16 @@ static int filemap_read_page(struct file *file, struct address_space *mapping,
 	 * eg. multipath errors.  PG_error will be set again if readpage
 	 * fails.
 	 */
-	ClearPageError(page);
+	folio_clear_error(folio);
 	/* Start the actual read. The read will unlock the page. */
-	error = mapping->a_ops->readpage(file, page);
+	error = mapping->a_ops->readpage(file, &folio->page);
 	if (error)
 		return error;
 
-	error = wait_on_page_locked_killable(page);
+	error = folio_wait_locked_killable(folio);
 	if (error)
 		return error;
-	if (PageUptodate(page))
+	if (folio_test_uptodate(folio))
 		return 0;
 	shrink_readahead_size_eio(&file->f_ra);
 	return -EIO;
@@ -2464,7 +2464,7 @@ static int filemap_update_page(struct kiocb *iocb,
 	if (iocb->ki_flags & (IOCB_NOIO | IOCB_NOWAIT | IOCB_WAITQ))
 		goto unlock;
 
-	error = filemap_read_page(iocb->ki_filp, mapping, &folio->page);
+	error = filemap_read_folio(iocb->ki_filp, mapping, folio);
 	goto unlock_mapping;
 unlock:
 	folio_unlock(folio);
@@ -2506,7 +2506,7 @@ static int filemap_create_page(struct file *file,
 	if (error)
 		goto error;
 
-	error = filemap_read_page(file, mapping, page);
+	error = filemap_read_folio(file, mapping, page_folio(page));
 	if (error)
 		goto error;
 
@@ -3168,7 +3168,7 @@ page_not_uptodate:
 	 * and we need to check for errors.
 	 */
 	fpin = maybe_unlock_mmap_for_io(vmf, fpin);
-	error = filemap_read_page(file, mapping, page);
+	error = filemap_read_folio(file, mapping, page_folio(page));
 	if (fpin)
 		goto out_retry;
 	put_page(page);
