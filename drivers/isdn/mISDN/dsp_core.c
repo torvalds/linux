@@ -953,7 +953,6 @@ dsp_ctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 {
 	struct dsp		*dsp = container_of(ch, struct dsp, ch);
 	u_long		flags;
-	int		err = 0;
 
 	if (debug & DEBUG_DSP_CTRL)
 		printk(KERN_DEBUG "%s:(%x)\n", __func__, cmd);
@@ -998,7 +997,7 @@ dsp_ctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 		module_put(THIS_MODULE);
 		break;
 	}
-	return err;
+	return 0;
 }
 
 static void
