@@ -130,22 +130,16 @@ __pu_failed:							\
 
 #define __put_user_size_goto(x, ptr, size, label)		\
 do {								\
+	__typeof__(*(ptr)) __user *__pus_addr = (ptr);		\
+								\
 	switch (size) {						\
-	case 1: __put_user_asm_goto(x, ptr, label, "stb"); break;	\
-	case 2: __put_user_asm_goto(x, ptr, label, "sth"); break;	\
-	case 4: __put_user_asm_goto(x, ptr, label, "stw"); break;	\
-	case 8: __put_user_asm2_goto(x, ptr, label); break;	\
+	case 1: __put_user_asm_goto(x, __pus_addr, label, "stb"); break;	\
+	case 2: __put_user_asm_goto(x, __pus_addr, label, "sth"); break;	\
+	case 4: __put_user_asm_goto(x, __pus_addr, label, "stw"); break;	\
+	case 8: __put_user_asm2_goto(x, __pus_addr, label); break;		\
 	default: __put_user_bad();				\
 	}							\
 } while (0)
-
-#define __unsafe_put_user_goto(x, ptr, size, label)		\
-do {								\
-	__typeof__(*(ptr)) __user *__pu_addr = (ptr);		\
-	__chk_user_ptr(ptr);					\
-	__put_user_size_goto((x), __pu_addr, (size), label);	\
-} while (0)
-
 
 extern long __get_user_bad(void);
 
@@ -404,7 +398,7 @@ user_write_access_begin(const void __user *ptr, size_t len)
 } while (0)
 
 #define unsafe_put_user(x, p, e) \
-	__unsafe_put_user_goto((__typeof__(*(p)))(x), (p), sizeof(*(p)), e)
+	__put_user_size_goto((__typeof__(*(p)))(x), (p), sizeof(*(p)), e)
 
 #define unsafe_copy_from_user(d, s, l, e) \
 do {											\
