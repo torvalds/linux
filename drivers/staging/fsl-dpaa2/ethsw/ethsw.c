@@ -3,7 +3,7 @@
  * DPAA2 Ethernet Switch driver
  *
  * Copyright 2014-2016 Freescale Semiconductor Inc.
- * Copyright 2017-2018 NXP
+ * Copyright 2017-2021 NXP
  *
  */
 
@@ -1365,6 +1365,8 @@ static int dpaa2_switch_init(struct fsl_mc_device *sw_dev)
 {
 	struct device *dev = &sw_dev->dev;
 	struct ethsw_core *ethsw = dev_get_drvdata(dev);
+	struct dpsw_vlan_if_cfg vcfg = {0};
+	struct dpsw_tci_cfg tci_cfg = {0};
 	struct dpsw_stp_cfg stp_cfg;
 	int err;
 	u16 i;
@@ -1416,6 +1418,12 @@ static int dpaa2_switch_init(struct fsl_mc_device *sw_dev)
 	stp_cfg.state = DPSW_STP_STATE_FORWARDING;
 
 	for (i = 0; i < ethsw->sw_attr.num_ifs; i++) {
+		err = dpsw_if_disable(ethsw->mc_io, 0, ethsw->dpsw_handle, i);
+		if (err) {
+			dev_err(dev, "dpsw_if_disable err %d\n", err);
+			goto err_close;
+		}
+
 		err = dpsw_if_set_stp(ethsw->mc_io, 0, ethsw->dpsw_handle, i,
 				      &stp_cfg);
 		if (err) {
@@ -1423,6 +1431,39 @@ static int dpaa2_switch_init(struct fsl_mc_device *sw_dev)
 				err, i);
 			goto err_close;
 		}
+
+		/* Switch starts with all ports configured to VLAN 1. Need to
+		 * remove this setting to allow configuration at bridge join
+		 */
+		vcfg.num_ifs = 1;
+		vcfg.if_id[0] = i;
+		err = dpsw_vlan_remove_if_untagged(ethsw->mc_io, 0, ethsw->dpsw_handle,
+						   DEFAULT_VLAN_ID, &vcfg);
+		if (err) {
+			dev_err(dev, "dpsw_vlan_remove_if_untagged err %d\n",
+				err);
+			goto err_close;
+		}
+
+		tci_cfg.vlan_id = 4095;
+		err = dpsw_if_set_tci(ethsw->mc_io, 0, ethsw->dpsw_handle, i, &tci_cfg);
+		if (err) {
+			dev_err(dev, "dpsw_if_set_tci err %d\n", err);
+			goto err_close;
+		}
+
+		err = dpsw_vlan_remove_if(ethsw->mc_io, 0, ethsw->dpsw_handle,
+					  DEFAULT_VLAN_ID, &vcfg);
+		if (err) {
+			dev_err(dev, "dpsw_vlan_remove_if err %d\n", err);
+			goto err_close;
+		}
+	}
+
+	err = dpsw_vlan_remove(ethsw->mc_io, 0, ethsw->dpsw_handle, DEFAULT_VLAN_ID);
+	if (err) {
+		dev_err(dev, "dpsw_vlan_remove err %d\n", err);
+		goto err_close;
 	}
 
 	ethsw->workqueue = alloc_ordered_workqueue("%s_%d_ordered",
@@ -1449,33 +1490,21 @@ err_close:
 
 static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
 {
+	struct switchdev_obj_port_vlan vlan = {
+		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
+		.vid = DEFAULT_VLAN_ID,
+		.flags = BRIDGE_VLAN_INFO_UNTAGGED | BRIDGE_VLAN_INFO_PVID,
+	};
 	struct net_device *netdev = port_priv->netdev;
-	struct ethsw_core *ethsw = port_priv->ethsw_data;
-	struct dpsw_vlan_if_cfg vcfg;
 	int err;
 
-	/* Switch starts with all ports configured to VLAN 1. Need to
-	 * remove this setting to allow configuration at bridge join
+	/* We need to add VLAN 1 as the PVID on this port until it is under a
+	 * bridge since the DPAA2 switch is not able to handle the traffic in a
+	 * VLAN unaware fashion
 	 */
-	vcfg.num_ifs = 1;
-	vcfg.if_id[0] = port_priv->idx;
-
-	err = dpsw_vlan_remove_if_untagged(ethsw->mc_io, 0, ethsw->dpsw_handle,
-					   DEFAULT_VLAN_ID, &vcfg);
-	if (err) {
-		netdev_err(netdev, "dpsw_vlan_remove_if_untagged err %d\n",
-			   err);
-		return err;
-	}
-
-	err = dpaa2_switch_port_set_pvid(port_priv, 0);
+	err = dpaa2_switch_port_vlans_add(netdev, &vlan);
 	if (err)
 		return err;
-
-	err = dpsw_vlan_remove_if(ethsw->mc_io, 0, ethsw->dpsw_handle,
-				  DEFAULT_VLAN_ID, &vcfg);
-	if (err)
-		netdev_err(netdev, "dpsw_vlan_remove_if err %d\n", err);
 
 	return err;
 }
@@ -1633,9 +1662,6 @@ static int dpaa2_switch_probe(struct fsl_mc_device *sw_dev)
 	if (err)
 		goto err_free_cmdport;
 
-	/* DEFAULT_VLAN_ID is implicitly configured on the switch */
-	ethsw->vlans[DEFAULT_VLAN_ID] = ETHSW_VLAN_MEMBER;
-
 	ethsw->ports = kcalloc(ethsw->sw_attr.num_ifs, sizeof(*ethsw->ports),
 			       GFP_KERNEL);
 	if (!(ethsw->ports)) {
@@ -1654,10 +1680,6 @@ static int dpaa2_switch_probe(struct fsl_mc_device *sw_dev)
 		dev_err(ethsw->dev, "dpsw_enable err %d\n", err);
 		goto err_free_ports;
 	}
-
-	/* Make sure the switch ports are disabled at probe time */
-	for (i = 0; i < ethsw->sw_attr.num_ifs; i++)
-		dpsw_if_disable(ethsw->mc_io, 0, ethsw->dpsw_handle, i);
 
 	/* Setup IRQs */
 	err = dpaa2_switch_setup_irqs(sw_dev);
