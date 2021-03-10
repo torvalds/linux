@@ -12,6 +12,7 @@ config FSL_DPAA2
 
 config FSL_DPAA2_ETHSW
 	tristate "Freescale DPAA2 Ethernet Switch"
+	depends on BRIDGE || BRIDGE=n
 	depends on FSL_DPAA2
 	depends on NET_SWITCHDEV
 	help

@@ -166,4 +166,10 @@ static inline bool dpaa2_switch_supports_cpu_traffic(struct ethsw_core *ethsw)
 
 bool dpaa2_switch_port_dev_check(const struct net_device *netdev);
 
+int dpaa2_switch_port_vlans_add(struct net_device *netdev,
+				const struct switchdev_obj_port_vlan *vlan);
+
+int dpaa2_switch_port_vlans_del(struct net_device *netdev,
+				const struct switchdev_obj_port_vlan *vlan);
+
 #endif	/* __ETHSW_H */

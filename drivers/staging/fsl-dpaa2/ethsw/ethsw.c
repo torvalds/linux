@@ -800,6 +800,34 @@ err_map:
 	return err;
 }
 
+static int dpaa2_switch_port_vlan_add(struct net_device *netdev, __be16 proto,
+				      u16 vid)
+{
+	struct switchdev_obj_port_vlan vlan = {
+		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
+		.vid = vid,
+		.obj.orig_dev = netdev,
+		/* This API only allows programming tagged, non-PVID VIDs */
+		.flags = 0,
+	};
+
+	return dpaa2_switch_port_vlans_add(netdev, &vlan);
+}
+
+static int dpaa2_switch_port_vlan_kill(struct net_device *netdev, __be16 proto,
+				       u16 vid)
+{
+	struct switchdev_obj_port_vlan vlan = {
+		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
+		.vid = vid,
+		.obj.orig_dev = netdev,
+		/* This API only allows programming tagged, non-PVID VIDs */
+		.flags = 0,
+	};
+
+	return dpaa2_switch_port_vlans_del(netdev, &vlan);
+}
+
 static int dpaa2_switch_port_set_mac_addr(struct ethsw_port_priv *port_priv)
 {
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
@@ -981,6 +1009,8 @@ static const struct net_device_ops dpaa2_switch_port_ops = {
 	.ndo_has_offload_stats	= dpaa2_switch_port_has_offload_stats,
 	.ndo_get_offload_stats	= dpaa2_switch_port_get_offload_stats,
 	.ndo_fdb_dump		= dpaa2_switch_port_fdb_dump,
+	.ndo_vlan_rx_add_vid	= dpaa2_switch_port_vlan_add,
+	.ndo_vlan_rx_kill_vid	= dpaa2_switch_port_vlan_kill,
 
 	.ndo_start_xmit		= dpaa2_switch_port_tx,
 	.ndo_get_port_parent_id	= dpaa2_switch_port_parent_id,
@@ -1114,7 +1144,8 @@ static int dpaa2_switch_port_attr_stp_state_set(struct net_device *netdev,
 }
 
 static int dpaa2_switch_port_attr_set(struct net_device *netdev,
-				      const struct switchdev_attr *attr)
+				      const struct switchdev_attr *attr,
+				      struct netlink_ext_ack *extack)
 {
 	int err = 0;
 
@@ -1124,7 +1155,11 @@ static int dpaa2_switch_port_attr_set(struct net_device *netdev,
 							   attr->u.stp_state);
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING:
-		/* VLANs are supported by default  */
+		if (!attr->u.vlan_filtering) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "The DPAA2 switch does not support VLAN-unaware operation");
+			return -EOPNOTSUPP;
+		}
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -1134,8 +1169,8 @@ static int dpaa2_switch_port_attr_set(struct net_device *netdev,
 	return err;
 }
 
-static int dpaa2_switch_port_vlans_add(struct net_device *netdev,
-				       const struct switchdev_obj_port_vlan *vlan)
+int dpaa2_switch_port_vlans_add(struct net_device *netdev,
+				const struct switchdev_obj_port_vlan *vlan)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
@@ -1303,8 +1338,8 @@ static int dpaa2_switch_port_del_vlan(struct ethsw_port_priv *port_priv, u16 vid
 	return 0;
 }
 
-static int dpaa2_switch_port_vlans_del(struct net_device *netdev,
-				       const struct switchdev_obj_port_vlan *vlan)
+int dpaa2_switch_port_vlans_del(struct net_device *netdev,
+				const struct switchdev_obj_port_vlan *vlan)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 
@@ -1356,14 +1391,13 @@ static int dpaa2_switch_port_obj_del(struct net_device *netdev,
 }
 
 static int dpaa2_switch_port_attr_set_event(struct net_device *netdev,
-					    struct switchdev_notifier_port_attr_info
-					    *port_attr_info)
+					    struct switchdev_notifier_port_attr_info *ptr)
 {
 	int err;
 
-	err = dpaa2_switch_port_attr_set(netdev, port_attr_info->attr);
-
-	port_attr_info->handled = true;
+	err = switchdev_handle_port_attr_set(netdev, ptr,
+					     dpaa2_switch_port_dev_check,
+					     dpaa2_switch_port_attr_set);
 	return notifier_from_errno(err);
 }
 
@@ -1517,14 +1551,24 @@ static int dpaa2_switch_port_netdevice_event(struct notifier_block *nb,
 {
 	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
 	struct netdev_notifier_changeupper_info *info = ptr;
+	struct netlink_ext_ack *extack;
 	struct net_device *upper_dev;
 	int err = 0;
 
 	if (!dpaa2_switch_port_dev_check(netdev))
 		return NOTIFY_DONE;
 
-	/* Handle just upper dev link/unlink for the moment */
-	if (event == NETDEV_CHANGEUPPER) {
+	extack = netdev_notifier_info_to_extack(&info->info);
+
+	switch (event) {
+	case NETDEV_PRECHANGEUPPER:
+		upper_dev = info->upper_dev;
+		if (netif_is_bridge_master(upper_dev) && !br_vlan_enabled(upper_dev)) {
+			NL_SET_ERR_MSG_MOD(extack, "Cannot join a VLAN-unaware bridge");
+			err = -EOPNOTSUPP;
+		}
+		break;
+	case NETDEV_CHANGEUPPER:
 		upper_dev = info->upper_dev;
 		if (netif_is_bridge_master(upper_dev)) {
 			if (info->linking)
@@ -1532,6 +1576,7 @@ static int dpaa2_switch_port_netdevice_event(struct notifier_block *nb,
 			else
 				err = dpaa2_switch_port_bridge_leave(netdev);
 		}
+		break;
 	}
 
 	return notifier_from_errno(err);
@@ -1597,11 +1642,11 @@ static int dpaa2_switch_port_event(struct notifier_block *nb,
 	struct switchdev_notifier_fdb_info *fdb_info = ptr;
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 
-	if (!dpaa2_switch_port_dev_check(dev))
-		return NOTIFY_DONE;
-
 	if (event == SWITCHDEV_PORT_ATTR_SET)
 		return dpaa2_switch_port_attr_set_event(dev, ptr);
+
+	if (!dpaa2_switch_port_dev_check(dev))
+		return NOTIFY_DONE;
 
 	switchdev_work = kzalloc(sizeof(*switchdev_work), GFP_ATOMIC);
 	if (!switchdev_work)
@@ -1646,6 +1691,9 @@ static int dpaa2_switch_port_obj_event(unsigned long event,
 {
 	int err = -EOPNOTSUPP;
 
+	if (!dpaa2_switch_port_dev_check(netdev))
+		return NOTIFY_DONE;
+
 	switch (event) {
 	case SWITCHDEV_PORT_OBJ_ADD:
 		err = dpaa2_switch_port_obj_add(netdev, port_obj_info->obj);
@@ -1663,9 +1711,6 @@ static int dpaa2_switch_port_blocking_event(struct notifier_block *nb,
 					    unsigned long event, void *ptr)
 {
 	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
-
-	if (!dpaa2_switch_port_dev_check(dev))
-		return NOTIFY_DONE;
 
 	switch (event) {
 	case SWITCHDEV_PORT_OBJ_ADD:
@@ -2541,6 +2586,11 @@ static int dpaa2_switch_probe_port(struct ethsw_core *ethsw,
 	 * dpaa2_switch_port_init() can use it.
 	 */
 	ethsw->ports[port_idx] = port_priv;
+
+	/* The DPAA2 switch's ingress path depends on the VLAN table,
+	 * thus we are not able to disable VLAN filtering.
+	 */
+	port_netdev->features = NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_VLAN_STAG_FILTER;
 
 	err = dpaa2_switch_port_init(port_priv, port_idx);
 	if (err)
