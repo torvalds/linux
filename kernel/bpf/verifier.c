@@ -5582,7 +5582,8 @@ record_func_map(struct bpf_verifier_env *env, struct bpf_call_arg_meta *meta,
 	    func_id != BPF_FUNC_map_push_elem &&
 	    func_id != BPF_FUNC_map_pop_elem &&
 	    func_id != BPF_FUNC_map_peek_elem &&
-	    func_id != BPF_FUNC_for_each_map_elem)
+	    func_id != BPF_FUNC_for_each_map_elem &&
+	    func_id != BPF_FUNC_redirect_map)
 		return 0;
 
 	if (map == NULL) {
@@ -12017,7 +12018,8 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 		     insn->imm == BPF_FUNC_map_delete_elem ||
 		     insn->imm == BPF_FUNC_map_push_elem   ||
 		     insn->imm == BPF_FUNC_map_pop_elem    ||
-		     insn->imm == BPF_FUNC_map_peek_elem)) {
+		     insn->imm == BPF_FUNC_map_peek_elem   ||
+		     insn->imm == BPF_FUNC_redirect_map)) {
 			aux = &env->insn_aux_data[i + delta];
 			if (bpf_map_ptr_poisoned(aux))
 				goto patch_call_imm;
@@ -12059,6 +12061,9 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 				     (int (*)(struct bpf_map *map, void *value))NULL));
 			BUILD_BUG_ON(!__same_type(ops->map_peek_elem,
 				     (int (*)(struct bpf_map *map, void *value))NULL));
+			BUILD_BUG_ON(!__same_type(ops->map_redirect,
+				     (int (*)(struct bpf_map *map, u32 ifindex, u64 flags))NULL));
+
 patch_map_ops_generic:
 			switch (insn->imm) {
 			case BPF_FUNC_map_lookup_elem:
@@ -12083,6 +12088,10 @@ patch_map_ops_generic:
 				continue;
 			case BPF_FUNC_map_peek_elem:
 				insn->imm = BPF_CAST_CALL(ops->map_peek_elem) -
+					    __bpf_call_base;
+				continue;
+			case BPF_FUNC_redirect_map:
+				insn->imm = BPF_CAST_CALL(ops->map_redirect) -
 					    __bpf_call_base;
 				continue;
 			}
