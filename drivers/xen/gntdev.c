@@ -136,17 +136,20 @@ struct gntdev_grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count,
 	add->grants    = kvcalloc(count, sizeof(add->grants[0]), GFP_KERNEL);
 	add->map_ops   = kvcalloc(count, sizeof(add->map_ops[0]), GFP_KERNEL);
 	add->unmap_ops = kvcalloc(count, sizeof(add->unmap_ops[0]), GFP_KERNEL);
-	add->kmap_ops  = kvcalloc(count, sizeof(add->kmap_ops[0]), GFP_KERNEL);
-	add->kunmap_ops = kvcalloc(count,
-				   sizeof(add->kunmap_ops[0]), GFP_KERNEL);
 	add->pages     = kvcalloc(count, sizeof(add->pages[0]), GFP_KERNEL);
 	if (NULL == add->grants    ||
 	    NULL == add->map_ops   ||
 	    NULL == add->unmap_ops ||
-	    NULL == add->kmap_ops  ||
-	    NULL == add->kunmap_ops ||
 	    NULL == add->pages)
 		goto err;
+	if (use_ptemod) {
+		add->kmap_ops   = kvcalloc(count, sizeof(add->kmap_ops[0]),
+					   GFP_KERNEL);
+		add->kunmap_ops = kvcalloc(count, sizeof(add->kunmap_ops[0]),
+					   GFP_KERNEL);
+		if (NULL == add->kmap_ops || NULL == add->kunmap_ops)
+			goto err;
+	}
 
 #ifdef CONFIG_XEN_GRANT_DMA_ALLOC
 	add->dma_flags = dma_flags;
@@ -185,8 +188,10 @@ struct gntdev_grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count,
 	for (i = 0; i < count; i++) {
 		add->map_ops[i].handle = -1;
 		add->unmap_ops[i].handle = -1;
-		add->kmap_ops[i].handle = -1;
-		add->kunmap_ops[i].handle = -1;
+		if (use_ptemod) {
+			add->kmap_ops[i].handle = -1;
+			add->kunmap_ops[i].handle = -1;
+		}
 	}
 
 	add->index = 0;
@@ -332,8 +337,8 @@ int gntdev_map_grant_pages(struct gntdev_grant_map *map)
 	}
 
 	pr_debug("map %d+%d\n", map->index, map->count);
-	err = gnttab_map_refs(map->map_ops, use_ptemod ? map->kmap_ops : NULL,
-			map->pages, map->count);
+	err = gnttab_map_refs(map->map_ops, map->kmap_ops, map->pages,
+			map->count);
 
 	for (i = 0; i < map->count; i++) {
 		if (map->map_ops[i].status == GNTST_okay)
