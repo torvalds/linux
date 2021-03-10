@@ -580,14 +580,15 @@ static int dfx_register(struct device *bdev)
 
 	if (dfx_use_mmio) {
 		region = request_mem_region(bar_start[0], bar_len[0],
-					    print_name);
+					    bdev->driver->name);
 		if (!region && (dfx_bus_eisa || dfx_bus_pci)) {
 			bp->mmio = false;
 			dfx_get_bars(bp, bar_start, bar_len);
 		}
 	}
 	if (!dfx_use_mmio)
-		region = request_region(bar_start[0], bar_len[0], print_name);
+		region = request_region(bar_start[0], bar_len[0],
+					bdev->driver->name);
 	if (!region) {
 		dfx_register_res_err(print_name, dfx_use_mmio,
 				     bar_start[0], bar_len[0]);
@@ -595,7 +596,8 @@ static int dfx_register(struct device *bdev)
 		goto err_out_disable;
 	}
 	if (bar_start[1] != 0) {
-		region = request_region(bar_start[1], bar_len[1], print_name);
+		region = request_region(bar_start[1], bar_len[1],
+					bdev->driver->name);
 		if (!region) {
 			dfx_register_res_err(print_name, 0,
 					     bar_start[1], bar_len[1]);
@@ -604,7 +606,8 @@ static int dfx_register(struct device *bdev)
 		}
 	}
 	if (bar_start[2] != 0) {
-		region = request_region(bar_start[2], bar_len[2], print_name);
+		region = request_region(bar_start[2], bar_len[2],
+					bdev->driver->name);
 		if (!region) {
 			dfx_register_res_err(print_name, 0,
 					     bar_start[2], bar_len[2]);
@@ -3745,7 +3748,7 @@ static const struct pci_device_id dfx_pci_table[] = {
 MODULE_DEVICE_TABLE(pci, dfx_pci_table);
 
 static struct pci_driver dfx_pci_driver = {
-	.name		= "defxx",
+	.name		= DRV_NAME,
 	.id_table	= dfx_pci_table,
 	.probe		= dfx_pci_register,
 	.remove		= dfx_pci_unregister,
@@ -3776,7 +3779,7 @@ MODULE_DEVICE_TABLE(eisa, dfx_eisa_table);
 static struct eisa_driver dfx_eisa_driver = {
 	.id_table	= dfx_eisa_table,
 	.driver		= {
-		.name	= "defxx",
+		.name	= DRV_NAME,
 		.bus	= &eisa_bus_type,
 		.probe	= dfx_dev_register,
 		.remove	= dfx_dev_unregister,
@@ -3797,7 +3800,7 @@ MODULE_DEVICE_TABLE(tc, dfx_tc_table);
 static struct tc_driver dfx_tc_driver = {
 	.id_table	= dfx_tc_table,
 	.driver		= {
-		.name	= "defxx",
+		.name	= DRV_NAME,
 		.bus	= &tc_bus_type,
 		.probe	= dfx_dev_register,
 		.remove	= dfx_dev_unregister,
