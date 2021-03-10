@@ -9310,10 +9310,6 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	/* Get UFS version supported by the controller */
 	hba->ufs_version = ufshcd_get_ufs_version(hba);
 
-	if (hba->ufs_version < ufshci_version(1, 0))
-		dev_err(hba->dev, "invalid UFS version 0x%x\n",
-			hba->ufs_version);
-
 	/* Get Interrupt bit mask per version */
 	hba->intr_mask = ufshcd_get_intr_mask(hba);
 
