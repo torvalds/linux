@@ -267,40 +267,6 @@ static struct omap_hwmod dra7xx_mpu_hwmod = {
 };
 
 /*
- * 'qspi' class
- *
- */
-
-static struct omap_hwmod_class_sysconfig dra7xx_qspi_sysc = {
-	.rev_offs	= 0,
-	.sysc_offs	= 0x0010,
-	.sysc_flags	= SYSC_HAS_SIDLEMODE,
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   SIDLE_SMART_WKUP),
-	.sysc_fields	= &omap_hwmod_sysc_type2,
-};
-
-static struct omap_hwmod_class dra7xx_qspi_hwmod_class = {
-	.name	= "qspi",
-	.sysc	= &dra7xx_qspi_sysc,
-};
-
-/* qspi */
-static struct omap_hwmod dra7xx_qspi_hwmod = {
-	.name		= "qspi",
-	.class		= &dra7xx_qspi_hwmod_class,
-	.clkdm_name	= "l4per2_clkdm",
-	.main_clk	= "qspi_gfclk_div",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4PER2_QSPI_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4PER2_QSPI_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/*
  * 'sata' class
  *
  */
@@ -501,14 +467,6 @@ static struct omap_hwmod_ocp_if dra7xx_l4_cfg__mpu = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l3_main_1 -> qspi */
-static struct omap_hwmod_ocp_if dra7xx_l3_main_1__qspi = {
-	.master		= &dra7xx_l3_main_1_hwmod,
-	.slave		= &dra7xx_qspi_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l4_cfg -> sata */
 static struct omap_hwmod_ocp_if dra7xx_l4_cfg__sata = {
 	.master		= &dra7xx_l4_cfg_hwmod,
@@ -565,7 +523,6 @@ static struct omap_hwmod_ocp_if *dra7xx_hwmod_ocp_ifs[] __initdata = {
 	&dra7xx_l3_main_1__bb2d,
 	&dra7xx_l4_wkup__ctrl_module_wkup,
 	&dra7xx_l4_cfg__mpu,
-	&dra7xx_l3_main_1__qspi,
 	&dra7xx_l4_cfg__sata,
 	&dra7xx_l3_main_1__vcp1,
 	&dra7xx_l4_per2__vcp1,
