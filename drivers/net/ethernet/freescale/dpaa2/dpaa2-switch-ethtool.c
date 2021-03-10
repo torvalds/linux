@@ -9,7 +9,7 @@
 
 #include <linux/ethtool.h>
 
-#include "ethsw.h"
+#include "dpaa2-switch.h"
 
 static struct {
 	enum dpsw_counter id;

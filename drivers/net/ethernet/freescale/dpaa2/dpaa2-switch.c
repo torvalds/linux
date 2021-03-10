@@ -17,7 +17,7 @@
 
 #include <linux/fsl/mc.h>
 
-#include "ethsw.h"
+#include "dpaa2-switch.h"
 
 /* Minimal supported DPSW version */
 #define DPSW_MIN_VER_MAJOR		8
