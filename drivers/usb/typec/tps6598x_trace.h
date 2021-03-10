@@ -9,7 +9,7 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM tps6598x
 
-#if !defined(_TPS6598x_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
+#if !defined(_TPS6598X_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
 #define _TPS6598X_TRACE_H_
 
 #include "tps6598x.h"
@@ -276,7 +276,7 @@ TRACE_EVENT(tps6598x_data_status,
 #endif /* _TPS6598X_TRACE_H_ */
 
 /* This part must be outside protection */
-#undef TRACE_INCLUDE_PATH
+#undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_FILE tps6598x_trace
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
