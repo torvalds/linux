@@ -752,20 +752,37 @@
 			>;
 		};
 
-		qspi: spi@4b300000 {
-			compatible = "ti,dra7xxx-qspi";
-			reg = <0x4b300000 0x100>,
-			      <0x5c000000 0x4000000>;
-			reg-names = "qspi_base", "qspi_mmap";
-			syscon-chipselects = <&scm_conf 0x558>;
-			#address-cells = <1>;
-			#size-cells = <0>;
+		target-module@4b300000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
 			ti,hwmods = "qspi";
-			clocks = <&l4per2_clkctrl DRA7_L4PER2_QSPI_CLKCTRL 25>;
+			reg = <0x4b300000 0x4>,
+			      <0x4b300010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			clocks = <&l4per2_clkctrl DRA7_L4PER2_QSPI_CLKCTRL 0>;
 			clock-names = "fck";
-			num-cs = <4>;
-			interrupts = <GIC_SPI 343 IRQ_TYPE_LEVEL_HIGH>;
-			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x4b300000 0x1000>,
+				 <0x5c000000 0x5c000000 0x4000000>;
+
+			qspi: spi@0 {
+				compatible = "ti,dra7xxx-qspi";
+				reg = <0 0x100>,
+				      <0x5c000000 0x4000000>;
+				reg-names = "qspi_base", "qspi_mmap";
+				syscon-chipselects = <&scm_conf 0x558>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&l4per2_clkctrl DRA7_L4PER2_QSPI_CLKCTRL 25>;
+				clock-names = "fck";
+				num-cs = <4>;
+				interrupts = <GIC_SPI 343 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+			};
 		};
 
 		/* OCP2SCP3 */
