@@ -1055,34 +1055,17 @@ void enetc_init_si_rings_params(struct enetc_ndev_priv *priv)
 int enetc_alloc_si_resources(struct enetc_ndev_priv *priv)
 {
 	struct enetc_si *si = priv->si;
-	int err;
-
-	err = enetc_setup_cbdr(priv->dev, &si->hw, ENETC_CBDR_DEFAULT_SIZE,
-			       &si->cbd_ring);
-	if (err)
-		return err;
 
 	priv->cls_rules = kcalloc(si->num_fs_entries, sizeof(*priv->cls_rules),
 				  GFP_KERNEL);
-	if (!priv->cls_rules) {
-		err = -ENOMEM;
-		goto err_alloc_cls;
-	}
+	if (!priv->cls_rules)
+		return -ENOMEM;
 
 	return 0;
-
-err_alloc_cls:
-	enetc_teardown_cbdr(&si->cbd_ring);
-
-	return err;
 }
 
 void enetc_free_si_resources(struct enetc_ndev_priv *priv)
 {
-	struct enetc_si *si = priv->si;
-
-	enetc_teardown_cbdr(&si->cbd_ring);
-
 	kfree(priv->cls_rules);
 }
 
