@@ -1,16 +1,18 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright 2014-2016 Freescale Semiconductor Inc.
- * Copyright 2017-2020 NXP
+ * Copyright 2017-2021 NXP
  *
  */
 
 #ifndef __FSL_DPSW_CMD_H
 #define __FSL_DPSW_CMD_H
 
+#include "dpsw.h"
+
 /* DPSW Version */
 #define DPSW_VER_MAJOR		8
-#define DPSW_VER_MINOR		5
+#define DPSW_VER_MINOR		9
 
 #define DPSW_CMD_BASE_VERSION	1
 #define DPSW_CMD_VERSION_2	2
@@ -27,7 +29,7 @@
 
 #define DPSW_CMDID_ENABLE                   DPSW_CMD_ID(0x002)
 #define DPSW_CMDID_DISABLE                  DPSW_CMD_ID(0x003)
-#define DPSW_CMDID_GET_ATTR                 DPSW_CMD_ID(0x004)
+#define DPSW_CMDID_GET_ATTR                 DPSW_CMD_V2(0x004)
 #define DPSW_CMDID_RESET                    DPSW_CMD_ID(0x005)
 
 #define DPSW_CMDID_SET_IRQ_ENABLE           DPSW_CMD_ID(0x012)
@@ -45,18 +47,18 @@
 #define DPSW_CMDID_IF_ENABLE                DPSW_CMD_ID(0x03D)
 #define DPSW_CMDID_IF_DISABLE               DPSW_CMD_ID(0x03E)
 
+#define DPSW_CMDID_IF_GET_ATTR              DPSW_CMD_ID(0x042)
+
 #define DPSW_CMDID_IF_SET_MAX_FRAME_LENGTH  DPSW_CMD_ID(0x044)
 
 #define DPSW_CMDID_IF_GET_LINK_STATE        DPSW_CMD_ID(0x046)
-#define DPSW_CMDID_IF_SET_FLOODING          DPSW_CMD_ID(0x047)
-#define DPSW_CMDID_IF_SET_BROADCAST         DPSW_CMD_ID(0x048)
 
 #define DPSW_CMDID_IF_GET_TCI               DPSW_CMD_ID(0x04A)
 
 #define DPSW_CMDID_IF_SET_LINK_CFG          DPSW_CMD_ID(0x04C)
 
 #define DPSW_CMDID_VLAN_ADD                 DPSW_CMD_ID(0x060)
-#define DPSW_CMDID_VLAN_ADD_IF              DPSW_CMD_ID(0x061)
+#define DPSW_CMDID_VLAN_ADD_IF              DPSW_CMD_V2(0x061)
 #define DPSW_CMDID_VLAN_ADD_IF_UNTAGGED     DPSW_CMD_ID(0x062)
 
 #define DPSW_CMDID_VLAN_REMOVE_IF           DPSW_CMD_ID(0x064)
@@ -64,16 +66,25 @@
 #define DPSW_CMDID_VLAN_REMOVE_IF_FLOODING  DPSW_CMD_ID(0x066)
 #define DPSW_CMDID_VLAN_REMOVE              DPSW_CMD_ID(0x067)
 
+#define DPSW_CMDID_FDB_ADD                  DPSW_CMD_ID(0x082)
+#define DPSW_CMDID_FDB_REMOVE               DPSW_CMD_ID(0x083)
 #define DPSW_CMDID_FDB_ADD_UNICAST          DPSW_CMD_ID(0x084)
 #define DPSW_CMDID_FDB_REMOVE_UNICAST       DPSW_CMD_ID(0x085)
 #define DPSW_CMDID_FDB_ADD_MULTICAST        DPSW_CMD_ID(0x086)
 #define DPSW_CMDID_FDB_REMOVE_MULTICAST     DPSW_CMD_ID(0x087)
-#define DPSW_CMDID_FDB_SET_LEARNING_MODE    DPSW_CMD_ID(0x088)
 #define DPSW_CMDID_FDB_DUMP                 DPSW_CMD_ID(0x08A)
 
 #define DPSW_CMDID_IF_GET_PORT_MAC_ADDR     DPSW_CMD_ID(0x0A7)
 #define DPSW_CMDID_IF_GET_PRIMARY_MAC_ADDR  DPSW_CMD_ID(0x0A8)
 #define DPSW_CMDID_IF_SET_PRIMARY_MAC_ADDR  DPSW_CMD_ID(0x0A9)
+
+#define DPSW_CMDID_CTRL_IF_GET_ATTR         DPSW_CMD_ID(0x0A0)
+#define DPSW_CMDID_CTRL_IF_SET_POOLS        DPSW_CMD_ID(0x0A1)
+#define DPSW_CMDID_CTRL_IF_ENABLE           DPSW_CMD_ID(0x0A2)
+#define DPSW_CMDID_CTRL_IF_DISABLE          DPSW_CMD_ID(0x0A3)
+#define DPSW_CMDID_CTRL_IF_SET_QUEUE        DPSW_CMD_ID(0x0A6)
+
+#define DPSW_CMDID_SET_EGRESS_FLOOD         DPSW_CMD_ID(0x0AC)
 
 /* Macros for accessing command fields smaller than 1byte */
 #define DPSW_MASK(field)        \
@@ -169,6 +180,12 @@ struct dpsw_cmd_clear_irq_status {
 #define DPSW_COMPONENT_TYPE_SHIFT	0
 #define DPSW_COMPONENT_TYPE_SIZE	4
 
+#define DPSW_FLOODING_CFG_SHIFT		0
+#define DPSW_FLOODING_CFG_SIZE		4
+
+#define DPSW_BROADCAST_CFG_SHIFT	4
+#define DPSW_BROADCAST_CFG_SIZE		4
+
 struct dpsw_rsp_get_attr {
 	/* cmd word 0 */
 	__le16 num_ifs;
@@ -186,21 +203,13 @@ struct dpsw_rsp_get_attr {
 	u8 max_meters_per_if;
 	/* from LSB only the first 4 bits */
 	u8 component_type;
-	__le16 pad;
+	/* [0:3] - flooding configuration
+	 * [4:7] - broadcast configuration
+	 */
+	u8 repl_cfg;
+	u8 pad;
 	/* cmd word 3 */
 	__le64 options;
-};
-
-struct dpsw_cmd_if_set_flooding {
-	__le16 if_id;
-	/* from LSB: enable:1 */
-	u8 enable;
-};
-
-struct dpsw_cmd_if_set_broadcast {
-	__le16 if_id;
-	/* from LSB: enable:1 */
-	u8 enable;
 };
 
 #define DPSW_VLAN_ID_SHIFT	0
@@ -255,6 +264,28 @@ struct dpsw_cmd_if {
 	__le16 if_id;
 };
 
+#define DPSW_ADMIT_UNTAGGED_SHIFT	0
+#define DPSW_ADMIT_UNTAGGED_SIZE	4
+#define DPSW_ENABLED_SHIFT		5
+#define DPSW_ENABLED_SIZE		1
+#define DPSW_ACCEPT_ALL_VLAN_SHIFT	6
+#define DPSW_ACCEPT_ALL_VLAN_SIZE	1
+
+struct dpsw_rsp_if_get_attr {
+	/* cmd word 0 */
+	/* from LSB: admit_untagged:4 enabled:1 accept_all_vlan:1 */
+	u8 conf;
+	u8 pad1;
+	u8 num_tcs;
+	u8 pad2;
+	__le16 qdid;
+	/* cmd word 1 */
+	__le32 options;
+	__le32 pad3;
+	/* cmd word 2 */
+	__le32 rate;
+};
+
 struct dpsw_cmd_if_set_max_frame_length {
 	__le16 if_id;
 	__le16 frame_length;
@@ -295,6 +326,16 @@ struct dpsw_vlan_add {
 	__le16 vlan_id;
 };
 
+struct dpsw_cmd_vlan_add_if {
+	/* cmd word 0 */
+	__le16 options;
+	__le16 vlan_id;
+	__le16 fdb_id;
+	__le16 pad0;
+	/* cmd word 1-4 */
+	__le64 if_id;
+};
+
 struct dpsw_cmd_vlan_manage_if {
 	/* cmd word 0 */
 	__le16 pad0;
@@ -311,7 +352,7 @@ struct dpsw_cmd_vlan_remove {
 
 struct dpsw_cmd_fdb_add {
 	__le32 pad;
-	__le16 fdb_aging_time;
+	__le16 fdb_ageing_time;
 	__le16 num_fdb_entries;
 };
 
@@ -350,15 +391,6 @@ struct dpsw_cmd_fdb_multicast_op {
 	__le64 if_id[4];
 };
 
-#define DPSW_LEARNING_MODE_SHIFT	0
-#define DPSW_LEARNING_MODE_SIZE		4
-
-struct dpsw_cmd_fdb_set_learning_mode {
-	__le16 fdb_id;
-	/* only the first 4 bits from LSB */
-	u8 mode;
-};
-
 struct dpsw_cmd_fdb_dump {
 	__le16 fdb_id;
 	__le16 pad0;
@@ -369,6 +401,36 @@ struct dpsw_cmd_fdb_dump {
 
 struct dpsw_rsp_fdb_dump {
 	__le16 num_entries;
+};
+
+struct dpsw_rsp_ctrl_if_get_attr {
+	__le64 pad;
+	__le32 rx_fqid;
+	__le32 rx_err_fqid;
+	__le32 tx_err_conf_fqid;
+};
+
+#define DPSW_BACKUP_POOL(val, order)	(((val) & 0x1) << (order))
+struct dpsw_cmd_ctrl_if_set_pools {
+	u8 num_dpbp;
+	u8 backup_pool_mask;
+	__le16 pad;
+	__le32 dpbp_id[DPSW_MAX_DPBP];
+	__le16 buffer_size[DPSW_MAX_DPBP];
+};
+
+#define DPSW_DEST_TYPE_SHIFT	0
+#define DPSW_DEST_TYPE_SIZE	4
+
+struct dpsw_cmd_ctrl_if_set_queue {
+	__le32 dest_id;
+	u8 dest_priority;
+	u8 pad;
+	/* from LSB: dest_type:4 */
+	u8 dest_type;
+	u8 qtype;
+	__le64 user_ctx;
+	__le32 options;
 };
 
 struct dpsw_rsp_get_api_version {
@@ -386,5 +448,11 @@ struct dpsw_cmd_if_set_mac_addr {
 	u8 mac_addr[6];
 };
 
+struct dpsw_cmd_set_egress_flood {
+	__le16 fdb_id;
+	u8 flood_type;
+	u8 pad[5];
+	__le64 if_id;
+};
 #pragma pack(pop)
 #endif /* __FSL_DPSW_CMD_H */

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright 2014-2016 Freescale Semiconductor Inc.
- * Copyright 2017-2018 NXP
+ * Copyright 2017-2021 NXP
  *
  */
 
@@ -351,9 +351,9 @@ int dpsw_get_attributes(struct fsl_mc_io *mc_io,
 	attr->max_fdb_mc_groups = le16_to_cpu(rsp_params->max_fdb_mc_groups);
 	attr->max_meters_per_if = rsp_params->max_meters_per_if;
 	attr->options = le64_to_cpu(rsp_params->options);
-	attr->component_type = dpsw_get_field(rsp_params->component_type,
-					      COMPONENT_TYPE);
-
+	attr->component_type = dpsw_get_field(rsp_params->component_type, COMPONENT_TYPE);
+	attr->flooding_cfg = dpsw_get_field(rsp_params->repl_cfg, FLOODING_CFG);
+	attr->broadcast_cfg = dpsw_get_field(rsp_params->repl_cfg, BROADCAST_CFG);
 	return 0;
 }
 
@@ -429,68 +429,6 @@ int dpsw_if_get_link_state(struct fsl_mc_io *mc_io,
 	state->up = dpsw_get_field(rsp_params->up, UP);
 
 	return 0;
-}
-
-/**
- * dpsw_if_set_flooding() - Enable Disable flooding for particular interface
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPSW object
- * @if_id:	Interface Identifier
- * @en:		1 - enable, 0 - disable
- *
- * Return:	Completion status. '0' on Success; Error code otherwise.
- */
-int dpsw_if_set_flooding(struct fsl_mc_io *mc_io,
-			 u32 cmd_flags,
-			 u16 token,
-			 u16 if_id,
-			 u8 en)
-{
-	struct fsl_mc_command cmd = { 0 };
-	struct dpsw_cmd_if_set_flooding *cmd_params;
-
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPSW_CMDID_IF_SET_FLOODING,
-					  cmd_flags,
-					  token);
-	cmd_params = (struct dpsw_cmd_if_set_flooding *)cmd.params;
-	cmd_params->if_id = cpu_to_le16(if_id);
-	dpsw_set_field(cmd_params->enable, ENABLE, en);
-
-	/* send command to mc*/
-	return mc_send_command(mc_io, &cmd);
-}
-
-/**
- * dpsw_if_set_broadcast() - Enable/disable broadcast for particular interface
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPSW object
- * @if_id:	Interface Identifier
- * @en:		1 - enable, 0 - disable
- *
- * Return:	Completion status. '0' on Success; Error code otherwise.
- */
-int dpsw_if_set_broadcast(struct fsl_mc_io *mc_io,
-			  u32 cmd_flags,
-			  u16 token,
-			  u16 if_id,
-			  u8 en)
-{
-	struct fsl_mc_command cmd = { 0 };
-	struct dpsw_cmd_if_set_broadcast *cmd_params;
-
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPSW_CMDID_IF_SET_BROADCAST,
-					  cmd_flags,
-					  token);
-	cmd_params = (struct dpsw_cmd_if_set_broadcast *)cmd.params;
-	cmd_params->if_id = cpu_to_le16(if_id);
-	dpsw_set_field(cmd_params->enable, ENABLE, en);
-
-	/* send command to mc*/
-	return mc_send_command(mc_io, &cmd);
 }
 
 /**
@@ -702,6 +640,47 @@ int dpsw_if_disable(struct fsl_mc_io *mc_io,
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
+}
+
+/**
+ * dpsw_if_get_attributes() - Function obtains attributes of interface
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @if_id:	Interface Identifier
+ * @attr:	Returned interface attributes
+ *
+ * Return:	Completion status. '0' on Success; Error code otherwise.
+ */
+int dpsw_if_get_attributes(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			   u16 if_id, struct dpsw_if_attr *attr)
+{
+	struct dpsw_rsp_if_get_attr *rsp_params;
+	struct fsl_mc_command cmd = { 0 };
+	struct dpsw_cmd_if *cmd_params;
+	int err;
+
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_IF_GET_ATTR, cmd_flags,
+					  token);
+	cmd_params = (struct dpsw_cmd_if *)cmd.params;
+	cmd_params->if_id = cpu_to_le16(if_id);
+
+	err = mc_send_command(mc_io, &cmd);
+	if (err)
+		return err;
+
+	rsp_params = (struct dpsw_rsp_if_get_attr *)cmd.params;
+	attr->num_tcs = rsp_params->num_tcs;
+	attr->rate = le32_to_cpu(rsp_params->rate);
+	attr->options = le32_to_cpu(rsp_params->options);
+	attr->qdid = le16_to_cpu(rsp_params->qdid);
+	attr->enabled = dpsw_get_field(rsp_params->conf, ENABLED);
+	attr->accept_all_vlan = dpsw_get_field(rsp_params->conf,
+					       ACCEPT_ALL_VLAN);
+	attr->admit_untagged = dpsw_get_field(rsp_params->conf,
+					      ADMIT_UNTAGGED);
+
+	return 0;
 }
 
 /**
@@ -946,6 +925,66 @@ int dpsw_vlan_remove(struct fsl_mc_io *mc_io,
 }
 
 /**
+ * dpsw_fdb_add() - Add FDB to switch and Returns handle to FDB table for
+ *		the reference
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @fdb_id:	Returned Forwarding Database Identifier
+ * @cfg:	FDB Configuration
+ *
+ * Return:	Completion status. '0' on Success; Error code otherwise.
+ */
+int dpsw_fdb_add(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token, u16 *fdb_id,
+		 const struct dpsw_fdb_cfg *cfg)
+{
+	struct dpsw_cmd_fdb_add *cmd_params;
+	struct dpsw_rsp_fdb_add *rsp_params;
+	struct fsl_mc_command cmd = { 0 };
+	int err;
+
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_FDB_ADD,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpsw_cmd_fdb_add *)cmd.params;
+	cmd_params->fdb_ageing_time = cpu_to_le16(cfg->fdb_ageing_time);
+	cmd_params->num_fdb_entries = cpu_to_le16(cfg->num_fdb_entries);
+
+	err = mc_send_command(mc_io, &cmd);
+	if (err)
+		return err;
+
+	rsp_params = (struct dpsw_rsp_fdb_add *)cmd.params;
+	*fdb_id = le16_to_cpu(rsp_params->fdb_id);
+
+	return 0;
+}
+
+/**
+ * dpsw_fdb_remove() - Remove FDB from switch
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @fdb_id:	Forwarding Database Identifier
+ *
+ * Return:	Completion status. '0' on Success; Error code otherwise.
+ */
+int dpsw_fdb_remove(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token, u16 fdb_id)
+{
+	struct dpsw_cmd_fdb_remove *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_FDB_REMOVE,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpsw_cmd_fdb_remove *)cmd.params;
+	cmd_params->fdb_id = cpu_to_le16(fdb_id);
+
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
  * dpsw_fdb_add_unicast() - Function adds an unicast entry into MAC lookup table
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
@@ -1152,33 +1191,97 @@ int dpsw_fdb_remove_multicast(struct fsl_mc_io *mc_io,
 }
 
 /**
- * dpsw_fdb_set_learning_mode() - Define FDB learning mode
+ * dpsw_ctrl_if_get_attributes() - Obtain control interface attributes
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPSW object
- * @fdb_id:	Forwarding Database Identifier
- * @mode:	Learning mode
+ * @attr:	Returned control interface attributes
  *
- * Return:	Completion status. '0' on Success; Error code otherwise.
+ * Return:	'0' on Success; Error code otherwise.
  */
-int dpsw_fdb_set_learning_mode(struct fsl_mc_io *mc_io,
-			       u32 cmd_flags,
-			       u16 token,
-			       u16 fdb_id,
-			       enum dpsw_fdb_learning_mode mode)
+int dpsw_ctrl_if_get_attributes(struct fsl_mc_io *mc_io, u32 cmd_flags,
+				u16 token, struct dpsw_ctrl_if_attr *attr)
 {
+	struct dpsw_rsp_ctrl_if_get_attr *rsp_params;
 	struct fsl_mc_command cmd = { 0 };
-	struct dpsw_cmd_fdb_set_learning_mode *cmd_params;
+	int err;
 
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPSW_CMDID_FDB_SET_LEARNING_MODE,
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_CTRL_IF_GET_ATTR,
+					  cmd_flags, token);
+
+	err = mc_send_command(mc_io, &cmd);
+	if (err)
+		return err;
+
+	rsp_params = (struct dpsw_rsp_ctrl_if_get_attr *)cmd.params;
+	attr->rx_fqid = le32_to_cpu(rsp_params->rx_fqid);
+	attr->rx_err_fqid = le32_to_cpu(rsp_params->rx_err_fqid);
+	attr->tx_err_conf_fqid = le32_to_cpu(rsp_params->tx_err_conf_fqid);
+
+	return 0;
+}
+
+/**
+ * dpsw_ctrl_if_set_pools() - Set control interface buffer pools
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @cfg:	Buffer pools configuration
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dpsw_ctrl_if_set_pools(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			   const struct dpsw_ctrl_if_pools_cfg *cfg)
+{
+	struct dpsw_cmd_ctrl_if_set_pools *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+	int i;
+
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_CTRL_IF_SET_POOLS,
+					  cmd_flags, token);
+	cmd_params = (struct dpsw_cmd_ctrl_if_set_pools *)cmd.params;
+	cmd_params->num_dpbp = cfg->num_dpbp;
+	for (i = 0; i < DPSW_MAX_DPBP; i++) {
+		cmd_params->dpbp_id[i] = cpu_to_le32(cfg->pools[i].dpbp_id);
+		cmd_params->buffer_size[i] =
+			cpu_to_le16(cfg->pools[i].buffer_size);
+		cmd_params->backup_pool_mask |=
+			DPSW_BACKUP_POOL(cfg->pools[i].backup_pool, i);
+	}
+
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
+ * dpsw_ctrl_if_set_queue() - Set Rx queue configuration
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of dpsw object
+ * @qtype:	dpsw_queue_type of the targeted queue
+ * @cfg:	Rx queue configuration
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dpsw_ctrl_if_set_queue(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			   enum dpsw_queue_type qtype,
+			   const struct dpsw_ctrl_if_queue_cfg *cfg)
+{
+	struct dpsw_cmd_ctrl_if_set_queue *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_CTRL_IF_SET_QUEUE,
 					  cmd_flags,
 					  token);
-	cmd_params = (struct dpsw_cmd_fdb_set_learning_mode *)cmd.params;
-	cmd_params->fdb_id = cpu_to_le16(fdb_id);
-	dpsw_set_field(cmd_params->mode, LEARNING_MODE, mode);
+	cmd_params = (struct dpsw_cmd_ctrl_if_set_queue *)cmd.params;
+	cmd_params->dest_id = cpu_to_le32(cfg->dest_cfg.dest_id);
+	cmd_params->dest_priority = cfg->dest_cfg.priority;
+	cmd_params->qtype = qtype;
+	cmd_params->user_ctx = cpu_to_le64(cfg->user_ctx);
+	cmd_params->options = cpu_to_le32(cfg->options);
+	dpsw_set_field(cmd_params->dest_type,
+		       DEST_TYPE,
+		       cfg->dest_cfg.dest_type);
 
-	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
 
@@ -1318,5 +1421,66 @@ int dpsw_if_set_primary_mac_addr(struct fsl_mc_io *mc_io, u32 cmd_flags,
 		cmd_params->mac_addr[i] = mac_addr[5 - i];
 
 	/* send command to mc*/
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
+ * dpsw_ctrl_if_enable() - Enable control interface
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dpsw_ctrl_if_enable(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token)
+{
+	struct fsl_mc_command cmd = { 0 };
+
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_CTRL_IF_ENABLE, cmd_flags,
+					  token);
+
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
+ * dpsw_ctrl_if_disable() - Function disables control interface
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dpsw_ctrl_if_disable(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token)
+{
+	struct fsl_mc_command cmd = { 0 };
+
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_CTRL_IF_DISABLE,
+					  cmd_flags,
+					  token);
+
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
+ * dpsw_set_egress_flood() - Set egress parameters associated with an FDB ID
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @cfg:	Egress flooding configuration
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dpsw_set_egress_flood(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			  const struct dpsw_egress_flood_cfg *cfg)
+{
+	struct dpsw_cmd_set_egress_flood *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_SET_EGRESS_FLOOD, cmd_flags, token);
+	cmd_params = (struct dpsw_cmd_set_egress_flood *)cmd.params;
+	cmd_params->fdb_id = cpu_to_le16(cfg->fdb_id);
+	cmd_params->flood_type = cfg->flood_type;
+	build_if_id_bitmap(&cmd_params->if_id, cfg->if_id, cfg->num_ifs);
+
 	return mc_send_command(mc_io, &cmd);
 }
