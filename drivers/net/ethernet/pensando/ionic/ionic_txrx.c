@@ -66,6 +66,76 @@ static struct sk_buff *ionic_rx_skb_alloc(struct ionic_queue *q,
 	return skb;
 }
 
+static int ionic_rx_page_alloc(struct ionic_queue *q,
+			       struct ionic_page_info *page_info)
+{
+	struct ionic_lif *lif = q->lif;
+	struct ionic_rx_stats *stats;
+	struct net_device *netdev;
+	struct device *dev;
+
+	netdev = lif->netdev;
+	dev = lif->ionic->dev;
+	stats = q_to_rx_stats(q);
+
+	if (unlikely(!page_info)) {
+		net_err_ratelimited("%s: %s invalid page_info in alloc\n",
+				    netdev->name, q->name);
+		return -EINVAL;
+	}
+
+	page_info->page = dev_alloc_page();
+	if (unlikely(!page_info->page)) {
+		net_err_ratelimited("%s: %s page alloc failed\n",
+				    netdev->name, q->name);
+		stats->alloc_err++;
+		return -ENOMEM;
+	}
+
+	page_info->dma_addr = dma_map_page(dev, page_info->page, 0, PAGE_SIZE,
+					   DMA_FROM_DEVICE);
+	if (unlikely(dma_mapping_error(dev, page_info->dma_addr))) {
+		put_page(page_info->page);
+		page_info->dma_addr = 0;
+		page_info->page = NULL;
+		net_err_ratelimited("%s: %s dma map failed\n",
+				    netdev->name, q->name);
+		stats->dma_map_err++;
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static void ionic_rx_page_free(struct ionic_queue *q,
+			       struct ionic_page_info *page_info)
+{
+	struct ionic_lif *lif = q->lif;
+	struct net_device *netdev;
+	struct device *dev;
+
+	netdev = lif->netdev;
+	dev = lif->ionic->dev;
+
+	if (unlikely(!page_info)) {
+		net_err_ratelimited("%s: %s invalid page_info in free\n",
+				    netdev->name, q->name);
+		return;
+	}
+
+	if (unlikely(!page_info->page)) {
+		net_err_ratelimited("%s: %s invalid page in free\n",
+				    netdev->name, q->name);
+		return;
+	}
+
+	dma_unmap_page(dev, page_info->dma_addr, PAGE_SIZE, DMA_FROM_DEVICE);
+
+	put_page(page_info->page);
+	page_info->dma_addr = 0;
+	page_info->page = NULL;
+}
+
 static struct sk_buff *ionic_rx_frags(struct ionic_queue *q,
 				      struct ionic_desc_info *desc_info,
 				      struct ionic_cq_info *cq_info)
@@ -251,76 +321,6 @@ static bool ionic_rx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
 	desc_info->cb_arg = NULL;
 
 	return true;
-}
-
-static int ionic_rx_page_alloc(struct ionic_queue *q,
-			       struct ionic_page_info *page_info)
-{
-	struct ionic_lif *lif = q->lif;
-	struct ionic_rx_stats *stats;
-	struct net_device *netdev;
-	struct device *dev;
-
-	netdev = lif->netdev;
-	dev = lif->ionic->dev;
-	stats = q_to_rx_stats(q);
-
-	if (unlikely(!page_info)) {
-		net_err_ratelimited("%s: %s invalid page_info in alloc\n",
-				    netdev->name, q->name);
-		return -EINVAL;
-	}
-
-	page_info->page = dev_alloc_page();
-	if (unlikely(!page_info->page)) {
-		net_err_ratelimited("%s: %s page alloc failed\n",
-				    netdev->name, q->name);
-		stats->alloc_err++;
-		return -ENOMEM;
-	}
-
-	page_info->dma_addr = dma_map_page(dev, page_info->page, 0, PAGE_SIZE,
-					   DMA_FROM_DEVICE);
-	if (unlikely(dma_mapping_error(dev, page_info->dma_addr))) {
-		put_page(page_info->page);
-		page_info->dma_addr = 0;
-		page_info->page = NULL;
-		net_err_ratelimited("%s: %s dma map failed\n",
-				    netdev->name, q->name);
-		stats->dma_map_err++;
-		return -EIO;
-	}
-
-	return 0;
-}
-
-static void ionic_rx_page_free(struct ionic_queue *q,
-			       struct ionic_page_info *page_info)
-{
-	struct ionic_lif *lif = q->lif;
-	struct net_device *netdev;
-	struct device *dev;
-
-	netdev = lif->netdev;
-	dev = lif->ionic->dev;
-
-	if (unlikely(!page_info)) {
-		net_err_ratelimited("%s: %s invalid page_info in free\n",
-				    netdev->name, q->name);
-		return;
-	}
-
-	if (unlikely(!page_info->page)) {
-		net_err_ratelimited("%s: %s invalid page in free\n",
-				    netdev->name, q->name);
-		return;
-	}
-
-	dma_unmap_page(dev, page_info->dma_addr, PAGE_SIZE, DMA_FROM_DEVICE);
-
-	put_page(page_info->page);
-	page_info->dma_addr = 0;
-	page_info->page = NULL;
 }
 
 void ionic_rx_fill(struct ionic_queue *q)
