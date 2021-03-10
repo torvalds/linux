@@ -576,7 +576,6 @@
 
 		target-module@40000 {			/* 0x4a140000, ap 31 06.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "sata";
 			reg = <0x400fc 4>,
 			      <0x41100 4>;
 			reg-names = "rev", "sysc";
