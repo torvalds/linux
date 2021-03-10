@@ -98,12 +98,14 @@ struct enetc_cbdr {
 	void *bd_base; /* points to Rx or Tx BD ring */
 	void __iomem *pir;
 	void __iomem *cir;
+	void __iomem *mr; /* mode register */
 
 	int bd_count; /* # of BDs */
 	int next_to_use;
 	int next_to_clean;
 
 	dma_addr_t bd_dma_base;
+	struct device *dma_dev;
 };
 
 #define ENETC_TXBD(BDR, i) (&(((union enetc_tx_bd *)((BDR).bd_base))[i]))
@@ -119,19 +121,26 @@ static inline union enetc_rx_bd *enetc_rxbd(struct enetc_bdr *rx_ring, int i)
 	return &(((union enetc_rx_bd *)rx_ring->bd_base)[hw_idx]);
 }
 
-static inline union enetc_rx_bd *enetc_rxbd_next(struct enetc_bdr *rx_ring,
-						 union enetc_rx_bd *rxbd,
-						 int i)
+static inline void enetc_rxbd_next(struct enetc_bdr *rx_ring,
+				   union enetc_rx_bd **old_rxbd, int *old_index)
 {
-	rxbd++;
+	union enetc_rx_bd *new_rxbd = *old_rxbd;
+	int new_index = *old_index;
+
+	new_rxbd++;
+
 #ifdef CONFIG_FSL_ENETC_PTP_CLOCK
 	if (rx_ring->ext_en)
-		rxbd++;
+		new_rxbd++;
 #endif
-	if (unlikely(++i == rx_ring->bd_count))
-		rxbd = rx_ring->bd_base;
 
-	return rxbd;
+	if (unlikely(++new_index == rx_ring->bd_count)) {
+		new_rxbd = rx_ring->bd_base;
+		new_index = 0;
+	}
+
+	*old_rxbd = new_rxbd;
+	*old_index = new_index;
 }
 
 static inline union enetc_rx_bd *enetc_rxbd_ext(union enetc_rx_bd *rxbd)
@@ -252,7 +261,7 @@ struct enetc_ndev_priv {
 	u16 rx_bd_count, tx_bd_count;
 
 	u16 msg_enable;
-	int active_offloads;
+	enum enetc_active_offloads active_offloads;
 
 	u32 speed; /* store speed for compare update pspeed */
 
@@ -310,10 +319,9 @@ int enetc_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 void enetc_set_ethtool_ops(struct net_device *ndev);
 
 /* control buffer descriptor ring (CBDR) */
-int enetc_alloc_cbdr(struct device *dev, struct enetc_cbdr *cbdr);
-void enetc_free_cbdr(struct device *dev, struct enetc_cbdr *cbdr);
-void enetc_setup_cbdr(struct enetc_hw *hw, struct enetc_cbdr *cbdr);
-void enetc_clear_cbdr(struct enetc_hw *hw);
+int enetc_setup_cbdr(struct device *dev, struct enetc_hw *hw, int bd_count,
+		     struct enetc_cbdr *cbdr);
+void enetc_teardown_cbdr(struct enetc_cbdr *cbdr);
 int enetc_set_mac_flt_entry(struct enetc_si *si, int index,
 			    char *mac_addr, int si_map);
 int enetc_clear_mac_flt_entry(struct enetc_si *si, int index);

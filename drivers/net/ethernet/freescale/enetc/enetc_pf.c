@@ -1081,26 +1081,6 @@ static int enetc_init_port_rss_memory(struct enetc_si *si)
 	return err;
 }
 
-static void enetc_init_unused_port(struct enetc_si *si)
-{
-	struct device *dev = &si->pdev->dev;
-	struct enetc_hw *hw = &si->hw;
-	int err;
-
-	si->cbd_ring.bd_count = ENETC_CBDR_DEFAULT_SIZE;
-	err = enetc_alloc_cbdr(dev, &si->cbd_ring);
-	if (err)
-		return;
-
-	enetc_setup_cbdr(hw, &si->cbd_ring);
-
-	enetc_init_port_rfs_memory(si);
-	enetc_init_port_rss_memory(si);
-
-	enetc_clear_cbdr(hw);
-	enetc_free_cbdr(dev, &si->cbd_ring);
-}
-
 static int enetc_pf_probe(struct pci_dev *pdev,
 			  const struct pci_device_id *ent)
 {
@@ -1124,8 +1104,24 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 		goto err_map_pf_space;
 	}
 
+	err = enetc_setup_cbdr(&pdev->dev, &si->hw, ENETC_CBDR_DEFAULT_SIZE,
+			       &si->cbd_ring);
+	if (err)
+		goto err_setup_cbdr;
+
+	err = enetc_init_port_rfs_memory(si);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to initialize RFS memory\n");
+		goto err_init_port_rfs;
+	}
+
+	err = enetc_init_port_rss_memory(si);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to initialize RSS memory\n");
+		goto err_init_port_rss;
+	}
+
 	if (node && !of_device_is_available(node)) {
-		enetc_init_unused_port(si);
 		dev_info(&pdev->dev, "device is disabled, skipping\n");
 		err = -ENODEV;
 		goto err_device_disabled;
@@ -1156,18 +1152,6 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 	if (err) {
 		dev_err(&pdev->dev, "SI resource alloc failed\n");
 		goto err_alloc_si_res;
-	}
-
-	err = enetc_init_port_rfs_memory(si);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to initialize RFS memory\n");
-		goto err_init_port_rfs;
-	}
-
-	err = enetc_init_port_rss_memory(si);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to initialize RSS memory\n");
-		goto err_init_port_rss;
 	}
 
 	err = enetc_configure_si(priv);
@@ -1205,15 +1189,17 @@ err_phylink_create:
 err_mdiobus_create:
 	enetc_free_msix(priv);
 err_config_si:
-err_init_port_rss:
-err_init_port_rfs:
 err_alloc_msix:
 	enetc_free_si_resources(priv);
 err_alloc_si_res:
 	si->ndev = NULL;
 	free_netdev(ndev);
 err_alloc_netdev:
+err_init_port_rss:
+err_init_port_rfs:
 err_device_disabled:
+	enetc_teardown_cbdr(&si->cbd_ring);
+err_setup_cbdr:
 err_map_pf_space:
 	enetc_pci_remove(pdev);
 
