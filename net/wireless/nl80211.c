@@ -14789,6 +14789,7 @@ bad_tid_conf:
 #define NL80211_FLAG_NEED_WDEV_UP	(NL80211_FLAG_NEED_WDEV |\
 					 NL80211_FLAG_CHECK_NETDEV_UP)
 #define NL80211_FLAG_CLEAR_SKB		0x20
+#define NL80211_FLAG_NO_WIPHY_MTX	0x40
 
 static int nl80211_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
 			    struct genl_info *info)
@@ -14840,7 +14841,7 @@ static int nl80211_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
 		info->user_ptr[0] = rdev;
 	}
 
-	if (rdev) {
+	if (rdev && !(ops->internal_flags & NL80211_FLAG_NO_WIPHY_MTX)) {
 		wiphy_lock(&rdev->wiphy);
 		/* we keep the mutex locked until post_doit */
 		__release(&rdev->wiphy.mtx);
@@ -14865,7 +14866,8 @@ static void nl80211_post_doit(const struct genl_ops *ops, struct sk_buff *skb,
 		}
 	}
 
-	if (info->user_ptr[0]) {
+	if (info->user_ptr[0] &&
+	    !(ops->internal_flags & NL80211_FLAG_NO_WIPHY_MTX)) {
 		struct cfg80211_registered_device *rdev = info->user_ptr[0];
 
 		/* we kept the mutex locked since pre_doit */
@@ -15329,7 +15331,9 @@ static const struct genl_small_ops nl80211_small_ops[] = {
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl80211_wiphy_netns,
 		.flags = GENL_UNS_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_WIPHY,
+		.internal_flags = NL80211_FLAG_NEED_WIPHY |
+				  NL80211_FLAG_NEED_RTNL |
+				  NL80211_FLAG_NO_WIPHY_MTX,
 	},
 	{
 		.cmd = NL80211_CMD_GET_SURVEY,
