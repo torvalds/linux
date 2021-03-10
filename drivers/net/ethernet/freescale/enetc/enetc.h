@@ -104,6 +104,7 @@ struct enetc_cbdr {
 	int next_to_clean;
 
 	dma_addr_t bd_dma_base;
+	struct device *dma_dev;
 };
 
 #define ENETC_TXBD(BDR, i) (&(((union enetc_tx_bd *)((BDR).bd_base))[i]))
@@ -311,7 +312,7 @@ void enetc_set_ethtool_ops(struct net_device *ndev);
 
 /* control buffer descriptor ring (CBDR) */
 int enetc_alloc_cbdr(struct device *dev, struct enetc_cbdr *cbdr);
-void enetc_free_cbdr(struct device *dev, struct enetc_cbdr *cbdr);
+void enetc_free_cbdr(struct enetc_cbdr *cbdr);
 void enetc_setup_cbdr(struct enetc_hw *hw, struct enetc_cbdr *cbdr);
 void enetc_clear_cbdr(struct enetc_hw *hw);
 int enetc_set_mac_flt_entry(struct enetc_si *si, int index,

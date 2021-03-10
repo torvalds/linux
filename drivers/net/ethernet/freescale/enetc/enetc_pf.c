@@ -1098,7 +1098,7 @@ static void enetc_init_unused_port(struct enetc_si *si)
 	enetc_init_port_rss_memory(si);
 
 	enetc_clear_cbdr(hw);
-	enetc_free_cbdr(dev, &si->cbd_ring);
+	enetc_free_cbdr(&si->cbd_ring);
 }
 
 static int enetc_pf_probe(struct pci_dev *pdev,
