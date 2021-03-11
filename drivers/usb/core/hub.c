@@ -4830,9 +4830,13 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 						"%s SuperSpeed%s%s USB device number %d using %s\n",
 						(udev->config) ? "reset" : "new",
 					 (udev->speed == USB_SPEED_SUPER_PLUS) ?
-							"Plus Gen 2" : " Gen 1",
-					 (udev->rx_lanes == 2 && udev->tx_lanes == 2) ?
-							"x2" : "",
+							" Plus" : "",
+					 (udev->ssp_rate == USB_SSP_GEN_2x2) ?
+							" Gen 2x2" :
+					 (udev->ssp_rate == USB_SSP_GEN_2x1) ?
+							" Gen 2x1" :
+					 (udev->ssp_rate == USB_SSP_GEN_1x2) ?
+							" Gen 1x2" : "",
 					 devnum, driver_name);
 			}
 
