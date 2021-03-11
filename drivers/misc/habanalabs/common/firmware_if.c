@@ -342,6 +342,9 @@ static int fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg,
 		dev_err(hdev->dev, "Device boot error - eFuse failure\n");
 	if (err_val & CPU_BOOT_ERR0_PLL_FAIL)
 		dev_err(hdev->dev, "Device boot error - PLL failure\n");
+	if (err_val & CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL)
+		dev_err(hdev->dev,
+			"Device boot error - device unusable failure\n");
 
 	security_val = RREG32(cpu_security_boot_status_reg);
 	if (security_val & CPU_BOOT_DEV_STS0_ENABLED)
