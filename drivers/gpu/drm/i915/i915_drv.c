@@ -1029,10 +1029,18 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 	intel_suspend_encoders(i915);
 	intel_shutdown_encoders(i915);
 
+	intel_csr_ucode_suspend(i915);
+
 	/*
 	 * The only requirement is to reboot with display DC states disabled,
 	 * for now leaving all display power wells in the INIT power domain
-	 * enabled matching the driver reload sequence.
+	 * enabled.
+	 *
+	 * TODO:
+	 * - unify the pci_driver::shutdown sequence here with the
+	 *   pci_driver.driver.pm.poweroff,poweroff_late sequence.
+	 * - unify the driver remove and system/runtime suspend sequences with
+	 *   the above unified shutdown/poweroff sequence.
 	 */
 	intel_power_domains_driver_remove(i915);
 	enable_rpm_wakeref_asserts(&i915->runtime_pm);
