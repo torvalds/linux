@@ -317,7 +317,7 @@ int arizona_init_vol_limit(struct arizona *arizona);
 int arizona_init_spk_irqs(struct arizona *arizona);
 int arizona_free_spk_irqs(struct arizona *arizona);
 
-int arizona_init_dai(struct arizona_priv *priv, int dai);
+int arizona_init_dai(struct arizona_priv *priv, int id);
 
 int arizona_set_output_mode(struct snd_soc_component *component, int output,
 			    bool diff);
