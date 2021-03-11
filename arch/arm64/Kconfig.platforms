@@ -256,8 +256,12 @@ config ARCH_SEATTLE
 
 config ARCH_STRATIX10
 	bool "Altera's Stratix 10 SoCFPGA Family"
+	select ARCH_INTEL_SOCFPGA
 	help
 	  This enables support for Altera's Stratix 10 SoCFPGA Family.
+
+config ARCH_INTEL_SOCFPGA
+	bool
 
 config ARCH_SYNQUACER
 	bool "Socionext SynQuacer SoC Family"
