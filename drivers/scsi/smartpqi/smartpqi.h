@@ -129,7 +129,7 @@ struct pqi_iu_header {
 	__le16	iu_length;	/* in bytes - does not include the length */
 				/* of this header */
 	__le16	response_queue_id;	/* specifies the OQ where the */
-					/*   response IU is to be delivered */
+					/* response IU is to be delivered */
 	u8	work_area[2];	/* reserved for driver use */
 };
 
@@ -281,8 +281,7 @@ struct pqi_raid_path_request {
 	u8	cdb[16];
 	u8	reserved6[12];
 	__le32	timeout;
-	struct pqi_sg_descriptor
-		sg_descriptors[PQI_MAX_EMBEDDED_SG_DESCRIPTORS];
+	struct pqi_sg_descriptor sg_descriptors[PQI_MAX_EMBEDDED_SG_DESCRIPTORS];
 };
 
 struct pqi_aio_path_request {
@@ -309,11 +308,11 @@ struct pqi_aio_path_request {
 	u8	cdb_length;
 	u8	lun_number[8];
 	u8	reserved4[4];
-	struct pqi_sg_descriptor
-		sg_descriptors[PQI_MAX_EMBEDDED_SG_DESCRIPTORS];
+	struct pqi_sg_descriptor sg_descriptors[PQI_MAX_EMBEDDED_SG_DESCRIPTORS];
 };
 
 #define PQI_RAID1_NVME_XFER_LIMIT	(32 * 1024)	/* 32 KiB */
+
 struct pqi_aio_r1_path_request {
 	struct pqi_iu_header header;
 	__le16	request_id;
@@ -420,7 +419,7 @@ struct pqi_event_config {
 
 #define PQI_EVENT_OFA_MEMORY_ALLOCATION	0x0
 #define PQI_EVENT_OFA_QUIESCE		0x1
-#define PQI_EVENT_OFA_CANCELLED		0x2
+#define PQI_EVENT_OFA_CANCELED		0x2
 
 struct pqi_event_response {
 	struct pqi_iu_header header;
@@ -725,7 +724,7 @@ struct pqi_admin_queues_aligned {
 struct pqi_admin_queues {
 	void		*iq_element_array;
 	void		*oq_element_array;
-	pqi_index_t	*iq_ci;
+	pqi_index_t __iomem *iq_ci;
 	pqi_index_t __iomem *oq_pi;
 	dma_addr_t	iq_element_array_bus_addr;
 	dma_addr_t	oq_element_array_bus_addr;
@@ -750,8 +749,8 @@ struct pqi_queue_group {
 	dma_addr_t	oq_element_array_bus_addr;
 	__le32 __iomem	*iq_pi[2];
 	pqi_index_t	iq_pi_copy[2];
-	pqi_index_t __iomem	*iq_ci[2];
-	pqi_index_t __iomem	*oq_pi;
+	pqi_index_t __iomem *iq_ci[2];
+	pqi_index_t __iomem *oq_pi;
 	dma_addr_t	iq_ci_bus_addr[2];
 	dma_addr_t	oq_pi_bus_addr;
 	__le32 __iomem	*oq_ci;
@@ -764,7 +763,7 @@ struct pqi_event_queue {
 	u16		oq_id;
 	u16		int_msg_num;
 	void		*oq_element_array;
-	pqi_index_t __iomem	*oq_pi;
+	pqi_index_t __iomem *oq_pi;
 	dma_addr_t	oq_element_array_bus_addr;
 	dma_addr_t	oq_pi_bus_addr;
 	__le32 __iomem	*oq_ci;
@@ -835,21 +834,21 @@ struct pqi_config_table_firmware_features {
 /*	__le16	host_max_known_feature; */
 };
 
-#define PQI_FIRMWARE_FEATURE_OFA			0
-#define PQI_FIRMWARE_FEATURE_SMP			1
-#define PQI_FIRMWARE_FEATURE_MAX_KNOWN_FEATURE		2
-#define PQI_FIRMWARE_FEATURE_RAID_0_READ_BYPASS		3
-#define PQI_FIRMWARE_FEATURE_RAID_1_READ_BYPASS		4
-#define PQI_FIRMWARE_FEATURE_RAID_5_READ_BYPASS		5
-#define PQI_FIRMWARE_FEATURE_RAID_6_READ_BYPASS		6
-#define PQI_FIRMWARE_FEATURE_RAID_0_WRITE_BYPASS	7
-#define PQI_FIRMWARE_FEATURE_RAID_1_WRITE_BYPASS	8
-#define PQI_FIRMWARE_FEATURE_RAID_5_WRITE_BYPASS	9
-#define PQI_FIRMWARE_FEATURE_RAID_6_WRITE_BYPASS	10
-#define PQI_FIRMWARE_FEATURE_SOFT_RESET_HANDSHAKE	11
-#define PQI_FIRMWARE_FEATURE_UNIQUE_SATA_WWN		12
-#define PQI_FIRMWARE_FEATURE_RAID_IU_TIMEOUT		13
-#define PQI_FIRMWARE_FEATURE_TMF_IU_TIMEOUT		14
+#define PQI_FIRMWARE_FEATURE_OFA				0
+#define PQI_FIRMWARE_FEATURE_SMP				1
+#define PQI_FIRMWARE_FEATURE_MAX_KNOWN_FEATURE			2
+#define PQI_FIRMWARE_FEATURE_RAID_0_READ_BYPASS			3
+#define PQI_FIRMWARE_FEATURE_RAID_1_READ_BYPASS			4
+#define PQI_FIRMWARE_FEATURE_RAID_5_READ_BYPASS			5
+#define PQI_FIRMWARE_FEATURE_RAID_6_READ_BYPASS			6
+#define PQI_FIRMWARE_FEATURE_RAID_0_WRITE_BYPASS		7
+#define PQI_FIRMWARE_FEATURE_RAID_1_WRITE_BYPASS		8
+#define PQI_FIRMWARE_FEATURE_RAID_5_WRITE_BYPASS		9
+#define PQI_FIRMWARE_FEATURE_RAID_6_WRITE_BYPASS		10
+#define PQI_FIRMWARE_FEATURE_SOFT_RESET_HANDSHAKE		11
+#define PQI_FIRMWARE_FEATURE_UNIQUE_SATA_WWN			12
+#define PQI_FIRMWARE_FEATURE_RAID_IU_TIMEOUT			13
+#define PQI_FIRMWARE_FEATURE_TMF_IU_TIMEOUT			14
 #define PQI_FIRMWARE_FEATURE_RAID_BYPASS_ON_ENCRYPTED_NVME	15
 #define PQI_FIRMWARE_FEATURE_MAXIMUM				15
 
@@ -1027,12 +1026,12 @@ struct pqi_scsi_dev_raid_map_data {
 	u8	cdb[16];
 	u8	cdb_length;
 
-	/* RAID1 specific */
+	/* RAID 1 specific */
 #define NUM_RAID1_MAP_ENTRIES	3
 	u32	num_it_nexus_entries;
 	u32	it_nexus[NUM_RAID1_MAP_ENTRIES];
 
-	/* RAID5 RAID6 specific */
+	/* RAID 5 / RAID 6 specific */
 	u32	p_parity_it_nexus;	/* aio_handle */
 	u32	q_parity_it_nexus;	/* aio_handle */
 	u8	xor_mult;
@@ -1291,8 +1290,8 @@ struct pqi_ctrl_info {
 	u8		pqi_mode_enabled : 1;
 	u8		pqi_reset_quiesce_supported : 1;
 	u8		soft_reset_handshake_supported : 1;
-	u8		raid_iu_timeout_supported: 1;
-	u8		tmf_iu_timeout_supported: 1;
+	u8		raid_iu_timeout_supported : 1;
+	u8		tmf_iu_timeout_supported : 1;
 	u8		enable_r1_writes : 1;
 	u8		enable_r5_writes : 1;
 	u8		enable_r6_writes : 1;

@@ -107,8 +107,7 @@ static int pqi_sas_port_add_rphy(struct pqi_sas_port *pqi_sas_port,
 
 static struct sas_rphy *pqi_sas_rphy_alloc(struct pqi_sas_port *pqi_sas_port)
 {
-	if (pqi_sas_port->device &&
-		pqi_sas_port->device->is_expander_smp_device)
+	if (pqi_sas_port->device && pqi_sas_port->device->is_expander_smp_device)
 		return sas_expander_alloc(pqi_sas_port->port,
 				SAS_FANOUT_EXPANDER_DEVICE);
 
@@ -161,7 +160,7 @@ static void pqi_free_sas_port(struct pqi_sas_port *pqi_sas_port)
 
 	list_for_each_entry_safe(pqi_sas_phy, next,
 		&pqi_sas_port->phy_list_head, phy_list_entry)
-		pqi_free_sas_phy(pqi_sas_phy);
+			pqi_free_sas_phy(pqi_sas_phy);
 
 	sas_port_delete(pqi_sas_port->port);
 	list_del(&pqi_sas_port->port_list_entry);
@@ -191,7 +190,7 @@ static void pqi_free_sas_node(struct pqi_sas_node *pqi_sas_node)
 
 	list_for_each_entry_safe(pqi_sas_port, next,
 		&pqi_sas_node->port_list_head, port_list_entry)
-		pqi_free_sas_port(pqi_sas_port);
+			pqi_free_sas_port(pqi_sas_port);
 
 	kfree(pqi_sas_node);
 }
@@ -498,7 +497,7 @@ static unsigned int pqi_build_sas_smp_handler_reply(
 
 	job->reply_len = le16_to_cpu(error_info->sense_data_length);
 	memcpy(job->reply, error_info->data,
-			le16_to_cpu(error_info->sense_data_length));
+		le16_to_cpu(error_info->sense_data_length));
 
 	return job->reply_payload.payload_len -
 		get_unaligned_le32(&error_info->data_in_transferred);
@@ -547,6 +546,7 @@ void pqi_sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 		goto out;
 
 	reslen = pqi_build_sas_smp_handler_reply(smp_buf, job, &error_info);
+
 out:
 	bsg_job_done(job, rc, reslen);
 }
