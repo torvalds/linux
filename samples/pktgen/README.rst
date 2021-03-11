@@ -28,6 +28,7 @@ across the sample scripts.  Usage example is printed on errors::
   -b : ($BURST)     HW level bursting of SKBs
   -v : ($VERBOSE)   verbose
   -x : ($DEBUG)     debug
+  -w : ($DELAY)     Tx Delay value (ns)
 
 The global variable being set is also listed.  E.g. the required
 interface/device parameter "-i" sets variable $DEV.

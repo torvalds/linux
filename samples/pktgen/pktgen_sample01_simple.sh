@@ -31,9 +31,6 @@ if [ -n "$DST_PORT" ]; then
     validate_ports $UDP_DST_MIN $UDP_DST_MAX
 fi
 
-# Base Config
-DELAY="0"        # Zero means max speed
-
 # Flow variation random source port between min and max
 UDP_SRC_MIN=9
 UDP_SRC_MAX=109
