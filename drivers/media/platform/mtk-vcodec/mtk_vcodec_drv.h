@@ -59,12 +59,12 @@ enum mtk_instance_type {
 
 /**
  * enum mtk_instance_state - The state of an MTK Vcodec instance.
- * @MTK_STATE_FREE - default state when instance is created
- * @MTK_STATE_INIT - vcodec instance is initialized
- * @MTK_STATE_HEADER - vdec had sps/pps header parsed or venc
+ * @MTK_STATE_FREE: default state when instance is created
+ * @MTK_STATE_INIT: vcodec instance is initialized
+ * @MTK_STATE_HEADER: vdec had sps/pps header parsed or venc
  *			had sps/pps header encoded
- * @MTK_STATE_FLUSH - vdec is flushing. Only used by decoder
- * @MTK_STATE_ABORT - vcodec should be aborted
+ * @MTK_STATE_FLUSH: vdec is flushing. Only used by decoder
+ * @MTK_STATE_ABORT: vcodec should be aborted
  */
 enum mtk_instance_state {
 	MTK_STATE_FREE = 0,
@@ -75,7 +75,7 @@ enum mtk_instance_state {
 };
 
 /**
- * struct mtk_encode_param - General encoding parameters type
+ * enum mtk_encode_param - General encoding parameters type
  */
 enum mtk_encode_param {
 	MTK_ENCODE_PARAM_NONE = 0,
@@ -112,7 +112,7 @@ struct mtk_codec_framesizes {
 };
 
 /**
- * struct mtk_q_type - Type of queue
+ * enum mtk_q_type - Type of queue
  */
 enum mtk_q_type {
 	MTK_Q_DATA_SRC = 0,
