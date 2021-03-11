@@ -183,7 +183,97 @@ static void umc_v6_7_query_ras_error_count(struct amdgpu_device *adev,
 	umc_v6_7_reset_error_count(adev);
 }
 
+static void umc_v6_7_query_error_address(struct amdgpu_device *adev,
+					 struct ras_err_data *err_data,
+					 uint32_t umc_reg_offset,
+					 uint32_t ch_inst,
+					 uint32_t umc_inst)
+{
+	uint32_t mc_umc_status_addr;
+	uint64_t mc_umc_status, err_addr, retired_page, mc_umc_addrt0;
+	struct eeprom_table_record *err_rec;
+	uint32_t channel_index;
+
+	mc_umc_status_addr =
+		SOC15_REG_OFFSET(UMC, 0, regMCA_UMC_UMC0_MCUMC_STATUST0);
+	mc_umc_addrt0 =
+		SOC15_REG_OFFSET(UMC, 0, regMCA_UMC_UMC0_MCUMC_ADDRT0);
+
+	mc_umc_status = RREG64_PCIE((mc_umc_status_addr + umc_reg_offset) * 4);
+
+	if (mc_umc_status == 0)
+		return;
+
+	if (!err_data->err_addr) {
+		/* clear umc status */
+		WREG64_PCIE((mc_umc_status_addr + umc_reg_offset) * 4, 0x0ULL);
+		return;
+	}
+
+	err_rec = &err_data->err_addr[err_data->err_addr_cnt];
+
+	channel_index =
+		adev->umc.channel_idx_tbl[umc_inst * adev->umc.channel_inst_num + ch_inst];
+
+	/* calculate error address if ue/ce error is detected */
+	if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1 &&
+	    (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UECC) == 1 ||
+	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, CECC) == 1)) {
+
+		err_addr = RREG64_PCIE((mc_umc_addrt0 + umc_reg_offset) * 4);
+		err_addr = REG_GET_FIELD(err_addr, MCA_UMC_UMC0_MCUMC_ADDRT0, ErrorAddr);
+
+		/* translate umc channel address to soc pa, 3 parts are included */
+		retired_page = ADDR_OF_8KB_BLOCK(err_addr) |
+				ADDR_OF_256B_BLOCK(channel_index) |
+				OFFSET_IN_256B_BLOCK(err_addr);
+
+		/* we only save ue error information currently, ce is skipped */
+		if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UECC)
+				== 1) {
+			err_rec->address = err_addr;
+			/* page frame address is saved */
+			err_rec->retired_page = retired_page >> AMDGPU_GPU_PAGE_SHIFT;
+			err_rec->ts = (uint64_t)ktime_get_real_seconds();
+			err_rec->err_type = AMDGPU_RAS_EEPROM_ERR_NON_RECOVERABLE;
+			err_rec->cu = 0;
+			err_rec->mem_channel = channel_index;
+			err_rec->mcumc_id = umc_inst;
+
+			err_data->err_addr_cnt++;
+		}
+	}
+
+	/* clear umc status */
+	WREG64_PCIE((mc_umc_status_addr + umc_reg_offset) * 4, 0x0ULL);
+}
+
+static void umc_v6_7_query_ras_error_address(struct amdgpu_device *adev,
+					     void *ras_error_status)
+{
+	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
+
+	uint32_t umc_inst        = 0;
+	uint32_t ch_inst         = 0;
+	uint32_t umc_reg_offset  = 0;
+
+	/*TODO: driver needs to toggle DF Cstate to ensure
+	 * safe access of UMC resgisters. Will add the protection
+	 * when firmware interface is ready */
+	LOOP_UMC_INST_AND_CH(umc_inst, ch_inst) {
+		umc_reg_offset = get_umc_v6_7_reg_offset(adev,
+							 umc_inst,
+							 ch_inst);
+		umc_v6_7_query_error_address(adev,
+					     err_data,
+					     umc_reg_offset,
+					     ch_inst,
+					     umc_inst);
+	}
+}
+
 const struct amdgpu_umc_funcs umc_v6_7_funcs = {
 	.ras_late_init = amdgpu_umc_ras_late_init,
 	.query_ras_error_count = umc_v6_7_query_ras_error_count,
+	.query_ras_error_address = umc_v6_7_query_ras_error_address,
 };
