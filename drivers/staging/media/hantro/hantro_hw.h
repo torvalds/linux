@@ -99,7 +99,7 @@ struct hantro_mpeg2_dec_hw_ctx {
 };
 
 /**
- * struct hantro_vp8d_hw_ctx
+ * struct hantro_vp8_dec_hw_ctx
  * @segment_map:	Segment map buffer.
  * @prob_tbl:		Probability table buffer.
  */
