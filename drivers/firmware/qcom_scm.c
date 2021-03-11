@@ -331,7 +331,7 @@ int qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus)
 		.owner = ARM_SMCCC_OWNER_SIP,
 	};
 
-	if (!cpus || (cpus && cpumask_empty(cpus)))
+	if (!cpus || cpumask_empty(cpus))
 		return -EINVAL;
 
 	for_each_cpu(cpu, cpus) {
