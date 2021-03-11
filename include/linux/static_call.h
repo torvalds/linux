@@ -20,6 +20,7 @@
  *   static_call(name)(args...);
  *   static_call_cond(name)(args...);
  *   static_call_update(name, func);
+ *   static_call_query(name);
  *
  * Usage example:
  *
@@ -91,6 +92,10 @@
  *
  *   which will include the required value tests to avoid NULL-pointer
  *   dereferences.
+ *
+ *   To query which function is currently set to be called, use:
+ *
+ *   func = static_call_query(name);
  */
 
 #include <linux/types.h>
@@ -117,6 +122,8 @@ extern void arch_static_call_transform(void *site, void *tramp, void *func, bool
 	__static_call_update(&STATIC_CALL_KEY(name),			\
 			     STATIC_CALL_TRAMP_ADDR(name), func);	\
 })
+
+#define static_call_query(name) (READ_ONCE(STATIC_CALL_KEY(name).func))
 
 #ifdef CONFIG_HAVE_STATIC_CALL_INLINE
 
@@ -190,6 +197,7 @@ static inline int static_call_init(void) { return 0; }
 		.func = NULL,						\
 	};								\
 	ARCH_DEFINE_STATIC_CALL_NULL_TRAMP(name)
+
 
 #define static_call_cond(name)	(void)__static_call(name)
 
