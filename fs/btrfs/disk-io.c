@@ -2387,8 +2387,9 @@ static int btrfs_read_roots(struct btrfs_fs_info *fs_info)
 	} else {
 		set_bit(BTRFS_ROOT_TRACK_DIRTY, &root->state);
 		fs_info->dev_root = root;
-		btrfs_init_devices_late(fs_info);
 	}
+	/* Initialize fs_info for all devices in any case */
+	btrfs_init_devices_late(fs_info);
 
 	/* If IGNOREDATACSUMS is set don't bother reading the csum root. */
 	if (!btrfs_test_opt(fs_info, IGNOREDATACSUMS)) {
