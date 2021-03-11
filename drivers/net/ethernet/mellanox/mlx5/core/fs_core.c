@@ -1173,6 +1173,7 @@ mlx5_create_lag_demux_flow_table(struct mlx5_flow_namespace *ns,
 }
 EXPORT_SYMBOL(mlx5_create_lag_demux_flow_table);
 
+#define MAX_FLOW_GROUP_SIZE BIT(24)
 struct mlx5_flow_table*
 mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
 				    struct mlx5_flow_table_attr *ft_attr)
@@ -1191,6 +1192,10 @@ mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
 		goto err_validate;
 	if (num_reserved_entries > ft->max_fte)
 		goto err_validate;
+
+	/* Align the number of groups according to the largest group size */
+	if (autogroups_max_fte / (max_num_groups + 1) > MAX_FLOW_GROUP_SIZE)
+		max_num_groups = (autogroups_max_fte / MAX_FLOW_GROUP_SIZE) - 1;
 
 	ft->autogroup.active = true;
 	ft->autogroup.required_groups = max_num_groups;
