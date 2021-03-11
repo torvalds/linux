@@ -49,6 +49,8 @@ enum {
 #define MLXSW_SP_TRAP_METADATA DEVLINK_TRAP_METADATA_TYPE_F_IN_PORT
 
 enum {
+	/* Packet was mirrored from ingress. */
+	MLXSW_SP_MIRROR_REASON_INGRESS = 1,
 	/* Packet was early dropped. */
 	MLXSW_SP_MIRROR_REASON_INGRESS_WRED = 9,
 };
@@ -1753,6 +1755,7 @@ mlxsw_sp2_trap_group_items_arr[] = {
 		.group = DEVLINK_TRAP_GROUP_GENERIC(ACL_SAMPLE, 0),
 		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_PKT_SAMPLE,
 		.priority = 0,
+		.fixed_policer = true,
 	},
 };
 
@@ -1769,8 +1772,9 @@ mlxsw_sp2_trap_items_arr[] = {
 		.trap = MLXSW_SP_TRAP_CONTROL(FLOW_ACTION_SAMPLE, ACL_SAMPLE,
 					      MIRROR),
 		.listeners_arr = {
-			MLXSW_RXL(mlxsw_sp_rx_sample_listener, PKT_SAMPLE,
-				  MIRROR_TO_CPU, false, SP_PKT_SAMPLE, DISCARD),
+			MLXSW_RXL_MIRROR(mlxsw_sp_rx_sample_listener, 1,
+					 SP_PKT_SAMPLE,
+					 MLXSW_SP_MIRROR_REASON_INGRESS),
 		},
 	},
 };

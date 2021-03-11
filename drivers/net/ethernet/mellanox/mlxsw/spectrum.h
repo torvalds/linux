@@ -238,6 +238,7 @@ struct mlxsw_sp_port_sample {
 	u32 trunc_size;
 	u32 rate;
 	bool truncate;
+	int span_id;	/* Relevant for Spectrum-2 onwards. */
 };
 
 struct mlxsw_sp_bridge_port;

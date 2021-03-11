@@ -21,6 +21,7 @@ struct mlxsw_sp_port;
  */
 enum mlxsw_sp_span_session_id {
 	MLXSW_SP_SPAN_SESSION_ID_BUFFER,
+	MLXSW_SP_SPAN_SESSION_ID_SAMPLING,
 
 	__MLXSW_SP_SPAN_SESSION_ID_MAX = 8,
 };

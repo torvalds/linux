@@ -378,7 +378,60 @@ const struct mlxsw_sp_mall_ops mlxsw_sp1_mall_ops = {
 	.sample_del = mlxsw_sp1_mall_sample_del,
 };
 
+static int mlxsw_sp2_mall_sample_add(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_port *mlxsw_sp_port,
+				     u32 rate)
+{
+	struct mlxsw_sp_span_trigger_parms trigger_parms = {};
+	struct mlxsw_sp_span_agent_parms agent_parms = {
+		.to_dev = NULL,	/* Mirror to CPU. */
+		.session_id = MLXSW_SP_SPAN_SESSION_ID_SAMPLING,
+	};
+	struct mlxsw_sp_port_sample *sample;
+	int err;
+
+	sample = rtnl_dereference(mlxsw_sp_port->sample);
+
+	err = mlxsw_sp_span_agent_get(mlxsw_sp, &sample->span_id, &agent_parms);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_span_analyzed_port_get(mlxsw_sp_port, true);
+	if (err)
+		goto err_analyzed_port_get;
+
+	trigger_parms.span_id = sample->span_id;
+	trigger_parms.probability_rate = rate;
+	err = mlxsw_sp_span_agent_bind(mlxsw_sp, MLXSW_SP_SPAN_TRIGGER_INGRESS,
+				       mlxsw_sp_port, &trigger_parms);
+	if (err)
+		goto err_agent_bind;
+
+	return 0;
+
+err_agent_bind:
+	mlxsw_sp_span_analyzed_port_put(mlxsw_sp_port, true);
+err_analyzed_port_get:
+	mlxsw_sp_span_agent_put(mlxsw_sp, sample->span_id);
+	return err;
+}
+
+static void mlxsw_sp2_mall_sample_del(struct mlxsw_sp *mlxsw_sp,
+				      struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	struct mlxsw_sp_span_trigger_parms trigger_parms = {};
+	struct mlxsw_sp_port_sample *sample;
+
+	sample = rtnl_dereference(mlxsw_sp_port->sample);
+
+	trigger_parms.span_id = sample->span_id;
+	mlxsw_sp_span_agent_unbind(mlxsw_sp, MLXSW_SP_SPAN_TRIGGER_INGRESS,
+				   mlxsw_sp_port, &trigger_parms);
+	mlxsw_sp_span_analyzed_port_put(mlxsw_sp_port, true);
+	mlxsw_sp_span_agent_put(mlxsw_sp, sample->span_id);
+}
+
 const struct mlxsw_sp_mall_ops mlxsw_sp2_mall_ops = {
-	.sample_add = mlxsw_sp1_mall_sample_add,
-	.sample_del = mlxsw_sp1_mall_sample_del,
+	.sample_add = mlxsw_sp2_mall_sample_add,
+	.sample_del = mlxsw_sp2_mall_sample_del,
 };
