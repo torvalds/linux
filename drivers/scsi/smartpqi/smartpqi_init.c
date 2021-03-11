@@ -1441,6 +1441,9 @@ static int pqi_get_physical_device_info(struct pqi_ctrl_info *ctrl_info,
 		sizeof(device->phys_connector));
 	device->bay = id_phys->phys_bay_in_box;
 
+	memcpy(&device->page_83_identifier, &id_phys->page_83_identifier,
+		sizeof(device->page_83_identifier));
+
 	return 0;
 }
 
@@ -2045,6 +2048,16 @@ static inline bool pqi_expose_device(struct pqi_scsi_dev *device)
 	return !device->is_physical_device || !pqi_skip_device(device->scsi3addr);
 }
 
+static inline void pqi_set_physical_device_wwid(struct pqi_ctrl_info *ctrl_info,
+	struct pqi_scsi_dev *device, struct report_phys_lun_extended_entry *phys_lun_ext_entry)
+{
+	if (ctrl_info->unique_wwid_in_report_phys_lun_supported ||
+		pqi_is_device_with_sas_address(device))
+		device->wwid = phys_lun_ext_entry->wwid;
+	else
+		device->wwid = cpu_to_be64(get_unaligned_be64(&device->page_83_identifier));
+}
+
 static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 {
 	int i;
@@ -2210,7 +2223,7 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 		pqi_assign_bus_target_lun(device);
 
 		if (device->is_physical_device) {
-			device->wwid = phys_lun_ext_entry->wwid;
+			pqi_set_physical_device_wwid(ctrl_info, device, phys_lun_ext_entry);
 			if ((phys_lun_ext_entry->device_flags &
 				CISS_REPORT_PHYS_DEV_FLAG_AIO_ENABLED) &&
 				phys_lun_ext_entry->aio_handle) {
@@ -7407,6 +7420,10 @@ static void pqi_ctrl_update_feature_flags(struct pqi_ctrl_info *ctrl_info,
 	case PQI_FIRMWARE_FEATURE_TMF_IU_TIMEOUT:
 		ctrl_info->tmf_iu_timeout_supported = firmware_feature->enabled;
 		break;
+	case PQI_FIRMWARE_FEATURE_UNIQUE_WWID_IN_REPORT_PHYS_LUN:
+		ctrl_info->unique_wwid_in_report_phys_lun_supported =
+			firmware_feature->enabled;
+		break;
 	}
 
 	pqi_firmware_feature_status(ctrl_info, firmware_feature);
@@ -7496,6 +7513,11 @@ static struct pqi_firmware_feature pqi_firmware_features[] = {
 		.feature_name = "RAID Bypass on encrypted logical volumes on NVMe",
 		.feature_bit = PQI_FIRMWARE_FEATURE_RAID_BYPASS_ON_ENCRYPTED_NVME,
 		.feature_status = pqi_firmware_feature_status,
+	},
+	{
+		.feature_name = "Unique WWID in Report Physical LUN",
+		.feature_bit = PQI_FIRMWARE_FEATURE_UNIQUE_WWID_IN_REPORT_PHYS_LUN,
+		.feature_status = pqi_ctrl_update_feature_flags,
 	},
 };
 
