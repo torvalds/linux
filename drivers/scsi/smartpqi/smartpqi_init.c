@@ -45,6 +45,9 @@
 
 #define PQI_EXTRA_SGL_MEMORY	(12 * sizeof(struct pqi_sg_descriptor))
 
+#define PQI_POST_RESET_DELAY_SECS			5
+#define PQI_POST_OFA_RESET_DELAY_UPON_TIMEOUT_SECS	10
+
 MODULE_AUTHOR("Microsemi");
 MODULE_DESCRIPTION("Driver for Microsemi Smart Family Controller version "
 	DRIVER_VERSION);
@@ -76,9 +79,8 @@ static int pqi_aio_submit_r56_write_io(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev_raid_map_data *rmd);
 static void pqi_ofa_ctrl_quiesce(struct pqi_ctrl_info *ctrl_info);
 static void pqi_ofa_ctrl_unquiesce(struct pqi_ctrl_info *ctrl_info);
-static int pqi_ofa_ctrl_restart(struct pqi_ctrl_info *ctrl_info);
-static void pqi_ofa_setup_host_buffer(struct pqi_ctrl_info *ctrl_info,
-	u32 bytes_requested);
+static int pqi_ofa_ctrl_restart(struct pqi_ctrl_info *ctrl_info, unsigned int delay_secs);
+static void pqi_ofa_setup_host_buffer(struct pqi_ctrl_info *ctrl_info);
 static void pqi_ofa_free_host_buffer(struct pqi_ctrl_info *ctrl_info);
 static int pqi_ofa_host_memory_update(struct pqi_ctrl_info *ctrl_info);
 static int pqi_device_wait_for_pending_io(struct pqi_ctrl_info *ctrl_info,
@@ -345,24 +347,25 @@ static inline bool pqi_device_offline(struct pqi_scsi_dev *device)
 	return device->device_offline;
 }
 
-static inline bool pqi_device_in_reset(struct pqi_scsi_dev *device)
-{
-	return device->in_reset;
-}
-
 static inline void pqi_ctrl_ofa_start(struct pqi_ctrl_info *ctrl_info)
 {
-	ctrl_info->in_ofa = true;
+	mutex_lock(&ctrl_info->ofa_mutex);
 }
 
 static inline void pqi_ctrl_ofa_done(struct pqi_ctrl_info *ctrl_info)
 {
-	ctrl_info->in_ofa = false;
+	mutex_unlock(&ctrl_info->ofa_mutex);
 }
 
-static inline bool pqi_ctrl_in_ofa(struct pqi_ctrl_info *ctrl_info)
+static inline void pqi_wait_until_ofa_finished(struct pqi_ctrl_info *ctrl_info)
 {
-	return ctrl_info->in_ofa;
+	mutex_lock(&ctrl_info->ofa_mutex);
+	mutex_unlock(&ctrl_info->ofa_mutex);
+}
+
+static inline bool pqi_ofa_in_progress(struct pqi_ctrl_info *ctrl_info)
+{
+	return mutex_is_locked(&ctrl_info->ofa_mutex);
 }
 
 static inline void pqi_device_remove_start(struct pqi_scsi_dev *device)
@@ -375,22 +378,26 @@ static inline bool pqi_device_in_remove(struct pqi_scsi_dev *device)
 	return device->in_remove;
 }
 
-static inline void pqi_ctrl_shutdown_start(struct pqi_ctrl_info *ctrl_info)
+static inline int pqi_event_type_to_event_index(unsigned int event_type)
 {
-	ctrl_info->in_shutdown = true;
+	int index;
+
+	for (index = 0; index < ARRAY_SIZE(pqi_supported_event_types); index++)
+		if (event_type == pqi_supported_event_types[index])
+			return index;
+
+	return -1;
 }
 
-static inline bool pqi_ctrl_in_shutdown(struct pqi_ctrl_info *ctrl_info)
+static inline bool pqi_is_supported_event(unsigned int event_type)
 {
-	return ctrl_info->in_shutdown;
+	return pqi_event_type_to_event_index(event_type) != -1;
 }
 
 static inline void pqi_schedule_rescan_worker_with_delay(struct pqi_ctrl_info *ctrl_info,
 	unsigned long delay)
 {
 	if (pqi_ctrl_offline(ctrl_info))
-		return;
-	if (pqi_ctrl_in_ofa(ctrl_info))
 		return;
 
 	schedule_delayed_work(&ctrl_info->rescan_work, delay);
@@ -1982,8 +1989,18 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 
 	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
 
-	if (pqi_ctrl_in_ofa(ctrl_info))
-		pqi_ctrl_ofa_done(ctrl_info);
+	/*
+	 * If OFA is in progress and there are devices that need to be deleted,
+	 * allow any pending reset operations to continue and unblock any SCSI
+	 * requests before removal.
+	 */
+	if (pqi_ofa_in_progress(ctrl_info)) {
+		list_for_each_entry_safe(device, next, &delete_list, delete_list_entry)
+			if (pqi_is_device_added(device))
+				pqi_device_remove_start(device);
+		pqi_ctrl_unblock_device_reset(ctrl_info);
+		pqi_scsi_unblock_requests(ctrl_info);
+	}
 
 	/* Remove all devices that have gone away. */
 	list_for_each_entry_safe(device, next, &delete_list, delete_list_entry) {
@@ -2318,8 +2335,6 @@ static void pqi_scan_start(struct Scsi_Host *shost)
 	struct pqi_ctrl_info *ctrl_info;
 
 	ctrl_info = shost_to_hba(shost);
-	if (pqi_ctrl_in_ofa(ctrl_info))
-		return;
 
 	pqi_scan_scsi_devices(ctrl_info);
 }
@@ -2334,24 +2349,6 @@ static int pqi_scan_finished(struct Scsi_Host *shost,
 	ctrl_info = shost_priv(shost);
 
 	return !mutex_is_locked(&ctrl_info->scan_mutex);
-}
-
-static void pqi_wait_until_scan_finished(struct pqi_ctrl_info *ctrl_info)
-{
-	mutex_lock(&ctrl_info->scan_mutex);
-	mutex_unlock(&ctrl_info->scan_mutex);
-}
-
-static void pqi_wait_until_lun_reset_finished(struct pqi_ctrl_info *ctrl_info)
-{
-	mutex_lock(&ctrl_info->lun_reset_mutex);
-	mutex_unlock(&ctrl_info->lun_reset_mutex);
-}
-
-static void pqi_wait_until_ofa_finished(struct pqi_ctrl_info *ctrl_info)
-{
-	mutex_lock(&ctrl_info->ofa_mutex);
-	mutex_unlock(&ctrl_info->ofa_mutex);
 }
 
 static inline void pqi_set_encryption_info(struct pqi_encryption_info *encryption_info,
@@ -3320,6 +3317,7 @@ static enum pqi_soft_reset_status pqi_poll_for_soft_reset_status(
 static void pqi_process_soft_reset(struct pqi_ctrl_info *ctrl_info)
 {
 	int rc;
+	unsigned int delay_secs;
 	enum pqi_soft_reset_status reset_status;
 
 	if (ctrl_info->soft_reset_handshake_supported)
@@ -3327,8 +3325,11 @@ static void pqi_process_soft_reset(struct pqi_ctrl_info *ctrl_info)
 	else
 		reset_status = RESET_INITIATE_FIRMWARE;
 
+	delay_secs = PQI_POST_RESET_DELAY_SECS;
+
 	switch (reset_status) {
 	case RESET_TIMEDOUT:
+		delay_secs = PQI_POST_OFA_RESET_DELAY_UPON_TIMEOUT_SECS;
 		fallthrough;
 	case RESET_INITIATE_DRIVER:
 		dev_info(&ctrl_info->pci_dev->dev,
@@ -3338,7 +3339,7 @@ static void pqi_process_soft_reset(struct pqi_ctrl_info *ctrl_info)
 	case RESET_INITIATE_FIRMWARE:
 		ctrl_info->pqi_mode_enabled = false;
 		pqi_save_ctrl_mode(ctrl_info, SIS_MODE);
-		rc = pqi_ofa_ctrl_restart(ctrl_info);
+		rc = pqi_ofa_ctrl_restart(ctrl_info, delay_secs);
 		pqi_ofa_free_host_buffer(ctrl_info);
 		pqi_ctrl_ofa_done(ctrl_info);
 		dev_info(&ctrl_info->pci_dev->dev,
@@ -3368,43 +3369,74 @@ static void pqi_process_soft_reset(struct pqi_ctrl_info *ctrl_info)
 	}
 }
 
-static void pqi_ofa_process_event(struct pqi_ctrl_info *ctrl_info,
+static void pqi_ofa_memory_alloc_worker(struct work_struct *work)
+{
+	struct pqi_ctrl_info *ctrl_info;
+
+	ctrl_info = container_of(work, struct pqi_ctrl_info, ofa_memory_alloc_work);
+
+	pqi_ctrl_ofa_start(ctrl_info);
+	pqi_ofa_setup_host_buffer(ctrl_info);
+	pqi_ofa_host_memory_update(ctrl_info);
+}
+
+static void pqi_ofa_quiesce_worker(struct work_struct *work)
+{
+	struct pqi_ctrl_info *ctrl_info;
+	struct pqi_event *event;
+
+	ctrl_info = container_of(work, struct pqi_ctrl_info, ofa_quiesce_work);
+
+	event = &ctrl_info->events[pqi_event_type_to_event_index(PQI_EVENT_TYPE_OFA)];
+
+	pqi_ofa_ctrl_quiesce(ctrl_info);
+	pqi_acknowledge_event(ctrl_info, event);
+	pqi_process_soft_reset(ctrl_info);
+}
+
+static bool pqi_ofa_process_event(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_event *event)
 {
-	u16 event_id;
+	bool ack_event;
 
-	event_id = get_unaligned_le16(&event->event_id);
+	ack_event = true;
 
-	mutex_lock(&ctrl_info->ofa_mutex);
-
-	if (event_id == PQI_EVENT_OFA_QUIESCE) {
+	switch (event->event_id) {
+	case PQI_EVENT_OFA_MEMORY_ALLOCATION:
 		dev_info(&ctrl_info->pci_dev->dev,
-			"Received Online Firmware Activation quiesce event for controller %u\n",
-			ctrl_info->ctrl_id);
-		pqi_ofa_ctrl_quiesce(ctrl_info);
-		pqi_acknowledge_event(ctrl_info, event);
-		pqi_process_soft_reset(ctrl_info);
-	} else if (event_id == PQI_EVENT_OFA_MEMORY_ALLOCATION) {
-		pqi_acknowledge_event(ctrl_info, event);
-		pqi_ofa_setup_host_buffer(ctrl_info,
-			le32_to_cpu(event->ofa_bytes_requested));
-		pqi_ofa_host_memory_update(ctrl_info);
-	} else if (event_id == PQI_EVENT_OFA_CANCELED) {
+			"received Online Firmware Activation memory allocation request\n");
+		schedule_work(&ctrl_info->ofa_memory_alloc_work);
+		break;
+	case PQI_EVENT_OFA_QUIESCE:
+		dev_info(&ctrl_info->pci_dev->dev,
+			"received Online Firmware Activation quiesce request\n");
+		schedule_work(&ctrl_info->ofa_quiesce_work);
+		ack_event = false;
+		break;
+	case PQI_EVENT_OFA_CANCELED:
+		dev_info(&ctrl_info->pci_dev->dev,
+			"received Online Firmware Activation cancel request: reason: %u\n",
+			ctrl_info->ofa_cancel_reason);
 		pqi_ofa_free_host_buffer(ctrl_info);
-		pqi_acknowledge_event(ctrl_info, event);
-		dev_info(&ctrl_info->pci_dev->dev,
-			"Online Firmware Activation(%u) cancel reason : %u\n",
-			ctrl_info->ctrl_id, event->ofa_cancel_reason);
+		pqi_ctrl_ofa_done(ctrl_info);
+		break;
+	default:
+		dev_err(&ctrl_info->pci_dev->dev,
+			"received unknown Online Firmware Activation request: event ID: %u\n",
+			event->event_id);
+		break;
 	}
 
-	mutex_unlock(&ctrl_info->ofa_mutex);
+	return ack_event;
 }
 
 static void pqi_event_worker(struct work_struct *work)
 {
 	unsigned int i;
+	bool rescan_needed;
 	struct pqi_ctrl_info *ctrl_info;
 	struct pqi_event *event;
+	bool ack_event;
 
 	ctrl_info = container_of(work, struct pqi_ctrl_info, event_work);
 
@@ -3413,21 +3445,25 @@ static void pqi_event_worker(struct work_struct *work)
 	if (pqi_ctrl_offline(ctrl_info))
 		goto out;
 
-	pqi_schedule_rescan_worker_delayed(ctrl_info);
-
+	rescan_needed = false;
 	event = ctrl_info->events;
 	for (i = 0; i < PQI_NUM_SUPPORTED_EVENTS; i++) {
 		if (event->pending) {
 			event->pending = false;
 			if (event->event_type == PQI_EVENT_TYPE_OFA) {
-				pqi_ctrl_unbusy(ctrl_info);
-				pqi_ofa_process_event(ctrl_info, event);
-				return;
+				ack_event = pqi_ofa_process_event(ctrl_info, event);
+			} else {
+				ack_event = true;
+				rescan_needed = true;
 			}
-			pqi_acknowledge_event(ctrl_info, event);
+			if (ack_event)
+				pqi_acknowledge_event(ctrl_info, event);
 		}
 		event++;
 	}
+
+	if (rescan_needed)
+		pqi_schedule_rescan_worker_delayed(ctrl_info);
 
 out:
 	pqi_ctrl_unbusy(ctrl_info);
@@ -3485,37 +3521,18 @@ static inline void pqi_stop_heartbeat_timer(struct pqi_ctrl_info *ctrl_info)
 	del_timer_sync(&ctrl_info->heartbeat_timer);
 }
 
-static inline int pqi_event_type_to_event_index(unsigned int event_type)
+static void pqi_ofa_capture_event_payload(struct pqi_ctrl_info *ctrl_info,
+	struct pqi_event *event, struct pqi_event_response *response)
 {
-	int index;
-
-	for (index = 0; index < ARRAY_SIZE(pqi_supported_event_types); index++)
-		if (event_type == pqi_supported_event_types[index])
-			return index;
-
-	return -1;
-}
-
-static inline bool pqi_is_supported_event(unsigned int event_type)
-{
-	return pqi_event_type_to_event_index(event_type) != -1;
-}
-
-static void pqi_ofa_capture_event_payload(struct pqi_event *event,
-	struct pqi_event_response *response)
-{
-	u16 event_id;
-
-	event_id = get_unaligned_le16(&event->event_id);
-
-	if (event->event_type == PQI_EVENT_TYPE_OFA) {
-		if (event_id == PQI_EVENT_OFA_MEMORY_ALLOCATION) {
-			event->ofa_bytes_requested =
-			response->data.ofa_memory_allocation.bytes_requested;
-		} else if (event_id == PQI_EVENT_OFA_CANCELED) {
-			event->ofa_cancel_reason =
-			response->data.ofa_cancelled.reason;
-		}
+	switch (event->event_id) {
+	case PQI_EVENT_OFA_MEMORY_ALLOCATION:
+		ctrl_info->ofa_bytes_requested =
+			get_unaligned_le32(&response->data.ofa_memory_allocation.bytes_requested);
+		break;
+	case PQI_EVENT_OFA_CANCELED:
+		ctrl_info->ofa_cancel_reason =
+			get_unaligned_le16(&response->data.ofa_cancelled.reason);
+		break;
 	}
 }
 
@@ -3559,7 +3576,7 @@ static int pqi_process_event_intr(struct pqi_ctrl_info *ctrl_info)
 			event->additional_event_id =
 				get_unaligned_le32(&response->additional_event_id);
 			if (event->event_type == PQI_EVENT_TYPE_OFA)
-				pqi_ofa_capture_event_payload(event, response);
+				pqi_ofa_capture_event_payload(ctrl_info, event, response);
 		}
 
 		oq_ci = (oq_ci + 1) % PQI_NUM_EVENT_QUEUE_ELEMENTS;
@@ -6282,6 +6299,8 @@ static int pqi_passthru_ioctl(struct pqi_ctrl_info *ctrl_info, void __user *arg)
 
 	if (pqi_ctrl_offline(ctrl_info))
 		return -ENXIO;
+	if (pqi_ofa_in_progress(ctrl_info) && pqi_ctrl_blocked(ctrl_info))
+		return -EBUSY;
 	if (!arg)
 		return -EINVAL;
 	if (!capable(CAP_SYS_RAWIO))
@@ -6417,9 +6436,6 @@ static int pqi_ioctl(struct scsi_device *sdev, unsigned int cmd,
 	struct pqi_ctrl_info *ctrl_info;
 
 	ctrl_info = shost_to_hba(sdev->host);
-
-	if (pqi_ctrl_in_ofa(ctrl_info) || pqi_ctrl_in_shutdown(ctrl_info))
-		return -EBUSY;
 
 	switch (cmd) {
 	case CCISS_DEREGDISK:
@@ -8003,7 +8019,8 @@ static int pqi_ctrl_init_resume(struct pqi_ctrl_info *ctrl_info)
 		return rc;
 	}
 
-	pqi_schedule_update_time_worker(ctrl_info);
+	if (pqi_ofa_in_progress(ctrl_info))
+		pqi_ctrl_unblock_scan(ctrl_info);
 
 	pqi_scan_scsi_devices(ctrl_info);
 
@@ -8123,6 +8140,9 @@ static struct pqi_ctrl_info *pqi_alloc_ctrl_info(int numa_node)
 	timer_setup(&ctrl_info->heartbeat_timer, pqi_heartbeat_timer_handler, 0);
 	INIT_WORK(&ctrl_info->ctrl_offline_work, pqi_ctrl_offline_worker);
 
+	INIT_WORK(&ctrl_info->ofa_memory_alloc_work, pqi_ofa_memory_alloc_worker);
+	INIT_WORK(&ctrl_info->ofa_quiesce_work, pqi_ofa_quiesce_worker);
+
 	sema_init(&ctrl_info->sync_request_sem,
 		PQI_RESERVED_IO_SLOTS_SYNCHRONOUS_REQUESTS);
 	init_waitqueue_head(&ctrl_info->block_requests_wait);
@@ -8191,11 +8211,9 @@ static void pqi_remove_ctrl(struct pqi_ctrl_info *ctrl_info)
 
 static void pqi_ofa_ctrl_quiesce(struct pqi_ctrl_info *ctrl_info)
 {
-	pqi_cancel_update_time_worker(ctrl_info);
-	pqi_cancel_rescan_worker(ctrl_info);
-	pqi_wait_until_lun_reset_finished(ctrl_info);
-	pqi_wait_until_scan_finished(ctrl_info);
-	pqi_ctrl_ofa_start(ctrl_info);
+	pqi_ctrl_block_scan(ctrl_info);
+	pqi_scsi_block_requests(ctrl_info);
+	pqi_ctrl_block_device_reset(ctrl_info);
 	pqi_ctrl_block_requests(ctrl_info);
 	pqi_ctrl_wait_until_quiesced(ctrl_info);
 	pqi_ctrl_wait_for_pending_io(ctrl_info, PQI_PENDING_IO_TIMEOUT_SECS);
@@ -8208,63 +8226,47 @@ static void pqi_ofa_ctrl_quiesce(struct pqi_ctrl_info *ctrl_info)
 
 static void pqi_ofa_ctrl_unquiesce(struct pqi_ctrl_info *ctrl_info)
 {
-	pqi_ofa_free_host_buffer(ctrl_info);
-	ctrl_info->pqi_mode_enabled = true;
-	pqi_save_ctrl_mode(ctrl_info, PQI_MODE);
-	ctrl_info->controller_online = true;
-	pqi_ctrl_unblock_requests(ctrl_info);
 	pqi_start_heartbeat_timer(ctrl_info);
-	pqi_schedule_update_time_worker(ctrl_info);
-	pqi_clear_soft_reset_status(ctrl_info);
-	pqi_scan_scsi_devices(ctrl_info);
+	pqi_ctrl_unblock_requests(ctrl_info);
+	pqi_ctrl_unblock_device_reset(ctrl_info);
+	pqi_scsi_unblock_requests(ctrl_info);
+	pqi_ctrl_unblock_scan(ctrl_info);
 }
 
-static int pqi_ofa_alloc_mem(struct pqi_ctrl_info *ctrl_info,
-	u32 total_size, u32 chunk_size)
+static int pqi_ofa_alloc_mem(struct pqi_ctrl_info *ctrl_info, u32 total_size, u32 chunk_size)
 {
-	u32 sg_count;
-	u32 size;
 	int i;
-	struct pqi_sg_descriptor *mem_descriptor = NULL;
+	u32 sg_count;
 	struct device *dev;
 	struct pqi_ofa_memory *ofap;
-
-	dev = &ctrl_info->pci_dev->dev;
-
-	sg_count = (total_size + chunk_size - 1);
-	sg_count /= chunk_size;
+	struct pqi_sg_descriptor *mem_descriptor;
+	dma_addr_t dma_handle;
 
 	ofap = ctrl_info->pqi_ofa_mem_virt_addr;
 
-	if (sg_count*chunk_size < total_size)
+	sg_count = DIV_ROUND_UP(total_size, chunk_size);
+	if (sg_count == 0 || sg_count > PQI_OFA_MAX_SG_DESCRIPTORS)
 		goto out;
 
-	ctrl_info->pqi_ofa_chunk_virt_addr =
-				kcalloc(sg_count, sizeof(void *), GFP_KERNEL);
+	ctrl_info->pqi_ofa_chunk_virt_addr = kmalloc_array(sg_count, sizeof(void *), GFP_KERNEL);
 	if (!ctrl_info->pqi_ofa_chunk_virt_addr)
 		goto out;
 
-	for (size = 0, i = 0; size < total_size; size += chunk_size, i++) {
-		dma_addr_t dma_handle;
+	dev = &ctrl_info->pci_dev->dev;
 
+	for (i = 0; i < sg_count; i++) {
 		ctrl_info->pqi_ofa_chunk_virt_addr[i] =
-			dma_alloc_coherent(dev, chunk_size, &dma_handle,
-					   GFP_KERNEL);
-
+			dma_alloc_coherent(dev, chunk_size, &dma_handle, GFP_KERNEL);
 		if (!ctrl_info->pqi_ofa_chunk_virt_addr[i])
-			break;
-
+			goto out_free_chunks;
 		mem_descriptor = &ofap->sg_descriptor[i];
 		put_unaligned_le64((u64)dma_handle, &mem_descriptor->address);
 		put_unaligned_le32(chunk_size, &mem_descriptor->length);
 	}
 
-	if (!size || size < total_size)
-		goto out_free_chunks;
-
 	put_unaligned_le32(CISS_SG_LAST, &mem_descriptor->flags);
 	put_unaligned_le16(sg_count, &ofap->num_memory_descriptors);
-	put_unaligned_le32(size, &ofap->bytes_allocated);
+	put_unaligned_le32(sg_count * chunk_size, &ofap->bytes_allocated);
 
 	return 0;
 
@@ -8272,82 +8274,87 @@ out_free_chunks:
 	while (--i >= 0) {
 		mem_descriptor = &ofap->sg_descriptor[i];
 		dma_free_coherent(dev, chunk_size,
-				ctrl_info->pqi_ofa_chunk_virt_addr[i],
-				get_unaligned_le64(&mem_descriptor->address));
+			ctrl_info->pqi_ofa_chunk_virt_addr[i],
+			get_unaligned_le64(&mem_descriptor->address));
 	}
 	kfree(ctrl_info->pqi_ofa_chunk_virt_addr);
 
 out:
-	put_unaligned_le32 (0, &ofap->bytes_allocated);
 	return -ENOMEM;
 }
 
 static int pqi_ofa_alloc_host_buffer(struct pqi_ctrl_info *ctrl_info)
 {
 	u32 total_size;
+	u32 chunk_size;
 	u32 min_chunk_size;
-	u32 chunk_sz;
 
-	total_size = le32_to_cpu(
-			ctrl_info->pqi_ofa_mem_virt_addr->bytes_allocated);
-	min_chunk_size = total_size / PQI_OFA_MAX_SG_DESCRIPTORS;
+	if (ctrl_info->ofa_bytes_requested == 0)
+		return 0;
 
-	for (chunk_sz = total_size; chunk_sz >= min_chunk_size; chunk_sz /= 2)
-		if (!pqi_ofa_alloc_mem(ctrl_info, total_size, chunk_sz))
+	total_size = PAGE_ALIGN(ctrl_info->ofa_bytes_requested);
+	min_chunk_size = DIV_ROUND_UP(total_size, PQI_OFA_MAX_SG_DESCRIPTORS);
+	min_chunk_size = PAGE_ALIGN(min_chunk_size);
+
+	for (chunk_size = total_size; chunk_size >= min_chunk_size;) {
+		if (pqi_ofa_alloc_mem(ctrl_info, total_size, chunk_size) == 0)
 			return 0;
+		chunk_size /= 2;
+		chunk_size = PAGE_ALIGN(chunk_size);
+	}
 
 	return -ENOMEM;
 }
 
-static void pqi_ofa_setup_host_buffer(struct pqi_ctrl_info *ctrl_info,
-	u32 bytes_requested)
+static void pqi_ofa_setup_host_buffer(struct pqi_ctrl_info *ctrl_info)
 {
-	struct pqi_ofa_memory *pqi_ofa_memory;
 	struct device *dev;
+	struct pqi_ofa_memory *ofap;
 
 	dev = &ctrl_info->pci_dev->dev;
-	pqi_ofa_memory = dma_alloc_coherent(dev,
-					    PQI_OFA_MEMORY_DESCRIPTOR_LENGTH,
-					    &ctrl_info->pqi_ofa_mem_dma_handle,
-					    GFP_KERNEL);
 
-	if (!pqi_ofa_memory)
+	ofap = dma_alloc_coherent(dev, sizeof(*ofap),
+		&ctrl_info->pqi_ofa_mem_dma_handle, GFP_KERNEL);
+	if (!ofap)
 		return;
 
-	put_unaligned_le16(PQI_OFA_VERSION, &pqi_ofa_memory->version);
-	memcpy(&pqi_ofa_memory->signature, PQI_OFA_SIGNATURE,
-					sizeof(pqi_ofa_memory->signature));
-	pqi_ofa_memory->bytes_allocated = cpu_to_le32(bytes_requested);
-
-	ctrl_info->pqi_ofa_mem_virt_addr = pqi_ofa_memory;
+	ctrl_info->pqi_ofa_mem_virt_addr = ofap;
 
 	if (pqi_ofa_alloc_host_buffer(ctrl_info) < 0) {
-		dev_err(dev, "Failed to allocate host buffer of size = %u",
-			bytes_requested);
+		dev_err(dev,
+			"failed to allocate host buffer for Online Firmware Activation\n");
+		dma_free_coherent(dev, sizeof(*ofap), ofap, ctrl_info->pqi_ofa_mem_dma_handle);
+		ctrl_info->pqi_ofa_mem_virt_addr = NULL;
+		return;
 	}
 
-	return;
+	put_unaligned_le16(PQI_OFA_VERSION, &ofap->version);
+	memcpy(&ofap->signature, PQI_OFA_SIGNATURE, sizeof(ofap->signature));
 }
 
 static void pqi_ofa_free_host_buffer(struct pqi_ctrl_info *ctrl_info)
 {
-	int i;
-	struct pqi_sg_descriptor *mem_descriptor;
+	unsigned int i;
+	struct device *dev;
 	struct pqi_ofa_memory *ofap;
+	struct pqi_sg_descriptor *mem_descriptor;
+	unsigned int num_memory_descriptors;
 
 	ofap = ctrl_info->pqi_ofa_mem_virt_addr;
-
 	if (!ofap)
 		return;
 
-	if (!ofap->bytes_allocated)
+	dev = &ctrl_info->pci_dev->dev;
+
+	if (get_unaligned_le32(&ofap->bytes_allocated) == 0)
 		goto out;
 
 	mem_descriptor = ofap->sg_descriptor;
+	num_memory_descriptors =
+		get_unaligned_le16(&ofap->num_memory_descriptors);
 
-	for (i = 0; i < get_unaligned_le16(&ofap->num_memory_descriptors);
-		i++) {
-		dma_free_coherent(&ctrl_info->pci_dev->dev,
+	for (i = 0; i < num_memory_descriptors; i++) {
+		dma_free_coherent(dev,
 			get_unaligned_le32(&mem_descriptor[i].length),
 			ctrl_info->pqi_ofa_chunk_virt_addr[i],
 			get_unaligned_le64(&mem_descriptor[i].address));
@@ -8355,21 +8362,18 @@ static void pqi_ofa_free_host_buffer(struct pqi_ctrl_info *ctrl_info)
 	kfree(ctrl_info->pqi_ofa_chunk_virt_addr);
 
 out:
-	dma_free_coherent(&ctrl_info->pci_dev->dev,
-			PQI_OFA_MEMORY_DESCRIPTOR_LENGTH, ofap,
-			ctrl_info->pqi_ofa_mem_dma_handle);
+	dma_free_coherent(dev, sizeof(*ofap), ofap,
+		ctrl_info->pqi_ofa_mem_dma_handle);
 	ctrl_info->pqi_ofa_mem_virt_addr = NULL;
 }
 
 static int pqi_ofa_host_memory_update(struct pqi_ctrl_info *ctrl_info)
 {
+	u32 buffer_length;
 	struct pqi_vendor_general_request request;
-	size_t size;
 	struct pqi_ofa_memory *ofap;
 
 	memset(&request, 0, sizeof(request));
-
-	ofap = ctrl_info->pqi_ofa_mem_virt_addr;
 
 	request.header.iu_type = PQI_REQUEST_IU_VENDOR_GENERAL;
 	put_unaligned_le16(sizeof(request) - PQI_REQUEST_HEADER_LENGTH,
@@ -8377,24 +8381,26 @@ static int pqi_ofa_host_memory_update(struct pqi_ctrl_info *ctrl_info)
 	put_unaligned_le16(PQI_VENDOR_GENERAL_HOST_MEMORY_UPDATE,
 		&request.function_code);
 
+	ofap = ctrl_info->pqi_ofa_mem_virt_addr;
+
 	if (ofap) {
-		size = offsetof(struct pqi_ofa_memory, sg_descriptor) +
+		buffer_length = offsetof(struct pqi_ofa_memory, sg_descriptor) +
 			get_unaligned_le16(&ofap->num_memory_descriptors) *
 			sizeof(struct pqi_sg_descriptor);
 
 		put_unaligned_le64((u64)ctrl_info->pqi_ofa_mem_dma_handle,
 			&request.data.ofa_memory_allocation.buffer_address);
-		put_unaligned_le32(size,
+		put_unaligned_le32(buffer_length,
 			&request.data.ofa_memory_allocation.buffer_length);
-
 	}
 
 	return pqi_submit_raid_request_synchronous(ctrl_info, &request.header, 0, NULL);
 }
 
-static int pqi_ofa_ctrl_restart(struct pqi_ctrl_info *ctrl_info)
+static int pqi_ofa_ctrl_restart(struct pqi_ctrl_info *ctrl_info, unsigned int delay_secs)
 {
-	msleep(PQI_POST_RESET_DELAY_B4_MSGU_READY);
+	ssleep(delay_secs);
+
 	return pqi_ctrl_init_resume(ctrl_info);
 }
 

@@ -511,10 +511,6 @@ struct pqi_vendor_general_response {
 #define PQI_OFA_SIGNATURE		"OFA_QRM"
 #define PQI_OFA_MAX_SG_DESCRIPTORS	64
 
-#define PQI_OFA_MEMORY_DESCRIPTOR_LENGTH \
-	(offsetof(struct pqi_ofa_memory, sg_descriptor) + \
-	(PQI_OFA_MAX_SG_DESCRIPTORS * sizeof(struct pqi_sg_descriptor)))
-
 struct pqi_ofa_memory {
 	__le64	signature;	/* "OFA_QRM" */
 	__le16	version;	/* version of this struct (1 = 1st version) */
@@ -522,7 +518,7 @@ struct pqi_ofa_memory {
 	__le32	bytes_allocated;	/* total allocated memory in bytes */
 	__le16	num_memory_descriptors;
 	u8	reserved1[2];
-	struct pqi_sg_descriptor sg_descriptor[1];
+	struct pqi_sg_descriptor sg_descriptor[PQI_OFA_MAX_SG_DESCRIPTORS];
 };
 
 struct pqi_aio_error_info {
@@ -1075,7 +1071,6 @@ struct pqi_scsi_dev {
 	u8	volume_offline : 1;
 	u8	rescan : 1;
 	bool	aio_enabled;		/* only valid for physical disks */
-	bool	in_reset;
 	bool	in_remove;
 	bool	device_offline;
 	u8	vendor[8];		/* bytes 8-15 of inquiry data */
@@ -1219,8 +1214,6 @@ struct pqi_event {
 	u8	event_type;
 	u16	event_id;
 	u32	additional_event_id;
-	__le32	ofa_bytes_requested;
-	__le16	ofa_cancel_reason;
 };
 
 #define PQI_RESERVED_IO_SLOTS_LUN_RESET			1
@@ -1292,12 +1285,9 @@ struct pqi_ctrl_info {
 
 	struct mutex	scan_mutex;
 	struct mutex	lun_reset_mutex;
-	struct mutex	ofa_mutex; /* serialize ofa */
 	bool		controller_online;
 	bool		block_requests;
 	bool		scan_blocked;
-	bool		in_ofa;
-	bool		in_shutdown;
 	u8		inbound_spanning_supported : 1;
 	u8		outbound_spanning_supported : 1;
 	u8		pqi_mode_enabled : 1;
@@ -1347,10 +1337,14 @@ struct pqi_ctrl_info {
 	atomic_t	num_blocked_threads;
 	wait_queue_head_t block_requests_wait;
 
+	struct mutex	ofa_mutex;
 	struct pqi_ofa_memory *pqi_ofa_mem_virt_addr;
 	dma_addr_t	pqi_ofa_mem_dma_handle;
 	void		**pqi_ofa_chunk_virt_addr;
-	atomic_t	sync_cmds_outstanding;
+	struct work_struct ofa_memory_alloc_work;
+	struct work_struct ofa_quiesce_work;
+	u32		ofa_bytes_requested;
+	u16		ofa_cancel_reason;
 };
 
 enum pqi_ctrl_mode {
