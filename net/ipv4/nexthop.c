@@ -52,10 +52,8 @@ static bool nexthop_notifiers_is_empty(struct net *net)
 
 static void
 __nh_notifier_single_info_init(struct nh_notifier_single_info *nh_info,
-			       const struct nexthop *nh)
+			       const struct nh_info *nhi)
 {
-	struct nh_info *nhi = rtnl_dereference(nh->nh_info);
-
 	nh_info->dev = nhi->fib_nhc.nhc_dev;
 	nh_info->gw_family = nhi->fib_nhc.nhc_gw_family;
 	if (nh_info->gw_family == AF_INET)
@@ -71,12 +69,14 @@ __nh_notifier_single_info_init(struct nh_notifier_single_info *nh_info,
 static int nh_notifier_single_info_init(struct nh_notifier_info *info,
 					const struct nexthop *nh)
 {
+	struct nh_info *nhi = rtnl_dereference(nh->nh_info);
+
 	info->type = NH_NOTIFIER_INFO_TYPE_SINGLE;
 	info->nh = kzalloc(sizeof(*info->nh), GFP_KERNEL);
 	if (!info->nh)
 		return -ENOMEM;
 
-	__nh_notifier_single_info_init(info->nh, nh);
+	__nh_notifier_single_info_init(info->nh, nhi);
 
 	return 0;
 }
@@ -103,11 +103,13 @@ static int nh_notifier_mp_info_init(struct nh_notifier_info *info,
 
 	for (i = 0; i < num_nh; i++) {
 		struct nh_grp_entry *nhge = &nhg->nh_entries[i];
+		struct nh_info *nhi;
 
+		nhi = rtnl_dereference(nhge->nh->nh_info);
 		info->nh_grp->nh_entries[i].id = nhge->nh->id;
 		info->nh_grp->nh_entries[i].weight = nhge->weight;
 		__nh_notifier_single_info_init(&info->nh_grp->nh_entries[i].nh,
-					       nhge->nh);
+					       nhi);
 	}
 
 	return 0;
