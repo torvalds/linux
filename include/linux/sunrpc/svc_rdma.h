@@ -94,6 +94,8 @@ struct svcxprt_rdma {
 	spinlock_t	     sc_rw_ctxt_lock;
 	struct list_head     sc_rw_ctxts;
 
+	u32		     sc_pending_recvs;
+	u32		     sc_recv_batch;
 	struct list_head     sc_rq_dto_q;
 	spinlock_t	     sc_rq_dto_lock;
 	struct ib_qp         *sc_qp;
