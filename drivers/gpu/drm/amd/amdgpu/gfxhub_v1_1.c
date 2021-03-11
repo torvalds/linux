@@ -88,14 +88,14 @@ int gfxhub_v1_1_get_xgmi_info(struct amdgpu_device *adev)
 		adev->gmc.xgmi.num_physical_nodes = max_region + 1;
 
 		if (adev->gmc.xgmi.num_physical_nodes > max_num_physical_nodes)
-		return -EINVAL;
+			return -EINVAL;
 
 		adev->gmc.xgmi.physical_node_id =
 		REG_GET_FIELD(xgmi_lfb_cntl, MC_VM_XGMI_LFB_CNTL,
 			      PF_LFB_REGION);
 
 		if (adev->gmc.xgmi.physical_node_id > max_physical_node_id)
-		return -EINVAL;
+			return -EINVAL;
 
 		adev->gmc.xgmi.node_segment_size = seg_size;
 	}
