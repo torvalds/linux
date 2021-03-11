@@ -20,12 +20,13 @@ function usage() {
     echo "  -x : (\$DEBUG)     debug"
     echo "  -6 : (\$IP6)       IPv6"
     echo "  -w : (\$DELAY)     Tx Delay value (ns)"
+    echo "  -a : (\$APPEND)    Script will not reset generator's state, but will append its config"
     echo ""
 }
 
 ##  --- Parse command line arguments / parameters ---
 ## echo "Commandline options:"
-while getopts "s:i:d:m:p:f:t:c:n:b:w:vxh6" option; do
+while getopts "s:i:d:m:p:f:t:c:n:b:w:vxh6a" option; do
     case $option in
         i) # interface
           export DEV=$OPTARG
@@ -83,6 +84,10 @@ while getopts "s:i:d:m:p:f:t:c:n:b:w:vxh6" option; do
 	  export IP6=6
 	  info "IP6: IP6=$IP6"
 	  ;;
+        a)
+          export APPEND=yes
+          info "Append mode: APPEND=$APPEND"
+          ;;
         h|?|*)
           usage;
           err 2 "[ERROR] Unknown parameters!!!"

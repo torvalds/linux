@@ -38,7 +38,7 @@ if [ -n "$DST_PORT" ]; then
 fi
 
 # General cleanup everything since last run
-pg_ctrl "reset"
+[ -z "$APPEND" ] && pg_ctrl "reset"
 
 # Threads are specified with parameter -t value in $THREADS
 for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
@@ -47,7 +47,7 @@ for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     dev=${DEV}@${thread}
 
     # Add remove all other devices and add_device $dev to thread
-    pg_thread $thread "rem_device_all"
+    [ -z "$APPEND" ] && pg_thread $thread "rem_device_all"
     pg_thread $thread "add_device" $dev
 
     # Notice config queue to map to cpu (mirrors smp_processor_id())
@@ -81,14 +81,18 @@ for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     pg_set $dev "udp_src_max $UDP_SRC_MAX"
 done
 
-# start_run
-echo "Running... ctrl^C to stop" >&2
-pg_ctrl "start"
-echo "Done" >&2
+if [ -z "$APPEND" ]; then
+    # start_run
+    echo "Running... ctrl^C to stop" >&2
+    pg_ctrl "start"
+    echo "Done" >&2
 
-# Print results
-for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
-    dev=${DEV}@${thread}
-    echo "Device: $dev"
-    cat /proc/net/pktgen/$dev | grep -A2 "Result:"
-done
+    # Print results
+    for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
+        dev=${DEV}@${thread}
+        echo "Device: $dev"
+        cat /proc/net/pktgen/$dev | grep -A2 "Result:"
+    done
+else
+    echo "Append mode: config done. Do more or use 'pg_ctrl start' to run"
+fi
