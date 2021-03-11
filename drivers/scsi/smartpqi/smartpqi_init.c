@@ -3247,8 +3247,8 @@ static void pqi_acknowledge_event(struct pqi_ctrl_info *ctrl_info,
 	put_unaligned_le16(sizeof(request) - PQI_REQUEST_HEADER_LENGTH,
 		&request.header.iu_length);
 	request.event_type = event->event_type;
-	request.event_id = event->event_id;
-	request.additional_event_id = event->additional_event_id;
+	put_unaligned_le16(event->event_id, &request.event_id);
+	put_unaligned_le32(event->additional_event_id, &request.additional_event_id);
 
 	pqi_send_event_ack(ctrl_info, &request, sizeof(request));
 }
@@ -3512,8 +3512,9 @@ static int pqi_process_event_intr(struct pqi_ctrl_info *ctrl_info)
 			event = &ctrl_info->events[event_index];
 			event->pending = true;
 			event->event_type = response->event_type;
-			event->event_id = response->event_id;
-			event->additional_event_id = response->additional_event_id;
+			event->event_id = get_unaligned_le16(&response->event_id);
+			event->additional_event_id =
+				get_unaligned_le32(&response->additional_event_id);
 			if (event->event_type == PQI_EVENT_TYPE_OFA)
 				pqi_ofa_capture_event_payload(event, response);
 		}

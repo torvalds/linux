@@ -1217,8 +1217,8 @@ struct pqi_io_request {
 struct pqi_event {
 	bool	pending;
 	u8	event_type;
-	__le16	event_id;
-	__le32	additional_event_id;
+	u16	event_id;
+	u32	additional_event_id;
 	__le32	ofa_bytes_requested;
 	__le16	ofa_cancel_reason;
 };
