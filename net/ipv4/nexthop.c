@@ -66,6 +66,15 @@ static const struct nla_policy rtm_nh_res_bucket_policy_dump[] = {
 	[NHA_RES_BUCKET_NH_ID]	= { .type = NLA_U32 },
 };
 
+static const struct nla_policy rtm_nh_policy_get_bucket[] = {
+	[NHA_ID]		= { .type = NLA_U32 },
+	[NHA_RES_BUCKET]	= { .type = NLA_NESTED },
+};
+
+static const struct nla_policy rtm_nh_res_bucket_policy_get[] = {
+	[NHA_RES_BUCKET_INDEX]	= { .type = NLA_U16 },
+};
+
 static bool nexthop_notifiers_is_empty(struct net *net)
 {
 	return !net->nexthop.notifier_chain.head;
@@ -3381,6 +3390,105 @@ out_err:
 	return err;
 }
 
+static int nh_valid_get_bucket_req_res_bucket(struct nlattr *res,
+					      u16 *bucket_index,
+					      struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[ARRAY_SIZE(rtm_nh_res_bucket_policy_get)];
+	int err;
+
+	err = nla_parse_nested(tb, ARRAY_SIZE(rtm_nh_res_bucket_policy_get) - 1,
+			       res, rtm_nh_res_bucket_policy_get, extack);
+	if (err < 0)
+		return err;
+
+	if (!tb[NHA_RES_BUCKET_INDEX]) {
+		NL_SET_ERR_MSG(extack, "Bucket index is missing");
+		return -EINVAL;
+	}
+
+	*bucket_index = nla_get_u16(tb[NHA_RES_BUCKET_INDEX]);
+	return 0;
+}
+
+static int nh_valid_get_bucket_req(const struct nlmsghdr *nlh,
+				   u32 *id, u16 *bucket_index,
+				   struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[ARRAY_SIZE(rtm_nh_policy_get_bucket)];
+	int err;
+
+	err = nlmsg_parse(nlh, sizeof(struct nhmsg), tb,
+			  ARRAY_SIZE(rtm_nh_policy_get_bucket) - 1,
+			  rtm_nh_policy_get_bucket, extack);
+	if (err < 0)
+		return err;
+
+	err = __nh_valid_get_del_req(nlh, tb, id, extack);
+	if (err)
+		return err;
+
+	if (!tb[NHA_RES_BUCKET]) {
+		NL_SET_ERR_MSG(extack, "Bucket information is missing");
+		return -EINVAL;
+	}
+
+	err = nh_valid_get_bucket_req_res_bucket(tb[NHA_RES_BUCKET],
+						 bucket_index, extack);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+/* rtnl */
+static int rtm_get_nexthop_bucket(struct sk_buff *in_skb, struct nlmsghdr *nlh,
+				  struct netlink_ext_ack *extack)
+{
+	struct net *net = sock_net(in_skb->sk);
+	struct nh_res_table *res_table;
+	struct sk_buff *skb = NULL;
+	struct nh_group *nhg;
+	struct nexthop *nh;
+	u16 bucket_index;
+	int err;
+	u32 id;
+
+	err = nh_valid_get_bucket_req(nlh, &id, &bucket_index, extack);
+	if (err)
+		return err;
+
+	nh = nexthop_find_group_resilient(net, id, extack);
+	if (IS_ERR(nh))
+		return PTR_ERR(nh);
+
+	nhg = rtnl_dereference(nh->nh_grp);
+	res_table = rtnl_dereference(nhg->res_table);
+	if (bucket_index >= res_table->num_nh_buckets) {
+		NL_SET_ERR_MSG(extack, "Bucket index out of bounds");
+		return -ENOENT;
+	}
+
+	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	err = nh_fill_res_bucket(skb, nh, &res_table->nh_buckets[bucket_index],
+				 bucket_index, RTM_NEWNEXTHOPBUCKET,
+				 NETLINK_CB(in_skb).portid, nlh->nlmsg_seq,
+				 0, extack);
+	if (err < 0) {
+		WARN_ON(err == -EMSGSIZE);
+		goto errout_free;
+	}
+
+	return rtnl_unicast(skb, net, NETLINK_CB(in_skb).portid);
+
+errout_free:
+	kfree_skb(skb);
+	return err;
+}
+
 static void nexthop_sync_mtu(struct net_device *dev, u32 orig_mtu)
 {
 	unsigned int hash = nh_dev_hashfn(dev->ifindex);
@@ -3604,7 +3712,7 @@ static int __init nexthop_init(void)
 	rtnl_register(PF_INET6, RTM_NEWNEXTHOP, rtm_new_nexthop, NULL, 0);
 	rtnl_register(PF_INET6, RTM_GETNEXTHOP, NULL, rtm_dump_nexthop, 0);
 
-	rtnl_register(PF_UNSPEC, RTM_GETNEXTHOPBUCKET, NULL,
+	rtnl_register(PF_UNSPEC, RTM_GETNEXTHOPBUCKET, rtm_get_nexthop_bucket,
 		      rtm_dump_nexthop_bucket, 0);
 
 	return 0;
