@@ -121,11 +121,17 @@ void kvm_arch_vcpu_put_fp(struct kvm_vcpu *vcpu)
 	local_irq_save(flags);
 
 	if (vcpu->arch.flags & KVM_ARM64_FP_ENABLED) {
-		if (guest_has_sve)
+		if (guest_has_sve) {
 			__vcpu_sys_reg(vcpu, ZCR_EL1) = read_sysreg_el1(SYS_ZCR);
 
+			/* Restore the VL that was saved when bound to the CPU */
+			if (!has_vhe())
+				sve_cond_update_zcr_vq(vcpu_sve_max_vq(vcpu) - 1,
+						       SYS_ZCR_EL1);
+		}
+
 		fpsimd_save_and_flush_cpu_state();
-	} else if (host_has_sve) {
+	} else if (has_vhe() && host_has_sve) {
 		/*
 		 * The FPSIMD/SVE state in the CPU has not been touched, and we
 		 * have SVE (and VHE): CPACR_EL1 (alias CPTR_EL2) has been
