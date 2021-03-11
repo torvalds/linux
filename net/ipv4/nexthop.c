@@ -1107,7 +1107,7 @@ static void nh_rt_cache_flush(struct net *net, struct nexthop *nh)
 }
 
 static int replace_nexthop_grp(struct net *net, struct nexthop *old,
-			       struct nexthop *new,
+			       struct nexthop *new, const struct nh_config *cfg,
 			       struct netlink_ext_ack *extack)
 {
 	struct nh_group *oldg, *newg;
@@ -1276,7 +1276,8 @@ static void nexthop_replace_notify(struct net *net, struct nexthop *nh,
 }
 
 static int replace_nexthop(struct net *net, struct nexthop *old,
-			   struct nexthop *new, struct netlink_ext_ack *extack)
+			   struct nexthop *new, const struct nh_config *cfg,
+			   struct netlink_ext_ack *extack)
 {
 	bool new_is_reject = false;
 	struct nh_grp_entry *nhge;
@@ -1319,7 +1320,7 @@ static int replace_nexthop(struct net *net, struct nexthop *old,
 	}
 
 	if (old->is_group)
-		err = replace_nexthop_grp(net, old, new, extack);
+		err = replace_nexthop_grp(net, old, new, cfg, extack);
 	else
 		err = replace_nexthop_single(net, old, new, extack);
 
@@ -1361,7 +1362,7 @@ static int insert_nexthop(struct net *net, struct nexthop *new_nh,
 		} else if (new_id > nh->id) {
 			pp = &next->rb_right;
 		} else if (replace) {
-			rc = replace_nexthop(net, nh, new_nh, extack);
+			rc = replace_nexthop(net, nh, new_nh, cfg, extack);
 			if (!rc) {
 				new_nh = nh; /* send notification with old nh */
 				replace_notify = 1;
