@@ -1341,6 +1341,7 @@ static int mlxsw_sp_qevent_span_configure(struct mlxsw_sp *mlxsw_sp,
 		goto err_analyzed_port_get;
 
 	trigger_parms.span_id = span_id;
+	trigger_parms.probability_rate = 1;
 	err = mlxsw_sp_span_agent_bind(mlxsw_sp, qevent_binding->span_trigger, mlxsw_sp_port,
 				       &trigger_parms);
 	if (err)

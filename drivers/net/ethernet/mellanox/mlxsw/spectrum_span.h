@@ -48,6 +48,7 @@ enum mlxsw_sp_span_trigger {
 
 struct mlxsw_sp_span_trigger_parms {
 	int span_id;
+	u32 probability_rate;
 };
 
 struct mlxsw_sp_span_agent_parms {

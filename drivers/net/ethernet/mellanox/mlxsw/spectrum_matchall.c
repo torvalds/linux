@@ -51,6 +51,7 @@ mlxsw_sp_mall_port_mirror_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	trigger = mall_entry->ingress ? MLXSW_SP_SPAN_TRIGGER_INGRESS :
 					MLXSW_SP_SPAN_TRIGGER_EGRESS;
 	parms.span_id = mall_entry->mirror.span_id;
+	parms.probability_rate = 1;
 	err = mlxsw_sp_span_agent_bind(mlxsw_sp, trigger, mlxsw_sp_port,
 				       &parms);
 	if (err)

@@ -1231,8 +1231,12 @@ __mlxsw_sp_span_trigger_port_bind(struct mlxsw_sp_span *span,
 		return -EINVAL;
 	}
 
+	if (trigger_entry->parms.probability_rate > MLXSW_REG_MPAR_RATE_MAX)
+		return -EINVAL;
+
 	mlxsw_reg_mpar_pack(mpar_pl, trigger_entry->local_port, i_e, enable,
-			    trigger_entry->parms.span_id, 1);
+			    trigger_entry->parms.span_id,
+			    trigger_entry->parms.probability_rate);
 	return mlxsw_reg_write(span->mlxsw_sp->core, MLXSW_REG(mpar), mpar_pl);
 }
 
@@ -1366,8 +1370,11 @@ mlxsw_sp2_span_trigger_global_bind(struct mlxsw_sp_span_trigger_entry *
 		return -EINVAL;
 	}
 
+	if (trigger_entry->parms.probability_rate > MLXSW_REG_MPAGR_RATE_MAX)
+		return -EINVAL;
+
 	mlxsw_reg_mpagr_pack(mpagr_pl, trigger, trigger_entry->parms.span_id,
-			     1);
+			     trigger_entry->parms.probability_rate);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpagr), mpagr_pl);
 }
 
@@ -1565,7 +1572,9 @@ int mlxsw_sp_span_agent_bind(struct mlxsw_sp *mlxsw_sp,
 							 trigger,
 							 mlxsw_sp_port);
 	if (trigger_entry) {
-		if (trigger_entry->parms.span_id != parms->span_id)
+		if (trigger_entry->parms.span_id != parms->span_id ||
+		    trigger_entry->parms.probability_rate !=
+		    parms->probability_rate)
 			return -EINVAL;
 		refcount_inc(&trigger_entry->ref_count);
 		goto out;
