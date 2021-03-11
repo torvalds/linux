@@ -186,6 +186,7 @@ mlxsw_sp_span_entry_phys_configure(struct mlxsw_sp_span_entry *span_entry,
 	/* Create a new port analayzer entry for local_port. */
 	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, true,
 			    MLXSW_REG_MPAT_SPAN_TYPE_LOCAL_ETH);
+	mlxsw_reg_mpat_session_id_set(mpat_pl, sparms.session_id);
 	mlxsw_reg_mpat_pide_set(mpat_pl, sparms.policer_enable);
 	mlxsw_reg_mpat_pid_set(mpat_pl, sparms.policer_id);
 
@@ -203,6 +204,7 @@ mlxsw_sp_span_entry_deconfigure_common(struct mlxsw_sp_span_entry *span_entry,
 	int pa_id = span_entry->id;
 
 	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, false, span_type);
+	mlxsw_reg_mpat_session_id_set(mpat_pl, span_entry->parms.session_id);
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
 }
 
@@ -938,7 +940,8 @@ mlxsw_sp_span_entry_find_by_parms(struct mlxsw_sp *mlxsw_sp,
 
 		if (refcount_read(&curr->ref_count) && curr->to_dev == to_dev &&
 		    curr->parms.policer_enable == sparms->policer_enable &&
-		    curr->parms.policer_id == sparms->policer_id)
+		    curr->parms.policer_id == sparms->policer_id &&
+		    curr->parms.session_id == sparms->session_id)
 			return curr;
 	}
 	return NULL;
@@ -1085,6 +1088,7 @@ int mlxsw_sp_span_agent_get(struct mlxsw_sp *mlxsw_sp, int *p_span_id,
 
 	sparms.policer_id = parms->policer_id;
 	sparms.policer_enable = parms->policer_enable;
+	sparms.session_id = parms->session_id;
 	span_entry = mlxsw_sp_span_entry_get(mlxsw_sp, to_dev, ops, sparms);
 	if (!span_entry)
 		return -ENOBUFS;

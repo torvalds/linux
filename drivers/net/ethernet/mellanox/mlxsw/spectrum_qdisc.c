@@ -1404,7 +1404,9 @@ static int mlxsw_sp_qevent_trap_configure(struct mlxsw_sp *mlxsw_sp,
 					  struct mlxsw_sp_mall_entry *mall_entry,
 					  struct mlxsw_sp_qevent_binding *qevent_binding)
 {
-	struct mlxsw_sp_span_agent_parms agent_parms = {};
+	struct mlxsw_sp_span_agent_parms agent_parms = {
+		.session_id = MLXSW_SP_SPAN_SESSION_ID_BUFFER,
+	};
 	int err;
 
 	err = mlxsw_sp_trap_group_policer_hw_id_get(mlxsw_sp,
