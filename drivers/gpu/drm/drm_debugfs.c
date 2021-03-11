@@ -213,7 +213,7 @@ int vop_plane_dump(struct vop_dump_info *dump_info, int frame_count)
 		DRM_INFO("dump file name is:%s\n", file_name);
 		ksys_close(fd);
 	} else {
-		DRM_INFO("writ fail fd err fd is %d\n", fd);
+		DRM_INFO("write %s failed errno: %d\n", ptr, fd);
 	}
 	set_fs(old_fs);
 	vunmap(kvaddr);
