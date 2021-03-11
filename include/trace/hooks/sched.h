@@ -190,8 +190,8 @@ DECLARE_RESTRICTED_HOOK(android_rvh_account_irq,
 
 struct sched_entity;
 DECLARE_RESTRICTED_HOOK(android_rvh_place_entity,
-	TP_PROTO(struct sched_entity *se, u64 *vruntime),
-	TP_ARGS(se, vruntime), 1);
+	TP_PROTO(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial, u64 vruntime),
+	TP_ARGS(cfs_rq, se, initial, vruntime), 1);
 
 DECLARE_RESTRICTED_HOOK(android_rvh_build_perf_domains,
 	TP_PROTO(bool *eas_check),
@@ -274,6 +274,19 @@ DECLARE_RESTRICTED_HOOK(android_rvh_uclamp_eff_get,
 	TP_PROTO(struct task_struct *p, enum uclamp_id clamp_id,
 		 struct uclamp_se *uclamp_max, struct uclamp_se *uclamp_eff, int *ret),
 	TP_ARGS(p, clamp_id, uclamp_max, uclamp_eff, ret), 1);
+
+DECLARE_HOOK(android_vh_build_sched_domains,
+	TP_PROTO(bool has_asym),
+	TP_ARGS(has_asym));
+DECLARE_RESTRICTED_HOOK(android_rvh_check_preempt_tick,
+	TP_PROTO(struct task_struct *p, unsigned long *ideal_runtime, bool *skip_preempt),
+	TP_ARGS(p, ideal_runtime, skip_preempt), 1);
+DECLARE_RESTRICTED_HOOK(android_rvh_check_preempt_wakeup_ignore,
+	TP_PROTO(struct task_struct *p, bool *ignore),
+	TP_ARGS(p, ignore), 1);
+DECLARE_RESTRICTED_HOOK(android_rvh_replace_next_task_fair,
+	TP_PROTO(struct rq *rq, struct task_struct **p, struct sched_entity **se, bool *repick, bool simple),
+	TP_ARGS(rq, p, se, repick, simple), 1);
 
 /* macro versions of hooks are no longer required */
 

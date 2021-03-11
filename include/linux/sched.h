@@ -1358,7 +1358,7 @@ struct task_struct {
 	struct callback_head		mce_kill_me;
 #endif
 	ANDROID_VENDOR_DATA_ARRAY(1, 64);
-	ANDROID_OEM_DATA_ARRAY(1, 2);
+	ANDROID_OEM_DATA_ARRAY(1, 6);
 
 	/*
 	 * New fields for task_struct should be added above here, so that
