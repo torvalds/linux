@@ -158,40 +158,40 @@ static noinline int tree_mod_log_insert(struct btrfs_fs_info *fs_info,
 }
 
 /*
- * Determines if logging can be omitted. Returns 1 if it can. Otherwise, it
- * returns zero with the tree_mod_log_lock acquired. The caller must hold
+ * Determines if logging can be omitted. Returns true if it can. Otherwise, it
+ * returns false with the tree_mod_log_lock acquired. The caller must hold
  * this until all tree mod log insertions are recorded in the rb tree and then
  * write unlock fs_info::tree_mod_log_lock.
  */
-static inline int tree_mod_dont_log(struct btrfs_fs_info *fs_info,
+static inline bool tree_mod_dont_log(struct btrfs_fs_info *fs_info,
 				    struct extent_buffer *eb)
 {
 	smp_mb();
 	if (list_empty(&(fs_info)->tree_mod_seq_list))
-		return 1;
+		return true;
 	if (eb && btrfs_header_level(eb) == 0)
-		return 1;
+		return true;
 
 	write_lock(&fs_info->tree_mod_log_lock);
 	if (list_empty(&(fs_info)->tree_mod_seq_list)) {
 		write_unlock(&fs_info->tree_mod_log_lock);
-		return 1;
+		return true;
 	}
 
-	return 0;
+	return false;
 }
 
 /* Similar to tree_mod_dont_log, but doesn't acquire any locks. */
-static inline int tree_mod_need_log(const struct btrfs_fs_info *fs_info,
+static inline bool tree_mod_need_log(const struct btrfs_fs_info *fs_info,
 				    struct extent_buffer *eb)
 {
 	smp_mb();
 	if (list_empty(&(fs_info)->tree_mod_seq_list))
-		return 0;
+		return false;
 	if (eb && btrfs_header_level(eb) == 0)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 static struct tree_mod_elem *alloc_tree_mod_elem(struct extent_buffer *eb,
@@ -252,7 +252,7 @@ int btrfs_tree_mod_log_insert_move(struct extent_buffer *eb,
 	struct tree_mod_elem **tm_list = NULL;
 	int ret = 0;
 	int i;
-	int locked = 0;
+	bool locked = false;
 
 	if (!tree_mod_need_log(eb->fs_info, eb))
 		return 0;
@@ -284,7 +284,7 @@ int btrfs_tree_mod_log_insert_move(struct extent_buffer *eb,
 
 	if (tree_mod_dont_log(eb->fs_info, eb))
 		goto free_tms;
-	locked = 1;
+	locked = true;
 
 	/*
 	 * When we override something during the move, we log these removals.
@@ -341,7 +341,7 @@ static inline int tree_mod_log_free_eb(struct btrfs_fs_info *fs_info,
 
 int btrfs_tree_mod_log_insert_root(struct extent_buffer *old_root,
 				   struct extent_buffer *new_root,
-				   int log_removal)
+				   bool log_removal)
 {
 	struct btrfs_fs_info *fs_info = old_root->fs_info;
 	struct tree_mod_elem *tm = NULL;
@@ -411,7 +411,7 @@ free_tms:
 
 static struct tree_mod_elem *__tree_mod_log_search(struct btrfs_fs_info *fs_info,
 						   u64 start, u64 min_seq,
-						   int smallest)
+						   bool smallest)
 {
 	struct rb_root *tm_root;
 	struct rb_node *node;
@@ -459,7 +459,7 @@ static struct tree_mod_elem *__tree_mod_log_search(struct btrfs_fs_info *fs_info
 static struct tree_mod_elem *tree_mod_log_search_oldest(struct btrfs_fs_info *fs_info,
 							u64 start, u64 min_seq)
 {
-	return __tree_mod_log_search(fs_info, start, min_seq, 1);
+	return __tree_mod_log_search(fs_info, start, min_seq, true);
 }
 
 /*
@@ -470,7 +470,7 @@ static struct tree_mod_elem *tree_mod_log_search_oldest(struct btrfs_fs_info *fs
 static struct tree_mod_elem *tree_mod_log_search(struct btrfs_fs_info *fs_info,
 						 u64 start, u64 min_seq)
 {
-	return __tree_mod_log_search(fs_info, start, min_seq, 0);
+	return __tree_mod_log_search(fs_info, start, min_seq, false);
 }
 
 int btrfs_tree_mod_log_eb_copy(struct extent_buffer *dst,
@@ -484,7 +484,7 @@ int btrfs_tree_mod_log_eb_copy(struct extent_buffer *dst,
 	struct tree_mod_elem **tm_list = NULL;
 	struct tree_mod_elem **tm_list_add, **tm_list_rem;
 	int i;
-	int locked = 0;
+	bool locked = false;
 
 	if (!tree_mod_need_log(fs_info, NULL))
 		return 0;
@@ -517,7 +517,7 @@ int btrfs_tree_mod_log_eb_copy(struct extent_buffer *dst,
 
 	if (tree_mod_dont_log(fs_info, NULL))
 		goto free_tms;
-	locked = 1;
+	locked = true;
 
 	for (i = 0; i < nr_items; i++) {
 		ret = tree_mod_log_insert(fs_info, tm_list_rem[i]);
@@ -602,7 +602,7 @@ static struct tree_mod_elem *tree_mod_log_oldest_root(struct extent_buffer *eb_r
 	struct tree_mod_elem *tm;
 	struct tree_mod_elem *found = NULL;
 	u64 root_logical = eb_root->start;
-	int looped = 0;
+	bool looped = false;
 
 	if (!time_seq)
 		return NULL;
@@ -636,7 +636,7 @@ static struct tree_mod_elem *tree_mod_log_oldest_root(struct extent_buffer *eb_r
 
 		found = tm;
 		root_logical = tm->old_root.logical;
-		looped = 1;
+		looped = true;
 	}
 
 	/* If there's no old root to return, return what we found instead */

@@ -30,7 +30,7 @@ void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
 			    struct btrfs_seq_list *elem);
 int btrfs_tree_mod_log_insert_root(struct extent_buffer *old_root,
 				   struct extent_buffer *new_root,
-				   int log_removal);
+				   bool log_removal);
 int btrfs_tree_mod_log_insert_key(struct extent_buffer *eb, int slot,
 				  enum btrfs_mod_log_op op, gfp_t flags);
 int btrfs_tree_mod_log_free_eb(struct extent_buffer *eb);

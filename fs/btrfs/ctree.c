@@ -500,7 +500,7 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 			parent_start = buf->start;
 
 		atomic_inc(&cow->refs);
-		ret = btrfs_tree_mod_log_insert_root(root->node, cow, 1);
+		ret = btrfs_tree_mod_log_insert_root(root->node, cow, true);
 		BUG_ON(ret < 0);
 		rcu_assign_pointer(root->node, cow);
 
@@ -958,7 +958,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 			goto enospc;
 		}
 
-		ret = btrfs_tree_mod_log_insert_root(root->node, child, 1);
+		ret = btrfs_tree_mod_log_insert_root(root->node, child, true);
 		BUG_ON(ret < 0);
 		rcu_assign_pointer(root->node, child);
 
@@ -2460,7 +2460,7 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(c);
 
 	old = root->node;
-	ret = btrfs_tree_mod_log_insert_root(root->node, c, 0);
+	ret = btrfs_tree_mod_log_insert_root(root->node, c, false);
 	BUG_ON(ret < 0);
 	rcu_assign_pointer(root->node, c);
 
