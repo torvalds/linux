@@ -3106,6 +3106,41 @@ out:
 }
 EXPORT_SYMBOL(nexthop_bucket_set_hw_flags);
 
+void nexthop_res_grp_activity_update(struct net *net, u32 id, u16 num_buckets,
+				     unsigned long *activity)
+{
+	struct nh_res_table *res_table;
+	struct nexthop *nexthop;
+	struct nh_group *nhg;
+	u16 i;
+
+	rcu_read_lock();
+
+	nexthop = nexthop_find_by_id(net, id);
+	if (!nexthop || !nexthop->is_group)
+		goto out;
+
+	nhg = rcu_dereference(nexthop->nh_grp);
+	if (!nhg->resilient)
+		goto out;
+
+	/* Instead of silently ignoring some buckets, demand that the sizes
+	 * be the same.
+	 */
+	res_table = rcu_dereference(nhg->res_table);
+	if (num_buckets != res_table->num_nh_buckets)
+		goto out;
+
+	for (i = 0; i < num_buckets; i++) {
+		if (test_bit(i, activity))
+			nh_res_bucket_set_busy(&res_table->nh_buckets[i]);
+	}
+
+out:
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(nexthop_res_grp_activity_update);
+
 static void __net_exit nexthop_net_exit(struct net *net)
 {
 	rtnl_lock();
