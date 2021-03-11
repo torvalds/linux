@@ -155,11 +155,15 @@ struct nexthop {
 enum nexthop_event_type {
 	NEXTHOP_EVENT_DEL,
 	NEXTHOP_EVENT_REPLACE,
+	NEXTHOP_EVENT_RES_TABLE_PRE_REPLACE,
+	NEXTHOP_EVENT_BUCKET_REPLACE,
 };
 
 enum nh_notifier_info_type {
 	NH_NOTIFIER_INFO_TYPE_SINGLE,
 	NH_NOTIFIER_INFO_TYPE_GRP,
+	NH_NOTIFIER_INFO_TYPE_RES_TABLE,
+	NH_NOTIFIER_INFO_TYPE_RES_BUCKET,
 };
 
 struct nh_notifier_single_info {
@@ -186,6 +190,19 @@ struct nh_notifier_grp_info {
 	struct nh_notifier_grp_entry_info nh_entries[];
 };
 
+struct nh_notifier_res_bucket_info {
+	u16 bucket_index;
+	unsigned int idle_timer_ms;
+	bool force;
+	struct nh_notifier_single_info old_nh;
+	struct nh_notifier_single_info new_nh;
+};
+
+struct nh_notifier_res_table_info {
+	u16 num_nh_buckets;
+	struct nh_notifier_single_info nhs[];
+};
+
 struct nh_notifier_info {
 	struct net *net;
 	struct netlink_ext_ack *extack;
@@ -194,6 +211,8 @@ struct nh_notifier_info {
 	union {
 		struct nh_notifier_single_info *nh;
 		struct nh_notifier_grp_info *nh_grp;
+		struct nh_notifier_res_table_info *nh_res_table;
+		struct nh_notifier_res_bucket_info *nh_res_bucket;
 	};
 };
 
