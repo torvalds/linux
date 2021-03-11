@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * pci-j721e - PCIe controller driver for TI's J721E SoCs
  *
  * Copyright (C) 2020 Texas Instruments Incorporated - http://www.ti.com
