@@ -1098,11 +1098,13 @@ static enum link_training_result perform_clock_recovery_sequence(
 		if (is_max_vs_reached(lt_settings))
 			break;
 
-		/* 7. same voltage*/
-		/* Note: VS same for all lanes,
-		* so comparing first lane is sufficient*/
-		if (lt_settings->lane_settings[0].VOLTAGE_SWING ==
+		/* 7. same lane settings*/
+		/* Note: settings are the same for all lanes,
+		 * so comparing first lane is sufficient*/
+		if ((lt_settings->lane_settings[0].VOLTAGE_SWING ==
 			req_settings.lane_settings[0].VOLTAGE_SWING)
+			&& (lt_settings->lane_settings[0].PRE_EMPHASIS ==
+				req_settings.lane_settings[0].PRE_EMPHASIS))
 			retries_cr++;
 		else
 			retries_cr = 0;
