@@ -2288,13 +2288,8 @@ void esw_offloads_unload_rep(struct mlx5_eswitch *esw, u16 vport_num)
 static int mlx5_esw_offloads_pair(struct mlx5_eswitch *esw,
 				  struct mlx5_eswitch *peer_esw)
 {
-	int err;
 
-	err = esw_add_fdb_peer_miss_rules(esw, peer_esw->dev);
-	if (err)
-		return err;
-
-	return 0;
+	return esw_add_fdb_peer_miss_rules(esw, peer_esw->dev);
 }
 
 static void mlx5_esw_offloads_unpair(struct mlx5_eswitch *esw)
