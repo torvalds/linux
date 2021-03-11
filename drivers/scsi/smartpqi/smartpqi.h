@@ -130,8 +130,11 @@ struct pqi_iu_header {
 				/* of this header */
 	__le16	response_queue_id;	/* specifies the OQ where the */
 					/* response IU is to be delivered */
-	u8	work_area[2];	/* reserved for driver use */
+	u16	driver_flags;	/* reserved for driver use */
 };
+
+/* manifest constants for pqi_iu_header.driver_flags */
+#define PQI_DRIVER_NONBLOCKABLE_REQUEST		0x1
 
 /*
  * According to the PQI spec, the IU header is only the first 4 bytes of our
