@@ -1036,7 +1036,8 @@ out:
 }
 
 struct mlx5_flow_handle *
-mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, u16 vport,
+mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *on_esw,
+				    struct mlx5_eswitch_rep *rep,
 				    u32 sqn)
 {
 	struct mlx5_flow_act flow_act = {0};
@@ -1054,27 +1055,30 @@ mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, u16 vport,
 	misc = MLX5_ADDR_OF(fte_match_param, spec->match_value, misc_parameters);
 	MLX5_SET(fte_match_set_misc, misc, source_sqn, sqn);
 	/* source vport is the esw manager */
-	MLX5_SET(fte_match_set_misc, misc, source_port, esw->manager_vport);
-	if (MLX5_CAP_ESW(esw->dev, merged_eswitch))
+	MLX5_SET(fte_match_set_misc, misc, source_port, rep->esw->manager_vport);
+	if (MLX5_CAP_ESW(on_esw->dev, merged_eswitch))
 		MLX5_SET(fte_match_set_misc, misc, source_eswitch_owner_vhca_id,
-			 MLX5_CAP_GEN(esw->dev, vhca_id));
+			 MLX5_CAP_GEN(rep->esw->dev, vhca_id));
 
 	misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria, misc_parameters);
 	MLX5_SET_TO_ONES(fte_match_set_misc, misc, source_sqn);
 	MLX5_SET_TO_ONES(fte_match_set_misc, misc, source_port);
-	if (MLX5_CAP_ESW(esw->dev, merged_eswitch))
+	if (MLX5_CAP_ESW(on_esw->dev, merged_eswitch))
 		MLX5_SET_TO_ONES(fte_match_set_misc, misc,
 				 source_eswitch_owner_vhca_id);
 
 	spec->match_criteria_enable = MLX5_MATCH_MISC_PARAMETERS;
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
-	dest.vport.num = vport;
+	dest.vport.num = rep->vport;
+	dest.vport.vhca_id = MLX5_CAP_GEN(rep->esw->dev, vhca_id);
+	dest.vport.flags |= MLX5_FLOW_DEST_VPORT_VHCA_ID;
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 
-	flow_rule = mlx5_add_flow_rules(esw->fdb_table.offloads.slow_fdb,
+	flow_rule = mlx5_add_flow_rules(on_esw->fdb_table.offloads.slow_fdb,
 					spec, &flow_act, &dest, 1);
 	if (IS_ERR(flow_rule))
-		esw_warn(esw->dev, "FDB: Failed to add send to vport rule err %ld\n", PTR_ERR(flow_rule));
+		esw_warn(on_esw->dev, "FDB: Failed to add send to vport rule err %ld\n",
+			 PTR_ERR(flow_rule));
 out:
 	kvfree(spec);
 	return flow_rule;
