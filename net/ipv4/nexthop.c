@@ -967,6 +967,7 @@ static void remove_nh_grp_entry(struct net *net, struct nh_grp_entry *nhge,
 	}
 
 	newg->has_v4 = false;
+	newg->is_multipath = nhg->is_multipath;
 	newg->mpath = nhg->mpath;
 	newg->fdb_nh = nhg->fdb_nh;
 	newg->num_nh = nhg->num_nh;
@@ -1488,8 +1489,10 @@ static struct nexthop *nexthop_create_group(struct net *net,
 		nhg->nh_entries[i].nh_parent = nh;
 	}
 
-	if (cfg->nh_grp_type == NEXTHOP_GRP_TYPE_MPATH)
+	if (cfg->nh_grp_type == NEXTHOP_GRP_TYPE_MPATH) {
 		nhg->mpath = 1;
+		nhg->is_multipath = true;
+	}
 
 	WARN_ON_ONCE(nhg->mpath != 1);
 

@@ -80,6 +80,7 @@ struct nh_grp_entry {
 struct nh_group {
 	struct nh_group		*spare; /* spare group for removals */
 	u16			num_nh;
+	bool			is_multipath;
 	bool			mpath;
 	bool			fdb_nh;
 	bool			has_v4;
@@ -212,7 +213,7 @@ static inline bool nexthop_is_multipath(const struct nexthop *nh)
 		struct nh_group *nh_grp;
 
 		nh_grp = rcu_dereference_rtnl(nh->nh_grp);
-		return nh_grp->mpath;
+		return nh_grp->is_multipath;
 	}
 	return false;
 }
@@ -227,7 +228,7 @@ static inline unsigned int nexthop_num_path(const struct nexthop *nh)
 		struct nh_group *nh_grp;
 
 		nh_grp = rcu_dereference_rtnl(nh->nh_grp);
-		if (nh_grp->mpath)
+		if (nh_grp->is_multipath)
 			rc = nh_grp->num_nh;
 	}
 
@@ -308,7 +309,7 @@ struct fib_nh_common *nexthop_fib_nhc(struct nexthop *nh, int nhsel)
 		struct nh_group *nh_grp;
 
 		nh_grp = rcu_dereference_rtnl(nh->nh_grp);
-		if (nh_grp->mpath) {
+		if (nh_grp->is_multipath) {
 			nh = nexthop_mpath_select(nh_grp, nhsel);
 			if (!nh)
 				return NULL;
