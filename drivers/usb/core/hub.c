@@ -2744,33 +2744,6 @@ out:
 	return USB_SSP_GEN_UNKNOWN;
 }
 
-/*
- * Return 1 if port speed is SuperSpeedPlus, 0 otherwise
- * check it from the link protocol field of the current speed ID attribute.
- * current speed ID is got from ext port status request. Sublink speed attribute
- * table is returned with the hub BOS SSP device capability descriptor
- */
-static int port_speed_is_ssp(struct usb_device *hdev, int speed_id)
-{
-	int ssa_count;
-	u32 ss_attr;
-	int i;
-	struct usb_ssp_cap_descriptor *ssp_cap = hdev->bos->ssp_cap;
-
-	if (!ssp_cap)
-		return 0;
-
-	ssa_count = le32_to_cpu(ssp_cap->bmAttributes) &
-		USB_SSP_SUBLINK_SPEED_ATTRIBS;
-
-	for (i = 0; i <= ssa_count; i++) {
-		ss_attr = le32_to_cpu(ssp_cap->bmSublinkSpeedAttr[i]);
-		if (speed_id == (ss_attr & USB_SSP_SUBLINK_SPEED_SSID))
-			return !!(ss_attr & USB_SSP_SUBLINK_SPEED_LP);
-	}
-	return 0;
-}
-
 /* Returns 1 if @hub is a WUSB root hub, 0 otherwise */
 static unsigned hub_is_wusb(struct usb_hub *hub)
 {
@@ -2934,9 +2907,7 @@ static int hub_port_wait_reset(struct usb_hub *hub, int port1,
 	}
 	if (hub_is_wusb(hub))
 		udev->speed = USB_SPEED_WIRELESS;
-	else if (hub_is_superspeedplus(hub->hdev) &&
-		 port_speed_is_ssp(hub->hdev, ext_portstatus &
-				   USB_EXT_PORT_STAT_RX_SPEED_ID))
+	else if (udev->ssp_rate != USB_SSP_GEN_UNKNOWN)
 		udev->speed = USB_SPEED_SUPER_PLUS;
 	else if (hub_is_superspeed(hub->hdev))
 		udev->speed = USB_SPEED_SUPER;
