@@ -105,8 +105,7 @@ static int __amdgpu_eeprom_xfer(struct i2c_adapter *i2c_adap, u32 eeprom_addr,
 	int r;
 	u16 len;
 
-	r = 0;
-	for ( ; buf_size > 0;
+	for (r = 0; buf_size > 0;
 	      buf_size -= len, eeprom_addr += len, eeprom_buf += len) {
 		/* Set the EEPROM address we want to write to/read from.
 		 */

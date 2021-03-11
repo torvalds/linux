@@ -335,7 +335,7 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 		ret = amdgpu_ras_eeprom_reset_table(control);
 	}
 
-	return ret == 1 ? 0 : -EIO;
+	return ret > 0 ? 0 : -EIO;
 }
 
 static void __encode_table_record_to_buff(struct amdgpu_ras_eeprom_control *control,

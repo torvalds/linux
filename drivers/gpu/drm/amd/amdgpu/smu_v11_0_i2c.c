@@ -222,7 +222,7 @@ static uint32_t smu_v11_0_i2c_transmit(struct i2c_adapter *control,
 				       u32 numbytes, u32 i2c_flag)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
-	uint32_t bytes_sent, reg, ret = 0;
+	u32 bytes_sent, reg, ret = I2C_OK;
 	unsigned long  timeout_counter;
 
 	bytes_sent = 0;
@@ -290,7 +290,6 @@ static uint32_t smu_v11_0_i2c_transmit(struct i2c_adapter *control,
 	}
 
 	ret = smu_v11_0_i2c_poll_tx_status(control);
-
 Err:
 	/* Any error, no point in proceeding */
 	if (ret != I2C_OK) {
