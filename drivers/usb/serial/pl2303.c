@@ -374,12 +374,22 @@ static int pl2303_calc_num_ports(struct usb_serial *serial,
 	return 1;
 }
 
+static bool pl2303_supports_hx_status(struct usb_serial *serial)
+{
+	int ret;
+	u8 buf;
+
+	ret = usb_control_msg_recv(serial->dev, 0, VENDOR_READ_REQUEST,
+			VENDOR_READ_REQUEST_TYPE, PL2303_READ_TYPE_HX_STATUS,
+			0, &buf, 1, 100, GFP_KERNEL);
+
+	return ret == 0;
+}
+
 static int pl2303_detect_type(struct usb_serial *serial)
 {
 	struct usb_device_descriptor *desc = &serial->dev->descriptor;
 	u16 bcdDevice, bcdUSB;
-	int ret;
-	u8 buf;
 
 	/*
 	 * Legacy PL2303H, variants 0 and 1 (difference unknown).
@@ -394,20 +404,18 @@ static int pl2303_detect_type(struct usb_serial *serial)
 		return TYPE_H;		/* variant 0 */
 	}
 
-	/*
-	 * Assume it's an HXN-type if the device doesn't support the old read
-	 * request value.
-	 */
-	ret = usb_control_msg_recv(serial->dev, 0, VENDOR_READ_REQUEST,
-			VENDOR_READ_REQUEST_TYPE, PL2303_READ_TYPE_HX_STATUS,
-			0, &buf, 1, 100, GFP_KERNEL);
-	if (ret)
-		return TYPE_HXN;
-
 	bcdDevice = le16_to_cpu(desc->bcdDevice);
 	bcdUSB = le16_to_cpu(desc->bcdUSB);
 
 	switch (bcdDevice) {
+	case 0x100:
+		/*
+		 * Assume it's an HXN-type if the device doesn't support the old read
+		 * request value.
+		 */
+		if (bcdUSB == 0x200 && !pl2303_supports_hx_status(serial))
+			return TYPE_HXN;
+		break;
 	case 0x300:
 		if (bcdUSB == 0x200)
 			return TYPE_TA;
