@@ -29,4 +29,20 @@
 int amdgpu_eeprom_xfer(struct i2c_adapter *i2c_adap, u32 eeprom_addr,
 		       u8 *eeprom_buf, u16 bytes, bool read);
 
+static inline int amdgpu_eeprom_read(struct i2c_adapter *i2c_adap,
+				     u32 eeprom_addr, u8 *eeprom_buf,
+				     u16 bytes)
+{
+	return amdgpu_eeprom_xfer(i2c_adap, eeprom_addr, eeprom_buf, bytes,
+				  true);
+}
+
+static inline int amdgpu_eeprom_write(struct i2c_adapter *i2c_adap,
+				      u32 eeprom_addr, u8 *eeprom_buf,
+				      u16 bytes)
+{
+	return amdgpu_eeprom_xfer(i2c_adap, eeprom_addr, eeprom_buf, bytes,
+				  false);
+}
+
 #endif
