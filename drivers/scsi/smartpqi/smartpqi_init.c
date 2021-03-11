@@ -506,7 +506,7 @@ static int pqi_build_raid_path_request(struct pqi_ctrl_info *ctrl_info,
 		if (cmd == CISS_REPORT_PHYS)
 			cdb[1] = CISS_REPORT_PHYS_FLAG_OTHER;
 		else
-			cdb[1] = CISS_REPORT_LOG_FLAG_UNIQUE_LUN_ID;
+			cdb[1] = ctrl_info->ciss_report_log_flags;
 		put_unaligned_be32(cdb_length, &cdb[6]);
 		break;
 	case CISS_GET_RAID_MAP:
@@ -527,6 +527,7 @@ static int pqi_build_raid_path_request(struct pqi_ctrl_info *ctrl_info,
 	case BMIC_IDENTIFY_CONTROLLER:
 	case BMIC_IDENTIFY_PHYSICAL_DEVICE:
 	case BMIC_SENSE_SUBSYSTEM_INFORMATION:
+	case BMIC_SENSE_FEATURE:
 		request->data_direction = SOP_READ_FLAG;
 		cdb[0] = BMIC_READ;
 		cdb[6] = cmd;
@@ -691,6 +692,105 @@ static int pqi_identify_physical_device(struct pqi_ctrl_info *ctrl_info,
 		0, NULL, NO_TIMEOUT);
 
 	pqi_pci_unmap(ctrl_info->pci_dev, request.sg_descriptors, 1, dir);
+
+	return rc;
+}
+
+static inline u32 pqi_aio_limit_to_bytes(__le16 *limit)
+{
+	u32 bytes;
+
+	bytes = get_unaligned_le16(limit);
+	if (bytes == 0)
+		bytes = ~0;
+	else
+		bytes *= 1024;
+
+	return bytes;
+}
+
+#pragma pack(1)
+
+struct bmic_sense_feature_buffer {
+	struct bmic_sense_feature_buffer_header header;
+	struct bmic_sense_feature_io_page_aio_subpage aio_subpage;
+};
+
+#pragma pack()
+
+#define MINIMUM_AIO_SUBPAGE_BUFFER_LENGTH	\
+	offsetofend(struct bmic_sense_feature_buffer, \
+		aio_subpage.max_write_raid_1_10_3drive)
+
+#define MINIMUM_AIO_SUBPAGE_LENGTH	\
+	(offsetofend(struct bmic_sense_feature_io_page_aio_subpage, \
+		max_write_raid_1_10_3drive) - \
+		sizeof_field(struct bmic_sense_feature_io_page_aio_subpage, header))
+
+static int pqi_get_advanced_raid_bypass_config(struct pqi_ctrl_info *ctrl_info)
+{
+	int rc;
+	enum dma_data_direction dir;
+	struct pqi_raid_path_request request;
+	struct bmic_sense_feature_buffer *buffer;
+
+	buffer = kmalloc(sizeof(*buffer), GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
+
+	rc = pqi_build_raid_path_request(ctrl_info, &request,
+		BMIC_SENSE_FEATURE, RAID_CTLR_LUNID, buffer,
+		sizeof(*buffer), 0, &dir);
+	if (rc)
+		goto error;
+
+	request.cdb[2] = BMIC_SENSE_FEATURE_IO_PAGE;
+	request.cdb[3] = BMIC_SENSE_FEATURE_IO_PAGE_AIO_SUBPAGE;
+
+	rc = pqi_submit_raid_request_synchronous(ctrl_info, &request.header,
+		0, NULL, NO_TIMEOUT);
+
+	pqi_pci_unmap(ctrl_info->pci_dev, request.sg_descriptors, 1, dir);
+
+	if (rc)
+		goto error;
+
+	if (buffer->header.page_code != BMIC_SENSE_FEATURE_IO_PAGE ||
+		buffer->header.subpage_code !=
+			BMIC_SENSE_FEATURE_IO_PAGE_AIO_SUBPAGE ||
+		get_unaligned_le16(&buffer->header.buffer_length) <
+			MINIMUM_AIO_SUBPAGE_BUFFER_LENGTH ||
+		buffer->aio_subpage.header.page_code !=
+			BMIC_SENSE_FEATURE_IO_PAGE ||
+		buffer->aio_subpage.header.subpage_code !=
+			BMIC_SENSE_FEATURE_IO_PAGE_AIO_SUBPAGE ||
+		get_unaligned_le16(&buffer->aio_subpage.header.page_length) <
+			MINIMUM_AIO_SUBPAGE_LENGTH) {
+		goto error;
+	}
+
+	ctrl_info->max_transfer_encrypted_sas_sata =
+		pqi_aio_limit_to_bytes(
+			&buffer->aio_subpage.max_transfer_encrypted_sas_sata);
+
+	ctrl_info->max_transfer_encrypted_nvme =
+		pqi_aio_limit_to_bytes(
+			&buffer->aio_subpage.max_transfer_encrypted_nvme);
+
+	ctrl_info->max_write_raid_5_6 =
+		pqi_aio_limit_to_bytes(
+			&buffer->aio_subpage.max_write_raid_5_6);
+
+	ctrl_info->max_write_raid_1_10_2drive =
+		pqi_aio_limit_to_bytes(
+			&buffer->aio_subpage.max_write_raid_1_10_2drive);
+
+	ctrl_info->max_write_raid_1_10_3drive =
+		pqi_aio_limit_to_bytes(
+			&buffer->aio_subpage.max_write_raid_1_10_3drive);
+
+error:
+	kfree(buffer);
 
 	return rc;
 }
@@ -1232,6 +1332,39 @@ error:
 	return rc;
 }
 
+static void pqi_set_max_transfer_encrypted(struct pqi_ctrl_info *ctrl_info,
+	struct pqi_scsi_dev *device)
+{
+	if (!ctrl_info->lv_drive_type_mix_valid) {
+		device->max_transfer_encrypted = ~0;
+		return;
+	}
+
+	switch (LV_GET_DRIVE_TYPE_MIX(device->scsi3addr)) {
+	case LV_DRIVE_TYPE_MIX_SAS_HDD_ONLY:
+	case LV_DRIVE_TYPE_MIX_SATA_HDD_ONLY:
+	case LV_DRIVE_TYPE_MIX_SAS_OR_SATA_SSD_ONLY:
+	case LV_DRIVE_TYPE_MIX_SAS_SSD_ONLY:
+	case LV_DRIVE_TYPE_MIX_SATA_SSD_ONLY:
+	case LV_DRIVE_TYPE_MIX_SAS_ONLY:
+	case LV_DRIVE_TYPE_MIX_SATA_ONLY:
+		device->max_transfer_encrypted =
+			ctrl_info->max_transfer_encrypted_sas_sata;
+		break;
+	case LV_DRIVE_TYPE_MIX_NVME_ONLY:
+		device->max_transfer_encrypted =
+			ctrl_info->max_transfer_encrypted_nvme;
+		break;
+	case LV_DRIVE_TYPE_MIX_UNKNOWN:
+	case LV_DRIVE_TYPE_MIX_NO_RESTRICTION:
+	default:
+		device->max_transfer_encrypted =
+			min(ctrl_info->max_transfer_encrypted_sas_sata,
+				ctrl_info->max_transfer_encrypted_nvme);
+		break;
+	}
+}
+
 static void pqi_get_raid_bypass_status(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev *device)
 {
@@ -1257,8 +1390,12 @@ static void pqi_get_raid_bypass_status(struct pqi_ctrl_info *ctrl_info,
 		(bypass_status & RAID_BYPASS_CONFIGURED) != 0;
 	if (device->raid_bypass_configured &&
 		(bypass_status & RAID_BYPASS_ENABLED) &&
-		pqi_get_raid_map(ctrl_info, device) == 0)
+		pqi_get_raid_map(ctrl_info, device) == 0) {
 		device->raid_bypass_enabled = true;
+		if (get_unaligned_le16(&device->raid_map->flags) &
+			RAID_MAP_ENCRYPTION_ENABLED)
+			pqi_set_max_transfer_encrypted(ctrl_info, device);
+	}
 
 out:
 	kfree(buffer);
@@ -2028,6 +2165,10 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 		}
 	}
 
+	if (num_logicals &&
+		(logdev_list->header.flags & CISS_REPORT_LOG_FLAG_DRIVE_TYPE_MIX))
+		ctrl_info->lv_drive_type_mix_valid = true;
+
 	num_new_devices = num_physicals + num_logicals;
 
 	new_device_list = kmalloc_array(num_new_devices,
@@ -2254,20 +2395,28 @@ static bool pqi_aio_raid_level_supported(struct pqi_ctrl_info *ctrl_info,
 	case SA_RAID_0:
 		break;
 	case SA_RAID_1:
+		if (rmd->is_write && (!ctrl_info->enable_r1_writes ||
+			rmd->data_length > ctrl_info->max_write_raid_1_10_2drive))
+			is_supported = false;
+		break;
 	case SA_RAID_TRIPLE:
-		if (rmd->is_write && !ctrl_info->enable_r1_writes)
+		if (rmd->is_write && (!ctrl_info->enable_r1_writes ||
+			rmd->data_length > ctrl_info->max_write_raid_1_10_3drive))
 			is_supported = false;
 		break;
 	case SA_RAID_5:
-		if (rmd->is_write && !ctrl_info->enable_r5_writes)
+		if (rmd->is_write && (!ctrl_info->enable_r5_writes ||
+			rmd->data_length > ctrl_info->max_write_raid_5_6))
 			is_supported = false;
 		break;
 	case SA_RAID_6:
-		if (rmd->is_write && !ctrl_info->enable_r6_writes)
+		if (rmd->is_write && (!ctrl_info->enable_r6_writes ||
+			rmd->data_length > ctrl_info->max_write_raid_5_6))
 			is_supported = false;
 		break;
 	default:
 		is_supported = false;
+		break;
 	}
 
 	return is_supported;
@@ -2624,7 +2773,9 @@ static int pqi_raid_bypass_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 	pqi_set_aio_cdb(&rmd);
 
 	if (get_unaligned_le16(&raid_map->flags) &
-		RAID_MAP_ENCRYPTION_ENABLED) {
+			RAID_MAP_ENCRYPTION_ENABLED) {
+		if (rmd.data_length > device->max_transfer_encrypted)
+			return PQI_RAID_BYPASS_INELIGIBLE;
 		pqi_set_encryption_info(&encryption_info, raid_map,
 			rmd.first_block);
 		encryption_info_ptr = &encryption_info;
@@ -2634,10 +2785,6 @@ static int pqi_raid_bypass_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 
 	if (rmd.is_write) {
 		switch (device->raid_level) {
-		case SA_RAID_0:
-			return pqi_aio_submit_io(ctrl_info, scmd, rmd.aio_handle,
-				rmd.cdb, rmd.cdb_length, queue_group,
-				encryption_info_ptr, true);
 		case SA_RAID_1:
 		case SA_RAID_TRIPLE:
 			return pqi_aio_submit_r1_write_io(ctrl_info, scmd, queue_group,
@@ -2646,17 +2793,12 @@ static int pqi_raid_bypass_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 		case SA_RAID_6:
 			return pqi_aio_submit_r56_write_io(ctrl_info, scmd, queue_group,
 					encryption_info_ptr, device, &rmd);
-		default:
-			return pqi_aio_submit_io(ctrl_info, scmd, rmd.aio_handle,
-				rmd.cdb, rmd.cdb_length, queue_group,
-				encryption_info_ptr, true);
 		}
-	} else {
-		return pqi_aio_submit_io(ctrl_info, scmd, rmd.aio_handle,
-			rmd.cdb, rmd.cdb_length, queue_group,
-			encryption_info_ptr, true);
 	}
 
+	return pqi_aio_submit_io(ctrl_info, scmd, rmd.aio_handle,
+		rmd.cdb, rmd.cdb_length, queue_group,
+		encryption_info_ptr, true);
 }
 
 #define PQI_STATUS_IDLE		0x0
@@ -7189,6 +7331,7 @@ static int pqi_enable_firmware_features(struct pqi_ctrl_info *ctrl_info,
 {
 	void *features_requested;
 	void __iomem *features_requested_iomem_addr;
+	void __iomem *host_max_known_feature_iomem_addr;
 
 	features_requested = firmware_features->features_supported +
 		le16_to_cpu(firmware_features->num_elements);
@@ -7198,6 +7341,16 @@ static int pqi_enable_firmware_features(struct pqi_ctrl_info *ctrl_info,
 
 	memcpy_toio(features_requested_iomem_addr, features_requested,
 		le16_to_cpu(firmware_features->num_elements));
+
+	if (pqi_is_firmware_feature_supported(firmware_features,
+		PQI_FIRMWARE_FEATURE_MAX_KNOWN_FEATURE)) {
+		host_max_known_feature_iomem_addr =
+			features_requested_iomem_addr +
+			(le16_to_cpu(firmware_features->num_elements) * 2) +
+			sizeof(__le16);
+		writew(PQI_FIRMWARE_FEATURE_MAXIMUM,
+			host_max_known_feature_iomem_addr);
+	}
 
 	return pqi_config_table_update(ctrl_info,
 		PQI_CONFIG_TABLE_SECTION_FIRMWARE_FEATURES,
@@ -7236,6 +7389,15 @@ static void pqi_ctrl_update_feature_flags(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_firmware_feature *firmware_feature)
 {
 	switch (firmware_feature->feature_bit) {
+	case PQI_FIRMWARE_FEATURE_RAID_1_WRITE_BYPASS:
+		ctrl_info->enable_r1_writes = firmware_feature->enabled;
+		break;
+	case PQI_FIRMWARE_FEATURE_RAID_5_WRITE_BYPASS:
+		ctrl_info->enable_r5_writes = firmware_feature->enabled;
+		break;
+	case PQI_FIRMWARE_FEATURE_RAID_6_WRITE_BYPASS:
+		ctrl_info->enable_r6_writes = firmware_feature->enabled;
+		break;
 	case PQI_FIRMWARE_FEATURE_SOFT_RESET_HANDSHAKE:
 		ctrl_info->soft_reset_handshake_supported =
 			firmware_feature->enabled;
@@ -7274,6 +7436,51 @@ static struct pqi_firmware_feature pqi_firmware_features[] = {
 		.feature_status = pqi_firmware_feature_status,
 	},
 	{
+		.feature_name = "Maximum Known Feature",
+		.feature_bit = PQI_FIRMWARE_FEATURE_MAX_KNOWN_FEATURE,
+		.feature_status = pqi_firmware_feature_status,
+	},
+	{
+		.feature_name = "RAID 0 Read Bypass",
+		.feature_bit = PQI_FIRMWARE_FEATURE_RAID_0_READ_BYPASS,
+		.feature_status = pqi_firmware_feature_status,
+	},
+	{
+		.feature_name = "RAID 1 Read Bypass",
+		.feature_bit = PQI_FIRMWARE_FEATURE_RAID_1_READ_BYPASS,
+		.feature_status = pqi_firmware_feature_status,
+	},
+	{
+		.feature_name = "RAID 5 Read Bypass",
+		.feature_bit = PQI_FIRMWARE_FEATURE_RAID_5_READ_BYPASS,
+		.feature_status = pqi_firmware_feature_status,
+	},
+	{
+		.feature_name = "RAID 6 Read Bypass",
+		.feature_bit = PQI_FIRMWARE_FEATURE_RAID_6_READ_BYPASS,
+		.feature_status = pqi_firmware_feature_status,
+	},
+	{
+		.feature_name = "RAID 0 Write Bypass",
+		.feature_bit = PQI_FIRMWARE_FEATURE_RAID_0_WRITE_BYPASS,
+		.feature_status = pqi_firmware_feature_status,
+	},
+	{
+		.feature_name = "RAID 1 Write Bypass",
+		.feature_bit = PQI_FIRMWARE_FEATURE_RAID_1_WRITE_BYPASS,
+		.feature_status = pqi_ctrl_update_feature_flags,
+	},
+	{
+		.feature_name = "RAID 5 Write Bypass",
+		.feature_bit = PQI_FIRMWARE_FEATURE_RAID_5_WRITE_BYPASS,
+		.feature_status = pqi_ctrl_update_feature_flags,
+	},
+	{
+		.feature_name = "RAID 6 Write Bypass",
+		.feature_bit = PQI_FIRMWARE_FEATURE_RAID_6_WRITE_BYPASS,
+		.feature_status = pqi_ctrl_update_feature_flags,
+	},
+	{
 		.feature_name = "New Soft Reset Handshake",
 		.feature_bit = PQI_FIRMWARE_FEATURE_SOFT_RESET_HANDSHAKE,
 		.feature_status = pqi_ctrl_update_feature_flags,
@@ -7287,6 +7494,11 @@ static struct pqi_firmware_feature pqi_firmware_features[] = {
 		.feature_name = "TMF IU Timeout",
 		.feature_bit = PQI_FIRMWARE_FEATURE_TMF_IU_TIMEOUT,
 		.feature_status = pqi_ctrl_update_feature_flags,
+	},
+	{
+		.feature_name = "RAID Bypass on encrypted logical volumes on NVMe",
+		.feature_bit = PQI_FIRMWARE_FEATURE_RAID_BYPASS_ON_ENCRYPTED_NVME,
+		.feature_status = pqi_firmware_feature_status,
 	},
 };
 
@@ -7372,14 +7584,21 @@ static void pqi_process_firmware_features_section(
 	mutex_unlock(&pqi_firmware_features_mutex);
 }
 
+/*
+ * Reset all controller settings that can be initialized during the processing
+ * of the PQI Configuration Table.
+ */
+
 static int pqi_process_config_table(struct pqi_ctrl_info *ctrl_info)
 {
 	u32 table_length;
 	u32 section_offset;
+	bool firmware_feature_section_present;
 	void __iomem *table_iomem_addr;
 	struct pqi_config_table *config_table;
 	struct pqi_config_table_section_header *section;
 	struct pqi_config_table_section_info section_info;
+	struct pqi_config_table_section_info feature_section_info;
 
 	table_length = ctrl_info->config_table_length;
 	if (table_length == 0)
@@ -7400,6 +7619,7 @@ static int pqi_process_config_table(struct pqi_ctrl_info *ctrl_info)
 		ctrl_info->config_table_offset;
 	memcpy_fromio(config_table, table_iomem_addr, table_length);
 
+	firmware_feature_section_present = false;
 	section_info.ctrl_info = ctrl_info;
 	section_offset =
 		get_unaligned_le32(&config_table->first_section_offset);
@@ -7414,7 +7634,8 @@ static int pqi_process_config_table(struct pqi_ctrl_info *ctrl_info)
 
 		switch (get_unaligned_le16(&section->section_id)) {
 		case PQI_CONFIG_TABLE_SECTION_FIRMWARE_FEATURES:
-			pqi_process_firmware_features_section(&section_info);
+			firmware_feature_section_present = true;
+			feature_section_info = section_info;
 			break;
 		case PQI_CONFIG_TABLE_SECTION_HEARTBEAT:
 			if (pqi_disable_heartbeat)
@@ -7440,6 +7661,14 @@ static int pqi_process_config_table(struct pqi_ctrl_info *ctrl_info)
 		section_offset =
 			get_unaligned_le16(&section->next_section_offset);
 	}
+
+	/*
+	 * We process the firmware feature section after all other sections
+	 * have been processed so that the feature bit callbacks can take
+	 * into account the settings configured by other sections.
+	 */
+	if (firmware_feature_section_present)
+		pqi_process_firmware_features_section(&feature_section_info);
 
 	kfree(config_table);
 
@@ -7647,6 +7876,17 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 
 	pqi_start_heartbeat_timer(ctrl_info);
 
+	if (ctrl_info->enable_r5_writes || ctrl_info->enable_r6_writes) {
+		rc = pqi_get_advanced_raid_bypass_config(ctrl_info);
+		if (rc) { /* Supported features not returned correctly. */
+			dev_err(&ctrl_info->pci_dev->dev,
+				"error obtaining advanced RAID bypass configuration\n");
+			return rc;
+		}
+		ctrl_info->ciss_report_log_flags |=
+			CISS_REPORT_LOG_FLAG_DRIVE_TYPE_MIX;
+	}
+
 	rc = pqi_enable_events(ctrl_info);
 	if (rc) {
 		dev_err(&ctrl_info->pci_dev->dev,
@@ -7801,6 +8041,17 @@ static int pqi_ctrl_init_resume(struct pqi_ctrl_info *ctrl_info)
 		return rc;
 
 	pqi_start_heartbeat_timer(ctrl_info);
+
+	if (ctrl_info->enable_r5_writes || ctrl_info->enable_r6_writes) {
+		rc = pqi_get_advanced_raid_bypass_config(ctrl_info);
+		if (rc) {
+			dev_err(&ctrl_info->pci_dev->dev,
+				"error obtaining advanced RAID bypass configuration\n");
+			return rc;
+		}
+		ctrl_info->ciss_report_log_flags |=
+			CISS_REPORT_LOG_FLAG_DRIVE_TYPE_MIX;
+	}
 
 	rc = pqi_enable_events(ctrl_info);
 	if (rc) {
@@ -7964,6 +8215,15 @@ static struct pqi_ctrl_info *pqi_alloc_ctrl_info(int numa_node)
 	ctrl_info->ctrl_id = atomic_inc_return(&pqi_controller_count) - 1;
 	ctrl_info->irq_mode = IRQ_MODE_NONE;
 	ctrl_info->max_msix_vectors = PQI_MAX_MSIX_VECTORS;
+
+	ctrl_info->ciss_report_log_flags = CISS_REPORT_LOG_FLAG_UNIQUE_LUN_ID;
+	ctrl_info->max_transfer_encrypted_sas_sata =
+		PQI_DEFAULT_MAX_TRANSFER_ENCRYPTED_SAS_SATA;
+	ctrl_info->max_transfer_encrypted_nvme =
+		PQI_DEFAULT_MAX_TRANSFER_ENCRYPTED_NVME;
+	ctrl_info->max_write_raid_5_6 = PQI_DEFAULT_MAX_WRITE_RAID_5_6;
+	ctrl_info->max_write_raid_1_10_2drive = ~0;
+	ctrl_info->max_write_raid_1_10_3drive = ~0;
 
 	return ctrl_info;
 }
@@ -9375,6 +9635,45 @@ static void __attribute__((unused)) verify_structures(void)
 	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
 		current_queue_depth_limit) != 1796);
 	BUILD_BUG_ON(sizeof(struct bmic_identify_physical_device) != 2560);
+
+	BUILD_BUG_ON(sizeof(struct bmic_sense_feature_buffer_header) != 4);
+	BUILD_BUG_ON(offsetof(struct bmic_sense_feature_buffer_header,
+		page_code) != 0);
+	BUILD_BUG_ON(offsetof(struct bmic_sense_feature_buffer_header,
+		subpage_code) != 1);
+	BUILD_BUG_ON(offsetof(struct bmic_sense_feature_buffer_header,
+		buffer_length) != 2);
+
+	BUILD_BUG_ON(sizeof(struct bmic_sense_feature_page_header) != 4);
+	BUILD_BUG_ON(offsetof(struct bmic_sense_feature_page_header,
+		page_code) != 0);
+	BUILD_BUG_ON(offsetof(struct bmic_sense_feature_page_header,
+		subpage_code) != 1);
+	BUILD_BUG_ON(offsetof(struct bmic_sense_feature_page_header,
+		page_length) != 2);
+
+	BUILD_BUG_ON(sizeof(struct bmic_sense_feature_io_page_aio_subpage)
+		!= 18);
+	BUILD_BUG_ON(offsetof(struct bmic_sense_feature_io_page_aio_subpage,
+		header) != 0);
+	BUILD_BUG_ON(offsetof(struct bmic_sense_feature_io_page_aio_subpage,
+		firmware_read_support) != 4);
+	BUILD_BUG_ON(offsetof(struct bmic_sense_feature_io_page_aio_subpage,
+		driver_read_support) != 5);
+	BUILD_BUG_ON(offsetof(struct bmic_sense_feature_io_page_aio_subpage,
+		firmware_write_support) != 6);
+	BUILD_BUG_ON(offsetof(struct bmic_sense_feature_io_page_aio_subpage,
+		driver_write_support) != 7);
+	BUILD_BUG_ON(offsetof(struct bmic_sense_feature_io_page_aio_subpage,
+		max_transfer_encrypted_sas_sata) != 8);
+	BUILD_BUG_ON(offsetof(struct bmic_sense_feature_io_page_aio_subpage,
+		max_transfer_encrypted_nvme) != 10);
+	BUILD_BUG_ON(offsetof(struct bmic_sense_feature_io_page_aio_subpage,
+		max_write_raid_5_6) != 12);
+	BUILD_BUG_ON(offsetof(struct bmic_sense_feature_io_page_aio_subpage,
+		max_write_raid_1_10_2drive) != 14);
+	BUILD_BUG_ON(offsetof(struct bmic_sense_feature_io_page_aio_subpage,
+		max_write_raid_1_10_3drive) != 16);
 
 	BUILD_BUG_ON(PQI_ADMIN_IQ_NUM_ELEMENTS > 255);
 	BUILD_BUG_ON(PQI_ADMIN_OQ_NUM_ELEMENTS > 255);

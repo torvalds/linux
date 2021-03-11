@@ -343,6 +343,10 @@ struct pqi_aio_r1_path_request {
 	struct pqi_sg_descriptor sg_descriptors[PQI_MAX_EMBEDDED_SG_DESCRIPTORS];
 };
 
+#define PQI_DEFAULT_MAX_WRITE_RAID_5_6			(8 * 1024U)
+#define PQI_DEFAULT_MAX_TRANSFER_ENCRYPTED_SAS_SATA	(~0U)
+#define PQI_DEFAULT_MAX_TRANSFER_ENCRYPTED_NVME		(32 * 1024U)
+
 struct pqi_aio_r56_path_request {
 	struct pqi_iu_header header;
 	__le16	request_id;
@@ -826,13 +830,28 @@ struct pqi_config_table_firmware_features {
 	u8	features_supported[];
 /*	u8	features_requested_by_host[]; */
 /*	u8	features_enabled[]; */
+/* The 2 fields below are only valid if the MAX_KNOWN_FEATURE bit is set. */
+/*	__le16	firmware_max_known_feature; */
+/*	__le16	host_max_known_feature; */
 };
 
 #define PQI_FIRMWARE_FEATURE_OFA			0
 #define PQI_FIRMWARE_FEATURE_SMP			1
+#define PQI_FIRMWARE_FEATURE_MAX_KNOWN_FEATURE		2
+#define PQI_FIRMWARE_FEATURE_RAID_0_READ_BYPASS		3
+#define PQI_FIRMWARE_FEATURE_RAID_1_READ_BYPASS		4
+#define PQI_FIRMWARE_FEATURE_RAID_5_READ_BYPASS		5
+#define PQI_FIRMWARE_FEATURE_RAID_6_READ_BYPASS		6
+#define PQI_FIRMWARE_FEATURE_RAID_0_WRITE_BYPASS	7
+#define PQI_FIRMWARE_FEATURE_RAID_1_WRITE_BYPASS	8
+#define PQI_FIRMWARE_FEATURE_RAID_5_WRITE_BYPASS	9
+#define PQI_FIRMWARE_FEATURE_RAID_6_WRITE_BYPASS	10
 #define PQI_FIRMWARE_FEATURE_SOFT_RESET_HANDSHAKE	11
+#define PQI_FIRMWARE_FEATURE_UNIQUE_SATA_WWN		12
 #define PQI_FIRMWARE_FEATURE_RAID_IU_TIMEOUT		13
 #define PQI_FIRMWARE_FEATURE_TMF_IU_TIMEOUT		14
+#define PQI_FIRMWARE_FEATURE_RAID_BYPASS_ON_ENCRYPTED_NVME	15
+#define PQI_FIRMWARE_FEATURE_MAXIMUM				15
 
 struct pqi_config_table_debug {
 	struct pqi_config_table_section_header header;
@@ -1069,6 +1088,7 @@ struct pqi_scsi_dev {
 	bool	raid_bypass_enabled;	/* RAID bypass enabled */
 	u32	next_bypass_group;
 	struct raid_map *raid_map;	/* RAID bypass map */
+	u32	max_transfer_encrypted;
 
 	struct pqi_sas_port *sas_port;
 	struct scsi_device *sdev;
@@ -1276,6 +1296,14 @@ struct pqi_ctrl_info {
 	u8		enable_r1_writes : 1;
 	u8		enable_r5_writes : 1;
 	u8		enable_r6_writes : 1;
+	u8		lv_drive_type_mix_valid : 1;
+
+	u8		ciss_report_log_flags;
+	u32		max_transfer_encrypted_sas_sata;
+	u32		max_transfer_encrypted_nvme;
+	u32		max_write_raid_5_6;
+	u32		max_write_raid_1_10_2drive;
+	u32		max_write_raid_1_10_3drive;
 
 	struct list_head scsi_device_list;
 	spinlock_t	scsi_device_list_lock;
@@ -1336,6 +1364,7 @@ enum pqi_ctrl_mode {
 #define BMIC_IDENTIFY_PHYSICAL_DEVICE		0x15
 #define BMIC_READ				0x26
 #define BMIC_WRITE				0x27
+#define BMIC_SENSE_FEATURE			0x61
 #define BMIC_SENSE_CONTROLLER_PARAMETERS	0x64
 #define BMIC_SENSE_SUBSYSTEM_INFORMATION	0x66
 #define BMIC_CSMI_PASSTHRU			0x68
@@ -1354,6 +1383,19 @@ enum pqi_ctrl_mode {
 #define CISS_GET_DRIVE_NUMBER(lunid)		\
 	(((CISS_GET_LEVEL_2_BUS((lunid)) - 1) << 8) + \
 	CISS_GET_LEVEL_2_TARGET((lunid)))
+
+#define LV_GET_DRIVE_TYPE_MIX(lunid)		((lunid)[6])
+
+#define LV_DRIVE_TYPE_MIX_UNKNOWN		0
+#define LV_DRIVE_TYPE_MIX_NO_RESTRICTION	1
+#define LV_DRIVE_TYPE_MIX_SAS_HDD_ONLY		2
+#define LV_DRIVE_TYPE_MIX_SATA_HDD_ONLY		3
+#define LV_DRIVE_TYPE_MIX_SAS_OR_SATA_SSD_ONLY	4
+#define LV_DRIVE_TYPE_MIX_SAS_SSD_ONLY		5
+#define LV_DRIVE_TYPE_MIX_SATA_SSD_ONLY		6
+#define LV_DRIVE_TYPE_MIX_SAS_ONLY		7
+#define LV_DRIVE_TYPE_MIX_SATA_ONLY		8
+#define LV_DRIVE_TYPE_MIX_NVME_ONLY		9
 
 #define NO_TIMEOUT		((unsigned long) -1)
 
@@ -1466,6 +1508,34 @@ struct bmic_identify_physical_device {
 	u8	negotiated_physical_link_rate[256];
 	u8	box_connector_name[8];
 	u8	padding_to_multiple_of_512[9];
+};
+
+#define BMIC_SENSE_FEATURE_IO_PAGE		0x8
+#define BMIC_SENSE_FEATURE_IO_PAGE_AIO_SUBPAGE	0x2
+
+struct bmic_sense_feature_buffer_header {
+	u8	page_code;
+	u8	subpage_code;
+	__le16	buffer_length;
+};
+
+struct bmic_sense_feature_page_header {
+	u8	page_code;
+	u8	subpage_code;
+	__le16	page_length;
+};
+
+struct bmic_sense_feature_io_page_aio_subpage {
+	struct bmic_sense_feature_page_header header;
+	u8	firmware_read_support;
+	u8	driver_read_support;
+	u8	firmware_write_support;
+	u8	driver_write_support;
+	__le16	max_transfer_encrypted_sas_sata;
+	__le16	max_transfer_encrypted_nvme;
+	__le16	max_write_raid_5_6;
+	__le16	max_write_raid_1_10_2drive;
+	__le16	max_write_raid_1_10_3drive;
 };
 
 struct bmic_smp_request {
