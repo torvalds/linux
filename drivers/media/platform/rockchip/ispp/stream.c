@@ -2580,12 +2580,18 @@ static void nr_work_event(struct rkispp_device *dev,
 			secure_config_mb(stream);
 
 		if (!dev->hw_dev->is_single) {
-			if (vdev->nr.cur_rd && vdev->nr.cur_rd->is_isp) {
+			if (vdev->nr.cur_rd &&
+			    (vdev->nr.cur_rd->is_isp || vdev->nr.cur_rd->priv)) {
 				rkispp_update_regs(dev, RKISPP_CTRL, RKISPP_TNR_CTRL);
 				writel(TNR_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
 			}
 			rkispp_update_regs(dev, RKISPP_NR, RKISPP_ORB_MAX_FEATURE);
 		}
+		val = readl(base + RKISPP_SHARP_CORE_CTRL);
+		if (!(val & SW_SHP_EN) && !is_fec_en && !stream->streaming)
+			writel(val | SW_SHP_DMA_DIS, base + RKISPP_SHARP_CORE_CTRL);
+		else if (val & SW_SHP_EN)
+			writel(val & ~SW_SHP_DMA_DIS, base + RKISPP_SHARP_CORE_CTRL);
 
 		writel(OTHER_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
 
