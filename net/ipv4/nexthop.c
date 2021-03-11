@@ -1492,6 +1492,8 @@ static struct nexthop *nexthop_create_group(struct net *net,
 	if (cfg->nh_grp_type == NEXTHOP_GRP_TYPE_MPATH) {
 		nhg->mpath = 1;
 		nhg->is_multipath = true;
+	} else if (cfg->nh_grp_type == NEXTHOP_GRP_TYPE_RES) {
+		goto out_no_nh;
 	}
 
 	WARN_ON_ONCE(nhg->mpath != 1);
