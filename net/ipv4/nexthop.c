@@ -2443,10 +2443,6 @@ static struct nexthop *nexthop_create_group(struct net *net,
 	} else if (cfg->nh_grp_type == NEXTHOP_GRP_TYPE_RES) {
 		struct nh_res_table *res_table;
 
-		/* Bounce resilient groups for now. */
-		err = -EINVAL;
-		goto out_no_nh;
-
 		res_table = nexthop_res_table_alloc(net, cfg->nh_id, cfg);
 		if (!res_table) {
 			err = -ENOMEM;
