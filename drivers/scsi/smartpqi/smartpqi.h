@@ -1347,10 +1347,6 @@ struct pqi_ctrl_info {
 	atomic_t	num_blocked_threads;
 	wait_queue_head_t block_requests_wait;
 
-	struct list_head raid_bypass_retry_list;
-	spinlock_t	raid_bypass_retry_list_lock;
-	struct work_struct raid_bypass_retry_work;
-
 	struct pqi_ofa_memory *pqi_ofa_mem_virt_addr;
 	dma_addr_t	pqi_ofa_mem_dma_handle;
 	void		**pqi_ofa_chunk_virt_addr;
