@@ -20,7 +20,7 @@ mlx5_ib_set_vport_rep(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 	rep->rep_data[REP_IB].priv = ibdev;
 	write_lock(&ibdev->port[vport_index].roce.netdev_lock);
 	ibdev->port[vport_index].roce.netdev =
-		mlx5_ib_get_rep_netdev(dev->priv.eswitch, rep->vport);
+		mlx5_ib_get_rep_netdev(rep->esw, rep->vport);
 	write_unlock(&ibdev->port[vport_index].roce.netdev_lock);
 
 	return 0;
