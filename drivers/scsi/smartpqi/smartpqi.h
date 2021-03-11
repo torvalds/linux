@@ -313,6 +313,36 @@ struct pqi_aio_path_request {
 		sg_descriptors[PQI_MAX_EMBEDDED_SG_DESCRIPTORS];
 };
 
+#define PQI_RAID1_NVME_XFER_LIMIT	(32 * 1024)	/* 32 KiB */
+struct pqi_aio_r1_path_request {
+	struct pqi_iu_header header;
+	__le16	request_id;
+	__le16	volume_id;	/* ID of the RAID volume */
+	__le32	it_nexus_1;	/* IT nexus of the 1st drive in the RAID volume */
+	__le32	it_nexus_2;	/* IT nexus of the 2nd drive in the RAID volume */
+	__le32	it_nexus_3;	/* IT nexus of the 3rd drive in the RAID volume */
+	__le32	data_length;	/* total bytes to read/write */
+	u8	data_direction : 2;
+	u8	partial : 1;
+	u8	memory_type : 1;
+	u8	fence : 1;
+	u8	encryption_enable : 1;
+	u8	reserved : 2;
+	u8	task_attribute : 3;
+	u8	command_priority : 4;
+	u8	reserved2 : 1;
+	__le16	data_encryption_key_index;
+	u8	cdb[16];
+	__le16	error_index;
+	u8	num_sg_descriptors;
+	u8	cdb_length;
+	u8	num_drives;	/* number of drives in the RAID volume (2 or 3) */
+	u8	reserved3[3];
+	__le32	encrypt_tweak_lower;
+	__le32	encrypt_tweak_upper;
+	struct pqi_sg_descriptor sg_descriptors[PQI_MAX_EMBEDDED_SG_DESCRIPTORS];
+};
+
 struct pqi_aio_r56_path_request {
 	struct pqi_iu_header header;
 	__le16	request_id;
@@ -518,6 +548,7 @@ struct pqi_raid_error_info {
 #define PQI_REQUEST_IU_AIO_PATH_IO			0x15
 #define PQI_REQUEST_IU_AIO_PATH_RAID5_IO		0x18
 #define PQI_REQUEST_IU_AIO_PATH_RAID6_IO		0x19
+#define PQI_REQUEST_IU_AIO_PATH_RAID1_IO		0x1A
 #define PQI_REQUEST_IU_GENERAL_ADMIN			0x60
 #define PQI_REQUEST_IU_REPORT_VENDOR_EVENT_CONFIG	0x72
 #define PQI_REQUEST_IU_SET_VENDOR_EVENT_CONFIG		0x73
@@ -970,14 +1001,12 @@ struct pqi_scsi_dev_raid_map_data {
 	u16	strip_size;
 	u32	first_group;
 	u32	last_group;
-	u32	current_group;
 	u32	map_row;
 	u32	aio_handle;
 	u64	disk_block;
 	u32	disk_block_cnt;
 	u8	cdb[16];
 	u8	cdb_length;
-	int	offload_to_mirror;
 
 	/* RAID1 specific */
 #define NUM_RAID1_MAP_ENTRIES	3
@@ -1038,8 +1067,7 @@ struct pqi_scsi_dev {
 	u16	phys_connector[8];
 	bool	raid_bypass_configured;	/* RAID bypass configured */
 	bool	raid_bypass_enabled;	/* RAID bypass enabled */
-	int	offload_to_mirror;	/* Send next RAID bypass request */
-					/* to mirror drive. */
+	u32	next_bypass_group;
 	struct raid_map *raid_map;	/* RAID bypass map */
 
 	struct pqi_sas_port *sas_port;
@@ -1245,6 +1273,7 @@ struct pqi_ctrl_info {
 	u8		soft_reset_handshake_supported : 1;
 	u8		raid_iu_timeout_supported: 1;
 	u8		tmf_iu_timeout_supported: 1;
+	u8		enable_r1_writes : 1;
 	u8		enable_r5_writes : 1;
 	u8		enable_r6_writes : 1;
 

@@ -67,6 +67,10 @@ static int pqi_aio_submit_io(struct pqi_ctrl_info *ctrl_info,
 	struct scsi_cmnd *scmd, u32 aio_handle, u8 *cdb,
 	unsigned int cdb_length, struct pqi_queue_group *queue_group,
 	struct pqi_encryption_info *encryption_info, bool raid_bypass);
+static  int pqi_aio_submit_r1_write_io(struct pqi_ctrl_info *ctrl_info,
+	struct scsi_cmnd *scmd, struct pqi_queue_group *queue_group,
+	struct pqi_encryption_info *encryption_info, struct pqi_scsi_dev *device,
+	struct pqi_scsi_dev_raid_map_data *rmd);
 static int pqi_aio_submit_r56_write_io(struct pqi_ctrl_info *ctrl_info,
 	struct scsi_cmnd *scmd, struct pqi_queue_group *queue_group,
 	struct pqi_encryption_info *encryption_info, struct pqi_scsi_dev *device,
@@ -167,8 +171,8 @@ static char *raid_levels[] = {
 	"RAID-1(1+0)",
 	"RAID-5",
 	"RAID-5+1",
-	"RAID-ADG",
-	"RAID-1(ADM)",
+	"RAID-6",
+	"RAID-1(Triple)",
 };
 
 static char *pqi_raid_level_to_string(u8 raid_level)
@@ -185,8 +189,8 @@ static char *pqi_raid_level_to_string(u8 raid_level)
 #define SA_RAID_5		3	/* also used for RAID 50 */
 #define SA_RAID_51		4
 #define SA_RAID_6		5	/* also used for RAID 60 */
-#define SA_RAID_ADM		6	/* also used for RAID 1+0 ADM */
-#define SA_RAID_MAX		SA_RAID_ADM
+#define SA_RAID_TRIPLE		6	/* also used for RAID 1+0 Triple */
+#define SA_RAID_MAX		SA_RAID_TRIPLE
 #define SA_RAID_UNKNOWN		0xff
 
 static inline void pqi_scsi_done(struct scsi_cmnd *scmd)
@@ -1141,9 +1145,9 @@ static int pqi_validate_raid_map(struct pqi_ctrl_info *ctrl_info,
 			err_msg = "invalid RAID-1 map";
 			goto bad_raid_map;
 		}
-	} else if (device->raid_level == SA_RAID_ADM) {
+	} else if (device->raid_level == SA_RAID_TRIPLE) {
 		if (get_unaligned_le16(&raid_map->layout_map_count) != 3) {
-			err_msg = "invalid RAID-1(ADM) map";
+			err_msg = "invalid RAID-1(Triple) map";
 			goto bad_raid_map;
 		}
 	} else if ((device->raid_level == SA_RAID_5 ||
@@ -1717,7 +1721,7 @@ static void pqi_scsi_update_device(struct pqi_scsi_dev *existing_device,
 		sizeof(existing_device->box));
 	memcpy(existing_device->phys_connector, new_device->phys_connector,
 		sizeof(existing_device->phys_connector));
-	existing_device->offload_to_mirror = 0;
+	existing_device->next_bypass_group = 0;
 	kfree(existing_device->raid_map);
 	existing_device->raid_map = new_device->raid_map;
 	existing_device->raid_bypass_configured =
@@ -2250,7 +2254,8 @@ static bool pqi_aio_raid_level_supported(struct pqi_ctrl_info *ctrl_info,
 	case SA_RAID_0:
 		break;
 	case SA_RAID_1:
-		if (rmd->is_write)
+	case SA_RAID_TRIPLE:
+		if (rmd->is_write && !ctrl_info->enable_r1_writes)
 			is_supported = false;
 		break;
 	case SA_RAID_5:
@@ -2259,10 +2264,6 @@ static bool pqi_aio_raid_level_supported(struct pqi_ctrl_info *ctrl_info,
 		break;
 	case SA_RAID_6:
 		if (rmd->is_write && !ctrl_info->enable_r6_writes)
-			is_supported = false;
-		break;
-	case SA_RAID_ADM:
-		if (rmd->is_write)
 			is_supported = false;
 		break;
 	default:
@@ -2382,64 +2383,6 @@ static int pci_get_aio_common_raid_map_values(struct pqi_ctrl_info *ctrl_info,
 		get_unaligned_le16(&raid_map->row_cnt);
 	rmd->map_index = (rmd->map_row * rmd->total_disks_per_row) +
 			rmd->first_column;
-
-	return 0;
-}
-
-static int pqi_calc_aio_raid_adm(struct pqi_scsi_dev_raid_map_data *rmd,
-				struct pqi_scsi_dev *device)
-{
-	/* RAID ADM */
-	/*
-	 * Handles N-way mirrors  (R1-ADM) and R10 with # of drives
-	 * divisible by 3.
-	 */
-	rmd->offload_to_mirror = device->offload_to_mirror;
-
-	if (rmd->offload_to_mirror == 0)  {
-		/* use physical disk in the first mirrored group. */
-		rmd->map_index %= rmd->data_disks_per_row;
-	} else {
-		do {
-			/*
-			 * Determine mirror group that map_index
-			 * indicates.
-			 */
-			rmd->current_group =
-				rmd->map_index / rmd->data_disks_per_row;
-
-			if (rmd->offload_to_mirror !=
-					rmd->current_group) {
-				if (rmd->current_group <
-					rmd->layout_map_count - 1) {
-					/*
-					 * Select raid index from
-					 * next group.
-					 */
-					rmd->map_index += rmd->data_disks_per_row;
-					rmd->current_group++;
-				} else {
-					/*
-					 * Select raid index from first
-					 * group.
-					 */
-					rmd->map_index %= rmd->data_disks_per_row;
-					rmd->current_group = 0;
-				}
-			}
-		} while (rmd->offload_to_mirror != rmd->current_group);
-	}
-
-	/* Set mirror group to use next time. */
-	rmd->offload_to_mirror =
-		(rmd->offload_to_mirror >= rmd->layout_map_count - 1) ?
-			0 : rmd->offload_to_mirror + 1;
-	device->offload_to_mirror = rmd->offload_to_mirror;
-	/*
-	 * Avoid direct use of device->offload_to_mirror within this
-	 * function since multiple threads might simultaneously
-	 * increment it beyond the range of device->layout_map_count -1.
-	 */
 
 	return 0;
 }
@@ -2590,12 +2533,34 @@ static void pqi_set_aio_cdb(struct pqi_scsi_dev_raid_map_data *rmd)
 	}
 }
 
+static void pqi_calc_aio_r1_nexus(struct raid_map *raid_map,
+				struct pqi_scsi_dev_raid_map_data *rmd)
+{
+	u32 index;
+	u32 group;
+
+	group = rmd->map_index / rmd->data_disks_per_row;
+
+	index = rmd->map_index - (group * rmd->data_disks_per_row);
+	rmd->it_nexus[0] = raid_map->disk_data[index].aio_handle;
+	index += rmd->data_disks_per_row;
+	rmd->it_nexus[1] = raid_map->disk_data[index].aio_handle;
+	if (rmd->layout_map_count > 2) {
+		index += rmd->data_disks_per_row;
+		rmd->it_nexus[2] = raid_map->disk_data[index].aio_handle;
+	}
+
+	rmd->num_it_nexus_entries = rmd->layout_map_count;
+}
+
 static int pqi_raid_bypass_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev *device, struct scsi_cmnd *scmd,
 	struct pqi_queue_group *queue_group)
 {
-	struct raid_map *raid_map;
 	int rc;
+	struct raid_map *raid_map;
+	u32 group;
+	u32 next_bypass_group;
 	struct pqi_encryption_info *encryption_info_ptr;
 	struct pqi_encryption_info encryption_info;
 	struct pqi_scsi_dev_raid_map_data rmd = {0};
@@ -2618,13 +2583,18 @@ static int pqi_raid_bypass_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 	if (rc)
 		return PQI_RAID_BYPASS_INELIGIBLE;
 
-	/* RAID 1 */
-	if (device->raid_level == SA_RAID_1) {
-		if (device->offload_to_mirror)
-			rmd.map_index += rmd.data_disks_per_row;
-		device->offload_to_mirror = !device->offload_to_mirror;
-	} else if (device->raid_level == SA_RAID_ADM) {
-		rc = pqi_calc_aio_raid_adm(&rmd, device);
+	if (device->raid_level == SA_RAID_1 ||
+		device->raid_level == SA_RAID_TRIPLE) {
+		if (rmd.is_write) {
+			pqi_calc_aio_r1_nexus(raid_map, &rmd);
+		} else {
+			group = device->next_bypass_group;
+			next_bypass_group = group + 1;
+			if (next_bypass_group >= rmd.layout_map_count)
+				next_bypass_group = 0;
+			device->next_bypass_group = next_bypass_group;
+			rmd.map_index += group * rmd.data_disks_per_row;
+		}
 	} else if ((device->raid_level == SA_RAID_5 ||
 		device->raid_level == SA_RAID_6) &&
 		(rmd.layout_map_count > 1 || rmd.is_write)) {
@@ -2668,6 +2638,10 @@ static int pqi_raid_bypass_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 			return pqi_aio_submit_io(ctrl_info, scmd, rmd.aio_handle,
 				rmd.cdb, rmd.cdb_length, queue_group,
 				encryption_info_ptr, true);
+		case SA_RAID_1:
+		case SA_RAID_TRIPLE:
+			return pqi_aio_submit_r1_write_io(ctrl_info, scmd, queue_group,
+				encryption_info_ptr, device, &rmd);
 		case SA_RAID_5:
 		case SA_RAID_6:
 			return pqi_aio_submit_r56_write_io(ctrl_info, scmd, queue_group,
@@ -4995,6 +4969,44 @@ out:
 	return 0;
 }
 
+static int pqi_build_aio_r1_sg_list(struct pqi_ctrl_info *ctrl_info,
+	struct pqi_aio_r1_path_request *request, struct scsi_cmnd *scmd,
+	struct pqi_io_request *io_request)
+{
+	u16 iu_length;
+	int sg_count;
+	bool chained;
+	unsigned int num_sg_in_iu;
+	struct scatterlist *sg;
+	struct pqi_sg_descriptor *sg_descriptor;
+
+	sg_count = scsi_dma_map(scmd);
+	if (sg_count < 0)
+		return sg_count;
+
+	iu_length = offsetof(struct pqi_aio_r1_path_request, sg_descriptors) -
+		PQI_REQUEST_HEADER_LENGTH;
+	num_sg_in_iu = 0;
+
+	if (sg_count == 0)
+		goto out;
+
+	sg = scsi_sglist(scmd);
+	sg_descriptor = request->sg_descriptors;
+
+	num_sg_in_iu = pqi_build_sg_list(sg_descriptor, sg, sg_count, io_request,
+		ctrl_info->max_sg_per_iu, &chained);
+
+	request->partial = chained;
+	iu_length += num_sg_in_iu * sizeof(*sg_descriptor);
+
+out:
+	put_unaligned_le16(iu_length, &request->header.iu_length);
+	request->num_sg_descriptors = num_sg_in_iu;
+
+	return 0;
+}
+
 static int pqi_build_aio_r56_sg_list(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_aio_r56_path_request *request, struct scsi_cmnd *scmd,
 	struct pqi_io_request *io_request)
@@ -5425,6 +5437,66 @@ static int pqi_aio_submit_io(struct pqi_ctrl_info *ctrl_info,
 	}
 
 	rc = pqi_build_aio_sg_list(ctrl_info, request, scmd, io_request);
+	if (rc) {
+		pqi_free_io_request(io_request);
+		return SCSI_MLQUEUE_HOST_BUSY;
+	}
+
+	pqi_start_io(ctrl_info, queue_group, AIO_PATH, io_request);
+
+	return 0;
+}
+
+static  int pqi_aio_submit_r1_write_io(struct pqi_ctrl_info *ctrl_info,
+	struct scsi_cmnd *scmd, struct pqi_queue_group *queue_group,
+	struct pqi_encryption_info *encryption_info, struct pqi_scsi_dev *device,
+	struct pqi_scsi_dev_raid_map_data *rmd)
+
+{
+	int rc;
+	struct pqi_io_request *io_request;
+	struct pqi_aio_r1_path_request *r1_request;
+
+	io_request = pqi_alloc_io_request(ctrl_info);
+	io_request->io_complete_callback = pqi_aio_io_complete;
+	io_request->scmd = scmd;
+	io_request->raid_bypass = true;
+
+	r1_request = io_request->iu;
+	memset(r1_request, 0, offsetof(struct pqi_aio_r1_path_request, sg_descriptors));
+
+	r1_request->header.iu_type = PQI_REQUEST_IU_AIO_PATH_RAID1_IO;
+
+	put_unaligned_le16(*(u16 *)device->scsi3addr & 0x3fff, &r1_request->volume_id);
+	r1_request->num_drives = rmd->num_it_nexus_entries;
+	put_unaligned_le32(rmd->it_nexus[0], &r1_request->it_nexus_1);
+	put_unaligned_le32(rmd->it_nexus[1], &r1_request->it_nexus_2);
+	if (rmd->num_it_nexus_entries == 3)
+		put_unaligned_le32(rmd->it_nexus[2], &r1_request->it_nexus_3);
+
+	put_unaligned_le32(scsi_bufflen(scmd), &r1_request->data_length);
+	r1_request->task_attribute = SOP_TASK_ATTRIBUTE_SIMPLE;
+	put_unaligned_le16(io_request->index, &r1_request->request_id);
+	r1_request->error_index = r1_request->request_id;
+	if (rmd->cdb_length > sizeof(r1_request->cdb))
+		rmd->cdb_length = sizeof(r1_request->cdb);
+	r1_request->cdb_length = rmd->cdb_length;
+	memcpy(r1_request->cdb, rmd->cdb, rmd->cdb_length);
+
+	/* The direction is always write. */
+	r1_request->data_direction = SOP_READ_FLAG;
+
+	if (encryption_info) {
+		r1_request->encryption_enable = true;
+		put_unaligned_le16(encryption_info->data_encryption_key_index,
+				&r1_request->data_encryption_key_index);
+		put_unaligned_le32(encryption_info->encrypt_tweak_lower,
+				&r1_request->encrypt_tweak_lower);
+		put_unaligned_le32(encryption_info->encrypt_tweak_upper,
+				&r1_request->encrypt_tweak_upper);
+	}
+
+	rc = pqi_build_aio_r1_sg_list(ctrl_info, r1_request, scmd, io_request);
 	if (rc) {
 		pqi_free_io_request(io_request);
 		return SCSI_MLQUEUE_HOST_BUSY;
