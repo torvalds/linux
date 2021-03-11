@@ -123,7 +123,7 @@ static inline unsigned int AOUT_FROM_REG(u8 reg)
 
 /* per client data */
 struct adm9240_data {
-	struct i2c_client *client;
+	struct device *dev;
 	struct regmap *regmap;
 	struct mutex update_lock;
 	char valid;
@@ -160,7 +160,7 @@ static int adm9240_write_fan_div(struct adm9240_data *data, int nr,
 	err = regmap_write(data->regmap, ADM9240_REG_VID_FAN_DIV, reg);
 	if (err < 0)
 		return err;
-	dev_dbg(&data->client->dev,
+	dev_dbg(data->dev,
 		"fan%d clock divider changed from %u to %u\n",
 		nr + 1, 1 << old, 1 << fan_div);
 
@@ -507,7 +507,6 @@ static ssize_t fan_min_store(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm9240_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
 	int nr = attr->index;
 	u8 new_div;
 	unsigned long val;
@@ -523,14 +522,14 @@ static ssize_t fan_min_store(struct device *dev,
 		data->fan_min[nr] = 255;
 		new_div = data->fan_div[nr];
 
-		dev_dbg(&client->dev, "fan%u low limit set disabled\n",
+		dev_dbg(data->dev, "fan%u low limit set disabled\n",
 				nr + 1);
 
 	} else if (val < 1350000 / (8 * 254)) {
 		new_div = 3;
 		data->fan_min[nr] = 254;
 
-		dev_dbg(&client->dev, "fan%u low limit set minimum %u\n",
+		dev_dbg(data->dev, "fan%u low limit set minimum %u\n",
 				nr + 1, FAN_FROM_REG(254, 1 << new_div));
 
 	} else {
@@ -546,7 +545,7 @@ static ssize_t fan_min_store(struct device *dev,
 
 		data->fan_min[nr] = new_min;
 
-		dev_dbg(&client->dev, "fan%u low limit set fan speed %u\n",
+		dev_dbg(data->dev, "fan%u low limit set fan speed %u\n",
 				nr + 1, FAN_FROM_REG(new_min, 1 << new_div));
 	}
 
@@ -663,7 +662,7 @@ static ssize_t alarm_store(struct device *dev, struct device_attribute *attr,
 	mutex_unlock(&data->update_lock);
 	if (err < 0)
 		return err;
-	dev_dbg(&data->client->dev, "chassis intrusion latch cleared\n");
+	dev_dbg(data->dev, "chassis intrusion latch cleared\n");
 
 	return count;
 }
@@ -755,7 +754,7 @@ static int adm9240_detect(struct i2c_client *new_client,
 	return 0;
 }
 
-static int adm9240_init_client(struct i2c_client *client, struct adm9240_data *data)
+static int adm9240_init_client(struct adm9240_data *data)
 {
 	u8 conf, mode;
 	int err;
@@ -770,13 +769,13 @@ static int adm9240_init_client(struct i2c_client *client, struct adm9240_data *d
 
 	data->vrm = vid_which_vrm(); /* need this to report vid as mV */
 
-	dev_info(&client->dev, "Using VRM: %d.%d\n", data->vrm / 10,
-			data->vrm % 10);
+	dev_info(data->dev, "Using VRM: %d.%d\n", data->vrm / 10,
+		 data->vrm % 10);
 
 	if (conf & 1) { /* measurement cycle running: report state */
 
-		dev_info(&client->dev, "status: config 0x%02x mode %u\n",
-				conf, mode);
+		dev_info(data->dev, "status: config 0x%02x mode %u\n",
+			 conf, mode);
 
 	} else { /* cold start: open limits before starting chip */
 		int i;
@@ -809,7 +808,7 @@ static int adm9240_init_client(struct i2c_client *client, struct adm9240_data *d
 		if (err < 0)
 			return err;
 
-		dev_info(&client->dev,
+		dev_info(data->dev,
 			 "cold start: config was 0x%02x mode %u\n", conf, mode);
 	}
 
@@ -834,13 +833,13 @@ static int adm9240_probe(struct i2c_client *new_client)
 	if (!data)
 		return -ENOMEM;
 
-	data->client = new_client;
+	data->dev = dev;
 	mutex_init(&data->update_lock);
 	data->regmap = devm_regmap_init_i2c(new_client, &adm9240_regmap_config);
 	if (IS_ERR(data->regmap))
 		return PTR_ERR(data->regmap);
 
-	err = adm9240_init_client(new_client, data);
+	err = adm9240_init_client(data);
 	if (err < 0)
 		return err;
 
