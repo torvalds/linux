@@ -554,10 +554,7 @@ int btrfs_tree_mod_log_free_eb(struct extent_buffer *eb)
 	int i;
 	int ret = 0;
 
-	if (btrfs_header_level(eb) == 0)
-		return 0;
-
-	if (!tree_mod_need_log(eb->fs_info, NULL))
+	if (!tree_mod_need_log(eb->fs_info, eb))
 		return 0;
 
 	nritems = btrfs_header_nritems(eb);
