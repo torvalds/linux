@@ -7119,14 +7119,18 @@ static struct io_sq_data *io_attach_sq_data(struct io_uring_params *p)
 	return sqd;
 }
 
-static struct io_sq_data *io_get_sq_data(struct io_uring_params *p)
+static struct io_sq_data *io_get_sq_data(struct io_uring_params *p,
+					 bool *attached)
 {
 	struct io_sq_data *sqd;
 
+	*attached = false;
 	if (p->flags & IORING_SETUP_ATTACH_WQ) {
 		sqd = io_attach_sq_data(p);
-		if (!IS_ERR(sqd))
+		if (!IS_ERR(sqd)) {
+			*attached = true;
 			return sqd;
+		}
 		/* fall through for EPERM case, setup new sqd/task */
 		if (PTR_ERR(sqd) != -EPERM)
 			return sqd;
@@ -7799,12 +7803,13 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
 		struct task_struct *tsk;
 		struct io_sq_data *sqd;
+		bool attached;
 
 		ret = -EPERM;
 		if (!capable(CAP_SYS_ADMIN) && !capable(CAP_SYS_NICE))
 			goto err;
 
-		sqd = io_get_sq_data(p);
+		sqd = io_get_sq_data(p, &attached);
 		if (IS_ERR(sqd)) {
 			ret = PTR_ERR(sqd);
 			goto err;
@@ -7816,13 +7821,24 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 		if (!ctx->sq_thread_idle)
 			ctx->sq_thread_idle = HZ;
 
+		ret = 0;
 		io_sq_thread_park(sqd);
-		list_add(&ctx->sqd_list, &sqd->ctx_list);
-		io_sqd_update_thread_idle(sqd);
+		/* don't attach to a dying SQPOLL thread, would be racy */
+		if (attached && !sqd->thread) {
+			ret = -ENXIO;
+		} else {
+			list_add(&ctx->sqd_list, &sqd->ctx_list);
+			io_sqd_update_thread_idle(sqd);
+		}
 		io_sq_thread_unpark(sqd);
 
-		if (sqd->thread)
+		if (ret < 0) {
+			io_put_sq_data(sqd);
+			ctx->sq_data = NULL;
+			return ret;
+		} else if (attached) {
 			return 0;
+		}
 
 		if (p->flags & IORING_SETUP_SQ_AFF) {
 			int cpu = p->sq_thread_cpu;
