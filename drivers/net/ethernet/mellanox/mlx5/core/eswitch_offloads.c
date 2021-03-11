@@ -3153,6 +3153,7 @@ void mlx5_eswitch_register_vport_reps(struct mlx5_eswitch *esw,
 	esw->offloads.rep_ops[rep_type] = ops;
 	mlx5_esw_for_all_reps(esw, i, rep) {
 		if (likely(mlx5_eswitch_vport_has_rep(esw, i))) {
+			rep->esw = esw;
 			rep_data = &rep->rep_data[rep_type];
 			atomic_set(&rep_data->state, REP_REGISTERED);
 		}

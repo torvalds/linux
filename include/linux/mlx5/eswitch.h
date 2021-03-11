@@ -48,6 +48,7 @@ struct mlx5_eswitch_rep {
 	/* Only IB rep is using vport_index */
 	u16		       vport_index;
 	u32		       vlan_refcount;
+	struct                 mlx5_eswitch *esw;
 };
 
 void mlx5_eswitch_register_vport_reps(struct mlx5_eswitch *esw,
