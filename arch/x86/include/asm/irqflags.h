@@ -111,7 +111,7 @@ static __always_inline unsigned long arch_local_irq_save(void)
 
 #ifdef CONFIG_X86_64
 #ifdef CONFIG_DEBUG_ENTRY
-#define SAVE_FLAGS(x)		pushfq; popq %rax
+#define SAVE_FLAGS		pushfq; popq %rax
 #endif
 
 #define INTERRUPT_RETURN	jmp native_iret
