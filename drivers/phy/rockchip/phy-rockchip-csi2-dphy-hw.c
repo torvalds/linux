@@ -128,6 +128,8 @@ enum grf_reg_id {
 	GRF_DPHY_ISP_CSI2PHY_SEL,
 	GRF_DPHY_CIF_CSI2PHY_SEL,
 	GRF_DPHY_CSI2PHY_LANE_SEL,
+	GRF_DPHY_CSI2PHY_DATALANE_EN0,
+	GRF_DPHY_CSI2PHY_DATALANE_EN1,
 };
 
 enum csi2dphy_reg_id {
@@ -250,6 +252,8 @@ static void csi_mipidphy_wr_ths_settle(struct csi2_dphy_hw *hw,
 static const struct grf_reg rk3568_grf_dphy_regs[] = {
 	[GRF_DPHY_CSI2PHY_FORCERXMODE] = GRF_REG(GRF_VI_CON0, 4, 0),
 	[GRF_DPHY_CSI2PHY_DATALANE_EN] = GRF_REG(GRF_VI_CON0, 4, 4),
+	[GRF_DPHY_CSI2PHY_DATALANE_EN0] = GRF_REG(GRF_VI_CON0, 2, 4),
+	[GRF_DPHY_CSI2PHY_DATALANE_EN1] = GRF_REG(GRF_VI_CON0, 2, 6),
 	[GRF_DPHY_CSI2PHY_CLKLANE_EN] = GRF_REG(GRF_VI_CON0, 1, 8),
 	[GRF_DPHY_CLK_INV_SEL] = GRF_REG(GRF_VI_CON0, 1, 9),
 	[GRF_DPHY_CSI2PHY_CLKLANE1_EN] = GRF_REG(GRF_VI_CON0, 1, 10),
@@ -339,12 +343,12 @@ static void csi2_dphy_config_dual_mode(struct csi2_dphy *dphy,
 			      GENMASK(sensor->lanes - 1, 0));
 		write_grf_reg(hw, GRF_DPHY_CSI2PHY_CLKLANE_EN, 0x1);
 	} else {
-
 		val = GRF_CSI2PHY_LANE_SEL_SPLIT;
 		write_grf_reg(hw, GRF_DPHY_CSI2PHY_LANE_SEL, val);
-		write_grf_reg(hw, GRF_DPHY_CSI2PHY_DATALANE_EN, GENMASK(3, 0));
 
 		if (dphy->phy_index == DPHY1) {
+			write_grf_reg(hw, GRF_DPHY_CSI2PHY_DATALANE_EN0,
+				      GENMASK(sensor->lanes - 1, 0));
 			write_grf_reg(hw, GRF_DPHY_CSI2PHY_CLKLANE_EN, 0x1);
 			if (is_cif)
 				write_grf_reg(hw, GRF_DPHY_CIF_CSI2PHY_SEL,
@@ -355,6 +359,8 @@ static void csi2_dphy_config_dual_mode(struct csi2_dphy *dphy,
 		}
 
 		if (dphy->phy_index == DPHY2) {
+			write_grf_reg(hw, GRF_DPHY_CSI2PHY_DATALANE_EN1,
+				      GENMASK(sensor->lanes - 1, 0));
 			write_grf_reg(hw, GRF_DPHY_CSI2PHY_CLKLANE1_EN, 0x1);
 			if (is_cif)
 				write_grf_reg(hw, GRF_DPHY_CIF_CSI2PHY_SEL,
@@ -392,14 +398,16 @@ static int csi2_dphy_hw_stream_on(struct csi2_dphy *dphy,
 			CSI2_DPHY_CTRL_DATALANE_ENABLE_OFFSET_BIT) |
 			(0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT);
 	} else {
+		if (!(pre_val & (0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT)))
+			val |= (0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT);
+
 		if (dphy->phy_index == DPHY1)
-			val = (0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT) |
-				(GENMASK(sensor->lanes - 1, 0) <<
-				 CSI2_DPHY_CTRL_DATALANE_ENABLE_OFFSET_BIT);
+			val |= (GENMASK(sensor->lanes - 1, 0) <<
+				CSI2_DPHY_CTRL_DATALANE_ENABLE_OFFSET_BIT);
 
 		if (dphy->phy_index == DPHY2)
-			val = (GENMASK(sensor->lanes - 1, 0) <<
-			       CSI2_DPHY_CTRL_DATALANE_SPLIT_LANE2_3_OFFSET_BIT);
+			val |= (GENMASK(sensor->lanes - 1, 0) <<
+				CSI2_DPHY_CTRL_DATALANE_SPLIT_LANE2_3_OFFSET_BIT);
 	}
 	val |= pre_val;
 	write_csi2_dphy_reg(hw, CSI2PHY_REG_CTRL_LANE_ENABLE, val);
