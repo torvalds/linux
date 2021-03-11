@@ -2,5 +2,5 @@
 config CLK_INTEL_SOCFPGA64
 	bool
 	# Intel Stratix / Agilex / N5X clock controller support
-	default (ARCH_AGILEX || ARCH_N5X || ARCH_STRATIX10)
-	depends on ARCH_AGILEX || ARCH_N5X || ARCH_STRATIX10
+	default ARM64 && ARCH_INTEL_SOCFPGA
+	depends on ARM64 && ARCH_INTEL_SOCFPGA
