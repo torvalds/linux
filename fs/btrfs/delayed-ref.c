@@ -11,6 +11,7 @@
 #include "transaction.h"
 #include "qgroup.h"
 #include "space-info.h"
+#include "tree-mod-log.h"
 
 struct kmem_cache *btrfs_delayed_ref_head_cachep;
 struct kmem_cache *btrfs_delayed_tree_ref_cachep;
@@ -496,10 +497,10 @@ void btrfs_merge_delayed_refs(struct btrfs_trans_handle *trans,
 
 	read_lock(&fs_info->tree_mod_log_lock);
 	if (!list_empty(&fs_info->tree_mod_seq_list)) {
-		struct seq_list *elem;
+		struct btrfs_seq_list *elem;
 
 		elem = list_first_entry(&fs_info->tree_mod_seq_list,
-					struct seq_list, list);
+					struct btrfs_seq_list, list);
 		seq = elem->seq;
 	}
 	read_unlock(&fs_info->tree_mod_log_lock);
@@ -517,13 +518,13 @@ again:
 
 int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info, u64 seq)
 {
-	struct seq_list *elem;
+	struct btrfs_seq_list *elem;
 	int ret = 0;
 
 	read_lock(&fs_info->tree_mod_log_lock);
 	if (!list_empty(&fs_info->tree_mod_seq_list)) {
 		elem = list_first_entry(&fs_info->tree_mod_seq_list,
-					struct seq_list, list);
+					struct btrfs_seq_list, list);
 		if (seq >= elem->seq) {
 			btrfs_debug(fs_info,
 				"holding back delayed_ref %#x.%x, lowest is %#x.%x",
