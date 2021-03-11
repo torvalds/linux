@@ -314,6 +314,9 @@ enum mod_hdcp_status mod_hdcp_add_display(struct mod_hdcp *hdcp,
 		goto out;
 	}
 
+	/* save current encryption states to restore after next authentication */
+	mod_hdcp_save_current_encryption_states(hdcp);
+
 	/* reset existing authentication status */
 	status = reset_authentication(hdcp, output);
 	if (status != MOD_HDCP_STATUS_SUCCESS)
@@ -359,6 +362,9 @@ enum mod_hdcp_status mod_hdcp_remove_display(struct mod_hdcp *hdcp,
 		status = MOD_HDCP_STATUS_SUCCESS;
 		goto out;
 	}
+
+	/* save current encryption states to restore after next authentication */
+	mod_hdcp_save_current_encryption_states(hdcp);
 
 	/* stop current authentication */
 	status = reset_authentication(hdcp, output);
