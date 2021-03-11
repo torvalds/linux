@@ -813,13 +813,6 @@ static int pqi_flush_cache(struct pqi_ctrl_info *ctrl_info,
 	int rc;
 	struct bmic_flush_cache *flush_cache;
 
-	/*
-	 * Don't bother trying to flush the cache if the controller is
-	 * locked up.
-	 */
-	if (pqi_ctrl_offline(ctrl_info))
-		return -ENXIO;
-
 	flush_cache = kzalloc(sizeof(*flush_cache), GFP_KERNEL);
 	if (!flush_cache)
 		return -ENOMEM;
@@ -997,9 +990,6 @@ static void pqi_update_time_worker(struct work_struct *work)
 
 	ctrl_info = container_of(to_delayed_work(work), struct pqi_ctrl_info,
 		update_time_work);
-
-	if (pqi_ctrl_offline(ctrl_info))
-		return;
 
 	rc = pqi_write_current_time_to_host_wellness(ctrl_info);
 	if (rc)
@@ -5725,7 +5715,6 @@ static int pqi_scsi_queue_command(struct Scsi_Host *shost, struct scsi_cmnd *scm
 	}
 
 out:
-	pqi_ctrl_unbusy(ctrl_info);
 	if (rc)
 		atomic_dec(&device->scsi_cmds_outstanding);
 
@@ -5837,48 +5826,11 @@ static void pqi_fail_io_queued_for_device(struct pqi_ctrl_info *ctrl_info,
 	}
 }
 
-static void pqi_fail_io_queued_for_all_devices(struct pqi_ctrl_info *ctrl_info)
-{
-	unsigned int i;
-	unsigned int path;
-	struct pqi_queue_group *queue_group;
-	unsigned long flags;
-	struct pqi_io_request *io_request;
-	struct pqi_io_request *next;
-	struct scsi_cmnd *scmd;
-
-	for (i = 0; i < ctrl_info->num_queue_groups; i++) {
-		queue_group = &ctrl_info->queue_groups[i];
-
-		for (path = 0; path < 2; path++) {
-			spin_lock_irqsave(&queue_group->submit_lock[path],
-						flags);
-
-			list_for_each_entry_safe(io_request, next,
-				&queue_group->request_list[path],
-				request_list_entry) {
-
-				scmd = io_request->scmd;
-				if (!scmd)
-					continue;
-
-				list_del(&io_request->request_list_entry);
-				set_host_byte(scmd, DID_RESET);
-				pqi_free_io_request(io_request);
-				scsi_dma_unmap(scmd);
-				pqi_scsi_done(scmd);
-			}
-
-			spin_unlock_irqrestore(
-				&queue_group->submit_lock[path], flags);
-		}
-	}
-}
-
 static int pqi_device_wait_for_pending_io(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev *device, unsigned long timeout_secs)
 {
 	unsigned long timeout;
+
 
 	timeout = (timeout_secs * PQI_HZ) + jiffies;
 
@@ -5889,50 +5841,7 @@ static int pqi_device_wait_for_pending_io(struct pqi_ctrl_info *ctrl_info,
 		if (timeout_secs != NO_TIMEOUT) {
 			if (time_after(jiffies, timeout)) {
 				dev_err(&ctrl_info->pci_dev->dev,
-					"timed out waiting for pending IO\n");
-				return -ETIMEDOUT;
-			}
-		}
-		usleep_range(1000, 2000);
-	}
-
-	return 0;
-}
-
-static int pqi_ctrl_wait_for_pending_io(struct pqi_ctrl_info *ctrl_info,
-	unsigned long timeout_secs)
-{
-	bool io_pending;
-	unsigned long flags;
-	unsigned long timeout;
-	struct pqi_scsi_dev *device;
-
-	timeout = (timeout_secs * PQI_HZ) + jiffies;
-	while (1) {
-		io_pending = false;
-
-		spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
-		list_for_each_entry(device, &ctrl_info->scsi_device_list,
-			scsi_device_list_entry) {
-			if (atomic_read(&device->scsi_cmds_outstanding)) {
-				io_pending = true;
-				break;
-			}
-		}
-		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock,
-					flags);
-
-		if (!io_pending)
-			break;
-
-		pqi_check_ctrl_health(ctrl_info);
-		if (pqi_ctrl_offline(ctrl_info))
-			return -ENXIO;
-
-		if (timeout_secs != NO_TIMEOUT) {
-			if (time_after(jiffies, timeout)) {
-				dev_err(&ctrl_info->pci_dev->dev,
-					"timed out waiting for pending IO\n");
+					"timed out waiting for pending I/O\n");
 				return -ETIMEDOUT;
 			}
 		}
@@ -6012,8 +5921,6 @@ static int pqi_lun_reset(struct pqi_ctrl_info *ctrl_info,
 
 	return rc;
 }
-
-/* Performs a reset at the LUN level. */
 
 #define PQI_LUN_RESET_RETRIES			3
 #define PQI_LUN_RESET_RETRY_INTERVAL_MSECS	10000
@@ -7659,8 +7566,6 @@ static int pqi_force_sis_mode(struct pqi_ctrl_info *ctrl_info)
 	return pqi_revert_to_sis_mode(ctrl_info);
 }
 
-#define PQI_POST_RESET_DELAY_B4_MSGU_READY	5000
-
 static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 {
 	int rc;
@@ -7668,7 +7573,7 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 
 	if (reset_devices) {
 		sis_soft_reset(ctrl_info);
-		msleep(PQI_POST_RESET_DELAY_B4_MSGU_READY);
+		msleep(PQI_POST_RESET_DELAY_SECS * PQI_HZ);
 	} else {
 		rc = pqi_force_sis_mode(ctrl_info);
 		if (rc)
@@ -8222,12 +8127,7 @@ static void pqi_ofa_ctrl_quiesce(struct pqi_ctrl_info *ctrl_info)
 	pqi_ctrl_block_device_reset(ctrl_info);
 	pqi_ctrl_block_requests(ctrl_info);
 	pqi_ctrl_wait_until_quiesced(ctrl_info);
-	pqi_ctrl_wait_for_pending_io(ctrl_info, PQI_PENDING_IO_TIMEOUT_SECS);
-	pqi_fail_io_queued_for_all_devices(ctrl_info);
-	pqi_wait_until_inbound_queues_empty(ctrl_info);
 	pqi_stop_heartbeat_timer(ctrl_info);
-	ctrl_info->pqi_mode_enabled = false;
-	pqi_save_ctrl_mode(ctrl_info, SIS_MODE);
 }
 
 static void pqi_ofa_ctrl_unquiesce(struct pqi_ctrl_info *ctrl_info)
