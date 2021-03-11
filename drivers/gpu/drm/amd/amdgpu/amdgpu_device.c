@@ -3445,7 +3445,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 				      adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_COMMON ||
 				      adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_IH ||
 				      adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC)) {
-					DRM_DEBUG("IP %s disabed for hw_init.\n",
+					DRM_DEBUG("IP %s disabled for hw_init.\n",
 						adev->ip_blocks[i].version->funcs->name);
 					adev->ip_blocks[i].status.hw = true;
 				}
