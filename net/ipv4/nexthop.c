@@ -957,6 +957,34 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static void nexthop_bucket_notify(struct nh_res_table *res_table,
+				  u16 bucket_index)
+{
+	struct nh_res_bucket *bucket = &res_table->nh_buckets[bucket_index];
+	struct nh_grp_entry *nhge = nh_res_dereference(bucket->nh_entry);
+	struct nexthop *nh = nhge->nh_parent;
+	struct sk_buff *skb;
+	int err = -ENOBUFS;
+
+	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!skb)
+		goto errout;
+
+	err = nh_fill_res_bucket(skb, nh, bucket, bucket_index,
+				 RTM_NEWNEXTHOPBUCKET, 0, 0, NLM_F_REPLACE,
+				 NULL);
+	if (err < 0) {
+		kfree_skb(skb);
+		goto errout;
+	}
+
+	rtnl_notify(skb, nh->net, 0, RTNLGRP_NEXTHOP, NULL, GFP_KERNEL);
+	return;
+errout:
+	if (err < 0)
+		rtnl_set_sk_err(nh->net, RTNLGRP_NEXTHOP, err);
+}
+
 static bool valid_group_nh(struct nexthop *nh, unsigned int npaths,
 			   bool *is_fdb, struct netlink_ext_ack *extack)
 {
@@ -1470,7 +1498,8 @@ static bool nh_res_bucket_should_migrate(struct nh_res_table *res_table,
 }
 
 static bool nh_res_bucket_migrate(struct nh_res_table *res_table,
-				  u16 bucket_index, bool notify, bool force)
+				  u16 bucket_index, bool notify,
+				  bool notify_nl, bool force)
 {
 	struct nh_res_bucket *bucket = &res_table->nh_buckets[bucket_index];
 	struct nh_grp_entry *new_nhge;
@@ -1513,6 +1542,9 @@ static bool nh_res_bucket_migrate(struct nh_res_table *res_table,
 	nh_res_bucket_set_nh(bucket, new_nhge);
 	nh_res_bucket_set_idle(res_table, bucket);
 
+	if (notify_nl)
+		nexthop_bucket_notify(res_table, bucket_index);
+
 	if (nh_res_nhge_is_balanced(new_nhge))
 		list_del(&new_nhge->res.uw_nh_entry);
 	return true;
@@ -1520,7 +1552,8 @@ static bool nh_res_bucket_migrate(struct nh_res_table *res_table,
 
 #define NH_RES_UPKEEP_DW_MINIMUM_INTERVAL (HZ / 2)
 
-static void nh_res_table_upkeep(struct nh_res_table *res_table, bool notify)
+static void nh_res_table_upkeep(struct nh_res_table *res_table,
+				bool notify, bool notify_nl)
 {
 	unsigned long now = jiffies;
 	unsigned long deadline;
@@ -1545,7 +1578,7 @@ static void nh_res_table_upkeep(struct nh_res_table *res_table, bool notify)
 		if (nh_res_bucket_should_migrate(res_table, bucket,
 						 &deadline, &force)) {
 			if (!nh_res_bucket_migrate(res_table, i, notify,
-						   force)) {
+						   notify_nl, force)) {
 				unsigned long idle_point;
 
 				/* A driver can override the migration
@@ -1586,7 +1619,7 @@ static void nh_res_table_upkeep_dw(struct work_struct *work)
 	struct nh_res_table *res_table;
 
 	res_table = container_of(dw, struct nh_res_table, upkeep_dw);
-	nh_res_table_upkeep(res_table, true);
+	nh_res_table_upkeep(res_table, true, true);
 }
 
 static void nh_res_table_cancel_upkeep(struct nh_res_table *res_table)
@@ -1674,7 +1707,7 @@ static void replace_nexthop_grp_res(struct nh_group *oldg,
 	nh_res_group_rebalance(newg, old_res_table);
 	if (prev_has_uw && !list_empty(&old_res_table->uw_nh_entries))
 		old_res_table->unbalanced_since = prev_unbalanced_since;
-	nh_res_table_upkeep(old_res_table, true);
+	nh_res_table_upkeep(old_res_table, true, false);
 }
 
 static void nh_mp_group_rebalance(struct nh_group *nhg)
@@ -2288,7 +2321,7 @@ static int insert_nexthop(struct net *net, struct nexthop *new_nh,
 			/* Do not send bucket notifications, we do full
 			 * notification below.
 			 */
-			nh_res_table_upkeep(res_table, false);
+			nh_res_table_upkeep(res_table, false, false);
 		}
 	}
 
