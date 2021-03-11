@@ -362,41 +362,51 @@ static int pl2303_calc_num_ports(struct usb_serial *serial,
 	return 1;
 }
 
+static enum pl2303_type pl2303_detect_type(struct usb_serial *serial)
+{
+	struct usb_device_descriptor *desc = &serial->dev->descriptor;
+	int ret;
+	u8 buf;
+
+	/*
+	 * Legacy types 0 and 1, difference unknown.
+	 */
+	if (desc->bDeviceClass == 0x02)
+		return TYPE_01;		/* type 0 */
+
+	if (desc->bMaxPacketSize0 != 0x40) {
+		if (desc->bDeviceClass == 0x00 || desc->bDeviceClass == 0xff)
+			return TYPE_01;	/* type 1 */
+
+		return TYPE_01;		/* type 0 */
+	}
+
+	/*
+	 * Assume it's an HXN-type if the device doesn't support the old read
+	 * request value.
+	 */
+	ret = usb_control_msg_recv(serial->dev, 0, VENDOR_READ_REQUEST,
+			VENDOR_READ_REQUEST_TYPE, PL2303_READ_TYPE_HX_STATUS,
+			0, &buf, 1, 100, GFP_KERNEL);
+	if (ret)
+		return TYPE_HXN;
+
+	return TYPE_HX;
+}
+
 static int pl2303_startup(struct usb_serial *serial)
 {
 	struct pl2303_serial_private *spriv;
-	enum pl2303_type type = TYPE_01;
+	enum pl2303_type type;
 	unsigned char *buf;
-	int res;
 
 	spriv = kzalloc(sizeof(*spriv), GFP_KERNEL);
 	if (!spriv)
 		return -ENOMEM;
 
-	buf = kmalloc(1, GFP_KERNEL);
-	if (!buf) {
-		kfree(spriv);
-		return -ENOMEM;
-	}
+	type = pl2303_detect_type(serial);
 
-	if (serial->dev->descriptor.bDeviceClass == 0x02)
-		type = TYPE_01;		/* type 0 */
-	else if (serial->dev->descriptor.bMaxPacketSize0 == 0x40)
-		type = TYPE_HX;
-	else if (serial->dev->descriptor.bDeviceClass == 0x00)
-		type = TYPE_01;		/* type 1 */
-	else if (serial->dev->descriptor.bDeviceClass == 0xFF)
-		type = TYPE_01;		/* type 1 */
 	dev_dbg(&serial->interface->dev, "device type: %d\n", type);
-
-	if (type == TYPE_HX) {
-		res = usb_control_msg(serial->dev,
-				usb_rcvctrlpipe(serial->dev, 0),
-				VENDOR_READ_REQUEST, VENDOR_READ_REQUEST_TYPE,
-				PL2303_READ_TYPE_HX_STATUS, 0, buf, 1, 100);
-		if (res != 1)
-			type = TYPE_HXN;
-	}
 
 	spriv->type = &pl2303_type_data[type];
 	spriv->quirks = (unsigned long)usb_get_serial_data(serial);
@@ -405,6 +415,12 @@ static int pl2303_startup(struct usb_serial *serial)
 	usb_set_serial_data(serial, spriv);
 
 	if (type != TYPE_HXN) {
+		buf = kmalloc(1, GFP_KERNEL);
+		if (!buf) {
+			kfree(spriv);
+			return -ENOMEM;
+		}
+
 		pl2303_vendor_read(serial, 0x8484, buf);
 		pl2303_vendor_write(serial, 0x0404, 0);
 		pl2303_vendor_read(serial, 0x8484, buf);
@@ -419,9 +435,9 @@ static int pl2303_startup(struct usb_serial *serial)
 			pl2303_vendor_write(serial, 2, 0x24);
 		else
 			pl2303_vendor_write(serial, 2, 0x44);
-	}
 
-	kfree(buf);
+		kfree(buf);
+	}
 
 	return 0;
 }
