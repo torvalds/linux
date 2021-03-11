@@ -55,6 +55,9 @@ override DTC_FLAGS := \
 	-Wno-graph_child_address \
 	-Wno-interrupt_provider
 
+# Disable undocumented compatible checks until warning free
+override DT_CHECKER_FLAGS ?=
+
 $(obj)/processed-schema-examples.json: $(DT_DOCS) $(src)/.yamllint check_dtschema_version FORCE
 	$(call if_changed_rule,chkdt)
 
