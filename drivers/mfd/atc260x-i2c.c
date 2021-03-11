@@ -42,7 +42,7 @@ static int atc260x_i2c_probe(struct i2c_client *client,
 	return atc260x_device_probe(atc260x);
 }
 
-const struct of_device_id atc260x_i2c_of_match[] = {
+static const struct of_device_id atc260x_i2c_of_match[] = {
 	{ .compatible = "actions,atc2603c", .data = (void *)ATC2603C },
 	{ .compatible = "actions,atc2609a", .data = (void *)ATC2609A },
 	{ }
