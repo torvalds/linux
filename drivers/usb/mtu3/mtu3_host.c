@@ -109,7 +109,7 @@ int ssusb_host_enable(struct ssusb_mtk *ssusb)
 	void __iomem *ibase = ssusb->ippc_base;
 	int num_u3p = ssusb->u3_ports;
 	int num_u2p = ssusb->u2_ports;
-	int u3_ports_disabed;
+	int u3_ports_disabled;
 	u32 check_clk;
 	u32 value;
 	int i;
@@ -118,10 +118,10 @@ int ssusb_host_enable(struct ssusb_mtk *ssusb)
 	mtu3_clrbits(ibase, U3D_SSUSB_IP_PW_CTRL1, SSUSB_IP_HOST_PDN);
 
 	/* power on and enable u3 ports except skipped ones */
-	u3_ports_disabed = 0;
+	u3_ports_disabled = 0;
 	for (i = 0; i < num_u3p; i++) {
 		if ((0x1 << i) & ssusb->u3p_dis_msk) {
-			u3_ports_disabed++;
+			u3_ports_disabled++;
 			continue;
 		}
 
@@ -140,7 +140,7 @@ int ssusb_host_enable(struct ssusb_mtk *ssusb)
 	}
 
 	check_clk = SSUSB_XHCI_RST_B_STS;
-	if (num_u3p > u3_ports_disabed)
+	if (num_u3p > u3_ports_disabled)
 		check_clk = SSUSB_U3_MAC_RST_B_STS;
 
 	return ssusb_check_clocks(ssusb, check_clk);
