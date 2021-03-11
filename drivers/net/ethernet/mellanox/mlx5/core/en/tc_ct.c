@@ -918,7 +918,7 @@ mlx5_tc_ct_shared_counter_get(struct mlx5_tc_ct_priv *ct_priv,
 	}
 
 	if (rev_entry && refcount_inc_not_zero(&rev_entry->counter->refcount)) {
-		ct_dbg("Using shared counter entry=0x%p rev=0x%p\n", entry, rev_entry);
+		ct_dbg("Using shared counter entry=0x%p rev=0x%p", entry, rev_entry);
 		shared_counter = rev_entry->counter;
 		spin_unlock_bh(&ct_priv->ht_lock);
 
