@@ -16,7 +16,7 @@
 		     "phytec,imx8mp-phycore-som", "fsl,imx8mp";
 
 	chosen {
-		stdout-path = &uart2;
+		stdout-path = &uart1;
 	};
 
 	reg_usdhc2_vmmc: regulator-usdhc2 {
@@ -95,9 +95,9 @@
 };
 
 /* debug console */
-&uart2 {
+&uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart2>;
+	pinctrl-0 = <&pinctrl_uart1>;
 	status = "okay";
 };
 
@@ -154,10 +154,10 @@
 		>;
 	};
 
-	pinctrl_uart2: uart2grp {
+	pinctrl_uart1: uart1grp {
 		fsl,pins = <
-			MX8MP_IOMUXC_UART2_RXD__UART2_DCE_RX	0x49
-			MX8MP_IOMUXC_UART2_TXD__UART2_DCE_TX	0x49
+			MX8MP_IOMUXC_UART1_RXD__UART1_DCE_RX	0x49
+			MX8MP_IOMUXC_UART1_TXD__UART1_DCE_TX	0x49
 		>;
 	};
 
