@@ -884,3 +884,26 @@ int btrfs_old_root_level(struct btrfs_root *root, u64 time_seq)
 	return level;
 }
 
+/*
+ * Return the lowest sequence number in the tree modification log.
+ *
+ * Return the sequence number of the oldest tree modification log user, which
+ * corresponds to the lowest sequence number of all existing users. If there are
+ * no users it returns 0.
+ */
+u64 btrfs_tree_mod_log_lowest_seq(struct btrfs_fs_info *fs_info)
+{
+	u64 ret = 0;
+
+	read_lock(&fs_info->tree_mod_log_lock);
+	if (!list_empty(&fs_info->tree_mod_seq_list)) {
+		struct btrfs_seq_list *elem;
+
+		elem = list_first_entry(&fs_info->tree_mod_seq_list,
+					struct btrfs_seq_list, list);
+		ret = elem->seq;
+	}
+	read_unlock(&fs_info->tree_mod_log_lock);
+
+	return ret;
+}

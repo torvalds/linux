@@ -48,5 +48,6 @@ int btrfs_tree_mod_log_eb_copy(struct extent_buffer *dst,
 int btrfs_tree_mod_log_insert_move(struct extent_buffer *eb,
 				   int dst_slot, int src_slot,
 				   int nr_items);
+u64 btrfs_tree_mod_log_lowest_seq(struct btrfs_fs_info *fs_info);
 
 #endif

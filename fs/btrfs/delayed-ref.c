@@ -495,16 +495,7 @@ void btrfs_merge_delayed_refs(struct btrfs_trans_handle *trans,
 	if (head->is_data)
 		return;
 
-	read_lock(&fs_info->tree_mod_log_lock);
-	if (!list_empty(&fs_info->tree_mod_seq_list)) {
-		struct btrfs_seq_list *elem;
-
-		elem = list_first_entry(&fs_info->tree_mod_seq_list,
-					struct btrfs_seq_list, list);
-		seq = elem->seq;
-	}
-	read_unlock(&fs_info->tree_mod_log_lock);
-
+	seq = btrfs_tree_mod_log_lowest_seq(fs_info);
 again:
 	for (node = rb_first_cached(&head->ref_tree); node;
 	     node = rb_next(node)) {
@@ -518,23 +509,17 @@ again:
 
 int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info, u64 seq)
 {
-	struct btrfs_seq_list *elem;
 	int ret = 0;
+	u64 min_seq = btrfs_tree_mod_log_lowest_seq(fs_info);
 
-	read_lock(&fs_info->tree_mod_log_lock);
-	if (!list_empty(&fs_info->tree_mod_seq_list)) {
-		elem = list_first_entry(&fs_info->tree_mod_seq_list,
-					struct btrfs_seq_list, list);
-		if (seq >= elem->seq) {
-			btrfs_debug(fs_info,
-				"holding back delayed_ref %#x.%x, lowest is %#x.%x",
-				(u32)(seq >> 32), (u32)seq,
-				(u32)(elem->seq >> 32), (u32)elem->seq);
-			ret = 1;
-		}
+	if (min_seq != 0 && seq >= min_seq) {
+		btrfs_debug(fs_info,
+			    "holding back delayed_ref %#x.%x, lowest is %#x.%x",
+			    (u32)(seq >> 32), (u32)seq,
+			    (u32)(min_seq >> 32), (u32)min_seq);
+		ret = 1;
 	}
 
-	read_unlock(&fs_info->tree_mod_log_lock);
 	return ret;
 }
 
