@@ -540,6 +540,30 @@ static void *get_result_buffer(struct dm_ioctl *param, size_t param_size,
 	return ((void *) param) + param->data_start;
 }
 
+static bool filter_device(struct hash_cell *hc, const char *pfx_name, const char *pfx_uuid)
+{
+	const char *val;
+	size_t val_len, pfx_len;
+
+	val = hc->name;
+	val_len = strlen(val);
+	pfx_len = strnlen(pfx_name, DM_NAME_LEN);
+	if (pfx_len > val_len)
+		return false;
+	if (memcmp(val, pfx_name, pfx_len))
+		return false;
+
+	val = hc->uuid ? hc->uuid : "";
+	val_len = strlen(val);
+	pfx_len = strnlen(pfx_uuid, DM_UUID_LEN);
+	if (pfx_len > val_len)
+		return false;
+	if (memcmp(val, pfx_uuid, pfx_len))
+		return false;
+
+	return true;
+}
+
 static int list_devices(struct file *filp, struct dm_ioctl *param, size_t param_size)
 {
 	struct rb_node *n;
@@ -557,6 +581,8 @@ static int list_devices(struct file *filp, struct dm_ioctl *param, size_t param_
 	 */
 	for (n = rb_first(&name_rb_tree); n; n = rb_next(n)) {
 		hc = container_of(n, struct hash_cell, name_node);
+		if (!filter_device(hc, param->name, param->uuid))
+			continue;
 		needed += align_val(offsetof(struct dm_name_list, name) + strlen(hc->name) + 1);
 		needed += align_val(sizeof(uint32_t) * 2);
 		if (param->flags & DM_UUID_FLAG && hc->uuid)
@@ -581,6 +607,8 @@ static int list_devices(struct file *filp, struct dm_ioctl *param, size_t param_
 	for (n = rb_first(&name_rb_tree); n; n = rb_next(n)) {
 		void *uuid_ptr;
 		hc = container_of(n, struct hash_cell, name_node);
+		if (!filter_device(hc, param->name, param->uuid))
+			continue;
 		if (old_nl)
 			old_nl->next = (uint32_t) ((void *) nl -
 						   (void *) old_nl);
