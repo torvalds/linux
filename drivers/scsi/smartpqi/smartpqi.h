@@ -1295,7 +1295,6 @@ struct pqi_ctrl_info {
 	struct mutex	ofa_mutex; /* serialize ofa */
 	bool		controller_online;
 	bool		block_requests;
-	bool		block_device_reset;
 	bool		in_ofa;
 	bool		in_shutdown;
 	u8		inbound_spanning_supported : 1;

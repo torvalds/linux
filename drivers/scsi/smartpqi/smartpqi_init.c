@@ -247,12 +247,12 @@ static inline void pqi_save_ctrl_mode(struct pqi_ctrl_info *ctrl_info,
 
 static inline void pqi_ctrl_block_device_reset(struct pqi_ctrl_info *ctrl_info)
 {
-	ctrl_info->block_device_reset = true;
+	mutex_lock(&ctrl_info->lun_reset_mutex);
 }
 
-static inline bool pqi_device_reset_blocked(struct pqi_ctrl_info *ctrl_info)
+static inline void pqi_ctrl_unblock_device_reset(struct pqi_ctrl_info *ctrl_info)
 {
-	return ctrl_info->block_device_reset;
+	mutex_unlock(&ctrl_info->lun_reset_mutex);
 }
 
 static inline bool pqi_ctrl_blocked(struct pqi_ctrl_info *ctrl_info)
@@ -295,16 +295,6 @@ static inline void pqi_ctrl_wait_until_quiesced(struct pqi_ctrl_info *ctrl_info)
 static inline bool pqi_device_offline(struct pqi_scsi_dev *device)
 {
 	return device->device_offline;
-}
-
-static inline void pqi_device_reset_start(struct pqi_scsi_dev *device)
-{
-	device->in_reset = true;
-}
-
-static inline void pqi_device_reset_done(struct pqi_scsi_dev *device)
-{
-	device->in_reset = false;
 }
 
 static inline bool pqi_device_in_reset(struct pqi_scsi_dev *device)
@@ -6098,7 +6088,7 @@ static int pqi_lun_reset(struct pqi_ctrl_info *ctrl_info,
 #define PQI_LUN_RESET_RETRY_INTERVAL_MSECS	10000
 #define PQI_LUN_RESET_PENDING_IO_TIMEOUT_SECS	120
 
-static int _pqi_device_reset(struct pqi_ctrl_info *ctrl_info,
+static int pqi_lun_reset_with_retries(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev *device)
 {
 	int rc;
@@ -6124,23 +6114,15 @@ static int pqi_device_reset(struct pqi_ctrl_info *ctrl_info,
 {
 	int rc;
 
-	mutex_lock(&ctrl_info->lun_reset_mutex);
-
 	pqi_ctrl_block_requests(ctrl_info);
 	pqi_ctrl_wait_until_quiesced(ctrl_info);
 	pqi_fail_io_queued_for_device(ctrl_info, device);
 	rc = pqi_wait_until_inbound_queues_empty(ctrl_info);
-	pqi_device_reset_start(device);
-	pqi_ctrl_unblock_requests(ctrl_info);
-
 	if (rc)
 		rc = FAILED;
 	else
-		rc = _pqi_device_reset(ctrl_info, device);
-
-	pqi_device_reset_done(device);
-
-	mutex_unlock(&ctrl_info->lun_reset_mutex);
+		rc = pqi_lun_reset_with_retries(ctrl_info, device);
+	pqi_ctrl_unblock_requests(ctrl_info);
 
 	return rc;
 }
@@ -6156,28 +6138,24 @@ static int pqi_eh_device_reset_handler(struct scsi_cmnd *scmd)
 	ctrl_info = shost_to_hba(shost);
 	device = scmd->device->hostdata;
 
+	mutex_lock(&ctrl_info->lun_reset_mutex);
+
 	dev_err(&ctrl_info->pci_dev->dev,
 		"resetting scsi %d:%d:%d:%d\n",
 		shost->host_no, device->bus, device->target, device->lun);
 
 	pqi_check_ctrl_health(ctrl_info);
-	if (pqi_ctrl_offline(ctrl_info) ||
-		pqi_device_reset_blocked(ctrl_info)) {
+	if (pqi_ctrl_offline(ctrl_info))
 		rc = FAILED;
-		goto out;
-	}
+	else
+		rc = pqi_device_reset(ctrl_info, device);
 
-	pqi_wait_until_ofa_finished(ctrl_info);
-
-	atomic_inc(&ctrl_info->sync_cmds_outstanding);
-	rc = pqi_device_reset(ctrl_info, device);
-	atomic_dec(&ctrl_info->sync_cmds_outstanding);
-
-out:
 	dev_err(&ctrl_info->pci_dev->dev,
 		"reset of scsi %d:%d:%d:%d: %s\n",
 		shost->host_no, device->bus, device->target, device->lun,
 		rc == SUCCESS ? "SUCCESS" : "FAILED");
+
+	mutex_unlock(&ctrl_info->lun_reset_mutex);
 
 	return rc;
 }
