@@ -1378,6 +1378,9 @@ struct regmap_irq_sub_irq_map {
  *		     status_base. Should contain num_regs arrays.
  *		     Can be provided for chips with more complex mapping than
  *		     1.st bit to 1.st sub-reg, 2.nd bit to 2.nd sub-reg, ...
+ *		     When used with not_fixed_stride, each one-element array
+ *		     member contains offset calculated as address from each
+ *		     peripheral to first peripheral.
  * @num_main_regs: Number of 'main status' irq registers for chips which have
  *		   main_status set.
  *
@@ -1404,6 +1407,9 @@ struct regmap_irq_sub_irq_map {
  * @clear_on_unmask: For chips with interrupts cleared on read: read the status
  *                   registers before unmasking interrupts to clear any bits
  *                   set when they were masked.
+ * @not_fixed_stride: Used when chip peripherals are not laid out with fixed
+ * 		      stride. Must be used with sub_reg_offsets containing the
+ * 		      offsets to each peripheral.
  * @runtime_pm:  Hold a runtime PM lock on the device when accessing it.
  *
  * @num_regs:    Number of registers in each control bank.
@@ -1450,6 +1456,7 @@ struct regmap_irq_chip {
 	bool type_invert:1;
 	bool type_in_mask:1;
 	bool clear_on_unmask:1;
+	bool not_fixed_stride:1;
 
 	int num_regs;
 

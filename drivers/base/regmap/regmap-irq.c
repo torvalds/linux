@@ -45,6 +45,27 @@ struct regmap_irq_chip_data {
 	bool clear_status:1;
 };
 
+static int sub_irq_reg(struct regmap_irq_chip_data *data,
+		       unsigned int base_reg, int i)
+{
+	const struct regmap_irq_chip *chip = data->chip;
+	struct regmap *map = data->map;
+	struct regmap_irq_sub_irq_map *subreg;
+	unsigned int offset;
+	int reg = 0;
+
+	if (!chip->sub_reg_offsets || !chip->not_fixed_stride) {
+		/* Assume linear mapping */
+		reg = base_reg + (i * map->reg_stride * data->irq_reg_stride);
+	} else {
+		subreg = &chip->sub_reg_offsets[i];
+		offset = subreg->offset[0];
+		reg = base_reg + offset;
+	}
+
+	return reg;
+}
+
 static inline const
 struct regmap_irq *irq_to_regmap_irq(struct regmap_irq_chip_data *data,
 				     int irq)
@@ -87,8 +108,7 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 
 	if (d->clear_status) {
 		for (i = 0; i < d->chip->num_regs; i++) {
-			reg = d->chip->status_base +
-				(i * map->reg_stride * d->irq_reg_stride);
+			reg = sub_irq_reg(d, d->chip->status_base, i);
 
 			ret = regmap_read(map, reg, &val);
 			if (ret)
@@ -108,8 +128,7 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 		if (!d->chip->mask_base)
 			continue;
 
-		reg = d->chip->mask_base +
-			(i * map->reg_stride * d->irq_reg_stride);
+		reg = sub_irq_reg(d, d->chip->mask_base, i);
 		if (d->chip->mask_invert) {
 			ret = regmap_irq_update_bits(d, reg,
 					 d->mask_buf_def[i], ~d->mask_buf[i]);
@@ -136,8 +155,7 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 			dev_err(d->map->dev, "Failed to sync masks in %x\n",
 				reg);
 
-		reg = d->chip->wake_base +
-			(i * map->reg_stride * d->irq_reg_stride);
+		reg = sub_irq_reg(d, d->chip->wake_base, i);
 		if (d->wake_buf) {
 			if (d->chip->wake_invert)
 				ret = regmap_irq_update_bits(d, reg,
@@ -161,8 +179,8 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 		 * it'll be ignored in irq handler, then may introduce irq storm
 		 */
 		if (d->mask_buf[i] && (d->chip->ack_base || d->chip->use_ack)) {
-			reg = d->chip->ack_base +
-				(i * map->reg_stride * d->irq_reg_stride);
+			reg = sub_irq_reg(d, d->chip->ack_base, i);
+
 			/* some chips ack by write 0 */
 			if (d->chip->ack_invert)
 				ret = regmap_write(map, reg, ~d->mask_buf[i]);
@@ -187,8 +205,7 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 		for (i = 0; i < d->chip->num_type_reg; i++) {
 			if (!d->type_buf_def[i])
 				continue;
-			reg = d->chip->type_base +
-				(i * map->reg_stride * d->type_reg_stride);
+			reg = sub_irq_reg(d, d->chip->type_base, i);
 			if (d->chip->type_invert)
 				ret = regmap_irq_update_bits(d, reg,
 					d->type_buf_def[i], ~d->type_buf[i]);
@@ -352,8 +369,15 @@ static inline int read_sub_irq_data(struct regmap_irq_chip_data *data,
 		for (i = 0; i < subreg->num_regs; i++) {
 			unsigned int offset = subreg->offset[i];
 
-			ret = regmap_read(map, chip->status_base + offset,
-					  &data->status_buf[offset]);
+			if (chip->not_fixed_stride)
+				ret = regmap_read(map,
+						chip->status_base + offset,
+						&data->status_buf[b]);
+			else
+				ret = regmap_read(map,
+						chip->status_base + offset,
+						&data->status_buf[offset]);
+
 			if (ret)
 				break;
 		}
@@ -474,10 +498,9 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 
 	} else {
 		for (i = 0; i < data->chip->num_regs; i++) {
-			ret = regmap_read(map, chip->status_base +
-					  (i * map->reg_stride
-					   * data->irq_reg_stride),
-					  &data->status_buf[i]);
+			unsigned int reg = sub_irq_reg(data,
+					data->chip->status_base, i);
+			ret = regmap_read(map, reg, &data->status_buf[i]);
 
 			if (ret != 0) {
 				dev_err(map->dev,
@@ -499,8 +522,8 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 		data->status_buf[i] &= ~data->mask_buf[i];
 
 		if (data->status_buf[i] && (chip->ack_base || chip->use_ack)) {
-			reg = chip->ack_base +
-				(i * map->reg_stride * data->irq_reg_stride);
+			reg = sub_irq_reg(data, data->chip->ack_base, i);
+
 			if (chip->ack_invert)
 				ret = regmap_write(map, reg,
 						~data->status_buf[i]);
@@ -605,6 +628,12 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 			return -EINVAL;
 	}
 
+	if (chip->not_fixed_stride) {
+		for (i = 0; i < chip->num_regs; i++)
+			if (chip->sub_reg_offsets[i].num_regs != 1)
+				return -EINVAL;
+	}
+
 	if (irq_base) {
 		irq_base = irq_alloc_descs(irq_base, 0, chip->num_irqs, 0);
 		if (irq_base < 0) {
@@ -700,8 +729,8 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 		if (!chip->mask_base)
 			continue;
 
-		reg = chip->mask_base +
-			(i * map->reg_stride * d->irq_reg_stride);
+		reg = sub_irq_reg(d, d->chip->mask_base, i);
+
 		if (chip->mask_invert)
 			ret = regmap_irq_update_bits(d, reg,
 					 d->mask_buf[i], ~d->mask_buf[i]);
@@ -725,8 +754,7 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 			continue;
 
 		/* Ack masked but set interrupts */
-		reg = chip->status_base +
-			(i * map->reg_stride * d->irq_reg_stride);
+		reg = sub_irq_reg(d, d->chip->status_base, i);
 		ret = regmap_read(map, reg, &d->status_buf[i]);
 		if (ret != 0) {
 			dev_err(map->dev, "Failed to read IRQ status: %d\n",
@@ -735,8 +763,7 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 		}
 
 		if (d->status_buf[i] && (chip->ack_base || chip->use_ack)) {
-			reg = chip->ack_base +
-				(i * map->reg_stride * d->irq_reg_stride);
+			reg = sub_irq_reg(d, d->chip->ack_base, i);
 			if (chip->ack_invert)
 				ret = regmap_write(map, reg,
 					~(d->status_buf[i] & d->mask_buf[i]));
@@ -765,8 +792,7 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 	if (d->wake_buf) {
 		for (i = 0; i < chip->num_regs; i++) {
 			d->wake_buf[i] = d->mask_buf_def[i];
-			reg = chip->wake_base +
-				(i * map->reg_stride * d->irq_reg_stride);
+			reg = sub_irq_reg(d, d->chip->wake_base, i);
 
 			if (chip->wake_invert)
 				ret = regmap_irq_update_bits(d, reg,
@@ -786,8 +812,7 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 
 	if (chip->num_type_reg && !chip->type_in_mask) {
 		for (i = 0; i < chip->num_type_reg; ++i) {
-			reg = chip->type_base +
-				(i * map->reg_stride * d->type_reg_stride);
+			reg = sub_irq_reg(d, d->chip->type_base, i);
 
 			ret = regmap_read(map, reg, &d->type_buf_def[i]);
 
