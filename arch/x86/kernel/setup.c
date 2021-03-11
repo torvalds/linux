@@ -65,7 +65,7 @@ RESERVE_BRK(dmi_alloc, 65536);
 
 /*
  * Range of the BSS area. The size of the BSS area is determined
- * at link time, with RESERVE_BRK*() facility reserving additional
+ * at link time, with RESERVE_BRK() facility reserving additional
  * chunks.
  */
 unsigned long _brk_start = (unsigned long)__brk_base;
@@ -1038,8 +1038,8 @@ void __init setup_arch(char **cmdline_p)
 
 	/*
 	 * Need to conclude brk, before e820__memblock_setup()
-	 *  it could use memblock_find_in_range, could overlap with
-	 *  brk area.
+	 * it could use memblock_find_in_range, could overlap with
+	 * brk area.
 	 */
 	reserve_brk();
 
