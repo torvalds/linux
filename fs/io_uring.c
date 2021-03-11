@@ -272,7 +272,6 @@ struct io_sq_data {
 	pid_t			task_tgid;
 
 	unsigned long		state;
-	struct completion	startup;
 	struct completion	exited;
 };
 
@@ -6656,8 +6655,6 @@ static int io_sq_thread(void *data)
 		set_cpus_allowed_ptr(current, cpu_online_mask);
 	current->flags |= PF_NO_SETAFFINITY;
 
-	wait_for_completion(&sqd->startup);
-
 	down_read(&sqd->rw_lock);
 
 	while (!test_bit(IO_SQ_THREAD_SHOULD_STOP, &sqd->state)) {
@@ -7080,7 +7077,6 @@ static void io_sq_thread_finish(struct io_ring_ctx *ctx)
 	struct io_sq_data *sqd = ctx->sq_data;
 
 	if (sqd) {
-		complete(&sqd->startup);
 		io_sq_thread_park(sqd);
 		list_del(&ctx->sqd_list);
 		io_sqd_update_thread_idle(sqd);
@@ -7144,7 +7140,6 @@ static struct io_sq_data *io_get_sq_data(struct io_uring_params *p)
 	INIT_LIST_HEAD(&sqd->ctx_list);
 	init_rwsem(&sqd->rw_lock);
 	init_waitqueue_head(&sqd->wait);
-	init_completion(&sqd->startup);
 	init_completion(&sqd->exited);
 	return sqd;
 }
@@ -7856,7 +7851,6 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 		wake_up_new_task(tsk);
 		if (ret)
 			goto err;
-		complete(&sqd->startup);
 	} else if (p->flags & IORING_SETUP_SQ_AFF) {
 		/* Can't have SQ_AFF without SQPOLL */
 		ret = -EINVAL;
