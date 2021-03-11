@@ -3111,6 +3111,13 @@ static bool same_hw_devs(struct mlx5e_priv *priv, struct mlx5e_priv *peer_priv)
 	return (fsystem_guid == psystem_guid);
 }
 
+static bool same_vf_reps(struct mlx5e_priv *priv,
+			 struct net_device *out_dev)
+{
+	return mlx5e_eswitch_vf_rep(priv->netdev) &&
+	       priv->netdev == out_dev;
+}
+
 static int add_vlan_rewrite_action(struct mlx5e_priv *priv, int namespace,
 				   const struct flow_action_entry *act,
 				   struct mlx5e_tc_flow_parse_attr *parse_attr,
@@ -3793,6 +3800,12 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				if (!mlx5e_is_valid_eswitch_fwd_dev(priv, out_dev)) {
 					NL_SET_ERR_MSG_MOD(extack,
 							   "devices are not on same switch HW, can't offload forwarding");
+					return -EOPNOTSUPP;
+				}
+
+				if (same_vf_reps(priv, out_dev)) {
+					NL_SET_ERR_MSG_MOD(extack,
+							   "can't forward from a VF to itself");
 					return -EOPNOTSUPP;
 				}
 
