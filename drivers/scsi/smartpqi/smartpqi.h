@@ -257,6 +257,7 @@ struct pqi_device_capability {
 };
 
 #define PQI_MAX_EMBEDDED_SG_DESCRIPTORS		4
+#define PQI_MAX_EMBEDDED_R56_SG_DESCRIPTORS	3
 
 struct pqi_raid_path_request {
 	struct pqi_iu_header header;
@@ -310,6 +311,37 @@ struct pqi_aio_path_request {
 	u8	reserved4[4];
 	struct pqi_sg_descriptor
 		sg_descriptors[PQI_MAX_EMBEDDED_SG_DESCRIPTORS];
+};
+
+struct pqi_aio_r56_path_request {
+	struct pqi_iu_header header;
+	__le16	request_id;
+	__le16	volume_id;		/* ID of the RAID volume */
+	__le32	data_it_nexus;		/* IT nexus for the data drive */
+	__le32	p_parity_it_nexus;	/* IT nexus for the P parity drive */
+	__le32	q_parity_it_nexus;	/* IT nexus for the Q parity drive */
+	__le32	data_length;		/* total bytes to read/write */
+	u8	data_direction : 2;
+	u8	partial : 1;
+	u8	mem_type : 1;		/* 0 = PCIe, 1 = DDR */
+	u8	fence : 1;
+	u8	encryption_enable : 1;
+	u8	reserved : 2;
+	u8	task_attribute : 3;
+	u8	command_priority : 4;
+	u8	reserved1 : 1;
+	__le16	data_encryption_key_index;
+	u8	cdb[16];
+	__le16	error_index;
+	u8	num_sg_descriptors;
+	u8	cdb_length;
+	u8	xor_multiplier;
+	u8	reserved2[3];
+	__le32	encrypt_tweak_lower;
+	__le32	encrypt_tweak_upper;
+	__le64	row;			/* row = logical LBA/blocks per row */
+	u8	reserved3[8];
+	struct pqi_sg_descriptor sg_descriptors[PQI_MAX_EMBEDDED_R56_SG_DESCRIPTORS];
 };
 
 struct pqi_io_response {
@@ -484,6 +516,8 @@ struct pqi_raid_error_info {
 #define PQI_REQUEST_IU_TASK_MANAGEMENT			0x13
 #define PQI_REQUEST_IU_RAID_PATH_IO			0x14
 #define PQI_REQUEST_IU_AIO_PATH_IO			0x15
+#define PQI_REQUEST_IU_AIO_PATH_RAID5_IO		0x18
+#define PQI_REQUEST_IU_AIO_PATH_RAID6_IO		0x19
 #define PQI_REQUEST_IU_GENERAL_ADMIN			0x60
 #define PQI_REQUEST_IU_REPORT_VENDOR_EVENT_CONFIG	0x72
 #define PQI_REQUEST_IU_SET_VENDOR_EVENT_CONFIG		0x73
@@ -1179,6 +1213,7 @@ struct pqi_ctrl_info {
 	u16		max_inbound_iu_length_per_firmware;
 	u16		max_inbound_iu_length;
 	unsigned int	max_sg_per_iu;
+	unsigned int	max_sg_per_r56_iu;
 	void		*admin_queue_memory_base;
 	u32		admin_queue_memory_length;
 	dma_addr_t	admin_queue_memory_base_dma_handle;
@@ -1210,6 +1245,8 @@ struct pqi_ctrl_info {
 	u8		soft_reset_handshake_supported : 1;
 	u8		raid_iu_timeout_supported: 1;
 	u8		tmf_iu_timeout_supported: 1;
+	u8		enable_r5_writes : 1;
+	u8		enable_r6_writes : 1;
 
 	struct list_head scsi_device_list;
 	spinlock_t	scsi_device_list_lock;

@@ -67,6 +67,10 @@ static int pqi_aio_submit_io(struct pqi_ctrl_info *ctrl_info,
 	struct scsi_cmnd *scmd, u32 aio_handle, u8 *cdb,
 	unsigned int cdb_length, struct pqi_queue_group *queue_group,
 	struct pqi_encryption_info *encryption_info, bool raid_bypass);
+static int pqi_aio_submit_r56_write_io(struct pqi_ctrl_info *ctrl_info,
+	struct scsi_cmnd *scmd, struct pqi_queue_group *queue_group,
+	struct pqi_encryption_info *encryption_info, struct pqi_scsi_dev *device,
+	struct pqi_scsi_dev_raid_map_data *rmd);
 static void pqi_ofa_ctrl_quiesce(struct pqi_ctrl_info *ctrl_info);
 static void pqi_ofa_ctrl_unquiesce(struct pqi_ctrl_info *ctrl_info);
 static int pqi_ofa_ctrl_restart(struct pqi_ctrl_info *ctrl_info);
@@ -2237,7 +2241,8 @@ static inline void pqi_set_encryption_info(
  * Attempt to perform RAID bypass mapping for a logical volume I/O.
  */
 
-static bool pqi_aio_raid_level_supported(struct pqi_scsi_dev_raid_map_data *rmd)
+static bool pqi_aio_raid_level_supported(struct pqi_ctrl_info *ctrl_info,
+	struct pqi_scsi_dev_raid_map_data *rmd)
 {
 	bool is_supported = true;
 
@@ -2249,9 +2254,11 @@ static bool pqi_aio_raid_level_supported(struct pqi_scsi_dev_raid_map_data *rmd)
 			is_supported = false;
 		break;
 	case SA_RAID_5:
-		fallthrough;
+		if (rmd->is_write && !ctrl_info->enable_r5_writes)
+			is_supported = false;
+		break;
 	case SA_RAID_6:
-		if (rmd->is_write)
+		if (rmd->is_write && !ctrl_info->enable_r6_writes)
 			is_supported = false;
 		break;
 	case SA_RAID_ADM:
@@ -2526,6 +2533,38 @@ static int pqi_calc_aio_r5_or_r6(struct pqi_scsi_dev_raid_map_data *rmd,
 		rmd->total_disks_per_row)) +
 		(rmd->map_row * rmd->total_disks_per_row) + rmd->first_column;
 
+	if (rmd->is_write) {
+		u32 index;
+
+		/*
+		 * p_parity_it_nexus and q_parity_it_nexus are pointers to the
+		 * parity entries inside the device's raid_map.
+		 *
+		 * A device's RAID map is bounded by: number of RAID disks squared.
+		 *
+		 * The devices RAID map size is checked during device
+		 * initialization.
+		 */
+		index = DIV_ROUND_UP(rmd->map_index + 1, rmd->total_disks_per_row);
+		index *= rmd->total_disks_per_row;
+		index -= get_unaligned_le16(&raid_map->metadata_disks_per_row);
+
+		rmd->p_parity_it_nexus = raid_map->disk_data[index].aio_handle;
+		if (rmd->raid_level == SA_RAID_6) {
+			rmd->q_parity_it_nexus = raid_map->disk_data[index + 1].aio_handle;
+			rmd->xor_mult = raid_map->disk_data[rmd->map_index].xor_mult[1];
+		}
+		if (rmd->blocks_per_row == 0)
+			return PQI_RAID_BYPASS_INELIGIBLE;
+#if BITS_PER_LONG == 32
+		tmpdiv = rmd->first_block;
+		do_div(tmpdiv, rmd->blocks_per_row);
+		rmd->row = tmpdiv;
+#else
+		rmd->row = rmd->first_block / rmd->blocks_per_row;
+#endif
+	}
+
 	return 0;
 }
 
@@ -2567,7 +2606,7 @@ static int pqi_raid_bypass_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 
 	rmd.raid_level = device->raid_level;
 
-	if (!pqi_aio_raid_level_supported(&rmd))
+	if (!pqi_aio_raid_level_supported(ctrl_info, &rmd))
 		return PQI_RAID_BYPASS_INELIGIBLE;
 
 	if (unlikely(rmd.block_cnt == 0))
@@ -2587,7 +2626,8 @@ static int pqi_raid_bypass_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 	} else if (device->raid_level == SA_RAID_ADM) {
 		rc = pqi_calc_aio_raid_adm(&rmd, device);
 	} else if ((device->raid_level == SA_RAID_5 ||
-		device->raid_level == SA_RAID_6) && rmd.layout_map_count > 1) {
+		device->raid_level == SA_RAID_6) &&
+		(rmd.layout_map_count > 1 || rmd.is_write)) {
 		rc = pqi_calc_aio_r5_or_r6(&rmd, raid_map);
 		if (rc)
 			return PQI_RAID_BYPASS_INELIGIBLE;
@@ -2622,9 +2662,27 @@ static int pqi_raid_bypass_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 		encryption_info_ptr = NULL;
 	}
 
-	return pqi_aio_submit_io(ctrl_info, scmd, rmd.aio_handle,
+	if (rmd.is_write) {
+		switch (device->raid_level) {
+		case SA_RAID_0:
+			return pqi_aio_submit_io(ctrl_info, scmd, rmd.aio_handle,
 				rmd.cdb, rmd.cdb_length, queue_group,
 				encryption_info_ptr, true);
+		case SA_RAID_5:
+		case SA_RAID_6:
+			return pqi_aio_submit_r56_write_io(ctrl_info, scmd, queue_group,
+					encryption_info_ptr, device, &rmd);
+		default:
+			return pqi_aio_submit_io(ctrl_info, scmd, rmd.aio_handle,
+				rmd.cdb, rmd.cdb_length, queue_group,
+				encryption_info_ptr, true);
+		}
+	} else {
+		return pqi_aio_submit_io(ctrl_info, scmd, rmd.aio_handle,
+			rmd.cdb, rmd.cdb_length, queue_group,
+			encryption_info_ptr, true);
+	}
+
 }
 
 #define PQI_STATUS_IDLE		0x0
@@ -4844,6 +4902,12 @@ static void pqi_calculate_queue_resources(struct pqi_ctrl_info *ctrl_info)
 		PQI_OPERATIONAL_IQ_ELEMENT_LENGTH) /
 		sizeof(struct pqi_sg_descriptor)) +
 		PQI_MAX_EMBEDDED_SG_DESCRIPTORS;
+
+	ctrl_info->max_sg_per_r56_iu =
+		((ctrl_info->max_inbound_iu_length -
+		PQI_OPERATIONAL_IQ_ELEMENT_LENGTH) /
+		sizeof(struct pqi_sg_descriptor)) +
+		PQI_MAX_EMBEDDED_R56_SG_DESCRIPTORS;
 }
 
 static inline void pqi_set_sg_descriptor(
@@ -4927,6 +4991,42 @@ static int pqi_build_raid_sg_list(struct pqi_ctrl_info *ctrl_info,
 
 out:
 	put_unaligned_le16(iu_length, &request->header.iu_length);
+
+	return 0;
+}
+
+static int pqi_build_aio_r56_sg_list(struct pqi_ctrl_info *ctrl_info,
+	struct pqi_aio_r56_path_request *request, struct scsi_cmnd *scmd,
+	struct pqi_io_request *io_request)
+{
+	u16 iu_length;
+	int sg_count;
+	bool chained;
+	unsigned int num_sg_in_iu;
+	struct scatterlist *sg;
+	struct pqi_sg_descriptor *sg_descriptor;
+
+	sg_count = scsi_dma_map(scmd);
+	if (sg_count < 0)
+		return sg_count;
+
+	iu_length = offsetof(struct pqi_aio_r56_path_request, sg_descriptors) -
+		PQI_REQUEST_HEADER_LENGTH;
+	num_sg_in_iu = 0;
+
+	if (sg_count != 0) {
+		sg = scsi_sglist(scmd);
+		sg_descriptor = request->sg_descriptors;
+
+		num_sg_in_iu = pqi_build_sg_list(sg_descriptor, sg, sg_count, io_request,
+			ctrl_info->max_sg_per_r56_iu, &chained);
+
+		request->partial = chained;
+		iu_length += num_sg_in_iu * sizeof(*sg_descriptor);
+	}
+
+	put_unaligned_le16(iu_length, &request->header.iu_length);
+	request->num_sg_descriptors = num_sg_in_iu;
 
 	return 0;
 }
@@ -5325,6 +5425,71 @@ static int pqi_aio_submit_io(struct pqi_ctrl_info *ctrl_info,
 	}
 
 	rc = pqi_build_aio_sg_list(ctrl_info, request, scmd, io_request);
+	if (rc) {
+		pqi_free_io_request(io_request);
+		return SCSI_MLQUEUE_HOST_BUSY;
+	}
+
+	pqi_start_io(ctrl_info, queue_group, AIO_PATH, io_request);
+
+	return 0;
+}
+
+static int pqi_aio_submit_r56_write_io(struct pqi_ctrl_info *ctrl_info,
+	struct scsi_cmnd *scmd, struct pqi_queue_group *queue_group,
+	struct pqi_encryption_info *encryption_info, struct pqi_scsi_dev *device,
+	struct pqi_scsi_dev_raid_map_data *rmd)
+{
+	int rc;
+	struct pqi_io_request *io_request;
+	struct pqi_aio_r56_path_request *r56_request;
+
+	io_request = pqi_alloc_io_request(ctrl_info);
+	io_request->io_complete_callback = pqi_aio_io_complete;
+	io_request->scmd = scmd;
+	io_request->raid_bypass = true;
+
+	r56_request = io_request->iu;
+	memset(r56_request, 0, offsetof(struct pqi_aio_r56_path_request, sg_descriptors));
+
+	if (device->raid_level == SA_RAID_5 || device->raid_level == SA_RAID_51)
+		r56_request->header.iu_type = PQI_REQUEST_IU_AIO_PATH_RAID5_IO;
+	else
+		r56_request->header.iu_type = PQI_REQUEST_IU_AIO_PATH_RAID6_IO;
+
+	put_unaligned_le16(*(u16 *)device->scsi3addr & 0x3fff, &r56_request->volume_id);
+	put_unaligned_le32(rmd->aio_handle, &r56_request->data_it_nexus);
+	put_unaligned_le32(rmd->p_parity_it_nexus, &r56_request->p_parity_it_nexus);
+	if (rmd->raid_level == SA_RAID_6) {
+		put_unaligned_le32(rmd->q_parity_it_nexus, &r56_request->q_parity_it_nexus);
+		r56_request->xor_multiplier = rmd->xor_mult;
+	}
+	put_unaligned_le32(scsi_bufflen(scmd), &r56_request->data_length);
+	r56_request->task_attribute = SOP_TASK_ATTRIBUTE_SIMPLE;
+	put_unaligned_le64(rmd->row, &r56_request->row);
+
+	put_unaligned_le16(io_request->index, &r56_request->request_id);
+	r56_request->error_index = r56_request->request_id;
+
+	if (rmd->cdb_length > sizeof(r56_request->cdb))
+		rmd->cdb_length = sizeof(r56_request->cdb);
+	r56_request->cdb_length = rmd->cdb_length;
+	memcpy(r56_request->cdb, rmd->cdb, rmd->cdb_length);
+
+	/* The direction is always write. */
+	r56_request->data_direction = SOP_READ_FLAG;
+
+	if (encryption_info) {
+		r56_request->encryption_enable = true;
+		put_unaligned_le16(encryption_info->data_encryption_key_index,
+				&r56_request->data_encryption_key_index);
+		put_unaligned_le32(encryption_info->encrypt_tweak_lower,
+				&r56_request->encrypt_tweak_lower);
+		put_unaligned_le32(encryption_info->encrypt_tweak_upper,
+				&r56_request->encrypt_tweak_upper);
+	}
+
+	rc = pqi_build_aio_r56_sg_list(ctrl_info, r56_request, scmd, io_request);
 	if (rc) {
 		pqi_free_io_request(io_request);
 		return SCSI_MLQUEUE_HOST_BUSY;
@@ -6302,6 +6467,60 @@ static ssize_t pqi_lockup_action_store(struct device *dev,
 	return -EINVAL;
 }
 
+static ssize_t pqi_host_enable_r5_writes_show(struct device *dev,
+	struct device_attribute *attr, char *buffer)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct pqi_ctrl_info *ctrl_info = shost_to_hba(shost);
+
+	return scnprintf(buffer, 10, "%x\n", ctrl_info->enable_r5_writes);
+}
+
+static ssize_t pqi_host_enable_r5_writes_store(struct device *dev,
+	struct device_attribute *attr, const char *buffer, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct pqi_ctrl_info *ctrl_info = shost_to_hba(shost);
+	u8 set_r5_writes = 0;
+
+	if (kstrtou8(buffer, 0, &set_r5_writes))
+		return -EINVAL;
+
+	if (set_r5_writes > 0)
+		set_r5_writes = 1;
+
+	ctrl_info->enable_r5_writes = set_r5_writes;
+
+	return count;
+}
+
+static ssize_t pqi_host_enable_r6_writes_show(struct device *dev,
+	struct device_attribute *attr, char *buffer)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct pqi_ctrl_info *ctrl_info = shost_to_hba(shost);
+
+	return scnprintf(buffer, 10, "%x\n", ctrl_info->enable_r6_writes);
+}
+
+static ssize_t pqi_host_enable_r6_writes_store(struct device *dev,
+	struct device_attribute *attr, const char *buffer, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct pqi_ctrl_info *ctrl_info = shost_to_hba(shost);
+	u8 set_r6_writes = 0;
+
+	if (kstrtou8(buffer, 0, &set_r6_writes))
+		return -EINVAL;
+
+	if (set_r6_writes > 0)
+		set_r6_writes = 1;
+
+	ctrl_info->enable_r6_writes = set_r6_writes;
+
+	return count;
+}
+
 static DEVICE_ATTR(driver_version, 0444, pqi_driver_version_show, NULL);
 static DEVICE_ATTR(firmware_version, 0444, pqi_firmware_version_show, NULL);
 static DEVICE_ATTR(model, 0444, pqi_model_show, NULL);
@@ -6310,6 +6529,10 @@ static DEVICE_ATTR(vendor, 0444, pqi_vendor_show, NULL);
 static DEVICE_ATTR(rescan, 0200, NULL, pqi_host_rescan_store);
 static DEVICE_ATTR(lockup_action, 0644,
 	pqi_lockup_action_show, pqi_lockup_action_store);
+static DEVICE_ATTR(enable_r5_writes, 0644,
+	pqi_host_enable_r5_writes_show, pqi_host_enable_r5_writes_store);
+static DEVICE_ATTR(enable_r6_writes, 0644,
+	pqi_host_enable_r6_writes_show, pqi_host_enable_r6_writes_store);
 
 static struct device_attribute *pqi_shost_attrs[] = {
 	&dev_attr_driver_version,
@@ -6319,6 +6542,8 @@ static struct device_attribute *pqi_shost_attrs[] = {
 	&dev_attr_vendor,
 	&dev_attr_rescan,
 	&dev_attr_lockup_action,
+	&dev_attr_enable_r5_writes,
+	&dev_attr_enable_r6_writes,
 	NULL
 };
 
