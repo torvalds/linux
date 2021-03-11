@@ -344,6 +344,10 @@ static void mpp_task_timeout_work(struct work_struct *work_s)
 	mpp_dev_reset(mpp);
 	mpp_power_off(mpp);
 
+	mpp_session_push_done(session, task);
+	/* Wake up the GET thread */
+	wake_up(&session->wait);
+
 	/* remove task from taskqueue running list */
 	set_bit(TASK_STATE_TIMEOUT, &task->state);
 	mpp_taskqueue_pop_running(mpp->queue, task);
@@ -663,6 +667,9 @@ static int mpp_wait_result(struct mpp_session *session,
 			if (mpp->dev_ops->result)
 				ret = mpp->dev_ops->result(mpp, task, msgs);
 			mpp_session_pop_done(session, task);
+
+			if (test_bit(TASK_STATE_TIMEOUT, &task->state))
+				ret = -ETIMEDOUT;
 		} else {
 			mpp_err("session %p task %p, not found in done list!\n",
 				session, task);
