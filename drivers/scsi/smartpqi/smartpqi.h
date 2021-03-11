@@ -908,6 +908,58 @@ struct raid_map {
 
 #pragma pack()
 
+struct pqi_scsi_dev_raid_map_data {
+	bool	is_write;
+	u8	raid_level;
+	u32	map_index;
+	u64	first_block;
+	u64	last_block;
+	u32	data_length;
+	u32	block_cnt;
+	u32	blocks_per_row;
+	u64	first_row;
+	u64	last_row;
+	u32	first_row_offset;
+	u32	last_row_offset;
+	u32	first_column;
+	u32	last_column;
+	u64	r5or6_first_row;
+	u64	r5or6_last_row;
+	u32	r5or6_first_row_offset;
+	u32	r5or6_last_row_offset;
+	u32	r5or6_first_column;
+	u32	r5or6_last_column;
+	u16	data_disks_per_row;
+	u32	total_disks_per_row;
+	u16	layout_map_count;
+	u32	stripesize;
+	u16	strip_size;
+	u32	first_group;
+	u32	last_group;
+	u32	current_group;
+	u32	map_row;
+	u32	aio_handle;
+	u64	disk_block;
+	u32	disk_block_cnt;
+	u8	cdb[16];
+	u8	cdb_length;
+	int	offload_to_mirror;
+
+	/* RAID1 specific */
+#define NUM_RAID1_MAP_ENTRIES	3
+	u32	num_it_nexus_entries;
+	u32	it_nexus[NUM_RAID1_MAP_ENTRIES];
+
+	/* RAID5 RAID6 specific */
+	u32	p_parity_it_nexus;	/* aio_handle */
+	u32	q_parity_it_nexus;	/* aio_handle */
+	u8	xor_mult;
+	u64	row;
+	u64	stripe_lba;
+	u32	p_index;
+	u32	q_index;
+};
+
 #define RAID_CTLR_LUNID		"\0\0\0\0\0\0\0\0"
 
 struct pqi_scsi_dev {
