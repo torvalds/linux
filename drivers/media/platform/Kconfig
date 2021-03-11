@@ -253,6 +253,8 @@ config VIDEO_IMX_PXP
 	  The i.MX Pixel Pipeline is a memory-to-memory engine for scaling,
 	  color space conversion, and rotation.
 
+source "drivers/media/platform/imx-jpeg/Kconfig"
+
 config VIDEO_MEDIATEK_JPEG
 	tristate "Mediatek JPEG Codec driver"
 	depends on MTK_IOMMU_V1 || MTK_IOMMU || COMPILE_TEST
