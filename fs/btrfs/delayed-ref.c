@@ -514,9 +514,8 @@ int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info, u64 seq)
 
 	if (min_seq != 0 && seq >= min_seq) {
 		btrfs_debug(fs_info,
-			    "holding back delayed_ref %#x.%x, lowest is %#x.%x",
-			    (u32)(seq >> 32), (u32)seq,
-			    (u32)(min_seq >> 32), (u32)min_seq);
+			    "holding back delayed_ref %llu, lowest is %llu",
+			    seq, min_seq);
 		ret = 1;
 	}
 
