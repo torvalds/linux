@@ -1232,7 +1232,7 @@ __mlxsw_sp_span_trigger_port_bind(struct mlxsw_sp_span *span,
 	}
 
 	mlxsw_reg_mpar_pack(mpar_pl, trigger_entry->local_port, i_e, enable,
-			    trigger_entry->parms.span_id);
+			    trigger_entry->parms.span_id, 1);
 	return mlxsw_reg_write(span->mlxsw_sp->core, MLXSW_REG(mpar), mpar_pl);
 }
 
