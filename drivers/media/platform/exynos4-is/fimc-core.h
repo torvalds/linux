@@ -453,7 +453,7 @@ struct fimc_ctrls {
 };
 
 /**
- * fimc_ctx - the device context data
+ * struct fimc_ctx - the device context data
  * @s_frame:		source frame properties
  * @d_frame:		destination frame properties
  * @out_order_1p:	output 1-plane YCBCR order

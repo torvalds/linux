@@ -340,7 +340,7 @@ struct gsc_dev {
 };
 
 /**
- * gsc_ctx - the device context data
+ * struct gsc_ctx - the device context data
  * @s_frame:		source frame properties
  * @d_frame:		destination frame properties
  * @in_path:		input mode (DMA or camera)
