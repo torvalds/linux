@@ -174,8 +174,11 @@ static void pl2303_set_break(struct usb_serial_port *port, bool enable);
 
 enum pl2303_type {
 	TYPE_01,	/* Type 0 and 1 (difference unknown) */
-	TYPE_HX,	/* HX version of the pl2303 chip */
-	TYPE_HXN,	/* HXN version of the pl2303 chip */
+	TYPE_HX,
+	TYPE_TA,
+	TYPE_TB,
+	TYPE_HXD,
+	TYPE_HXN,
 	TYPE_COUNT
 };
 
@@ -206,6 +209,15 @@ static const struct pl2303_type_data pl2303_type_data[TYPE_COUNT] = {
 		.no_autoxonxoff		= true,
 	},
 	[TYPE_HX] = {
+		.max_baud_rate		= 6000000,
+	},
+	[TYPE_TA] = {
+		.max_baud_rate		= 6000000,
+	},
+	[TYPE_TB] = {
+		.max_baud_rate		= 12000000,
+	},
+	[TYPE_HXD] = {
 		.max_baud_rate		= 12000000,
 	},
 	[TYPE_HXN] = {
@@ -362,9 +374,10 @@ static int pl2303_calc_num_ports(struct usb_serial *serial,
 	return 1;
 }
 
-static enum pl2303_type pl2303_detect_type(struct usb_serial *serial)
+static int pl2303_detect_type(struct usb_serial *serial)
 {
 	struct usb_device_descriptor *desc = &serial->dev->descriptor;
+	u16 bcdDevice, bcdUSB;
 	int ret;
 	u8 buf;
 
@@ -391,7 +404,24 @@ static enum pl2303_type pl2303_detect_type(struct usb_serial *serial)
 	if (ret)
 		return TYPE_HXN;
 
-	return TYPE_HX;
+	bcdDevice = le16_to_cpu(desc->bcdDevice);
+	bcdUSB = le16_to_cpu(desc->bcdUSB);
+
+	switch (bcdDevice) {
+	case 0x300:
+		if (bcdUSB == 0x200)
+			return TYPE_TA;
+
+		return TYPE_HX;
+	case 0x400:
+		return TYPE_HXD;
+	case 0x500:
+		return TYPE_TB;
+	}
+
+	dev_err(&serial->interface->dev,
+			"unknown device type, please report to linux-usb@vger.kernel.org\n");
+	return -ENODEV;
 }
 
 static int pl2303_startup(struct usb_serial *serial)
@@ -399,14 +429,18 @@ static int pl2303_startup(struct usb_serial *serial)
 	struct pl2303_serial_private *spriv;
 	enum pl2303_type type;
 	unsigned char *buf;
+	int ret;
+
+	ret = pl2303_detect_type(serial);
+	if (ret < 0)
+		return ret;
+
+	type = ret;
+	dev_dbg(&serial->interface->dev, "device type: %d\n", type);
 
 	spriv = kzalloc(sizeof(*spriv), GFP_KERNEL);
 	if (!spriv)
 		return -ENOMEM;
-
-	type = pl2303_detect_type(serial);
-
-	dev_dbg(&serial->interface->dev, "device type: %d\n", type);
 
 	spriv->type = &pl2303_type_data[type];
 	spriv->quirks = (unsigned long)usb_get_serial_data(serial);
