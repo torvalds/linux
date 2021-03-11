@@ -1340,7 +1340,11 @@ htb_select_queue(struct Qdisc *sch, struct tcmsg *tcm)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct tc_htb_qopt_offload offload_opt;
+	struct htb_sched *q = qdisc_priv(sch);
 	int err;
+
+	if (!q->offload)
+		return sch->dev_queue;
 
 	offload_opt = (struct tc_htb_qopt_offload) {
 		.command = TC_HTB_LEAF_QUERY_QUEUE,
