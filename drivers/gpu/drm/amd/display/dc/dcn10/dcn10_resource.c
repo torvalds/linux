@@ -619,7 +619,6 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.recovery_enabled = false, /*enable this by default after testing.*/
 		.max_downscale_src_width = 3840,
 		.underflow_assert_delay_us = 0xFFFFFFFF,
-		.use_max_lb = true
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -631,7 +630,6 @@ static const struct dc_debug_options debug_defaults_diags = {
 		.disable_pplib_clock_request = true,
 		.disable_pplib_wm_range = true,
 		.underflow_assert_delay_us = 0xFFFFFFFF,
-		.use_max_lb = true
 };
 
 static void dcn10_dpp_destroy(struct dpp **dpp)

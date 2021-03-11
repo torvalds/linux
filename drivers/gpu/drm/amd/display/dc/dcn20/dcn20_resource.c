@@ -1075,7 +1075,6 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.scl_reset_length10 = true,
 		.sanity_checks = false,
 		.underflow_assert_delay_us = 0xFFFFFFFF,
-		.use_max_lb = true
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -1092,7 +1091,6 @@ static const struct dc_debug_options debug_defaults_diags = {
 		.scl_reset_length10 = true,
 		.underflow_assert_delay_us = 0xFFFFFFFF,
 		.enable_tri_buf = true,
-		.use_max_lb = true
 };
 
 void dcn20_dpp_destroy(struct dpp **dpp)
