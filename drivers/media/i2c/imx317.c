@@ -9,6 +9,7 @@
  * V0.0X01.0X03 add enum_frame_interval function.
  * V0.0X01.0X04 adjust exposue and gain control issues.
  * V0.0X01.0X05 add quick stream on/off
+ * V0.0X01.0X06 add function g_mbus_config
  */
 
 #include <linux/clk.h>
@@ -32,7 +33,7 @@
 #include <linux/of_graph.h>
 #include <media/v4l2-fwnode.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x05)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -1186,6 +1187,20 @@ static int imx317_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int imx317_g_mbus_config(struct v4l2_subdev *sd,
+				struct v4l2_mbus_config *config)
+{
+	u32 val = 0;
+
+	val = 1 << (IMX317_LANES - 1) |
+	      V4L2_MBUS_CSI2_CHANNEL_0 |
+	      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+	config->type = V4L2_MBUS_CSI2;
+	config->flags = val;
+
+	return 0;
+}
+
 static const struct dev_pm_ops imx317_pm_ops = {
 	SET_RUNTIME_PM_OPS(imx317_runtime_suspend,
 			   imx317_runtime_resume, NULL)
@@ -1208,6 +1223,7 @@ static const struct v4l2_subdev_core_ops imx317_core_ops = {
 static const struct v4l2_subdev_video_ops imx317_video_ops = {
 	.s_stream = imx317_s_stream,
 	.g_frame_interval = imx317_g_frame_interval,
+	.g_mbus_config = imx317_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops imx317_pad_ops = {

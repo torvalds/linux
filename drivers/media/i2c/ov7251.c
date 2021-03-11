@@ -8,6 +8,7 @@
  * V0.0X01.0X02 fix mclk issue when probe multiple camera.
  * V0.0X01.0X03 add enum_frame_interval function.
  * V0.0X01.0X04 add quick stream on/off
+ * V0.0X01.0X05 add function g_mbus_config
  */
 
 #include <linux/clk.h>
@@ -27,7 +28,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x05)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -71,6 +72,8 @@
 #define OV7251_REG_VALUE_24BIT		3
 
 #define OV7251_NAME			"ov7251"
+
+#define OV7251_LANES			1
 
 static const char * const ov7251_supply_names[] = {
 	"avdd",		/* Analog power */
@@ -831,6 +834,20 @@ static int ov7251_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int ov7251_g_mbus_config(struct v4l2_subdev *sd,
+				struct v4l2_mbus_config *config)
+{
+	u32 val = 0;
+
+	val = 1 << (OV7251_LANES - 1) |
+	      V4L2_MBUS_CSI2_CHANNEL_0 |
+	      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+	config->type = V4L2_MBUS_CSI2;
+	config->flags = val;
+
+	return 0;
+}
+
 static const struct dev_pm_ops ov7251_pm_ops = {
 	SET_RUNTIME_PM_OPS(ov7251_runtime_suspend,
 			   ov7251_runtime_resume, NULL)
@@ -853,6 +870,7 @@ static const struct v4l2_subdev_core_ops ov7251_core_ops = {
 static const struct v4l2_subdev_video_ops ov7251_video_ops = {
 	.s_stream = ov7251_s_stream,
 	.g_frame_interval = ov7251_g_frame_interval,
+	.g_mbus_config = ov7251_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops ov7251_pad_ops = {

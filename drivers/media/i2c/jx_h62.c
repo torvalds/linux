@@ -5,6 +5,7 @@
  * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X01 init version.
+ * V0.0X01.0X02 add function g_mbus_config.
  */
 
 #include <linux/clk.h>
@@ -27,7 +28,7 @@
 #include <linux/version.h>
 #include <linux/rk-camera-module.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -53,7 +54,7 @@
 #define	JX_H62_EXPOSURE_STEP		1
 #define JX_H62_VTS_MAX			0xffff
 
-#define JX_H62_AEC_PK_LONG_GAIN_REG	 0x00	/* Bits 0 -7 */
+#define JX_H62_AEC_PK_LONG_GAIN_REG	0x00	/* Bits 0 -7 */
 #define	ANALOG_GAIN_MIN			0x00
 #define	ANALOG_GAIN_MAX			0xf8	/* 15.5 */
 #define	ANALOG_GAIN_STEP		1
@@ -82,6 +83,8 @@
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
 #define JX_H62_NAME			"jx_h62"
 #define JX_H62_MEDIA_BUS_FMT		MEDIA_BUS_FMT_SBGGR10_1X10
+
+#define JX_H62_LANES			1
 
 static const char * const jx_h62_supply_names[] = {
 	"vcc2v8_dvp",		/* Analog power */
@@ -803,6 +806,20 @@ static int jx_h62_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int jx_h62_g_mbus_config(struct v4l2_subdev *sd,
+				struct v4l2_mbus_config *config)
+{
+	u32 val = 0;
+
+	val = 1 << (JX_H62_LANES - 1) |
+	      V4L2_MBUS_CSI2_CHANNEL_0 |
+	      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+	config->type = V4L2_MBUS_CSI2;
+	config->flags = val;
+
+	return 0;
+}
+
 static const struct dev_pm_ops jx_h62_pm_ops = {
 	SET_RUNTIME_PM_OPS(jx_h62_runtime_suspend,
 			   jx_h62_runtime_resume, NULL)
@@ -825,6 +842,7 @@ static const struct v4l2_subdev_core_ops jx_h62_core_ops = {
 static const struct v4l2_subdev_video_ops jx_h62_video_ops = {
 	.s_stream = jx_h62_s_stream,
 	.g_frame_interval = jx_h62_g_frame_interval,
+	.g_mbus_config = jx_h62_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops jx_h62_pad_ops = {

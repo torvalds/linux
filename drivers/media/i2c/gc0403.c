@@ -5,6 +5,7 @@
  * Copyright (C) 2019 Fuzhou Rockchip Electronics Co.,Ltd.
  * V0.0X01.0X02 add enum_frame_interval function.
  * V0.0X01.0X03 add quick stream on/off
+ * V0.0X01.0X04 add function g_mbus_config
  */
 
 #include <linux/clk.h>
@@ -75,6 +76,8 @@
 #define GC0403_XVCLK_FREQ		24000000
 #define GC0403_LINK_FREQ		96000000
 #define GC0403_PIXEL_RATE		(GC0403_LINK_FREQ * 2 * 1 / 10)
+
+#define GC0403_LANES			1
 
 static const s64 link_freq_menu_items[] = {
 	GC0403_LINK_FREQ
@@ -914,6 +917,20 @@ static int gc0403_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int gc0403_g_mbus_config(struct v4l2_subdev *sd,
+				struct v4l2_mbus_config *config)
+{
+	u32 val = 0;
+
+	val = 1 << (GC0403_LANES - 1) |
+	      V4L2_MBUS_CSI2_CHANNEL_0 |
+	      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+	config->type = V4L2_MBUS_CSI2;
+	config->flags = val;
+
+	return 0;
+}
+
 static const struct dev_pm_ops gc0403_pm_ops = {
 	SET_RUNTIME_PM_OPS(gc0403_runtime_suspend,
 			   gc0403_runtime_resume, NULL)
@@ -936,6 +953,7 @@ static struct v4l2_subdev_core_ops gc0403_core_ops = {
 static const struct v4l2_subdev_video_ops gc0403_video_ops = {
 	.s_stream = gc0403_s_stream,
 	.g_frame_interval = gc0403_g_frame_interval,
+	.g_mbus_config = gc0403_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops gc0403_pad_ops = {

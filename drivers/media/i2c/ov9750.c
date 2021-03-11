@@ -6,6 +6,7 @@
  * V0.0X01.0X02 fix mclk issue when probe multiple camera.
  * V0.0X01.0X03 add enum_frame_interval function.
  * V0.0X01.0X04 add quick stream on/off
+ * V0.0X01.0X05 add function g_mbus_config
  */
 
 #include <linux/clk.h>
@@ -26,7 +27,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/version.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x4)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x5)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -616,7 +617,7 @@ static int ov9750_enable_test_pattern(struct ov9750 *ov9750, u32 pattern)
 				OV9750_REG_VALUE_08BIT, val);
 }
 
-static int OV9750_g_frame_interval(struct v4l2_subdev *sd,
+static int ov9750_g_frame_interval(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov9750 *ov9750 = to_ov9750(sd);
@@ -935,6 +936,20 @@ static int ov9750_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int ov9750_g_mbus_config(struct v4l2_subdev *sd,
+				struct v4l2_mbus_config *config)
+{
+	u32 val = 0;
+
+	val = 1 << (OV9750_LANES - 1) |
+	      V4L2_MBUS_CSI2_CHANNEL_0 |
+	      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+	config->type = V4L2_MBUS_CSI2;
+	config->flags = val;
+
+	return 0;
+}
+
 static const struct dev_pm_ops ov9750_pm_ops = {
 	SET_RUNTIME_PM_OPS(ov9750_runtime_suspend,
 			   ov9750_runtime_resume, NULL)
@@ -956,7 +971,8 @@ static const struct v4l2_subdev_core_ops ov9750_core_ops = {
 
 static const struct v4l2_subdev_video_ops ov9750_video_ops = {
 	.s_stream = ov9750_s_stream,
-	.g_frame_interval = OV9750_g_frame_interval,
+	.g_frame_interval = ov9750_g_frame_interval,
+	.g_mbus_config = ov9750_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops ov9750_pad_ops = {

@@ -884,7 +884,6 @@ static int sensor_g_mbus_config(struct v4l2_subdev *sd,
 		config->type = V4L2_MBUS_CSI2;
 		config->flags = V4L2_MBUS_CSI2_2_LANE |
 				V4L2_MBUS_CSI2_CHANNEL_0 |
-				V4L2_MBUS_CSI2_CHANNEL_1 |
 				V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 	} else {
 		dev_err(&sensor->client->dev,

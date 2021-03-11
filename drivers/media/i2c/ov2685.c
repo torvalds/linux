@@ -9,6 +9,7 @@
  * (at your option) any later version.
  * V0.0X01.0X01 add enum_frame_interval function.
  * V0.0X01.0X02 add quick stream on/off
+ * V0.0X01.0X03 add function g_mbus_config
  */
 
 #include <linux/clk.h>
@@ -28,7 +29,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x2)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x3)
 
 #define CHIP_ID				0x2685
 #define OV2685_REG_CHIP_ID		0x300a
@@ -732,6 +733,20 @@ static int ov2685_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int ov2685_g_mbus_config(struct v4l2_subdev *sd,
+				struct v4l2_mbus_config *config)
+{
+	u32 val = 0;
+
+	val = 1 << (OV2685_LANES - 1) |
+	      V4L2_MBUS_CSI2_CHANNEL_0 |
+	      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+	config->type = V4L2_MBUS_CSI2;
+	config->flags = val;
+
+	return 0;
+}
+
 static struct v4l2_subdev_core_ops ov2685_core_ops = {
 	.s_power = ov2685_s_power,
 	.ioctl = ov2685_ioctl,
@@ -742,6 +757,7 @@ static struct v4l2_subdev_core_ops ov2685_core_ops = {
 
 static struct v4l2_subdev_video_ops ov2685_video_ops = {
 	.s_stream = ov2685_s_stream,
+	.g_mbus_config = ov2685_g_mbus_config,
 };
 
 static struct v4l2_subdev_pad_ops ov2685_pad_ops = {

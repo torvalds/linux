@@ -7,6 +7,7 @@
  * V0.0X01.0X01 add poweron function.
  * V0.0X01.0X02 add enum_frame_interval function.
  * V0.0X01.0X03 add quick stream on/off
+ * V0.0X01.0X04 add function g_mbus_config
  */
 
 #include <linux/clk.h>
@@ -25,7 +26,7 @@
 #include <media/v4l2-subdev.h>
 #include <linux/version.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -76,6 +77,8 @@
 #define REG_DELAY			0xFE
 
 #define JX_H65_NAME			"jx_h65"
+
+#define JX_H65_LANES			1
 
 static const char * const jx_h65_supply_names[] = {
 	"vcc2v8_dvp",		/* Analog power */
@@ -901,6 +904,20 @@ static int jx_h65_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int jx_h65_g_mbus_config(struct v4l2_subdev *sd,
+				struct v4l2_mbus_config *config)
+{
+	u32 val = 0;
+
+	val = 1 << (JX_H65_LANES - 1) |
+	      V4L2_MBUS_CSI2_CHANNEL_0 |
+	      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+	config->type = V4L2_MBUS_CSI2;
+	config->flags = val;
+
+	return 0;
+}
+
 static const struct dev_pm_ops jx_h65_pm_ops = {
 	SET_RUNTIME_PM_OPS(jx_h65_runtime_suspend,
 			   jx_h65_runtime_resume, NULL)
@@ -923,6 +940,7 @@ static const struct v4l2_subdev_core_ops jx_h65_core_ops = {
 static const struct v4l2_subdev_video_ops jx_h65_video_ops = {
 	.s_stream = jx_h65_s_stream,
 	.g_frame_interval = jx_h65_g_frame_interval,
+	.g_mbus_config = jx_h65_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops jx_h65_pad_ops = {
