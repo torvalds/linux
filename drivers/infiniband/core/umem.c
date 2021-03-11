@@ -2,6 +2,7 @@
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Cisco Systems.  All rights reserved.
  * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2020 Intel Corporation. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -135,7 +136,7 @@ unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
 	 */
 	if (mask)
 		pgsz_bitmap &= GENMASK(count_trailing_zeros(mask), 0);
-	return rounddown_pow_of_two(pgsz_bitmap);
+	return pgsz_bitmap ? rounddown_pow_of_two(pgsz_bitmap) : 0;
 }
 EXPORT_SYMBOL(ib_umem_find_best_pgsz);
 
@@ -278,6 +279,8 @@ void ib_umem_release(struct ib_umem *umem)
 {
 	if (!umem)
 		return;
+	if (umem->is_dmabuf)
+		return ib_umem_dmabuf_release(to_ib_umem_dmabuf(umem));
 	if (umem->is_odp)
 		return ib_umem_odp_release(to_ib_umem_odp(umem));
 

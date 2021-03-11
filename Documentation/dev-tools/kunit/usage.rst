@@ -522,6 +522,63 @@ There's more boilerplate involved, but it can:
   * E.g. if we wanted to also test ``sha256sum``, we could add a ``sha256``
     field and reuse ``cases``.
 
+* be converted to a "parameterized test", see below.
+
+Parameterized Testing
+~~~~~~~~~~~~~~~~~~~~~
+
+The table-driven testing pattern is common enough that KUnit has special
+support for it.
+
+Reusing the same ``cases`` array from above, we can write the test as a
+"parameterized test" with the following.
+
+.. code-block:: c
+
+	// This is copy-pasted from above.
+	struct sha1_test_case {
+		const char *str;
+		const char *sha1;
+	};
+	struct sha1_test_case cases[] = {
+		{
+			.str = "hello world",
+			.sha1 = "2aae6c35c94fcfb415dbe95f408b9ce91ee846ed",
+		},
+		{
+			.str = "hello world!",
+			.sha1 = "430ce34d020724ed75a196dfc2ad67c77772d169",
+		},
+	};
+
+	// Need a helper function to generate a name for each test case.
+	static void case_to_desc(const struct sha1_test_case *t, char *desc)
+	{
+		strcpy(desc, t->str);
+	}
+	// Creates `sha1_gen_params()` to iterate over `cases`.
+	KUNIT_ARRAY_PARAM(sha1, cases, case_to_desc);
+
+	// Looks no different from a normal test.
+	static void sha1_test(struct kunit *test)
+	{
+		// This function can just contain the body of the for-loop.
+		// The former `cases[i]` is accessible under test->param_value.
+		char out[40];
+		struct sha1_test_case *test_param = (struct sha1_test_case *)(test->param_value);
+
+		sha1sum(test_param->str, out);
+		KUNIT_EXPECT_STREQ_MSG(test, (char *)out, test_param->sha1,
+				      "sha1sum(%s)", test_param->str);
+	}
+
+	// Instead of KUNIT_CASE, we use KUNIT_CASE_PARAM and pass in the
+	// function declared by KUNIT_ARRAY_PARAM.
+	static struct kunit_case sha1_test_cases[] = {
+		KUNIT_CASE_PARAM(sha1_test, sha1_gen_params),
+		{}
+	};
+
 .. _kunit-on-non-uml:
 
 KUnit on non-UML architectures

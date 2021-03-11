@@ -9,6 +9,34 @@
 	(X86_CR4_PVI | X86_CR4_DE | X86_CR4_PCE | X86_CR4_OSFXSR  \
 	 | X86_CR4_OSXMMEXCPT | X86_CR4_PGE | X86_CR4_TSD | X86_CR4_FSGSBASE)
 
+#define BUILD_KVM_GPR_ACCESSORS(lname, uname)				      \
+static __always_inline unsigned long kvm_##lname##_read(struct kvm_vcpu *vcpu)\
+{									      \
+	return vcpu->arch.regs[VCPU_REGS_##uname];			      \
+}									      \
+static __always_inline void kvm_##lname##_write(struct kvm_vcpu *vcpu,	      \
+						unsigned long val)	      \
+{									      \
+	vcpu->arch.regs[VCPU_REGS_##uname] = val;			      \
+}
+BUILD_KVM_GPR_ACCESSORS(rax, RAX)
+BUILD_KVM_GPR_ACCESSORS(rbx, RBX)
+BUILD_KVM_GPR_ACCESSORS(rcx, RCX)
+BUILD_KVM_GPR_ACCESSORS(rdx, RDX)
+BUILD_KVM_GPR_ACCESSORS(rbp, RBP)
+BUILD_KVM_GPR_ACCESSORS(rsi, RSI)
+BUILD_KVM_GPR_ACCESSORS(rdi, RDI)
+#ifdef CONFIG_X86_64
+BUILD_KVM_GPR_ACCESSORS(r8,  R8)
+BUILD_KVM_GPR_ACCESSORS(r9,  R9)
+BUILD_KVM_GPR_ACCESSORS(r10, R10)
+BUILD_KVM_GPR_ACCESSORS(r11, R11)
+BUILD_KVM_GPR_ACCESSORS(r12, R12)
+BUILD_KVM_GPR_ACCESSORS(r13, R13)
+BUILD_KVM_GPR_ACCESSORS(r14, R14)
+BUILD_KVM_GPR_ACCESSORS(r15, R15)
+#endif
+
 static inline bool kvm_register_is_available(struct kvm_vcpu *vcpu,
 					     enum kvm_reg reg)
 {
@@ -34,42 +62,13 @@ static inline void kvm_register_mark_dirty(struct kvm_vcpu *vcpu,
 	__set_bit(reg, (unsigned long *)&vcpu->arch.regs_dirty);
 }
 
-#define BUILD_KVM_GPR_ACCESSORS(lname, uname)				      \
-static __always_inline unsigned long kvm_##lname##_read(struct kvm_vcpu *vcpu)\
-{									      \
-	return vcpu->arch.regs[VCPU_REGS_##uname];			      \
-}									      \
-static __always_inline void kvm_##lname##_write(struct kvm_vcpu *vcpu,	      \
-						unsigned long val)	      \
-{									      \
-	vcpu->arch.regs[VCPU_REGS_##uname] = val;			      \
-	kvm_register_mark_dirty(vcpu, VCPU_REGS_##uname);		      \
-}
-BUILD_KVM_GPR_ACCESSORS(rax, RAX)
-BUILD_KVM_GPR_ACCESSORS(rbx, RBX)
-BUILD_KVM_GPR_ACCESSORS(rcx, RCX)
-BUILD_KVM_GPR_ACCESSORS(rdx, RDX)
-BUILD_KVM_GPR_ACCESSORS(rbp, RBP)
-BUILD_KVM_GPR_ACCESSORS(rsi, RSI)
-BUILD_KVM_GPR_ACCESSORS(rdi, RDI)
-#ifdef CONFIG_X86_64
-BUILD_KVM_GPR_ACCESSORS(r8,  R8)
-BUILD_KVM_GPR_ACCESSORS(r9,  R9)
-BUILD_KVM_GPR_ACCESSORS(r10, R10)
-BUILD_KVM_GPR_ACCESSORS(r11, R11)
-BUILD_KVM_GPR_ACCESSORS(r12, R12)
-BUILD_KVM_GPR_ACCESSORS(r13, R13)
-BUILD_KVM_GPR_ACCESSORS(r14, R14)
-BUILD_KVM_GPR_ACCESSORS(r15, R15)
-#endif
-
 static inline unsigned long kvm_register_read(struct kvm_vcpu *vcpu, int reg)
 {
 	if (WARN_ON_ONCE((unsigned int)reg >= NR_VCPU_REGS))
 		return 0;
 
 	if (!kvm_register_is_available(vcpu, reg))
-		kvm_x86_ops.cache_reg(vcpu, reg);
+		static_call(kvm_x86_cache_reg)(vcpu, reg);
 
 	return vcpu->arch.regs[reg];
 }
@@ -109,7 +108,7 @@ static inline u64 kvm_pdptr_read(struct kvm_vcpu *vcpu, int index)
 	might_sleep();  /* on svm */
 
 	if (!kvm_register_is_available(vcpu, VCPU_EXREG_PDPTR))
-		kvm_x86_ops.cache_reg(vcpu, VCPU_EXREG_PDPTR);
+		static_call(kvm_x86_cache_reg)(vcpu, VCPU_EXREG_PDPTR);
 
 	return vcpu->arch.walk_mmu->pdptrs[index];
 }
@@ -119,7 +118,7 @@ static inline ulong kvm_read_cr0_bits(struct kvm_vcpu *vcpu, ulong mask)
 	ulong tmask = mask & KVM_POSSIBLE_CR0_GUEST_BITS;
 	if ((tmask & vcpu->arch.cr0_guest_owned_bits) &&
 	    !kvm_register_is_available(vcpu, VCPU_EXREG_CR0))
-		kvm_x86_ops.cache_reg(vcpu, VCPU_EXREG_CR0);
+		static_call(kvm_x86_cache_reg)(vcpu, VCPU_EXREG_CR0);
 	return vcpu->arch.cr0 & mask;
 }
 
@@ -133,14 +132,14 @@ static inline ulong kvm_read_cr4_bits(struct kvm_vcpu *vcpu, ulong mask)
 	ulong tmask = mask & KVM_POSSIBLE_CR4_GUEST_BITS;
 	if ((tmask & vcpu->arch.cr4_guest_owned_bits) &&
 	    !kvm_register_is_available(vcpu, VCPU_EXREG_CR4))
-		kvm_x86_ops.cache_reg(vcpu, VCPU_EXREG_CR4);
+		static_call(kvm_x86_cache_reg)(vcpu, VCPU_EXREG_CR4);
 	return vcpu->arch.cr4 & mask;
 }
 
 static inline ulong kvm_read_cr3(struct kvm_vcpu *vcpu)
 {
 	if (!kvm_register_is_available(vcpu, VCPU_EXREG_CR3))
-		kvm_x86_ops.cache_reg(vcpu, VCPU_EXREG_CR3);
+		static_call(kvm_x86_cache_reg)(vcpu, VCPU_EXREG_CR3);
 	return vcpu->arch.cr3;
 }
 

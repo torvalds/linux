@@ -631,7 +631,6 @@ config USB_NET_AQC111
 config USB_RTL8153_ECM
 	tristate "RTL8153 ECM support"
 	depends on USB_NET_CDCETHER && (USB_RTL8152 || USB_RTL8152=n)
-	default y
 	help
 	  This option supports ECM mode for RTL8153 ethernet adapter, when
 	  CONFIG_USB_RTL8152 is not set, or the RTL8153 device is not

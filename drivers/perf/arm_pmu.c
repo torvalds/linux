@@ -577,7 +577,7 @@ static struct attribute *armpmu_common_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group armpmu_common_attr_group = {
+static const struct attribute_group armpmu_common_attr_group = {
 	.attrs = armpmu_common_attrs,
 };
 
@@ -724,11 +724,6 @@ static int armpmu_get_cpu_irq(struct arm_pmu *pmu, int cpu)
 {
 	struct pmu_hw_events __percpu *hw_events = pmu->hw_events;
 	return per_cpu(hw_events->irq, cpu);
-}
-
-bool arm_pmu_irq_is_nmi(void)
-{
-	return has_nmi;
 }
 
 /*

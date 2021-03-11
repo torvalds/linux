@@ -105,13 +105,6 @@
 #define MME_ACC_OFFSET		(mmMME1_ACC_BASE - mmMME0_ACC_BASE)
 #define SRAM_BANK_OFFSET	(mmSRAM_Y0_X1_RTR_BASE - mmSRAM_Y0_X0_RTR_BASE)
 
-#define PLL_NR_OFFSET		0
-#define PLL_NF_OFFSET		(mmPSOC_CPU_PLL_NF - mmPSOC_CPU_PLL_NR)
-#define PLL_OD_OFFSET		(mmPSOC_CPU_PLL_OD - mmPSOC_CPU_PLL_NR)
-#define PLL_DIV_FACTOR_0_OFFSET	(mmPSOC_CPU_PLL_DIV_FACTOR_0 - \
-				mmPSOC_CPU_PLL_NR)
-#define PLL_DIV_SEL_0_OFFSET	(mmPSOC_CPU_PLL_DIV_SEL_0 - mmPSOC_CPU_PLL_NR)
-
 #define NUM_OF_SOB_IN_BLOCK		\
 	(((mmSYNC_MNGR_E_N_SYNC_MNGR_OBJS_SOB_OBJ_2047 - \
 	mmSYNC_MNGR_E_N_SYNC_MNGR_OBJS_SOB_OBJ_0) + 4) >> 2)
@@ -258,11 +251,13 @@ enum gaudi_nic_mask {
  * @hdev: habanalabs device structure.
  * @kref: refcount of this SOB group. group will reset once refcount is zero.
  * @base_sob_id: base sob id of this SOB group.
+ * @queue_id: id of the queue that waits on this sob group
  */
 struct gaudi_hw_sob_group {
 	struct hl_device	*hdev;
 	struct kref		kref;
 	u32			base_sob_id;
+	u32			queue_id;
 };
 
 #define NUM_SOB_GROUPS (HL_RSVD_SOBS * QMAN_STREAMS)
@@ -340,6 +335,7 @@ struct gaudi_device {
 };
 
 void gaudi_init_security(struct hl_device *hdev);
+void gaudi_ack_protection_bits_errors(struct hl_device *hdev);
 void gaudi_add_device_attr(struct hl_device *hdev,
 			struct attribute_group *dev_attr_grp);
 void gaudi_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq);

@@ -345,7 +345,7 @@ https://bugzilla.kernel.org 는 리눅스 커널 개발자들이 커널의 버�
 
     https://bugzilla.kernel.org/page.cgi?id=faq.html
 
-메인 커널 소스 디렉토리에 있는 :ref:`admin-guide/reporting-bugs.rst <reportingbugs>`
+메인 커널 소스 디렉토리에 있는 'Documentation/admin-guide/reporting-issues.rst'
 파일은 커널 버그라고 생각되는 것을 보고하는 방법에 관한 좋은 템플릿이며 문제를
 추적하기 위해서 커널 개발자들이 필요로 하는 정보가 무엇들인지를 상세히 설명하고
 있다.
@@ -583,7 +583,7 @@ Pat이라는 이름을 가진 여자가 있을 수도 있는 것이다. 리눅�
 
    "The Perfect Patch"
 
-    http://www.ozlabs.org/~akpm/stuff/tpp.txt
+    https://www.ozlabs.org/~akpm/stuff/tpp.txt
 
 
 이 모든 것을 하는 것은 매우 어려운 일이다. 완벽히 소화하는 데는 적어도 몇년이

@@ -22,7 +22,10 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
 	if (ret < 0)
 		return ret;
 
-	memset(dev->mt76.eeprom.data, -1, MT7915_EEPROM_SIZE);
+	if (ret)
+		dev->flash_mode = true;
+	else
+		memset(dev->mt76.eeprom.data, -1, MT7915_EEPROM_SIZE);
 
 	return 0;
 }
@@ -50,12 +53,15 @@ void mt7915_eeprom_parse_band_config(struct mt7915_phy *phy)
 	u32 val;
 
 	val = mt7915_eeprom_read(dev, MT_EE_WIFI_CONF + ext_phy);
-	val = FIELD_GET(MT_EE_WIFI_CONF_BAND_SEL, val);
+	val = FIELD_GET(MT_EE_WIFI_CONF0_BAND_SEL, val);
+	if (val == MT_EE_BAND_SEL_DEFAULT && dev->dbdc_support)
+		val = ext_phy ? MT_EE_BAND_SEL_5GHZ : MT_EE_BAND_SEL_2GHZ;
+
 	switch (val) {
-	case MT_EE_5GHZ:
+	case MT_EE_BAND_SEL_5GHZ:
 		phy->mt76->cap.has_5ghz = true;
 		break;
-	case MT_EE_2GHZ:
+	case MT_EE_BAND_SEL_2GHZ:
 		phy->mt76->cap.has_2ghz = true;
 		break;
 	default:
@@ -67,26 +73,30 @@ void mt7915_eeprom_parse_band_config(struct mt7915_phy *phy)
 
 static void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev)
 {
-	u8 nss, tx_mask[2] = {}, *eeprom = dev->mt76.eeprom.data;
+	u8 nss, nss_band, *eeprom = dev->mt76.eeprom.data;
 
 	mt7915_eeprom_parse_band_config(&dev->phy);
 
 	/* read tx mask from eeprom */
-	tx_mask[0] = FIELD_GET(MT_EE_WIFI_CONF_TX_MASK,
-			       eeprom[MT_EE_WIFI_CONF]);
-	if (dev->dbdc_support)
-		tx_mask[1] = FIELD_GET(MT_EE_WIFI_CONF_TX_MASK,
-				       eeprom[MT_EE_WIFI_CONF + 1]);
-
-	nss = tx_mask[0] + tx_mask[1];
-	if (!nss || nss > 4) {
-		tx_mask[0] = 4;
+	nss = FIELD_GET(MT_EE_WIFI_CONF0_TX_PATH, eeprom[MT_EE_WIFI_CONF]);
+	if (!nss || nss > 4)
 		nss = 4;
+
+	nss_band = nss;
+
+	if (dev->dbdc_support) {
+		nss_band = FIELD_GET(MT_EE_WIFI_CONF3_TX_PATH_B0,
+				     eeprom[MT_EE_WIFI_CONF + 3]);
+		if (!nss_band || nss_band > 2)
+			nss_band = 2;
+
+		if (nss_band >= nss)
+			nss = 4;
 	}
 
 	dev->chainmask = BIT(nss) - 1;
-	dev->mphy.antenna_mask = BIT(tx_mask[0]) - 1;
-	dev->phy.chainmask = dev->mphy.antenna_mask;
+	dev->mphy.antenna_mask = BIT(nss_band) - 1;
+	dev->mphy.chainmask = dev->mphy.antenna_mask;
 }
 
 int mt7915_eeprom_init(struct mt7915_dev *dev)

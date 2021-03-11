@@ -303,6 +303,19 @@
 #define ERR_CNT_INVLD_DW		(PORT_BASE + 0x390)
 #define ERR_CNT_CODE_ERR		(PORT_BASE + 0x394)
 #define ERR_CNT_DISP_ERR		(PORT_BASE + 0x398)
+#define DFX_FIFO_CTRL			(PORT_BASE + 0x3a0)
+#define DFX_FIFO_CTRL_TRIGGER_MODE_OFF	0
+#define DFX_FIFO_CTRL_TRIGGER_MODE_MSK	(0x7 << DFX_FIFO_CTRL_TRIGGER_MODE_OFF)
+#define DFX_FIFO_CTRL_DUMP_MODE_OFF	3
+#define DFX_FIFO_CTRL_DUMP_MODE_MSK	(0x7 << DFX_FIFO_CTRL_DUMP_MODE_OFF)
+#define DFX_FIFO_CTRL_SIGNAL_SEL_OFF	6
+#define DFX_FIFO_CTRL_SIGNAL_SEL_MSK	(0xF << DFX_FIFO_CTRL_SIGNAL_SEL_OFF)
+#define DFX_FIFO_CTRL_DUMP_DISABLE_OFF	10
+#define DFX_FIFO_CTRL_DUMP_DISABLE_MSK	(0x1 << DFX_FIFO_CTRL_DUMP_DISABLE_OFF)
+#define DFX_FIFO_TRIGGER		(PORT_BASE + 0x3a4)
+#define DFX_FIFO_TRIGGER_MSK		(PORT_BASE + 0x3a8)
+#define DFX_FIFO_DUMP_MSK		(PORT_BASE + 0x3aC)
+#define DFX_FIFO_RD_DATA		(PORT_BASE + 0x3b0)
 
 #define DEFAULT_ITCT_HW		2048 /* reset value, not reprogrammed */
 #if (HISI_SAS_MAX_DEVICES > DEFAULT_ITCT_HW)
@@ -516,11 +529,6 @@ MODULE_PARM_DESC(intr_conv, "interrupt converge enable (0-1)");
 static int prot_mask;
 module_param(prot_mask, int, 0);
 MODULE_PARM_DESC(prot_mask, " host protection capabilities mask, def=0x0 ");
-
-static bool auto_affine_msi_experimental;
-module_param(auto_affine_msi_experimental, bool, 0444);
-MODULE_PARM_DESC(auto_affine_msi_experimental, "Enable auto-affinity of MSI IRQs as experimental:\n"
-		 "default is off");
 
 static void debugfs_work_handler_v3_hw(struct work_struct *work);
 
@@ -1580,7 +1588,8 @@ static irqreturn_t phy_down_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 
 	phy_state = hisi_sas_read32(hisi_hba, PHY_STATE);
 	dev_info(dev, "phydown: phy%d phy_state=0x%x\n", phy_no, phy_state);
-	hisi_sas_phy_down(hisi_hba, phy_no, (phy_state & 1 << phy_no) ? 1 : 0);
+	hisi_sas_phy_down(hisi_hba, phy_no, (phy_state & 1 << phy_no) ? 1 : 0,
+			  GFP_ATOMIC);
 
 	sl_ctrl = hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL);
 	hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL,
@@ -1600,14 +1609,14 @@ static irqreturn_t phy_bcast_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 {
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
-	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
 	u32 bcast_status;
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, SL_RX_BCAST_CHK_MSK, 1);
 	bcast_status = hisi_sas_phy_read32(hisi_hba, phy_no, RX_PRIMS_STATUS);
 	if ((bcast_status & RX_BCAST_CHG_MSK) &&
 	    !test_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags))
-		sas_ha->notify_port_event(sas_phy, PORTE_BROADCAST_RCVD);
+		sas_notify_port_event(sas_phy, PORTE_BROADCAST_RCVD,
+				      GFP_ATOMIC);
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0,
 			     CHL_INT0_SL_RX_BCST_ACK_MSK);
 	hisi_sas_phy_write32(hisi_hba, phy_no, SL_RX_BCAST_CHK_MSK, 0);
@@ -4157,6 +4166,243 @@ static const struct file_operations debugfs_phy_down_cnt_v3_hw_fops = {
 	.owner = THIS_MODULE,
 };
 
+enum fifo_dump_mode_v3_hw {
+	FIFO_DUMP_FORVER =		(1U << 0),
+	FIFO_DUMP_AFTER_TRIGGER =	(1U << 1),
+	FIFO_DUMP_UNTILL_TRIGGER =	(1U << 2),
+};
+
+enum fifo_trigger_mode_v3_hw {
+	FIFO_TRIGGER_EDGE =		(1U << 0),
+	FIFO_TRIGGER_SAME_LEVEL =	(1U << 1),
+	FIFO_TRIGGER_DIFF_LEVEL =	(1U << 2),
+};
+
+static int debugfs_is_fifo_config_valid_v3_hw(struct hisi_sas_phy *phy)
+{
+	struct hisi_hba *hisi_hba = phy->hisi_hba;
+
+	if (phy->fifo.signal_sel > 0xf) {
+		dev_info(hisi_hba->dev, "Invalid signal select: %u\n",
+			 phy->fifo.signal_sel);
+		return -EINVAL;
+	}
+
+	switch (phy->fifo.dump_mode) {
+	case FIFO_DUMP_FORVER:
+	case FIFO_DUMP_AFTER_TRIGGER:
+	case FIFO_DUMP_UNTILL_TRIGGER:
+		break;
+	default:
+		dev_info(hisi_hba->dev, "Invalid dump mode: %u\n",
+			 phy->fifo.dump_mode);
+		return -EINVAL;
+	}
+
+	/* when FIFO_DUMP_FORVER, no need to check trigger_mode */
+	if (phy->fifo.dump_mode == FIFO_DUMP_FORVER)
+		return 0;
+
+	switch (phy->fifo.trigger_mode) {
+	case FIFO_TRIGGER_EDGE:
+	case FIFO_TRIGGER_SAME_LEVEL:
+	case FIFO_TRIGGER_DIFF_LEVEL:
+		break;
+	default:
+		dev_info(hisi_hba->dev, "Invalid trigger mode: %u\n",
+			 phy->fifo.trigger_mode);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int debugfs_update_fifo_config_v3_hw(struct hisi_sas_phy *phy)
+{
+	u32 trigger_mode = phy->fifo.trigger_mode;
+	u32 signal_sel = phy->fifo.signal_sel;
+	u32 dump_mode = phy->fifo.dump_mode;
+	struct hisi_hba *hisi_hba = phy->hisi_hba;
+	int phy_no = phy->sas_phy.id;
+	u32 reg_val;
+	int res;
+
+	/* Check the validity of trace FIFO configuration */
+	res = debugfs_is_fifo_config_valid_v3_hw(phy);
+	if (res)
+		return res;
+
+	reg_val = hisi_sas_phy_read32(hisi_hba, phy_no, DFX_FIFO_CTRL);
+	/* Disable trace FIFO before update configuration */
+	reg_val |= DFX_FIFO_CTRL_DUMP_DISABLE_MSK;
+
+	/* Update trace FIFO configuration */
+	reg_val &= ~(DFX_FIFO_CTRL_DUMP_MODE_MSK |
+		     DFX_FIFO_CTRL_SIGNAL_SEL_MSK |
+		     DFX_FIFO_CTRL_TRIGGER_MODE_MSK);
+
+	reg_val |= ((trigger_mode << DFX_FIFO_CTRL_TRIGGER_MODE_OFF) |
+		    (dump_mode << DFX_FIFO_CTRL_DUMP_MODE_OFF) |
+		    (signal_sel << DFX_FIFO_CTRL_SIGNAL_SEL_OFF));
+	hisi_sas_phy_write32(hisi_hba, phy_no, DFX_FIFO_CTRL, reg_val);
+
+	hisi_sas_phy_write32(hisi_hba, phy_no, DFX_FIFO_DUMP_MSK,
+			     phy->fifo.dump_msk);
+
+	hisi_sas_phy_write32(hisi_hba, phy_no, DFX_FIFO_TRIGGER,
+			     phy->fifo.trigger);
+
+	hisi_sas_phy_write32(hisi_hba, phy_no, DFX_FIFO_TRIGGER_MSK,
+			     phy->fifo.trigger_msk);
+
+	/* Enable trace FIFO after updated configuration */
+	reg_val = hisi_sas_phy_read32(hisi_hba, phy_no, DFX_FIFO_CTRL);
+	reg_val &= ~DFX_FIFO_CTRL_DUMP_DISABLE_MSK;
+	hisi_sas_phy_write32(hisi_hba, phy_no, DFX_FIFO_CTRL, reg_val);
+
+	return 0;
+}
+
+static ssize_t debugfs_fifo_update_cfg_v3_hw_write(struct file *filp,
+						   const char __user *buf,
+						   size_t count, loff_t *ppos)
+{
+	struct hisi_sas_phy *phy = filp->private_data;
+	bool update;
+	int val;
+
+	val = kstrtobool_from_user(buf, count, &update);
+	if (val)
+		return val;
+
+	if (update != 1)
+		return -EINVAL;
+
+	val = debugfs_update_fifo_config_v3_hw(phy);
+	if (val)
+		return val;
+
+	return count;
+}
+
+static const struct file_operations debugfs_fifo_update_cfg_v3_hw_fops = {
+	.open = simple_open,
+	.write = debugfs_fifo_update_cfg_v3_hw_write,
+	.owner = THIS_MODULE,
+};
+
+static void debugfs_read_fifo_data_v3_hw(struct hisi_sas_phy *phy)
+{
+	struct hisi_hba *hisi_hba = phy->hisi_hba;
+	u32 *buf = phy->fifo.rd_data;
+	int phy_no = phy->sas_phy.id;
+	u32 val;
+	int i;
+
+	memset(buf, 0, sizeof(phy->fifo.rd_data));
+
+	/* Disable trace FIFO before read data */
+	val = hisi_sas_phy_read32(hisi_hba, phy_no, DFX_FIFO_CTRL);
+	val |= DFX_FIFO_CTRL_DUMP_DISABLE_MSK;
+	hisi_sas_phy_write32(hisi_hba, phy_no, DFX_FIFO_CTRL, val);
+
+	for (i = 0; i < HISI_SAS_FIFO_DATA_DW_SIZE; i++) {
+		val = hisi_sas_phy_read32(hisi_hba, phy_no,
+					  DFX_FIFO_RD_DATA);
+		buf[i] = val;
+	}
+
+	/* Enable trace FIFO after read data */
+	val = hisi_sas_phy_read32(hisi_hba, phy_no, DFX_FIFO_CTRL);
+	val &= ~DFX_FIFO_CTRL_DUMP_DISABLE_MSK;
+	hisi_sas_phy_write32(hisi_hba, phy_no, DFX_FIFO_CTRL, val);
+}
+
+static int debugfs_fifo_data_v3_hw_show(struct seq_file *s, void *p)
+{
+	struct hisi_sas_phy *phy = s->private;
+
+	debugfs_read_fifo_data_v3_hw(phy);
+
+	debugfs_show_row_32_v3_hw(s, 0, HISI_SAS_FIFO_DATA_DW_SIZE * 4,
+				  phy->fifo.rd_data);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(debugfs_fifo_data_v3_hw);
+
+static void debugfs_fifo_init_v3_hw(struct hisi_hba *hisi_hba)
+{
+	int phy_no;
+
+	hisi_hba->debugfs_fifo_dentry =
+			debugfs_create_dir("fifo", hisi_hba->debugfs_dir);
+
+	for (phy_no = 0; phy_no < hisi_hba->n_phy; phy_no++) {
+		struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+		struct dentry *port_dentry;
+		char name[256];
+		u32 val;
+
+		/* get default configuration for trace FIFO */
+		val = hisi_sas_phy_read32(hisi_hba, phy_no, DFX_FIFO_CTRL);
+		val &= DFX_FIFO_CTRL_DUMP_MODE_MSK;
+		val >>= DFX_FIFO_CTRL_DUMP_MODE_OFF;
+		phy->fifo.dump_mode = val;
+
+		val = hisi_sas_phy_read32(hisi_hba, phy_no, DFX_FIFO_CTRL);
+		val &= DFX_FIFO_CTRL_TRIGGER_MODE_MSK;
+		val >>= DFX_FIFO_CTRL_TRIGGER_MODE_OFF;
+		phy->fifo.trigger_mode = val;
+
+		val = hisi_sas_phy_read32(hisi_hba, phy_no, DFX_FIFO_CTRL);
+		val &= DFX_FIFO_CTRL_SIGNAL_SEL_MSK;
+		val >>= DFX_FIFO_CTRL_SIGNAL_SEL_OFF;
+		phy->fifo.signal_sel = val;
+
+		val = hisi_sas_phy_read32(hisi_hba, phy_no, DFX_FIFO_DUMP_MSK);
+		phy->fifo.dump_msk = val;
+
+		val = hisi_sas_phy_read32(hisi_hba, phy_no, DFX_FIFO_TRIGGER);
+		phy->fifo.trigger = val;
+		val = hisi_sas_phy_read32(hisi_hba, phy_no, DFX_FIFO_TRIGGER_MSK);
+		phy->fifo.trigger_msk = val;
+
+		snprintf(name, 256, "%d", phy_no);
+		port_dentry = debugfs_create_dir(name,
+						 hisi_hba->debugfs_fifo_dentry);
+
+		debugfs_create_file("update_config", 0200, port_dentry, phy,
+				    &debugfs_fifo_update_cfg_v3_hw_fops);
+
+		debugfs_create_file("signal_sel", 0600, port_dentry,
+				    &phy->fifo.signal_sel,
+				    &debugfs_v3_hw_fops);
+
+		debugfs_create_file("dump_msk", 0600, port_dentry,
+				    &phy->fifo.dump_msk,
+				    &debugfs_v3_hw_fops);
+
+		debugfs_create_file("dump_mode", 0600, port_dentry,
+				    &phy->fifo.dump_mode,
+				    &debugfs_v3_hw_fops);
+
+		debugfs_create_file("trigger_mode", 0600, port_dentry,
+				    &phy->fifo.trigger_mode,
+				    &debugfs_v3_hw_fops);
+
+		debugfs_create_file("trigger", 0600, port_dentry,
+				    &phy->fifo.trigger,
+				    &debugfs_v3_hw_fops);
+
+		debugfs_create_file("trigger_msk", 0600, port_dentry,
+				    &phy->fifo.trigger_msk,
+				    &debugfs_v3_hw_fops);
+
+		debugfs_create_file("fifo_data", 0400, port_dentry, phy,
+				    &debugfs_fifo_data_v3_hw_fops);
+	}
+}
+
 static void debugfs_work_handler_v3_hw(struct work_struct *work)
 {
 	struct hisi_hba *hisi_hba =
@@ -4392,6 +4638,7 @@ static void debugfs_init_v3_hw(struct hisi_hba *hisi_hba)
 			debugfs_create_dir("dump", hisi_hba->debugfs_dir);
 
 	debugfs_phy_down_cnt_init_v3_hw(hisi_hba);
+	debugfs_fifo_init_v3_hw(hisi_hba);
 
 	for (i = 0; i < hisi_sas_debugfs_dump_count; i++) {
 		if (debugfs_alloc_v3_hw(hisi_hba, i)) {
@@ -4576,6 +4823,7 @@ static void hisi_sas_v3_remove(struct pci_dev *pdev)
 		del_timer(&hisi_hba->timer);
 
 	sas_unregister_ha(sha);
+	flush_workqueue(hisi_hba->wq);
 	sas_remove_host(sha->core.shost);
 
 	hisi_sas_v3_destroy_irqs(pdev, hisi_hba);

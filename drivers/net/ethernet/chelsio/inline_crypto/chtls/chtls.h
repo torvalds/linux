@@ -575,7 +575,11 @@ int send_tx_flowc_wr(struct sock *sk, int compl,
 void chtls_tcp_push(struct sock *sk, int flags);
 int chtls_push_frames(struct chtls_sock *csk, int comp);
 int chtls_set_tcb_tflag(struct sock *sk, unsigned int bit_pos, int val);
+void chtls_set_tcb_field_rpl_skb(struct sock *sk, u16 word,
+				 u64 mask, u64 val, u8 cookie,
+				 int through_l2t);
 int chtls_setkey(struct chtls_sock *csk, u32 keylen, u32 mode, int cipher_type);
+void chtls_set_quiesce_ctrl(struct sock *sk, int val);
 void skb_entail(struct sock *sk, struct sk_buff *skb, int flags);
 unsigned int keyid_to_addr(int start_addr, int keyid);
 void free_tls_keyid(struct sock *sk);

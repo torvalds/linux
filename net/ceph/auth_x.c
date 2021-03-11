@@ -569,6 +569,34 @@ e_range:
 	return -ERANGE;
 }
 
+static int decode_con_secret(void **p, void *end, u8 *con_secret,
+			     int *con_secret_len)
+{
+	int len;
+
+	ceph_decode_32_safe(p, end, len, bad);
+	ceph_decode_need(p, end, len, bad);
+
+	dout("%s len %d\n", __func__, len);
+	if (con_secret) {
+		if (len > CEPH_MAX_CON_SECRET_LEN) {
+			pr_err("connection secret too big %d\n", len);
+			goto bad_memzero;
+		}
+		memcpy(con_secret, *p, len);
+		*con_secret_len = len;
+	}
+	memzero_explicit(*p, len);
+	*p += len;
+	return 0;
+
+bad_memzero:
+	memzero_explicit(*p, len);
+bad:
+	pr_err("failed to decode connection secret\n");
+	return -EINVAL;
+}
+
 static int handle_auth_session_key(struct ceph_auth_client *ac,
 				   void **p, void *end,
 				   u8 *session_key, int *session_key_len,
@@ -612,17 +640,9 @@ static int handle_auth_session_key(struct ceph_auth_client *ac,
 		dout("%s decrypted %d bytes\n", __func__, ret);
 		dend = dp + ret;
 
-		ceph_decode_32_safe(&dp, dend, len, e_inval);
-		if (len > CEPH_MAX_CON_SECRET_LEN) {
-			pr_err("connection secret too big %d\n", len);
-			return -EINVAL;
-		}
-
-		dout("%s connection secret len %d\n", __func__, len);
-		if (con_secret) {
-			memcpy(con_secret, dp, len);
-			*con_secret_len = len;
-		}
+		ret = decode_con_secret(&dp, dend, con_secret, con_secret_len);
+		if (ret)
+			return ret;
 	}
 
 	/* service tickets */
@@ -828,7 +848,6 @@ static int decrypt_authorizer_reply(struct ceph_crypto_key *secret,
 {
 	void *dp, *dend;
 	u8 struct_v;
-	int len;
 	int ret;
 
 	dp = *p + ceph_x_encrypt_offset();
@@ -843,17 +862,9 @@ static int decrypt_authorizer_reply(struct ceph_crypto_key *secret,
 	ceph_decode_64_safe(&dp, dend, *nonce_plus_one, e_inval);
 	dout("%s nonce_plus_one %llu\n", __func__, *nonce_plus_one);
 	if (struct_v >= 2) {
-		ceph_decode_32_safe(&dp, dend, len, e_inval);
-		if (len > CEPH_MAX_CON_SECRET_LEN) {
-			pr_err("connection secret too big %d\n", len);
-			return -EINVAL;
-		}
-
-		dout("%s connection secret len %d\n", __func__, len);
-		if (con_secret) {
-			memcpy(con_secret, dp, len);
-			*con_secret_len = len;
-		}
+		ret = decode_con_secret(&dp, dend, con_secret, con_secret_len);
+		if (ret)
+			return ret;
 	}
 
 	return 0;

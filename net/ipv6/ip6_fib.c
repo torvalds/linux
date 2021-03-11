@@ -499,7 +499,7 @@ int fib6_tables_dump(struct net *net, struct notifier_block *nb,
 
 		hlist_for_each_entry_rcu(tb, head, tb6_hlist) {
 			err = fib6_table_dump(net, tb, w);
-			if (err < 0)
+			if (err)
 				goto out;
 		}
 	}
@@ -507,7 +507,8 @@ int fib6_tables_dump(struct net *net, struct notifier_block *nb,
 out:
 	kfree(w);
 
-	return err;
+	/* The tree traversal function should never return a positive value. */
+	return err > 0 ? -EINVAL : err;
 }
 
 static int fib6_dump_node(struct fib6_walker *w)
@@ -1025,6 +1026,8 @@ static void fib6_purge_rt(struct fib6_info *rt, struct fib6_node *fn,
 {
 	struct fib6_table *table = rt->fib6_table;
 
+	/* Flush all cached dst in exception table */
+	rt6_flush_exceptions(rt);
 	fib6_drop_pcpu_from(rt, table);
 
 	if (rt->nh && !list_empty(&rt->nh_list))
@@ -1926,9 +1929,6 @@ static void fib6_del_route(struct fib6_table *table, struct fib6_node *fn,
 	rt->fib6_node = NULL;
 	net->ipv6.rt6_stats->fib_rt_entries--;
 	net->ipv6.rt6_stats->fib_discarded_routes++;
-
-	/* Flush all cached dst in exception table */
-	rt6_flush_exceptions(rt);
 
 	/* Reset round-robin state, if necessary */
 	if (rcu_access_pointer(fn->rr_ptr) == rt)

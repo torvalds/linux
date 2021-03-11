@@ -564,7 +564,7 @@ static int pinmux_functions_show(struct seq_file *s, void *what)
 			continue;
 		}
 
-		seq_printf(s, "function: %s, groups = [ ", func);
+		seq_printf(s, "function %d: %s, groups = [ ", func_selector, func);
 		for (i = 0; i < num_groups; i++)
 			seq_printf(s, "%s ", groups[i]);
 		seq_puts(s, "]\n");

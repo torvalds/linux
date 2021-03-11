@@ -469,6 +469,7 @@ struct hdsp {
 	unsigned char	      qs_out_channels;
 	unsigned char         ds_out_channels;
 	unsigned char         ss_out_channels;
+	u32                   io_loopback;          /* output loopback channel states*/
 
 	struct snd_dma_buffer capture_dma_buf;
 	struct snd_dma_buffer playback_dma_buf;
@@ -3253,6 +3254,60 @@ static const struct snd_kcontrol_new snd_hdsp_96xx_aeb =
 			HDSP_AnalogExtensionBoard);
 static struct snd_kcontrol_new snd_hdsp_adat_sync_check = HDSP_ADAT_SYNC_CHECK;
 
+
+static bool hdsp_loopback_get(struct hdsp *const hdsp, const u8 channel)
+{
+	return hdsp->io_loopback & (1 << channel);
+}
+
+static int hdsp_loopback_set(struct hdsp *const hdsp, const u8 channel, const bool enable)
+{
+	if (hdsp_loopback_get(hdsp, channel) == enable)
+		return 0;
+
+	hdsp->io_loopback ^= (1 << channel);
+
+	hdsp_write(hdsp, HDSP_inputEnable + (4 * (hdsp->max_channels + channel)), enable);
+
+	return 1;
+}
+
+static int snd_hdsp_loopback_get(struct snd_kcontrol *const kcontrol,
+				 struct snd_ctl_elem_value *const ucontrol)
+{
+	struct hdsp *const hdsp = snd_kcontrol_chip(kcontrol);
+	const u8 channel = snd_ctl_get_ioff(kcontrol, &ucontrol->id);
+
+	if (channel >= hdsp->max_channels)
+		return -ENOENT;
+
+	ucontrol->value.integer.value[0] = hdsp_loopback_get(hdsp, channel);
+
+	return 0;
+}
+
+static int snd_hdsp_loopback_put(struct snd_kcontrol *const kcontrol,
+				 struct snd_ctl_elem_value *const ucontrol)
+{
+	struct hdsp *const hdsp = snd_kcontrol_chip(kcontrol);
+	const u8 channel = snd_ctl_get_ioff(kcontrol, &ucontrol->id);
+	const bool enable = ucontrol->value.integer.value[0] & 1;
+
+	if (channel >= hdsp->max_channels)
+		return -ENOENT;
+
+	return hdsp_loopback_set(hdsp, channel, enable);
+}
+
+static struct snd_kcontrol_new snd_hdsp_loopback_control = {
+	.iface = SNDRV_CTL_ELEM_IFACE_HWDEP,
+	.name = "Output Loopback",
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.info = snd_ctl_boolean_mono_info,
+	.get = snd_hdsp_loopback_get,
+	.put = snd_hdsp_loopback_put
+};
+
 static int snd_hdsp_create_controls(struct snd_card *card, struct hdsp *hdsp)
 {
 	unsigned int idx;
@@ -3295,6 +3350,17 @@ static int snd_hdsp_create_controls(struct snd_card *card, struct hdsp *hdsp)
 			if ((err = snd_ctl_add(card, kctl = snd_ctl_new1(&snd_hdsp_9632_controls[idx], hdsp))) < 0)
 				return err;
 		}
+	}
+
+	/* Output loopback controls for H9632 cards */
+	if (hdsp->io_type == H9632) {
+		snd_hdsp_loopback_control.count = hdsp->max_channels;
+		kctl = snd_ctl_new1(&snd_hdsp_loopback_control, hdsp);
+		if (kctl == NULL)
+			return -ENOMEM;
+		err = snd_ctl_add(card, kctl);
+		if (err < 0)
+			return err;
 	}
 
 	/* AEB control for H96xx card */
@@ -4956,7 +5022,7 @@ static int snd_hdsp_enable_io (struct hdsp *hdsp)
 
 static void snd_hdsp_initialize_channels(struct hdsp *hdsp)
 {
-	int status, aebi_channels, aebo_channels;
+	int status, aebi_channels, aebo_channels, i;
 
 	switch (hdsp->io_type) {
 	case Digiface:
@@ -4983,6 +5049,12 @@ static void snd_hdsp_initialize_channels(struct hdsp *hdsp)
 		hdsp->ss_out_channels = H9632_SS_CHANNELS+aebo_channels;
 		hdsp->ds_out_channels = H9632_DS_CHANNELS+aebo_channels;
 		hdsp->qs_out_channels = H9632_QS_CHANNELS+aebo_channels;
+		/* Disable loopback of output channels, as the set function
+		 * only sets on a change we fake all bits (channels) as enabled.
+		 */
+		hdsp->io_loopback = 0xffffffff;
+		for (i = 0; i < hdsp->max_channels; ++i)
+			hdsp_loopback_set(hdsp, i, false);
 		break;
 
 	case Multiface:

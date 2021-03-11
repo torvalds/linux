@@ -135,6 +135,7 @@ gem-y += \
 	gem/i915_gem_clflush.o \
 	gem/i915_gem_client_blt.o \
 	gem/i915_gem_context.o \
+	gem/i915_gem_create.o \
 	gem/i915_gem_dmabuf.o \
 	gem/i915_gem_domain.o \
 	gem/i915_gem_execbuffer.o \
@@ -299,7 +300,7 @@ obj-$(CONFIG_DRM_I915_GVT_KVMGT) += gvt/kvmgt.o
 no-header-test := \
 	display/intel_vbt_defs.h
 
-extra-$(CONFIG_DRM_I915_WERROR) += \
+always-$(CONFIG_DRM_I915_WERROR) += \
 	$(patsubst %.h,%.hdrtest, $(filter-out $(no-header-test), \
 		$(shell cd $(srctree)/$(src) && find * -name '*.h')))
 

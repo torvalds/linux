@@ -17,6 +17,7 @@
 
 #include <asm/asm-prototypes.h>
 #include <asm/cputable.h>
+#include <asm/interrupt.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
 #include <asm/archrandom.h>
@@ -277,8 +278,7 @@ void kvmhv_commence_exit(int trap)
 	struct kvmppc_vcore *vc = local_paca->kvm_hstate.kvm_vcore;
 	int ptid = local_paca->kvm_hstate.ptid;
 	struct kvm_split_mode *sip = local_paca->kvm_hstate.kvm_split_mode;
-	int me, ee, i, t;
-	int cpu0;
+	int me, ee, i;
 
 	/* Set our bit in the threads-exiting-guest map in the 0xff00
 	   bits of vcore->entry_exit_map */
@@ -319,22 +319,6 @@ void kvmhv_commence_exit(int trap)
 				 ee | VCORE_EXIT_REQ) != ee);
 		if ((ee >> 8) == 0)
 			kvmhv_interrupt_vcore(vc, ee);
-	}
-
-	/*
-	 * On POWER9 when running a HPT guest on a radix host (sip != NULL),
-	 * we have to interrupt inactive CPU threads to get them to
-	 * restore the host LPCR value.
-	 */
-	if (sip->lpcr_req) {
-		if (cmpxchg(&sip->do_restore, 0, 1) == 0) {
-			vc = local_paca->kvm_hstate.kvm_vcore;
-			cpu0 = vc->pcpu + ptid - local_paca->kvm_hstate.tid;
-			for (t = 1; t < threads_per_core; ++t) {
-				if (sip->napped[t])
-					kvmhv_rm_send_ipi(cpu0 + t);
-			}
-		}
 	}
 }
 
@@ -665,95 +649,6 @@ void kvmppc_bad_interrupt(struct pt_regs *regs)
 		die("Bad interrupt in KVM entry/exit code", regs, SIGABRT);
 	}
 	panic("Bad KVM trap");
-}
-
-/*
- * Functions used to switch LPCR HR and UPRT bits on all threads
- * when entering and exiting HPT guests on a radix host.
- */
-
-#define PHASE_REALMODE		1	/* in real mode */
-#define PHASE_SET_LPCR		2	/* have set LPCR */
-#define PHASE_OUT_OF_GUEST	4	/* have finished executing in guest */
-#define PHASE_RESET_LPCR	8	/* have reset LPCR to host value */
-
-#define ALL(p)		(((p) << 24) | ((p) << 16) | ((p) << 8) | (p))
-
-static void wait_for_sync(struct kvm_split_mode *sip, int phase)
-{
-	int thr = local_paca->kvm_hstate.tid;
-
-	sip->lpcr_sync.phase[thr] |= phase;
-	phase = ALL(phase);
-	while ((sip->lpcr_sync.allphases & phase) != phase) {
-		HMT_low();
-		barrier();
-	}
-	HMT_medium();
-}
-
-void kvmhv_p9_set_lpcr(struct kvm_split_mode *sip)
-{
-	int num_sets;
-	unsigned long rb, set;
-
-	/* wait for every other thread to get to real mode */
-	wait_for_sync(sip, PHASE_REALMODE);
-
-	/* Set LPCR and LPIDR */
-	mtspr(SPRN_LPCR, sip->lpcr_req);
-	mtspr(SPRN_LPID, sip->lpidr_req);
-	isync();
-
-	/*
-	 * P10 will flush all the congruence class with a single tlbiel
-	 */
-	if (cpu_has_feature(CPU_FTR_ARCH_31))
-		num_sets =  1;
-	else
-		num_sets = POWER9_TLB_SETS_RADIX;
-
-	/* Invalidate the TLB on thread 0 */
-	if (local_paca->kvm_hstate.tid == 0) {
-		sip->do_set = 0;
-		asm volatile("ptesync" : : : "memory");
-		for (set = 0; set < num_sets; ++set) {
-			rb = TLBIEL_INVAL_SET_LPID +
-				(set << TLBIEL_INVAL_SET_SHIFT);
-			asm volatile(PPC_TLBIEL(%0, %1, 0, 0, 0) : :
-				     "r" (rb), "r" (0));
-		}
-		asm volatile("ptesync" : : : "memory");
-	}
-
-	/* indicate that we have done so and wait for others */
-	wait_for_sync(sip, PHASE_SET_LPCR);
-	/* order read of sip->lpcr_sync.allphases vs. sip->do_set */
-	smp_rmb();
-}
-
-/*
- * Called when a thread that has been in the guest needs
- * to reload the host LPCR value - but only on POWER9 when
- * running a HPT guest on a radix host.
- */
-void kvmhv_p9_restore_lpcr(struct kvm_split_mode *sip)
-{
-	/* we're out of the guest... */
-	wait_for_sync(sip, PHASE_OUT_OF_GUEST);
-
-	mtspr(SPRN_LPID, 0);
-	mtspr(SPRN_LPCR, sip->host_lpcr);
-	isync();
-
-	if (local_paca->kvm_hstate.tid == 0) {
-		sip->do_restore = 0;
-		smp_wmb();	/* order store of do_restore vs. phase */
-	}
-
-	wait_for_sync(sip, PHASE_RESET_LPCR);
-	smp_mb();
-	local_paca->kvm_hstate.kvm_split_mode = NULL;
 }
 
 static void kvmppc_end_cede(struct kvm_vcpu *vcpu)

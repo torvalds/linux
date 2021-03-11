@@ -738,7 +738,7 @@ static struct mtk_afe_tdm_priv *init_tdm_priv_data(struct mtk_base_afe *afe)
 	if (!tdm_priv)
 		return NULL;
 
-	tdm_priv->mclk_multiple = 128;
+	tdm_priv->mclk_multiple = 512;
 	tdm_priv->bck_id = MT8192_I2S4_BCK;
 	tdm_priv->mclk_id = MT8192_I2S4_MCK;
 	tdm_priv->id = MT8192_DAI_TDM;

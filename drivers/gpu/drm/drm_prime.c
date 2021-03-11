@@ -717,6 +717,8 @@ int drm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	vma->vm_pgoff += drm_vma_node_start(&obj->vma_node);
 
 	if (obj->funcs && obj->funcs->mmap) {
+		vma->vm_ops = obj->funcs->vm_ops;
+
 		ret = obj->funcs->mmap(obj, vma);
 		if (ret)
 			return ret;

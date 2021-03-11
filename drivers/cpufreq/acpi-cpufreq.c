@@ -26,6 +26,7 @@
 #include <linux/uaccess.h>
 
 #include <acpi/processor.h>
+#include <acpi/cppc_acpi.h>
 
 #include <asm/msr.h>
 #include <asm/processor.h>
@@ -628,16 +629,53 @@ static int acpi_cpufreq_blacklist(struct cpuinfo_x86 *c)
 }
 #endif
 
+#ifdef CONFIG_ACPI_CPPC_LIB
+static u64 get_max_boost_ratio(unsigned int cpu)
+{
+	struct cppc_perf_caps perf_caps;
+	u64 highest_perf, nominal_perf;
+	int ret;
+
+	if (acpi_pstate_strict)
+		return 0;
+
+	ret = cppc_get_perf_caps(cpu, &perf_caps);
+	if (ret) {
+		pr_debug("CPU%d: Unable to get performance capabilities (%d)\n",
+			 cpu, ret);
+		return 0;
+	}
+
+	highest_perf = perf_caps.highest_perf;
+	nominal_perf = perf_caps.nominal_perf;
+
+	if (!highest_perf || !nominal_perf) {
+		pr_debug("CPU%d: highest or nominal performance missing\n", cpu);
+		return 0;
+	}
+
+	if (highest_perf < nominal_perf) {
+		pr_debug("CPU%d: nominal performance above highest\n", cpu);
+		return 0;
+	}
+
+	return div_u64(highest_perf << SCHED_CAPACITY_SHIFT, nominal_perf);
+}
+#else
+static inline u64 get_max_boost_ratio(unsigned int cpu) { return 0; }
+#endif
+
 static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	unsigned int i;
-	unsigned int valid_states = 0;
-	unsigned int cpu = policy->cpu;
-	struct acpi_cpufreq_data *data;
-	unsigned int result = 0;
-	struct cpuinfo_x86 *c = &cpu_data(policy->cpu);
-	struct acpi_processor_performance *perf;
 	struct cpufreq_frequency_table *freq_table;
+	struct acpi_processor_performance *perf;
+	struct acpi_cpufreq_data *data;
+	unsigned int cpu = policy->cpu;
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
+	unsigned int valid_states = 0;
+	unsigned int result = 0;
+	u64 max_boost_ratio;
+	unsigned int i;
 #ifdef CONFIG_SMP
 	static int blacklisted;
 #endif
@@ -785,6 +823,28 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		valid_states++;
 	}
 	freq_table[valid_states].frequency = CPUFREQ_TABLE_END;
+
+	max_boost_ratio = get_max_boost_ratio(cpu);
+	if (max_boost_ratio) {
+		unsigned int freq = freq_table[0].frequency;
+
+		/*
+		 * Because the loop above sorts the freq_table entries in the
+		 * descending order, freq is the maximum frequency in the table.
+		 * Assume that it corresponds to the CPPC nominal frequency and
+		 * use it to set cpuinfo.max_freq.
+		 */
+		policy->cpuinfo.max_freq = freq * max_boost_ratio >> SCHED_CAPACITY_SHIFT;
+	} else {
+		/*
+		 * If the maximum "boost" frequency is unknown, ask the arch
+		 * scale-invariance code to use the "nominal" performance for
+		 * CPU utilization scaling so as to prevent the schedutil
+		 * governor from selecting inadequate CPU frequencies.
+		 */
+		arch_set_max_freq_ratio(true);
+	}
+
 	policy->freq_table = freq_table;
 	perf->state = 0;
 
@@ -858,8 +918,9 @@ static void acpi_cpufreq_cpu_ready(struct cpufreq_policy *policy)
 {
 	struct acpi_processor_performance *perf = per_cpu_ptr(acpi_perf_data,
 							      policy->cpu);
+	unsigned int freq = policy->freq_table[0].frequency;
 
-	if (perf->states[0].core_frequency * 1000 != policy->cpuinfo.max_freq)
+	if (perf->states[0].core_frequency * 1000 != freq)
 		pr_warn(FW_WARN "P-state 0 is not max freq\n");
 }
 

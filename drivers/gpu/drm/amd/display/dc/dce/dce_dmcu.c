@@ -57,6 +57,9 @@
 #define MCP_SYNC_PHY_LOCK 0x90
 #define MCP_SYNC_PHY_UNLOCK 0x91
 #define MCP_BL_SET_PWM_FRAC 0x6A  /* Enable or disable Fractional PWM */
+#define MCP_SEND_EDID_CEA 0xA0
+#define EDID_CEA_CMD_ACK 1
+#define EDID_CEA_CMD_NACK 2
 #define MASTER_COMM_CNTL_REG__MASTER_COMM_INTERRUPT_MASK   0x00000001L
 
 // PSP FW version
@@ -65,13 +68,17 @@
 //Register access policy version
 #define mmMP0_SMN_C2PMSG_91				0x1609B
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+static const uint32_t abm_gain_stepsize = 0x0060;
+#endif
+
 static bool dce_dmcu_init(struct dmcu *dmcu)
 {
 	// Do nothing
 	return true;
 }
 
-bool dce_dmcu_load_iram(struct dmcu *dmcu,
+static bool dce_dmcu_load_iram(struct dmcu *dmcu,
 		unsigned int start_offset,
 		const char *src,
 		unsigned int bytes)
@@ -807,6 +814,120 @@ static bool dcn20_unlock_phy(struct dmcu *dmcu)
 	return true;
 }
 
+static bool dcn10_send_edid_cea(struct dmcu *dmcu,
+		int offset,
+		int total_length,
+		uint8_t *data,
+		int length)
+{
+	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
+	uint32_t header, data1, data2;
+
+	/* If microcontroller is not running, do nothing */
+	if (dmcu->dmcu_state != DMCU_RUNNING)
+		return false;
+
+	if (length > 8 || length <= 0)
+		return false;
+
+	header = ((uint32_t)offset & 0xFFFF) << 16 | (total_length & 0xFFFF);
+	data1 = (((uint32_t)data[0]) << 24) | (((uint32_t)data[1]) << 16) |
+		(((uint32_t)data[2]) << 8) | ((uint32_t)data[3]);
+	data2 = (((uint32_t)data[4]) << 24) | (((uint32_t)data[5]) << 16) |
+		(((uint32_t)data[6]) << 8) | ((uint32_t)data[7]);
+
+	/* waitDMCUReadyForCmd */
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 1, 10000);
+
+	/* setDMCUParam_Cmd */
+	REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0, MCP_SEND_EDID_CEA);
+
+	REG_WRITE(MASTER_COMM_DATA_REG1, header);
+	REG_WRITE(MASTER_COMM_DATA_REG2, data1);
+	REG_WRITE(MASTER_COMM_DATA_REG3, data2);
+
+	/* notifyDMCUMsg */
+	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
+
+	/* waitDMCUReadyForCmd */
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 1, 10000);
+
+	return true;
+}
+
+static bool dcn10_get_scp_results(struct dmcu *dmcu,
+		uint32_t *cmd,
+		uint32_t *data1,
+		uint32_t *data2,
+		uint32_t *data3)
+{
+	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
+
+	/* If microcontroller is not running, do nothing */
+	if (dmcu->dmcu_state != DMCU_RUNNING)
+		return false;
+
+	*cmd = REG_READ(SLAVE_COMM_CMD_REG);
+	*data1 =  REG_READ(SLAVE_COMM_DATA_REG1);
+	*data2 =  REG_READ(SLAVE_COMM_DATA_REG2);
+	*data3 =  REG_READ(SLAVE_COMM_DATA_REG3);
+
+	/* clear SCP interrupt */
+	REG_UPDATE(SLAVE_COMM_CNTL_REG, SLAVE_COMM_INTERRUPT, 0);
+
+	return true;
+}
+
+static bool dcn10_recv_amd_vsdb(struct dmcu *dmcu,
+		int *version,
+		int *min_frame_rate,
+		int *max_frame_rate)
+{
+	uint32_t data[4];
+	int cmd, ack, len;
+
+	if (!dcn10_get_scp_results(dmcu, &data[0], &data[1], &data[2], &data[3]))
+		return false;
+
+	cmd = data[0] & 0x3FF;
+	len = (data[0] >> 10) & 0x3F;
+	ack = data[1];
+
+	if (cmd != MCP_SEND_EDID_CEA || ack != EDID_CEA_CMD_ACK || len != 12)
+		return false;
+
+	if ((data[2] & 0xFF)) {
+		*version = (data[2] >> 8) & 0xFF;
+		*min_frame_rate = (data[3] >> 16) & 0xFFFF;
+		*max_frame_rate = data[3] & 0xFFFF;
+		return true;
+	}
+
+	return false;
+}
+
+static bool dcn10_recv_edid_cea_ack(struct dmcu *dmcu, int *offset)
+{
+	uint32_t data[4];
+	int cmd, ack;
+
+	if (!dcn10_get_scp_results(dmcu,
+				&data[0], &data[1], &data[2], &data[3]))
+		return false;
+
+	cmd = data[0] & 0x3FF;
+	ack = data[1];
+
+	if (cmd != MCP_SEND_EDID_CEA)
+		return false;
+
+	if (ack == EDID_CEA_CMD_ACK)
+		return true;
+
+	*offset = data[2]; /* nack */
+	return false;
+}
+
 #endif //(CONFIG_DRM_AMD_DC_DCN)
 
 static const struct dmcu_funcs dce_funcs = {
@@ -829,6 +950,9 @@ static const struct dmcu_funcs dcn10_funcs = {
 	.get_psr_state = dcn10_get_dmcu_psr_state,
 	.set_psr_wait_loop = dcn10_psr_wait_loop,
 	.get_psr_wait_loop = dcn10_get_psr_wait_loop,
+	.send_edid_cea = dcn10_send_edid_cea,
+	.recv_amd_vsdb = dcn10_recv_amd_vsdb,
+	.recv_edid_cea_ack = dcn10_recv_edid_cea_ack,
 	.is_dmcu_initialized = dcn10_is_dmcu_initialized
 };
 

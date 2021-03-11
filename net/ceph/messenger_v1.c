@@ -1100,7 +1100,7 @@ static int read_partial_message(struct ceph_connection *con)
 		if (ret < 0)
 			return ret;
 
-		BUG_ON(!con->in_msg ^ skip);
+		BUG_ON((!con->in_msg) ^ skip);
 		if (skip) {
 			/* skip this message */
 			dout("alloc_msg said skip message\n");

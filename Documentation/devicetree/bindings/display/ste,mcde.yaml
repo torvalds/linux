@@ -42,10 +42,9 @@ properties:
     description: a phandle to the analog voltage regulator
 
   port:
-    type: object
+    $ref: /schemas/graph.yaml#/properties/port
     description:
-      A DPI port node with endpoint definitions as defined in
-      Documentation/devicetree/bindings/media/video-interfaces.txt
+      A DPI port node
 
   "#address-cells":
     const: 1

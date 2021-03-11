@@ -26,7 +26,8 @@
 #include <mem_user.h>
 #include <os.h>
 
-#define DEFAULT_COMMAND_LINE "root=98:0"
+#define DEFAULT_COMMAND_LINE_ROOT "root=98:0"
+#define DEFAULT_COMMAND_LINE_CONSOLE "console=tty"
 
 /* Changed in add_arg and setup_arch, which run before SMP is started */
 static char __initdata command_line[COMMAND_LINE_SIZE] = { 0 };
@@ -109,7 +110,8 @@ unsigned long end_vm;
 int ncpus = 1;
 
 /* Set in early boot */
-static int have_root __initdata = 0;
+static int have_root __initdata;
+static int have_console __initdata;
 
 /* Set in uml_mem_setup and modified in linux_main */
 long long physmem_size = 32 * 1024 * 1024;
@@ -159,6 +161,17 @@ static int __init no_skas_debug_setup(char *line, int *add)
 __uml_setup("debug", no_skas_debug_setup,
 "debug\n"
 "    this flag is not needed to run gdb on UML in skas mode\n\n"
+);
+
+static int __init uml_console_setup(char *line, int *add)
+{
+	have_console = 1;
+	return 0;
+}
+
+__uml_setup("console=", uml_console_setup,
+"console=<preferred console>\n"
+"    Specify the preferred console output driver\n\n"
 );
 
 static int __init Usage(char *line, int *add)
@@ -236,6 +249,7 @@ void uml_finishsetup(void)
 }
 
 /* Set during early boot */
+unsigned long stub_start;
 unsigned long task_size;
 EXPORT_SYMBOL(task_size);
 
@@ -264,9 +278,16 @@ int __init linux_main(int argc, char **argv)
 			add_arg(argv[i]);
 	}
 	if (have_root == 0)
-		add_arg(DEFAULT_COMMAND_LINE);
+		add_arg(DEFAULT_COMMAND_LINE_ROOT);
+
+	if (have_console == 0)
+		add_arg(DEFAULT_COMMAND_LINE_CONSOLE);
 
 	host_task_size = os_get_top_address();
+	/* reserve two pages for the stubs */
+	host_task_size -= 2 * PAGE_SIZE;
+	stub_start = host_task_size;
+
 	/*
 	 * TASK_SIZE needs to be PGDIR_SIZE aligned or else exit_mmap craps
 	 * out

@@ -96,9 +96,10 @@ static int imx_icc_node_init_qos(struct icc_provider *provider,
 			return -ENODEV;
 		}
 		/* Allow scaling to be disabled on a per-node basis */
-		if (!dn || !of_device_is_available(dn)) {
+		if (!of_device_is_available(dn)) {
 			dev_warn(dev, "Missing property %s, skip scaling %s\n",
 				 adj->phandle_name, node->name);
+			of_node_put(dn);
 			return 0;
 		}
 

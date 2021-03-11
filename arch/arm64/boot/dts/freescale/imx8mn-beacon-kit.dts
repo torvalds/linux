@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright 2020 Compass Electronics Group, LLC
+ */
+
+/dts-v1/;
+
+#include "imx8mn.dtsi"
+#include "imx8mn-beacon-som.dtsi"
+#include "imx8mn-beacon-baseboard.dtsi"
+
+/ {
+	model = "Beacon EmbeddedWorks i.MX8M Nano Development Kit";
+	compatible = "beacon,imx8mn-beacon-kit", "fsl,imx8mn";
+
+	chosen {
+		stdout-path = &uart2;
+	};
+};

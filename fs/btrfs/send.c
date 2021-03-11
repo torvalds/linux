@@ -236,6 +236,7 @@ struct waiting_dir_move {
 	 * after this directory is moved, we can try to rmdir the ino rmdir_ino.
 	 */
 	u64 rmdir_ino;
+	u64 rmdir_gen;
 	bool orphanized;
 };
 
@@ -316,7 +317,7 @@ static int is_waiting_for_move(struct send_ctx *sctx, u64 ino);
 static struct waiting_dir_move *
 get_waiting_dir_move(struct send_ctx *sctx, u64 ino);
 
-static int is_waiting_for_rm(struct send_ctx *sctx, u64 dir_ino);
+static int is_waiting_for_rm(struct send_ctx *sctx, u64 dir_ino, u64 gen);
 
 static int need_send_hole(struct send_ctx *sctx)
 {
@@ -1190,9 +1191,6 @@ struct backref_ctx {
 	/* may be truncated in case it's the last extent in a file */
 	u64 extent_len;
 
-	/* data offset in the file extent item */
-	u64 data_offset;
-
 	/* Just to check for bugs in backref resolving */
 	int found_itself;
 };
@@ -1400,19 +1398,6 @@ static int find_extent_clone(struct send_ctx *sctx,
 	backref_ctx->cur_offset = data_offset;
 	backref_ctx->found_itself = 0;
 	backref_ctx->extent_len = num_bytes;
-	/*
-	 * For non-compressed extents iterate_extent_inodes() gives us extent
-	 * offsets that already take into account the data offset, but not for
-	 * compressed extents, since the offset is logical and not relative to
-	 * the physical extent locations. We must take this into account to
-	 * avoid sending clone offsets that go beyond the source file's size,
-	 * which would result in the clone ioctl failing with -EINVAL on the
-	 * receiving end.
-	 */
-	if (compressed == BTRFS_COMPRESS_NONE)
-		backref_ctx->data_offset = 0;
-	else
-		backref_ctx->data_offset = btrfs_file_extent_offset(eb, fi);
 
 	/*
 	 * The last extent of a file may be too large due to page alignment.
@@ -2299,7 +2284,7 @@ static int get_cur_path(struct send_ctx *sctx, u64 ino, u64 gen,
 
 		fs_path_reset(name);
 
-		if (is_waiting_for_rm(sctx, ino)) {
+		if (is_waiting_for_rm(sctx, ino, gen)) {
 			ret = gen_unique_name(sctx, ino, gen, name);
 			if (ret < 0)
 				goto out;
@@ -2858,8 +2843,8 @@ out:
 	return ret;
 }
 
-static struct orphan_dir_info *
-add_orphan_dir_info(struct send_ctx *sctx, u64 dir_ino)
+static struct orphan_dir_info *add_orphan_dir_info(struct send_ctx *sctx,
+						   u64 dir_ino, u64 dir_gen)
 {
 	struct rb_node **p = &sctx->orphan_dirs.rb_node;
 	struct rb_node *parent = NULL;
@@ -2868,20 +2853,23 @@ add_orphan_dir_info(struct send_ctx *sctx, u64 dir_ino)
 	while (*p) {
 		parent = *p;
 		entry = rb_entry(parent, struct orphan_dir_info, node);
-		if (dir_ino < entry->ino) {
+		if (dir_ino < entry->ino)
 			p = &(*p)->rb_left;
-		} else if (dir_ino > entry->ino) {
+		else if (dir_ino > entry->ino)
 			p = &(*p)->rb_right;
-		} else {
+		else if (dir_gen < entry->gen)
+			p = &(*p)->rb_left;
+		else if (dir_gen > entry->gen)
+			p = &(*p)->rb_right;
+		else
 			return entry;
-		}
 	}
 
 	odi = kmalloc(sizeof(*odi), GFP_KERNEL);
 	if (!odi)
 		return ERR_PTR(-ENOMEM);
 	odi->ino = dir_ino;
-	odi->gen = 0;
+	odi->gen = dir_gen;
 	odi->last_dir_index_offset = 0;
 
 	rb_link_node(&odi->node, parent, p);
@@ -2889,8 +2877,8 @@ add_orphan_dir_info(struct send_ctx *sctx, u64 dir_ino)
 	return odi;
 }
 
-static struct orphan_dir_info *
-get_orphan_dir_info(struct send_ctx *sctx, u64 dir_ino)
+static struct orphan_dir_info *get_orphan_dir_info(struct send_ctx *sctx,
+						   u64 dir_ino, u64 gen)
 {
 	struct rb_node *n = sctx->orphan_dirs.rb_node;
 	struct orphan_dir_info *entry;
@@ -2901,15 +2889,19 @@ get_orphan_dir_info(struct send_ctx *sctx, u64 dir_ino)
 			n = n->rb_left;
 		else if (dir_ino > entry->ino)
 			n = n->rb_right;
+		else if (gen < entry->gen)
+			n = n->rb_left;
+		else if (gen > entry->gen)
+			n = n->rb_right;
 		else
 			return entry;
 	}
 	return NULL;
 }
 
-static int is_waiting_for_rm(struct send_ctx *sctx, u64 dir_ino)
+static int is_waiting_for_rm(struct send_ctx *sctx, u64 dir_ino, u64 gen)
 {
-	struct orphan_dir_info *odi = get_orphan_dir_info(sctx, dir_ino);
+	struct orphan_dir_info *odi = get_orphan_dir_info(sctx, dir_ino, gen);
 
 	return odi != NULL;
 }
@@ -2954,7 +2946,7 @@ static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 	key.type = BTRFS_DIR_INDEX_KEY;
 	key.offset = 0;
 
-	odi = get_orphan_dir_info(sctx, dir);
+	odi = get_orphan_dir_info(sctx, dir, dir_gen);
 	if (odi)
 		key.offset = odi->last_dir_index_offset;
 
@@ -2985,7 +2977,7 @@ static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 
 		dm = get_waiting_dir_move(sctx, loc.objectid);
 		if (dm) {
-			odi = add_orphan_dir_info(sctx, dir);
+			odi = add_orphan_dir_info(sctx, dir, dir_gen);
 			if (IS_ERR(odi)) {
 				ret = PTR_ERR(odi);
 				goto out;
@@ -2993,12 +2985,13 @@ static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 			odi->gen = dir_gen;
 			odi->last_dir_index_offset = found_key.offset;
 			dm->rmdir_ino = dir;
+			dm->rmdir_gen = dir_gen;
 			ret = 0;
 			goto out;
 		}
 
 		if (loc.objectid > send_progress) {
-			odi = add_orphan_dir_info(sctx, dir);
+			odi = add_orphan_dir_info(sctx, dir, dir_gen);
 			if (IS_ERR(odi)) {
 				ret = PTR_ERR(odi);
 				goto out;
@@ -3038,6 +3031,7 @@ static int add_waiting_dir_move(struct send_ctx *sctx, u64 ino, bool orphanized)
 		return -ENOMEM;
 	dm->ino = ino;
 	dm->rmdir_ino = 0;
+	dm->rmdir_gen = 0;
 	dm->orphanized = orphanized;
 
 	while (*p) {
@@ -3183,7 +3177,7 @@ static int path_loop(struct send_ctx *sctx, struct fs_path *name,
 	while (ino != BTRFS_FIRST_FREE_OBJECTID) {
 		fs_path_reset(name);
 
-		if (is_waiting_for_rm(sctx, ino))
+		if (is_waiting_for_rm(sctx, ino, gen))
 			break;
 		if (is_waiting_for_move(sctx, ino)) {
 			if (*ancestor_ino == 0)
@@ -3223,6 +3217,7 @@ static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
 	u64 parent_ino, parent_gen;
 	struct waiting_dir_move *dm = NULL;
 	u64 rmdir_ino = 0;
+	u64 rmdir_gen;
 	u64 ancestor;
 	bool is_orphan;
 	int ret;
@@ -3237,6 +3232,7 @@ static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
 	dm = get_waiting_dir_move(sctx, pm->ino);
 	ASSERT(dm);
 	rmdir_ino = dm->rmdir_ino;
+	rmdir_gen = dm->rmdir_gen;
 	is_orphan = dm->orphanized;
 	free_waiting_dir_move(sctx, dm);
 
@@ -3273,6 +3269,7 @@ static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
 			dm = get_waiting_dir_move(sctx, pm->ino);
 			ASSERT(dm);
 			dm->rmdir_ino = rmdir_ino;
+			dm->rmdir_gen = rmdir_gen;
 		}
 		goto out;
 	}
@@ -3291,7 +3288,7 @@ static int apply_dir_move(struct send_ctx *sctx, struct pending_dir_move *pm)
 		struct orphan_dir_info *odi;
 		u64 gen;
 
-		odi = get_orphan_dir_info(sctx, rmdir_ino);
+		odi = get_orphan_dir_info(sctx, rmdir_ino, rmdir_gen);
 		if (!odi) {
 			/* already deleted */
 			goto finish;
@@ -4935,7 +4932,6 @@ static int put_file_data(struct send_ctx *sctx, u64 offset, u32 len)
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct inode *inode;
 	struct page *page;
-	char *addr;
 	pgoff_t index = offset >> PAGE_SHIFT;
 	pgoff_t last_index;
 	unsigned pg_offset = offset_in_page(offset);
@@ -4988,10 +4984,8 @@ static int put_file_data(struct send_ctx *sctx, u64 offset, u32 len)
 			}
 		}
 
-		addr = kmap(page);
-		memcpy(sctx->send_buf + sctx->send_size, addr + pg_offset,
-		       cur_len);
-		kunmap(page);
+		memcpy_from_page(sctx->send_buf + sctx->send_size, page,
+				 pg_offset, cur_len);
 		unlock_page(page);
 		put_page(page);
 		index++;
@@ -5499,6 +5493,21 @@ static int clone_range(struct send_ctx *sctx,
 			break;
 		offset += clone_len;
 		clone_root->offset += clone_len;
+
+		/*
+		 * If we are cloning from the file we are currently processing,
+		 * and using the send root as the clone root, we must stop once
+		 * the current clone offset reaches the current eof of the file
+		 * at the receiver, otherwise we would issue an invalid clone
+		 * operation (source range going beyond eof) and cause the
+		 * receiver to fail. So if we reach the current eof, bail out
+		 * and fallback to a regular write.
+		 */
+		if (clone_root->root == sctx->send_root &&
+		    clone_root->ino == sctx->cur_ino &&
+		    clone_root->offset >= sctx->cur_inode_next_write_offset)
+			break;
+
 		data_offset += clone_len;
 next:
 		path->slots[0]++;
@@ -6579,10 +6588,9 @@ static int changed_cb(struct btrfs_path *left_path,
 		      struct btrfs_path *right_path,
 		      struct btrfs_key *key,
 		      enum btrfs_compare_tree_result result,
-		      void *ctx)
+		      struct send_ctx *sctx)
 {
 	int ret = 0;
-	struct send_ctx *sctx = ctx;
 
 	if (result == BTRFS_COMPARE_TREE_SAME) {
 		if (key->type == BTRFS_INODE_REF_KEY ||
@@ -6787,7 +6795,7 @@ static int tree_compare_item(struct btrfs_path *left_path,
  * If it detects a change, it aborts immediately.
  */
 static int btrfs_compare_trees(struct btrfs_root *left_root,
-			struct btrfs_root *right_root, void *ctx)
+			struct btrfs_root *right_root, struct send_ctx *sctx)
 {
 	struct btrfs_fs_info *fs_info = left_root->fs_info;
 	int ret;
@@ -6939,7 +6947,7 @@ static int btrfs_compare_trees(struct btrfs_root *left_root,
 				ret = changed_cb(left_path, right_path,
 						&right_key,
 						BTRFS_COMPARE_TREE_DELETED,
-						ctx);
+						sctx);
 				if (ret < 0)
 					goto out;
 			}
@@ -6950,7 +6958,7 @@ static int btrfs_compare_trees(struct btrfs_root *left_root,
 				ret = changed_cb(left_path, right_path,
 						&left_key,
 						BTRFS_COMPARE_TREE_NEW,
-						ctx);
+						sctx);
 				if (ret < 0)
 					goto out;
 			}
@@ -6964,7 +6972,7 @@ static int btrfs_compare_trees(struct btrfs_root *left_root,
 				ret = changed_cb(left_path, right_path,
 						&left_key,
 						BTRFS_COMPARE_TREE_NEW,
-						ctx);
+						sctx);
 				if (ret < 0)
 					goto out;
 				advance_left = ADVANCE;
@@ -6972,7 +6980,7 @@ static int btrfs_compare_trees(struct btrfs_root *left_root,
 				ret = changed_cb(left_path, right_path,
 						&right_key,
 						BTRFS_COMPARE_TREE_DELETED,
-						ctx);
+						sctx);
 				if (ret < 0)
 					goto out;
 				advance_right = ADVANCE;
@@ -6987,7 +6995,7 @@ static int btrfs_compare_trees(struct btrfs_root *left_root,
 				else
 					result = BTRFS_COMPARE_TREE_SAME;
 				ret = changed_cb(left_path, right_path,
-						 &left_key, result, ctx);
+						 &left_key, result, sctx);
 				if (ret < 0)
 					goto out;
 				advance_left = ADVANCE;

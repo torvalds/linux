@@ -131,8 +131,10 @@ static ssize_t default_roce_mode_store(struct config_item *item,
 		return ret;
 
 	gid_type = ib_cache_gid_parse_type_str(buf);
-	if (gid_type < 0)
+	if (gid_type < 0) {
+		cma_configfs_params_put(cma_dev);
 		return -EINVAL;
+	}
 
 	ret = cma_set_default_gid_type(cma_dev, group->port_num, gid_type);
 
@@ -202,7 +204,6 @@ static int make_cma_ports(struct cma_dev_group *cma_dev_group,
 	unsigned int i;
 	unsigned int ports_num;
 	struct cma_dev_port_group *ports;
-	int err;
 
 	ibdev = cma_get_ib_dev(cma_dev);
 
@@ -213,10 +214,8 @@ static int make_cma_ports(struct cma_dev_group *cma_dev_group,
 	ports = kcalloc(ports_num, sizeof(*cma_dev_group->ports),
 			GFP_KERNEL);
 
-	if (!ports) {
-		err = -ENOMEM;
-		goto free;
-	}
+	if (!ports)
+		return -ENOMEM;
 
 	for (i = 0; i < ports_num; i++) {
 		char port_str[10];
@@ -232,12 +231,7 @@ static int make_cma_ports(struct cma_dev_group *cma_dev_group,
 
 	}
 	cma_dev_group->ports = ports;
-
 	return 0;
-free:
-	kfree(ports);
-	cma_dev_group->ports = NULL;
-	return err;
 }
 
 static void release_cma_dev(struct config_item  *item)

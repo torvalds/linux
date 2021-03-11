@@ -15,40 +15,40 @@
 static void *bgrt_image;
 static struct kobject *bgrt_kobj;
 
-static ssize_t show_version(struct device *dev,
+static ssize_t version_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", bgrt_tab.version);
 }
-static DEVICE_ATTR(version, S_IRUGO, show_version, NULL);
+static DEVICE_ATTR_RO(version);
 
-static ssize_t show_status(struct device *dev,
+static ssize_t status_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", bgrt_tab.status);
 }
-static DEVICE_ATTR(status, S_IRUGO, show_status, NULL);
+static DEVICE_ATTR_RO(status);
 
-static ssize_t show_type(struct device *dev,
+static ssize_t type_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", bgrt_tab.image_type);
 }
-static DEVICE_ATTR(type, S_IRUGO, show_type, NULL);
+static DEVICE_ATTR_RO(type);
 
-static ssize_t show_xoffset(struct device *dev,
+static ssize_t xoffset_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", bgrt_tab.image_offset_x);
 }
-static DEVICE_ATTR(xoffset, S_IRUGO, show_xoffset, NULL);
+static DEVICE_ATTR_RO(xoffset);
 
-static ssize_t show_yoffset(struct device *dev,
+static ssize_t yoffset_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", bgrt_tab.image_offset_y);
 }
-static DEVICE_ATTR(yoffset, S_IRUGO, show_yoffset, NULL);
+static DEVICE_ATTR_RO(yoffset);
 
 static ssize_t image_read(struct file *file, struct kobject *kobj,
 	       struct bin_attribute *attr, char *buf, loff_t off, size_t count)

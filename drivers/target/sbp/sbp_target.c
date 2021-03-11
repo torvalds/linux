@@ -1006,7 +1006,7 @@ static void tgt_agent_fetch_work(struct work_struct *work)
 			agent->state = AGENT_STATE_SUSPENDED;
 
 		spin_unlock_bh(&agent->lock);
-	};
+	}
 }
 
 static struct sbp_target_agent *sbp_target_agent_register(

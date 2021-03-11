@@ -101,19 +101,18 @@ static int switchdev_deferred_enqueue(struct net_device *dev,
 static int switchdev_port_attr_notify(enum switchdev_notifier_type nt,
 				      struct net_device *dev,
 				      const struct switchdev_attr *attr,
-				      struct switchdev_trans *trans)
+				      struct netlink_ext_ack *extack)
 {
 	int err;
 	int rc;
 
 	struct switchdev_notifier_port_attr_info attr_info = {
 		.attr = attr,
-		.trans = trans,
 		.handled = false,
 	};
 
 	rc = call_switchdev_blocking_notifiers(nt, dev,
-					       &attr_info.info, NULL);
+					       &attr_info.info, extack);
 	err = notifier_to_errno(rc);
 	if (err) {
 		WARN_ON(!attr_info.handled);
@@ -127,36 +126,11 @@ static int switchdev_port_attr_notify(enum switchdev_notifier_type nt,
 }
 
 static int switchdev_port_attr_set_now(struct net_device *dev,
-				       const struct switchdev_attr *attr)
+				       const struct switchdev_attr *attr,
+				       struct netlink_ext_ack *extack)
 {
-	struct switchdev_trans trans;
-	int err;
-
-	/* Phase I: prepare for attr set. Driver/device should fail
-	 * here if there are going to be issues in the commit phase,
-	 * such as lack of resources or support.  The driver/device
-	 * should reserve resources needed for the commit phase here,
-	 * but should not commit the attr.
-	 */
-
-	trans.ph_prepare = true;
-	err = switchdev_port_attr_notify(SWITCHDEV_PORT_ATTR_SET, dev, attr,
-					 &trans);
-	if (err)
-		return err;
-
-	/* Phase II: commit attr set.  This cannot fail as a fault
-	 * of driver/device.  If it does, it's a bug in the driver/device
-	 * because the driver said everythings was OK in phase I.
-	 */
-
-	trans.ph_prepare = false;
-	err = switchdev_port_attr_notify(SWITCHDEV_PORT_ATTR_SET, dev, attr,
-					 &trans);
-	WARN(err, "%s: Commit of attribute (id=%d) failed.\n",
-	     dev->name, attr->id);
-
-	return err;
+	return switchdev_port_attr_notify(SWITCHDEV_PORT_ATTR_SET, dev, attr,
+					  extack);
 }
 
 static void switchdev_port_attr_set_deferred(struct net_device *dev,
@@ -165,7 +139,7 @@ static void switchdev_port_attr_set_deferred(struct net_device *dev,
 	const struct switchdev_attr *attr = data;
 	int err;
 
-	err = switchdev_port_attr_set_now(dev, attr);
+	err = switchdev_port_attr_set_now(dev, attr, NULL);
 	if (err && err != -EOPNOTSUPP)
 		netdev_err(dev, "failed (err=%d) to set attribute (id=%d)\n",
 			   err, attr->id);
@@ -185,21 +159,19 @@ static int switchdev_port_attr_set_defer(struct net_device *dev,
  *
  *	@dev: port device
  *	@attr: attribute to set
- *
- *	Use a 2-phase prepare-commit transaction model to ensure
- *	system is not left in a partially updated state due to
- *	failure from driver/device.
+ *	@extack: netlink extended ack, for error message propagation
  *
  *	rtnl_lock must be held and must not be in atomic section,
  *	in case SWITCHDEV_F_DEFER flag is not set.
  */
 int switchdev_port_attr_set(struct net_device *dev,
-			    const struct switchdev_attr *attr)
+			    const struct switchdev_attr *attr,
+			    struct netlink_ext_ack *extack)
 {
 	if (attr->flags & SWITCHDEV_F_DEFER)
 		return switchdev_port_attr_set_defer(dev, attr);
 	ASSERT_RTNL();
-	return switchdev_port_attr_set_now(dev, attr);
+	return switchdev_port_attr_set_now(dev, attr, extack);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_attr_set);
 
@@ -221,7 +193,6 @@ static size_t switchdev_obj_size(const struct switchdev_obj *obj)
 static int switchdev_port_obj_notify(enum switchdev_notifier_type nt,
 				     struct net_device *dev,
 				     const struct switchdev_obj *obj,
-				     struct switchdev_trans *trans,
 				     struct netlink_ext_ack *extack)
 {
 	int rc;
@@ -229,7 +200,6 @@ static int switchdev_port_obj_notify(enum switchdev_notifier_type nt,
 
 	struct switchdev_notifier_port_obj_info obj_info = {
 		.obj = obj,
-		.trans = trans,
 		.handled = false,
 	};
 
@@ -244,48 +214,15 @@ static int switchdev_port_obj_notify(enum switchdev_notifier_type nt,
 	return 0;
 }
 
-static int switchdev_port_obj_add_now(struct net_device *dev,
-				      const struct switchdev_obj *obj,
-				      struct netlink_ext_ack *extack)
-{
-	struct switchdev_trans trans;
-	int err;
-
-	ASSERT_RTNL();
-
-	/* Phase I: prepare for obj add. Driver/device should fail
-	 * here if there are going to be issues in the commit phase,
-	 * such as lack of resources or support.  The driver/device
-	 * should reserve resources needed for the commit phase here,
-	 * but should not commit the obj.
-	 */
-
-	trans.ph_prepare = true;
-	err = switchdev_port_obj_notify(SWITCHDEV_PORT_OBJ_ADD,
-					dev, obj, &trans, extack);
-	if (err)
-		return err;
-
-	/* Phase II: commit obj add.  This cannot fail as a fault
-	 * of driver/device.  If it does, it's a bug in the driver/device
-	 * because the driver said everythings was OK in phase I.
-	 */
-
-	trans.ph_prepare = false;
-	err = switchdev_port_obj_notify(SWITCHDEV_PORT_OBJ_ADD,
-					dev, obj, &trans, extack);
-	WARN(err, "%s: Commit of object (id=%d) failed.\n", dev->name, obj->id);
-
-	return err;
-}
-
 static void switchdev_port_obj_add_deferred(struct net_device *dev,
 					    const void *data)
 {
 	const struct switchdev_obj *obj = data;
 	int err;
 
-	err = switchdev_port_obj_add_now(dev, obj, NULL);
+	ASSERT_RTNL();
+	err = switchdev_port_obj_notify(SWITCHDEV_PORT_OBJ_ADD,
+					dev, obj, NULL);
 	if (err && err != -EOPNOTSUPP)
 		netdev_err(dev, "failed (err=%d) to add object (id=%d)\n",
 			   err, obj->id);
@@ -307,10 +244,6 @@ static int switchdev_port_obj_add_defer(struct net_device *dev,
  *	@obj: object to add
  *	@extack: netlink extended ack
  *
- *	Use a 2-phase prepare-commit transaction model to ensure
- *	system is not left in a partially updated state due to
- *	failure from driver/device.
- *
  *	rtnl_lock must be held and must not be in atomic section,
  *	in case SWITCHDEV_F_DEFER flag is not set.
  */
@@ -321,7 +254,8 @@ int switchdev_port_obj_add(struct net_device *dev,
 	if (obj->flags & SWITCHDEV_F_DEFER)
 		return switchdev_port_obj_add_defer(dev, obj);
 	ASSERT_RTNL();
-	return switchdev_port_obj_add_now(dev, obj, extack);
+	return switchdev_port_obj_notify(SWITCHDEV_PORT_OBJ_ADD,
+					 dev, obj, extack);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_obj_add);
 
@@ -329,7 +263,7 @@ static int switchdev_port_obj_del_now(struct net_device *dev,
 				      const struct switchdev_obj *obj)
 {
 	return switchdev_port_obj_notify(SWITCHDEV_PORT_OBJ_DEL,
-					 dev, obj, NULL, NULL);
+					 dev, obj, NULL);
 }
 
 static void switchdev_port_obj_del_deferred(struct net_device *dev,
@@ -449,7 +383,6 @@ static int __switchdev_handle_port_obj_add(struct net_device *dev,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*add_cb)(struct net_device *dev,
 				      const struct switchdev_obj *obj,
-				      struct switchdev_trans *trans,
 				      struct netlink_ext_ack *extack))
 {
 	struct netlink_ext_ack *extack;
@@ -460,10 +393,10 @@ static int __switchdev_handle_port_obj_add(struct net_device *dev,
 	extack = switchdev_notifier_info_to_extack(&port_obj_info->info);
 
 	if (check_cb(dev)) {
-		/* This flag is only checked if the return value is success. */
-		port_obj_info->handled = true;
-		return add_cb(dev, port_obj_info->obj, port_obj_info->trans,
-			      extack);
+		err = add_cb(dev, port_obj_info->obj, extack);
+		if (err != -EOPNOTSUPP)
+			port_obj_info->handled = true;
+		return err;
 	}
 
 	/* Switch ports might be stacked under e.g. a LAG. Ignore the
@@ -491,7 +424,6 @@ int switchdev_handle_port_obj_add(struct net_device *dev,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*add_cb)(struct net_device *dev,
 				      const struct switchdev_obj *obj,
-				      struct switchdev_trans *trans,
 				      struct netlink_ext_ack *extack))
 {
 	int err;
@@ -515,9 +447,10 @@ static int __switchdev_handle_port_obj_del(struct net_device *dev,
 	int err = -EOPNOTSUPP;
 
 	if (check_cb(dev)) {
-		/* This flag is only checked if the return value is success. */
-		port_obj_info->handled = true;
-		return del_cb(dev, port_obj_info->obj);
+		err = del_cb(dev, port_obj_info->obj);
+		if (err != -EOPNOTSUPP)
+			port_obj_info->handled = true;
+		return err;
 	}
 
 	/* Switch ports might be stacked under e.g. a LAG. Ignore the
@@ -561,16 +494,20 @@ static int __switchdev_handle_port_attr_set(struct net_device *dev,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*set_cb)(struct net_device *dev,
 				      const struct switchdev_attr *attr,
-				      struct switchdev_trans *trans))
+				      struct netlink_ext_ack *extack))
 {
+	struct netlink_ext_ack *extack;
 	struct net_device *lower_dev;
 	struct list_head *iter;
 	int err = -EOPNOTSUPP;
 
+	extack = switchdev_notifier_info_to_extack(&port_attr_info->info);
+
 	if (check_cb(dev)) {
-		port_attr_info->handled = true;
-		return set_cb(dev, port_attr_info->attr,
-			      port_attr_info->trans);
+		err = set_cb(dev, port_attr_info->attr, extack);
+		if (err != -EOPNOTSUPP)
+			port_attr_info->handled = true;
+		return err;
 	}
 
 	/* Switch ports might be stacked under e.g. a LAG. Ignore the
@@ -598,7 +535,7 @@ int switchdev_handle_port_attr_set(struct net_device *dev,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*set_cb)(struct net_device *dev,
 				      const struct switchdev_attr *attr,
-				      struct switchdev_trans *trans))
+				      struct netlink_ext_ack *extack))
 {
 	int err;
 

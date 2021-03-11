@@ -16,6 +16,7 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	unsigned long supported = INTEL_INFO(i915)->page_sizes;
+	bool shrinkable;
 	int i;
 
 	lockdep_assert_held(&obj->mm.lock);
@@ -38,13 +39,6 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 
 	obj->mm.pages = pages;
 
-	if (i915_gem_object_is_tiled(obj) &&
-	    i915->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
-		GEM_BUG_ON(obj->mm.quirked);
-		__i915_gem_object_pin_pages(obj);
-		obj->mm.quirked = true;
-	}
-
 	GEM_BUG_ON(!sg_page_sizes);
 	obj->mm.page_sizes.phys = sg_page_sizes;
 
@@ -63,7 +57,16 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 	}
 	GEM_BUG_ON(!HAS_PAGE_SIZES(i915, obj->mm.page_sizes.sg));
 
-	if (i915_gem_object_is_shrinkable(obj)) {
+	shrinkable = i915_gem_object_is_shrinkable(obj);
+
+	if (i915_gem_object_is_tiled(obj) &&
+	    i915->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
+		GEM_BUG_ON(i915_gem_object_has_tiling_quirk(obj));
+		i915_gem_object_set_tiling_quirk(obj);
+		shrinkable = false;
+	}
+
+	if (shrinkable) {
 		struct list_head *list;
 		unsigned long flags;
 

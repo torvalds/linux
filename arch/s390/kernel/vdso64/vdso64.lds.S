@@ -13,6 +13,10 @@ ENTRY(_start)
 
 SECTIONS
 {
+	PROVIDE(_vdso_data = . - __VVAR_PAGES * PAGE_SIZE);
+#ifdef CONFIG_TIME_NS
+	PROVIDE(_timens_data = _vdso_data + PAGE_SIZE);
+#endif
 	. = VDSO64_LBASE + SIZEOF_HEADERS;
 
 	.hash		: { *(.hash) }			:text
@@ -93,9 +97,6 @@ SECTIONS
 	.debug_pubtypes 0 : { *(.debug_pubtypes) }
 	.debug_ranges	0 : { *(.debug_ranges) }
 	.gnu.attributes 0 : { KEEP (*(.gnu.attributes)) }
-
-	. = ALIGN(PAGE_SIZE);
-	PROVIDE(_vdso_data = .);
 
 	/DISCARD/	: {
 		*(.note.GNU-stack)

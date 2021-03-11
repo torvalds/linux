@@ -33,6 +33,8 @@
 #define SMU_TEMPERATURE_UNITS_PER_CENTIGRADES	1000
 #define SMU_FW_NAME_LEN			0x24
 
+#define SMU_DPM_USER_PROFILE_RESTORE (1 << 0)
+
 struct smu_hw_power_state {
 	unsigned int magic;
 };
@@ -159,6 +161,19 @@ enum smu_power_src_type
 	SMU_POWER_SOURCE_COUNT,
 };
 
+enum smu_ppt_limit_type
+{
+	SMU_DEFAULT_PPT_LIMIT = 0,
+	SMU_FAST_PPT_LIMIT,
+};
+
+enum smu_ppt_limit_level
+{
+	SMU_PPT_LIMIT_MIN = -1,
+	SMU_PPT_LIMIT_CURRENT,
+	SMU_PPT_LIMIT_MAX,
+};
+
 enum smu_memory_pool_size
 {
     SMU_MEMORY_POOL_SIZE_ZERO   = 0,
@@ -166,6 +181,17 @@ enum smu_memory_pool_size
     SMU_MEMORY_POOL_SIZE_512_MB = 0x20000000,
     SMU_MEMORY_POOL_SIZE_1_GB   = 0x40000000,
     SMU_MEMORY_POOL_SIZE_2_GB   = 0x80000000,
+};
+
+struct smu_user_dpm_profile {
+	uint32_t fan_mode;
+	uint32_t power_limit;
+	uint32_t fan_speed_percent;
+	uint32_t flags;
+
+	/* user clock state information */
+	uint32_t clk_mask[SMU_CLK_COUNT];
+	uint32_t clk_dependency;
 };
 
 #define SMU_TABLE_INIT(tables, table_id, s, a, d)	\
@@ -459,15 +485,22 @@ struct smu_context
 	struct work_struct interrupt_work;
 
 	unsigned fan_max_rpm;
-	unsigned manual_fan_speed_rpm;
+	unsigned manual_fan_speed_percent;
 
 	uint32_t gfx_default_hard_min_freq;
 	uint32_t gfx_default_soft_max_freq;
 	uint32_t gfx_actual_hard_min_freq;
 	uint32_t gfx_actual_soft_max_freq;
 
-	bool fine_grain_enabled;
-	bool fine_grain_started;
+	/* APU only */
+	uint32_t cpu_default_soft_min_freq;
+	uint32_t cpu_default_soft_max_freq;
+	uint32_t cpu_actual_soft_min_freq;
+	uint32_t cpu_actual_soft_max_freq;
+	uint32_t cpu_core_id_select;
+	uint16_t cpu_core_num;
+
+	struct smu_user_dpm_profile user_dpm_profile;
 };
 
 struct i2c_adapter;
@@ -628,9 +661,9 @@ struct pptable_funcs {
 	bool (*is_dpm_running)(struct smu_context *smu);
 
 	/**
-	 * @get_fan_speed_rpm: Get the current fan speed in RPM.
+	 * @get_fan_speed_percent: Get the current fan speed in percent.
 	 */
-	int (*get_fan_speed_rpm)(struct smu_context *smu, uint32_t *speed);
+	int (*get_fan_speed_percent)(struct smu_context *smu, uint32_t *speed);
 
 	/**
 	 * @set_watermarks_table: Configure and upload the watermarks tables to
@@ -680,6 +713,12 @@ struct pptable_funcs {
 	 * @get_power_limit: Get the device's power limits.
 	 */
 	int (*get_power_limit)(struct smu_context *smu);
+
+	/**
+	 * @get_ppt_limit: Get the device's ppt limits.
+	 */
+	int (*get_ppt_limit)(struct smu_context *smu, uint32_t *ppt_limit,
+			enum smu_ppt_limit_type limit_type, enum smu_ppt_limit_level limit_level);
 
 	/**
 	 * @set_df_cstate: Set data fabric cstate.
@@ -931,9 +970,9 @@ struct pptable_funcs {
 	int (*set_fan_control_mode)(struct smu_context *smu, uint32_t mode);
 
 	/**
-	 * @set_fan_speed_rpm: Set a static fan speed in RPM.
+	 * @set_fan_speed_percent: Set a static fan speed in percent.
 	 */
-	int (*set_fan_speed_rpm)(struct smu_context *smu, uint32_t speed);
+	int (*set_fan_speed_percent)(struct smu_context *smu, uint32_t speed);
 
 	/**
 	 * @set_xgmi_pstate: Set inter-chip global memory interconnect pstate.
@@ -1125,6 +1164,7 @@ typedef enum {
 	METRICS_CURR_DCLK1,
 	METRICS_CURR_FCLK,
 	METRICS_CURR_DCEFCLK,
+	METRICS_AVERAGE_CPUCLK,
 	METRICS_AVERAGE_GFXCLK,
 	METRICS_AVERAGE_SOCCLK,
 	METRICS_AVERAGE_FCLK,
@@ -1197,7 +1237,7 @@ int smu_set_fan_speed_rpm(struct smu_context *smu, uint32_t speed);
 
 int smu_get_power_limit(struct smu_context *smu,
 			uint32_t *limit,
-			bool max_setting);
+			enum smu_ppt_limit_level limit_level);
 
 int smu_set_power_limit(struct smu_context *smu, uint32_t limit);
 int smu_print_clk_levels(struct smu_context *smu, enum smu_clk_type clk_type, char *buf);
@@ -1253,6 +1293,7 @@ extern const struct amdgpu_ip_block_version smu_v11_0_ip_block;
 extern const struct amdgpu_ip_block_version smu_v12_0_ip_block;
 
 bool is_support_sw_smu(struct amdgpu_device *adev);
+bool is_support_cclk_dpm(struct amdgpu_device *adev);
 int smu_reset(struct smu_context *smu);
 int smu_sys_get_pp_table(struct smu_context *smu, void **table);
 int smu_sys_set_pp_table(struct smu_context *smu,  void *buf, size_t size);

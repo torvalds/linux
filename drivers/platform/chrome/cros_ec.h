@@ -8,12 +8,14 @@
 #ifndef __CROS_EC_H
 #define __CROS_EC_H
 
+#include <linux/interrupt.h>
+
 int cros_ec_register(struct cros_ec_device *ec_dev);
 int cros_ec_unregister(struct cros_ec_device *ec_dev);
 
 int cros_ec_suspend(struct cros_ec_device *ec_dev);
 int cros_ec_resume(struct cros_ec_device *ec_dev);
 
-bool cros_ec_handle_event(struct cros_ec_device *ec_dev);
+irqreturn_t cros_ec_irq_thread(int irq, void *data);
 
 #endif /* __CROS_EC_H */

@@ -33,6 +33,7 @@
 
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
+#include <linux/highmem.h>
 
 #ifdef CONFIG_X86
 #include <asm/set_memory.h>
@@ -66,7 +67,7 @@ static struct ttm_pool_type global_uncached[MAX_ORDER];
 static struct ttm_pool_type global_dma32_write_combined[MAX_ORDER];
 static struct ttm_pool_type global_dma32_uncached[MAX_ORDER];
 
-static spinlock_t shrinker_lock;
+static struct mutex shrinker_lock;
 static struct list_head shrinker_list;
 static struct shrinker mm_shrinker;
 
@@ -79,12 +80,13 @@ static struct page *ttm_pool_alloc_page(struct ttm_pool *pool, gfp_t gfp_flags,
 	struct page *p;
 	void *vaddr;
 
-	if (order) {
-		gfp_flags |= GFP_TRANSHUGE_LIGHT | __GFP_NORETRY |
+	/* Don't set the __GFP_COMP flag for higher order allocations.
+	 * Mapping pages directly into an userspace process and calling
+	 * put_page() on a TTM allocated page is illegal.
+	 */
+	if (order)
+		gfp_flags |= __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN |
 			__GFP_KSWAPD_RECLAIM;
-		gfp_flags &= ~__GFP_MOVABLE;
-		gfp_flags &= ~__GFP_COMP;
-	}
 
 	if (!pool->use_dma_alloc) {
 		p = alloc_pages(gfp_flags, order);
@@ -190,7 +192,7 @@ static int ttm_pool_map(struct ttm_pool *pool, unsigned int order,
 		size_t size = (1ULL << order) * PAGE_SIZE;
 
 		addr = dma_map_page(pool->dev, p, 0, size, DMA_BIDIRECTIONAL);
-		if (dma_mapping_error(pool->dev, **dma_addr))
+		if (dma_mapping_error(pool->dev, addr))
 			return -EFAULT;
 	}
 
@@ -217,6 +219,15 @@ static void ttm_pool_unmap(struct ttm_pool *pool, dma_addr_t dma_addr,
 /* Give pages into a specific pool_type */
 static void ttm_pool_type_give(struct ttm_pool_type *pt, struct page *p)
 {
+	unsigned int i, num_pages = 1 << pt->order;
+
+	for (i = 0; i < num_pages; ++i) {
+		if (PageHighMem(p))
+			clear_highpage(p + i);
+		else
+			clear_page(page_address(p + i));
+	}
+
 	spin_lock(&pt->lock);
 	list_add(&p->lru, &pt->pages);
 	spin_unlock(&pt->lock);
@@ -249,9 +260,9 @@ static void ttm_pool_type_init(struct ttm_pool_type *pt, struct ttm_pool *pool,
 	spin_lock_init(&pt->lock);
 	INIT_LIST_HEAD(&pt->pages);
 
-	spin_lock(&shrinker_lock);
+	mutex_lock(&shrinker_lock);
 	list_add_tail(&pt->shrinker_list, &shrinker_list);
-	spin_unlock(&shrinker_lock);
+	mutex_unlock(&shrinker_lock);
 }
 
 /* Remove a pool_type from the global shrinker list and free all pages */
@@ -259,9 +270,9 @@ static void ttm_pool_type_fini(struct ttm_pool_type *pt)
 {
 	struct page *p, *tmp;
 
-	spin_lock(&shrinker_lock);
+	mutex_lock(&shrinker_lock);
 	list_del(&pt->shrinker_list);
-	spin_unlock(&shrinker_lock);
+	mutex_unlock(&shrinker_lock);
 
 	list_for_each_entry_safe(p, tmp, &pt->pages, lru)
 		ttm_pool_free_page(pt->pool, pt->caching, pt->order, p);
@@ -302,7 +313,7 @@ static unsigned int ttm_pool_shrink(void)
 	unsigned int num_freed;
 	struct page *p;
 
-	spin_lock(&shrinker_lock);
+	mutex_lock(&shrinker_lock);
 	pt = list_first_entry(&shrinker_list, typeof(*pt), shrinker_list);
 
 	p = ttm_pool_type_take(pt);
@@ -314,7 +325,7 @@ static unsigned int ttm_pool_shrink(void)
 	}
 
 	list_move_tail(&pt->shrinker_list, &shrinker_list);
-	spin_unlock(&shrinker_lock);
+	mutex_unlock(&shrinker_lock);
 
 	return num_freed;
 }
@@ -507,7 +518,6 @@ void ttm_pool_init(struct ttm_pool *pool, struct device *dev,
 			ttm_pool_type_init(&pool->caching[i].orders[j],
 					   pool, i, j);
 }
-EXPORT_SYMBOL(ttm_pool_init);
 
 /**
  * ttm_pool_fini - Cleanup a pool
@@ -525,7 +535,6 @@ void ttm_pool_fini(struct ttm_pool *pool)
 		for (j = 0; j < MAX_ORDER; ++j)
 			ttm_pool_type_fini(&pool->caching[i].orders[j]);
 }
-EXPORT_SYMBOL(ttm_pool_fini);
 
 #ifdef CONFIG_DEBUG_FS
 /* Count the number of pages available in a pool_type */
@@ -566,7 +575,7 @@ int ttm_pool_debugfs(struct ttm_pool *pool, struct seq_file *m)
 {
 	unsigned int i;
 
-	spin_lock(&shrinker_lock);
+	mutex_lock(&shrinker_lock);
 
 	seq_puts(m, "\t ");
 	for (i = 0; i < MAX_ORDER; ++i)
@@ -602,7 +611,7 @@ int ttm_pool_debugfs(struct ttm_pool *pool, struct seq_file *m)
 	seq_printf(m, "\ntotal\t: %8lu of %8lu\n",
 		   atomic_long_read(&allocated_pages), page_pool_size);
 
-	spin_unlock(&shrinker_lock);
+	mutex_unlock(&shrinker_lock);
 
 	return 0;
 }
@@ -646,7 +655,7 @@ int ttm_pool_mgr_init(unsigned long num_pages)
 	if (!page_pool_size)
 		page_pool_size = num_pages;
 
-	spin_lock_init(&shrinker_lock);
+	mutex_init(&shrinker_lock);
 	INIT_LIST_HEAD(&shrinker_list);
 
 	for (i = 0; i < MAX_ORDER; ++i) {

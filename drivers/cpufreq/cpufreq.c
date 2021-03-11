@@ -2101,7 +2101,7 @@ EXPORT_SYMBOL_GPL(cpufreq_driver_fast_switch);
  * cpufreq_driver_adjust_perf - Adjust CPU performance level in one go.
  * @cpu: Target CPU.
  * @min_perf: Minimum (required) performance level (units of @capacity).
- * @target_perf: Terget (desired) performance level (units of @capacity).
+ * @target_perf: Target (desired) performance level (units of @capacity).
  * @capacity: Capacity of the target CPU.
  *
  * Carry out a fast performance level switch of @cpu without sleeping.
@@ -2810,8 +2810,7 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 	if (ret)
 		goto err_boost_unreg;
 
-	if (!(cpufreq_driver->flags & CPUFREQ_STICKY) &&
-	    list_empty(&cpufreq_policy_list)) {
+	if (unlikely(list_empty(&cpufreq_policy_list))) {
 		/* if all ->init() calls failed, unregister */
 		ret = -ENODEV;
 		pr_debug("%s: No CPU initialized for driver %s\n", __func__,

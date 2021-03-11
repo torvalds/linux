@@ -17,6 +17,10 @@ properties:
           - qcom,msm8998-dwc3
           - qcom,sc7180-dwc3
           - qcom,sdm845-dwc3
+          - qcom,sdx55-dwc3
+          - qcom,sm8150-dwc3
+          - qcom,sm8250-dwc3
+          - qcom,sm8350-dwc3
       - const: qcom,dwc3
 
   reg:
@@ -103,11 +107,8 @@ properties:
 # Required child node:
 
 patternProperties:
-  "^dwc3@[0-9a-f]+$":
-    type: object
-    description:
-      A child node must exist to represent the core DWC3 IP block
-      The content of the node is defined in dwc3.txt.
+  "^usb@[0-9a-f]+$":
+    $ref: snps,dwc3.yaml#
 
 required:
   - compatible
@@ -162,7 +163,7 @@ examples:
 
             resets = <&gcc GCC_USB30_PRIM_BCR>;
 
-            dwc3@a600000 {
+            usb@a600000 {
                 compatible = "snps,dwc3";
                 reg = <0 0x0a600000 0 0xcd00>;
                 interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;

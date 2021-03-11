@@ -191,7 +191,7 @@ static void dsa_loop_port_stp_state_set(struct dsa_switch *ds, int port,
 
 static int dsa_loop_port_vlan_filtering(struct dsa_switch *ds, int port,
 					bool vlan_filtering,
-					struct switchdev_trans *trans)
+					struct netlink_ext_ack *extack)
 {
 	dev_dbg(ds->dev, "%s: port: %d, vlan_filtering: %d\n",
 		__func__, port, vlan_filtering);
@@ -199,53 +199,37 @@ static int dsa_loop_port_vlan_filtering(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int
-dsa_loop_port_vlan_prepare(struct dsa_switch *ds, int port,
-			   const struct switchdev_obj_port_vlan *vlan)
-{
-	struct dsa_loop_priv *ps = ds->priv;
-	struct mii_bus *bus = ps->bus;
-
-	dev_dbg(ds->dev, "%s: port: %d, vlan: %d-%d",
-		__func__, port, vlan->vid_begin, vlan->vid_end);
-
-	/* Just do a sleeping operation to make lockdep checks effective */
-	mdiobus_read(bus, ps->port_base + port, MII_BMSR);
-
-	if (vlan->vid_end > ARRAY_SIZE(ps->vlans))
-		return -ERANGE;
-
-	return 0;
-}
-
-static void dsa_loop_port_vlan_add(struct dsa_switch *ds, int port,
-				   const struct switchdev_obj_port_vlan *vlan)
+static int dsa_loop_port_vlan_add(struct dsa_switch *ds, int port,
+				  const struct switchdev_obj_port_vlan *vlan,
+				  struct netlink_ext_ack *extack)
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	struct dsa_loop_priv *ps = ds->priv;
 	struct mii_bus *bus = ps->bus;
 	struct dsa_loop_vlan *vl;
-	u16 vid;
+
+	if (vlan->vid >= ARRAY_SIZE(ps->vlans))
+		return -ERANGE;
 
 	/* Just do a sleeping operation to make lockdep checks effective */
 	mdiobus_read(bus, ps->port_base + port, MII_BMSR);
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
-		vl = &ps->vlans[vid];
+	vl = &ps->vlans[vlan->vid];
 
-		vl->members |= BIT(port);
-		if (untagged)
-			vl->untagged |= BIT(port);
-		else
-			vl->untagged &= ~BIT(port);
+	vl->members |= BIT(port);
+	if (untagged)
+		vl->untagged |= BIT(port);
+	else
+		vl->untagged &= ~BIT(port);
 
-		dev_dbg(ds->dev, "%s: port: %d vlan: %d, %stagged, pvid: %d\n",
-			__func__, port, vid, untagged ? "un" : "", pvid);
-	}
+	dev_dbg(ds->dev, "%s: port: %d vlan: %d, %stagged, pvid: %d\n",
+		__func__, port, vlan->vid, untagged ? "un" : "", pvid);
 
 	if (pvid)
-		ps->ports[port].pvid = vid;
+		ps->ports[port].pvid = vlan->vid;
+
+	return 0;
 }
 
 static int dsa_loop_port_vlan_del(struct dsa_switch *ds, int port,
@@ -253,26 +237,24 @@ static int dsa_loop_port_vlan_del(struct dsa_switch *ds, int port,
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	struct dsa_loop_priv *ps = ds->priv;
+	u16 pvid = ps->ports[port].pvid;
 	struct mii_bus *bus = ps->bus;
 	struct dsa_loop_vlan *vl;
-	u16 vid, pvid = ps->ports[port].pvid;
 
 	/* Just do a sleeping operation to make lockdep checks effective */
 	mdiobus_read(bus, ps->port_base + port, MII_BMSR);
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
-		vl = &ps->vlans[vid];
+	vl = &ps->vlans[vlan->vid];
 
-		vl->members &= ~BIT(port);
-		if (untagged)
-			vl->untagged &= ~BIT(port);
+	vl->members &= ~BIT(port);
+	if (untagged)
+		vl->untagged &= ~BIT(port);
 
-		if (pvid == vid)
-			pvid = 1;
+	if (pvid == vlan->vid)
+		pvid = 1;
 
-		dev_dbg(ds->dev, "%s: port: %d vlan: %d, %stagged, pvid: %d\n",
-			__func__, port, vid, untagged ? "un" : "", pvid);
-	}
+	dev_dbg(ds->dev, "%s: port: %d vlan: %d, %stagged, pvid: %d\n",
+		__func__, port, vlan->vid, untagged ? "un" : "", pvid);
 	ps->ports[port].pvid = pvid;
 
 	return 0;
@@ -307,7 +289,6 @@ static const struct dsa_switch_ops dsa_loop_driver = {
 	.port_bridge_leave	= dsa_loop_port_bridge_leave,
 	.port_stp_state_set	= dsa_loop_port_stp_state_set,
 	.port_vlan_filtering	= dsa_loop_port_vlan_filtering,
-	.port_vlan_prepare	= dsa_loop_port_vlan_prepare,
 	.port_vlan_add		= dsa_loop_port_vlan_add,
 	.port_vlan_del		= dsa_loop_port_vlan_del,
 	.port_change_mtu	= dsa_loop_port_change_mtu,
@@ -344,7 +325,6 @@ static int dsa_loop_drv_probe(struct mdio_device *mdiodev)
 	ds->dev = &mdiodev->dev;
 	ds->ops = &dsa_loop_driver;
 	ds->priv = ps;
-	ds->configure_vlan_while_not_filtering = true;
 	ps->bus = mdiodev->bus;
 
 	dev_set_drvdata(&mdiodev->dev, ds);

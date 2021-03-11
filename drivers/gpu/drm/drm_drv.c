@@ -469,6 +469,9 @@ void drm_dev_unplug(struct drm_device *dev)
 	synchronize_srcu(&drm_unplug_srcu);
 
 	drm_dev_unregister(dev);
+
+	/* Clear all CPU mappings pointing to this device */
+	unmap_mapping_range(dev->anon_inode->i_mapping, 0, 0, 1);
 }
 EXPORT_SYMBOL(drm_dev_unplug);
 

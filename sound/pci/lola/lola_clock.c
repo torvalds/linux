@@ -135,7 +135,7 @@ int lola_init_clock_widget(struct lola *chip, int nid)
 	}
 
 	nitems = chip->clock.items;
-	nb_verbs = (nitems + 3) / 4;
+	nb_verbs = DIV_ROUND_UP(nitems, 4);
 	idx = 0;
 	idx_list = 0;
 	for (i = 0; i < nb_verbs; i++) {

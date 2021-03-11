@@ -159,7 +159,7 @@ static struct attribute *dmc620_pmu_events_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group dmc620_pmu_events_attr_group = {
+static const struct attribute_group dmc620_pmu_events_attr_group = {
 	.name = "events",
 	.attrs = dmc620_pmu_events_attrs,
 };
@@ -222,7 +222,7 @@ static struct attribute *dmc620_pmu_formats_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group dmc620_pmu_format_attr_group = {
+static const struct attribute_group dmc620_pmu_format_attr_group = {
 	.name	= "format",
 	.attrs	= dmc620_pmu_formats_attrs,
 };
@@ -717,6 +717,7 @@ static struct platform_driver dmc620_pmu_driver = {
 	.driver	= {
 		.name		= DMC620_DRVNAME,
 		.acpi_match_table = dmc620_acpi_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe	= dmc620_pmu_device_probe,
 	.remove	= dmc620_pmu_device_remove,

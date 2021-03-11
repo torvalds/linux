@@ -42,6 +42,15 @@ enum {
 	 * to an inode.
 	 */
 	BTRFS_INODE_NO_XATTRS,
+	/*
+	 * Set when we are in a context where we need to start a transaction and
+	 * have dirty pages with the respective file range locked. This is to
+	 * ensure that when reserving space for the transaction, if we are low
+	 * on available space and need to flush delalloc, we will not flush
+	 * delalloc for this inode, because that could result in a deadlock (on
+	 * the file range, inode's io_tree).
+	 */
+	BTRFS_INODE_NO_DELALLOC_FLUSH,
 };
 
 /* in memory btrfs inode */
@@ -316,7 +325,8 @@ struct btrfs_dio_private {
 	struct inode *inode;
 	u64 logical_offset;
 	u64 disk_bytenr;
-	u64 bytes;
+	/* Used for bio::bi_size */
+	u32 bytes;
 
 	/*
 	 * References to this structure. There is one reference per in-flight

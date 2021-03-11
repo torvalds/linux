@@ -58,6 +58,7 @@ perf-y += time-utils-test.o
 perf-y += genelf.o
 perf-y += api-io.o
 perf-y += demangle-java-test.o
+perf-y += demangle-ocaml-test.o
 perf-y += pfm.o
 perf-y += parse-metric.o
 perf-y += pe-file-parsing.o

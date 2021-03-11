@@ -59,6 +59,7 @@ properties:
               - renesas,sdhi-r8a77980 # R-Car V3H
               - renesas,sdhi-r8a77990 # R-Car E3
               - renesas,sdhi-r8a77995 # R-Car D3
+              - renesas,sdhi-r8a779a0 # R-Car V3U
           - const: renesas,rcar-gen3-sdhi # R-Car Gen3 or RZ/G2
 
   reg:
@@ -123,7 +124,7 @@ required:
 if:
   properties:
     compatible:
-      items:
+      contains:
         enum:
           - renesas,sdhi-r7s72100
           - renesas,sdhi-r7s9210

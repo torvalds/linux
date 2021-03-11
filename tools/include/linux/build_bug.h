@@ -79,9 +79,4 @@
 #define __static_assert(expr, msg, ...) _Static_assert(expr, msg)
 #endif // static_assert
 
-#ifdef __GENKSYMS__
-/* genksyms gets confused by _Static_assert */
-#define _Static_assert(expr, ...)
-#endif
-
 #endif	/* _LINUX_BUILD_BUG_H */

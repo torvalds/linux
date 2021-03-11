@@ -36,6 +36,7 @@
 #define		ATMEL_PIO_DIR_MASK		BIT(8)
 #define		ATMEL_PIO_PUEN_MASK		BIT(9)
 #define		ATMEL_PIO_PDEN_MASK		BIT(10)
+#define		ATMEL_PIO_SR_MASK		BIT(11)
 #define		ATMEL_PIO_IFEN_MASK		BIT(12)
 #define		ATMEL_PIO_IFSCEN_MASK		BIT(13)
 #define		ATMEL_PIO_OPD_MASK		BIT(14)
@@ -76,10 +77,12 @@
  * @nbanks: number of PIO banks
  * @last_bank_count: number of lines in the last bank (can be less than
  *	the rest of the banks).
+ * @slew_rate_support: slew rate support
  */
 struct atmel_pioctrl_data {
-	unsigned nbanks;
-	unsigned last_bank_count;
+	unsigned int nbanks;
+	unsigned int last_bank_count;
+	unsigned int slew_rate_support;
 };
 
 struct atmel_group {
@@ -88,11 +91,11 @@ struct atmel_group {
 };
 
 struct atmel_pin {
-	unsigned pin_id;
-	unsigned mux;
-	unsigned ioset;
-	unsigned bank;
-	unsigned line;
+	unsigned int pin_id;
+	unsigned int mux;
+	unsigned int ioset;
+	unsigned int bank;
+	unsigned int line;
 	const char *device;
 };
 
@@ -117,20 +120,21 @@ struct atmel_pin {
  * @pm_suspend_backup: backup/restore register values on suspend/resume
  * @dev: device entry for the Atmel PIO controller.
  * @node: node of the Atmel PIO controller.
+ * @slew_rate_support: slew rate support
  */
 struct atmel_pioctrl {
 	void __iomem		*reg_base;
 	struct clk		*clk;
-	unsigned		nbanks;
+	unsigned int		nbanks;
 	struct pinctrl_dev	*pinctrl_dev;
 	struct atmel_group	*groups;
 	const char * const	*group_names;
 	struct atmel_pin	**pins;
-	unsigned		npins;
+	unsigned int		npins;
 	struct gpio_chip	*gpio_chip;
 	struct irq_domain	*irq_domain;
 	int			*irqs;
-	unsigned		*pm_wakeup_sources;
+	unsigned int		*pm_wakeup_sources;
 	struct {
 		u32		imr;
 		u32		odsr;
@@ -138,6 +142,7 @@ struct atmel_pioctrl {
 	} *pm_suspend_backup;
 	struct device		*dev;
 	struct device_node	*node;
+	unsigned int		slew_rate_support;
 };
 
 static const char * const atmel_functions[] = {
@@ -172,11 +177,11 @@ static void atmel_gpio_irq_ack(struct irq_data *d)
 	 */
 }
 
-static int atmel_gpio_irq_set_type(struct irq_data *d, unsigned type)
+static int atmel_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	struct atmel_pioctrl *atmel_pioctrl = irq_data_get_irq_chip_data(d);
 	struct atmel_pin *pin = atmel_pioctrl->pins[d->hwirq];
-	unsigned reg;
+	unsigned int reg;
 
 	atmel_gpio_write(atmel_pioctrl, pin->bank, ATMEL_PIO_MSKR,
 			 BIT(pin->line));
@@ -263,7 +268,7 @@ static struct irq_chip atmel_gpio_irq_chip = {
 	.irq_set_wake	= atmel_gpio_irq_set_wake,
 };
 
-static int atmel_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
+static int atmel_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)
 {
 	struct atmel_pioctrl *atmel_pioctrl = gpiochip_get_data(chip);
 
@@ -311,11 +316,12 @@ static void atmel_gpio_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static int atmel_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
+static int atmel_gpio_direction_input(struct gpio_chip *chip,
+				      unsigned int offset)
 {
 	struct atmel_pioctrl *atmel_pioctrl = gpiochip_get_data(chip);
 	struct atmel_pin *pin = atmel_pioctrl->pins[offset];
-	unsigned reg;
+	unsigned int reg;
 
 	atmel_gpio_write(atmel_pioctrl, pin->bank, ATMEL_PIO_MSKR,
 			 BIT(pin->line));
@@ -326,11 +332,11 @@ static int atmel_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 	return 0;
 }
 
-static int atmel_gpio_get(struct gpio_chip *chip, unsigned offset)
+static int atmel_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct atmel_pioctrl *atmel_pioctrl = gpiochip_get_data(chip);
 	struct atmel_pin *pin = atmel_pioctrl->pins[offset];
-	unsigned reg;
+	unsigned int reg;
 
 	reg = atmel_gpio_read(atmel_pioctrl, pin->bank, ATMEL_PIO_PDSR);
 
@@ -364,12 +370,13 @@ static int atmel_gpio_get_multiple(struct gpio_chip *chip, unsigned long *mask,
 	return 0;
 }
 
-static int atmel_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
+static int atmel_gpio_direction_output(struct gpio_chip *chip,
+				       unsigned int offset,
 				       int value)
 {
 	struct atmel_pioctrl *atmel_pioctrl = gpiochip_get_data(chip);
 	struct atmel_pin *pin = atmel_pioctrl->pins[offset];
-	unsigned reg;
+	unsigned int reg;
 
 	atmel_gpio_write(atmel_pioctrl, pin->bank,
 			 value ? ATMEL_PIO_SODR : ATMEL_PIO_CODR,
@@ -384,7 +391,7 @@ static int atmel_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 	return 0;
 }
 
-static void atmel_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
+static void atmel_gpio_set(struct gpio_chip *chip, unsigned int offset, int val)
 {
 	struct atmel_pioctrl *atmel_pioctrl = gpiochip_get_data(chip);
 	struct atmel_pin *pin = atmel_pioctrl->pins[offset];
@@ -440,11 +447,11 @@ static struct gpio_chip atmel_gpio_chip = {
 
 /* --- PINCTRL --- */
 static unsigned int atmel_pin_config_read(struct pinctrl_dev *pctldev,
-					  unsigned pin_id)
+					  unsigned int pin_id)
 {
 	struct atmel_pioctrl *atmel_pioctrl = pinctrl_dev_get_drvdata(pctldev);
-	unsigned bank = atmel_pioctrl->pins[pin_id]->bank;
-	unsigned line = atmel_pioctrl->pins[pin_id]->line;
+	unsigned int bank = atmel_pioctrl->pins[pin_id]->bank;
+	unsigned int line = atmel_pioctrl->pins[pin_id]->line;
 	void __iomem *addr = atmel_pioctrl->reg_base
 			     + bank * ATMEL_PIO_BANK_OFFSET;
 
@@ -456,11 +463,11 @@ static unsigned int atmel_pin_config_read(struct pinctrl_dev *pctldev,
 }
 
 static void atmel_pin_config_write(struct pinctrl_dev *pctldev,
-				   unsigned pin_id, u32 conf)
+				   unsigned int pin_id, u32 conf)
 {
 	struct atmel_pioctrl *atmel_pioctrl = pinctrl_dev_get_drvdata(pctldev);
-	unsigned bank = atmel_pioctrl->pins[pin_id]->bank;
-	unsigned line = atmel_pioctrl->pins[pin_id]->line;
+	unsigned int bank = atmel_pioctrl->pins[pin_id]->bank;
+	unsigned int line = atmel_pioctrl->pins[pin_id]->line;
 	void __iomem *addr = atmel_pioctrl->reg_base
 			     + bank * ATMEL_PIO_BANK_OFFSET;
 
@@ -478,7 +485,7 @@ static int atmel_pctl_get_groups_count(struct pinctrl_dev *pctldev)
 }
 
 static const char *atmel_pctl_get_group_name(struct pinctrl_dev *pctldev,
-					     unsigned selector)
+					     unsigned int selector)
 {
 	struct atmel_pioctrl *atmel_pioctrl = pinctrl_dev_get_drvdata(pctldev);
 
@@ -486,19 +493,20 @@ static const char *atmel_pctl_get_group_name(struct pinctrl_dev *pctldev,
 }
 
 static int atmel_pctl_get_group_pins(struct pinctrl_dev *pctldev,
-				     unsigned selector, const unsigned **pins,
-				     unsigned *num_pins)
+				     unsigned int selector,
+				     const unsigned int **pins,
+				     unsigned int *num_pins)
 {
 	struct atmel_pioctrl *atmel_pioctrl = pinctrl_dev_get_drvdata(pctldev);
 
-	*pins = (unsigned *)&atmel_pioctrl->groups[selector].pin;
+	*pins = (unsigned int *)&atmel_pioctrl->groups[selector].pin;
 	*num_pins = 1;
 
 	return 0;
 }
 
 static struct atmel_group *
-atmel_pctl_find_group_by_pin(struct pinctrl_dev *pctldev, unsigned pin)
+atmel_pctl_find_group_by_pin(struct pinctrl_dev *pctldev, unsigned int pin)
 {
 	struct atmel_pioctrl *atmel_pioctrl = pinctrl_dev_get_drvdata(pctldev);
 	int i;
@@ -519,7 +527,7 @@ static int atmel_pctl_xlate_pinfunc(struct pinctrl_dev *pctldev,
 				    const char **func_name)
 {
 	struct atmel_pioctrl *atmel_pioctrl = pinctrl_dev_get_drvdata(pctldev);
-	unsigned pin_id, func_id;
+	unsigned int pin_id, func_id;
 	struct atmel_group *grp;
 
 	pin_id = ATMEL_GET_PIN_NO(pinfunc);
@@ -549,10 +557,10 @@ static int atmel_pctl_xlate_pinfunc(struct pinctrl_dev *pctldev,
 static int atmel_pctl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 					struct device_node *np,
 					struct pinctrl_map **map,
-					unsigned *reserved_maps,
-					unsigned *num_maps)
+					unsigned int *reserved_maps,
+					unsigned int *num_maps)
 {
-	unsigned num_pins, num_configs, reserve;
+	unsigned int num_pins, num_configs, reserve;
 	unsigned long *configs;
 	struct property	*pins;
 	u32 pinfunc;
@@ -623,10 +631,10 @@ exit:
 static int atmel_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 				     struct device_node *np_config,
 				     struct pinctrl_map **map,
-				     unsigned *num_maps)
+				     unsigned int *num_maps)
 {
 	struct device_node *np;
-	unsigned reserved_maps;
+	unsigned int reserved_maps;
 	int ret;
 
 	*map = NULL;
@@ -674,13 +682,13 @@ static int atmel_pmx_get_functions_count(struct pinctrl_dev *pctldev)
 }
 
 static const char *atmel_pmx_get_function_name(struct pinctrl_dev *pctldev,
-					       unsigned selector)
+					       unsigned int selector)
 {
 	return atmel_functions[selector];
 }
 
 static int atmel_pmx_get_function_groups(struct pinctrl_dev *pctldev,
-					 unsigned selector,
+					 unsigned int selector,
 					 const char * const **groups,
 					 unsigned * const num_groups)
 {
@@ -693,11 +701,11 @@ static int atmel_pmx_get_function_groups(struct pinctrl_dev *pctldev,
 }
 
 static int atmel_pmx_set_mux(struct pinctrl_dev *pctldev,
-			     unsigned function,
-			     unsigned group)
+			     unsigned int function,
+			     unsigned int group)
 {
 	struct atmel_pioctrl *atmel_pioctrl = pinctrl_dev_get_drvdata(pctldev);
-	unsigned pin;
+	unsigned int pin;
 	u32 conf;
 
 	dev_dbg(pctldev->dev, "enable function %s group %s\n",
@@ -721,13 +729,13 @@ static const struct pinmux_ops atmel_pmxops = {
 };
 
 static int atmel_conf_pin_config_group_get(struct pinctrl_dev *pctldev,
-					   unsigned group,
+					   unsigned int group,
 					   unsigned long *config)
 {
 	struct atmel_pioctrl *atmel_pioctrl = pinctrl_dev_get_drvdata(pctldev);
-	unsigned param = pinconf_to_config_param(*config), arg = 0;
+	unsigned int param = pinconf_to_config_param(*config), arg = 0;
 	struct atmel_group *grp = atmel_pioctrl->groups + group;
-	unsigned pin_id = grp->pin;
+	unsigned int pin_id = grp->pin;
 	u32 res;
 
 	res = atmel_pin_config_read(pctldev, pin_id);
@@ -760,6 +768,13 @@ static int atmel_conf_pin_config_group_get(struct pinctrl_dev *pctldev,
 			return -EINVAL;
 		arg = 1;
 		break;
+	case PIN_CONFIG_SLEW_RATE:
+		if (!atmel_pioctrl->slew_rate_support)
+			return -EOPNOTSUPP;
+		if (!(res & ATMEL_PIO_SR_MASK))
+			return -EINVAL;
+		arg = 1;
+		break;
 	case ATMEL_PIN_CONFIG_DRIVE_STRENGTH:
 		if (!(res & ATMEL_PIO_DRVSTR_MASK))
 			return -EINVAL;
@@ -774,24 +789,28 @@ static int atmel_conf_pin_config_group_get(struct pinctrl_dev *pctldev,
 }
 
 static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
-					   unsigned group,
+					   unsigned int group,
 					   unsigned long *configs,
-					   unsigned num_configs)
+					   unsigned int num_configs)
 {
 	struct atmel_pioctrl *atmel_pioctrl = pinctrl_dev_get_drvdata(pctldev);
 	struct atmel_group *grp = atmel_pioctrl->groups + group;
-	unsigned bank, pin, pin_id = grp->pin;
+	unsigned int bank, pin, pin_id = grp->pin;
 	u32 mask, conf = 0;
 	int i;
 
 	conf = atmel_pin_config_read(pctldev, pin_id);
 
 	for (i = 0; i < num_configs; i++) {
-		unsigned param = pinconf_to_config_param(configs[i]);
-		unsigned arg = pinconf_to_config_argument(configs[i]);
+		unsigned int param = pinconf_to_config_param(configs[i]);
+		unsigned int arg = pinconf_to_config_argument(configs[i]);
 
 		dev_dbg(pctldev->dev, "%s: pin=%u, config=0x%lx\n",
 			__func__, pin_id, configs[i]);
+
+		/* Keep slew rate enabled by default. */
+		if (atmel_pioctrl->slew_rate_support)
+			conf |= ATMEL_PIO_SR_MASK;
 
 		switch (param) {
 		case PIN_CONFIG_BIAS_DISABLE:
@@ -850,6 +869,13 @@ static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
 					ATMEL_PIO_SODR);
 			}
 			break;
+		case PIN_CONFIG_SLEW_RATE:
+			if (!atmel_pioctrl->slew_rate_support)
+				break;
+			/* And remove it if explicitly requested. */
+			if (arg == 0)
+				conf &= ~ATMEL_PIO_SR_MASK;
+			break;
 		case ATMEL_PIN_CONFIG_DRIVE_STRENGTH:
 			switch (arg) {
 			case ATMEL_PIO_DRVSTR_LO:
@@ -877,7 +903,8 @@ static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
 }
 
 static void atmel_conf_pin_config_dbg_show(struct pinctrl_dev *pctldev,
-					   struct seq_file *s, unsigned pin_id)
+					   struct seq_file *s,
+					   unsigned int pin_id)
 {
 	struct atmel_pioctrl *atmel_pioctrl = pinctrl_dev_get_drvdata(pctldev);
 	u32 conf;
@@ -901,6 +928,8 @@ static void atmel_conf_pin_config_dbg_show(struct pinctrl_dev *pctldev,
 		seq_printf(s, "%s ", "open-drain");
 	if (conf & ATMEL_PIO_SCHMITT_MASK)
 		seq_printf(s, "%s ", "schmitt");
+	if (atmel_pioctrl->slew_rate_support && (conf & ATMEL_PIO_SR_MASK))
+		seq_printf(s, "%s ", "slew-rate");
 	if (conf & ATMEL_PIO_DRVSTR_MASK) {
 		switch ((conf & ATMEL_PIO_DRVSTR_MASK) >> ATMEL_PIO_DRVSTR_OFFSET) {
 		case ATMEL_PIO_DRVSTR_ME:
@@ -994,6 +1023,7 @@ static const struct atmel_pioctrl_data atmel_sama5d2_pioctrl_data = {
 static const struct atmel_pioctrl_data microchip_sama7g5_pioctrl_data = {
 	.nbanks			= 5,
 	.last_bank_count	= 8, /* sama7g5 has only PE0 to PE7 */
+	.slew_rate_support	= 1,
 };
 
 static const struct of_device_id atmel_pctrl_of_match[] = {
@@ -1039,6 +1069,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		atmel_pioctrl->npins -= ATMEL_PIO_NPINS_PER_BANK;
 		atmel_pioctrl->npins += atmel_pioctrl_data->last_bank_count;
 	}
+	atmel_pioctrl->slew_rate_support = atmel_pioctrl_data->slew_rate_support;
 
 	atmel_pioctrl->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(atmel_pioctrl->reg_base))
@@ -1081,8 +1112,8 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	for (i = 0 ; i < atmel_pioctrl->npins; i++) {
 		struct atmel_group *group = atmel_pioctrl->groups + i;
-		unsigned bank = ATMEL_PIO_BANK(i);
-		unsigned line = ATMEL_PIO_LINE(i);
+		unsigned int bank = ATMEL_PIO_BANK(i);
+		unsigned int line = ATMEL_PIO_LINE(i);
 
 		atmel_pioctrl->pins[i] = devm_kzalloc(dev,
 				sizeof(**atmel_pioctrl->pins), GFP_KERNEL);

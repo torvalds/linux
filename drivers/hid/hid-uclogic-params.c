@@ -90,7 +90,7 @@ static int uclogic_params_get_str_desc(__u8 **pbuf, struct hid_device *hdev,
 		goto cleanup;
 	} else if (rc < 0) {
 		hid_err(hdev,
-			"failed retrieving string descriptor #%hhu: %d\n",
+			"failed retrieving string descriptor #%u: %d\n",
 			idx, rc);
 		goto cleanup;
 	}
@@ -1045,6 +1045,8 @@ int uclogic_params_init(struct uclogic_params *params,
 			uclogic_params_init_with_pen_unused(&p);
 		}
 		break;
+	case VID_PID(USB_VENDOR_ID_TRUST,
+		     USB_DEVICE_ID_TRUST_PANORA_TABLET):
 	case VID_PID(USB_VENDOR_ID_UGEE,
 		     USB_DEVICE_ID_UGEE_TABLET_G5):
 		/* Ignore non-pen interfaces */

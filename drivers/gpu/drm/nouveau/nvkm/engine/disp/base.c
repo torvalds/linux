@@ -149,10 +149,10 @@ static void
 nvkm_disp_class_del(struct nvkm_oproxy *oproxy)
 {
 	struct nvkm_disp *disp = nvkm_disp(oproxy->base.engine);
-	mutex_lock(&disp->engine.subdev.mutex);
-	if (disp->client == oproxy)
-		disp->client = NULL;
-	mutex_unlock(&disp->engine.subdev.mutex);
+	spin_lock(&disp->client.lock);
+	if (disp->client.object == oproxy)
+		disp->client.object = NULL;
+	spin_unlock(&disp->client.lock);
 }
 
 static const struct nvkm_oproxy_func
@@ -175,13 +175,13 @@ nvkm_disp_class_new(struct nvkm_device *device,
 		return ret;
 	*pobject = &oproxy->base;
 
-	mutex_lock(&disp->engine.subdev.mutex);
-	if (disp->client) {
-		mutex_unlock(&disp->engine.subdev.mutex);
+	spin_lock(&disp->client.lock);
+	if (disp->client.object) {
+		spin_unlock(&disp->client.lock);
 		return -EBUSY;
 	}
-	disp->client = oproxy;
-	mutex_unlock(&disp->engine.subdev.mutex);
+	disp->client.object = oproxy;
+	spin_unlock(&disp->client.lock);
 
 	return sclass->ctor(disp, oclass, data, size, &oproxy->object);
 }
@@ -473,21 +473,22 @@ nvkm_disp = {
 
 int
 nvkm_disp_ctor(const struct nvkm_disp_func *func, struct nvkm_device *device,
-	       int index, struct nvkm_disp *disp)
+	       enum nvkm_subdev_type type, int inst, struct nvkm_disp *disp)
 {
 	disp->func = func;
 	INIT_LIST_HEAD(&disp->head);
 	INIT_LIST_HEAD(&disp->ior);
 	INIT_LIST_HEAD(&disp->outp);
 	INIT_LIST_HEAD(&disp->conn);
-	return nvkm_engine_ctor(&nvkm_disp, device, index, true, &disp->engine);
+	spin_lock_init(&disp->client.lock);
+	return nvkm_engine_ctor(&nvkm_disp, device, type, inst, true, &disp->engine);
 }
 
 int
 nvkm_disp_new_(const struct nvkm_disp_func *func, struct nvkm_device *device,
-	       int index, struct nvkm_disp **pdisp)
+	       enum nvkm_subdev_type type, int inst, struct nvkm_disp **pdisp)
 {
 	if (!(*pdisp = kzalloc(sizeof(**pdisp), GFP_KERNEL)))
 		return -ENOMEM;
-	return nvkm_disp_ctor(func, device, index, *pdisp);
+	return nvkm_disp_ctor(func, device, type, inst, *pdisp);
 }

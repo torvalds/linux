@@ -164,6 +164,7 @@ static int __init falconide_init(struct platform_device *pdev)
 	if (rc)
 		goto err_free;
 
+	platform_set_drvdata(pdev, host);
 	return 0;
 err_free:
 	ide_host_free(host);
@@ -174,7 +175,7 @@ err:
 
 static int falconide_remove(struct platform_device *pdev)
 {
-	struct ide_host *host = dev_get_drvdata(&pdev->dev);
+	struct ide_host *host = platform_get_drvdata(pdev);
 
 	ide_host_remove(host);
 

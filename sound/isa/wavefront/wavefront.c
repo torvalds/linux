@@ -565,11 +565,10 @@ static int snd_wavefront_isa_probe(struct device *pdev,
 	return 0;
 }
 
-static int snd_wavefront_isa_remove(struct device *devptr,
+static void snd_wavefront_isa_remove(struct device *devptr,
 				    unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(devptr));
-	return 0;
 }
 
 #define DEV_NAME "wavefront"

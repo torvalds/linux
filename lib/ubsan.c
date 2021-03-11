@@ -163,74 +163,6 @@ static void ubsan_epilogue(void)
 	}
 }
 
-static void handle_overflow(struct overflow_data *data, void *lhs,
-			void *rhs, char op)
-{
-
-	struct type_descriptor *type = data->type;
-	char lhs_val_str[VALUE_LENGTH];
-	char rhs_val_str[VALUE_LENGTH];
-
-	if (suppress_report(&data->location))
-		return;
-
-	ubsan_prologue(&data->location, type_is_signed(type) ?
-			"signed-integer-overflow" :
-			"unsigned-integer-overflow");
-
-	val_to_string(lhs_val_str, sizeof(lhs_val_str), type, lhs);
-	val_to_string(rhs_val_str, sizeof(rhs_val_str), type, rhs);
-	pr_err("%s %c %s cannot be represented in type %s\n",
-		lhs_val_str,
-		op,
-		rhs_val_str,
-		type->type_name);
-
-	ubsan_epilogue();
-}
-
-void __ubsan_handle_add_overflow(void *data,
-				void *lhs, void *rhs)
-{
-
-	handle_overflow(data, lhs, rhs, '+');
-}
-EXPORT_SYMBOL(__ubsan_handle_add_overflow);
-
-void __ubsan_handle_sub_overflow(void *data,
-				void *lhs, void *rhs)
-{
-	handle_overflow(data, lhs, rhs, '-');
-}
-EXPORT_SYMBOL(__ubsan_handle_sub_overflow);
-
-void __ubsan_handle_mul_overflow(void *data,
-				void *lhs, void *rhs)
-{
-	handle_overflow(data, lhs, rhs, '*');
-}
-EXPORT_SYMBOL(__ubsan_handle_mul_overflow);
-
-void __ubsan_handle_negate_overflow(void *_data, void *old_val)
-{
-	struct overflow_data *data = _data;
-	char old_val_str[VALUE_LENGTH];
-
-	if (suppress_report(&data->location))
-		return;
-
-	ubsan_prologue(&data->location, "negation-overflow");
-
-	val_to_string(old_val_str, sizeof(old_val_str), data->type, old_val);
-
-	pr_err("negation of %s cannot be represented in type %s:\n",
-		old_val_str, data->type->type_name);
-
-	ubsan_epilogue();
-}
-EXPORT_SYMBOL(__ubsan_handle_negate_overflow);
-
-
 void __ubsan_handle_divrem_overflow(void *_data, void *lhs, void *rhs)
 {
 	struct overflow_data *data = _data;
@@ -427,3 +359,34 @@ void __ubsan_handle_load_invalid_value(void *_data, void *val)
 	ubsan_epilogue();
 }
 EXPORT_SYMBOL(__ubsan_handle_load_invalid_value);
+
+void __ubsan_handle_alignment_assumption(void *_data, unsigned long ptr,
+					 unsigned long align,
+					 unsigned long offset);
+void __ubsan_handle_alignment_assumption(void *_data, unsigned long ptr,
+					 unsigned long align,
+					 unsigned long offset)
+{
+	struct alignment_assumption_data *data = _data;
+	unsigned long real_ptr;
+
+	if (suppress_report(&data->location))
+		return;
+
+	ubsan_prologue(&data->location, "alignment-assumption");
+
+	if (offset)
+		pr_err("assumption of %lu byte alignment (with offset of %lu byte) for pointer of type %s failed",
+		       align, offset, data->type->type_name);
+	else
+		pr_err("assumption of %lu byte alignment for pointer of type %s failed",
+		       align, data->type->type_name);
+
+	real_ptr = ptr - offset;
+	pr_err("%saddress is %lu aligned, misalignment offset is %lu bytes",
+	       offset ? "offset " : "", BIT(real_ptr ? __ffs(real_ptr) : 0),
+	       real_ptr & (align - 1));
+
+	ubsan_epilogue();
+}
+EXPORT_SYMBOL(__ubsan_handle_alignment_assumption);

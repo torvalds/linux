@@ -18,6 +18,8 @@
 # define PR_SET_SYSCALL_USER_DISPATCH	59
 # define PR_SYS_DISPATCH_OFF	0
 # define PR_SYS_DISPATCH_ON	1
+# define SYSCALL_DISPATCH_FILTER_ALLOW	0
+# define SYSCALL_DISPATCH_FILTER_BLOCK	1
 #endif
 
 #ifndef SYS_USER_DISPATCH
@@ -30,8 +32,8 @@
 # define MAGIC_SYSCALL_1 (0xff00)  /* Bad Linux syscall number */
 #endif
 
-#define SYSCALL_DISPATCH_ON(x) ((x) = 1)
-#define SYSCALL_DISPATCH_OFF(x) ((x) = 0)
+#define SYSCALL_DISPATCH_ON(x) ((x) = SYSCALL_DISPATCH_FILTER_BLOCK)
+#define SYSCALL_DISPATCH_OFF(x) ((x) = SYSCALL_DISPATCH_FILTER_ALLOW)
 
 /* Test Summary:
  *
@@ -56,7 +58,7 @@
 
 TEST_SIGNAL(dispatch_trigger_sigsys, SIGSYS)
 {
-	char sel = 0;
+	char sel = SYSCALL_DISPATCH_FILTER_ALLOW;
 	struct sysinfo info;
 	int ret;
 
@@ -79,7 +81,7 @@ TEST_SIGNAL(dispatch_trigger_sigsys, SIGSYS)
 
 TEST(bad_prctl_param)
 {
-	char sel = 0;
+	char sel = SYSCALL_DISPATCH_FILTER_ALLOW;
 	int op;
 
 	/* Invalid op */
@@ -220,7 +222,7 @@ TEST_SIGNAL(bad_selector, SIGSYS)
 	sigset_t mask;
 	struct sysinfo info;
 
-	glob_sel = 0;
+	glob_sel = SYSCALL_DISPATCH_FILTER_ALLOW;
 	nr_syscalls_emulated = 0;
 	si_code = 0;
 	si_errno = 0;
@@ -288,7 +290,7 @@ TEST(direct_dispatch_range)
 {
 	int ret = 0;
 	struct sysinfo info;
-	char sel = 0;
+	char sel = SYSCALL_DISPATCH_FILTER_ALLOW;
 
 	/*
 	 * Instead of calculating libc addresses; allow the entire

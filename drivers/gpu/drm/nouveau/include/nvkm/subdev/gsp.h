@@ -9,5 +9,5 @@ struct nvkm_gsp {
 	struct nvkm_falcon falcon;
 };
 
-int gv100_gsp_new(struct nvkm_device *, int, struct nvkm_gsp **);
+int gv100_gsp_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_gsp **);
 #endif

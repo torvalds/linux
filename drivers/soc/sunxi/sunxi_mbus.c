@@ -23,12 +23,7 @@ static const char * const sunxi_mbus_devices[] = {
 	"allwinner,sun7i-a20-display-engine",
 	"allwinner,sun8i-a23-display-engine",
 	"allwinner,sun8i-a33-display-engine",
-	"allwinner,sun8i-a83t-display-engine",
-	"allwinner,sun8i-h3-display-engine",
-	"allwinner,sun8i-r40-display-engine",
-	"allwinner,sun8i-v3s-display-engine",
 	"allwinner,sun9i-a80-display-engine",
-	"allwinner,sun50i-a64-display-engine",
 
 	/*
 	 * And now we have the regular devices connected to the MBUS

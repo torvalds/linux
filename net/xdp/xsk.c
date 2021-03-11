@@ -108,9 +108,9 @@ EXPORT_SYMBOL(xsk_get_pool_from_qid);
 
 void xsk_clear_pool_at_qid(struct net_device *dev, u16 queue_id)
 {
-	if (queue_id < dev->real_num_rx_queues)
+	if (queue_id < dev->num_rx_queues)
 		dev->_rx[queue_id].pool = NULL;
-	if (queue_id < dev->real_num_tx_queues)
+	if (queue_id < dev->num_tx_queues)
 		dev->_tx[queue_id].pool = NULL;
 }
 
@@ -184,12 +184,13 @@ static void xsk_copy_xdp(struct xdp_buff *to, struct xdp_buff *from, u32 len)
 	memcpy(to_buf, from_buf, len + metalen);
 }
 
-static int __xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp, u32 len,
-		     bool explicit_free)
+static int __xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 {
 	struct xdp_buff *xsk_xdp;
 	int err;
+	u32 len;
 
+	len = xdp->data_end - xdp->data;
 	if (len > xsk_pool_get_rx_frame_size(xs->pool)) {
 		xs->rx_dropped++;
 		return -ENOSPC;
@@ -207,8 +208,6 @@ static int __xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp, u32 len,
 		xsk_buff_free(xsk_xdp);
 		return err;
 	}
-	if (explicit_free)
-		xdp_return_buff(xdp);
 	return 0;
 }
 
@@ -230,11 +229,8 @@ static bool xsk_is_bound(struct xdp_sock *xs)
 	return false;
 }
 
-static int xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp,
-		   bool explicit_free)
+static int xsk_rcv_check(struct xdp_sock *xs, struct xdp_buff *xdp)
 {
-	u32 len;
-
 	if (!xsk_is_bound(xs))
 		return -EINVAL;
 
@@ -242,11 +238,7 @@ static int xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp,
 		return -EINVAL;
 
 	sk_mark_napi_id_once_xdp(&xs->sk, xdp);
-	len = xdp->data_end - xdp->data;
-
-	return xdp->rxq->mem.type == MEM_TYPE_XSK_BUFF_POOL ?
-		__xsk_rcv_zc(xs, xdp, len) :
-		__xsk_rcv(xs, xdp, len, explicit_free);
+	return 0;
 }
 
 static void xsk_flush(struct xdp_sock *xs)
@@ -261,9 +253,32 @@ int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 	int err;
 
 	spin_lock_bh(&xs->rx_lock);
-	err = xsk_rcv(xs, xdp, false);
-	xsk_flush(xs);
+	err = xsk_rcv_check(xs, xdp);
+	if (!err) {
+		err = __xsk_rcv(xs, xdp);
+		xsk_flush(xs);
+	}
 	spin_unlock_bh(&xs->rx_lock);
+	return err;
+}
+
+static int xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
+{
+	int err;
+	u32 len;
+
+	err = xsk_rcv_check(xs, xdp);
+	if (err)
+		return err;
+
+	if (xdp->rxq->mem.type == MEM_TYPE_XSK_BUFF_POOL) {
+		len = xdp->data_end - xdp->data;
+		return __xsk_rcv_zc(xs, xdp, len);
+	}
+
+	err = __xsk_rcv(xs, xdp);
+	if (!err)
+		xdp_return_buff(xdp);
 	return err;
 }
 
@@ -272,7 +287,7 @@ int __xsk_map_redirect(struct xdp_sock *xs, struct xdp_buff *xdp)
 	struct list_head *flush_list = this_cpu_ptr(&xskmap_flush_list);
 	int err;
 
-	err = xsk_rcv(xs, xdp, true);
+	err = xsk_rcv(xs, xdp);
 	if (err)
 		return err;
 
@@ -423,9 +438,9 @@ static void xsk_destruct_skb(struct sk_buff *skb)
 	struct xdp_sock *xs = xdp_sk(skb->sk);
 	unsigned long flags;
 
-	spin_lock_irqsave(&xs->tx_completion_lock, flags);
+	spin_lock_irqsave(&xs->pool->cq_lock, flags);
 	xskq_prod_submit_addr(xs->pool->cq, addr);
-	spin_unlock_irqrestore(&xs->tx_completion_lock, flags);
+	spin_unlock_irqrestore(&xs->pool->cq_lock, flags);
 
 	sock_wfree(skb);
 }
@@ -437,6 +452,7 @@ static int xsk_generic_xmit(struct sock *sk)
 	bool sent_frame = false;
 	struct xdp_desc desc;
 	struct sk_buff *skb;
+	unsigned long flags;
 	int err = 0;
 
 	mutex_lock(&xs->mutex);
@@ -468,10 +484,13 @@ static int xsk_generic_xmit(struct sock *sk)
 		 * if there is space in it. This avoids having to implement
 		 * any buffering in the Tx path.
 		 */
+		spin_lock_irqsave(&xs->pool->cq_lock, flags);
 		if (unlikely(err) || xskq_prod_reserve(xs->pool->cq)) {
+			spin_unlock_irqrestore(&xs->pool->cq_lock, flags);
 			kfree_skb(skb);
 			goto out;
 		}
+		spin_unlock_irqrestore(&xs->pool->cq_lock, flags);
 
 		skb->dev = xs->dev;
 		skb->priority = sk->sk_priority;
@@ -483,6 +502,9 @@ static int xsk_generic_xmit(struct sock *sk)
 		if  (err == NETDEV_TX_BUSY) {
 			/* Tell user-space to retry the send */
 			skb->destructor = sock_wfree;
+			spin_lock_irqsave(&xs->pool->cq_lock, flags);
+			xskq_prod_cancel(xs->pool->cq);
+			spin_unlock_irqrestore(&xs->pool->cq_lock, flags);
 			/* Free skb without triggering the perf drop trace */
 			consume_skb(skb);
 			err = -EAGAIN;
@@ -877,6 +899,10 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 			goto out_unlock;
 		}
 	}
+
+	/* FQ and CQ are now owned by the buffer pool and cleaned up with it. */
+	xs->fq_tmp = NULL;
+	xs->cq_tmp = NULL;
 
 	xs->dev = dev;
 	xs->zc = xs->umem->zc;
@@ -1299,7 +1325,6 @@ static int xsk_create(struct net *net, struct socket *sock, int protocol,
 	xs->state = XSK_READY;
 	mutex_init(&xs->mutex);
 	spin_lock_init(&xs->rx_lock);
-	spin_lock_init(&xs->tx_completion_lock);
 
 	INIT_LIST_HEAD(&xs->map_list);
 	spin_lock_init(&xs->map_list_lock);

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  */
 #ifndef __iwl_io_h__
 #define __iwl_io_h__
@@ -37,7 +37,13 @@ u32 iwl_read_prph_no_grab(struct iwl_trans *trans, u32 ofs);
 u32 iwl_read_prph(struct iwl_trans *trans, u32 ofs);
 void iwl_write_prph_no_grab(struct iwl_trans *trans, u32 ofs, u32 val);
 void iwl_write_prph64_no_grab(struct iwl_trans *trans, u64 ofs, u64 val);
-void iwl_write_prph(struct iwl_trans *trans, u32 ofs, u32 val);
+void iwl_write_prph_delay(struct iwl_trans *trans, u32 ofs,
+			  u32 val, u32 delay_ms);
+static inline void iwl_write_prph(struct iwl_trans *trans, u32 ofs, u32 val)
+{
+	iwl_write_prph_delay(trans, ofs, val, 0);
+}
+
 int iwl_poll_prph_bit(struct iwl_trans *trans, u32 addr,
 		      u32 bits, u32 mask, int timeout);
 void iwl_set_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask);

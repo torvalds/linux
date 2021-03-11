@@ -42,31 +42,22 @@ properties:
     description: Hardware reset, Low active
 
   ports:
-    type: object
-    description:
-      A node containing input and output port nodes with endpoint definitions
-      as documented in
-      Documentation/devicetree/bindings/media/video-interfaces.txt
+    $ref: /schemas/graph.yaml#/properties/ports
+
     properties:
-      "#address-cells":
-        const: 1
-
-      "#size-cells":
-        const: 0
-
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: |
           DSI Input. The remote endpoint phandle should be a
           reference to a valid mipi_dsi_host device node.
 
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: |
           Video port for LVDS output (panel or connector).
 
       port@2:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: |
           Video port for Dual link LVDS output (panel or connector).
 

@@ -326,6 +326,8 @@ static void i2c_writel(struct tegra_i2c_dev *i2c_dev, u32 val, unsigned int reg)
 	/* read back register to make sure that register writes completed */
 	if (reg != I2C_TX_FIFO)
 		readl_relaxed(i2c_dev->base + tegra_i2c_reg_addr(i2c_dev, reg));
+	else if (i2c_dev->is_vi)
+		readl_relaxed(i2c_dev->base + tegra_i2c_reg_addr(i2c_dev, I2C_INT_STATUS));
 }
 
 static u32 i2c_readl(struct tegra_i2c_dev *i2c_dev, unsigned int reg)
@@ -337,6 +339,21 @@ static void i2c_writesl(struct tegra_i2c_dev *i2c_dev, void *data,
 			unsigned int reg, unsigned int len)
 {
 	writesl(i2c_dev->base + tegra_i2c_reg_addr(i2c_dev, reg), data, len);
+}
+
+static void i2c_writesl_vi(struct tegra_i2c_dev *i2c_dev, void *data,
+			   unsigned int reg, unsigned int len)
+{
+	u32 *data32 = data;
+
+	/*
+	 * VI I2C controller has known hardware bug where writes get stuck
+	 * when immediate multiple writes happen to TX_FIFO register.
+	 * Recommended software work around is to read I2C register after
+	 * each write to TX_FIFO register to flush out the data.
+	 */
+	while (len--)
+		i2c_writel(i2c_dev, *data32++, reg);
 }
 
 static void i2c_readsl(struct tegra_i2c_dev *i2c_dev, void *data,
@@ -811,7 +828,10 @@ static int tegra_i2c_fill_tx_fifo(struct tegra_i2c_dev *i2c_dev)
 		i2c_dev->msg_buf_remaining = buf_remaining;
 		i2c_dev->msg_buf = buf + words_to_transfer * BYTES_PER_FIFO_WORD;
 
-		i2c_writesl(i2c_dev, buf, I2C_TX_FIFO, words_to_transfer);
+		if (i2c_dev->is_vi)
+			i2c_writesl_vi(i2c_dev, buf, I2C_TX_FIFO, words_to_transfer);
+		else
+			i2c_writesl(i2c_dev, buf, I2C_TX_FIFO, words_to_transfer);
 
 		buf += words_to_transfer * BYTES_PER_FIFO_WORD;
 	}
@@ -1719,9 +1739,10 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	/* interrupt will be enabled during of transfer time */
 	irq_set_status_flags(i2c_dev->irq, IRQ_NOAUTOEN);
 
-	err = devm_request_irq(i2c_dev->dev, i2c_dev->irq, tegra_i2c_isr,
-			       IRQF_NO_SUSPEND, dev_name(i2c_dev->dev),
-			       i2c_dev);
+	err = devm_request_threaded_irq(i2c_dev->dev, i2c_dev->irq,
+					NULL, tegra_i2c_isr,
+					IRQF_NO_SUSPEND | IRQF_ONESHOT,
+					dev_name(i2c_dev->dev), i2c_dev);
 	if (err)
 		return err;
 

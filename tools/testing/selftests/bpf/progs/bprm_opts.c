@@ -4,7 +4,7 @@
  * Copyright 2020 Google LLC.
  */
 
-#include "vmlinux.h"
+#include <linux/bpf.h>
 #include <errno.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>

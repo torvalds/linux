@@ -392,7 +392,7 @@ static int vl6180_set_it(struct vl6180_data *data, int val, int val2)
 {
 	int ret, it_ms;
 
-	it_ms = (val2 + 500) / 1000; /* round to ms */
+	it_ms = DIV_ROUND_CLOSEST(val2, 1000); /* round to ms */
 	if (val != 0 || it_ms < 1 || it_ms > 512)
 		return -EINVAL;
 

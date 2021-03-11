@@ -43,7 +43,7 @@ static u32 rps_pm_sanitize_mask(struct intel_rps *rps, u32 mask)
 	return mask & ~rps->pm_intrmsk_mbz;
 }
 
-static inline void set(struct intel_uncore *uncore, i915_reg_t reg, u32 val)
+static void set(struct intel_uncore *uncore, i915_reg_t reg, u32 val)
 {
 	intel_uncore_write_fw(uncore, reg, val);
 }

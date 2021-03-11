@@ -25,11 +25,8 @@ properties:
     const: thine,thc63lvd1024
 
   ports:
-    type: object
+    $ref: /schemas/graph.yaml#/properties/ports
     description: |
-      This device has four video ports. Their connections are modeled using the
-      OF graph bindings specified in Documentation/devicetree/bindings/graph.txt.
-
       The device can operate in single or dual input and output modes.
 
       When operating in single input mode, all pixels are received on port@0,
@@ -43,33 +40,25 @@ properties:
       port@3 shall contain endpoints.
 
     properties:
-      '#address-cells':
-        const: 1
-
-      '#size-cells':
-        const: 0
-
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: First LVDS input port
 
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: Second LVDS input port
 
       port@2:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: First digital CMOS/TTL parallel output
 
       port@3:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: Second digital CMOS/TTL parallel output
 
     required:
       - port@0
       - port@2
-
-    additionalProperties: false
 
   oe-gpios:
     maxItems: 1

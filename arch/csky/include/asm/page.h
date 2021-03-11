@@ -24,7 +24,7 @@
  * address region. We use them mapping kernel 1GB direct-map address area and
  * for more than 1GB of memory we use highmem.
  */
-#define PAGE_OFFSET	0x80000000
+#define PAGE_OFFSET	CONFIG_PAGE_OFFSET
 #define SSEG_SIZE	0x20000000
 #define LOWMEM_LIMIT	(SSEG_SIZE * 2)
 

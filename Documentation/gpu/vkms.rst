@@ -35,6 +35,18 @@ Now, to load the driver, use::
 On running the lsmod command now, the VKMS driver will appear listed.
 You can also observe the driver being loaded in the dmesg logs.
 
+The VKMS driver has optional features to simulate different kinds of hardware,
+which are exposed as module options. You can use the `modinfo` command
+to see the module options for vkms::
+
+  modinfo vkms
+
+Module options are helpful when testing, and enabling modules
+can be done while loading vkms. For example, to load vkms with cursor enabled,
+use::
+
+  sudo modprobe vkms enable_cursor=1
+
 To disable the driver, use ::
 
   sudo modprobe -r vkms

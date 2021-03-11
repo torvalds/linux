@@ -472,7 +472,7 @@ static u16 get_entry_l3cc(const struct drm_i915_mocs_table *table,
 	return table->table[I915_MOCS_PTE].l3cc_value;
 }
 
-static inline u32 l3cc_combine(u16 low, u16 high)
+static u32 l3cc_combine(u16 low, u16 high)
 {
 	return low | (u32)high << 16;
 }

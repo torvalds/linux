@@ -3,9 +3,6 @@
 # Kernel configuration targets
 # These targets are used from top-level makefile
 
-PHONY += xconfig gconfig menuconfig config localmodconfig localyesconfig \
-	build_menuconfig build_nconfig build_gconfig build_xconfig
-
 ifdef KBUILD_KCONFIG
 Kconfig := $(KBUILD_KCONFIG)
 else
@@ -19,29 +16,24 @@ endif
 # We need this, in case the user has it in its environment
 unexport CONFIG_
 
-xconfig: $(obj)/qconf
-	$(Q)$< $(silent) $(Kconfig)
+config-prog	:= conf
+menuconfig-prog	:= mconf
+nconfig-prog	:= nconf
+gconfig-prog	:= gconf
+xconfig-prog	:= qconf
 
-gconfig: $(obj)/gconf
-	$(Q)$< $(silent) $(Kconfig)
+define config_rule
+PHONY += $(1)
+$(1): $(obj)/$($(1)-prog)
+	$(Q)$$< $(silent) $(Kconfig)
 
-menuconfig: $(obj)/mconf
-	$(Q)$< $(silent) $(Kconfig)
+PHONY += build_$(1)
+build_$(1): $(obj)/$($(1)-prog)
+endef
 
-config: $(obj)/conf
-	$(Q)$< $(silent) --oldaskconfig $(Kconfig)
+$(foreach c, config menuconfig nconfig gconfig xconfig, $(eval $(call config_rule,$(c))))
 
-nconfig: $(obj)/nconf
-	$(Q)$< $(silent) $(Kconfig)
-
-build_menuconfig: $(obj)/mconf
-
-build_nconfig: $(obj)/nconf
-
-build_gconfig: $(obj)/gconf
-
-build_xconfig: $(obj)/qconf
-
+PHONY += localmodconfig localyesconfig
 localyesconfig localmodconfig: $(obj)/conf
 	$(Q)$(PERL) $(srctree)/$(src)/streamline_config.pl --$@ $(srctree) $(Kconfig) > .tmp.config
 	$(Q)if [ -f .config ]; then 				\
@@ -93,16 +85,6 @@ configfiles=$(wildcard $(srctree)/kernel/configs/$@ $(srctree)/arch/$(SRCARCH)/c
 	$(if $(call configfiles),, $(error No configuration exists for this target on this architecture))
 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/kconfig/merge_config.sh -m .config $(configfiles)
 	$(Q)$(MAKE) -f $(srctree)/Makefile olddefconfig
-
-PHONY += kvmconfig
-kvmconfig: kvm_guest.config
-	@echo >&2 "WARNING: 'make $@' will be removed after Linux 5.10"
-	@echo >&2 "         Please use 'make $<' instead."
-
-PHONY += xenconfig
-xenconfig: xen.config
-	@echo >&2 "WARNING: 'make $@' will be removed after Linux 5.10"
-	@echo >&2 "         Please use 'make $<' instead."
 
 PHONY += tinyconfig
 tinyconfig:

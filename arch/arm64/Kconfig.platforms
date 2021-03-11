@@ -13,10 +13,17 @@ config ARCH_AGILEX
 	help
 	  This enables support for Intel's Agilex SoCFPGA Family.
 
+config ARCH_N5X
+	bool "Intel's eASIC N5X SoCFPGA Family"
+	help
+	  This enables support for Intel's eASIC N5X SoCFPGA Family.
+
 config ARCH_SUNXI
 	bool "Allwinner sunxi 64-bit SoC Family"
 	select ARCH_HAS_RESET_CONTROLLER
 	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN_HIERARCHY
+	select IRQ_FASTEOI_HIERARCHY_HANDLERS
 	select PINCTRL
 	select RESET_CONTROLLER
 	help
@@ -39,6 +46,7 @@ config ARCH_BCM2835
 	select ARM_AMBA
 	select ARM_GIC
 	select ARM_TIMER_SP804
+	select BRCMSTB_L2_IRQ
 	help
 	  This enables support for the Broadcom BCM2837 and BCM2711 SoC.
 	  These SoCs are used in the Raspberry Pi 3 and 4 devices.
@@ -316,12 +324,6 @@ config ARCH_XGENE
 	bool "AppliedMicro X-Gene SOC Family"
 	help
 	  This enables support for AppliedMicro X-Gene SOC Family
-
-config ARCH_ZX
-	bool "ZTE ZX SoC Family"
-	select PINCTRL
-	help
-	  This enables support for ZTE ZX SoC Family
 
 config ARCH_ZYNQMP
 	bool "Xilinx ZynqMP Family"

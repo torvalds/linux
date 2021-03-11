@@ -38,7 +38,6 @@
 
 #include "gc/gc_10_1_0_offset.h"
 #include "gc/gc_10_1_0_sh_mask.h"
-#include "smuio/smuio_11_0_0_offset.h"
 #include "mp/mp_11_0_offset.h"
 
 #include "soc15.h"
@@ -61,6 +60,8 @@
 #include "dce_virtual.h"
 #include "mes_v10_1.h"
 #include "mxgpu_nv.h"
+#include "smuio_v11_0.h"
+#include "smuio_v11_0_6.h"
 
 static const struct amd_ip_funcs nv_common_ip_funcs;
 
@@ -202,6 +203,7 @@ static bool nv_read_bios_from_rom(struct amdgpu_device *adev,
 {
 	u32 *dw_ptr;
 	u32 i, length_dw;
+	u32 rom_index_offset, rom_data_offset;
 
 	if (bios == NULL)
 		return false;
@@ -214,11 +216,16 @@ static bool nv_read_bios_from_rom(struct amdgpu_device *adev,
 	dw_ptr = (u32 *)bios;
 	length_dw = ALIGN(length_bytes, 4) / 4;
 
+	rom_index_offset =
+		adev->smuio.funcs->get_rom_index_offset(adev);
+	rom_data_offset =
+		adev->smuio.funcs->get_rom_data_offset(adev);
+
 	/* set rom index to 0 */
-	WREG32(SOC15_REG_OFFSET(SMUIO, 0, mmROM_INDEX), 0);
+	WREG32(rom_index_offset, 0);
 	/* read out the rom data */
 	for (i = 0; i < length_dw; i++)
-		dw_ptr[i] = RREG32(SOC15_REG_OFFSET(SMUIO, 0, mmROM_DATA));
+		dw_ptr[i] = RREG32(rom_data_offset);
 
 	return true;
 }
@@ -335,6 +342,38 @@ static int nv_asic_mode1_reset(struct amdgpu_device *adev)
 	return ret;
 }
 
+static int nv_asic_mode2_reset(struct amdgpu_device *adev)
+{
+	u32 i;
+	int ret = 0;
+
+	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
+
+	/* disable BM */
+	pci_clear_master(adev->pdev);
+
+	amdgpu_device_cache_pci_state(adev->pdev);
+
+	ret = amdgpu_dpm_mode2_reset(adev);
+	if (ret)
+		dev_err(adev->dev, "GPU mode2 reset failed\n");
+
+	amdgpu_device_load_pci_state(adev->pdev);
+
+	/* wait for asic to come out of reset */
+	for (i = 0; i < adev->usec_timeout; i++) {
+		u32 memsize = adev->nbio.funcs->get_memsize(adev);
+
+		if (memsize != 0xffffffff)
+			break;
+		udelay(1);
+	}
+
+	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
+
+	return ret;
+}
+
 static bool nv_asic_supports_baco(struct amdgpu_device *adev)
 {
 	struct smu_context *smu = &adev->smu;
@@ -351,7 +390,9 @@ nv_asic_reset_method(struct amdgpu_device *adev)
 	struct smu_context *smu = &adev->smu;
 
 	if (amdgpu_reset_method == AMD_RESET_METHOD_MODE1 ||
-	    amdgpu_reset_method == AMD_RESET_METHOD_BACO)
+	    amdgpu_reset_method == AMD_RESET_METHOD_MODE2 ||
+	    amdgpu_reset_method == AMD_RESET_METHOD_BACO ||
+	    amdgpu_reset_method == AMD_RESET_METHOD_PCI)
 		return amdgpu_reset_method;
 
 	if (amdgpu_reset_method != -1)
@@ -359,6 +400,8 @@ nv_asic_reset_method(struct amdgpu_device *adev)
 				  amdgpu_reset_method);
 
 	switch (adev->asic_type) {
+	case CHIP_VANGOGH:
+		return AMD_RESET_METHOD_MODE2;
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_DIMGREY_CAVEFISH:
@@ -376,7 +419,16 @@ static int nv_asic_reset(struct amdgpu_device *adev)
 	int ret = 0;
 	struct smu_context *smu = &adev->smu;
 
-	if (nv_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) {
+	/* skip reset on vangogh for now */
+	if (adev->asic_type == CHIP_VANGOGH)
+		return 0;
+
+	switch (nv_asic_reset_method(adev)) {
+	case AMD_RESET_METHOD_PCI:
+		dev_info(adev->dev, "PCI reset\n");
+		ret = amdgpu_device_pci_reset(adev);
+		break;
+	case AMD_RESET_METHOD_BACO:
 		dev_info(adev->dev, "BACO reset\n");
 
 		ret = smu_baco_enter(smu);
@@ -385,9 +437,15 @@ static int nv_asic_reset(struct amdgpu_device *adev)
 		ret = smu_baco_exit(smu);
 		if (ret)
 			return ret;
-	} else {
+		break;
+	case AMD_RESET_METHOD_MODE2:
+		dev_info(adev->dev, "MODE2 reset\n");
+		ret = nv_asic_mode2_reset(adev);
+		break;
+	default:
 		dev_info(adev->dev, "MODE1 reset\n");
 		ret = nv_asic_mode1_reset(adev);
+		break;
 	}
 
 	return ret;
@@ -422,11 +480,14 @@ static void nv_pcie_gen3_enable(struct amdgpu_device *adev)
 
 static void nv_program_aspm(struct amdgpu_device *adev)
 {
-
-	if (amdgpu_aspm == 0)
+	if (amdgpu_aspm != 1)
 		return;
 
-	/* todo */
+	if ((adev->asic_type >= CHIP_SIENNA_CICHLID) &&
+	    !(adev->flags & AMD_IS_APU) &&
+	    (adev->nbio.funcs->program_aspm))
+		adev->nbio.funcs->program_aspm(adev);
+
 }
 
 static void nv_enable_doorbell_aperture(struct amdgpu_device *adev,
@@ -497,7 +558,8 @@ static bool nv_is_headless_sku(struct pci_dev *pdev)
 {
 	if ((pdev->device == 0x731E &&
 	    (pdev->revision == 0xC6 || pdev->revision == 0xC7)) ||
-	    (pdev->device == 0x7340 && pdev->revision == 0xC9))
+	    (pdev->device == 0x7340 && pdev->revision == 0xC9)  ||
+	    (pdev->device == 0x7360 && pdev->revision == 0xC7))
 		return true;
 	return false;
 }
@@ -514,6 +576,11 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 		adev->nbio.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg;
 	}
 	adev->hdp.funcs = &hdp_v5_0_funcs;
+
+	if (adev->asic_type >= CHIP_SIENNA_CICHLID)
+		adev->smuio.funcs = &smuio_v11_0_6_funcs;
+	else
+		adev->smuio.funcs = &smuio_v11_0_funcs;
 
 	if (adev->asic_type == CHIP_SIENNA_CICHLID)
 		adev->gmc.xgmi.supported = true;
@@ -568,7 +635,8 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT &&
 		    !amdgpu_sriov_vf(adev))
 			amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &vcn_v2_0_ip_block);
+		if (!nv_is_headless_sku(adev->pdev))
+		        amdgpu_device_ip_block_add(adev, &vcn_v2_0_ip_block);
 		if (!amdgpu_sriov_vf(adev))
 			amdgpu_device_ip_block_add(adev, &jpeg_v2_0_ip_block);
 		break;
@@ -752,10 +820,10 @@ static int nv_update_umd_stable_pstate(struct amdgpu_device *adev,
 	 * The ASPM function is not fully enabled and verified on
 	 * Navi yet. Temporarily skip this until ASPM enabled.
 	 */
-#if 0
-	if (adev->nbio.funcs->enable_aspm)
+	if ((adev->asic_type >= CHIP_SIENNA_CICHLID) &&
+	    !(adev->flags & AMD_IS_APU) &&
+	    (adev->nbio.funcs->enable_aspm))
 		adev->nbio.funcs->enable_aspm(adev, !enter);
-#endif
 
 	return 0;
 }
@@ -1083,6 +1151,8 @@ static int nv_common_set_clockgating_state(void *handle,
 				state == AMD_CG_STATE_GATE);
 		adev->hdp.funcs->update_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
+		adev->smuio.funcs->update_rom_clock_gating(adev,
+				state == AMD_CG_STATE_GATE);
 		break;
 	default:
 		break;
@@ -1107,6 +1177,8 @@ static void nv_common_get_clockgating_state(void *handle, u32 *flags)
 	adev->nbio.funcs->get_clockgating_state(adev, flags);
 
 	adev->hdp.funcs->get_clock_gating_state(adev, flags);
+
+	adev->smuio.funcs->get_clock_gating_state(adev, flags);
 
 	return;
 }

@@ -34,6 +34,7 @@
 #include "soc15_common.h"
 #include "asic_reg/gc/gc_10_3_0_offset.h"
 #include "asic_reg/gc/gc_10_3_0_sh_mask.h"
+#include <asm/processor.h>
 
 /*
  * DO NOT use these for err/warn/info/debug messages.
@@ -62,7 +63,8 @@ static struct cmn2asic_msg_mapping vangogh_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(GetSmuVersion,                  PPSMC_MSG_GetSmuVersion,		0),
 	MSG_MAP(GetDriverIfVersion,             PPSMC_MSG_GetDriverIfVersion,	0),
 	MSG_MAP(EnableGfxOff,                   PPSMC_MSG_EnableGfxOff,			0),
-	MSG_MAP(DisallowGfxOff,                 PPSMC_MSG_DisableGfxOff,		0),
+	MSG_MAP(AllowGfxOff,                    PPSMC_MSG_AllowGfxOff,          0),
+	MSG_MAP(DisallowGfxOff,                 PPSMC_MSG_DisallowGfxOff,		0),
 	MSG_MAP(PowerDownIspByTile,             PPSMC_MSG_PowerDownIspByTile,	0),
 	MSG_MAP(PowerUpIspByTile,               PPSMC_MSG_PowerUpIspByTile,		0),
 	MSG_MAP(PowerDownVcn,                   PPSMC_MSG_PowerDownVcn,			0),
@@ -79,7 +81,6 @@ static struct cmn2asic_msg_mapping vangogh_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TransferTableDram2Smu,          PPSMC_MSG_TransferTableDram2Smu,	0),
 	MSG_MAP(GfxDeviceDriverReset,           PPSMC_MSG_GfxDeviceDriverReset,		0),
 	MSG_MAP(GetEnabledSmuFeatures,          PPSMC_MSG_GetEnabledSmuFeatures,	0),
-	MSG_MAP(Spare1,                         PPSMC_MSG_spare1,					0),
 	MSG_MAP(SetHardMinSocclkByFreq,         PPSMC_MSG_SetHardMinSocclkByFreq,	0),
 	MSG_MAP(SetSoftMinFclk,                 PPSMC_MSG_SetSoftMinFclk,		0),
 	MSG_MAP(SetSoftMinVcn,                  PPSMC_MSG_SetSoftMinVcn,		0),
@@ -91,7 +92,6 @@ static struct cmn2asic_msg_mapping vangogh_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(SetSoftMaxSocclkByFreq,         PPSMC_MSG_SetSoftMaxSocclkByFreq,	0),
 	MSG_MAP(SetSoftMaxFclkByFreq,           PPSMC_MSG_SetSoftMaxFclkByFreq,		0),
 	MSG_MAP(SetSoftMaxVcn,                  PPSMC_MSG_SetSoftMaxVcn,			0),
-	MSG_MAP(Spare2,                         PPSMC_MSG_spare2,					0),
 	MSG_MAP(SetPowerLimitPercentage,        PPSMC_MSG_SetPowerLimitPercentage,	0),
 	MSG_MAP(PowerDownJpeg,                  PPSMC_MSG_PowerDownJpeg,			0),
 	MSG_MAP(PowerUpJpeg,                    PPSMC_MSG_PowerUpJpeg,				0),
@@ -122,6 +122,10 @@ static struct cmn2asic_msg_mapping vangogh_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(SetSoftMinCclk,                     PPSMC_MSG_SetSoftMinCclk,						0),
 	MSG_MAP(SetSoftMaxCclk,                     PPSMC_MSG_SetSoftMaxCclk,						0),
 	MSG_MAP(RequestActiveWgp,                   PPSMC_MSG_RequestActiveWgp,                     0),
+	MSG_MAP(SetFastPPTLimit,                    PPSMC_MSG_SetFastPPTLimit,						0),
+	MSG_MAP(SetSlowPPTLimit,                    PPSMC_MSG_SetSlowPPTLimit,						0),
+	MSG_MAP(GetFastPPTLimit,                    PPSMC_MSG_GetFastPPTLimit,						0),
+	MSG_MAP(GetSlowPPTLimit,                    PPSMC_MSG_GetSlowPPTLimit,						0),
 };
 
 static struct cmn2asic_mapping vangogh_feature_mask_map[SMU_FEATURE_COUNT] = {
@@ -176,6 +180,14 @@ static struct cmn2asic_mapping vangogh_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP_VALID(SMU_METRICS),
 	TAB_MAP_VALID(CUSTOM_DPM),
 	TAB_MAP_VALID(DPMCLOCKS),
+};
+
+static struct cmn2asic_mapping vangogh_workload_map[PP_SMC_POWER_PROFILE_COUNT] = {
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_FULLSCREEN3D,		WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VIDEO,		WORKLOAD_PPLIB_VIDEO_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VR,			WORKLOAD_PPLIB_VR_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_COMPUTE,		WORKLOAD_PPLIB_COMPUTE_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
 };
 
 static int vangogh_tables_init(struct smu_context *smu)
@@ -285,6 +297,10 @@ static int vangogh_get_smu_metrics_data(struct smu_context *smu,
 	case METRICS_VOLTAGE_VDDSOC:
 		*value = metrics->Voltage[1];
 		break;
+	case METRICS_AVERAGE_CPUCLK:
+		memcpy(value, &metrics->CoreFrequency[0],
+		       smu->cpu_core_num * sizeof(uint16_t));
+		break;
 	default:
 		*value = UINT_MAX;
 		break;
@@ -321,6 +337,13 @@ static int vangogh_init_smc_tables(struct smu_context *smu)
 	if (ret)
 		return ret;
 
+#ifdef CONFIG_X86
+	/* AMD x86 APU only */
+	smu->cpu_core_num = boot_cpu_data.x86_max_cores;
+#else
+	smu->cpu_core_num = 4;
+#endif
+
 	return smu_v11_0_init_smc_tables(smu);
 }
 
@@ -330,17 +353,13 @@ static int vangogh_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
 
 	if (enable) {
 		/* vcn dpm on is a prerequisite for vcn power gate messages */
-		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
-			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 0, NULL);
-			if (ret)
-				return ret;
-		}
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 0, NULL);
+		if (ret)
+			return ret;
 	} else {
-		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
-			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerDownVcn, 0, NULL);
-			if (ret)
-				return ret;
-		}
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerDownVcn, 0, NULL);
+		if (ret)
+			return ret;
 	}
 
 	return ret;
@@ -351,62 +370,16 @@ static int vangogh_dpm_set_jpeg_enable(struct smu_context *smu, bool enable)
 	int ret = 0;
 
 	if (enable) {
-		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_JPEG_PG_BIT)) {
-			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerUpJpeg, 0, NULL);
-			if (ret)
-				return ret;
-		}
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerUpJpeg, 0, NULL);
+		if (ret)
+			return ret;
 	} else {
-		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_JPEG_PG_BIT)) {
-			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerDownJpeg, 0, NULL);
-			if (ret)
-				return ret;
-		}
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerDownJpeg, 0, NULL);
+		if (ret)
+			return ret;
 	}
 
 	return ret;
-}
-
-static int vangogh_get_allowed_feature_mask(struct smu_context *smu,
-					    uint32_t *feature_mask,
-					    uint32_t num)
-{
-	struct amdgpu_device *adev = smu->adev;
-
-	if (num > 2)
-		return -EINVAL;
-
-	memset(feature_mask, 0, sizeof(uint32_t) * num);
-
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_DPM_BIT)
-				| FEATURE_MASK(FEATURE_MP0CLK_DPM_BIT)
-				| FEATURE_MASK(FEATURE_SOCCLK_DPM_BIT)
-				| FEATURE_MASK(FEATURE_VCN_DPM_BIT)
-				| FEATURE_MASK(FEATURE_FCLK_DPM_BIT)
-				| FEATURE_MASK(FEATURE_DCFCLK_DPM_BIT)
-				| FEATURE_MASK(FEATURE_DS_SOCCLK_BIT)
-				| FEATURE_MASK(FEATURE_PPT_BIT)
-				| FEATURE_MASK(FEATURE_TDC_BIT)
-				| FEATURE_MASK(FEATURE_FAN_CONTROLLER_BIT)
-				| FEATURE_MASK(FEATURE_DS_LCLK_BIT)
-				| FEATURE_MASK(FEATURE_DS_DCFCLK_BIT);
-
-	if (adev->pm.pp_feature & PP_SOCCLK_DPM_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_SOCCLK_DPM_BIT);
-
-	if (adev->pm.pp_feature & PP_DCEFCLK_DPM_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DCFCLK_DPM_BIT);
-
-	if (adev->pm.pp_feature & PP_MCLK_DPM_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_FCLK_DPM_BIT);
-
-	if (adev->pm.pp_feature & PP_SCLK_DPM_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_DPM_BIT);
-
-	if (smu->adev->pg_flags & AMD_PG_SUPPORT_ATHUB)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_ATHUB_PG_BIT);
-
-	return 0;
 }
 
 static bool vangogh_is_dpm_running(struct smu_context *smu)
@@ -474,6 +447,7 @@ static int vangogh_print_fine_grain_clk(struct smu_context *smu,
 {
 	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
 	SmuMetrics_t metrics;
+	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
 	int i, size = 0, ret = 0;
 	uint32_t cur_value = 0, value = 0, count = 0;
 	bool cur_value_match_level = false;
@@ -486,7 +460,7 @@ static int vangogh_print_fine_grain_clk(struct smu_context *smu,
 
 	switch (clk_type) {
 	case SMU_OD_SCLK:
-		if (smu->od_enabled) {
+		if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
 			size = sprintf(buf, "%s:\n", "OD_SCLK");
 			size += sprintf(buf + size, "0: %10uMhz\n",
 			(smu->gfx_actual_hard_min_freq > 0) ? smu->gfx_actual_hard_min_freq : smu->gfx_default_hard_min_freq);
@@ -494,11 +468,22 @@ static int vangogh_print_fine_grain_clk(struct smu_context *smu,
 			(smu->gfx_actual_soft_max_freq > 0) ? smu->gfx_actual_soft_max_freq : smu->gfx_default_soft_max_freq);
 		}
 		break;
+	case SMU_OD_CCLK:
+		if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
+			size = sprintf(buf, "CCLK_RANGE in Core%d:\n",  smu->cpu_core_id_select);
+			size += sprintf(buf + size, "0: %10uMhz\n",
+			(smu->cpu_actual_soft_min_freq > 0) ? smu->cpu_actual_soft_min_freq : smu->cpu_default_soft_min_freq);
+			size += sprintf(buf + size, "1: %10uMhz\n",
+			(smu->cpu_actual_soft_max_freq > 0) ? smu->cpu_actual_soft_max_freq : smu->cpu_default_soft_max_freq);
+		}
+		break;
 	case SMU_OD_RANGE:
-		if (smu->od_enabled) {
+		if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
 			size = sprintf(buf, "%s:\n", "OD_RANGE");
 			size += sprintf(buf + size, "SCLK: %7uMhz %10uMhz\n",
 				smu->gfx_default_hard_min_freq, smu->gfx_default_soft_max_freq);
+			size += sprintf(buf + size, "CCLK: %7uMhz %10uMhz\n",
+				smu->cpu_default_soft_min_freq, smu->cpu_default_soft_max_freq);
 		}
 		break;
 	case SMU_SOCCLK:
@@ -610,7 +595,7 @@ static int vangogh_get_profiling_clk_mask(struct smu_context *smu,
 	return 0;
 }
 
-bool vangogh_clk_dpm_is_enabled(struct smu_context *smu,
+static bool vangogh_clk_dpm_is_enabled(struct smu_context *smu,
 				enum smu_clk_type clk_type)
 {
 	enum smu_feature_mask feature_id = 0;
@@ -774,7 +759,9 @@ static int vangogh_get_power_profile_mode(struct smu_context *smu,
 					   char *buf)
 {
 	static const char *profile_name[] = {
-					"FULL_SCREEN_3D",
+					"BOOTUP_DEFAULT",
+					"3D_FULL_SCREEN",
+					"POWER_SAVING",
 					"VIDEO",
 					"VR",
 					"COMPUTE",
@@ -814,12 +801,16 @@ static int vangogh_set_power_profile_mode(struct smu_context *smu, long *input, 
 		return -EINVAL;
 	}
 
+	if (profile_mode == PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT ||
+			profile_mode == PP_SMC_POWER_PROFILE_POWERSAVING)
+		return 0;
+
 	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
 	workload_type = smu_cmn_to_asic_specific_index(smu,
 						       CMN2ASIC_MAPPING_WORKLOAD,
 						       profile_mode);
 	if (workload_type < 0) {
-		dev_err_once(smu->adev->dev, "Unsupported power profile mode %d on VANGOGH\n",
+		dev_dbg(smu->adev->dev, "Unsupported power profile mode %d on VANGOGH\n",
 					profile_mode);
 		return -EINVAL;
 	}
@@ -1146,15 +1137,39 @@ static int vangogh_set_performance_level(struct smu_context *smu,
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:
+		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
+		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
+
+		smu->cpu_actual_soft_min_freq = smu->cpu_default_soft_min_freq;
+		smu->cpu_actual_soft_max_freq = smu->cpu_default_soft_max_freq;
+
 		ret = vangogh_force_dpm_limit_value(smu, true);
 		break;
 	case AMD_DPM_FORCED_LEVEL_LOW:
+		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
+		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
+
+		smu->cpu_actual_soft_min_freq = smu->cpu_default_soft_min_freq;
+		smu->cpu_actual_soft_max_freq = smu->cpu_default_soft_max_freq;
+
 		ret = vangogh_force_dpm_limit_value(smu, false);
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
+		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
+		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
+
+		smu->cpu_actual_soft_min_freq = smu->cpu_default_soft_min_freq;
+		smu->cpu_actual_soft_max_freq = smu->cpu_default_soft_max_freq;
+
 		ret = vangogh_unforce_dpm_levels(smu);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
+		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
+		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
+
+		smu->cpu_actual_soft_min_freq = smu->cpu_default_soft_min_freq;
+		smu->cpu_actual_soft_max_freq = smu->cpu_default_soft_max_freq;
+
 		ret = smu_cmn_send_smc_msg_with_param(smu,
 					SMU_MSG_SetHardMinGfxClk,
 					VANGOGH_UMD_PSTATE_STANDARD_GFXCLK, NULL);
@@ -1184,6 +1199,12 @@ static int vangogh_set_performance_level(struct smu_context *smu,
 
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
+		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
+		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
+
+		smu->cpu_actual_soft_min_freq = smu->cpu_default_soft_min_freq;
+		smu->cpu_actual_soft_max_freq = smu->cpu_default_soft_max_freq;
+
 		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinVcn,
 								VANGOGH_UMD_PSTATE_PEAK_DCLK, NULL);
 		if (ret)
@@ -1195,6 +1216,12 @@ static int vangogh_set_performance_level(struct smu_context *smu,
 			return ret;
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
+		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
+		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
+
+		smu->cpu_actual_soft_min_freq = smu->cpu_default_soft_min_freq;
+		smu->cpu_actual_soft_max_freq = smu->cpu_default_soft_max_freq;
+
 		ret = vangogh_get_profiling_clk_mask(smu, level,
 							NULL,
 							NULL,
@@ -1208,6 +1235,12 @@ static int vangogh_set_performance_level(struct smu_context *smu,
 		vangogh_force_clk_levels(smu, SMU_FCLK, 1 << fclk_mask);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
+		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
+		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
+
+		smu->cpu_actual_soft_min_freq = smu->cpu_default_soft_min_freq;
+		smu->cpu_actual_soft_max_freq = smu->cpu_default_soft_max_freq;
+
 		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinGfxClk,
 				VANGOGH_UMD_PSTATE_PEAK_GFXCLK, NULL);
 		if (ret)
@@ -1288,6 +1321,12 @@ static int vangogh_read_sensor(struct smu_context *smu,
 						   METRICS_VOLTAGE_VDDSOC,
 						   (uint32_t *)data);
 		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_CPU_CLK:
+		ret = vangogh_get_smu_metrics_data(smu,
+						   METRICS_AVERAGE_CPUCLK,
+						   (uint32_t *)data);
+		*size = smu->cpu_core_num * sizeof(uint16_t);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
@@ -1371,7 +1410,7 @@ static ssize_t vangogh_get_gpu_metrics(struct smu_context *smu,
 	if (ret)
 		return ret;
 
-	smu_v11_0_init_gpu_metrics_v2_0(gpu_metrics);
+	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 2, 0);
 
 	gpu_metrics->temperature_gfx = metrics.GfxTemperature;
 	gpu_metrics->temperature_soc = metrics.SocTemperature;
@@ -1387,14 +1426,17 @@ static ssize_t vangogh_get_gpu_metrics(struct smu_context *smu,
 	gpu_metrics->average_socket_power = metrics.CurrentSocketPower;
 	gpu_metrics->average_cpu_power = metrics.Power[0];
 	gpu_metrics->average_soc_power = metrics.Power[1];
+	gpu_metrics->average_gfx_power = metrics.Power[2];
 	memcpy(&gpu_metrics->average_core_power[0],
 		&metrics.CorePower[0],
 		sizeof(uint16_t) * 8);
 
 	gpu_metrics->average_gfxclk_frequency = metrics.GfxclkFrequency;
 	gpu_metrics->average_socclk_frequency = metrics.SocclkFrequency;
+	gpu_metrics->average_uclk_frequency = metrics.MemclkFrequency;
 	gpu_metrics->average_fclk_frequency = metrics.MemclkFrequency;
 	gpu_metrics->average_vclk_frequency = metrics.VclkFrequency;
+	gpu_metrics->average_dclk_frequency = metrics.DclkFrequency;
 
 	memcpy(&gpu_metrics->current_coreclk[0],
 		&metrics.CoreFrequency[0],
@@ -1404,22 +1446,55 @@ static ssize_t vangogh_get_gpu_metrics(struct smu_context *smu,
 
 	gpu_metrics->throttle_status = metrics.ThrottlerStatus;
 
+	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
+
 	*table = (void *)gpu_metrics;
 
 	return sizeof(struct gpu_metrics_v2_0);
 }
 
 static int vangogh_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABLE_COMMAND type,
-							long input[], uint32_t size)
+					long input[], uint32_t size)
 {
 	int ret = 0;
+	int i;
+	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
 
-	if (!smu->od_enabled) {
-		dev_warn(smu->adev->dev, "Fine grain is not enabled!\n");
+	if (!(smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL)) {
+		dev_warn(smu->adev->dev,
+			"pp_od_clk_voltage is not accessible if power_dpm_force_perfomance_level is not in manual mode!\n");
 		return -EINVAL;
 	}
 
 	switch (type) {
+	case PP_OD_EDIT_CCLK_VDDC_TABLE:
+		if (size != 3) {
+			dev_err(smu->adev->dev, "Input parameter number not correct (should be 4 for processor)\n");
+			return -EINVAL;
+		}
+		if (input[0] >= smu->cpu_core_num) {
+			dev_err(smu->adev->dev, "core index is overflow, should be less than %d\n",
+				smu->cpu_core_num);
+		}
+		smu->cpu_core_id_select = input[0];
+		if (input[1] == 0) {
+			if (input[2] < smu->cpu_default_soft_min_freq) {
+				dev_warn(smu->adev->dev, "Fine grain setting minimum cclk (%ld) MHz is less than the minimum allowed (%d) MHz\n",
+					input[2], smu->cpu_default_soft_min_freq);
+				return -EINVAL;
+			}
+			smu->cpu_actual_soft_min_freq = input[2];
+		} else if (input[1] == 1) {
+			if (input[2] > smu->cpu_default_soft_max_freq) {
+				dev_warn(smu->adev->dev, "Fine grain setting maximum cclk (%ld) MHz is greater than the maximum allowed (%d) MHz\n",
+					input[2], smu->cpu_default_soft_max_freq);
+				return -EINVAL;
+			}
+			smu->cpu_actual_soft_max_freq = input[2];
+		} else {
+			return -EINVAL;
+		}
+		break;
 	case PP_OD_EDIT_SCLK_VDDC_TABLE:
 		if (size != 2) {
 			dev_err(smu->adev->dev, "Input parameter number not correct\n");
@@ -1453,6 +1528,8 @@ static int vangogh_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TAB
 		} else {
 			smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
 			smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
+			smu->cpu_actual_soft_min_freq = smu->cpu_default_soft_min_freq;
+			smu->cpu_actual_soft_max_freq = smu->cpu_default_soft_max_freq;
 
 			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinGfxClk,
 									smu->gfx_actual_hard_min_freq, NULL);
@@ -1466,6 +1543,29 @@ static int vangogh_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TAB
 			if (ret) {
 				dev_err(smu->adev->dev, "Restore the default soft max sclk failed!");
 				return ret;
+			}
+
+			if (smu->adev->pm.fw_version < 0x43f1b00) {
+				dev_warn(smu->adev->dev, "CPUSoftMax/CPUSoftMin are not supported, please update SBIOS!\n");
+				break;
+			}
+
+			for (i = 0; i < smu->cpu_core_num; i++) {
+				ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMinCclk,
+								      (i << 20) | smu->cpu_actual_soft_min_freq,
+								      NULL);
+				if (ret) {
+					dev_err(smu->adev->dev, "Set hard min cclk failed!");
+					return ret;
+				}
+
+				ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxCclk,
+								      (i << 20) | smu->cpu_actual_soft_max_freq,
+								      NULL);
+				if (ret) {
+					dev_err(smu->adev->dev, "Set soft max cclk failed!");
+					return ret;
+				}
 			}
 		}
 		break;
@@ -1495,6 +1595,29 @@ static int vangogh_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TAB
 				dev_err(smu->adev->dev, "Set soft max sclk failed!");
 				return ret;
 			}
+
+			if (smu->adev->pm.fw_version < 0x43f1b00) {
+				dev_warn(smu->adev->dev, "CPUSoftMax/CPUSoftMin are not supported, please update SBIOS!\n");
+				break;
+			}
+
+			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMinCclk,
+							      ((smu->cpu_core_id_select << 20)
+							       | smu->cpu_actual_soft_min_freq),
+							      NULL);
+			if (ret) {
+				dev_err(smu->adev->dev, "Set hard min cclk failed!");
+				return ret;
+			}
+
+			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxCclk,
+							      ((smu->cpu_core_id_select << 20)
+							       | smu->cpu_actual_soft_max_freq),
+							      NULL);
+			if (ret) {
+				dev_err(smu->adev->dev, "Set soft max cclk failed!");
+				return ret;
+			}
 		}
 		break;
 	default:
@@ -1519,6 +1642,11 @@ static int vangogh_set_fine_grain_gfx_freq_parameters(struct smu_context *smu)
 	smu->gfx_default_soft_max_freq = clk_table->MaxGfxClk;
 	smu->gfx_actual_hard_min_freq = 0;
 	smu->gfx_actual_soft_max_freq = 0;
+
+	smu->cpu_default_soft_min_freq = 1400;
+	smu->cpu_default_soft_max_freq = 3500;
+	smu->cpu_actual_soft_min_freq = 0;
+	smu->cpu_actual_soft_max_freq = 0;
 
 	return 0;
 }
@@ -1553,23 +1681,55 @@ static int vangogh_get_dpm_clock_table(struct smu_context *smu, struct dpm_clock
 static int vangogh_system_features_control(struct smu_context *smu, bool en)
 {
 	struct amdgpu_device *adev = smu->adev;
+	struct smu_feature *feature = &smu->smu_feature;
+	uint32_t feature_mask[2];
+	int ret = 0;
 
-	if (adev->pm.fw_version >= 0x43f1700)
-		return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_RlcPowerNotify,
-						en ? RLC_STATUS_NORMAL : RLC_STATUS_OFF, NULL);
-	else
-		return 0;
+	if (adev->pm.fw_version >= 0x43f1700 && !en)
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_RlcPowerNotify,
+						      RLC_STATUS_OFF, NULL);
+
+	bitmap_zero(feature->enabled, feature->feature_num);
+	bitmap_zero(feature->supported, feature->feature_num);
+
+	if (!en)
+		return ret;
+
+	ret = smu_cmn_get_enabled_32_bits_mask(smu, feature_mask, 2);
+	if (ret)
+		return ret;
+
+	bitmap_copy(feature->enabled, (unsigned long *)&feature_mask,
+		    feature->feature_num);
+	bitmap_copy(feature->supported, (unsigned long *)&feature_mask,
+		    feature->feature_num);
+
+	return 0;
 }
 
 static int vangogh_post_smu_init(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t tmp;
+	int ret = 0;
 	uint8_t aon_bits = 0;
 	/* Two CUs in one WGP */
 	uint32_t req_active_wgps = adev->gfx.cu_info.number/2;
 	uint32_t total_cu = adev->gfx.config.max_cu_per_sh *
 		adev->gfx.config.max_sh_per_se * adev->gfx.config.max_shader_engines;
+
+	/* allow message will be sent after enable message on Vangogh*/
+	if (smu_cmn_feature_is_supported(smu, SMU_FEATURE_DPM_GFXCLK_BIT) &&
+			(adev->pg_flags & AMD_PG_SUPPORT_GFX_PG)) {
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_EnableGfxOff, NULL);
+		if (ret) {
+			dev_err(adev->dev, "Failed to Enable GfxOff!\n");
+			return ret;
+		}
+	} else {
+		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
+		dev_info(adev->dev, "If GFX DPM or power gate disabled, disable GFXOFF\n");
+	}
 
 	/* if all CUs are active, no need to power off any WGPs */
 	if (total_cu == adev->gfx.cu_info.number)
@@ -1593,6 +1753,137 @@ static int vangogh_post_smu_init(struct smu_context *smu)
 	}
 }
 
+static int vangogh_mode_reset(struct smu_context *smu, int type)
+{
+	int ret = 0, index = 0;
+
+	index = smu_cmn_to_asic_specific_index(smu, CMN2ASIC_MAPPING_MSG,
+					       SMU_MSG_GfxDeviceDriverReset);
+	if (index < 0)
+		return index == -EACCES ? 0 : index;
+
+	mutex_lock(&smu->message_lock);
+
+	ret = smu_cmn_send_msg_without_waiting(smu, (uint16_t)index, type);
+
+	mutex_unlock(&smu->message_lock);
+
+	mdelay(10);
+
+	return ret;
+}
+
+static int vangogh_mode2_reset(struct smu_context *smu)
+{
+	return vangogh_mode_reset(smu, SMU_RESET_MODE_2);
+}
+
+static int vangogh_get_power_limit(struct smu_context *smu)
+{
+	struct smu_11_5_power_context *power_context =
+								smu->smu_power.power_context;
+	uint32_t ppt_limit;
+	int ret = 0;
+
+	if (smu->adev->pm.fw_version < 0x43f1e00)
+		return ret;
+
+	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetSlowPPTLimit, &ppt_limit);
+	if (ret) {
+		dev_err(smu->adev->dev, "Get slow PPT limit failed!\n");
+		return ret;
+	}
+	/* convert from milliwatt to watt */
+	smu->current_power_limit = ppt_limit / 1000;
+	smu->max_power_limit = 29;
+
+	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetFastPPTLimit, &ppt_limit);
+	if (ret) {
+		dev_err(smu->adev->dev, "Get fast PPT limit failed!\n");
+		return ret;
+	}
+	/* convert from milliwatt to watt */
+	power_context->current_fast_ppt_limit = ppt_limit / 1000;
+	power_context->max_fast_ppt_limit = 30;
+
+	return ret;
+}
+
+static int vangogh_get_ppt_limit(struct smu_context *smu,
+								uint32_t *ppt_limit,
+								enum smu_ppt_limit_type type,
+								enum smu_ppt_limit_level level)
+{
+	struct smu_11_5_power_context *power_context =
+							smu->smu_power.power_context;
+
+	if (!power_context)
+		return -EOPNOTSUPP;
+
+	if (type == SMU_FAST_PPT_LIMIT) {
+		switch (level) {
+		case SMU_PPT_LIMIT_MAX:
+			*ppt_limit = power_context->max_fast_ppt_limit;
+			break;
+		case SMU_PPT_LIMIT_CURRENT:
+			*ppt_limit = power_context->current_fast_ppt_limit;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int vangogh_set_power_limit(struct smu_context *smu, uint32_t ppt_limit)
+{
+	struct smu_11_5_power_context *power_context =
+							smu->smu_power.power_context;
+	uint32_t limit_type = ppt_limit >> 24;
+	int ret = 0;
+
+	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
+		dev_err(smu->adev->dev, "Setting new power limit is not supported!\n");
+		return -EOPNOTSUPP;
+	}
+
+	switch (limit_type) {
+	case SMU_DEFAULT_PPT_LIMIT:
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+				SMU_MSG_SetSlowPPTLimit,
+				ppt_limit * 1000, /* convert from watt to milliwatt */
+				NULL);
+		if (ret)
+			return ret;
+
+		smu->current_power_limit = ppt_limit;
+		break;
+	case SMU_FAST_PPT_LIMIT:
+		ppt_limit &= ~(SMU_FAST_PPT_LIMIT << 24);
+		if (ppt_limit > power_context->max_fast_ppt_limit) {
+			dev_err(smu->adev->dev,
+				"New power limit (%d) is over the max allowed %d\n",
+				ppt_limit, power_context->max_fast_ppt_limit);
+			return ret;
+		}
+
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+				SMU_MSG_SetFastPPTLimit,
+				ppt_limit * 1000, /* convert from watt to milliwatt */
+				NULL);
+		if (ret)
+			return ret;
+
+		power_context->current_fast_ppt_limit = ppt_limit;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs vangogh_ppt_funcs = {
 
 	.check_fw_status = smu_v11_0_check_fw_status,
@@ -1602,7 +1893,6 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.init_power = smu_v11_0_init_power,
 	.fini_power = smu_v11_0_fini_power,
 	.register_irq_handler = smu_v11_0_register_irq_handler,
-	.get_allowed_feature_mask = vangogh_get_allowed_feature_mask,
 	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
 	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
 	.send_smc_msg = smu_cmn_send_smc_msg,
@@ -1628,6 +1918,11 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.force_clk_levels = vangogh_force_clk_levels,
 	.set_performance_level = vangogh_set_performance_level,
 	.post_init = vangogh_post_smu_init,
+	.mode2_reset = vangogh_mode2_reset,
+	.gfx_off_control = smu_v11_0_gfx_off_control,
+	.get_ppt_limit = vangogh_get_ppt_limit,
+	.get_power_limit = vangogh_get_power_limit,
+	.set_power_limit = vangogh_set_power_limit,
 };
 
 void vangogh_set_ppt_funcs(struct smu_context *smu)
@@ -1636,5 +1931,6 @@ void vangogh_set_ppt_funcs(struct smu_context *smu)
 	smu->message_map = vangogh_message_map;
 	smu->feature_map = vangogh_feature_mask_map;
 	smu->table_map = vangogh_table_map;
+	smu->workload_map = vangogh_workload_map;
 	smu->is_apu = true;
 }

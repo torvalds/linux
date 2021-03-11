@@ -143,8 +143,8 @@ recalculate
 journal_crypt:algorithm(:key)	(the key is optional)
 	Encrypt the journal using given algorithm to make sure that the
 	attacker can't read the journal. You can use a block cipher here
-	(such as "cbc(aes)") or a stream cipher (for example "chacha20",
-	"salsa20" or "ctr(aes)").
+	(such as "cbc(aes)") or a stream cipher (for example "chacha20"
+	or "ctr(aes)").
 
 	The journal contains history of last writes to the block device,
 	an attacker reading the journal could see the last sector numbers
@@ -177,14 +177,31 @@ bitmap_flush_interval:number
 	The bitmap flush interval in milliseconds. The metadata buffers
 	are synchronized when this interval expires.
 
+allow_discards
+	Allow block discard requests (a.k.a. TRIM) for the integrity device.
+	Discards are only allowed to devices using internal hash.
+
 fix_padding
 	Use a smaller padding of the tag area that is more
 	space-efficient. If this option is not present, large padding is
 	used - that is for compatibility with older kernels.
 
-allow_discards
-	Allow block discard requests (a.k.a. TRIM) for the integrity device.
-	Discards are only allowed to devices using internal hash.
+fix_hmac
+	Improve security of internal_hash and journal_mac:
+
+	- the section number is mixed to the mac, so that an attacker can't
+	  copy sectors from one journal section to another journal section
+	- the superblock is protected by journal_mac
+	- a 16-byte salt stored in the superblock is mixed to the mac, so
+	  that the attacker can't detect that two disks have the same hmac
+	  key and also to disallow the attacker to move sectors from one
+	  disk to another
+
+legacy_recalculate
+	Allow recalculating of volumes with HMAC keys. This is disabled by
+	default for security reasons - an attacker could modify the volume,
+	set recalc_sector to zero, and the kernel would not detect the
+	modification.
 
 The journal mode (D/J), buffer_sectors, journal_watermark, commit_time and
 allow_discards can be changed when reloading the target (load an inactive

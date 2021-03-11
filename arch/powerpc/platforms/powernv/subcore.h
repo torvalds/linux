@@ -15,7 +15,7 @@
 void split_core_secondary_loop(u8 *state);
 extern void update_subcore_sibling_mask(void);
 #else
-static inline void update_subcore_sibling_mask(void) { };
+static inline void update_subcore_sibling_mask(void) { }
 #endif /* CONFIG_SMP */
 
 #endif /* __ASSEMBLY__ */

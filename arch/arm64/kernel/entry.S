@@ -75,7 +75,7 @@ alternative_else_nop_endif
 	.endif
 #endif
 
-	sub	sp, sp, #S_FRAME_SIZE
+	sub	sp, sp, #PT_REGS_SIZE
 #ifdef CONFIG_VMAP_STACK
 	/*
 	 * Test whether the SP has overflowed, without corrupting a GPR.
@@ -96,7 +96,7 @@ alternative_else_nop_endif
 	 * userspace, and can clobber EL0 registers to free up GPRs.
 	 */
 
-	/* Stash the original SP (minus S_FRAME_SIZE) in tpidr_el0. */
+	/* Stash the original SP (minus PT_REGS_SIZE) in tpidr_el0. */
 	msr	tpidr_el0, x0
 
 	/* Recover the original x0 value and stash it in tpidrro_el0 */
@@ -182,7 +182,6 @@ alternative_else_nop_endif
 	mrs_s	\tmp2, SYS_GCR_EL1
 	bfi	\tmp2, \tmp, #0, #16
 	msr_s	SYS_GCR_EL1, \tmp2
-	isb
 #endif
 	.endm
 
@@ -194,6 +193,7 @@ alternative_else_nop_endif
 	ldr_l	\tmp, gcr_kernel_excl
 
 	mte_set_gcr \tmp, \tmp2
+	isb
 1:
 #endif
 	.endm
@@ -253,7 +253,7 @@ alternative_else_nop_endif
 
 	scs_load tsk, x20
 	.else
-	add	x21, sp, #S_FRAME_SIZE
+	add	x21, sp, #PT_REGS_SIZE
 	get_current_task tsk
 	.endif /* \el == 0 */
 	mrs	x22, elr_el1
@@ -261,16 +261,16 @@ alternative_else_nop_endif
 	stp	lr, x21, [sp, #S_LR]
 
 	/*
-	 * In order to be able to dump the contents of struct pt_regs at the
-	 * time the exception was taken (in case we attempt to walk the call
-	 * stack later), chain it together with the stack frames.
+	 * For exceptions from EL0, terminate the callchain here.
+	 * For exceptions from EL1, create a synthetic frame record so the
+	 * interrupted code shows up in the backtrace.
 	 */
 	.if \el == 0
-	stp	xzr, xzr, [sp, #S_STACKFRAME]
+	mov	x29, xzr
 	.else
 	stp	x29, x22, [sp, #S_STACKFRAME]
-	.endif
 	add	x29, sp, #S_STACKFRAME
+	.endif
 
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 alternative_if_not ARM64_HAS_PAN
@@ -377,7 +377,7 @@ alternative_else_nop_endif
 	ldp	x26, x27, [sp, #16 * 13]
 	ldp	x28, x29, [sp, #16 * 14]
 	ldr	lr, [sp, #S_LR]
-	add	sp, sp, #S_FRAME_SIZE		// restore sp
+	add	sp, sp, #PT_REGS_SIZE		// restore sp
 
 	.if	\el == 0
 alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
@@ -580,12 +580,12 @@ __bad_stack:
 
 	/*
 	 * Store the original GPRs to the new stack. The orginal SP (minus
-	 * S_FRAME_SIZE) was stashed in tpidr_el0 by kernel_ventry.
+	 * PT_REGS_SIZE) was stashed in tpidr_el0 by kernel_ventry.
 	 */
-	sub	sp, sp, #S_FRAME_SIZE
+	sub	sp, sp, #PT_REGS_SIZE
 	kernel_entry 1
 	mrs	x0, tpidr_el0
-	add	x0, x0, #S_FRAME_SIZE
+	add	x0, x0, #PT_REGS_SIZE
 	str	x0, [sp, #S_SP]
 
 	/* Stash the regs for handle_bad_stack */
@@ -805,7 +805,7 @@ SYM_CODE_END(ret_to_user)
 	// Move from tramp_pg_dir to swapper_pg_dir
 	.macro tramp_map_kernel, tmp
 	mrs	\tmp, ttbr1_el1
-	add	\tmp, \tmp, #(2 * PAGE_SIZE)
+	add	\tmp, \tmp, #TRAMP_SWAPPER_OFFSET
 	bic	\tmp, \tmp, #USER_ASID_FLAG
 	msr	ttbr1_el1, \tmp
 #ifdef CONFIG_QCOM_FALKOR_ERRATUM_1003
@@ -825,7 +825,7 @@ alternative_else_nop_endif
 	// Move from swapper_pg_dir to tramp_pg_dir
 	.macro tramp_unmap_kernel, tmp
 	mrs	\tmp, ttbr1_el1
-	sub	\tmp, \tmp, #(2 * PAGE_SIZE)
+	sub	\tmp, \tmp, #TRAMP_SWAPPER_OFFSET
 	orr	\tmp, \tmp, #USER_ASID_FLAG
 	msr	ttbr1_el1, \tmp
 	/*

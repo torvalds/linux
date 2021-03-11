@@ -66,7 +66,7 @@ static int sl28cpld_intc_probe(struct platform_device *pdev)
 	irqchip->chip.num_regs = 1;
 	irqchip->chip.status_base = base + INTC_IP;
 	irqchip->chip.mask_base = base + INTC_IE;
-	irqchip->chip.mask_invert = true,
+	irqchip->chip.mask_invert = true;
 	irqchip->chip.ack_base = base + INTC_IP;
 
 	return devm_regmap_add_irq_chip_fwnode(dev, dev_fwnode(dev),

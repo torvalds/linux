@@ -32,7 +32,6 @@
 #include <os.h>
 #include <skas.h>
 #include <linux/time-internal.h>
-#include <asm/set_memory.h>
 
 /*
  * This is a per-cpu array.  A processor only modifies its entry and it only
@@ -63,18 +62,16 @@ void free_stack(unsigned long stack, int order)
 	free_pages(stack, order);
 }
 
-unsigned long alloc_stack(int atomic)
+unsigned long alloc_stack(int order, int atomic)
 {
-	unsigned long addr;
+	unsigned long page;
 	gfp_t flags = GFP_KERNEL;
 
 	if (atomic)
 		flags = GFP_ATOMIC;
-	addr = __get_free_pages(flags, 1);
+	page = __get_free_pages(flags, order);
 
-	set_memory_ro(addr, 1);
-
-	return addr + PAGE_SIZE;
+	return page;
 }
 
 static inline void set_current(struct task_struct *task)
@@ -160,7 +157,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 		unsigned long arg, struct task_struct * p, unsigned long tls)
 {
 	void (*handler)(void);
-	int kthread = current->flags & PF_KTHREAD;
+	int kthread = current->flags & (PF_KTHREAD | PF_IO_WORKER);
 	int ret = 0;
 
 	p->thread = (struct thread_struct) INIT_THREAD;

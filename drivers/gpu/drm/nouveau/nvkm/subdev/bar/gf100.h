@@ -15,7 +15,7 @@ struct gf100_bar {
 	struct gf100_barN bar[2];
 };
 
-int gf100_bar_new_(const struct nvkm_bar_func *, struct nvkm_device *,
+int gf100_bar_new_(const struct nvkm_bar_func *, struct nvkm_device *, enum nvkm_subdev_type,
 		   int, struct nvkm_bar **);
 void *gf100_bar_dtor(struct nvkm_bar *);
 int gf100_bar_oneinit(struct nvkm_bar *);

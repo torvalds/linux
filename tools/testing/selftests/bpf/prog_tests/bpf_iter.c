@@ -7,6 +7,7 @@
 #include "bpf_iter_task.skel.h"
 #include "bpf_iter_task_stack.skel.h"
 #include "bpf_iter_task_file.skel.h"
+#include "bpf_iter_task_vma.skel.h"
 #include "bpf_iter_task_btf.skel.h"
 #include "bpf_iter_tcp4.skel.h"
 #include "bpf_iter_tcp6.skel.h"
@@ -62,6 +63,22 @@ static void do_dummy_read(struct bpf_program *prog)
 
 free_link:
 	bpf_link__destroy(link);
+}
+
+static int read_fd_into_buffer(int fd, char *buf, int size)
+{
+	int bufleft = size;
+	int len;
+
+	do {
+		len = read(fd, buf, bufleft);
+		if (len > 0) {
+			buf += len;
+			bufleft -= len;
+		}
+	} while (len > 0);
+
+	return len < 0 ? len : size - bufleft;
 }
 
 static void test_ipv6_route(void)
@@ -177,7 +194,7 @@ static int do_btf_read(struct bpf_iter_task_btf *skel)
 {
 	struct bpf_program *prog = skel->progs.dump_task_struct;
 	struct bpf_iter_task_btf__bss *bss = skel->bss;
-	int iter_fd = -1, len = 0, bufleft = TASKBUFSZ;
+	int iter_fd = -1, err;
 	struct bpf_link *link;
 	char *buf = taskbuf;
 	int ret = 0;
@@ -190,14 +207,7 @@ static int do_btf_read(struct bpf_iter_task_btf *skel)
 	if (CHECK(iter_fd < 0, "create_iter", "create_iter failed\n"))
 		goto free_link;
 
-	do {
-		len = read(iter_fd, buf, bufleft);
-		if (len > 0) {
-			buf += len;
-			bufleft -= len;
-		}
-	} while (len > 0);
-
+	err = read_fd_into_buffer(iter_fd, buf, TASKBUFSZ);
 	if (bss->skip) {
 		printf("%s:SKIP:no __builtin_btf_type_id\n", __func__);
 		ret = 1;
@@ -205,7 +215,7 @@ static int do_btf_read(struct bpf_iter_task_btf *skel)
 		goto free_link;
 	}
 
-	if (CHECK(len < 0, "read", "read failed: %s\n", strerror(errno)))
+	if (CHECK(err < 0, "read", "read failed: %s\n", strerror(errno)))
 		goto free_link;
 
 	CHECK(strstr(taskbuf, "(struct task_struct)") == NULL,
@@ -1133,6 +1143,92 @@ static void test_buf_neg_offset(void)
 		bpf_iter_test_kern6__destroy(skel);
 }
 
+#define CMP_BUFFER_SIZE 1024
+static char task_vma_output[CMP_BUFFER_SIZE];
+static char proc_maps_output[CMP_BUFFER_SIZE];
+
+/* remove \0 and \t from str, and only keep the first line */
+static void str_strip_first_line(char *str)
+{
+	char *dst = str, *src = str;
+
+	do {
+		if (*src == ' ' || *src == '\t')
+			src++;
+		else
+			*(dst++) = *(src++);
+
+	} while (*src != '\0' && *src != '\n');
+
+	*dst = '\0';
+}
+
+#define min(a, b) ((a) < (b) ? (a) : (b))
+
+static void test_task_vma(void)
+{
+	int err, iter_fd = -1, proc_maps_fd = -1;
+	struct bpf_iter_task_vma *skel;
+	int len, read_size = 4;
+	char maps_path[64];
+
+	skel = bpf_iter_task_vma__open();
+	if (CHECK(!skel, "bpf_iter_task_vma__open", "skeleton open failed\n"))
+		return;
+
+	skel->bss->pid = getpid();
+
+	err = bpf_iter_task_vma__load(skel);
+	if (CHECK(err, "bpf_iter_task_vma__load", "skeleton load failed\n"))
+		goto out;
+
+	skel->links.proc_maps = bpf_program__attach_iter(
+		skel->progs.proc_maps, NULL);
+
+	if (CHECK(IS_ERR(skel->links.proc_maps), "bpf_program__attach_iter",
+		  "attach iterator failed\n")) {
+		skel->links.proc_maps = NULL;
+		goto out;
+	}
+
+	iter_fd = bpf_iter_create(bpf_link__fd(skel->links.proc_maps));
+	if (CHECK(iter_fd < 0, "create_iter", "create_iter failed\n"))
+		goto out;
+
+	/* Read CMP_BUFFER_SIZE (1kB) from bpf_iter. Read in small chunks
+	 * to trigger seq_file corner cases. The expected output is much
+	 * longer than 1kB, so the while loop will terminate.
+	 */
+	len = 0;
+	while (len < CMP_BUFFER_SIZE) {
+		err = read_fd_into_buffer(iter_fd, task_vma_output + len,
+					  min(read_size, CMP_BUFFER_SIZE - len));
+		if (CHECK(err < 0, "read_iter_fd", "read_iter_fd failed\n"))
+			goto out;
+		len += err;
+	}
+
+	/* read CMP_BUFFER_SIZE (1kB) from /proc/pid/maps */
+	snprintf(maps_path, 64, "/proc/%u/maps", skel->bss->pid);
+	proc_maps_fd = open(maps_path, O_RDONLY);
+	if (CHECK(proc_maps_fd < 0, "open_proc_maps", "open_proc_maps failed\n"))
+		goto out;
+	err = read_fd_into_buffer(proc_maps_fd, proc_maps_output, CMP_BUFFER_SIZE);
+	if (CHECK(err < 0, "read_prog_maps_fd", "read_prog_maps_fd failed\n"))
+		goto out;
+
+	/* strip and compare the first line of the two files */
+	str_strip_first_line(task_vma_output);
+	str_strip_first_line(proc_maps_output);
+
+	CHECK(strcmp(task_vma_output, proc_maps_output), "compare_output",
+	      "found mismatch\n");
+out:
+	close(proc_maps_fd);
+	close(iter_fd);
+	bpf_iter_task_vma__destroy(skel);
+}
+
 void test_bpf_iter(void)
 {
 	if (test__start_subtest("btf_id_or_null"))
@@ -1149,6 +1245,8 @@ void test_bpf_iter(void)
 		test_task_stack();
 	if (test__start_subtest("task_file"))
 		test_task_file();
+	if (test__start_subtest("task_vma"))
+		test_task_vma();
 	if (test__start_subtest("task_btf"))
 		test_task_btf();
 	if (test__start_subtest("tcp4"))

@@ -3607,7 +3607,7 @@ static int idt77252_init_one(struct pci_dev *pcidev,
 
 	if ((err = dma_set_mask_and_coherent(&pcidev->dev, DMA_BIT_MASK(32)))) {
 		printk("idt77252: can't enable DMA for PCI device at %s\n", pci_name(pcidev));
-		return err;
+		goto err_out_disable_pdev;
 	}
 
 	card = kzalloc(sizeof(struct idt77252_dev), GFP_KERNEL);
@@ -3743,16 +3743,7 @@ static int __init idt77252_init(void)
 	struct sk_buff *skb;
 
 	printk("%s: at %p\n", __func__, idt77252_init);
-
-	if (sizeof(skb->cb) < sizeof(struct atm_skb_data) +
-			      sizeof(struct idt77252_skb_prv)) {
-		printk(KERN_ERR "%s: skb->cb is too small (%lu < %lu)\n",
-		       __func__, (unsigned long) sizeof(skb->cb),
-		       (unsigned long) sizeof(struct atm_skb_data) +
-				       sizeof(struct idt77252_skb_prv));
-		return -EIO;
-	}
-
+	BUILD_BUG_ON(sizeof(skb->cb) < sizeof(struct idt77252_skb_prv) + sizeof(struct atm_skb_data));
 	return pci_register_driver(&idt77252_driver);
 }
 

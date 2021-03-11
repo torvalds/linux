@@ -562,7 +562,7 @@ static struct snd_soc_dai_driver wm8770_dai = {
 		.formats = WM8770_FORMATS
 	},
 	.ops = &wm8770_dai_ops,
-	.symmetric_rates = 1
+	.symmetric_rate = 1
 };
 
 static int wm8770_probe(struct snd_soc_component *component)

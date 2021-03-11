@@ -512,6 +512,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_void),
 		.pc_ressize = sizeof(struct nlm_void),
 		.pc_xdrressize = St,
+		.pc_name = "NULL",
 	},
 	[NLMPROC_TEST] = {
 		.pc_func = nlm4svc_proc_test,
@@ -520,6 +521,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_args),
 		.pc_ressize = sizeof(struct nlm_res),
 		.pc_xdrressize = Ck+St+2+No+Rg,
+		.pc_name = "TEST",
 	},
 	[NLMPROC_LOCK] = {
 		.pc_func = nlm4svc_proc_lock,
@@ -528,6 +530,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_args),
 		.pc_ressize = sizeof(struct nlm_res),
 		.pc_xdrressize = Ck+St,
+		.pc_name = "LOCK",
 	},
 	[NLMPROC_CANCEL] = {
 		.pc_func = nlm4svc_proc_cancel,
@@ -536,6 +539,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_args),
 		.pc_ressize = sizeof(struct nlm_res),
 		.pc_xdrressize = Ck+St,
+		.pc_name = "CANCEL",
 	},
 	[NLMPROC_UNLOCK] = {
 		.pc_func = nlm4svc_proc_unlock,
@@ -544,6 +548,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_args),
 		.pc_ressize = sizeof(struct nlm_res),
 		.pc_xdrressize = Ck+St,
+		.pc_name = "UNLOCK",
 	},
 	[NLMPROC_GRANTED] = {
 		.pc_func = nlm4svc_proc_granted,
@@ -552,6 +557,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_args),
 		.pc_ressize = sizeof(struct nlm_res),
 		.pc_xdrressize = Ck+St,
+		.pc_name = "GRANTED",
 	},
 	[NLMPROC_TEST_MSG] = {
 		.pc_func = nlm4svc_proc_test_msg,
@@ -560,6 +566,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_args),
 		.pc_ressize = sizeof(struct nlm_void),
 		.pc_xdrressize = St,
+		.pc_name = "TEST_MSG",
 	},
 	[NLMPROC_LOCK_MSG] = {
 		.pc_func = nlm4svc_proc_lock_msg,
@@ -568,6 +575,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_args),
 		.pc_ressize = sizeof(struct nlm_void),
 		.pc_xdrressize = St,
+		.pc_name = "LOCK_MSG",
 	},
 	[NLMPROC_CANCEL_MSG] = {
 		.pc_func = nlm4svc_proc_cancel_msg,
@@ -576,6 +584,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_args),
 		.pc_ressize = sizeof(struct nlm_void),
 		.pc_xdrressize = St,
+		.pc_name = "CANCEL_MSG",
 	},
 	[NLMPROC_UNLOCK_MSG] = {
 		.pc_func = nlm4svc_proc_unlock_msg,
@@ -584,6 +593,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_args),
 		.pc_ressize = sizeof(struct nlm_void),
 		.pc_xdrressize = St,
+		.pc_name = "UNLOCK_MSG",
 	},
 	[NLMPROC_GRANTED_MSG] = {
 		.pc_func = nlm4svc_proc_granted_msg,
@@ -592,6 +602,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_args),
 		.pc_ressize = sizeof(struct nlm_void),
 		.pc_xdrressize = St,
+		.pc_name = "GRANTED_MSG",
 	},
 	[NLMPROC_TEST_RES] = {
 		.pc_func = nlm4svc_proc_null,
@@ -600,6 +611,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_res),
 		.pc_ressize = sizeof(struct nlm_void),
 		.pc_xdrressize = St,
+		.pc_name = "TEST_RES",
 	},
 	[NLMPROC_LOCK_RES] = {
 		.pc_func = nlm4svc_proc_null,
@@ -608,6 +620,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_res),
 		.pc_ressize = sizeof(struct nlm_void),
 		.pc_xdrressize = St,
+		.pc_name = "LOCK_RES",
 	},
 	[NLMPROC_CANCEL_RES] = {
 		.pc_func = nlm4svc_proc_null,
@@ -616,6 +629,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_res),
 		.pc_ressize = sizeof(struct nlm_void),
 		.pc_xdrressize = St,
+		.pc_name = "CANCEL_RES",
 	},
 	[NLMPROC_UNLOCK_RES] = {
 		.pc_func = nlm4svc_proc_null,
@@ -624,6 +638,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_res),
 		.pc_ressize = sizeof(struct nlm_void),
 		.pc_xdrressize = St,
+		.pc_name = "UNLOCK_RES",
 	},
 	[NLMPROC_GRANTED_RES] = {
 		.pc_func = nlm4svc_proc_granted_res,
@@ -632,6 +647,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_res),
 		.pc_ressize = sizeof(struct nlm_void),
 		.pc_xdrressize = St,
+		.pc_name = "GRANTED_RES",
 	},
 	[NLMPROC_NSM_NOTIFY] = {
 		.pc_func = nlm4svc_proc_sm_notify,
@@ -640,6 +656,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_reboot),
 		.pc_ressize = sizeof(struct nlm_void),
 		.pc_xdrressize = St,
+		.pc_name = "SM_NOTIFY",
 	},
 	[17] = {
 		.pc_func = nlm4svc_proc_unused,
@@ -648,6 +665,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_void),
 		.pc_ressize = sizeof(struct nlm_void),
 		.pc_xdrressize = 0,
+		.pc_name = "UNUSED",
 	},
 	[18] = {
 		.pc_func = nlm4svc_proc_unused,
@@ -656,6 +674,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_void),
 		.pc_ressize = sizeof(struct nlm_void),
 		.pc_xdrressize = 0,
+		.pc_name = "UNUSED",
 	},
 	[19] = {
 		.pc_func = nlm4svc_proc_unused,
@@ -664,6 +683,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_void),
 		.pc_ressize = sizeof(struct nlm_void),
 		.pc_xdrressize = 0,
+		.pc_name = "UNUSED",
 	},
 	[NLMPROC_SHARE] = {
 		.pc_func = nlm4svc_proc_share,
@@ -672,6 +692,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_args),
 		.pc_ressize = sizeof(struct nlm_res),
 		.pc_xdrressize = Ck+St+1,
+		.pc_name = "SHARE",
 	},
 	[NLMPROC_UNSHARE] = {
 		.pc_func = nlm4svc_proc_unshare,
@@ -680,6 +701,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_args),
 		.pc_ressize = sizeof(struct nlm_res),
 		.pc_xdrressize = Ck+St+1,
+		.pc_name = "UNSHARE",
 	},
 	[NLMPROC_NM_LOCK] = {
 		.pc_func = nlm4svc_proc_nm_lock,
@@ -688,6 +710,7 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_args),
 		.pc_ressize = sizeof(struct nlm_res),
 		.pc_xdrressize = Ck+St,
+		.pc_name = "NM_LOCK",
 	},
 	[NLMPROC_FREE_ALL] = {
 		.pc_func = nlm4svc_proc_free_all,
@@ -696,5 +719,6 @@ const struct svc_procedure nlmsvc_procedures4[24] = {
 		.pc_argsize = sizeof(struct nlm_args),
 		.pc_ressize = sizeof(struct nlm_void),
 		.pc_xdrressize = St,
+		.pc_name = "FREE_ALL",
 	},
 };

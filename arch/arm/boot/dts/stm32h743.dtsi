@@ -354,7 +354,7 @@
 			dma-requests = <32>;
 		};
 
-		sdmmc1: sdmmc@52007000 {
+		sdmmc1: mmc@52007000 {
 			compatible = "arm,pl18x", "arm,primecell";
 			arm,primecell-periphid = <0x10153180>;
 			reg = <0x52007000 0x1000>;

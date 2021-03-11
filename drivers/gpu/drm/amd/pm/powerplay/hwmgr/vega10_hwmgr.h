@@ -442,5 +442,6 @@ int vega10_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int vega10_update_samu_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int vega10_update_acp_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int vega10_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable);
+int vega10_hwmgr_init(struct pp_hwmgr *hwmgr);
 
 #endif /* _VEGA10_HWMGR_H_ */

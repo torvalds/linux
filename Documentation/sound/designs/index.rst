@@ -14,3 +14,4 @@ Designs and Implementations
    powersave
    oss-emulation
    seq-oss
+   jack-injection

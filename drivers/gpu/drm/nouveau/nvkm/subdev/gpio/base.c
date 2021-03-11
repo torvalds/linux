@@ -241,14 +241,14 @@ nvkm_gpio = {
 
 int
 nvkm_gpio_new_(const struct nvkm_gpio_func *func, struct nvkm_device *device,
-	       int index, struct nvkm_gpio **pgpio)
+	       enum nvkm_subdev_type type, int inst, struct nvkm_gpio **pgpio)
 {
 	struct nvkm_gpio *gpio;
 
 	if (!(gpio = *pgpio = kzalloc(sizeof(*gpio), GFP_KERNEL)))
 		return -ENOMEM;
 
-	nvkm_subdev_ctor(&nvkm_gpio, device, index, &gpio->subdev);
+	nvkm_subdev_ctor(&nvkm_gpio, device, type, inst, &gpio->subdev);
 	gpio->func = func;
 
 	return nvkm_event_init(&nvkm_gpio_intr_func, 2, func->lines,

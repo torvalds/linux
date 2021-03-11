@@ -196,7 +196,6 @@ config PPC
 	select HAVE_STACKPROTECTOR		if PPC64 && $(cc-option,-mstack-protector-guard=tls -mstack-protector-guard-reg=r13)
 	select HAVE_STACKPROTECTOR		if PPC32 && $(cc-option,-mstack-protector-guard=tls -mstack-protector-guard-reg=r2)
 	select HAVE_CONTEXT_TRACKING		if PPC64
-	select HAVE_TIF_NOHZ			if PPC64
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_DYNAMIC_FTRACE
@@ -226,7 +225,6 @@ config PPC
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NMI				if PERF_EVENTS || (PPC64 && PPC_BOOK3S)
 	select HAVE_HARDLOCKUP_DETECTOR_ARCH	if (PPC64 && PPC_BOOK3S)
-	select HAVE_OPROFILE
 	select HAVE_OPTPROBES			if PPC64
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_EVENTS_NMI		if PPC64
@@ -237,6 +235,7 @@ config PPC
 	select MMU_GATHER_PAGE_SIZE
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_RELIABLE_STACKTRACE		if PPC_BOOK3S_64 && CPU_LITTLE_ENDIAN
+	select HAVE_SOFTIRQ_ON_OWN_STACK
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_VIRT_CPU_ACCOUNTING
 	select HAVE_IRQ_TIME_ACCOUNTING
@@ -282,7 +281,6 @@ config COMPAT
 	bool "Enable support for 32bit binaries"
 	depends on PPC64
 	default y if !CPU_LITTLE_ENDIAN
-	select COMPAT_BINFMT_ELF
 	select ARCH_WANT_OLD_COMPAT_IPC
 	select COMPAT_OLD_SIGACTION
 
@@ -505,17 +503,13 @@ config HOTPLUG_CPU
 	  Say N if you are unsure.
 
 config PPC_QUEUED_SPINLOCKS
-	bool "Queued spinlocks"
+	bool "Queued spinlocks" if EXPERT
 	depends on SMP
+	default PPC_BOOK3S_64
 	help
 	  Say Y here to use queued spinlocks which give better scalability and
 	  fairness on large SMP and NUMA systems without harming single threaded
 	  performance.
-
-	  This option is currently experimental, the code is more complex and
-	  less tested so it defaults to "N" for the moment.
-
-	  If unsure, say "N".
 
 config ARCH_CPU_PROBE_RELEASE
 	def_bool y
@@ -720,18 +714,6 @@ config ARCH_MEMORY_PROBE
 	def_bool y
 	depends on MEMORY_HOTPLUG
 
-config STDBINUTILS
-	bool "Using standard binutils settings"
-	depends on 44x
-	default y
-	help
-	  Turning this option off allows you to select 256KB PAGE_SIZE on 44x.
-	  Note, that kernel will be able to run only those applications,
-	  which had been compiled using binutils later than 2.17.50.0.3 with
-	  '-zmax-page-size' set to 256K (the default is 64K). Or, if using
-	  the older binutils, you can patch them with a trivial patch, which
-	  changes the ELF_MAXPAGESIZE definition from 0x10000 to 0x40000.
-
 choice
 	prompt "Page size"
 	default PPC_4K_PAGES
@@ -771,17 +753,15 @@ config PPC_64K_PAGES
 	select HAVE_ARCH_SOFT_DIRTY if PPC_BOOK3S_64
 
 config PPC_256K_PAGES
-	bool "256k page size"
-	depends on 44x && !STDBINUTILS
+	bool "256k page size (Requires non-standard binutils settings)"
+	depends on 44x && !PPC_47x
 	help
 	  Make the page size 256k.
 
-	  As the ELF standard only requires alignment to support page
-	  sizes up to 64k, you will need to compile all of your user
-	  space applications with a non-standard binutils settings
-	  (see the STDBINUTILS description for details).
-
-	  Say N unless you know what you are doing.
+	  The kernel will only be able to run applications that have been
+	  compiled with '-zmax-page-size' set to 256K (the default is 64K) using
+	  binutils later than 2.17.50.0.3, or by patching the ELF_MAXPAGESIZE
+	  definition from 0x10000 to 0x40000 in older versions.
 
 endchoice
 

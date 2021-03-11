@@ -11,7 +11,6 @@
 #include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/bcd.h>
-#include <linux/rtc.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/rtc.h>

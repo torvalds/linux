@@ -18,10 +18,16 @@ properties:
       - const: snps,dw-wdt
       - items:
           - enum:
+              - rockchip,px30-wdt
               - rockchip,rk3066-wdt
               - rockchip,rk3188-wdt
+              - rockchip,rk3228-wdt
               - rockchip,rk3288-wdt
+              - rockchip,rk3308-wdt
+              - rockchip,rk3328-wdt
               - rockchip,rk3368-wdt
+              - rockchip,rk3399-wdt
+              - rockchip,rv1108-wdt
           - const: snps,dw-wdt
 
   reg:

@@ -710,6 +710,10 @@ S: Las Cuevas 2385 - Bo Guemes
 S: Las Heras, Mendoza CP 5539
 S: Argentina
 
+N: Jay Cliburn
+E: jcliburn@gmail.com
+D: ATLX Ethernet drivers
+
 N: Steven P. Cole
 E: scole@lanl.gov
 E: elenstev@mesatop.com
@@ -1240,10 +1244,10 @@ S: 80050-430 - Curitiba - Paraná
 S: Brazil
 
 N: Oded Gabbay
-E: oded.gabbay@gmail.com
-D: HabanaLabs and AMD KFD maintainer
-S: 12 Shraga Raphaeli
-S: Petah-Tikva, 4906418
+E: ogabbay@kernel.org
+D: HabanaLabs maintainer
+S: 29 Duchifat St.
+S: Ra'anana 4372029
 S: Israel
 
 N: Kumar Gala
@@ -1283,6 +1287,10 @@ E: kai@germaschewski.name
 D: Major kbuild rework during the 2.5 cycle
 D: ISDN Maintainer
 S: USA
+
+N: Gerrit Renker
+E: gerrit@erg.abdn.ac.uk
+D: DCCP protocol support.
 
 N: Philip Gladstone
 E: philip@gladstonefamily.net
@@ -2138,6 +2146,10 @@ E: seasons@falcon.sch.bme.hu
 E: seasons@makosteszta.sote.hu
 D: Original author of software suspend
 
+N: Alexey Kuznetsov
+E: kuznet@ms2.inr.ac.ru
+D: Author and maintainer of large parts of the networking stack
+
 N: Jaroslav Kysela
 E: perex@perex.cz
 W: https://www.perex.cz
@@ -2696,6 +2708,10 @@ N: Wolfgang Muees
 E: wolfgang@iksw-muees.de
 D: Auerswald USB driver
 
+N: Shrijeet Mukherjee
+E: shrijeet@gmail.com
+D: Network routing domains (VRF).
+
 N: Paul Mundt
 E: paul.mundt@gmail.com
 D: SuperH maintainer
@@ -2825,14 +2841,11 @@ S: Subiaco, 6008
 S: Perth, Western Australia
 S: Australia
 
-N: Miguel Ojeda Sandonis
-E: miguel.ojeda.sandonis@gmail.com
-W: http://miguelojeda.es
-W: http://jair.lab.fi.uva.es/~migojed/
+N: Miguel Ojeda
+E: ojeda@kernel.org
+W: https://ojeda.dev
 D: Author of the ks0108, cfag12864b and cfag12864bfb auxiliary display drivers.
 D: Maintainer of the auxiliary display drivers tree (drivers/auxdisplay/*)
-S: C/ Mieses 20, 9-B
-S: Valladolid 47009
 S: Spain
 
 N: Peter Oruba
@@ -4110,6 +4123,10 @@ S: B-1206 Jingmao Guojigongyu
 S: 16 Baliqiao Nanjie, Beijing 101100
 S: People's Repulic of China
 
+N: Aviad Yehezkel
+E: aviadye@nvidia.com
+D: Kernel TLS implementation and offload support.
+
 N: Victor Yodaiken
 E: yodaiken@fsmlabs.com
 D: RTLinux (RealTime Linux)
@@ -4166,6 +4183,10 @@ D: XFree86 and kernel development
 S: 1507 145th Place SE #B5
 S: Bellevue, Washington 98007
 S: USA
+
+N: Wensong Zhang
+E: wensong@linux-vs.org
+D: IP virtual server (IPVS).
 
 N: Haojian Zhuang
 E: haojian.zhuang@gmail.com

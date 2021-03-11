@@ -13,6 +13,11 @@
 	model = "LS1012A QDS Board";
 	compatible = "fsl,ls1012a-qds", "fsl,ls1012a";
 
+	aliases {
+		mmc0 = &esdhc0;
+		mmc1 = &esdhc1;
+	};
+
 	sys_mclk: clock-mclk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;

@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <sound/soc.h>
+#include <linux/bitops.h>
 
 #define soc_component_ret(dai, ret) _soc_component_ret(dai, __func__, ret)
 static inline int _soc_component_ret(struct snd_soc_component *component,
@@ -32,6 +33,18 @@ static inline int _soc_component_ret(struct snd_soc_component *component,
 	}
 
 	return ret;
+}
+
+static inline int soc_component_field_shift(struct snd_soc_component *component,
+					    unsigned int mask)
+{
+	if (!mask) {
+		dev_err(component->dev,	"ASoC: error field mask is zero for %s\n",
+			component->name);
+		return 0;
+	}
+
+	return (ffs(mask) - 1);
 }
 
 /*
@@ -838,6 +851,47 @@ int snd_soc_component_update_bits_async(struct snd_soc_component *component,
 	return change;
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_update_bits_async);
+
+/**
+ * snd_soc_component_read_field() - Read register field value
+ * @component: Component to read from
+ * @reg: Register to read
+ * @mask: mask of the register field
+ *
+ * Return: read value of register field.
+ */
+unsigned int snd_soc_component_read_field(struct snd_soc_component *component,
+					  unsigned int reg, unsigned int mask)
+{
+	unsigned int val;
+
+	val = snd_soc_component_read(component, reg);
+
+	val = (val & mask) >> soc_component_field_shift(component, mask);
+
+	return val;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_read_field);
+
+/**
+ * snd_soc_component_write_field() - write to register field
+ * @component: Component to write to
+ * @reg: Register to write
+ * @mask: mask of the register field to update
+ * @val: value of the field to write
+ *
+ * Return: 1 for change, otherwise 0.
+ */
+int snd_soc_component_write_field(struct snd_soc_component *component,
+				  unsigned int reg, unsigned int mask,
+				  unsigned int val)
+{
+
+	val = (val << soc_component_field_shift(component, mask)) & mask;
+
+	return snd_soc_component_update_bits(component, reg, mask, val);
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_write_field);
 
 /**
  * snd_soc_component_async_complete() - Ensure asynchronous I/O has completed

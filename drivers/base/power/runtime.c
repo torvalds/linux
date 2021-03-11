@@ -325,22 +325,22 @@ static void rpm_put_suppliers(struct device *dev)
 static int __rpm_callback(int (*cb)(struct device *), struct device *dev)
 	__releases(&dev->power.lock) __acquires(&dev->power.lock)
 {
-	int retval, idx;
 	bool use_links = dev->power.links_count > 0;
+	bool get = false;
+	int retval, idx;
+	bool put;
 
 	if (dev->power.irq_safe) {
 		spin_unlock(&dev->power.lock);
+	} else if (!use_links) {
+		spin_unlock_irq(&dev->power.lock);
 	} else {
+		get = dev->power.runtime_status == RPM_RESUMING;
+
 		spin_unlock_irq(&dev->power.lock);
 
-		/*
-		 * Resume suppliers if necessary.
-		 *
-		 * The device's runtime PM status cannot change until this
-		 * routine returns, so it is safe to read the status outside of
-		 * the lock.
-		 */
-		if (use_links && dev->power.runtime_status == RPM_RESUMING) {
+		/* Resume suppliers if necessary. */
+		if (get) {
 			idx = device_links_read_lock();
 
 			retval = rpm_get_suppliers(dev);
@@ -355,24 +355,36 @@ static int __rpm_callback(int (*cb)(struct device *), struct device *dev)
 
 	if (dev->power.irq_safe) {
 		spin_lock(&dev->power.lock);
-	} else {
-		/*
-		 * If the device is suspending and the callback has returned
-		 * success, drop the usage counters of the suppliers that have
-		 * been reference counted on its resume.
-		 *
-		 * Do that if resume fails too.
-		 */
-		if (use_links
-		    && ((dev->power.runtime_status == RPM_SUSPENDING && !retval)
-		    || (dev->power.runtime_status == RPM_RESUMING && retval))) {
-			idx = device_links_read_lock();
+		return retval;
+	}
 
- fail:
-			rpm_put_suppliers(dev);
+	spin_lock_irq(&dev->power.lock);
 
-			device_links_read_unlock(idx);
-		}
+	if (!use_links)
+		return retval;
+
+	/*
+	 * If the device is suspending and the callback has returned success,
+	 * drop the usage counters of the suppliers that have been reference
+	 * counted on its resume.
+	 *
+	 * Do that if the resume fails too.
+	 */
+	put = dev->power.runtime_status == RPM_SUSPENDING && !retval;
+	if (put)
+		__update_runtime_status(dev, RPM_SUSPENDED);
+	else
+		put = get && retval;
+
+	if (put) {
+		spin_unlock_irq(&dev->power.lock);
+
+		idx = device_links_read_lock();
+
+fail:
+		rpm_put_suppliers(dev);
+
+		device_links_read_unlock(idx);
 
 		spin_lock_irq(&dev->power.lock);
 	}
@@ -1100,7 +1112,7 @@ EXPORT_SYMBOL_GPL(__pm_runtime_resume);
  * suspending the device when both its runtime PM status is %RPM_ACTIVE and its
  * runtime PM usage counter is not zero.
  *
- * The caller is resposible for decrementing the runtime PM usage counter of
+ * The caller is responsible for decrementing the runtime PM usage counter of
  * @dev after this function has returned a positive value for it.
  */
 int pm_runtime_get_if_active(struct device *dev, bool ign_usage_count)

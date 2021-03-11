@@ -3,79 +3,7 @@
 #define __NVKM_DEVICE_H__
 #include <core/oclass.h>
 #include <core/event.h>
-
-enum nvkm_devidx {
-	NVKM_SUBDEV_PCI,
-	NVKM_SUBDEV_VBIOS,
-	NVKM_SUBDEV_DEVINIT,
-	NVKM_SUBDEV_TOP,
-	NVKM_SUBDEV_IBUS,
-	NVKM_SUBDEV_GPIO,
-	NVKM_SUBDEV_I2C,
-	NVKM_SUBDEV_FUSE,
-	NVKM_SUBDEV_MXM,
-	NVKM_SUBDEV_MC,
-	NVKM_SUBDEV_BUS,
-	NVKM_SUBDEV_TIMER,
-	NVKM_SUBDEV_INSTMEM,
-	NVKM_SUBDEV_FB,
-	NVKM_SUBDEV_LTC,
-	NVKM_SUBDEV_MMU,
-	NVKM_SUBDEV_BAR,
-	NVKM_SUBDEV_FAULT,
-	NVKM_SUBDEV_ACR,
-	NVKM_SUBDEV_PMU,
-	NVKM_SUBDEV_VOLT,
-	NVKM_SUBDEV_ICCSENSE,
-	NVKM_SUBDEV_THERM,
-	NVKM_SUBDEV_CLK,
-	NVKM_SUBDEV_GSP,
-
-	NVKM_ENGINE_BSP,
-
-	NVKM_ENGINE_CE0,
-	NVKM_ENGINE_CE1,
-	NVKM_ENGINE_CE2,
-	NVKM_ENGINE_CE3,
-	NVKM_ENGINE_CE4,
-	NVKM_ENGINE_CE5,
-	NVKM_ENGINE_CE6,
-	NVKM_ENGINE_CE7,
-	NVKM_ENGINE_CE8,
-	NVKM_ENGINE_CE_LAST = NVKM_ENGINE_CE8,
-
-	NVKM_ENGINE_CIPHER,
-	NVKM_ENGINE_DISP,
-	NVKM_ENGINE_DMAOBJ,
-	NVKM_ENGINE_FIFO,
-	NVKM_ENGINE_GR,
-	NVKM_ENGINE_IFB,
-	NVKM_ENGINE_ME,
-	NVKM_ENGINE_MPEG,
-	NVKM_ENGINE_MSENC,
-	NVKM_ENGINE_MSPDEC,
-	NVKM_ENGINE_MSPPP,
-	NVKM_ENGINE_MSVLD,
-
-	NVKM_ENGINE_NVENC0,
-	NVKM_ENGINE_NVENC1,
-	NVKM_ENGINE_NVENC2,
-	NVKM_ENGINE_NVENC_LAST = NVKM_ENGINE_NVENC2,
-
-	NVKM_ENGINE_NVDEC0,
-	NVKM_ENGINE_NVDEC1,
-	NVKM_ENGINE_NVDEC2,
-	NVKM_ENGINE_NVDEC_LAST = NVKM_ENGINE_NVDEC2,
-
-	NVKM_ENGINE_PM,
-	NVKM_ENGINE_SEC,
-	NVKM_ENGINE_SEC2,
-	NVKM_ENGINE_SW,
-	NVKM_ENGINE_VIC,
-	NVKM_ENGINE_VP,
-
-	NVKM_SUBDEV_NR
-};
+enum nvkm_subdev_type;
 
 enum nvkm_device_type {
 	NVKM_DEVICE_PCI,
@@ -102,7 +30,6 @@ struct nvkm_device {
 
 	struct nvkm_event event;
 
-	u64 disable_mask;
 	u32 debug;
 
 	const struct nvkm_device_chip *chip;
@@ -120,6 +47,7 @@ struct nvkm_device {
 		GP100    = 0x130,
 		GV100    = 0x140,
 		TU100    = 0x160,
+		GA100    = 0x170,
 	} card_type;
 	u32 chipset;
 	u8  chiprev;
@@ -129,58 +57,16 @@ struct nvkm_device {
 		struct notifier_block nb;
 	} acpi;
 
-	struct nvkm_acr *acr;
-	struct nvkm_bar *bar;
-	struct nvkm_bios *bios;
-	struct nvkm_bus *bus;
-	struct nvkm_clk *clk;
-	struct nvkm_devinit *devinit;
-	struct nvkm_fault *fault;
-	struct nvkm_fb *fb;
-	struct nvkm_fuse *fuse;
-	struct nvkm_gpio *gpio;
-	struct nvkm_gsp *gsp;
-	struct nvkm_i2c *i2c;
-	struct nvkm_subdev *ibus;
-	struct nvkm_iccsense *iccsense;
-	struct nvkm_instmem *imem;
-	struct nvkm_ltc *ltc;
-	struct nvkm_mc *mc;
-	struct nvkm_mmu *mmu;
-	struct nvkm_subdev *mxm;
-	struct nvkm_pci *pci;
-	struct nvkm_pmu *pmu;
-	struct nvkm_therm *therm;
-	struct nvkm_timer *timer;
-	struct nvkm_top *top;
-	struct nvkm_volt *volt;
-
-	struct nvkm_engine *bsp;
-	struct nvkm_engine *ce[9];
-	struct nvkm_engine *cipher;
-	struct nvkm_disp *disp;
-	struct nvkm_dma *dma;
-	struct nvkm_fifo *fifo;
-	struct nvkm_gr *gr;
-	struct nvkm_engine *ifb;
-	struct nvkm_engine *me;
-	struct nvkm_engine *mpeg;
-	struct nvkm_engine *msenc;
-	struct nvkm_engine *mspdec;
-	struct nvkm_engine *msppp;
-	struct nvkm_engine *msvld;
-	struct nvkm_nvenc *nvenc[3];
-	struct nvkm_nvdec *nvdec[3];
-	struct nvkm_pm *pm;
-	struct nvkm_engine *sec;
-	struct nvkm_sec2 *sec2;
-	struct nvkm_sw *sw;
-	struct nvkm_engine *vic;
-	struct nvkm_engine *vp;
+#define NVKM_LAYOUT_ONCE(type,data,ptr) data *ptr;
+#define NVKM_LAYOUT_INST(type,data,ptr,cnt) data *ptr[cnt];
+#include <core/layout.h>
+#undef NVKM_LAYOUT_INST
+#undef NVKM_LAYOUT_ONCE
+	struct list_head subdev;
 };
 
-struct nvkm_subdev *nvkm_device_subdev(struct nvkm_device *, int index);
-struct nvkm_engine *nvkm_device_engine(struct nvkm_device *, int index);
+struct nvkm_subdev *nvkm_device_subdev(struct nvkm_device *, int type, int inst);
+struct nvkm_engine *nvkm_device_engine(struct nvkm_device *, int type, int inst);
 
 struct nvkm_device_func {
 	struct nvkm_device_pci *(*pci)(struct nvkm_device *);
@@ -201,55 +87,15 @@ struct nvkm_device_quirk {
 
 struct nvkm_device_chip {
 	const char *name;
-
-	int (*acr     )(struct nvkm_device *, int idx, struct nvkm_acr **);
-	int (*bar     )(struct nvkm_device *, int idx, struct nvkm_bar **);
-	int (*bios    )(struct nvkm_device *, int idx, struct nvkm_bios **);
-	int (*bus     )(struct nvkm_device *, int idx, struct nvkm_bus **);
-	int (*clk     )(struct nvkm_device *, int idx, struct nvkm_clk **);
-	int (*devinit )(struct nvkm_device *, int idx, struct nvkm_devinit **);
-	int (*fault   )(struct nvkm_device *, int idx, struct nvkm_fault **);
-	int (*fb      )(struct nvkm_device *, int idx, struct nvkm_fb **);
-	int (*fuse    )(struct nvkm_device *, int idx, struct nvkm_fuse **);
-	int (*gpio    )(struct nvkm_device *, int idx, struct nvkm_gpio **);
-	int (*gsp     )(struct nvkm_device *, int idx, struct nvkm_gsp **);
-	int (*i2c     )(struct nvkm_device *, int idx, struct nvkm_i2c **);
-	int (*ibus    )(struct nvkm_device *, int idx, struct nvkm_subdev **);
-	int (*iccsense)(struct nvkm_device *, int idx, struct nvkm_iccsense **);
-	int (*imem    )(struct nvkm_device *, int idx, struct nvkm_instmem **);
-	int (*ltc     )(struct nvkm_device *, int idx, struct nvkm_ltc **);
-	int (*mc      )(struct nvkm_device *, int idx, struct nvkm_mc **);
-	int (*mmu     )(struct nvkm_device *, int idx, struct nvkm_mmu **);
-	int (*mxm     )(struct nvkm_device *, int idx, struct nvkm_subdev **);
-	int (*pci     )(struct nvkm_device *, int idx, struct nvkm_pci **);
-	int (*pmu     )(struct nvkm_device *, int idx, struct nvkm_pmu **);
-	int (*therm   )(struct nvkm_device *, int idx, struct nvkm_therm **);
-	int (*timer   )(struct nvkm_device *, int idx, struct nvkm_timer **);
-	int (*top     )(struct nvkm_device *, int idx, struct nvkm_top **);
-	int (*volt    )(struct nvkm_device *, int idx, struct nvkm_volt **);
-
-	int (*bsp     )(struct nvkm_device *, int idx, struct nvkm_engine **);
-	int (*ce[9]   )(struct nvkm_device *, int idx, struct nvkm_engine **);
-	int (*cipher  )(struct nvkm_device *, int idx, struct nvkm_engine **);
-	int (*disp    )(struct nvkm_device *, int idx, struct nvkm_disp **);
-	int (*dma     )(struct nvkm_device *, int idx, struct nvkm_dma **);
-	int (*fifo    )(struct nvkm_device *, int idx, struct nvkm_fifo **);
-	int (*gr      )(struct nvkm_device *, int idx, struct nvkm_gr **);
-	int (*ifb     )(struct nvkm_device *, int idx, struct nvkm_engine **);
-	int (*me      )(struct nvkm_device *, int idx, struct nvkm_engine **);
-	int (*mpeg    )(struct nvkm_device *, int idx, struct nvkm_engine **);
-	int (*msenc   )(struct nvkm_device *, int idx, struct nvkm_engine **);
-	int (*mspdec  )(struct nvkm_device *, int idx, struct nvkm_engine **);
-	int (*msppp   )(struct nvkm_device *, int idx, struct nvkm_engine **);
-	int (*msvld   )(struct nvkm_device *, int idx, struct nvkm_engine **);
-	int (*nvenc[3])(struct nvkm_device *, int idx, struct nvkm_nvenc **);
-	int (*nvdec[3])(struct nvkm_device *, int idx, struct nvkm_nvdec **);
-	int (*pm      )(struct nvkm_device *, int idx, struct nvkm_pm **);
-	int (*sec     )(struct nvkm_device *, int idx, struct nvkm_engine **);
-	int (*sec2    )(struct nvkm_device *, int idx, struct nvkm_sec2 **);
-	int (*sw      )(struct nvkm_device *, int idx, struct nvkm_sw **);
-	int (*vic     )(struct nvkm_device *, int idx, struct nvkm_engine **);
-	int (*vp      )(struct nvkm_device *, int idx, struct nvkm_engine **);
+#define NVKM_LAYOUT_ONCE(type,data,ptr,...)                                                  \
+	struct {                                                                             \
+		u32 inst;                                                                    \
+		int (*ctor)(struct nvkm_device *, enum nvkm_subdev_type, int inst, data **); \
+	} ptr;
+#define NVKM_LAYOUT_INST(A...) NVKM_LAYOUT_ONCE(A)
+#include <core/layout.h>
+#undef NVKM_LAYOUT_INST
+#undef NVKM_LAYOUT_ONCE
 };
 
 struct nvkm_device *nvkm_device_find(u64 name);

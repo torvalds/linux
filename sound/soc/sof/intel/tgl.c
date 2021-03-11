@@ -22,9 +22,10 @@ static const struct snd_sof_debugfs_map tgl_dsp_debugfs[] = {
 
 /* Tigerlake ops */
 const struct snd_sof_dsp_ops sof_tgl_ops = {
-	/* probe and remove */
+	/* probe/remove/shutdown */
 	.probe		= hda_dsp_probe,
 	.remove		= hda_dsp_remove,
+	.shutdown	= hda_dsp_remove,
 
 	/* Register IO */
 	.write		= sof_io_write,

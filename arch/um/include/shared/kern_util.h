@@ -19,7 +19,7 @@ extern int kmalloc_ok;
 #define UML_ROUND_UP(addr) \
 	((((unsigned long) addr) + PAGE_SIZE - 1) & PAGE_MASK)
 
-extern unsigned long alloc_stack(int atomic);
+extern unsigned long alloc_stack(int order, int atomic);
 extern void free_stack(unsigned long stack, int order);
 
 struct pt_regs;

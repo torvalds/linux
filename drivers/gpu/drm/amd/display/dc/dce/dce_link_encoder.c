@@ -1197,7 +1197,7 @@ void dce110_link_encoder_enable_dp_mst_output(
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
 /* enables DP PHY output */
-void dce60_link_encoder_enable_dp_output(
+static void dce60_link_encoder_enable_dp_output(
 	struct link_encoder *enc,
 	const struct dc_link_settings *link_settings,
 	enum clock_source_id clock_source)
@@ -1236,7 +1236,7 @@ void dce60_link_encoder_enable_dp_output(
 }
 
 /* enables DP PHY output in MST mode */
-void dce60_link_encoder_enable_dp_mst_output(
+static void dce60_link_encoder_enable_dp_mst_output(
 	struct link_encoder *enc,
 	const struct dc_link_settings *link_settings,
 	enum clock_source_id clock_source)
@@ -1426,7 +1426,7 @@ void dce110_link_encoder_dp_set_phy_pattern(
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
 /* set DP PHY test and training patterns */
-void dce60_link_encoder_dp_set_phy_pattern(
+static void dce60_link_encoder_dp_set_phy_pattern(
 	struct link_encoder *enc,
 	const struct encoder_set_dp_phy_pattern_param *param)
 {
@@ -1503,7 +1503,6 @@ void dce110_link_encoder_update_mst_stream_allocation_table(
 	const struct link_mst_stream_allocation_table *table)
 {
 	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
-	uint32_t value0 = 0;
 	uint32_t value1 = 0;
 	uint32_t value2 = 0;
 	uint32_t slots = 0;
@@ -1604,7 +1603,7 @@ void dce110_link_encoder_update_mst_stream_allocation_table(
 	do {
 		udelay(10);
 
-		value0 = REG_READ(DP_MSE_SAT_UPDATE);
+		REG_READ(DP_MSE_SAT_UPDATE);
 
 		REG_GET(DP_MSE_SAT_UPDATE,
 				DP_MSE_SAT_UPDATE, &value1);

@@ -7,7 +7,6 @@
  *	    Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
-#include <linux/acpi.h>
 #include <linux/completion.h>
 #include <linux/debugfs.h>
 #include <linux/module.h>
@@ -299,13 +298,11 @@ static int dma_test_submit_tx(struct dma_test *dt, size_t npackets)
 		tf->frame.size = 0; /* means 4096 */
 		tf->dma_test = dt;
 
-		tf->data = kzalloc(DMA_TEST_FRAME_SIZE, GFP_KERNEL);
+		tf->data = kmemdup(dma_test_pattern, DMA_TEST_FRAME_SIZE, GFP_KERNEL);
 		if (!tf->data) {
 			kfree(tf);
 			return -ENOMEM;
 		}
-
-		memcpy(tf->data, dma_test_pattern, DMA_TEST_FRAME_SIZE);
 
 		dma_addr = dma_map_single(dma_dev, tf->data, DMA_TEST_FRAME_SIZE,
 					  DMA_TO_DEVICE);

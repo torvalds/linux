@@ -695,6 +695,18 @@ struct ice_aqc_sched_elem_cmd {
 	__le32 addr_low;
 };
 
+struct ice_aqc_txsched_move_grp_info_hdr {
+	__le32 src_parent_teid;
+	__le32 dest_parent_teid;
+	__le16 num_elems;
+	__le16 reserved;
+};
+
+struct ice_aqc_move_elem {
+	struct ice_aqc_txsched_move_grp_info_hdr hdr;
+	__le32 teid[];
+};
+
 struct ice_aqc_elem_info_bw {
 	__le16 bw_profile_idx;
 	__le16 bw_alloc;
@@ -1334,33 +1346,6 @@ struct ice_aqc_nvm_checksum {
 	u8 rsvd2[12];
 };
 
-/* The result of netlist NVM read comes in a TLV format. The actual data
- * (netlist header) starts from word offset 1 (byte 2). The FW strips
- * out the type field from the TLV header so all the netlist fields
- * should adjust their offset value by 1 word (2 bytes) in order to map
- * their correct location.
- */
-#define ICE_AQC_NVM_LINK_TOPO_NETLIST_MOD_ID		0x11B
-#define ICE_AQC_NVM_LINK_TOPO_NETLIST_LEN_OFFSET	1
-#define ICE_AQC_NVM_LINK_TOPO_NETLIST_LEN		2 /* In bytes */
-#define ICE_AQC_NVM_NETLIST_NODE_COUNT_OFFSET		2
-#define ICE_AQC_NVM_NETLIST_NODE_COUNT_LEN		2 /* In bytes */
-#define ICE_AQC_NVM_NETLIST_NODE_COUNT_M		ICE_M(0x3FF, 0)
-#define ICE_AQC_NVM_NETLIST_ID_BLK_START_OFFSET		5
-#define ICE_AQC_NVM_NETLIST_ID_BLK_LEN			0x30 /* In words */
-
-/* netlist ID block field offsets (word offsets) */
-#define ICE_AQC_NVM_NETLIST_ID_BLK_MAJOR_VER_LOW	2
-#define ICE_AQC_NVM_NETLIST_ID_BLK_MAJOR_VER_HIGH	3
-#define ICE_AQC_NVM_NETLIST_ID_BLK_MINOR_VER_LOW	4
-#define ICE_AQC_NVM_NETLIST_ID_BLK_MINOR_VER_HIGH	5
-#define ICE_AQC_NVM_NETLIST_ID_BLK_TYPE_LOW		6
-#define ICE_AQC_NVM_NETLIST_ID_BLK_TYPE_HIGH		7
-#define ICE_AQC_NVM_NETLIST_ID_BLK_REV_LOW		8
-#define ICE_AQC_NVM_NETLIST_ID_BLK_REV_HIGH		9
-#define ICE_AQC_NVM_NETLIST_ID_BLK_SHA_HASH		0xA
-#define ICE_AQC_NVM_NETLIST_ID_BLK_CUST_VER		0x2F
-
 /* Used for NVM Set Package Data command - 0x070A */
 struct ice_aqc_nvm_pkg_data {
 	u8 reserved[3];
@@ -1553,6 +1538,16 @@ struct ice_aqc_lldp_stop_start_specific_agent {
 #define ICE_AQC_START_STOP_AGENT_STOP_DCBX	0
 #define ICE_AQC_START_STOP_AGENT_START_DCBX	ICE_AQC_START_STOP_AGENT_M
 	u8 reserved[15];
+};
+
+/* LLDP Filter Control (direct 0x0A0A) */
+struct ice_aqc_lldp_filter_ctrl {
+	u8 cmd_flags;
+#define ICE_AQC_LLDP_FILTER_ACTION_ADD		0x0
+#define ICE_AQC_LLDP_FILTER_ACTION_DELETE	0x1
+	u8 reserved1;
+	__le16 vsi_num;
+	u8 reserved2[12];
 };
 
 /* Get/Set RSS key (indirect 0x0B04/0x0B02) */
@@ -1878,6 +1873,7 @@ struct ice_aq_desc {
 		struct ice_aqc_lldp_start lldp_start;
 		struct ice_aqc_lldp_set_local_mib lldp_set_mib;
 		struct ice_aqc_lldp_stop_start_specific_agent lldp_agent_ctrl;
+		struct ice_aqc_lldp_filter_ctrl lldp_filter_ctrl;
 		struct ice_aqc_get_set_rss_lut get_set_rss_lut;
 		struct ice_aqc_get_set_rss_key get_set_rss_key;
 		struct ice_aqc_add_txqs add_txqs;
@@ -1977,6 +1973,7 @@ enum ice_adminq_opc {
 	ice_aqc_opc_add_sched_elems			= 0x0401,
 	ice_aqc_opc_cfg_sched_elems			= 0x0403,
 	ice_aqc_opc_get_sched_elems			= 0x0404,
+	ice_aqc_opc_move_sched_elems			= 0x0408,
 	ice_aqc_opc_suspend_sched_elems			= 0x0409,
 	ice_aqc_opc_resume_sched_elems			= 0x040A,
 	ice_aqc_opc_query_port_ets			= 0x040E,
@@ -2018,6 +2015,7 @@ enum ice_adminq_opc {
 	ice_aqc_opc_get_cee_dcb_cfg			= 0x0A07,
 	ice_aqc_opc_lldp_set_local_mib			= 0x0A08,
 	ice_aqc_opc_lldp_stop_start_specific_agent	= 0x0A09,
+	ice_aqc_opc_lldp_filter_ctrl			= 0x0A0A,
 
 	/* RSS commands */
 	ice_aqc_opc_set_rss_key				= 0x0B02,

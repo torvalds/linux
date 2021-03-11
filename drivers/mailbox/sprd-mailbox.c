@@ -35,7 +35,7 @@
 #define SPRD_MBOX_IRQ_CLR			BIT(0)
 
 /* Bit and mask definiation for outbox's SPRD_MBOX_FIFO_STS register */
-#define SPRD_OUTBOX_FIFO_FULL			BIT(0)
+#define SPRD_OUTBOX_FIFO_FULL			BIT(2)
 #define SPRD_OUTBOX_FIFO_WR_SHIFT		16
 #define SPRD_OUTBOX_FIFO_RD_SHIFT		24
 #define SPRD_OUTBOX_FIFO_POS_MASK		GENMASK(7, 0)

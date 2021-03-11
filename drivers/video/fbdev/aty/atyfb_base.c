@@ -175,6 +175,15 @@ u32 aty_ld_lcd(int index, const struct atyfb_par *par)
 		return aty_ld_le32(LCD_DATA, par);
 	}
 }
+#else /* defined(CONFIG_PMAC_BACKLIGHT) || defined(CONFIG_FB_ATY_BACKLIGHT) \
+	 defined(CONFIG_FB_ATY_GENERIC_LCD) */
+void aty_st_lcd(int index, u32 val, const struct atyfb_par *par)
+{ }
+
+u32 aty_ld_lcd(int index, const struct atyfb_par *par)
+{
+	return 0;
+}
 #endif /* defined(CONFIG_PMAC_BACKLIGHT) || defined (CONFIG_FB_ATY_GENERIC_LCD) */
 
 #ifdef CONFIG_FB_ATY_GENERIC_LCD

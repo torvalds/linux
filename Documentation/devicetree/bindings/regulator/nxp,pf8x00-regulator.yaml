@@ -19,7 +19,9 @@ description: |
 properties:
   compatible:
     enum:
-      - nxp,pf8x00
+      - nxp,pf8100
+      - nxp,pf8121a
+      - nxp,pf8200
 
   reg:
     maxItems: 1
@@ -60,8 +62,11 @@ properties:
             $ref: "/schemas/types.yaml#/definitions/uint32"
             minimum: 2100
             maximum: 4500
+            deprecated: true
             description:
               BUCK regulators current limit in mA.
+              This property is deprecated, please use
+              "regulator-max-microamp" instead.
 
               Listed current limits in mA are,
               2100 (default)
@@ -71,20 +76,10 @@ properties:
 
           nxp,phase-shift:
             $ref: "/schemas/types.yaml#/definitions/uint32"
-            minimum: 45
-            maximum: 0
+            default: 0
+            enum: [ 0, 45, 90, 135, 180, 225, 270, 315 ]
             description:
               BUCK regulators phase shift control in degrees.
-
-              Listed phase shift control values in degrees are,
-              45
-              90
-              135
-              180
-              225
-              270
-              315
-              0 (default)
 
         unevaluatedProperties: false
 
@@ -118,7 +113,7 @@ examples:
         #size-cells = <0>;
 
         pmic@8 {
-            compatible = "nxp,pf8x00";
+            compatible = "nxp,pf8100";
             reg = <0x08>;
 
             regulators {

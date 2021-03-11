@@ -15,38 +15,37 @@ description:
 
 properties:
   compatible:
-    enum:
-      - ralink,rt2880-pinmux
+    const: ralink,rt2880-pinmux
 
-  pinctrl-0:
-    description:
-      A phandle to the node containing the subnodes containing default
-      configurations. This is for pinctrl hogs.
+patternProperties:
+  '-pins$':
+    type: object
+    patternProperties:
+      '^(.*-)?pinmux$':
+        type: object
+        description: node for pinctrl.
+        $ref: pinmux-node.yaml#
 
-  pinctrl-names:
-    description:
-      A pinctrl state named "default" can be defined.
-    const: default
+        properties:
+          groups:
+            description: Name of the pin group to use for the functions.
+            enum: [i2c, spi, uart1, uart2, uart3, rgmii1, rgmii2, mdio,
+                   pcie, sdhci]
+          function:
+            description: The mux function to select
+            enum: [gpio, i2c, spi, uart1, uart2, uart3, rgmii1, rgmii2,
+                   mdio, nand1, nand2, sdhci]
+
+        required:
+          - groups
+          - function
+
+        additionalProperties: false
+
+    additionalProperties: false
 
 required:
   - compatible
-
-patternProperties:
-  '[a-z0-9_-]+':
-    if:
-      type: object
-      description: node for pinctrl.
-      $ref: "pinmux-node.yaml"
-    then:
-      properties:
-        groups:
-          description: Name of the pin group to use for the functions.
-          enum: [i2c, spi, uart1, uart2, uart3, rgmii1, rgmii2, mdio,
-                 pcie, sdhci]
-        function:
-          description: The mux function to select
-          enum: [gpio, i2c, spi, uart1, uart2, uart3, rgmii1, rgmii2,
-                 mdio, nand1, nand2, sdhci]
 
 additionalProperties: false
 
@@ -55,14 +54,9 @@ examples:
   - |
     pinctrl {
       compatible = "ralink,rt2880-pinmux";
-      pinctrl-names = "default";
-      pinctrl-0 = <&state_default>;
 
-      state_default: pinctrl0 {
-      };
-
-      i2c_pins: i2c0 {
-        i2c0 {
+      i2c_pins: i2c0-pins {
+        pinmux {
           groups = "i2c";
           function = "i2c";
         };

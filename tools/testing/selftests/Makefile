@@ -33,7 +33,9 @@ TARGETS += memfd
 TARGETS += memory-hotplug
 TARGETS += mincore
 TARGETS += mount
+TARGETS += mount_setattr
 TARGETS += mqueue
+TARGETS += nci
 TARGETS += net
 TARGETS += net/forwarding
 TARGETS += net/mptcp
@@ -77,8 +79,10 @@ TARGETS += zram
 TARGETS_HOTPLUG = cpu-hotplug
 TARGETS_HOTPLUG += memory-hotplug
 
-# User can optionally provide a TARGETS skiplist.
-SKIP_TARGETS ?=
+# User can optionally provide a TARGETS skiplist.  By default we skip
+# BPF since it has cutting edge build time dependencies which require
+# more effort to install.
+SKIP_TARGETS ?= bpf
 ifneq ($(SKIP_TARGETS),)
 	TMP := $(filter-out $(SKIP_TARGETS), $(TARGETS))
 	override TARGETS := $(TMP)
@@ -122,15 +126,6 @@ include $(top_srcdir)/scripts/subarch.include
 ARCH           ?= $(SUBARCH)
 export KSFT_KHDR_INSTALL_DONE := 1
 export BUILD
-
-# build and run gpio when output directory is the src dir.
-# gpio has dependency on tools/gpio and builds tools/gpio
-# objects in the src directory in all cases making the src
-# repo dirty even when objects are relocated.
-ifneq (1,$(DEFAULT_INSTALL_HDR_PATH))
-	TMP := $(filter-out gpio, $(TARGETS))
-	TARGETS := $(TMP)
-endif
 
 # set default goal to all, so make without a target runs all, even when
 # all isn't the first target in the file.

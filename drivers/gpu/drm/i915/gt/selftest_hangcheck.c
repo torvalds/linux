@@ -704,6 +704,7 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 
 	for_each_engine(engine, gt, id) {
 		unsigned int reset_count, reset_engine_count;
+		unsigned long count;
 		IGT_TIMEOUT(end_time);
 
 		if (active && !intel_engine_can_store_dword(engine))
@@ -721,6 +722,7 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 
 		st_engine_heartbeat_disable(engine);
 		set_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
+		count = 0;
 		do {
 			if (active) {
 				struct i915_request *rq;
@@ -770,9 +772,13 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 				err = -EINVAL;
 				break;
 			}
+
+			count++;
 		} while (time_before(jiffies, end_time));
 		clear_bit(I915_RESET_ENGINE + id, &gt->reset.flags);
 		st_engine_heartbeat_enable(engine);
+		pr_info("%s: Completed %lu %s resets\n",
+			engine->name, count, active ? "active" : "idle");
 
 		if (err)
 			break;
@@ -1623,7 +1629,8 @@ static int igt_reset_queue(void *arg)
 			prev = rq;
 			count++;
 		} while (time_before(jiffies, end_time));
-		pr_info("%s: Completed %d resets\n", engine->name, count);
+		pr_info("%s: Completed %d queued resets\n",
+			engine->name, count);
 
 		*h.batch = MI_BATCH_BUFFER_END;
 		intel_gt_chipset_flush(engine->gt);
@@ -1720,7 +1727,8 @@ static int __igt_atomic_reset_engine(struct intel_engine_cs *engine,
 	GEM_TRACE("i915_reset_engine(%s:%s) under %s\n",
 		  engine->name, mode, p->name);
 
-	tasklet_disable(t);
+	if (t->func)
+		tasklet_disable(t);
 	if (strcmp(p->name, "softirq"))
 		local_bh_disable();
 	p->critical_section_begin();
@@ -1730,8 +1738,10 @@ static int __igt_atomic_reset_engine(struct intel_engine_cs *engine,
 	p->critical_section_end();
 	if (strcmp(p->name, "softirq"))
 		local_bh_enable();
-	tasklet_enable(t);
-	tasklet_hi_schedule(t);
+	if (t->func) {
+		tasklet_enable(t);
+		tasklet_hi_schedule(t);
+	}
 
 	if (err)
 		pr_err("i915_reset_engine(%s:%s) failed under %s\n",

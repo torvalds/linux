@@ -3923,7 +3923,7 @@ static void vmaster_update_mute_led(void *private_data, int enabled)
 }
 
 /**
- * snd_dha_gen_add_mute_led_cdev - Create a LED classdev and enable as vmaster mute LED
+ * snd_hda_gen_add_mute_led_cdev - Create a LED classdev and enable as vmaster mute LED
  * @codec: the HDA codec
  * @callback: the callback for LED classdev brightness_set_blocking
  */
@@ -4074,7 +4074,7 @@ static int add_micmute_led_hook(struct hda_codec *codec)
 }
 
 /**
- * snd_dha_gen_add_micmute_led_cdev - Create a LED classdev and enable as mic-mute LED
+ * snd_hda_gen_add_micmute_led_cdev - Create a LED classdev and enable as mic-mute LED
  * @codec: the HDA codec
  * @callback: the callback for LED classdev brightness_set_blocking
  *
@@ -5721,7 +5721,7 @@ static void fill_pcm_stream_name(char *str, size_t len, const char *sfx,
 
 	if (*str)
 		return;
-	strlcpy(str, chip_name, len);
+	strscpy(str, chip_name, len);
 
 	/* drop non-alnum chars after a space */
 	for (p = strchr(str, ' '); p; p = strchr(p + 1, ' ')) {

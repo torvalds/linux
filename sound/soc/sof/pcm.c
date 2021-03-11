@@ -707,7 +707,12 @@ int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_pa
 		}
 		break;
 	case SOF_DAI_INTEL_ALH:
-		/* do nothing for ALH dai_link */
+		/*
+		 * Dai could run with different channel count compared with
+		 * front end, so get dai channel count from topology
+		 */
+		channels->min = dai->dai_config->alh.channels;
+		channels->max = dai->dai_config->alh.channels;
 		break;
 	case SOF_DAI_IMX_ESAI:
 		rate->min = dai->dai_config->esai.fsync_rate;

@@ -890,8 +890,8 @@ static struct aaci *aaci_init_card(struct amba_device *dev)
 
 	card->private_free = aaci_free_card;
 
-	strlcpy(card->driver, DRIVER_NAME, sizeof(card->driver));
-	strlcpy(card->shortname, "ARM AC'97 Interface", sizeof(card->shortname));
+	strscpy(card->driver, DRIVER_NAME, sizeof(card->driver));
+	strscpy(card->shortname, "ARM AC'97 Interface", sizeof(card->shortname));
 	snprintf(card->longname, sizeof(card->longname),
 		 "%s PL%03x rev%u at 0x%08llx, irq %d",
 		 card->shortname, amba_part(dev), amba_rev(dev),
@@ -921,7 +921,7 @@ static int aaci_init_pcm(struct aaci *aaci)
 		pcm->private_data = aaci;
 		pcm->info_flags = 0;
 
-		strlcpy(pcm->name, DRIVER_NAME, sizeof(pcm->name));
+		strscpy(pcm->name, DRIVER_NAME, sizeof(pcm->name));
 
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &aaci_playback_ops);
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &aaci_capture_ops);
@@ -1055,7 +1055,7 @@ static int aaci_probe(struct amba_device *dev,
 	return ret;
 }
 
-static int aaci_remove(struct amba_device *dev)
+static void aaci_remove(struct amba_device *dev)
 {
 	struct snd_card *card = amba_get_drvdata(dev);
 
@@ -1066,8 +1066,6 @@ static int aaci_remove(struct amba_device *dev)
 		snd_card_free(card);
 		amba_release_regions(dev);
 	}
-
-	return 0;
 }
 
 static struct amba_id aaci_ids[] = {

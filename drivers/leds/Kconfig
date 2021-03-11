@@ -928,7 +928,13 @@ config LEDS_ACER_A500
 	  This option enables support for the Power Button LED of
 	  Acer Iconia Tab A500.
 
+comment "Flash and Torch LED drivers"
+source "drivers/leds/flash/Kconfig"
+
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
+
+comment "LED Blink"
+source "drivers/leds/blink/Kconfig"
 
 endif # NEW_LEDS

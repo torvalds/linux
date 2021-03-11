@@ -10,11 +10,6 @@
 		     + __GNUC_MINOR__ * 100	\
 		     + __GNUC_PATCHLEVEL__)
 
-/* https://gcc.gnu.org/bugzilla/show_bug.cgi?id=58145 */
-#if GCC_VERSION < 40900
-# error Sorry, your version of GCC is too old - please use 4.9 or newer.
-#endif
-
 /*
  * This macro obfuscates arithmetic on a variable address so that gcc
  * shouldn't recognize the original var, and make assumptions about it.

@@ -271,7 +271,7 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 	DRM_INFO("fb depth is %d\n", fb->format->depth);
 	DRM_INFO("   pitch is %d\n", fb->pitches[0]);
 
-	vga_switcheroo_client_fb_set(adev_to_drm(adev)->pdev, info);
+	vga_switcheroo_client_fb_set(adev->pdev, info);
 	return 0;
 
 out:

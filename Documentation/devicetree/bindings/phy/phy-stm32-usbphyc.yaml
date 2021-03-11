@@ -45,6 +45,12 @@ properties:
   "#size-cells":
     const: 0
 
+  vdda1v1-supply:
+    description: regulator providing 1V1 power supply to the PLL block
+
+  vdda1v8-supply:
+    description: regulator providing 1V8 power supply to the PLL block
+
 #Required child nodes:
 
 patternProperties:
@@ -60,12 +66,6 @@ patternProperties:
 
       phy-supply:
         description: regulator providing 3V3 power supply to the PHY.
-
-      vdda1v1-supply:
-        description: regulator providing 1V1 power supply to the PLL block
-
-      vdda1v8-supply:
-        description: regulator providing 1V8 power supply to the PLL block
 
       "#phy-cells":
         enum: [ 0x0, 0x1 ]
@@ -90,8 +90,6 @@ patternProperties:
     required:
       - reg
       - phy-supply
-      - vdda1v1-supply
-      - vdda1v8-supply
       - "#phy-cells"
 
     additionalProperties: false
@@ -102,6 +100,8 @@ required:
   - clocks
   - "#address-cells"
   - "#size-cells"
+  - vdda1v1-supply
+  - vdda1v8-supply
   - usb-phy@0
   - usb-phy@1
 
@@ -116,22 +116,20 @@ examples:
         reg = <0x5a006000 0x1000>;
         clocks = <&rcc USBPHY_K>;
         resets = <&rcc USBPHY_R>;
+        vdda1v1-supply = <&reg11>;
+        vdda1v8-supply = <&reg18>;
         #address-cells = <1>;
         #size-cells = <0>;
 
         usbphyc_port0: usb-phy@0 {
             reg = <0>;
             phy-supply = <&vdd_usb>;
-            vdda1v1-supply = <&reg11>;
-            vdda1v8-supply = <&reg18>;
             #phy-cells = <0>;
         };
 
         usbphyc_port1: usb-phy@1 {
             reg = <1>;
             phy-supply = <&vdd_usb>;
-            vdda1v1-supply = <&reg11>;
-            vdda1v8-supply = <&reg18>;
             #phy-cells = <1>;
         };
     };

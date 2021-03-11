@@ -1320,8 +1320,8 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 
 	if (rsnd_ssi_is_pin_sharing(io_capture) ||
 	    rsnd_ssi_is_pin_sharing(io_playback)) {
-		/* should have symmetric_rates if pin sharing */
-		drv->symmetric_rates = 1;
+		/* should have symmetric_rate if pin sharing */
+		drv->symmetric_rate = 1;
 	}
 
 	dev_dbg(dev, "%s (%s/%s)\n", rdai->name,
@@ -1472,7 +1472,7 @@ static int rsnd_kctrl_info(struct snd_kcontrol *kctrl,
 		uinfo->value.enumerated.items = cfg->max;
 		if (uinfo->value.enumerated.item >= cfg->max)
 			uinfo->value.enumerated.item = cfg->max - 1;
-		strlcpy(uinfo->value.enumerated.name,
+		strscpy(uinfo->value.enumerated.name,
 			cfg->texts[uinfo->value.enumerated.item],
 			sizeof(uinfo->value.enumerated.name));
 	} else {

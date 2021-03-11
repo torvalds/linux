@@ -169,6 +169,7 @@ properties:
       - qcom,kryo385
       - qcom,kryo468
       - qcom,kryo485
+      - qcom,kryo685
       - qcom,scorpion
 
   enable-method:
@@ -232,7 +233,6 @@ properties:
       by this cpu (see ./idle-states.yaml).
 
   capacity-dmips-mhz:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
     description:
       u32 value representing CPU capacity (see ./cpu-capacity.txt) in
       DMIPS/MHz, relative to highest capacity-dmips-mhz

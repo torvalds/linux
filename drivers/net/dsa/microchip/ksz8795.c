@@ -784,54 +784,54 @@ static void ksz8795_flush_dyn_mac_table(struct ksz_device *dev, int port)
 
 static int ksz8795_port_vlan_filtering(struct dsa_switch *ds, int port,
 				       bool flag,
-				       struct switchdev_trans *trans)
+				       struct netlink_ext_ack *extack)
 {
 	struct ksz_device *dev = ds->priv;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
 
 	ksz_cfg(dev, S_MIRROR_CTRL, SW_VLAN_ENABLE, flag);
 
 	return 0;
 }
 
-static void ksz8795_port_vlan_add(struct dsa_switch *ds, int port,
-				  const struct switchdev_obj_port_vlan *vlan)
+static int ksz8795_port_vlan_add(struct dsa_switch *ds, int port,
+				 const struct switchdev_obj_port_vlan *vlan,
+				 struct netlink_ext_ack *extack)
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	struct ksz_device *dev = ds->priv;
-	u16 data, vid, new_pvid = 0;
+	u16 data, new_pvid = 0;
 	u8 fid, member, valid;
 
 	ksz_port_cfg(dev, port, P_TAG_CTRL, PORT_REMOVE_TAG, untagged);
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		ksz8795_r_vlan_table(dev, vid, &data);
-		ksz8795_from_vlan(data, &fid, &member, &valid);
+	ksz8795_r_vlan_table(dev, vlan->vid, &data);
+	ksz8795_from_vlan(data, &fid, &member, &valid);
 
-		/* First time to setup the VLAN entry. */
-		if (!valid) {
-			/* Need to find a way to map VID to FID. */
-			fid = 1;
-			valid = 1;
-		}
-		member |= BIT(port);
-
-		ksz8795_to_vlan(fid, member, valid, &data);
-		ksz8795_w_vlan_table(dev, vid, data);
-
-		/* change PVID */
-		if (vlan->flags & BRIDGE_VLAN_INFO_PVID)
-			new_pvid = vid;
+	/* First time to setup the VLAN entry. */
+	if (!valid) {
+		/* Need to find a way to map VID to FID. */
+		fid = 1;
+		valid = 1;
 	}
+	member |= BIT(port);
+
+	ksz8795_to_vlan(fid, member, valid, &data);
+	ksz8795_w_vlan_table(dev, vlan->vid, data);
+
+	/* change PVID */
+	if (vlan->flags & BRIDGE_VLAN_INFO_PVID)
+		new_pvid = vlan->vid;
 
 	if (new_pvid) {
+		u16 vid;
+
 		ksz_pread16(dev, port, REG_PORT_CTRL_VID, &vid);
 		vid &= 0xfff;
 		vid |= new_pvid;
 		ksz_pwrite16(dev, port, REG_PORT_CTRL_VID, vid);
 	}
+
+	return 0;
 }
 
 static int ksz8795_port_vlan_del(struct dsa_switch *ds, int port,
@@ -839,7 +839,7 @@ static int ksz8795_port_vlan_del(struct dsa_switch *ds, int port,
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	struct ksz_device *dev = ds->priv;
-	u16 data, vid, pvid, new_pvid = 0;
+	u16 data, pvid, new_pvid = 0;
 	u8 fid, member, valid;
 
 	ksz_pread16(dev, port, REG_PORT_CTRL_VID, &pvid);
@@ -847,24 +847,22 @@ static int ksz8795_port_vlan_del(struct dsa_switch *ds, int port,
 
 	ksz_port_cfg(dev, port, P_TAG_CTRL, PORT_REMOVE_TAG, untagged);
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		ksz8795_r_vlan_table(dev, vid, &data);
-		ksz8795_from_vlan(data, &fid, &member, &valid);
+	ksz8795_r_vlan_table(dev, vlan->vid, &data);
+	ksz8795_from_vlan(data, &fid, &member, &valid);
 
-		member &= ~BIT(port);
+	member &= ~BIT(port);
 
-		/* Invalidate the entry if no more member. */
-		if (!member) {
-			fid = 0;
-			valid = 0;
-		}
-
-		if (pvid == vid)
-			new_pvid = 1;
-
-		ksz8795_to_vlan(fid, member, valid, &data);
-		ksz8795_w_vlan_table(dev, vid, data);
+	/* Invalidate the entry if no more member. */
+	if (!member) {
+		fid = 0;
+		valid = 0;
 	}
+
+	if (pvid == vlan->vid)
+		new_pvid = 1;
+
+	ksz8795_to_vlan(fid, member, valid, &data);
+	ksz8795_w_vlan_table(dev, vlan->vid, data);
 
 	if (new_pvid != pvid)
 		ksz_pwrite16(dev, port, REG_PORT_CTRL_VID, pvid);
@@ -1098,6 +1096,8 @@ static int ksz8795_setup(struct dsa_switch *ds)
 
 	ksz_init_mib_timer(dev);
 
+	ds->configure_vlan_while_not_filtering = false;
+
 	return 0;
 }
 
@@ -1116,11 +1116,9 @@ static const struct dsa_switch_ops ksz8795_switch_ops = {
 	.port_stp_state_set	= ksz8795_port_stp_state_set,
 	.port_fast_age		= ksz_port_fast_age,
 	.port_vlan_filtering	= ksz8795_port_vlan_filtering,
-	.port_vlan_prepare	= ksz_port_vlan_prepare,
 	.port_vlan_add		= ksz8795_port_vlan_add,
 	.port_vlan_del		= ksz8795_port_vlan_del,
 	.port_fdb_dump		= ksz_port_fdb_dump,
-	.port_mdb_prepare       = ksz_port_mdb_prepare,
 	.port_mdb_add           = ksz_port_mdb_add,
 	.port_mdb_del           = ksz_port_mdb_del,
 	.port_mirror_add	= ksz8795_port_mirror_add,
@@ -1187,6 +1185,20 @@ static const struct ksz_chip_data ksz8795_switch_chips[] = {
 		.port_cnt = 5,		/* total cpu and user ports */
 	},
 	{
+		/*
+		 * WARNING
+		 * =======
+		 * KSZ8794 is similar to KSZ8795, except the port map
+		 * contains a gap between external and CPU ports, the
+		 * port map is NOT continuous. The per-port register
+		 * map is shifted accordingly too, i.e. registers at
+		 * offset 0x40 are NOT used on KSZ8794 and they ARE
+		 * used on KSZ8795 for external port 3.
+		 *           external  cpu
+		 * KSZ8794   0,1,2      4
+		 * KSZ8795   0,1,2,3    4
+		 * KSZ8765   0,1,2,3    4
+		 */
 		.chip_id = 0x8794,
 		.dev_name = "KSZ8794",
 		.num_vlans = 4096,
@@ -1220,9 +1232,13 @@ static int ksz8795_switch_init(struct ksz_device *dev)
 			dev->num_vlans = chip->num_vlans;
 			dev->num_alus = chip->num_alus;
 			dev->num_statics = chip->num_statics;
-			dev->port_cnt = chip->port_cnt;
+			dev->port_cnt = fls(chip->cpu_ports);
+			dev->cpu_port = fls(chip->cpu_ports) - 1;
+			dev->phy_port_cnt = dev->port_cnt - 1;
 			dev->cpu_ports = chip->cpu_ports;
-
+			dev->host_mask = chip->cpu_ports;
+			dev->port_mask = (BIT(dev->phy_port_cnt) - 1) |
+					 chip->cpu_ports;
 			break;
 		}
 	}
@@ -1231,16 +1247,8 @@ static int ksz8795_switch_init(struct ksz_device *dev)
 	if (!dev->cpu_ports)
 		return -ENODEV;
 
-	dev->port_mask = BIT(dev->port_cnt) - 1;
-	dev->port_mask |= dev->host_mask;
-
 	dev->reg_mib_cnt = KSZ8795_COUNTER_NUM;
 	dev->mib_cnt = ARRAY_SIZE(mib_names);
-
-	dev->phy_port_cnt = dev->port_cnt - 1;
-
-	dev->cpu_port = dev->port_cnt - 1;
-	dev->host_mask = BIT(dev->cpu_port);
 
 	dev->ports = devm_kzalloc(dev->dev,
 				  dev->port_cnt * sizeof(struct ksz_port),

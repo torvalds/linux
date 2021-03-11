@@ -20,6 +20,7 @@
  * @TX_CMD_FLG_VHT_NDPA: mark frame is NDPA for VHT beamformer sequence
  * @TX_CMD_FLG_HT_NDPA: mark frame is NDPA for HT beamformer sequence
  * @TX_CMD_FLG_CSI_FDBK2HOST: mark to send feedback to host (only if good CRC)
+ * @TX_CMD_FLG_BT_PRIO_MASK: BT priority value
  * @TX_CMD_FLG_BT_PRIO_POS: the position of the BT priority (bit 11 is ignored
  *	on old firmwares).
  * @TX_CMD_FLG_BT_DIS: disable BT priority for this frame
@@ -51,6 +52,7 @@ enum iwl_tx_flags {
 	TX_CMD_FLG_HT_NDPA		= BIT(9),
 	TX_CMD_FLG_CSI_FDBK2HOST	= BIT(10),
 	TX_CMD_FLG_BT_PRIO_POS		= 11,
+	TX_CMD_FLG_BT_PRIO_MASK		= BIT(11) | BIT(12),
 	TX_CMD_FLG_BT_DIS		= BIT(12),
 	TX_CMD_FLG_SEQ_CTL		= BIT(13),
 	TX_CMD_FLG_MORE_FRAG		= BIT(14),
@@ -177,7 +179,7 @@ enum iwl_tx_offload_assist_flags_pos {
  * ( TX_CMD = 0x1c )
  * @len: in bytes of the payload, see below for details
  * @offload_assist: TX offload configuration
- * @tx_flags: combination of TX_CMD_FLG_*
+ * @tx_flags: combination of TX_CMD_FLG_*, see &enum iwl_tx_flags
  * @scratch: scratch buffer used by the device
  * @rate_n_flags: rate for *all* Tx attempts, if TX_CMD_FLG_STA_RATE_MSK is
  *	cleared. Combination of RATE_MCS_*
@@ -238,7 +240,7 @@ struct iwl_tx_cmd {
 	__le16 pm_frame_timeout;
 	__le16 reserved4;
 	u8 payload[0];
-	struct ieee80211_hdr hdr[];
+	struct ieee80211_hdr hdr[0];
 } __packed; /* TX_CMD_API_S_VER_6 */
 
 struct iwl_dram_sec_info {
@@ -854,6 +856,32 @@ struct iwl_tx_path_flush_cmd {
 	__le16 tid_mask;
 	__le16 reserved;
 } __packed; /* TX_PATH_FLUSH_CMD_API_S_VER_2 */
+
+#define IWL_TX_FLUSH_QUEUE_RSP 16
+
+/**
+ * struct iwl_flush_queue_info - virtual flush queue info
+ * @queue_num: virtual queue id
+ * @read_before_flush: read pointer before flush
+ * @read_after_flush: read pointer after flush
+ */
+struct iwl_flush_queue_info {
+	__le16 tid;
+	__le16 queue_num;
+	__le16 read_before_flush;
+	__le16 read_after_flush;
+} __packed; /* TFDQ_FLUSH_INFO_API_S_VER_1 */
+
+/**
+ * struct iwl_tx_path_flush_cmd_rsp -- queue/FIFO flush command response
+ * @num_flushed_queues: number of queues in queues array
+ * @queues: all flushed queues
+ */
+struct iwl_tx_path_flush_cmd_rsp {
+	__le16 sta_id;
+	__le16 num_flushed_queues;
+	struct iwl_flush_queue_info queues[IWL_TX_FLUSH_QUEUE_RSP];
+} __packed; /* TX_PATH_FLUSH_CMD_RSP_API_S_VER_1 */
 
 /* Available options for the SCD_QUEUE_CFG HCMD */
 enum iwl_scd_cfg_actions {

@@ -138,8 +138,10 @@ void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
 
 	dma_resv_assert_held(bo->base.resv);
 
-	if (bo->pin_count)
+	if (bo->pin_count) {
+		ttm_bo_del_from_lru(bo);
 		return;
+	}
 
 	man = ttm_manager_type(bdev, mem->mem_type);
 	list_move_tail(&bo->lru, &man->lru[bo->priority]);
@@ -957,8 +959,10 @@ static int ttm_bo_bounce_temp_buffer(struct ttm_buffer_object *bo,
 		return ret;
 	/* move to the bounce domain */
 	ret = ttm_bo_handle_move_mem(bo, &hop_mem, false, ctx, NULL);
-	if (ret)
+	if (ret) {
+		ttm_resource_free(bo, &hop_mem);
 		return ret;
+	}
 	return 0;
 }
 
@@ -989,18 +993,19 @@ static int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 	 * stop and the driver will be called to make
 	 * the second hop.
 	 */
-bounce:
 	ret = ttm_bo_mem_space(bo, placement, &mem, ctx);
 	if (ret)
 		return ret;
+bounce:
 	ret = ttm_bo_handle_move_mem(bo, &mem, false, ctx, &hop);
 	if (ret == -EMULTIHOP) {
 		ret = ttm_bo_bounce_temp_buffer(bo, &mem, ctx, &hop);
 		if (ret)
-			return ret;
+			goto out;
 		/* try and move to final place now. */
 		goto bounce;
 	}
+out:
 	if (ret)
 		ttm_resource_free(bo, &mem);
 	return ret;
