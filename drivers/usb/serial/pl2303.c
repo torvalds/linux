@@ -173,7 +173,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 static void pl2303_set_break(struct usb_serial_port *port, bool enable);
 
 enum pl2303_type {
-	TYPE_01,	/* Type 0 and 1 (difference unknown) */
+	TYPE_H,
 	TYPE_HX,
 	TYPE_TA,
 	TYPE_TB,
@@ -203,7 +203,7 @@ struct pl2303_private {
 };
 
 static const struct pl2303_type_data pl2303_type_data[TYPE_COUNT] = {
-	[TYPE_01] = {
+	[TYPE_H] = {
 		.max_baud_rate		= 1228800,
 		.quirks			= PL2303_QUIRK_LEGACY,
 		.no_autoxonxoff		= true,
@@ -382,16 +382,16 @@ static int pl2303_detect_type(struct usb_serial *serial)
 	u8 buf;
 
 	/*
-	 * Legacy types 0 and 1, difference unknown.
+	 * Legacy PL2303H, variants 0 and 1 (difference unknown).
 	 */
 	if (desc->bDeviceClass == 0x02)
-		return TYPE_01;		/* type 0 */
+		return TYPE_H;		/* variant 0 */
 
 	if (desc->bMaxPacketSize0 != 0x40) {
 		if (desc->bDeviceClass == 0x00 || desc->bDeviceClass == 0xff)
-			return TYPE_01;	/* type 1 */
+			return TYPE_H;	/* variant 1 */
 
-		return TYPE_01;		/* type 0 */
+		return TYPE_H;		/* variant 0 */
 	}
 
 	/*
