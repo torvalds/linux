@@ -7,6 +7,8 @@
 #
 
 dtb-$(CONFIG_ARCH_K3) += k3-am654-base-board.dtb
+dtb-$(CONFIG_ARCH_K3) += k3-am6528-iot2050-basic.dtb
+dtb-$(CONFIG_ARCH_K3) += k3-am6548-iot2050-advanced.dtb
 
 dtb-$(CONFIG_ARCH_K3) += k3-j721e-common-proc-board.dtb
 
