@@ -5,7 +5,7 @@ DT_MK_SCHEMA ?= dt-mk-schema
 
 DT_SCHEMA_LINT = $(shell which yamllint)
 
-DT_SCHEMA_MIN_VERSION = 2020.8.1
+DT_SCHEMA_MIN_VERSION = 2021.2.1
 
 PHONY += check_dtschema_version
 check_dtschema_version:
