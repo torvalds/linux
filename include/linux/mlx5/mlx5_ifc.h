@@ -806,9 +806,11 @@ struct mlx5_ifc_e_switch_cap_bits {
 	u8         vport_svlan_insert[0x1];
 	u8         vport_cvlan_insert_if_not_exist[0x1];
 	u8         vport_cvlan_insert_overwrite[0x1];
-	u8         reserved_at_5[0x3];
+	u8         reserved_at_5[0x2];
+	u8         esw_shared_ingress_acl[0x1];
 	u8         esw_uplink_ingress_acl[0x1];
-	u8         reserved_at_9[0x10];
+	u8         root_ft_on_other_esw[0x1];
+	u8         reserved_at_a[0xf];
 	u8         esw_functions_changed[0x1];
 	u8         reserved_at_1a[0x1];
 	u8         ecpf_vport_exists[0x1];
@@ -1502,7 +1504,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_270[0x6];
 	u8         lag_dct[0x2];
 	u8         lag_tx_port_affinity[0x1];
-	u8         reserved_at_279[0x2];
+	u8         lag_native_fdb_selection[0x1];
+	u8         reserved_at_27a[0x1];
 	u8         lag_master[0x1];
 	u8         num_lag_ports[0x4];
 
@@ -10036,14 +10039,19 @@ struct mlx5_ifc_set_flow_table_root_in_bits {
 	u8         reserved_at_60[0x20];
 
 	u8         table_type[0x8];
-	u8         reserved_at_88[0x18];
+	u8         reserved_at_88[0x7];
+	u8         table_of_other_vport[0x1];
+	u8         table_vport_number[0x10];
 
 	u8         reserved_at_a0[0x8];
 	u8         table_id[0x18];
 
 	u8         reserved_at_c0[0x8];
 	u8         underlay_qpn[0x18];
-	u8         reserved_at_e0[0x120];
+	u8         table_eswitch_owner_vhca_id_valid[0x1];
+	u8         reserved_at_e1[0xf];
+	u8         table_eswitch_owner_vhca_id[0x10];
+	u8         reserved_at_100[0x100];
 };
 
 enum {
@@ -10273,7 +10281,8 @@ struct mlx5_ifc_dcbx_param_bits {
 };
 
 struct mlx5_ifc_lagc_bits {
-	u8         reserved_at_0[0x1d];
+	u8         fdb_selection_mode[0x1];
+	u8         reserved_at_1[0x1c];
 	u8         lag_state[0x3];
 
 	u8         reserved_at_20[0x14];
