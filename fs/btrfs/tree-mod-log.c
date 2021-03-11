@@ -60,6 +60,7 @@ u64 btrfs_get_tree_mod_seq(struct btrfs_fs_info *fs_info,
 	if (!elem->seq) {
 		elem->seq = btrfs_inc_tree_mod_seq(fs_info);
 		list_add_tail(&elem->list, &fs_info->tree_mod_seq_list);
+		set_bit(BTRFS_FS_TREE_MOD_LOG_USERS, &fs_info->flags);
 	}
 	write_unlock(&fs_info->tree_mod_log_lock);
 
@@ -83,7 +84,9 @@ void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
 	list_del(&elem->list);
 	elem->seq = 0;
 
-	if (!list_empty(&fs_info->tree_mod_seq_list)) {
+	if (list_empty(&fs_info->tree_mod_seq_list)) {
+		clear_bit(BTRFS_FS_TREE_MOD_LOG_USERS, &fs_info->flags);
+	} else {
 		struct btrfs_seq_list *first;
 
 		first = list_first_entry(&fs_info->tree_mod_seq_list,
@@ -166,8 +169,7 @@ static noinline int tree_mod_log_insert(struct btrfs_fs_info *fs_info,
 static inline bool tree_mod_dont_log(struct btrfs_fs_info *fs_info,
 				    struct extent_buffer *eb)
 {
-	smp_mb();
-	if (list_empty(&(fs_info)->tree_mod_seq_list))
+	if (!test_bit(BTRFS_FS_TREE_MOD_LOG_USERS, &fs_info->flags))
 		return true;
 	if (eb && btrfs_header_level(eb) == 0)
 		return true;
@@ -185,8 +187,7 @@ static inline bool tree_mod_dont_log(struct btrfs_fs_info *fs_info,
 static inline bool tree_mod_need_log(const struct btrfs_fs_info *fs_info,
 				    struct extent_buffer *eb)
 {
-	smp_mb();
-	if (list_empty(&(fs_info)->tree_mod_seq_list))
+	if (!test_bit(BTRFS_FS_TREE_MOD_LOG_USERS, &fs_info->flags))
 		return false;
 	if (eb && btrfs_header_level(eb) == 0)
 		return false;
