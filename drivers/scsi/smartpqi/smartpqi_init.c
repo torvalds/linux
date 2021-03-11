@@ -390,21 +390,15 @@ static inline u32 pqi_read_heartbeat_counter(struct pqi_ctrl_info *ctrl_info)
 
 static inline u8 pqi_read_soft_reset_status(struct pqi_ctrl_info *ctrl_info)
 {
-	if (!ctrl_info->soft_reset_status)
-		return 0;
-
 	return readb(ctrl_info->soft_reset_status);
 }
 
-static inline void pqi_clear_soft_reset_status(struct pqi_ctrl_info *ctrl_info, u8 clear)
+static inline void pqi_clear_soft_reset_status(struct pqi_ctrl_info *ctrl_info)
 {
 	u8 status;
 
-	if (!ctrl_info->soft_reset_status)
-		return;
-
 	status = pqi_read_soft_reset_status(ctrl_info);
-	status &= ~clear;
+	status &= ~PQI_SOFT_RESET_ABORT;
 	writeb(status, ctrl_info->soft_reset_status);
 }
 
@@ -3272,46 +3266,65 @@ static enum pqi_soft_reset_status pqi_poll_for_soft_reset_status(
 		if (status & PQI_SOFT_RESET_ABORT)
 			return RESET_ABORT;
 
+		if (!sis_is_firmware_running(ctrl_info))
+			return RESET_NORESPONSE;
+
 		if (time_after(jiffies, timeout)) {
-			dev_err(&ctrl_info->pci_dev->dev,
+			dev_warn(&ctrl_info->pci_dev->dev,
 				"timed out waiting for soft reset status\n");
 			return RESET_TIMEDOUT;
 		}
-
-		if (!sis_is_firmware_running(ctrl_info))
-			return RESET_NORESPONSE;
 
 		ssleep(PQI_SOFT_RESET_STATUS_POLL_INTERVAL_SECS);
 	}
 }
 
-static void pqi_process_soft_reset(struct pqi_ctrl_info *ctrl_info,
-	enum pqi_soft_reset_status reset_status)
+static void pqi_process_soft_reset(struct pqi_ctrl_info *ctrl_info)
 {
 	int rc;
+	enum pqi_soft_reset_status reset_status;
+
+	if (ctrl_info->soft_reset_handshake_supported)
+		reset_status = pqi_poll_for_soft_reset_status(ctrl_info);
+	else
+		reset_status = RESET_INITIATE_FIRMWARE;
 
 	switch (reset_status) {
-	case RESET_INITIATE_DRIVER:
 	case RESET_TIMEDOUT:
+		fallthrough;
+	case RESET_INITIATE_DRIVER:
 		dev_info(&ctrl_info->pci_dev->dev,
-			"resetting controller %u\n", ctrl_info->ctrl_id);
+				"Online Firmware Activation: resetting controller\n");
 		sis_soft_reset(ctrl_info);
 		fallthrough;
 	case RESET_INITIATE_FIRMWARE:
+		ctrl_info->pqi_mode_enabled = false;
+		pqi_save_ctrl_mode(ctrl_info, SIS_MODE);
 		rc = pqi_ofa_ctrl_restart(ctrl_info);
 		pqi_ofa_free_host_buffer(ctrl_info);
+		pqi_ctrl_ofa_done(ctrl_info);
 		dev_info(&ctrl_info->pci_dev->dev,
-			"Online Firmware Activation for controller %u: %s\n",
-			ctrl_info->ctrl_id, rc == 0 ? "SUCCESS" : "FAILED");
+				"Online Firmware Activation: %s\n",
+				rc == 0 ? "SUCCESS" : "FAILED");
 		break;
 	case RESET_ABORT:
-		pqi_ofa_ctrl_unquiesce(ctrl_info);
 		dev_info(&ctrl_info->pci_dev->dev,
-			"Online Firmware Activation for controller %u: %s\n",
-			ctrl_info->ctrl_id, "ABORTED");
+				"Online Firmware Activation ABORTED\n");
+		if (ctrl_info->soft_reset_handshake_supported)
+			pqi_clear_soft_reset_status(ctrl_info);
+		pqi_ofa_free_host_buffer(ctrl_info);
+		pqi_ctrl_ofa_done(ctrl_info);
+		pqi_ofa_ctrl_unquiesce(ctrl_info);
 		break;
 	case RESET_NORESPONSE:
+		fallthrough;
+	default:
+		dev_err(&ctrl_info->pci_dev->dev,
+			"unexpected Online Firmware Activation reset status: 0x%x\n",
+			reset_status);
 		pqi_ofa_free_host_buffer(ctrl_info);
+		pqi_ctrl_ofa_done(ctrl_info);
+		pqi_ofa_ctrl_unquiesce(ctrl_info);
 		pqi_take_ctrl_offline(ctrl_info);
 		break;
 	}
@@ -3321,7 +3334,6 @@ static void pqi_ofa_process_event(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_event *event)
 {
 	u16 event_id;
-	enum pqi_soft_reset_status status;
 
 	event_id = get_unaligned_le16(&event->event_id);
 
@@ -3333,14 +3345,7 @@ static void pqi_ofa_process_event(struct pqi_ctrl_info *ctrl_info,
 			ctrl_info->ctrl_id);
 		pqi_ofa_ctrl_quiesce(ctrl_info);
 		pqi_acknowledge_event(ctrl_info, event);
-		if (ctrl_info->soft_reset_handshake_supported) {
-			status = pqi_poll_for_soft_reset_status(ctrl_info);
-			pqi_process_soft_reset(ctrl_info, status);
-		} else {
-			pqi_process_soft_reset(ctrl_info,
-					RESET_INITIATE_FIRMWARE);
-		}
-
+		pqi_process_soft_reset(ctrl_info);
 	} else if (event_id == PQI_EVENT_OFA_MEMORY_ALLOCATION) {
 		pqi_acknowledge_event(ctrl_info, event);
 		pqi_ofa_setup_host_buffer(ctrl_info,
@@ -7413,7 +7418,8 @@ static void pqi_ctrl_update_feature_flags(struct pqi_ctrl_info *ctrl_info,
 		break;
 	case PQI_FIRMWARE_FEATURE_SOFT_RESET_HANDSHAKE:
 		ctrl_info->soft_reset_handshake_supported =
-			firmware_feature->enabled;
+			firmware_feature->enabled &&
+			pqi_read_soft_reset_status(ctrl_info);
 		break;
 	case PQI_FIRMWARE_FEATURE_RAID_IU_TIMEOUT:
 		ctrl_info->raid_iu_timeout_supported = firmware_feature->enabled;
@@ -7608,6 +7614,19 @@ static void pqi_process_firmware_features_section(
  * Reset all controller settings that can be initialized during the processing
  * of the PQI Configuration Table.
  */
+
+static void pqi_ctrl_reset_config(struct pqi_ctrl_info *ctrl_info)
+{
+	ctrl_info->heartbeat_counter = NULL;
+	ctrl_info->soft_reset_status = NULL;
+	ctrl_info->soft_reset_handshake_supported = false;
+	ctrl_info->enable_r1_writes = false;
+	ctrl_info->enable_r5_writes = false;
+	ctrl_info->enable_r6_writes = false;
+	ctrl_info->raid_iu_timeout_supported = false;
+	ctrl_info->tmf_iu_timeout_supported = false;
+	ctrl_info->unique_wwid_in_report_phys_lun_supported = false;
+}
 
 static int pqi_process_config_table(struct pqi_ctrl_info *ctrl_info)
 {
@@ -8051,6 +8070,8 @@ static int pqi_ctrl_init_resume(struct pqi_ctrl_info *ctrl_info)
 	ctrl_info->controller_online = true;
 	pqi_ctrl_unblock_requests(ctrl_info);
 
+	pqi_ctrl_reset_config(ctrl_info);
+
 	rc = pqi_process_config_table(ctrl_info);
 	if (rc)
 		return rc;
@@ -8314,8 +8335,7 @@ static void pqi_ofa_ctrl_unquiesce(struct pqi_ctrl_info *ctrl_info)
 	pqi_ctrl_unblock_requests(ctrl_info);
 	pqi_start_heartbeat_timer(ctrl_info);
 	pqi_schedule_update_time_worker(ctrl_info);
-	pqi_clear_soft_reset_status(ctrl_info,
-		PQI_SOFT_RESET_ABORT);
+	pqi_clear_soft_reset_status(ctrl_info);
 	pqi_scan_scsi_devices(ctrl_info);
 }
 
