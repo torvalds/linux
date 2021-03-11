@@ -1155,20 +1155,6 @@ ap_spi_fp: &spi10 {
 		};
 	};
 
-	dp_hot_plug_det: dp-hot-plug-det {
-		 pinmux {
-			 pins = "gpio117";
-			 function = "dp_hot";
-		 };
-
-		 config {
-			 pins = "gpio117";
-			 bias-disable;
-			 input-enable;
-			 drive-strength = <2>;
-		 };
-	 };
-
 	edp_brij_en: edp-brij-en {
 		pinmux {
 			pins = "gpio104";
