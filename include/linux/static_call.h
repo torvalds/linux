@@ -128,16 +128,6 @@ struct static_call_mod {
 	struct static_call_site *sites;
 };
 
-struct static_call_key {
-	void *func;
-	union {
-		/* bit 0: 0 = mods, 1 = sites */
-		unsigned long type;
-		struct static_call_mod *mods;
-		struct static_call_site *sites;
-	};
-};
-
 /* For finding the key associated with a trampoline */
 struct static_call_tramp_key {
 	s32 tramp;
@@ -186,10 +176,6 @@ extern long __static_call_return0(void);
 #elif defined(CONFIG_HAVE_STATIC_CALL)
 
 static inline int static_call_init(void) { return 0; }
-
-struct static_call_key {
-	void *func;
-};
 
 #define __DEFINE_STATIC_CALL(name, _func, _func_init)			\
 	DECLARE_STATIC_CALL(name, _func);				\
@@ -242,10 +228,6 @@ static inline long __static_call_return0(void)
 #else /* Generic implementation */
 
 static inline int static_call_init(void) { return 0; }
-
-struct static_call_key {
-	void *func;
-};
 
 static inline long __static_call_return0(void)
 {
