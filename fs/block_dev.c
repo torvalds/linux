@@ -432,7 +432,7 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 		dio->size += bio->bi_iter.bi_size;
 		pos += bio->bi_iter.bi_size;
 
-		nr_pages = bio_iov_vecs_to_alloc(iter, BIO_MAX_PAGES);
+		nr_pages = bio_iov_vecs_to_alloc(iter, BIO_MAX_VECS);
 		if (!nr_pages) {
 			bool polled = false;
 
@@ -500,8 +500,8 @@ blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	if (!iov_iter_count(iter))
 		return 0;
 
-	nr_pages = bio_iov_vecs_to_alloc(iter, BIO_MAX_PAGES + 1);
-	if (is_sync_kiocb(iocb) && nr_pages <= BIO_MAX_PAGES)
+	nr_pages = bio_iov_vecs_to_alloc(iter, BIO_MAX_VECS + 1);
+	if (is_sync_kiocb(iocb) && nr_pages <= BIO_MAX_VECS)
 		return __blkdev_direct_IO_simple(iocb, iter, nr_pages);
 
 	return __blkdev_direct_IO(iocb, iter, bio_max_segs(nr_pages));
