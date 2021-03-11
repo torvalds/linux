@@ -2699,7 +2699,7 @@ cleanup:
  * any previous qh and cancel its urbs first; endpoints are
  * implicitly reset then (data toggle too).
  * That'd mean updating how usbcore talks to HCDs. (2.7?)
-*/
+ */
 
 
 /* Each QH holds a qtd list; a QH is used for everything except iso.
