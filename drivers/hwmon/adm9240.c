@@ -730,26 +730,19 @@ static int adm9240_detect(struct i2c_client *new_client,
 		return -ENODEV;
 
 	/* verify chip: reg address should match i2c address */
-	if (i2c_smbus_read_byte_data(new_client, ADM9240_REG_I2C_ADDR)
-			!= address) {
-		dev_err(&adapter->dev, "detect fail: address match, 0x%02x\n",
-			address);
+	if (i2c_smbus_read_byte_data(new_client, ADM9240_REG_I2C_ADDR) != address)
 		return -ENODEV;
-	}
 
 	/* check known chip manufacturer */
 	man_id = i2c_smbus_read_byte_data(new_client, ADM9240_REG_MAN_ID);
-	if (man_id == 0x23) {
+	if (man_id == 0x23)
 		name = "adm9240";
-	} else if (man_id == 0xda) {
+	else if (man_id == 0xda)
 		name = "ds1780";
-	} else if (man_id == 0x01) {
+	else if (man_id == 0x01)
 		name = "lm81";
-	} else {
-		dev_err(&adapter->dev, "detect fail: unknown manuf, 0x%02x\n",
-			man_id);
+	else
 		return -ENODEV;
-	}
 
 	/* successful detect, print chip info */
 	die_rev = i2c_smbus_read_byte_data(new_client, ADM9240_REG_DIE_REV);
