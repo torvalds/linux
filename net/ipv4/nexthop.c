@@ -3072,6 +3072,40 @@ out:
 }
 EXPORT_SYMBOL(nexthop_set_hw_flags);
 
+void nexthop_bucket_set_hw_flags(struct net *net, u32 id, u16 bucket_index,
+				 bool offload, bool trap)
+{
+	struct nh_res_table *res_table;
+	struct nh_res_bucket *bucket;
+	struct nexthop *nexthop;
+	struct nh_group *nhg;
+
+	rcu_read_lock();
+
+	nexthop = nexthop_find_by_id(net, id);
+	if (!nexthop || !nexthop->is_group)
+		goto out;
+
+	nhg = rcu_dereference(nexthop->nh_grp);
+	if (!nhg->resilient)
+		goto out;
+
+	if (bucket_index >= nhg->res_table->num_nh_buckets)
+		goto out;
+
+	res_table = rcu_dereference(nhg->res_table);
+	bucket = &res_table->nh_buckets[bucket_index];
+	bucket->nh_flags &= ~(RTNH_F_OFFLOAD | RTNH_F_TRAP);
+	if (offload)
+		bucket->nh_flags |= RTNH_F_OFFLOAD;
+	if (trap)
+		bucket->nh_flags |= RTNH_F_TRAP;
+
+out:
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(nexthop_bucket_set_hw_flags);
+
 static void __net_exit nexthop_net_exit(struct net *net)
 {
 	rtnl_lock();
