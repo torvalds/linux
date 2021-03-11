@@ -869,10 +869,8 @@ err_rt_offload_failed_flag_set:
 	return err;
 }
 
-static int nsim_fib_event(struct nsim_fib_event *fib_event)
+static void nsim_fib_event(struct nsim_fib_event *fib_event)
 {
-	int err = 0;
-
 	switch (fib_event->family) {
 	case AF_INET:
 		nsim_fib4_event(fib_event->data, &fib_event->fen_info,
@@ -885,8 +883,6 @@ static int nsim_fib_event(struct nsim_fib_event *fib_event)
 		nsim_fib6_event_fini(&fib_event->fib6_event);
 		break;
 	}
-
-	return err;
 }
 
 static int nsim_fib4_prepare_event(struct fib_notifier_info *info,
