@@ -399,6 +399,7 @@
   __dev_kfree_skb_any
   devm_add_action
   devm_backlight_device_register
+  devm_blk_ksm_init
   devm_clk_bulk_get
   devm_clk_bulk_get_all
   devm_clk_get
