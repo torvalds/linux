@@ -183,6 +183,7 @@ enum pl2303_type {
 };
 
 struct pl2303_type_data {
+	const char *name;
 	speed_t max_baud_rate;
 	unsigned long quirks;
 	unsigned int no_autoxonxoff:1;
@@ -204,23 +205,29 @@ struct pl2303_private {
 
 static const struct pl2303_type_data pl2303_type_data[TYPE_COUNT] = {
 	[TYPE_H] = {
+		.name			= "H",
 		.max_baud_rate		= 1228800,
 		.quirks			= PL2303_QUIRK_LEGACY,
 		.no_autoxonxoff		= true,
 	},
 	[TYPE_HX] = {
+		.name			= "HX",
 		.max_baud_rate		= 6000000,
 	},
 	[TYPE_TA] = {
+		.name			= "TA",
 		.max_baud_rate		= 6000000,
 	},
 	[TYPE_TB] = {
+		.name			= "TB",
 		.max_baud_rate		= 12000000,
 	},
 	[TYPE_HXD] = {
+		.name			= "HXD",
 		.max_baud_rate		= 12000000,
 	},
 	[TYPE_HXN] = {
+		.name			= "G",
 		.max_baud_rate		= 12000000,
 		.no_divisors		= true,
 	},
@@ -444,7 +451,7 @@ static int pl2303_startup(struct usb_serial *serial)
 		return ret;
 
 	type = ret;
-	dev_dbg(&serial->interface->dev, "device type: %d\n", type);
+	dev_dbg(&serial->interface->dev, "device type: %s\n", pl2303_type_data[type].name);
 
 	spriv = kzalloc(sizeof(*spriv), GFP_KERNEL);
 	if (!spriv)
