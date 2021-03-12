@@ -179,6 +179,30 @@ These commands will activate cscope for the C and C++ modes automatically.
 search for a symbol (if you call it when the cursor is over a word,
 it will use that). For more details, check `https://github.com/dkogan/xcscope.el`
 
+clangd
+------
+
+`Clangd <https://clangd.llvm.org/>`__ is a language server that provides tools
+for navigating C and C++ code. 
+`Language Server Protocol <https://microsoft.github.io/language-server-protocol/>`__
+facilitates features like go-to-definition, find-references, hover, completion, etc.,
+using semantic whole project analysis.
+
+Clangd requires a compilation database to understand the kernel source code.
+It can be generated with:
+
+.. code-block:: bash
+
+    make defconfig
+    make
+    scripts/clang-tools/gen_compile_commands.py
+
+LSP clients:
+
+- Vim/Neovim (`coc.nvim <https://github.com/neoclide/coc.nvim>`__, `nvim-lsp <https://github.com/neovim/nvim-lspconfig>`__, `vim-lsc <https://github.com/natebosch/vim-lsc>`__, `vim-lsp <https://github.com/prabirshrestha/vim-lsp>`__)
+- Emacs (`lsp-mode <https://github.com/emacs-lsp/lsp-mode>`__)
+- VSCode (`clangd extension <https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd>`__)
+
 Kscope
 ~~~~~~
 
