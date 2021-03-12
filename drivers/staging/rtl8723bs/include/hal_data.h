@@ -431,7 +431,7 @@ struct hal_com_data {
 	u32 		sdio_tx_max_len[SDIO_MAX_TX_QUEUE];/*  H, N, L, used for sdio tx aggregation max length per queue */
 
 	struct dm_priv dmpriv;
-	DM_ODM_T		odmpriv;
+	struct DM_ODM_T		odmpriv;
 
 	/*  For bluetooth co-existance */
 	BT_COEXIST		bt_coexist;

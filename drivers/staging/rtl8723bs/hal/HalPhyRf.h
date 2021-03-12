@@ -19,10 +19,10 @@ enum PWRTRACK_METHOD {
 	MIX_MODE
 };
 
-typedef void (*FuncSetPwr)(PDM_ODM_T, enum PWRTRACK_METHOD, u8, u8);
-typedef void (*FuncIQK)(PDM_ODM_T, u8, u8, u8);
-typedef void (*FuncLCK)(PDM_ODM_T);
-typedef void (*FuncSwing)(PDM_ODM_T, u8 **, u8 **, u8 **, u8 **);
+typedef void (*FuncSetPwr)(struct DM_ODM_T *, enum PWRTRACK_METHOD, u8, u8);
+typedef void (*FuncIQK)(struct DM_ODM_T *, u8, u8, u8);
+typedef void (*FuncLCK)(struct DM_ODM_T *);
+typedef void (*FuncSwing)(struct DM_ODM_T *, u8 **, u8 **, u8 **, u8 **);
 
 struct TXPWRTRACK_CFG {
 	u8 SwingTableSize_CCK;
@@ -37,10 +37,10 @@ struct TXPWRTRACK_CFG {
 	FuncSwing GetDeltaSwingTable;
 };
 
-void ConfigureTxpowerTrack(PDM_ODM_T pDM_Odm, struct TXPWRTRACK_CFG * pConfig);
+void ConfigureTxpowerTrack(struct DM_ODM_T * pDM_Odm, struct TXPWRTRACK_CFG * pConfig);
 
 
-void ODM_ClearTxPowerTrackingState(PDM_ODM_T pDM_Odm);
+void ODM_ClearTxPowerTrackingState(struct DM_ODM_T * pDM_Odm);
 
 void ODM_TXPowerTrackingCallback_ThermalMeter(struct adapter *Adapter);
 

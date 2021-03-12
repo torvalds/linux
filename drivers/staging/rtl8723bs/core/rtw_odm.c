@@ -152,7 +152,7 @@ inline void rtw_odm_ability_set(struct adapter *adapter, u32 ability)
 void rtw_odm_adaptivity_parm_msg(void *sel, struct adapter *adapter)
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(adapter);
-	DM_ODM_T *odm = &pHalData->odmpriv;
+	struct DM_ODM_T *odm = &pHalData->odmpriv;
 
 	DBG_871X_SEL_NL(sel, "%10s %16s %8s %10s %11s %14s\n",
 			"TH_L2H_ini", "TH_EDCCA_HL_diff", "IGI_Base",
@@ -173,7 +173,7 @@ void rtw_odm_adaptivity_parm_set(struct adapter *adapter, s8 TH_L2H_ini,
 				 u8 IGI_LowerBound)
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(adapter);
-	DM_ODM_T *odm = &pHalData->odmpriv;
+	struct DM_ODM_T *odm = &pHalData->odmpriv;
 
 	odm->TH_L2H_ini = TH_L2H_ini;
 	odm->TH_EDCCA_HL_diff = TH_EDCCA_HL_diff;
@@ -186,7 +186,7 @@ void rtw_odm_adaptivity_parm_set(struct adapter *adapter, s8 TH_L2H_ini,
 void rtw_odm_get_perpkt_rssi(void *sel, struct adapter *adapter)
 {
 	struct hal_com_data *hal_data = GET_HAL_DATA(adapter);
-	DM_ODM_T *odm = &hal_data->odmpriv;
+	struct DM_ODM_T *odm = &hal_data->odmpriv;
 
 	DBG_871X_SEL_NL(sel, "RxRate = %s, RSSI_A = %d(%%), RSSI_B = %d(%%)\n",
 			HDATA_RATE(odm->RxRate), odm->RSSI_A, odm->RSSI_B);

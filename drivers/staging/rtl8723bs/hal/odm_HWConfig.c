@@ -23,7 +23,7 @@ static u8 odm_QueryRxPwrPercentage(s8 AntPower)
 
 }
 
-s32 odm_SignalScaleMapping(PDM_ODM_T pDM_Odm, s32 CurrSig)
+s32 odm_SignalScaleMapping(struct DM_ODM_T * pDM_Odm, s32 CurrSig)
 {
 	s32 RetSig = 0;
 
@@ -77,7 +77,7 @@ static u8 odm_EVMdbToPercentage(s8 Value)
 }
 
 static void odm_RxPhyStatus92CSeries_Parsing(
-	PDM_ODM_T pDM_Odm,
+	struct DM_ODM_T * pDM_Odm,
 	struct odm_phy_info *pPhyInfo,
 	u8 *pPhyStatus,
 	struct odm_packet_info *pPktinfo
@@ -247,7 +247,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 }
 
 static void odm_Process_RSSIForDM(
-	PDM_ODM_T pDM_Odm, struct odm_phy_info *pPhyInfo, struct odm_packet_info *pPktinfo
+	struct DM_ODM_T * pDM_Odm, struct odm_phy_info *pPhyInfo, struct odm_packet_info *pPktinfo
 )
 {
 
@@ -401,7 +401,7 @@ static void odm_Process_RSSIForDM(
 /*  Endianness before calling this API */
 /*  */
 static void ODM_PhyStatusQuery_92CSeries(
-	PDM_ODM_T pDM_Odm,
+	struct DM_ODM_T * pDM_Odm,
 	struct odm_phy_info *pPhyInfo,
 	u8 *pPhyStatus,
 	struct odm_packet_info *pPktinfo
@@ -415,7 +415,7 @@ static void ODM_PhyStatusQuery_92CSeries(
 }
 
 void ODM_PhyStatusQuery(
-	PDM_ODM_T pDM_Odm,
+	struct DM_ODM_T * pDM_Odm,
 	struct odm_phy_info *pPhyInfo,
 	u8 *pPhyStatus,
 	struct odm_packet_info *pPktinfo
@@ -431,9 +431,9 @@ void ODM_PhyStatusQuery(
 /*  */
 
 HAL_STATUS ODM_ConfigRFWithHeaderFile(
-	PDM_ODM_T pDM_Odm,
-	ODM_RF_Config_Type ConfigType,
-	ODM_RF_RADIO_PATH_E eRFPath
+	struct DM_ODM_T * pDM_Odm,
+	enum ODM_RF_Config_Type ConfigType,
+	enum ODM_RF_RADIO_PATH_E eRFPath
 )
 {
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
@@ -450,7 +450,7 @@ HAL_STATUS ODM_ConfigRFWithHeaderFile(
 	return HAL_STATUS_SUCCESS;
 }
 
-HAL_STATUS ODM_ConfigRFWithTxPwrTrackHeaderFile(PDM_ODM_T pDM_Odm)
+HAL_STATUS ODM_ConfigRFWithTxPwrTrackHeaderFile(struct DM_ODM_T * pDM_Odm)
 {
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
 				 ("===>ODM_ConfigRFWithTxPwrTrackHeaderFile (%s)\n", (pDM_Odm->bIsMPChip) ? "MPChip" : "TestChip"));
@@ -465,7 +465,7 @@ HAL_STATUS ODM_ConfigRFWithTxPwrTrackHeaderFile(PDM_ODM_T pDM_Odm)
 }
 
 HAL_STATUS ODM_ConfigBBWithHeaderFile(
-	PDM_ODM_T pDM_Odm, ODM_BB_Config_Type ConfigType
+	struct DM_ODM_T * pDM_Odm, enum ODM_BB_Config_Type ConfigType
 )
 {
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,

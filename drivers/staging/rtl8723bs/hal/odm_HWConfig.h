@@ -122,31 +122,31 @@ typedef struct _Phy_Status_Rpt_8812 {
 
 
 void ODM_PhyStatusQuery(
-	PDM_ODM_T pDM_Odm,
+	struct DM_ODM_T * pDM_Odm,
 	struct odm_phy_info *pPhyInfo,
 	u8 *pPhyStatus,
 	struct odm_packet_info *pPktinfo
 );
 
-HAL_STATUS ODM_ConfigRFWithTxPwrTrackHeaderFile(PDM_ODM_T pDM_Odm);
+HAL_STATUS ODM_ConfigRFWithTxPwrTrackHeaderFile(struct DM_ODM_T * pDM_Odm);
 
 HAL_STATUS ODM_ConfigRFWithHeaderFile(
-	PDM_ODM_T pDM_Odm,
-	ODM_RF_Config_Type ConfigType,
-	ODM_RF_RADIO_PATH_E eRFPath
+	struct DM_ODM_T * pDM_Odm,
+	enum ODM_RF_Config_Type ConfigType,
+	enum ODM_RF_RADIO_PATH_E eRFPath
 );
 
 HAL_STATUS ODM_ConfigBBWithHeaderFile(
-	PDM_ODM_T pDM_Odm, ODM_BB_Config_Type ConfigType
+	struct DM_ODM_T * pDM_Odm, enum ODM_BB_Config_Type ConfigType
 );
 
 HAL_STATUS ODM_ConfigFWWithHeaderFile(
-	PDM_ODM_T pDM_Odm,
-	ODM_FW_Config_Type ConfigType,
+	struct DM_ODM_T * pDM_Odm,
+	enum ODM_FW_Config_Type ConfigType,
 	u8 *pFirmware,
 	u32 *pSize
 );
 
-s32 odm_SignalScaleMapping(PDM_ODM_T pDM_Odm, s32 CurrSig);
+s32 odm_SignalScaleMapping(struct DM_ODM_T * pDM_Odm, s32 CurrSig);
 
 #endif
