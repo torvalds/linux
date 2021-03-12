@@ -363,7 +363,7 @@ interrupt_base:
 
 	/* Data Storage Interrupt */
 	START_EXCEPTION(DataStorage)
-	NORMAL_EXCEPTION_PROLOG(DATA_STORAGE)
+	NORMAL_EXCEPTION_PROLOG(0x300, DATA_STORAGE)
 	mfspr	r5,SPRN_ESR		/* Grab the ESR, save it */
 	stw	r5,_ESR(r11)
 	mfspr	r4,SPRN_DEAR		/* Grab the DEAR, save it */
@@ -613,7 +613,7 @@ END_BTB_FLUSH_SECTION
 #ifdef CONFIG_SPE
 	/* SPE Unavailable */
 	START_EXCEPTION(SPEUnavailable)
-	NORMAL_EXCEPTION_PROLOG(SPE_UNAVAIL)
+	NORMAL_EXCEPTION_PROLOG(0x2010, SPE_UNAVAIL)
 	beq	1f
 	bl	load_up_spe
 	b	fast_exception_return

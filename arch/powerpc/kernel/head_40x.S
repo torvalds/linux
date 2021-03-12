@@ -104,7 +104,7 @@ _ENTRY(crit_esr)
  * Instead we use a couple of words of memory at low physical addresses.
  * This is OK since we don't support SMP on these processors.
  */
-.macro CRITICAL_EXCEPTION_PROLOG name
+.macro CRITICAL_EXCEPTION_PROLOG trapno name
 	stw	r10,crit_r10@l(0)	/* save two registers to work with */
 	stw	r11,crit_r11@l(0)
 	mfspr	r10,SPRN_SRR0
@@ -161,6 +161,8 @@ _ENTRY(crit_esr)
 	lis	r10, STACK_FRAME_REGS_MARKER@ha /* exception frame marker */
 	addi	r10, r10, STACK_FRAME_REGS_MARKER@l
 	stw	r10, 8(r11)
+	li	r10, \trapno + 2
+	stw	r10,_TRAP(r11)
 	SAVE_4GPRS(3, r11)
 	SAVE_2GPRS(7, r11)
 _ASM_NOKPROBE_SYMBOL(\name\()_virt)
@@ -184,7 +186,7 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
  */
 #define CRITICAL_EXCEPTION(n, label, hdlr)			\
 	START_EXCEPTION(n, label);				\
-	CRITICAL_EXCEPTION_PROLOG label;				\
+	CRITICAL_EXCEPTION_PROLOG n label;				\
 	EXC_XFER_TEMPLATE(hdlr, n+2, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), \
 			  crit_transfer_to_handler, ret_from_crit_exc)
 
@@ -206,7 +208,7 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
  * if they can't resolve the lightweight TLB fault.
  */
 	START_EXCEPTION(0x0300,	DataStorage)
-	EXCEPTION_PROLOG DataStorage handle_dar_dsisr=1
+	EXCEPTION_PROLOG 0x300 DataStorage handle_dar_dsisr=1
 	EXC_XFER_LITE(0x300, do_page_fault)
 
 /*
@@ -214,7 +216,7 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
  * This is caused by a fetch from non-execute or guarded pages.
  */
 	START_EXCEPTION(0x0400, InstructionAccess)
-	EXCEPTION_PROLOG InstructionAccess
+	EXCEPTION_PROLOG 0x400 InstructionAccess
 	li	r5,0
 	stw	r5, _ESR(r11)		/* Zero ESR */
 	stw	r12, _DEAR(r11)		/* SRR0 as DEAR */
@@ -225,12 +227,12 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 
 /* 0x0600 - Alignment Exception */
 	START_EXCEPTION(0x0600, Alignment)
-	EXCEPTION_PROLOG Alignment handle_dar_dsisr=1
+	EXCEPTION_PROLOG 0x600 Alignment handle_dar_dsisr=1
 	EXC_XFER_STD(0x600, alignment_exception)
 
 /* 0x0700 - Program Exception */
 	START_EXCEPTION(0x0700, ProgramCheck)
-	EXCEPTION_PROLOG ProgramCheck handle_dar_dsisr=1
+	EXCEPTION_PROLOG 0x700 ProgramCheck handle_dar_dsisr=1
 	EXC_XFER_STD(0x700, program_check_exception)
 
 	EXCEPTION(0x0800, Trap_08, unknown_exception, EXC_XFER_STD)
@@ -449,7 +451,7 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
  */
 	/* 0x2000 - Debug Exception */
 	START_EXCEPTION(0x2000, DebugTrap)
-	CRITICAL_EXCEPTION_PROLOG DebugTrap
+	CRITICAL_EXCEPTION_PROLOG 0x2000 DebugTrap
 
 	/*
 	 * If this is a single step or branch-taken exception in an
@@ -498,7 +500,7 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 	/* Programmable Interval Timer (PIT) Exception. (from 0x1000) */
 	__HEAD
 Decrementer:
-	EXCEPTION_PROLOG Decrementer
+	EXCEPTION_PROLOG 0x1000 Decrementer
 	lis	r0,TSR_PIS@h
 	mtspr	SPRN_TSR,r0		/* Clear the PIT exception */
 	EXC_XFER_LITE(0x1000, timer_interrupt)
@@ -506,13 +508,13 @@ Decrementer:
 	/* Fixed Interval Timer (FIT) Exception. (from 0x1010) */
 	__HEAD
 FITException:
-	EXCEPTION_PROLOG FITException
+	EXCEPTION_PROLOG 0x1010 FITException
 	EXC_XFER_STD(0x1010, unknown_exception)
 
 	/* Watchdog Timer (WDT) Exception. (from 0x1020) */
 	__HEAD
 WDTException:
-	CRITICAL_EXCEPTION_PROLOG WDTException
+	CRITICAL_EXCEPTION_PROLOG 0x1020 WDTException
 	EXC_XFER_TEMPLATE(WatchdogException, 0x1020+2,
 	                  (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)),
 			  crit_transfer_to_handler, ret_from_crit_exc)

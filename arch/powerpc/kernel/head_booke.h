@@ -44,7 +44,7 @@ END_BTB_FLUSH_SECTION
 #endif
 
 
-#define NORMAL_EXCEPTION_PROLOG(intno)						     \
+#define NORMAL_EXCEPTION_PROLOG(trapno, intno)						     \
 	mtspr	SPRN_SPRG_WSCRATCH0, r10;	/* save one register */	     \
 	mfspr	r10, SPRN_SPRG_THREAD;					     \
 	stw	r11, THREAD_NORMSAVE(0)(r10);				     \
@@ -82,6 +82,8 @@ END_BTB_FLUSH_SECTION
 	lis	r10, STACK_FRAME_REGS_MARKER@ha;/* exception frame marker */ \
 	addi	r10, r10, STACK_FRAME_REGS_MARKER@l;			     \
 	stw	r10, 8(r11);						     \
+	li	r10, trapno;						     \
+	stw	r10,_TRAP(r11);						     \
 	SAVE_4GPRS(3, r11);						     \
 	SAVE_2GPRS(7, r11)
 
@@ -182,7 +184,7 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
  * registers as the normal prolog above. Instead we use a portion of the
  * critical/machine check exception stack at low physical addresses.
  */
-#define EXC_LEVEL_EXCEPTION_PROLOG(exc_level, intno, exc_level_srr0, exc_level_srr1) \
+#define EXC_LEVEL_EXCEPTION_PROLOG(exc_level, trapno, intno, exc_level_srr0, exc_level_srr1) \
 	mtspr	SPRN_SPRG_WSCRATCH_##exc_level,r8;			     \
 	BOOKE_LOAD_EXC_LEVEL_STACK(exc_level);/* r8 points to the exc_level stack*/ \
 	stw	r9,GPR9(r8);		/* save various registers	   */\
@@ -225,6 +227,8 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 	stw	r1,0(r11);						     \
 	mr	r1,r11;							     \
 	rlwinm	r9,r9,0,14,12;		/* clear MSR_WE (necessary?)	   */\
+	li	r10, trapno;						     \
+	stw	r10,_TRAP(r11);						     \
 	stw	r0,GPR0(r11);						     \
 	SAVE_4GPRS(3, r11);						     \
 	SAVE_2GPRS(7, r11)
@@ -259,12 +263,12 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 #endif
 .endm
 
-#define CRITICAL_EXCEPTION_PROLOG(intno) \
-		EXC_LEVEL_EXCEPTION_PROLOG(CRIT, intno, SPRN_CSRR0, SPRN_CSRR1)
-#define DEBUG_EXCEPTION_PROLOG \
-		EXC_LEVEL_EXCEPTION_PROLOG(DBG, DEBUG, SPRN_DSRR0, SPRN_DSRR1)
-#define MCHECK_EXCEPTION_PROLOG \
-		EXC_LEVEL_EXCEPTION_PROLOG(MC, MACHINE_CHECK, \
+#define CRITICAL_EXCEPTION_PROLOG(trapno, intno) \
+		EXC_LEVEL_EXCEPTION_PROLOG(CRIT, trapno+2, intno, SPRN_CSRR0, SPRN_CSRR1)
+#define DEBUG_EXCEPTION_PROLOG(trapno) \
+		EXC_LEVEL_EXCEPTION_PROLOG(DBG, trapno+8, DEBUG, SPRN_DSRR0, SPRN_DSRR1)
+#define MCHECK_EXCEPTION_PROLOG(trapno) \
+		EXC_LEVEL_EXCEPTION_PROLOG(MC, trapno+4, MACHINE_CHECK, \
 			SPRN_MCSRR0, SPRN_MCSRR1)
 
 /*
@@ -293,12 +297,12 @@ label:
 
 #define EXCEPTION(n, intno, label, hdlr, xfer)			\
 	START_EXCEPTION(label);					\
-	NORMAL_EXCEPTION_PROLOG(intno);				\
+	NORMAL_EXCEPTION_PROLOG(n, intno);			\
 	xfer(n, hdlr)
 
 #define CRITICAL_EXCEPTION(n, intno, label, hdlr)			\
 	START_EXCEPTION(label);						\
-	CRITICAL_EXCEPTION_PROLOG(intno);				\
+	CRITICAL_EXCEPTION_PROLOG(n, intno);				\
 	SAVE_MMU_REGS;							\
 	SAVE_xSRR(SRR);							\
 	EXC_XFER_TEMPLATE(hdlr, n+2, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), \
@@ -306,7 +310,7 @@ label:
 
 #define MCHECK_EXCEPTION(n, label, hdlr)			\
 	START_EXCEPTION(label);					\
-	MCHECK_EXCEPTION_PROLOG;				\
+	MCHECK_EXCEPTION_PROLOG(n);				\
 	mfspr	r5,SPRN_ESR;					\
 	stw	r5,_ESR(r11);					\
 	SAVE_xSRR(DSRR);					\
@@ -317,8 +321,6 @@ label:
 			  mcheck_transfer_to_handler, ret_from_mcheck_exc)
 
 #define EXC_XFER_TEMPLATE(hdlr, trap, msr, tfer, ret)	\
-	li	r10,trap;					\
-	stw	r10,_TRAP(r11);					\
 	bl	tfer;						\
 	bl	hdlr;						\
 	b	ret;						\
@@ -346,7 +348,7 @@ label:
  */
 #define DEBUG_DEBUG_EXCEPTION						      \
 	START_EXCEPTION(DebugDebug);					      \
-	DEBUG_EXCEPTION_PROLOG;						      \
+	DEBUG_EXCEPTION_PROLOG(2000);						      \
 									      \
 	/*								      \
 	 * If there is a single step or branch-taken exception in an	      \
@@ -402,7 +404,7 @@ label:
 
 #define DEBUG_CRIT_EXCEPTION						      \
 	START_EXCEPTION(DebugCrit);					      \
-	CRITICAL_EXCEPTION_PROLOG(DEBUG);				      \
+	CRITICAL_EXCEPTION_PROLOG(2000,DEBUG);				      \
 									      \
 	/*								      \
 	 * If there is a single step or branch-taken exception in an	      \
@@ -457,7 +459,7 @@ label:
 
 #define DATA_STORAGE_EXCEPTION						      \
 	START_EXCEPTION(DataStorage)					      \
-	NORMAL_EXCEPTION_PROLOG(DATA_STORAGE);		      \
+	NORMAL_EXCEPTION_PROLOG(0x300, DATA_STORAGE);		      \
 	mfspr	r5,SPRN_ESR;		/* Grab the ESR and save it */	      \
 	stw	r5,_ESR(r11);						      \
 	mfspr	r4,SPRN_DEAR;		/* Grab the DEAR */		      \
@@ -466,7 +468,7 @@ label:
 
 #define INSTRUCTION_STORAGE_EXCEPTION					      \
 	START_EXCEPTION(InstructionStorage)				      \
-	NORMAL_EXCEPTION_PROLOG(INST_STORAGE);		      \
+	NORMAL_EXCEPTION_PROLOG(0x400, INST_STORAGE);		      \
 	mfspr	r5,SPRN_ESR;		/* Grab the ESR and save it */	      \
 	stw	r5,_ESR(r11);						      \
 	stw	r12, _DEAR(r11);	/* Pass SRR0 as arg2 */		      \
@@ -474,28 +476,28 @@ label:
 
 #define ALIGNMENT_EXCEPTION						      \
 	START_EXCEPTION(Alignment)					      \
-	NORMAL_EXCEPTION_PROLOG(ALIGNMENT);		      \
+	NORMAL_EXCEPTION_PROLOG(0x600, ALIGNMENT);		      \
 	mfspr   r4,SPRN_DEAR;           /* Grab the DEAR and save it */	      \
 	stw     r4,_DEAR(r11);						      \
 	EXC_XFER_STD(0x0600, alignment_exception)
 
 #define PROGRAM_EXCEPTION						      \
 	START_EXCEPTION(Program)					      \
-	NORMAL_EXCEPTION_PROLOG(PROGRAM);		      \
+	NORMAL_EXCEPTION_PROLOG(0x700, PROGRAM);		      \
 	mfspr	r4,SPRN_ESR;		/* Grab the ESR and save it */	      \
 	stw	r4,_ESR(r11);						      \
 	EXC_XFER_STD(0x0700, program_check_exception)
 
 #define DECREMENTER_EXCEPTION						      \
 	START_EXCEPTION(Decrementer)					      \
-	NORMAL_EXCEPTION_PROLOG(DECREMENTER);		      \
+	NORMAL_EXCEPTION_PROLOG(0x900, DECREMENTER);		      \
 	lis     r0,TSR_DIS@h;           /* Setup the DEC interrupt mask */    \
 	mtspr   SPRN_TSR,r0;		/* Clear the DEC interrupt */	      \
 	EXC_XFER_LITE(0x0900, timer_interrupt)
 
 #define FP_UNAVAILABLE_EXCEPTION					      \
 	START_EXCEPTION(FloatingPointUnavailable)			      \
-	NORMAL_EXCEPTION_PROLOG(FP_UNAVAIL);		      \
+	NORMAL_EXCEPTION_PROLOG(0x800, FP_UNAVAIL);		      \
 	beq	1f;							      \
 	bl	load_up_fpu;		/* if from user, just load it up */   \
 	b	fast_exception_return;					      \

@@ -10,10 +10,10 @@
  * We assume sprg3 has the physical address of the current
  * task's thread_struct.
  */
-.macro EXCEPTION_PROLOG		name handle_dar_dsisr=0
+.macro EXCEPTION_PROLOG		trapno name handle_dar_dsisr=0
 	EXCEPTION_PROLOG_0	handle_dar_dsisr=\handle_dar_dsisr
 	EXCEPTION_PROLOG_1
-	EXCEPTION_PROLOG_2	\name handle_dar_dsisr=\handle_dar_dsisr
+	EXCEPTION_PROLOG_2	\trapno \name handle_dar_dsisr=\handle_dar_dsisr
 .endm
 
 .macro EXCEPTION_PROLOG_0 handle_dar_dsisr=0
@@ -56,7 +56,7 @@
 #endif
 .endm
 
-.macro EXCEPTION_PROLOG_2 name handle_dar_dsisr=0
+.macro EXCEPTION_PROLOG_2 trapno name handle_dar_dsisr=0
 #ifdef CONFIG_PPC_8xx
 	.if	\handle_dar_dsisr
 	li	r11, RPN_PATTERN
@@ -108,6 +108,8 @@
 	lis	r10,STACK_FRAME_REGS_MARKER@ha /* exception frame marker */
 	addi	r10,r10,STACK_FRAME_REGS_MARKER@l
 	stw	r10,8(r11)
+	li	r10, \trapno
+	stw	r10,_TRAP(r11)
 	SAVE_4GPRS(3, r11)
 	SAVE_2GPRS(7, r11)
 _ASM_NOKPROBE_SYMBOL(\name\()_virt)
@@ -182,12 +184,10 @@ label:
 
 #define EXCEPTION(n, label, hdlr, xfer)		\
 	START_EXCEPTION(n, label)		\
-	EXCEPTION_PROLOG label;			\
+	EXCEPTION_PROLOG n label;		\
 	xfer(n, hdlr)
 
 #define EXC_XFER_TEMPLATE(hdlr, trap, msr, tfer, ret)		\
-	li	r10,trap;					\
-	stw	r10,_TRAP(r11);					\
 	bl	tfer;						\
 	bl	hdlr;						\
 	b	ret
@@ -213,7 +213,7 @@ vmap_stack_overflow:
 #endif
 	lwz	r1, emergency_ctx@l(r1)
 	addi	r1, r1, THREAD_SIZE - INT_FRAME_SIZE
-	EXCEPTION_PROLOG_2 vmap_stack_overflow
+	EXCEPTION_PROLOG_2 0 vmap_stack_overflow
 	EXC_XFER_STD(0, stack_overflow_exception)
 .endm
 
