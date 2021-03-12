@@ -2028,7 +2028,7 @@ exit_error:
 }
 
 /**
- * qla4_8xxx_check_temp - Check the ISP82XX temperature.
+ * qla8044_check_temp - Check the ISP82XX temperature.
  * @vha: adapter block pointer.
  *
  * Note: The caller should not hold the idc lock.
