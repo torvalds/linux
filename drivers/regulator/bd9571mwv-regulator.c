@@ -301,7 +301,7 @@ static int bd9571mwv_regulator_probe(struct platform_device *pdev)
 					       &config);
 		if (IS_ERR(rdev)) {
 			dev_err(&pdev->dev, "failed to register %s regulator\n",
-				pdev->name);
+				regulators[i].name);
 			return PTR_ERR(rdev);
 		}
 	}
