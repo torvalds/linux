@@ -86,6 +86,8 @@ _ASM_NOKPROBE_SYMBOL(transfer_to_handler_full)
 
 	.globl	transfer_to_handler
 transfer_to_handler:
+	.globl	prepare_transfer_to_handler
+prepare_transfer_to_handler:
 	SAVE_NVGPRS(r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	stw	r2,GPR2(r11)
@@ -133,6 +135,7 @@ transfer_to_handler_cont:
 	lwz	r2, GPR2(r11)
 	b	fast_exception_return
 #endif
+_ASM_NOKPROBE_SYMBOL(prepare_transfer_to_handler)
 _ASM_NOKPROBE_SYMBOL(transfer_to_handler)
 _ASM_NOKPROBE_SYMBOL(transfer_to_handler_cont)
 

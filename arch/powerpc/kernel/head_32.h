@@ -115,6 +115,10 @@
 _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 .endm
 
+.macro prepare_transfer_to_handler
+	bl	prepare_transfer_to_handler
+.endm
+
 .macro SYSCALL_ENTRY trapno
 	mfspr	r9, SPRN_SRR1
 	mfspr	r10, SPRN_SRR0
