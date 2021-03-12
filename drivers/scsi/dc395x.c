@@ -958,7 +958,7 @@ static void build_srb(struct scsi_cmnd *cmd, struct DeviceCtlBlk *dcb,
 
 
 /**
- * dc395x_queue_command - queue scsi command passed from the mid
+ * dc395x_queue_command_lck - queue scsi command passed from the mid
  * layer, invoke 'done' on completion
  *
  * @cmd: pointer to scsi command object
@@ -4248,7 +4248,7 @@ static void adapter_init_params(struct AdapterCtlBlk *acb)
 
 
 /**
- * adapter_init_host - Initialize the scsi host instance based on
+ * adapter_init_scsi_host - Initialize the scsi host instance based on
  * values that we have already stored in the adapter instance. There's
  * some mention that a lot of these are deprecated, so we won't use
  * them (we'll use the ones in the adapter instance) but we'll fill
@@ -4336,7 +4336,7 @@ static void adapter_init_chip(struct AdapterCtlBlk *acb)
 
 
 /**
- * init_adapter - Grab the resource for the card, setup the adapter
+ * adapter_init - Grab the resource for the card, setup the adapter
  * information, set the card into a known state, create the various
  * tables etc etc. This basically gets all adapter information all up
  * to date, initialised and gets the chip in sync with it.
