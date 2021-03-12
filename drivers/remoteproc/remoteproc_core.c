@@ -1450,7 +1450,7 @@ static int __rproc_attach(struct rproc *rproc)
 		goto stop_rproc;
 	}
 
-	rproc->state = RPROC_RUNNING;
+	rproc->state = RPROC_ATTACHED;
 
 	dev_info(dev, "remote processor %s is now attached\n", rproc->name);
 
@@ -1664,14 +1664,6 @@ static int rproc_stop(struct rproc *rproc, bool crashed)
 	rproc_unprepare_subdevices(rproc);
 
 	rproc->state = RPROC_OFFLINE;
-
-	/*
-	 * The remote processor has been stopped and is now offline, which means
-	 * that the next time it is brought back online the remoteproc core will
-	 * be responsible to load its firmware.  As such it is no longer
-	 * autonomous.
-	 */
-	rproc->autonomous = false;
 
 	dev_info(dev, "stopped remote processor %s\n", rproc->name);
 
@@ -2082,16 +2074,6 @@ int rproc_add(struct rproc *rproc)
 	ret = rproc_char_device_add(rproc);
 	if (ret < 0)
 		return ret;
-
-	/*
-	 * Remind ourselves the remote processor has been attached to rather
-	 * than booted by the remoteproc core.  This is important because the
-	 * RPROC_DETACHED state will be lost as soon as the remote processor
-	 * has been attached to.  Used in firmware_show() and reset in
-	 * rproc_stop().
-	 */
-	if (rproc->state == RPROC_DETACHED)
-		rproc->autonomous = true;
 
 	/* if rproc is marked always-on, request it to boot */
 	if (rproc->auto_boot) {
