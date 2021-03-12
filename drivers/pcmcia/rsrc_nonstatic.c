@@ -257,7 +257,7 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
 
 /*======================================================================*/
 
-/**
+/*
  * readable() - iomem validation function for cards with a valid CIS
  */
 static int readable(struct pcmcia_socket *s, struct resource *res,
@@ -288,7 +288,7 @@ static int readable(struct pcmcia_socket *s, struct resource *res,
 	return 0;
 }
 
-/**
+/*
  * checksum() - iomem validation function for simple memory cards
  */
 static int checksum(struct pcmcia_socket *s, struct resource *res,
