@@ -48,29 +48,11 @@
  */
 	.align	12
 
-/*
- * This code finishes saving the registers to the exception frame
- * and jumps to the appropriate handler for the exception, turning
- * on address translation.
- * Note that we rely on the caller having set cr0.eq iff the exception
- * occurred in kernel mode (i.e. MSR:PR = 0).
- */
 	.globl	prepare_transfer_to_handler
 prepare_transfer_to_handler:
-	SAVE_NVGPRS(r11)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	stw	r2,GPR2(r11)
-	stw	r12,_NIP(r11)
-	stw	r9,_MSR(r11)
-	andi.	r2,r9,MSR_PR
-	mfctr	r12
-	mfspr	r2,SPRN_XER
-	stw	r12,_CTR(r11)
-	stw	r2,_XER(r11)
-	mfspr	r12,SPRN_SPRG_THREAD
-	tovirt(r12, r12)
+	andi.	r12,r9,MSR_PR
+	addi	r12,r2,THREAD
 	beq	2f
-	addi	r2, r12, -THREAD
 #ifdef CONFIG_PPC_BOOK3S_32
 	kuep_lock r11, r12
 #endif
@@ -78,8 +60,7 @@ prepare_transfer_to_handler:
 
 	/* if from kernel, check interrupted DOZE/NAP mode */
 2:
-	kuap_save_and_lock r11, r12, r9, r2, r6
-	addi	r2, r12, -THREAD
+	kuap_save_and_lock r11, r12, r9, r5, r6
 #if defined(CONFIG_PPC_BOOK3S_32) || defined(CONFIG_E500)
 	lwz	r12,TI_LOCAL_FLAGS(r2)
 	mtcrf	0x01,r12
@@ -293,7 +274,7 @@ fast_exception_return:
 
 2:	REST_4GPRS(3, r11)
 	lwz	r10,_CCR(r11)
-	REST_GPR(1, r11)
+	REST_2GPRS(1, r11)
 	mtcr	r10
 	lwz	r10,_LINK(r11)
 	mtlr	r10

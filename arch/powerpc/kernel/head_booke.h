@@ -89,6 +89,18 @@ END_BTB_FLUSH_SECTION
 	stw	r10,_TRAP(r1)
 	SAVE_4GPRS(3, r1)
 	SAVE_2GPRS(7, r1)
+	SAVE_NVGPRS(r1)
+	stw	r2,GPR2(r1)
+	stw	r12,_NIP(r1)
+	stw	r9,_MSR(r1)
+	mfctr	r10
+	mfspr	r2,SPRN_SPRG_THREAD
+	stw	r10,_CTR(r1)
+	tovirt(r2, r2)
+	mfspr	r10,SPRN_XER
+	addi	r2, r2, -THREAD
+	stw	r10,_XER(r1)
+	addi	r3,r1,STACK_FRAME_OVERHEAD
 .endm
 
 .macro prepare_transfer_to_handler
