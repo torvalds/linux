@@ -200,6 +200,7 @@ static int wcnss_download_nv(struct wcnss_ctrl *wcnss, bool *expect_cbc)
 	struct wcnss_download_nv_req *req;
 	const struct firmware *fw;
 	struct device *dev = wcnss->dev;
+	const char *nvbin = NVBIN_FILE;
 	const void *data;
 	ssize_t left;
 	int ret;
@@ -208,10 +209,13 @@ static int wcnss_download_nv(struct wcnss_ctrl *wcnss, bool *expect_cbc)
 	if (!req)
 		return -ENOMEM;
 
-	ret = request_firmware(&fw, NVBIN_FILE, dev);
+	ret = of_property_read_string(dev->of_node, "firmware-name", &nvbin);
+	if (ret < 0 && ret != -EINVAL)
+		goto free_req;
+
+	ret = request_firmware(&fw, nvbin, dev);
 	if (ret < 0) {
-		dev_err(dev, "Failed to load nv file %s: %d\n",
-			NVBIN_FILE, ret);
+		dev_err(dev, "Failed to load nv file %s: %d\n", nvbin, ret);
 		goto free_req;
 	}
 
