@@ -229,7 +229,7 @@ __recover_probed_insn(kprobe_opcode_t *buf, unsigned long addr)
 		return 0UL;
 
 	if (faddr)
-		memcpy(buf, ideal_nops[NOP_ATOMIC5], 5);
+		memcpy(buf, x86_nops[5], 5);
 	else
 		buf[0] = kp->opcode;
 	return (unsigned long)buf;

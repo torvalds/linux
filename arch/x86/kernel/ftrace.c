@@ -66,7 +66,7 @@ int ftrace_arch_code_modify_post_process(void)
 
 static const char *ftrace_nop_replace(void)
 {
-	return ideal_nops[NOP_ATOMIC5];
+	return x86_nops[5];
 }
 
 static const char *ftrace_call_replace(unsigned long ip, unsigned long addr)
@@ -377,7 +377,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 		ip = trampoline + (jmp_offset - start_offset);
 		if (WARN_ON(*(char *)ip != 0x75))
 			goto fail;
-		ret = copy_from_kernel_nofault(ip, ideal_nops[2], 2);
+		ret = copy_from_kernel_nofault(ip, x86_nops[2], 2);
 		if (ret < 0)
 			goto fail;
 	}

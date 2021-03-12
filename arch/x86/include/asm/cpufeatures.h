@@ -84,7 +84,7 @@
 
 /* CPU types for specific tunings: */
 #define X86_FEATURE_K8			( 3*32+ 4) /* "" Opteron, Athlon64 */
-#define X86_FEATURE_K7			( 3*32+ 5) /* "" Athlon */
+/* FREE, was #define X86_FEATURE_K7			( 3*32+ 5) "" Athlon */
 #define X86_FEATURE_P3			( 3*32+ 6) /* "" P3 */
 #define X86_FEATURE_P4			( 3*32+ 7) /* "" P4 */
 #define X86_FEATURE_CONSTANT_TSC	( 3*32+ 8) /* TSC ticks at a constant rate */
