@@ -32,6 +32,9 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs, struct interrup
 #ifdef CONFIG_PPC32
 	if (!arch_irq_disabled_regs(regs))
 		trace_hardirqs_off();
+
+	if (user_mode(regs))
+		account_cpu_user_entry();
 #endif
 	/*
 	 * Book3E reconciles irq soft mask in asm

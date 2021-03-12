@@ -152,7 +152,6 @@ transfer_to_handler:
 	lwz	r12,THREAD_DBCR0(r12)
 	andis.	r12,r12,DBCR0_IDM@h
 #endif
-	ACCOUNT_CPU_USER_ENTRY(r2, r11, r12)
 #ifdef CONFIG_PPC_BOOK3S_32
 	kuep_lock r11, r12
 #endif
