@@ -20,14 +20,14 @@ secure-common				= omap-smc.o omap-secure.o
 
 obj-$(CONFIG_ARCH_OMAP2) += $(omap-2-3-common) $(hwmod-common)
 obj-$(CONFIG_ARCH_OMAP3) += $(omap-2-3-common) $(hwmod-common) $(secure-common)
-obj-$(CONFIG_ARCH_OMAP4) += $(hwmod-common) $(secure-common)
+obj-$(CONFIG_ARCH_OMAP4) += $(secure-common)
 obj-$(CONFIG_SOC_AM33XX) += $(secure-common)
-obj-$(CONFIG_SOC_OMAP5)  += $(hwmod-common) $(secure-common)
+obj-$(CONFIG_SOC_OMAP5)  += $(secure-common)
 obj-$(CONFIG_SOC_AM43XX) += $(secure-common)
-obj-$(CONFIG_SOC_DRA7XX) += $(hwmod-common) $(secure-common)
+obj-$(CONFIG_SOC_DRA7XX) += $(secure-common)
 
 ifneq ($(CONFIG_SND_SOC_OMAP_MCBSP),)
-obj-y += mcbsp.o
+obj-$(CONFIG_OMAP_HWMOD) += mcbsp.o
 endif
 
 obj-$(CONFIG_TWL4030_CORE) += omap_twl.o

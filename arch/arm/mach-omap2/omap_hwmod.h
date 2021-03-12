@@ -607,6 +607,8 @@ struct omap_hwmod {
 	struct omap_hwmod		*parent_hwmod;
 };
 
+#ifdef CONFIG_OMAP_HWMOD
+
 struct device_node;
 
 struct omap_hwmod *omap_hwmod_lookup(const char *name);
@@ -655,6 +657,17 @@ int omap_hwmod_get_context_loss_count(struct omap_hwmod *oh);
 extern void __init omap_hwmod_init(void);
 
 const char *omap_hwmod_get_main_clk(struct omap_hwmod *oh);
+
+#else	/* CONFIG_OMAP_HWMOD */
+
+static inline int
+omap_hwmod_for_each_by_class(const char *classname,
+			     int (*fn)(struct omap_hwmod *oh, void *user),
+			     void *user)
+{
+	return 0;
+}
+#endif	/* CONFIG_OMAP_HWMOD */
 
 /*
  *
