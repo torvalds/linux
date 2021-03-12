@@ -3910,7 +3910,10 @@ rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 		(struct rkisp_isp_params_v21_ops *)params_vdev->priv_ops;
 	struct rkisp_isp_params_val_v21 *priv_val =
 		(struct rkisp_isp_params_val_v21 *)params_vdev->priv_val;
+	struct rkisp_hw_dev *hw = params_vdev->dev->hw_dev;
 	struct v4l2_rect *out_crop = &params_vdev->dev->isp_sdev.out_crop;
+	u32 width = hw->max_in.w ? hw->max_in.w : out_crop->width;
+	u32 size = hw->max_in.w ? hw->max_in.w * hw->max_in.h : isp_param_get_insize(params_vdev);
 
 	rkisp_alloc_bay3d_buf(params_vdev, params_vdev->isp21_params);
 	spin_lock(&params_vdev->config_lock);
@@ -3933,8 +3936,7 @@ rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	__isp_isr_other_config(params_vdev, params_vdev->isp21_params, RKISP_PARAMS_ALL);
 	__isp_isr_meas_config(params_vdev, params_vdev->isp21_params, RKISP_PARAMS_ALL);
 	__preisp_isr_update_hdrae_para(params_vdev, params_vdev->isp21_params);
-	if (out_crop->width <= ISP2X_AUTO_BIGMODE_WIDTH &&
-	    isp_param_get_insize(params_vdev) > ISP2X_NOBIG_OVERFLOW_SIZE) {
+	if (width <= ISP2X_AUTO_BIGMODE_WIDTH && size > ISP2X_NOBIG_OVERFLOW_SIZE) {
 		rkisp_set_bits(params_vdev->dev, ISP_CTRL1,
 			       ISP2X_SYS_BIGMODE_MANUAL | ISP2X_SYS_BIGMODE_FORCEEN,
 			       ISP2X_SYS_BIGMODE_MANUAL | ISP2X_SYS_BIGMODE_FORCEEN, false);

@@ -427,6 +427,7 @@
 #define MI_WR_ID				(MI_BASE + 0x00154)
 #define MI_MP_WR_Y_IRQ_OFFS2			(MI_BASE + 0x001e0)
 #define MI_MP_WR_Y_IRQ_OFFS2_SHD		(MI_BASE + 0x001e4)
+#define MI_MP_WR_Y_LLENGTH			(MI_BASE + 0x001e8)
 #define MI_WR_CTRL2				(MI_BASE + 0x00400)
 #define MI_WR_ID2				(MI_BASE + 0x00404)
 #define MI_RD_CTRL2				(MI_BASE + 0x00408)

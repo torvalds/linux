@@ -214,6 +214,7 @@ struct rkisp_stream {
 	struct list_head buf_queue;
 	struct rkisp_buffer *curr_buf;
 	struct rkisp_buffer *next_buf;
+	struct mutex apilock;
 	bool streaming;
 	bool stopping;
 	bool frame_end;

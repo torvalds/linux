@@ -1587,14 +1587,6 @@ static int rkisp_isp_sd_set_selection(struct v4l2_subdev *sd,
 		isp_sd->out_crop = *crop;
 	}
 
-	/* change size of MP/SP */
-	rkisp_set_stream_def_fmt(dev, RKISP_STREAM_MP,
-				 isp_sd->out_crop.width,
-				 isp_sd->out_crop.height, 0);
-	if (dev->isp_ver != ISP_V10_1)
-		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_SP,
-					 isp_sd->out_crop.width,
-					 isp_sd->out_crop.height, 0);
 	return 0;
 err:
 	return -EINVAL;
@@ -1777,6 +1769,14 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 			if (dev->active_sensor)
 				dev->active_sensor = NULL;
 			dev->isp_inp &= ~INP_LVDS;
+		}
+	} else if (strstr(remote->entity->name, "rkcif")) {
+		if (flags & MEDIA_LNK_FL_ENABLED) {
+			if (dev->isp_inp & ~(INP_CIF | rawrd))
+				goto err;
+			dev->isp_inp |= INP_CIF;
+		} else {
+			 dev->isp_inp &= ~INP_CIF;
 		}
 	} else {
 		if (flags & MEDIA_LNK_FL_ENABLED) {

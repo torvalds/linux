@@ -452,6 +452,7 @@ struct stream_config rkisp_mp_stream_config = {
 		.y_offs_cnt_init = CIF_MI_MP_Y_OFFS_CNT_INIT,
 		.cb_offs_cnt_init = CIF_MI_MP_CB_OFFS_CNT_INIT,
 		.cr_offs_cnt_init = CIF_MI_MP_CR_OFFS_CNT_INIT,
+		.y_base_ad_shd = CIF_MI_MP_Y_BASE_AD_SHD,
 	},
 };
 
@@ -508,6 +509,7 @@ struct stream_config rkisp_sp_stream_config = {
 		.y_offs_cnt_init = CIF_MI_SP_Y_OFFS_CNT_INIT,
 		.cb_offs_cnt_init = CIF_MI_SP_CB_OFFS_CNT_INIT,
 		.cr_offs_cnt_init = CIF_MI_SP_CR_OFFS_CNT_INIT,
+		.y_base_ad_shd = CIF_MI_SP_Y_BASE_AD_SHD,
 	},
 };
 
@@ -1013,6 +1015,7 @@ int rkisp_register_stream_vdev(struct rkisp_stream *stream)
 	struct media_entity *source, *sink;
 	int ret = 0, pad;
 
+	mutex_init(&stream->apilock);
 	node = vdev_to_node(vdev);
 
 	vdev->ioctl_ops = &rkisp_v4l2_ioctl_ops;
@@ -1020,7 +1023,7 @@ int rkisp_register_stream_vdev(struct rkisp_stream *stream)
 	vdev->fops = &rkisp_fops;
 	vdev->minor = -1;
 	vdev->v4l2_dev = v4l2_dev;
-	vdev->lock = &dev->apilock;
+	vdev->lock = &stream->apilock;
 	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE_MPLANE |
 				V4L2_CAP_STREAMING;
 	video_set_drvdata(vdev, stream);

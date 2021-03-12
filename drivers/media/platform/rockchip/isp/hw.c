@@ -647,7 +647,12 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	hw_dev->dev = dev;
 	hw_dev->is_thunderboot = IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP);
 	dev_info(dev, "is_thunderboot: %d\n", hw_dev->is_thunderboot);
-
+	hw_dev->max_in.w = 0;
+	hw_dev->max_in.h = 0;
+	hw_dev->max_in.fps = 0;
+	of_property_read_u32_array(node, "max-input", &hw_dev->max_in.w, 3);
+	dev_info(dev, "max input:%dx%d@%dfps\n",
+		 hw_dev->max_in.w, hw_dev->max_in.h, hw_dev->max_in.fps);
 	hw_dev->grf = syscon_regmap_lookup_by_phandle(node, "rockchip,grf");
 	if (IS_ERR(hw_dev->grf))
 		dev_warn(dev, "Missing rockchip,grf property\n");
