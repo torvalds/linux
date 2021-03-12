@@ -1213,7 +1213,7 @@ static int mtip_standby_immediate(struct mtip_port *port)
 {
 	int rv;
 	struct host_to_dev_fis	fis;
-	unsigned long start;
+	unsigned long __maybe_unused start;
 	unsigned int timeout;
 
 	/* Build the FIS. */
