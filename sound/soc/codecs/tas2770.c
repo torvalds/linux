@@ -106,7 +106,7 @@ static int tas2770_codec_suspend(struct snd_soc_component *component)
 static int tas2770_codec_resume(struct snd_soc_component *component)
 {
 	struct tas2770_priv *tas2770 = snd_soc_component_get_drvdata(component);
-	int ret = 0;
+	int ret;
 
 	if (tas2770->sdz_gpio) {
 		gpiod_set_value_cansleep(tas2770->sdz_gpio, 1);
