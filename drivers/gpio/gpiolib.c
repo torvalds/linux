@@ -4396,7 +4396,8 @@ static int __init gpiolib_dev_init(void)
 		return ret;
 	}
 
-	if (driver_register(&gpio_stub_drv) < 0) {
+	ret = driver_register(&gpio_stub_drv);
+	if (ret < 0) {
 		pr_err("gpiolib: could not register GPIO stub driver\n");
 		bus_unregister(&gpio_bus_type);
 		return ret;
