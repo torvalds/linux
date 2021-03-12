@@ -80,11 +80,11 @@ enum mstat_f {
 #define mstat_tf_idx(flags) ((flags)&0xff)
 #define mstat_ff_idx(flags) (((flags)&0xff00) >> 8)
 
-typedef enum mstat_status {
+enum MSTAT_STATUS {
 	MSTAT_ALLOC_SUCCESS = 0,
 	MSTAT_ALLOC_FAIL,
 	MSTAT_FREE
-} MSTAT_STATUS;
+};
 
 #define rtw_mstat_update(flag, status, sz) do {} while (0)
 #define rtw_mstat_dump(sel) do {} while (0)
