@@ -70,6 +70,9 @@ static int rk_crypto_irq_handle(int irq, void *dev_id)
 		dev->err = -EFAULT;
 	}
 
+	/* clear BC_CTL */
+	CRYPTO_WRITE(dev, CRYPTO_BC_CTL, 0 | CRYPTO_WRITE_MASK_ALL);
+
 	return 0;
 }
 
@@ -536,9 +539,6 @@ static void rk_ablk_cra_exit(struct crypto_tfm *tfm)
 	struct rk_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	CRYPTO_TRACE();
-
-	/* clear BC_CTL */
-	CRYPTO_WRITE(ctx->dev, CRYPTO_BC_CTL, 0 | CRYPTO_WRITE_MASK_ALL);
 
 	if (ctx->fallback_tfm) {
 		CRYPTO_MSG("free fallback tfm");

@@ -93,7 +93,10 @@ static int rk_load_data(struct rk_crypto_info *dev,
 			struct scatterlist *sg_src,
 			struct scatterlist *sg_dst)
 {
+	int ret = -EINVAL;
 	unsigned int count;
+
+	mutex_lock(&dev->mutex);
 
 	dev->aligned = dev->aligned ?
 		check_alignment(sg_src, sg_dst, dev->align_size) :
@@ -105,7 +108,8 @@ static int rk_load_data(struct rk_crypto_info *dev,
 		if (!dma_map_sg(dev->dev, sg_src, 1, DMA_TO_DEVICE)) {
 			dev_err(dev->dev, "[%s:%d] dma_map_sg(src)  error\n",
 				__func__, __LINE__);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto error;
 		}
 		dev->addr_in = sg_dma_address(sg_src);
 
@@ -116,7 +120,8 @@ static int rk_load_data(struct rk_crypto_info *dev,
 					__func__, __LINE__);
 				dma_unmap_sg(dev->dev, sg_src, 1,
 					     DMA_TO_DEVICE);
-				return -EINVAL;
+				ret = -EINVAL;
+				goto error;
 			}
 			dev->addr_out = sg_dma_address(sg_dst);
 		}
@@ -129,14 +134,16 @@ static int rk_load_data(struct rk_crypto_info *dev,
 					dev->total - dev->left_bytes)) {
 			dev_err(dev->dev, "[%s:%d] pcopy err\n",
 				__func__, __LINE__);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto error;
 		}
 		dev->left_bytes -= count;
 		sg_init_one(&dev->sg_tmp, dev->addr_vir, count);
 		if (!dma_map_sg(dev->dev, &dev->sg_tmp, 1, DMA_TO_DEVICE)) {
 			dev_err(dev->dev, "[%s:%d] dma_map_sg(sg_tmp)  error\n",
 				__func__, __LINE__);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto error;
 		}
 		dev->addr_in = sg_dma_address(&dev->sg_tmp);
 
@@ -148,13 +155,18 @@ static int rk_load_data(struct rk_crypto_info *dev,
 					__func__, __LINE__);
 				dma_unmap_sg(dev->dev, &dev->sg_tmp, 1,
 					     DMA_TO_DEVICE);
-				return -ENOMEM;
+				ret = -ENOMEM;
+				goto error;
 			}
 			dev->addr_out = sg_dma_address(&dev->sg_tmp);
 		}
 	}
+
 	dev->count = count;
 	return 0;
+error:
+	mutex_unlock(&dev->mutex);
+	return ret;
 }
 
 static void rk_unload_data(struct rk_crypto_info *dev)
@@ -168,6 +180,8 @@ static void rk_unload_data(struct rk_crypto_info *dev)
 		sg_out = dev->aligned ? dev->sg_dst : &dev->sg_tmp;
 		dma_unmap_sg(dev->dev, sg_out, 1, DMA_FROM_DEVICE);
 	}
+
+	mutex_unlock(&dev->mutex);
 }
 
 static irqreturn_t rk_crypto_irq_handle(int irq, void *dev_id)
@@ -350,8 +364,6 @@ static void rk_crypto_request(struct rk_crypto_info *dev, const char *name)
 {
 	CRYPTO_TRACE("Crypto is requested by %s\n", name);
 
-	mutex_lock(&dev->mutex);
-
 	rk_crypto_enable_clk(dev);
 }
 
@@ -360,8 +372,6 @@ static void rk_crypto_release(struct rk_crypto_info *dev, const char *name)
 	CRYPTO_TRACE("Crypto is released by %s\n", name);
 
 	rk_crypto_disable_clk(dev);
-
-	mutex_unlock(&dev->mutex);
 }
 
 static void rk_crypto_action(void *data)
