@@ -81,11 +81,11 @@ enum dot11AuthAlgrthmNum {
 };
 
 /*  Scan type including active and passive scan. */
-typedef enum _RT_SCAN_TYPE {
+enum RT_SCAN_TYPE {
 	SCAN_PASSIVE,
 	SCAN_ACTIVE,
 	SCAN_MIX,
-} RT_SCAN_TYPE, *PRT_SCAN_TYPE;
+};
 
 enum  _BAND {
 	GHZ24_50 = 0,
@@ -134,7 +134,7 @@ struct sitesurvey_ctrl {
 	_timer	sitesurvey_ctrl_timer;
 };
 
-typedef struct _RT_LINK_DETECT_T {
+struct RT_LINK_DETECT_T {
 	u32 			NumTxOkInPeriod;
 	u32 			NumRxOkInPeriod;
 	u32 			NumRxUnicastOkInPeriod;
@@ -147,7 +147,7 @@ typedef struct _RT_LINK_DETECT_T {
 	/* u8 TrafficBusyState; */
 	u8 TrafficTransitionCount;
 	u32 LowPowerTransitionCount;
-} RT_LINK_DETECT_T, *PRT_LINK_DETECT_T;
+};
 
 struct profile_info {
 	u8 ssidlen;
@@ -385,12 +385,12 @@ struct mlme_priv {
 
 	struct ht_priv htpriv;
 
-	RT_LINK_DETECT_T	LinkDetectInfo;
+	struct RT_LINK_DETECT_T	LinkDetectInfo;
 	_timer	dynamic_chk_timer; /* dynamic/periodic check timer */
 
 	u8 acm_mask; /*  for wmm acm mask */
 	u8 ChannelPlan;
-	RT_SCAN_TYPE	scan_mode; /*  active: 1, passive: 0 */
+	enum RT_SCAN_TYPE	scan_mode; /*  active: 1, passive: 0 */
 
 	u8 *wps_probe_req_ie;
 	u32 wps_probe_req_ie_len;
