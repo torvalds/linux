@@ -228,7 +228,7 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 	b	interrupt_return
 
 /* 0x0500 - External Interrupt Exception */
-	EXCEPTION(0x0500, HardwareInterrupt, do_IRQ, EXC_XFER_LITE)
+	EXCEPTION(0x0500, HardwareInterrupt, do_IRQ)
 
 /* 0x0600 - Alignment Exception */
 	START_EXCEPTION(0x0600, Alignment)
@@ -246,19 +246,19 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 	REST_NVGPRS(r1)
 	b	interrupt_return
 
-	EXCEPTION(0x0800, Trap_08, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x0900, Trap_09, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x0A00, Trap_0A, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x0B00, Trap_0B, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x0800, Trap_08, unknown_exception)
+	EXCEPTION(0x0900, Trap_09, unknown_exception)
+	EXCEPTION(0x0A00, Trap_0A, unknown_exception)
+	EXCEPTION(0x0B00, Trap_0B, unknown_exception)
 
 /* 0x0C00 - System Call Exception */
 	START_EXCEPTION(0x0C00,	SystemCall)
 	SYSCALL_ENTRY	0xc00
 /*	Trap_0D is commented out to get more space for system call exception */
 
-/*	EXCEPTION(0x0D00, Trap_0D, unknown_exception, EXC_XFER_STD) */
-	EXCEPTION(0x0E00, Trap_0E, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x0F00, Trap_0F, unknown_exception, EXC_XFER_STD)
+/*	EXCEPTION(0x0D00, Trap_0D, unknown_exception) */
+	EXCEPTION(0x0E00, Trap_0E, unknown_exception)
+	EXCEPTION(0x0F00, Trap_0F, unknown_exception)
 
 /* 0x1000 - Programmable Interval Timer (PIT) Exception */
 	START_EXCEPTION(0x1000, DecrementerTrap)
@@ -433,19 +433,19 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 	mfspr	r10, SPRN_SPRG_SCRATCH5
 	b	InstructionAccess
 
-	EXCEPTION(0x1300, Trap_13, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1400, Trap_14, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1500, Trap_15, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1600, Trap_16, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1700, Trap_17, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1800, Trap_18, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1900, Trap_19, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1A00, Trap_1A, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1B00, Trap_1B, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1C00, Trap_1C, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1D00, Trap_1D, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1E00, Trap_1E, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1F00, Trap_1F, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1300, Trap_13, unknown_exception)
+	EXCEPTION(0x1400, Trap_14, unknown_exception)
+	EXCEPTION(0x1500, Trap_15, unknown_exception)
+	EXCEPTION(0x1600, Trap_16, unknown_exception)
+	EXCEPTION(0x1700, Trap_17, unknown_exception)
+	EXCEPTION(0x1800, Trap_18, unknown_exception)
+	EXCEPTION(0x1900, Trap_19, unknown_exception)
+	EXCEPTION(0x1A00, Trap_1A, unknown_exception)
+	EXCEPTION(0x1B00, Trap_1B, unknown_exception)
+	EXCEPTION(0x1C00, Trap_1C, unknown_exception)
+	EXCEPTION(0x1D00, Trap_1D, unknown_exception)
+	EXCEPTION(0x1E00, Trap_1E, unknown_exception)
+	EXCEPTION(0x1F00, Trap_1F, unknown_exception)
 
 /* Check for a single step debug exception while in an exception
  * handler before state has been saved.  This is to catch the case

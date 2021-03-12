@@ -382,7 +382,7 @@ interrupt_base:
 	INSTRUCTION_STORAGE_EXCEPTION
 
 	/* External Input Interrupt */
-	EXCEPTION(0x0500, EXTERNAL, ExternalInput, do_IRQ, EXC_XFER_LITE)
+	EXCEPTION(0x0500, EXTERNAL, ExternalInput, do_IRQ)
 
 	/* Alignment Interrupt */
 	ALIGNMENT_EXCEPTION
@@ -394,8 +394,7 @@ interrupt_base:
 #ifdef CONFIG_PPC_FPU
 	FP_UNAVAILABLE_EXCEPTION
 #else
-	EXCEPTION(0x0800, FP_UNAVAIL, FloatingPointUnavailable, \
-		  unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x0800, FP_UNAVAIL, FloatingPointUnavailable, unknown_exception)
 #endif
 
 	/* System Call Interrupt */
@@ -403,16 +402,14 @@ interrupt_base:
 	SYSCALL_ENTRY   0xc00 BOOKE_INTERRUPT_SYSCALL SPRN_SRR1
 
 	/* Auxiliary Processor Unavailable Interrupt */
-	EXCEPTION(0x2900, AP_UNAVAIL, AuxillaryProcessorUnavailable, \
-		  unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x2900, AP_UNAVAIL, AuxillaryProcessorUnavailable, unknown_exception)
 
 	/* Decrementer Interrupt */
 	DECREMENTER_EXCEPTION
 
 	/* Fixed Internal Timer Interrupt */
 	/* TODO: Add FIT support */
-	EXCEPTION(0x3100, FIT, FixedIntervalTimer, \
-		  unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x3100, FIT, FixedIntervalTimer, unknown_exception)
 
 	/* Watchdog Timer Interrupt */
 #ifdef CONFIG_BOOKE_WDT
@@ -625,8 +622,7 @@ END_BTB_FLUSH_SECTION
 	bl	KernelSPE
 	b	interrupt_return
 #elif defined(CONFIG_SPE_POSSIBLE)
-	EXCEPTION(0x2020, SPE_UNAVAIL, SPEUnavailable, \
-		  unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x2020, SPE_UNAVAIL, SPEUnavailable, unknown_exception)
 #endif /* CONFIG_SPE_POSSIBLE */
 
 	/* SPE Floating Point Data */
@@ -646,18 +642,16 @@ END_BTB_FLUSH_SECTION
 	REST_NVGPRS(r1)
 	b	interrupt_return
 #elif defined(CONFIG_SPE_POSSIBLE)
-	EXCEPTION(0x2040, SPE_FP_DATA, SPEFloatingPointData,
-		  unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2050, SPE_FP_ROUND, SPEFloatingPointRound, \
-		  unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x2040, SPE_FP_DATA, SPEFloatingPointData, unknown_exception)
+	EXCEPTION(0x2050, SPE_FP_ROUND, SPEFloatingPointRound, unknown_exception)
 #endif /* CONFIG_SPE_POSSIBLE */
 
 
 	/* Performance Monitor */
 	EXCEPTION(0x2060, PERFORMANCE_MONITOR, PerformanceMonitor, \
-		  performance_monitor_exception, EXC_XFER_STD)
+		  performance_monitor_exception)
 
-	EXCEPTION(0x2070, DOORBELL, Doorbell, doorbell_exception, EXC_XFER_STD)
+	EXCEPTION(0x2070, DOORBELL, Doorbell, doorbell_exception)
 
 	CRITICAL_EXCEPTION(0x2080, DOORBELL_CRITICAL, \
 			   CriticalDoorbell, unknown_exception)
@@ -672,10 +666,10 @@ END_BTB_FLUSH_SECTION
 			   unknown_exception)
 
 	/* Hypercall */
-	EXCEPTION(0, HV_SYSCALL, Hypercall, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0, HV_SYSCALL, Hypercall, unknown_exception)
 
 	/* Embedded Hypervisor Privilege */
-	EXCEPTION(0, HV_PRIV, Ehvpriv, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0, HV_PRIV, Ehvpriv, unknown_exception)
 
 interrupt_end:
 

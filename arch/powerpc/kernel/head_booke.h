@@ -299,7 +299,7 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
         .align 5;              						     \
 label:
 
-#define EXCEPTION(n, intno, label, hdlr, xfer)			\
+#define EXCEPTION(n, intno, label, hdlr)			\
 	START_EXCEPTION(label);					\
 	NORMAL_EXCEPTION_PROLOG(n, intno);			\
 	prepare_transfer_to_handler;				\

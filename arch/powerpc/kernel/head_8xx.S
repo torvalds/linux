@@ -118,7 +118,7 @@ instruction_counter:
 #endif
 
 /* System reset */
-	EXCEPTION(0x100, Reset, system_reset_exception, EXC_XFER_STD)
+	EXCEPTION(0x100, Reset, system_reset_exception)
 
 /* Machine check */
 	START_EXCEPTION(0x200, MachineCheck)
@@ -128,7 +128,7 @@ instruction_counter:
 	b	interrupt_return
 
 /* External interrupt */
-	EXCEPTION(0x500, HardwareInterrupt, do_IRQ, EXC_XFER_LITE)
+	EXCEPTION(0x500, HardwareInterrupt, do_IRQ)
 
 /* Alignment exception */
 	START_EXCEPTION(0x600, Alignment)
@@ -147,14 +147,14 @@ instruction_counter:
 	b	interrupt_return
 
 /* Decrementer */
-	EXCEPTION(0x900, Decrementer, timer_interrupt, EXC_XFER_LITE)
+	EXCEPTION(0x900, Decrementer, timer_interrupt)
 
 /* System call */
 	START_EXCEPTION(0xc00, SystemCall)
 	SYSCALL_ENTRY	0xc00
 
 /* Single step - not used on 601 */
-	EXCEPTION(0xd00, SingleStep, single_step_exception, EXC_XFER_STD)
+	EXCEPTION(0xd00, SingleStep, single_step_exception)
 
 /* On the MPC8xx, this is a software emulation interrupt.  It occurs
  * for all unimplemented and illegal instructions.
@@ -384,10 +384,10 @@ DARFixed:/* Return from dcbx instruction bug workaround */
 	mfspr	r10, SPRN_SPRG_SCRATCH0
 	rfi
 #else
-	EXCEPTION(0x1d00, Trap_1d, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1d00, Trap_1d, unknown_exception)
 #endif
-	EXCEPTION(0x1e00, Trap_1e, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1f00, Trap_1f, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1e00, Trap_1e, unknown_exception)
+	EXCEPTION(0x1f00, Trap_1f, unknown_exception)
 
 	__HEAD
 	. = 0x2000

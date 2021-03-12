@@ -239,7 +239,7 @@ __secondary_hold_acknowledge:
 /* System reset */
 /* core99 pmac starts the seconary here by changing the vector, and
    putting it back to what it was (unknown_async_exception) when done.  */
-	EXCEPTION(0x100, Reset, unknown_async_exception, EXC_XFER_STD)
+	EXCEPTION(0x100, Reset, unknown_async_exception)
 
 /* Machine check */
 /*
@@ -339,7 +339,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 	b	interrupt_return
 
 /* External interrupt */
-	EXCEPTION(0x500, HardwareInterrupt, do_IRQ, EXC_XFER_LITE)
+	EXCEPTION(0x500, HardwareInterrupt, do_IRQ)
 
 /* Alignment exception */
 	START_EXCEPTION(0x600, Alignment)
@@ -379,17 +379,17 @@ END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
 #endif
 
 /* Decrementer */
-	EXCEPTION(0x900, Decrementer, timer_interrupt, EXC_XFER_LITE)
+	EXCEPTION(0x900, Decrementer, timer_interrupt)
 
-	EXCEPTION(0xa00, Trap_0a, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0xb00, Trap_0b, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0xa00, Trap_0a, unknown_exception)
+	EXCEPTION(0xb00, Trap_0b, unknown_exception)
 
 /* System call */
 	START_EXCEPTION(0xc00, SystemCall)
 	SYSCALL_ENTRY	0xc00
 
-	EXCEPTION(0xd00, SingleStep, single_step_exception, EXC_XFER_STD)
-	EXCEPTION(0xe00, Trap_0e, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0xd00, SingleStep, single_step_exception)
+	EXCEPTION(0xe00, Trap_0e, unknown_exception)
 
 /*
  * The Altivec unavailable trap is at 0x0f20.  Foo.
@@ -618,35 +618,35 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
 #define TAUException	unknown_async_exception
 #endif
 
-	EXCEPTION(0x1300, Trap_13, instruction_breakpoint_exception, EXC_XFER_STD)
-	EXCEPTION(0x1400, SMI, SMIException, EXC_XFER_STD)
-	EXCEPTION(0x1500, Trap_15, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1600, Trap_16, altivec_assist_exception, EXC_XFER_STD)
-	EXCEPTION(0x1700, Trap_17, TAUException, EXC_XFER_STD)
-	EXCEPTION(0x1800, Trap_18, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1900, Trap_19, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1a00, Trap_1a, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1b00, Trap_1b, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1c00, Trap_1c, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1d00, Trap_1d, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1e00, Trap_1e, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1f00, Trap_1f, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2000, RunMode, RunModeException, EXC_XFER_STD)
-	EXCEPTION(0x2100, Trap_21, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2200, Trap_22, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2300, Trap_23, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2400, Trap_24, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2500, Trap_25, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2600, Trap_26, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2700, Trap_27, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2800, Trap_28, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2900, Trap_29, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2a00, Trap_2a, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2b00, Trap_2b, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2c00, Trap_2c, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2d00, Trap_2d, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2e00, Trap_2e, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2f00, Trap_2f, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1300, Trap_13, instruction_breakpoint_exception)
+	EXCEPTION(0x1400, SMI, SMIException)
+	EXCEPTION(0x1500, Trap_15, unknown_exception)
+	EXCEPTION(0x1600, Trap_16, altivec_assist_exception)
+	EXCEPTION(0x1700, Trap_17, TAUException)
+	EXCEPTION(0x1800, Trap_18, unknown_exception)
+	EXCEPTION(0x1900, Trap_19, unknown_exception)
+	EXCEPTION(0x1a00, Trap_1a, unknown_exception)
+	EXCEPTION(0x1b00, Trap_1b, unknown_exception)
+	EXCEPTION(0x1c00, Trap_1c, unknown_exception)
+	EXCEPTION(0x1d00, Trap_1d, unknown_exception)
+	EXCEPTION(0x1e00, Trap_1e, unknown_exception)
+	EXCEPTION(0x1f00, Trap_1f, unknown_exception)
+	EXCEPTION(0x2000, RunMode, RunModeException)
+	EXCEPTION(0x2100, Trap_21, unknown_exception)
+	EXCEPTION(0x2200, Trap_22, unknown_exception)
+	EXCEPTION(0x2300, Trap_23, unknown_exception)
+	EXCEPTION(0x2400, Trap_24, unknown_exception)
+	EXCEPTION(0x2500, Trap_25, unknown_exception)
+	EXCEPTION(0x2600, Trap_26, unknown_exception)
+	EXCEPTION(0x2700, Trap_27, unknown_exception)
+	EXCEPTION(0x2800, Trap_28, unknown_exception)
+	EXCEPTION(0x2900, Trap_29, unknown_exception)
+	EXCEPTION(0x2a00, Trap_2a, unknown_exception)
+	EXCEPTION(0x2b00, Trap_2b, unknown_exception)
+	EXCEPTION(0x2c00, Trap_2c, unknown_exception)
+	EXCEPTION(0x2d00, Trap_2d, unknown_exception)
+	EXCEPTION(0x2e00, Trap_2e, unknown_exception)
+	EXCEPTION(0x2f00, Trap_2f, unknown_exception)
 
 	__HEAD
 	. = 0x3000
