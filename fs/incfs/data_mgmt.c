@@ -1272,6 +1272,28 @@ out:
 	return result;
 }
 
+ssize_t incfs_read_merkle_tree_blocks(struct mem_range dst,
+				      struct data_file *df, size_t offset)
+{
+	struct backing_file_context *bfc = NULL;
+	struct incfs_df_signature *sig = NULL;
+	size_t to_read = dst.len;
+
+	if (!dst.data || !df)
+		return -EFAULT;
+
+	sig = df->df_signature;
+	bfc = df->df_backing_file_context;
+
+	if (offset > sig->hash_size)
+		return -ERANGE;
+
+	if (offset + to_read > sig->hash_size)
+		to_read = sig->hash_size - offset;
+
+	return incfs_kread(bfc, dst.data, to_read, sig->hash_offset + offset);
+}
+
 int incfs_process_new_data_block(struct data_file *df,
 				 struct incfs_fill_block *block, u8 *data)
 {

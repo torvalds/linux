@@ -123,6 +123,8 @@ struct test_file {
 	struct hash_block *mtree;
 	int mtree_block_count;
 	struct test_signature sig;
+	unsigned char *verity_sig;
+	size_t verity_sig_size;
 };
 
 struct test_files_set {
@@ -213,6 +215,17 @@ static int get_file_block_seed(int file, int block)
 static loff_t min(loff_t a, loff_t b)
 {
 	return a < b ? a : b;
+}
+
+static int ilog2(size_t n)
+{
+	int l = 0;
+
+	while (n > 1) {
+		++l;
+		n >>= 1;
+	}
+	return l;
 }
 
 static pid_t flush_and_fork(void)
@@ -952,10 +965,8 @@ static int load_hash_tree(const char *mount_dir, struct test_file *file)
 	close(fd);
 	if (err < fill_blocks.count)
 		err = errno;
-	else {
+	else
 		err = 0;
-		free(file->mtree);
-	}
 
 failure:
 	free(fill_block_array);
@@ -1379,7 +1390,6 @@ static int dynamic_files_and_data_test(const char *mount_dir)
 		struct test_file *file = &test.files[i];
 		int res;
 
-		build_mtree(file);
 		res = emit_file(cmd_fd, NULL, file->name, &file->id,
 				     file->size, NULL);
 		if (res < 0) {
@@ -1592,7 +1602,6 @@ static int work_after_remount_test(const char *mount_dir)
 	for (i = 0; i < file_num_stage1; i++) {
 		struct test_file *file = &test.files[i];
 
-		build_mtree(file);
 		if (emit_file(cmd_fd, NULL, file->name, &file->id,
 				     file->size, NULL))
 			goto failure;
@@ -1987,8 +1996,47 @@ failure:
 	return TEST_FAILURE;
 }
 
+static int validate_hash_tree(const char *mount_dir, struct test_file *file)
+{
+	int result = TEST_FAILURE;
+	char *filename = NULL;
+	int fd = -1;
+	unsigned char *buf;
+	int i, err;
+
+	TEST(filename = concat_file_name(mount_dir, file->name), filename);
+	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
+	TEST(buf = malloc(INCFS_DATA_FILE_BLOCK_SIZE * 8), buf);
+
+	for (i = 0; i < file->mtree_block_count; ) {
+		int blocks_to_read = i % 7 + 1;
+		struct fsverity_read_metadata_arg args = {
+			.metadata_type = FS_VERITY_METADATA_TYPE_MERKLE_TREE,
+			.offset = i * INCFS_DATA_FILE_BLOCK_SIZE,
+			.length = blocks_to_read * INCFS_DATA_FILE_BLOCK_SIZE,
+			.buf_ptr = ptr_to_u64(buf),
+		};
+
+		TEST(err = ioctl(fd, FS_IOC_READ_VERITY_METADATA, &args),
+		     err == min(args.length, (file->mtree_block_count - i) *
+					     INCFS_DATA_FILE_BLOCK_SIZE));
+		TESTEQUAL(memcmp(buf, file->mtree[i].data, err), 0);
+
+		i += blocks_to_read;
+	}
+
+	result = TEST_SUCCESS;
+
+out:
+	free(buf);
+	close(fd);
+	free(filename);
+	return result;
+}
+
 static int hash_tree_test(const char *mount_dir)
 {
+	int result = TEST_FAILURE;
 	char *backing_dir;
 	struct test_files_set test = get_test_files_set();
 	const int file_num = test.files_count;
@@ -2053,6 +2101,8 @@ static int hash_tree_test(const char *mount_dir)
 			}
 		} else if (validate_test_file_content(mount_dir, file) < 0)
 			goto failure;
+		else if (validate_hash_tree(mount_dir, file) < 0)
+			goto failure;
 	}
 
 	/* Unmount and mount again, to that hashes are persistent. */
@@ -2090,21 +2140,19 @@ static int hash_tree_test(const char *mount_dir)
 		} else if (validate_test_file_content(mount_dir, file) < 0)
 			goto failure;
 	}
-
-	/* Final unmount */
-	close(cmd_fd);
-	cmd_fd = -1;
-	if (umount(mount_dir) != 0) {
-		print_error("Can't unmout FS");
-		goto failure;
-	}
-	return TEST_SUCCESS;
+	result = TEST_SUCCESS;
 
 failure:
+	for (i = 0; i < file_num; i++) {
+		struct test_file *file = &test.files[i];
+
+		free(file->mtree);
+	}
+
 	close(cmd_fd);
 	free(backing_dir);
 	umount(mount_dir);
-	return TEST_FAILURE;
+	return result;
 }
 
 enum expected_log { FULL_LOG, NO_LOG, PARTIAL_LOG };
@@ -3780,8 +3828,6 @@ static int enable_verity(const char *mount_dir, struct test_file *file,
 		.sig_size = 0,
 		.sig_ptr = 0,
 	};
-	unsigned char *sig = NULL;
-	size_t sig_len = 0;
 	struct {
 		__u8 version;           /* must be 1 */
 		__u8 hash_algorithm;    /* Merkle tree hash algorithm */
@@ -3807,6 +3853,8 @@ static int enable_verity(const char *mount_dir, struct test_file *file,
 		.digest_algorithm = 1,
 		.digest_size = 32
 	};
+	unsigned char *sig = NULL;
+	size_t sig_size = 0;
 	uint64_t flags;
 	struct statx statxbuf = {};
 
@@ -3825,10 +3873,10 @@ static int enable_verity(const char *mount_dir, struct test_file *file,
 	/* First try to enable verity with random digest */
 	if (key) {
 		TESTEQUAL(sign(key, cert, (void *)&fsverity_signed_digest,
-			    sizeof(fsverity_signed_digest), &sig, &sig_len),
+			    sizeof(fsverity_signed_digest), &sig, &sig_size),
 			  0);
 
-		fear.sig_size = sig_len;
+		fear.sig_size = sig_size;
 		fear.sig_ptr = ptr_to_u64(sig);
 		TESTEQUAL(ioctl(fd, FS_IOC_ENABLE_VERITY, &fear), -1);
 	}
@@ -3844,14 +3892,21 @@ static int enable_verity(const char *mount_dir, struct test_file *file,
 		goto out;
 	}
 
+	free(sig);
+	sig = NULL;
+
 	if (key)
 		TESTEQUAL(sign(key, cert, (void *)&fsverity_signed_digest,
-		       sizeof(fsverity_signed_digest), &sig, &sig_len),
+			       sizeof(fsverity_signed_digest),
+			       &sig, &sig_size),
 		  0);
 
 	if (use_signatures) {
-		fear.sig_size = sig_len;
+		fear.sig_size = sig_size;
+		file->verity_sig_size = sig_size;
 		fear.sig_ptr = ptr_to_u64(sig);
+		file->verity_sig = sig;
+		sig = NULL;
 	} else {
 		fear.sig_size = 0;
 		fear.sig_ptr = 0;
@@ -3866,6 +3921,16 @@ out:
 	return result;
 }
 
+static int memzero(const unsigned char *buf, size_t size)
+{
+	size_t i;
+
+	for (i = 0; i < size; ++i)
+		if (buf[i])
+			return -1;
+	return 0;
+}
+
 static int validate_verity(const char *mount_dir, struct test_file *file)
 {
 	int result = TEST_FAILURE;
@@ -3874,6 +3939,9 @@ static int validate_verity(const char *mount_dir, struct test_file *file)
 	uint64_t flags;
 	struct fsverity_digest *digest;
 	struct statx statxbuf = {};
+	struct fsverity_read_metadata_arg frma = {};
+	uint8_t *buf = NULL;
+	struct fsverity_descriptor desc;
 
 	TEST(digest = malloc(sizeof(struct fsverity_digest) +
 			     INCFS_MAX_HASH_SIZE), digest != NULL);
@@ -3890,8 +3958,48 @@ static int validate_verity(const char *mount_dir, struct test_file *file)
 	TESTEQUAL(digest->digest_algorithm, FS_VERITY_HASH_ALG_SHA256);
 	TESTEQUAL(digest->digest_size, 32);
 
+	if (file->verity_sig) {
+		TEST(buf = malloc(file->verity_sig_size), buf);
+		frma = (struct fsverity_read_metadata_arg) {
+			.metadata_type = FS_VERITY_METADATA_TYPE_SIGNATURE,
+			.length = file->verity_sig_size,
+			.buf_ptr = ptr_to_u64(buf),
+		};
+		TESTEQUAL(ioctl(fd, FS_IOC_READ_VERITY_METADATA, &frma),
+			  file->verity_sig_size);
+		TESTEQUAL(memcmp(buf, file->verity_sig, file->verity_sig_size),
+			  0);
+	} else {
+		frma = (struct fsverity_read_metadata_arg) {
+			.metadata_type = FS_VERITY_METADATA_TYPE_SIGNATURE,
+		};
+		TESTEQUAL(ioctl(fd, FS_IOC_READ_VERITY_METADATA, &frma), -1);
+		TESTEQUAL(errno, ENODATA);
+	}
+
+	frma = (struct fsverity_read_metadata_arg) {
+		.metadata_type = FS_VERITY_METADATA_TYPE_DESCRIPTOR,
+		.length = sizeof(desc),
+		.buf_ptr = ptr_to_u64(&desc),
+	};
+	TESTEQUAL(ioctl(fd, FS_IOC_READ_VERITY_METADATA, &frma),
+		  sizeof(desc));
+	TESTEQUAL(desc.version, 1);
+	TESTEQUAL(desc.hash_algorithm, FS_VERITY_HASH_ALG_SHA256);
+	TESTEQUAL(desc.log_blocksize, ilog2(INCFS_DATA_FILE_BLOCK_SIZE));
+	TESTEQUAL(desc.salt_size, 0);
+	TESTEQUAL(desc.__reserved_0x04, 0);
+	TESTEQUAL(desc.data_size, file->size);
+	TESTEQUAL(memcmp(desc.root_hash, file->root_hash, SHA256_DIGEST_SIZE),
+		  0);
+	TESTEQUAL(memzero(desc.root_hash + SHA256_DIGEST_SIZE,
+			  sizeof(desc.root_hash) - SHA256_DIGEST_SIZE), 0);
+	TESTEQUAL(memzero(desc.salt, sizeof(desc.salt)), 0);
+	TESTEQUAL(memzero(desc.__reserved, sizeof(desc.__reserved)), 0);
+
 	result = TEST_SUCCESS;
 out:
+	free(buf);
 	close(fd);
 	free(filename);
 	free(digest);
@@ -3949,7 +4057,7 @@ static int verity_test_optional_sigs(const char *mount_dir, bool use_signatures)
 				     file->size, file->root_hash,
 				     file->sig.add_data), 0);
 
-		TESTEQUAL(emit_partial_test_file_hash(mount_dir, file), 0);
+		TESTEQUAL(load_hash_tree(mount_dir, file), 0);
 		TESTEQUAL(enable_verity(mount_dir, file, key, cert,
 					use_signatures),
 			  0);
@@ -3969,6 +4077,16 @@ static int verity_test_optional_sigs(const char *mount_dir, bool use_signatures)
 
 	result = TEST_SUCCESS;
 out:
+	for (i = 0; i < file_num; i++) {
+		struct test_file *file = &test.files[i];
+
+		free(file->mtree);
+		free(file->verity_sig);
+
+		file->mtree = NULL;
+		file->verity_sig = NULL;
+	}
+
 	free(line);
 	BIO_free(mem);
 	X509_free(cert);
@@ -4041,7 +4159,7 @@ static int enable_verity_test(const char *mount_dir)
 		TESTEQUAL(emit_file(cmd_fd, NULL, file->name, &file->id,
 				     file->size, NULL), 0);
 		TESTEQUAL(emit_test_file_data(mount_dir, file), 0);
-		TESTEQUAL(enable_verity(mount_dir, file, NULL, NULL, true), 0);
+		TESTEQUAL(enable_verity(mount_dir, file, NULL, NULL, false), 0);
 	}
 
 	/* Check files are valid on disk */
@@ -4110,6 +4228,7 @@ static int mmap_test(const char *mount_dir)
 
 	result = TEST_SUCCESS;
 out:
+	free(file.mtree);
 	close(fd);
 	free(filename);
 	close(cmd_fd);

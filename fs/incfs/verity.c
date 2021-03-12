@@ -78,15 +78,17 @@ static int incfs_end_enable_verity(struct file *filp, u8 *sig, size_t sig_size)
 	struct data_file *df = get_incfs_data_file(filp);
 	struct backing_file_context *bfc;
 	int error;
-	struct incfs_df_verity_signature *vs;
+	struct incfs_df_verity_signature *vs = NULL;
 	loff_t offset;
 
 	if (!df || !df->df_backing_file_context)
 		return -EFSCORRUPTED;
 
-	vs = kzalloc(sizeof(*vs), GFP_NOFS);
-	if (!vs)
-		return -ENOMEM;
+	if (sig) {
+		vs = kzalloc(sizeof(*vs), GFP_NOFS);
+		if (!vs)
+			return -ENOMEM;
+	}
 
 	bfc = df->df_backing_file_context;
 	error = mutex_lock_interruptible(&bfc->bc_mutex);
@@ -109,13 +111,16 @@ static int incfs_end_enable_verity(struct file *filp, u8 *sig, size_t sig_size)
 		goto out;
 	}
 
-	*vs = (struct incfs_df_verity_signature) {
-		.size = signature.len,
-		.offset = offset,
-	};
+	if (sig) {
+		*vs = (struct incfs_df_verity_signature) {
+			.size = signature.len,
+			.offset = offset,
+		};
 
-	df->df_verity_signature = vs;
-	vs = NULL;
+		df->df_verity_signature = vs;
+		vs = NULL;
+	}
+
 	inode_set_flags(inode, S_VERITY, S_VERITY);
 
 out:
@@ -245,17 +250,15 @@ out:
 	return verity_file_digest;
 }
 
-static struct mem_range incfs_calc_verity_digest(
-					struct inode *inode, struct file *filp,
-					u8 *signature, size_t signature_size,
-					int hash_algorithm)
+static struct fsverity_descriptor *incfs_get_fsverity_descriptor(
+					struct file *filp, int hash_algorithm)
 {
+	struct inode *inode = file_inode(filp);
 	struct fsverity_descriptor *desc = kzalloc(sizeof(*desc), GFP_KERNEL);
 	int err;
-	struct mem_range verity_file_digest;
 
 	if (!desc)
-		return range(ERR_PTR(-ENOMEM), 0);
+		return ERR_PTR(-ENOMEM);
 
 	*desc = (struct fsverity_descriptor) {
 		.version = 1,
@@ -265,16 +268,28 @@ static struct mem_range incfs_calc_verity_digest(
 	};
 
 	err = incfs_get_root_hash(filp, desc->root_hash);
-	if (err)
-		goto out;
+	if (err) {
+		kfree(desc);
+		return ERR_PTR(err);
+	}
 
+	return desc;
+}
+
+static struct mem_range incfs_calc_verity_digest(
+					struct inode *inode, struct file *filp,
+					u8 *signature, size_t signature_size,
+					int hash_algorithm)
+{
+	struct fsverity_descriptor *desc = incfs_get_fsverity_descriptor(filp,
+							hash_algorithm);
+	struct mem_range verity_file_digest;
+
+	if (IS_ERR(desc))
+		return range((u8 *)desc, 0);
 	verity_file_digest = incfs_calc_verity_digest_from_desc(inode, desc,
 						signature, signature_size);
-
-out:
 	kfree(desc);
-	if (err)
-		return range(ERR_PTR(err), 0);
 	return verity_file_digest;
 }
 
@@ -611,6 +626,11 @@ static u8 *incfs_get_verity_signature(struct file *filp, size_t *sig_size)
 		return NULL;
 	}
 
+	if (!vs->size) {
+		*sig_size = 0;
+		return ERR_PTR(-EFSCORRUPTED);
+	}
+
 	signature = kzalloc(vs->size, GFP_KERNEL);
 	if (!signature)
 		return ERR_PTR(-ENOMEM);
@@ -719,4 +739,113 @@ int incfs_ioctl_measure_verity(struct file *filp, void __user *_uarg)
 		return -EFAULT;
 
 	return 0;
+}
+
+static int incfs_read_merkle_tree(struct file *filp, void __user *buf,
+				  u64 start_offset, int length)
+{
+	struct mem_range tmp_buf;
+	size_t offset;
+	int retval = 0;
+	int err = 0;
+	struct data_file *df = get_incfs_data_file(filp);
+
+	if (!df)
+		return -EINVAL;
+
+	tmp_buf = (struct mem_range) {
+		.data = kzalloc(INCFS_DATA_FILE_BLOCK_SIZE, GFP_NOFS),
+		.len = INCFS_DATA_FILE_BLOCK_SIZE,
+	};
+	if (!tmp_buf.data)
+		return -ENOMEM;
+
+	for (offset = start_offset; offset < start_offset + length;
+	     offset += tmp_buf.len) {
+		err = incfs_read_merkle_tree_blocks(tmp_buf, df, offset);
+
+		if (err < 0)
+			break;
+
+		if (err != tmp_buf.len)
+			break;
+
+		if (copy_to_user(buf, tmp_buf.data, tmp_buf.len))
+			break;
+
+		buf += tmp_buf.len;
+		retval += tmp_buf.len;
+	}
+
+	kfree(tmp_buf.data);
+	return retval ? retval : err;
+}
+
+static int incfs_read_descriptor(struct file *filp,
+				 void __user *buf, u64 offset, int length)
+{
+	int err;
+	struct fsverity_descriptor *desc = incfs_get_fsverity_descriptor(filp,
+						FS_VERITY_HASH_ALG_SHA256);
+
+	if (IS_ERR(desc))
+		return PTR_ERR(desc);
+	length = min_t(u64, length, sizeof(*desc));
+	err = copy_to_user(buf, desc, length);
+	kfree(desc);
+	return err ? err : length;
+}
+
+static int incfs_read_signature(struct file *filp,
+				void __user *buf, u64 offset, int length)
+{
+	size_t sig_size;
+	static u8 *signature;
+	int err;
+
+	signature = incfs_get_verity_signature(filp, &sig_size);
+	if (IS_ERR(signature))
+		return PTR_ERR(signature);
+
+	if (!signature)
+		return -ENODATA;
+
+	length = min_t(u64, length, sig_size);
+	err = copy_to_user(buf, signature, length);
+	kfree(signature);
+	return err ? err : length;
+}
+
+int incfs_ioctl_read_verity_metadata(struct file *filp,
+				     const void __user *uarg)
+{
+	struct fsverity_read_metadata_arg arg;
+	int length;
+	void __user *buf;
+
+	if (copy_from_user(&arg, uarg, sizeof(arg)))
+		return -EFAULT;
+
+	if (arg.__reserved)
+		return -EINVAL;
+
+	/* offset + length must not overflow. */
+	if (arg.offset + arg.length < arg.offset)
+		return -EINVAL;
+
+	/* Ensure that the return value will fit in INT_MAX. */
+	length = min_t(u64, arg.length, INT_MAX);
+
+	buf = u64_to_user_ptr(arg.buf_ptr);
+
+	switch (arg.metadata_type) {
+	case FS_VERITY_METADATA_TYPE_MERKLE_TREE:
+		return incfs_read_merkle_tree(filp, buf, arg.offset, length);
+	case FS_VERITY_METADATA_TYPE_DESCRIPTOR:
+		return incfs_read_descriptor(filp, buf, arg.offset, length);
+	case FS_VERITY_METADATA_TYPE_SIGNATURE:
+		return incfs_read_signature(filp, buf, arg.offset, length);
+	default:
+		return -EINVAL;
+	}
 }

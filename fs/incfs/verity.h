@@ -15,6 +15,8 @@ int incfs_ioctl_enable_verity(struct file *filp, const void __user *uarg);
 int incfs_ioctl_measure_verity(struct file *filp, void __user *_uarg);
 
 int incfs_fsverity_file_open(struct inode *inode, struct file *filp);
+int incfs_ioctl_read_verity_metadata(struct file *filp,
+				     const void __user *uarg);
 
 #else /* !CONFIG_FS_VERITY */
 
@@ -32,6 +34,12 @@ static inline int incfs_ioctl_measure_verity(struct file *filp,
 
 static inline int incfs_fsverity_file_open(struct inode *inode,
 					   struct file *filp)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int incfs_ioctl_read_verity_metadata(struct file *filp,
+						const void __user *uarg)
 {
 	return -EOPNOTSUPP;
 }
