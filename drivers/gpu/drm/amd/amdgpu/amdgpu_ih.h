@@ -64,7 +64,6 @@ struct amdgpu_ih_ring {
 
 	bool                    enabled;
 	unsigned		rptr;
-	atomic_t		lock;
 	struct amdgpu_ih_regs	ih_regs;
 
 	/* For waiting on IH processing at checkpoint. */

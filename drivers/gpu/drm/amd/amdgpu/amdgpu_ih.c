@@ -228,10 +228,6 @@ int amdgpu_ih_process(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih)
 	wptr = amdgpu_ih_get_wptr(adev, ih);
 
 restart_ih:
-	/* is somebody else already processing irqs? */
-	if (atomic_xchg(&ih->lock, 1))
-		return IRQ_NONE;
-
 	DRM_DEBUG("%s: rptr %d, wptr %d\n", __func__, ih->rptr, wptr);
 
 	/* Order reading of wptr vs. reading of IH ring data */
@@ -244,7 +240,6 @@ restart_ih:
 
 	amdgpu_ih_set_rptr(adev, ih);
 	wake_up_all(&ih->wait_process);
-	atomic_set(&ih->lock, 0);
 
 	/* make sure wptr hasn't changed while processing */
 	wptr = amdgpu_ih_get_wptr(adev, ih);
