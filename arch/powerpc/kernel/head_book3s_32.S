@@ -271,7 +271,9 @@ __secondary_hold_acknowledge:
 	beq	cr1, 1f
 	twi	31, 0, 0
 #endif
-1:	EXC_XFER_STD(0x200, machine_check_exception)
+1:	prepare_transfer_to_handler
+	bl	machine_check_exception
+	b	interrupt_return
 
 /* Data access exception. */
 	START_EXCEPTION(0x300, DataAccess)
@@ -296,12 +298,13 @@ ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_HPTE_TABLE)
 1:	EXCEPTION_PROLOG_0 handle_dar_dsisr=1
 	EXCEPTION_PROLOG_1
 	EXCEPTION_PROLOG_2 0x300 DataAccess handle_dar_dsisr=1
+	prepare_transfer_to_handler
 	lwz	r5, _DSISR(r11)
 	andis.	r0, r5, DSISR_DABRMATCH@h
 	bne-	1f
-	EXC_XFER_LITE(0x300, do_page_fault)
-1:	prepare_transfer_to_handler
-	bl	do_break
+	bl	do_page_fault
+	b	interrupt_return
+1:	bl	do_break
 	REST_NVGPRS(r1)
 	b	interrupt_return
 
@@ -331,7 +334,9 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 	andis.	r5,r9,DSISR_SRR1_MATCH_32S@h /* Filter relevant SRR1 bits */
 	stw	r5, _DSISR(r11)
 	stw	r12, _DAR(r11)
-	EXC_XFER_LITE(0x400, do_page_fault)
+	prepare_transfer_to_handler
+	bl	do_page_fault
+	b	interrupt_return
 
 /* External interrupt */
 	EXCEPTION(0x500, HardwareInterrupt, do_IRQ, EXC_XFER_LITE)
@@ -366,7 +371,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
 	beq	1f
 	bl	load_up_fpu		/* if from user, just load it up */
 	b	fast_exception_return
-1:	EXC_XFER_LITE(0x800, kernel_fp_unavailable_exception)
+1:	prepare_transfer_to_handler
+	bl	kernel_fp_unavailable_exception
+	b	interrupt_return
 #else
 	b 	ProgramCheck
 #endif
@@ -730,12 +737,16 @@ AltiVecUnavailable:
 	bl	load_up_altivec		/* if from user, just load it up */
 	b	fast_exception_return
 #endif /* CONFIG_ALTIVEC */
-1:	EXC_XFER_LITE(0xf20, altivec_unavailable_exception)
+1:	prepare_transfer_to_handler
+	bl	altivec_unavailable_exception
+	b	interrupt_return
 
 	__HEAD
 PerformanceMonitor:
 	EXCEPTION_PROLOG 0xf00 PerformanceMonitor
-	EXC_XFER_STD(0xf00, performance_monitor_exception)
+	prepare_transfer_to_handler
+	bl	performance_monitor_exception
+	b	interrupt_return
 
 
 	__HEAD

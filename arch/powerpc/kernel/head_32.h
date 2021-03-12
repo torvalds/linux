@@ -189,20 +189,9 @@ label:
 #define EXCEPTION(n, label, hdlr, xfer)		\
 	START_EXCEPTION(n, label)		\
 	EXCEPTION_PROLOG n label;		\
-	xfer(n, hdlr)
-
-#define EXC_XFER_TEMPLATE(hdlr, trap, msr, tfer, ret)		\
-	bl	tfer;						\
-	bl	hdlr;						\
-	b	ret
-
-#define EXC_XFER_STD(n, hdlr)		\
-	EXC_XFER_TEMPLATE(hdlr, n, MSR_KERNEL, transfer_to_handler_full,	\
-			  ret_from_except_full)
-
-#define EXC_XFER_LITE(n, hdlr)		\
-	EXC_XFER_TEMPLATE(hdlr, n, MSR_KERNEL, transfer_to_handler, \
-			  ret_from_except)
+	prepare_transfer_to_handler;		\
+	bl	hdlr;				\
+	b	interrupt_return
 
 .macro vmap_stack_overflow_exception
 	__HEAD
@@ -218,7 +207,9 @@ vmap_stack_overflow:
 	lwz	r1, emergency_ctx@l(r1)
 	addi	r1, r1, THREAD_SIZE - INT_FRAME_SIZE
 	EXCEPTION_PROLOG_2 0 vmap_stack_overflow
-	EXC_XFER_STD(0, stack_overflow_exception)
+	prepare_transfer_to_handler
+	bl	stack_overflow_exception
+	b	interrupt_return
 .endm
 
 #endif /* __HEAD_32_H__ */

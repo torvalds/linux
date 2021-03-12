@@ -370,9 +370,13 @@ interrupt_base:
 	stw	r4, _DEAR(r11)
 	andis.	r10,r5,(ESR_ILK|ESR_DLK)@h
 	bne	1f
-	EXC_XFER_LITE(0x0300, do_page_fault)
+	prepare_transfer_to_handler
+	bl	do_page_fault
+	b	interrupt_return
 1:
-	EXC_XFER_LITE(0x0300, CacheLockingException)
+	prepare_transfer_to_handler
+	bl	CacheLockingException
+	b	interrupt_return
 
 	/* Instruction Storage Interrupt */
 	INSTRUCTION_STORAGE_EXCEPTION
@@ -617,7 +621,9 @@ END_BTB_FLUSH_SECTION
 	beq	1f
 	bl	load_up_spe
 	b	fast_exception_return
-1:	EXC_XFER_LITE(0x2010, KernelSPE)
+1:	prepare_transfer_to_handler
+	bl	KernelSPE
+	b	interrupt_return
 #elif defined(CONFIG_SPE_POSSIBLE)
 	EXCEPTION(0x2020, SPE_UNAVAIL, SPEUnavailable, \
 		  unknown_exception, EXC_XFER_STD)
@@ -860,7 +866,7 @@ KernelSPE:
 	lwz	r5,_NIP(r1)
 	bl	printk
 #endif
-	b	ret_from_except
+	b	interrupt_return
 #ifdef CONFIG_PRINTK
 87:	.string	"SPE used in kernel  (task=%p, pc=%x)  \n"
 #endif

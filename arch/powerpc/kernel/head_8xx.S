@@ -123,7 +123,9 @@ instruction_counter:
 /* Machine check */
 	START_EXCEPTION(0x200, MachineCheck)
 	EXCEPTION_PROLOG 0x200 MachineCheck handle_dar_dsisr=1
-	EXC_XFER_STD(0x200, machine_check_exception)
+	prepare_transfer_to_handler
+	bl	machine_check_exception
+	b	interrupt_return
 
 /* External interrupt */
 	EXCEPTION(0x500, HardwareInterrupt, do_IRQ, EXC_XFER_LITE)
@@ -314,7 +316,9 @@ instruction_counter:
 .Litlbie:
 	stw	r12, _DAR(r11)
 	stw	r5, _DSISR(r11)
-	EXC_XFER_LITE(0x400, do_page_fault)
+	prepare_transfer_to_handler
+	bl	do_page_fault
+	b	interrupt_return
 
 /* This is the data TLB error on the MPC8xx.  This could be due to
  * many reasons, including a dirty update to a pte.  We bail out to
@@ -335,7 +339,9 @@ DARFixed:/* Return from dcbx instruction bug workaround */
 	beq+	.Ldtlbie
 	tlbie	r4
 .Ldtlbie:
-	EXC_XFER_LITE(0x300, do_page_fault)
+	prepare_transfer_to_handler
+	bl	do_page_fault
+	b	interrupt_return
 
 #ifdef CONFIG_VMAP_STACK
 	vmap_stack_overflow_exception

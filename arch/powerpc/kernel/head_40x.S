@@ -187,8 +187,9 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 #define CRITICAL_EXCEPTION(n, label, hdlr)			\
 	START_EXCEPTION(n, label);				\
 	CRITICAL_EXCEPTION_PROLOG n label;				\
-	EXC_XFER_TEMPLATE(hdlr, n+2, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), \
-			  crit_transfer_to_handler, ret_from_crit_exc)
+	prepare_transfer_to_handler;				\
+	bl	hdlr;						\
+	b	ret_from_crit_exc
 
 /*
  * 0x0100 - Critical Interrupt Exception
@@ -209,7 +210,9 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
  */
 	START_EXCEPTION(0x0300,	DataStorage)
 	EXCEPTION_PROLOG 0x300 DataStorage handle_dar_dsisr=1
-	EXC_XFER_LITE(0x300, do_page_fault)
+	prepare_transfer_to_handler
+	bl	do_page_fault
+	b	interrupt_return
 
 /*
  * 0x0400 - Instruction Storage Exception
@@ -220,7 +223,9 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 	li	r5,0
 	stw	r5, _ESR(r11)		/* Zero ESR */
 	stw	r12, _DEAR(r11)		/* SRR0 as DEAR */
-	EXC_XFER_LITE(0x400, do_page_fault)
+	prepare_transfer_to_handler
+	bl	do_page_fault
+	b	interrupt_return
 
 /* 0x0500 - External Interrupt Exception */
 	EXCEPTION(0x0500, HardwareInterrupt, do_IRQ, EXC_XFER_LITE)
@@ -499,9 +504,9 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 	/* continue normal handling for a critical exception... */
 2:	mfspr	r4,SPRN_DBSR
 	stw	r4,_ESR(r11)		/* DebugException takes DBSR in _ESR */
-	EXC_XFER_TEMPLATE(DebugException, 0x2002, \
-		(MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), \
-		crit_transfer_to_handler, ret_from_crit_exc)
+	prepare_transfer_to_handler
+	bl	DebugException
+	b	ret_from_crit_exc
 
 	/* Programmable Interval Timer (PIT) Exception. (from 0x1000) */
 	__HEAD
@@ -509,21 +514,25 @@ Decrementer:
 	EXCEPTION_PROLOG 0x1000 Decrementer
 	lis	r0,TSR_PIS@h
 	mtspr	SPRN_TSR,r0		/* Clear the PIT exception */
-	EXC_XFER_LITE(0x1000, timer_interrupt)
+	prepare_transfer_to_handler
+	bl	timer_interrupt
+	b	interrupt_return
 
 	/* Fixed Interval Timer (FIT) Exception. (from 0x1010) */
 	__HEAD
 FITException:
 	EXCEPTION_PROLOG 0x1010 FITException
-	EXC_XFER_STD(0x1010, unknown_exception)
+	prepare_transfer_to_handler
+	bl	unknown_exception
+	b	interrupt_return
 
 	/* Watchdog Timer (WDT) Exception. (from 0x1020) */
 	__HEAD
 WDTException:
 	CRITICAL_EXCEPTION_PROLOG 0x1020 WDTException
-	EXC_XFER_TEMPLATE(WatchdogException, 0x1020+2,
-	                  (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)),
-			  crit_transfer_to_handler, ret_from_crit_exc)
+	prepare_transfer_to_handler
+	bl	WatchdogException
+	b	ret_from_crit_exc
 
 /* Other PowerPC processors, namely those derived from the 6xx-series
  * have vectors from 0x2100 through 0x2F00 defined, but marked as reserved.
