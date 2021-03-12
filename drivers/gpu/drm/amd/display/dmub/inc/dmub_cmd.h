@@ -2941,11 +2941,7 @@ struct dmub_rb_cmd_get_visual_confirm_color {
 struct dmub_optc_state {
 	uint32_t v_total_max;
 	uint32_t v_total_min;
-	uint32_t v_total_mid;
-	uint32_t v_total_mid_frame_num;
 	uint32_t tg_inst;
-	uint32_t enable_manual_trigger;
-	uint32_t clear_force_vsync;
 };
 
 struct dmub_rb_cmd_drr_update {

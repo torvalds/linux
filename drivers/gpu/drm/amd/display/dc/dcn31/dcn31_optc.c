@@ -201,7 +201,6 @@ void optc31_set_drr(
 
 		// Setup manual flow control for EOF via TRIG_A
 		optc->funcs->setup_manual_trigger(optc);
-
 	} else {
 		REG_UPDATE_4(OTG_V_TOTAL_CONTROL,
 				OTG_SET_V_TOTAL_MIN_MASK, 0,
