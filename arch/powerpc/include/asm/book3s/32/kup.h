@@ -5,55 +5,7 @@
 #include <asm/bug.h>
 #include <asm/book3s/32/mmu-hash.h>
 
-#ifdef __ASSEMBLY__
-
-#ifdef CONFIG_PPC_KUAP
-
-.macro kuap_update_sr	gpr1, gpr2, gpr3	/* NEVER use r0 as gpr2 due to addis */
-101:	mtsrin	\gpr1, \gpr2
-	addi	\gpr1, \gpr1, 0x111		/* next VSID */
-	rlwinm	\gpr1, \gpr1, 0, 0xf0ffffff	/* clear VSID overflow */
-	addis	\gpr2, \gpr2, 0x1000		/* address of next segment */
-	cmplw	\gpr2, \gpr3
-	blt-	101b
-	isync
-.endm
-
-.macro kuap_save_and_lock	sp, thread, gpr1, gpr2, gpr3
-	lwz	\gpr2, KUAP(\thread)
-	rlwinm.	\gpr3, \gpr2, 28, 0xf0000000
-	stw	\gpr2, STACK_REGS_KUAP(\sp)
-	beq+	102f
-	li	\gpr1, 0
-	stw	\gpr1, KUAP(\thread)
-	mfsrin	\gpr1, \gpr2
-	oris	\gpr1, \gpr1, SR_KS@h	/* set Ks */
-	kuap_update_sr	\gpr1, \gpr2, \gpr3
-102:
-.endm
-
-.macro kuap_restore	sp, current, gpr1, gpr2, gpr3
-	lwz	\gpr2, STACK_REGS_KUAP(\sp)
-	rlwinm.	\gpr3, \gpr2, 28, 0xf0000000
-	stw	\gpr2, THREAD + KUAP(\current)
-	beq+	102f
-	mfsrin	\gpr1, \gpr2
-	rlwinm	\gpr1, \gpr1, 0, ~SR_KS	/* Clear Ks */
-	kuap_update_sr	\gpr1, \gpr2, \gpr3
-102:
-.endm
-
-.macro kuap_check	current, gpr
-#ifdef CONFIG_PPC_KUAP_DEBUG
-	lwz	\gpr, THREAD + KUAP(\current)
-999:	twnei	\gpr, 0
-	EMIT_BUG_ENTRY 999b, __FILE__, __LINE__, (BUGFLAG_WARNING | BUGFLAG_ONCE)
-#endif
-.endm
-
-#endif /* CONFIG_PPC_KUAP */
-
-#else /* !__ASSEMBLY__ */
+#ifndef __ASSEMBLY__
 
 #ifdef CONFIG_PPC_KUAP
 

@@ -34,6 +34,9 @@ notrace long system_call_exception(long r3, long r4, long r5,
 	syscall_fn f;
 
 	kuep_lock();
+#ifdef CONFIG_PPC32
+	kuap_save_and_lock(regs);
+#endif
 
 	regs->orig_gpr3 = r3;
 
@@ -75,9 +78,7 @@ notrace long system_call_exception(long r3, long r4, long r5,
 			isync();
 	} else
 #endif
-#ifdef CONFIG_PPC64
 		kuap_assert_locked();
-#endif
 
 	booke_restore_dbcr0();
 
@@ -253,9 +254,7 @@ notrace unsigned long syscall_exit_prepare(unsigned long r3,
 
 	CT_WARN_ON(ct_state() == CONTEXT_USER);
 
-#ifdef CONFIG_PPC64
 	kuap_assert_locked();
-#endif
 
 	regs->result = r3;
 
@@ -350,7 +349,7 @@ again:
 
 	account_cpu_user_exit();
 
-#ifdef CONFIG_PPC_BOOK3S_64 /* BOOK3E and ppc32 not using this */
+#ifndef CONFIG_PPC_BOOK3E_64 /* BOOK3E not using this */
 	/*
 	 * We do this at the end so that we do context switch with KERNEL AMR
 	 */
@@ -379,9 +378,7 @@ notrace unsigned long interrupt_exit_user_prepare(struct pt_regs *regs, unsigned
 	 * We don't need to restore AMR on the way back to userspace for KUAP.
 	 * AMR can only have been unlocked if we interrupted the kernel.
 	 */
-#ifdef CONFIG_PPC64
 	kuap_assert_locked();
-#endif
 
 	local_irq_save(flags);
 
@@ -438,9 +435,7 @@ again:
 	/*
 	 * We do this at the end so that we do context switch with KERNEL AMR
 	 */
-#ifdef CONFIG_PPC64
 	kuap_user_restore(regs);
-#endif
 	return ret;
 }
 
@@ -450,9 +445,7 @@ notrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs, unsign
 {
 	unsigned long flags;
 	unsigned long ret = 0;
-#ifdef CONFIG_PPC64
 	unsigned long kuap;
-#endif
 
 	if (!IS_ENABLED(CONFIG_BOOKE) && !IS_ENABLED(CONFIG_40x) &&
 	    unlikely(!(regs->msr & MSR_RI)))
@@ -466,9 +459,7 @@ notrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs, unsign
 	if (TRAP(regs) != 0x700)
 		CT_WARN_ON(ct_state() == CONTEXT_USER);
 
-#ifdef CONFIG_PPC64
 	kuap = kuap_get_and_assert_locked();
-#endif
 
 	if (unlikely(current_thread_info()->flags & _TIF_EMULATE_STACK_STORE)) {
 		clear_bits(_TIF_EMULATE_STACK_STORE, &current_thread_info()->flags);
@@ -510,9 +501,7 @@ again:
 	 * which would cause Read-After-Write stalls. Hence, we take the AMR
 	 * value from the check above.
 	 */
-#ifdef CONFIG_PPC64
 	kuap_kernel_restore(regs, kuap);
-#endif
 
 	return ret;
 }
