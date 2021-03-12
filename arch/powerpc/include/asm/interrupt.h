@@ -436,7 +436,7 @@ DECLARE_INTERRUPT_HANDLER_NMI(hmi_exception_realmode);
 
 DECLARE_INTERRUPT_HANDLER_ASYNC(TAUException);
 
-void unrecoverable_exception(struct pt_regs *regs);
+void __noreturn unrecoverable_exception(struct pt_regs *regs);
 
 void replay_system_reset(void);
 void replay_soft_interrupts(void);
