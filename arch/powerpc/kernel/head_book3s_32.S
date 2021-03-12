@@ -267,7 +267,6 @@ __secondary_hold_acknowledge:
 #endif /* CONFIG_PPC_CHRP */
 	EXCEPTION_PROLOG_1
 7:	EXCEPTION_PROLOG_2 MachineCheck
-	addi	r3,r1,STACK_FRAME_OVERHEAD
 #ifdef CONFIG_PPC_CHRP
 	beq	cr1, 1f
 	twi	31, 0, 0
@@ -337,7 +336,6 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 /* Alignment exception */
 	START_EXCEPTION(0x600, Alignment)
 	EXCEPTION_PROLOG Alignment handle_dar_dsisr=1
-	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_STD(0x600, alignment_exception)
 
 /* Program check exception */
@@ -357,8 +355,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
 	beq	1f
 	bl	load_up_fpu		/* if from user, just load it up */
 	b	fast_exception_return
-1:	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_LITE(0x800, kernel_fp_unavailable_exception)
+1:	EXC_XFER_LITE(0x800, kernel_fp_unavailable_exception)
 #else
 	b 	ProgramCheck
 #endif
@@ -722,13 +719,11 @@ AltiVecUnavailable:
 	bl	load_up_altivec		/* if from user, just load it up */
 	b	fast_exception_return
 #endif /* CONFIG_ALTIVEC */
-1:	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_LITE(0xf20, altivec_unavailable_exception)
+1:	EXC_XFER_LITE(0xf20, altivec_unavailable_exception)
 
 	__HEAD
 PerformanceMonitor:
 	EXCEPTION_PROLOG PerformanceMonitor
-	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_STD(0xf00, performance_monitor_exception)
 
 

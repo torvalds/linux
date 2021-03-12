@@ -123,7 +123,6 @@ instruction_counter:
 /* Machine check */
 	START_EXCEPTION(0x200, MachineCheck)
 	EXCEPTION_PROLOG MachineCheck handle_dar_dsisr=1
-	addi r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_STD(0x200, machine_check_exception)
 
 /* External interrupt */
@@ -132,7 +131,6 @@ instruction_counter:
 /* Alignment exception */
 	START_EXCEPTION(0x600, Alignment)
 	EXCEPTION_PROLOG Alignment handle_dar_dsisr=1
-	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_STD(0x600, alignment_exception)
 
 /* Program check exception */
@@ -348,7 +346,6 @@ DARFixed:/* Return from dcbx instruction bug workaround */
 
 1:	EXCEPTION_PROLOG_1
 	EXCEPTION_PROLOG_2 DataBreakpoint handle_dar_dsisr=1
-	addi	r3,r1,STACK_FRAME_OVERHEAD
 	mfspr	r4,SPRN_BAR
 	stw	r4,_DAR(r11)
 	EXC_XFER_STD(0x1c00, do_break)

@@ -372,7 +372,6 @@ interrupt_base:
 	bne	1f
 	EXC_XFER_LITE(0x0300, handle_page_fault)
 1:
-	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_LITE(0x0300, CacheLockingException)
 
 	/* Instruction Storage Interrupt */
@@ -618,8 +617,7 @@ END_BTB_FLUSH_SECTION
 	beq	1f
 	bl	load_up_spe
 	b	fast_exception_return
-1:	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_LITE(0x2010, KernelSPE)
+1:	EXC_XFER_LITE(0x2010, KernelSPE)
 #elif defined(CONFIG_SPE_POSSIBLE)
 	EXCEPTION(0x2020, SPE_UNAVAIL, SPEUnavailable, \
 		  unknown_exception, EXC_XFER_STD)

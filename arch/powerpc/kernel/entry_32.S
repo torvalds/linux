@@ -87,6 +87,7 @@ _ASM_NOKPROBE_SYMBOL(transfer_to_handler_full)
 	.globl	transfer_to_handler
 transfer_to_handler:
 	SAVE_NVGPRS(r11)
+	addi	r3,r1,STACK_FRAME_OVERHEAD
 	stw	r2,GPR2(r11)
 	stw	r12,_NIP(r11)
 	stw	r9,_MSR(r11)
@@ -227,7 +228,6 @@ ret_from_kernel_thread:
  */
 	.globl	handle_page_fault
 handle_page_fault:
-	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	do_page_fault
 	cmpwi	r3,0
 	beq+	ret_from_except
@@ -365,7 +365,6 @@ _ASM_NOKPROBE_SYMBOL(fast_exception_return)
 3:
 	li	r10,-1
 	stw	r10,_TRAP(r11)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	transfer_to_handler_full
 	bl	unrecoverable_exception
 	trap	/* should not get here */

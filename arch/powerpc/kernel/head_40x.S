@@ -185,7 +185,6 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 #define CRITICAL_EXCEPTION(n, label, hdlr)			\
 	START_EXCEPTION(n, label);				\
 	CRITICAL_EXCEPTION_PROLOG label;				\
-	addi	r3,r1,STACK_FRAME_OVERHEAD;			\
 	EXC_XFER_TEMPLATE(hdlr, n+2, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), \
 			  crit_transfer_to_handler, ret_from_crit_exc)
 
@@ -227,13 +226,11 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 /* 0x0600 - Alignment Exception */
 	START_EXCEPTION(0x0600, Alignment)
 	EXCEPTION_PROLOG Alignment handle_dar_dsisr=1
-	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_STD(0x600, alignment_exception)
 
 /* 0x0700 - Program Exception */
 	START_EXCEPTION(0x0700, ProgramCheck)
 	EXCEPTION_PROLOG ProgramCheck handle_dar_dsisr=1
-	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_STD(0x700, program_check_exception)
 
 	EXCEPTION(0x0800, Trap_08, unknown_exception, EXC_XFER_STD)
@@ -494,7 +491,6 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 	/* continue normal handling for a critical exception... */
 2:	mfspr	r4,SPRN_DBSR
 	stw	r4,_ESR(r11)		/* DebugException takes DBSR in _ESR */
-	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_TEMPLATE(DebugException, 0x2002, \
 		(MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), \
 		crit_transfer_to_handler, ret_from_crit_exc)
@@ -505,21 +501,18 @@ Decrementer:
 	EXCEPTION_PROLOG Decrementer
 	lis	r0,TSR_PIS@h
 	mtspr	SPRN_TSR,r0		/* Clear the PIT exception */
-	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_LITE(0x1000, timer_interrupt)
 
 	/* Fixed Interval Timer (FIT) Exception. (from 0x1010) */
 	__HEAD
 FITException:
 	EXCEPTION_PROLOG FITException
-	addi	r3,r1,STACK_FRAME_OVERHEAD;
 	EXC_XFER_STD(0x1010, unknown_exception)
 
 	/* Watchdog Timer (WDT) Exception. (from 0x1020) */
 	__HEAD
 WDTException:
 	CRITICAL_EXCEPTION_PROLOG WDTException
-	addi	r3,r1,STACK_FRAME_OVERHEAD;
 	EXC_XFER_TEMPLATE(WatchdogException, 0x1020+2,
 	                  (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)),
 			  crit_transfer_to_handler, ret_from_crit_exc)
