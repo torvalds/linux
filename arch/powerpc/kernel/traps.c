@@ -1605,15 +1605,6 @@ bad:
 		bad_page_fault(regs, sig);
 }
 
-DEFINE_INTERRUPT_HANDLER(StackOverflow)
-{
-	pr_crit("Kernel stack overflow in process %s[%d], r1=%lx\n",
-		current->comm, task_pid_nr(current), regs->gpr[1]);
-	debugger(regs);
-	show_regs(regs);
-	panic("kernel stack overflow");
-}
-
 DEFINE_INTERRUPT_HANDLER(stack_overflow_exception)
 {
 	die("Kernel stack overflow", regs, SIGSEGV);

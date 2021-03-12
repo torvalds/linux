@@ -481,7 +481,6 @@ struct exception_regs {
 	unsigned long csrr1;
 	unsigned long dsrr0;
 	unsigned long dsrr1;
-	unsigned long saved_ksp_limit;
 };
 
 /* ensure this structure is always sized to a multiple of the stack alignment */
