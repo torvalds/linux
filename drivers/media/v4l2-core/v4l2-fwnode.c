@@ -839,12 +839,11 @@ out_err:
 	return ret == -ENOTCONN ? 0 : ret;
 }
 
-static int
-__v4l2_async_nf_parse_fwnode_ep(struct device *dev,
-				struct v4l2_async_notifier *notifier,
-				size_t asd_struct_size, unsigned int port,
-				bool has_port,
-				parse_endpoint_func parse_endpoint)
+int
+v4l2_async_nf_parse_fwnode_endpoints(struct device *dev,
+				     struct v4l2_async_notifier *notifier,
+				     size_t asd_struct_size,
+				     parse_endpoint_func parse_endpoint)
 {
 	struct fwnode_handle *fwnode;
 	int ret = 0;
@@ -862,16 +861,6 @@ __v4l2_async_nf_parse_fwnode_ep(struct device *dev,
 		if (!is_available)
 			continue;
 
-		if (has_port) {
-			struct fwnode_endpoint ep;
-
-			ret = fwnode_graph_parse_endpoint(fwnode, &ep);
-			if (ret)
-				break;
-
-			if (ep.port != port)
-				continue;
-		}
 
 		ret = v4l2_async_nf_fwnode_parse_endpoint(dev, notifier,
 							  fwnode,
@@ -884,16 +873,6 @@ __v4l2_async_nf_parse_fwnode_ep(struct device *dev,
 	fwnode_handle_put(fwnode);
 
 	return ret;
-}
-
-int
-v4l2_async_nf_parse_fwnode_endpoints(struct device *dev,
-				     struct v4l2_async_notifier *notifier,
-				     size_t asd_struct_size,
-				     parse_endpoint_func parse_endpoint)
-{
-	return __v4l2_async_nf_parse_fwnode_ep(dev, notifier, asd_struct_size,
-					       0, false, parse_endpoint);
 }
 EXPORT_SYMBOL_GPL(v4l2_async_nf_parse_fwnode_endpoints);
 
