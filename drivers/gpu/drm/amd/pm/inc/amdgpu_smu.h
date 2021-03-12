@@ -171,6 +171,7 @@ enum smu_ppt_limit_level
 {
 	SMU_PPT_LIMIT_MIN = -1,
 	SMU_PPT_LIMIT_CURRENT,
+	SMU_PPT_LIMIT_DEFAULT,
 	SMU_PPT_LIMIT_MAX,
 };
 
@@ -446,6 +447,7 @@ struct smu_context
 
 	bool od_enabled;
 	uint32_t current_power_limit;
+	uint32_t default_power_limit;
 	uint32_t max_power_limit;
 
 	/* soft pptable */

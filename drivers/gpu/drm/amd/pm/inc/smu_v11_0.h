@@ -141,6 +141,7 @@ struct smu_11_5_power_context {
 	enum smu_11_0_power_state power_state;
 
 	uint32_t	current_fast_ppt_limit;
+	uint32_t	default_fast_ppt_limit;
 	uint32_t	max_fast_ppt_limit;
 };
 

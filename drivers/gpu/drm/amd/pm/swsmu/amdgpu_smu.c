@@ -2183,6 +2183,9 @@ int smu_get_power_limit(struct smu_context *smu,
 		case SMU_PPT_LIMIT_CURRENT:
 			*limit = smu->current_power_limit;
 			break;
+		case SMU_PPT_LIMIT_DEFAULT:
+			*limit = smu->default_power_limit;
+			break;
 		case SMU_PPT_LIMIT_MAX:
 			*limit = smu->max_power_limit;
 			break;

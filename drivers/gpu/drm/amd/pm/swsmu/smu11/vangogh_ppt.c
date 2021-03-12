@@ -1756,7 +1756,7 @@ static int vangogh_get_power_limit(struct smu_context *smu)
 		return ret;
 	}
 	/* convert from milliwatt to watt */
-	smu->current_power_limit = ppt_limit / 1000;
+	smu->current_power_limit = smu->default_power_limit = ppt_limit / 1000;
 	smu->max_power_limit = 29;
 
 	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetFastPPTLimit, &ppt_limit);
@@ -1765,7 +1765,8 @@ static int vangogh_get_power_limit(struct smu_context *smu)
 		return ret;
 	}
 	/* convert from milliwatt to watt */
-	power_context->current_fast_ppt_limit = ppt_limit / 1000;
+	power_context->current_fast_ppt_limit =
+			power_context->default_fast_ppt_limit = ppt_limit / 1000;
 	power_context->max_fast_ppt_limit = 30;
 
 	return ret;
@@ -1789,6 +1790,9 @@ static int vangogh_get_ppt_limit(struct smu_context *smu,
 			break;
 		case SMU_PPT_LIMIT_CURRENT:
 			*ppt_limit = power_context->current_fast_ppt_limit;
+			break;
+		case SMU_PPT_LIMIT_DEFAULT:
+			*ppt_limit = power_context->default_fast_ppt_limit;
 			break;
 		default:
 			break;
