@@ -432,6 +432,44 @@ static int bcm_sf2_sw_rst(struct bcm_sf2_priv *priv)
 	return 0;
 }
 
+static void bcm_sf2_crossbar_setup(struct bcm_sf2_priv *priv)
+{
+	struct device *dev = priv->dev->ds->dev;
+	int shift;
+	u32 mask;
+	u32 reg;
+	int i;
+
+	mask = BIT(priv->num_crossbar_int_ports) - 1;
+
+	reg = reg_readl(priv, REG_CROSSBAR);
+	switch (priv->type) {
+	case BCM4908_DEVICE_ID:
+		shift = CROSSBAR_BCM4908_INT_P7 * priv->num_crossbar_int_ports;
+		reg &= ~(mask << shift);
+		if (0) /* FIXME */
+			reg |= CROSSBAR_BCM4908_EXT_SERDES << shift;
+		else if (priv->int_phy_mask & BIT(7))
+			reg |= CROSSBAR_BCM4908_EXT_GPHY4 << shift;
+		else if (phy_interface_mode_is_rgmii(priv->port_sts[7].mode))
+			reg |= CROSSBAR_BCM4908_EXT_RGMII << shift;
+		else if (WARN(1, "Invalid port mode\n"))
+			return;
+		break;
+	default:
+		return;
+	}
+	reg_writel(priv, reg, REG_CROSSBAR);
+
+	reg = reg_readl(priv, REG_CROSSBAR);
+	for (i = 0; i < priv->num_crossbar_int_ports; i++) {
+		shift = i * priv->num_crossbar_int_ports;
+
+		dev_dbg(dev, "crossbar int port #%d - ext port #%d\n", i,
+			(reg >> shift) & mask);
+	}
+}
+
 static void bcm_sf2_intr_disable(struct bcm_sf2_priv *priv)
 {
 	intrl2_0_mask_set(priv, 0xffffffff);
@@ -864,6 +902,8 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 		return ret;
 	}
 
+	bcm_sf2_crossbar_setup(priv);
+
 	ret = bcm_sf2_cfp_resume(ds);
 	if (ret)
 		return ret;
@@ -1136,6 +1176,7 @@ struct bcm_sf2_of_data {
 	const u16 *reg_offsets;
 	unsigned int core_reg_align;
 	unsigned int num_cfp_rules;
+	unsigned int num_crossbar_int_ports;
 };
 
 static const u16 bcm_sf2_4908_reg_offsets[] = {
@@ -1160,6 +1201,7 @@ static const struct bcm_sf2_of_data bcm_sf2_4908_data = {
 	.core_reg_align	= 0,
 	.reg_offsets	= bcm_sf2_4908_reg_offsets,
 	.num_cfp_rules	= 0, /* FIXME */
+	.num_crossbar_int_ports = 2,
 };
 
 /* Register offsets for the SWITCH_REG_* block */
@@ -1270,6 +1312,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	priv->reg_offsets = data->reg_offsets;
 	priv->core_reg_align = data->core_reg_align;
 	priv->num_cfp_rules = data->num_cfp_rules;
+	priv->num_crossbar_int_ports = data->num_crossbar_int_ports;
 
 	priv->rcdev = devm_reset_control_get_optional_exclusive(&pdev->dev,
 								"switch");
@@ -1342,6 +1385,8 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 		pr_err("unable to software reset switch: %d\n", ret);
 		goto out_clk_mdiv;
 	}
+
+	bcm_sf2_crossbar_setup(priv);
 
 	bcm_sf2_gphy_enable_set(priv->dev->ds, true);
 

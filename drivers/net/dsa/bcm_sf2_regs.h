@@ -48,6 +48,13 @@ enum bcm_sf2_reg_offs {
 #define  PHY_PHYAD_SHIFT		8
 #define  PHY_PHYAD_MASK			0x1F
 
+/* Relative to REG_CROSSBAR */
+#define CROSSBAR_BCM4908_INT_P7		0
+#define CROSSBAR_BCM4908_INT_RUNNER	1
+#define CROSSBAR_BCM4908_EXT_SERDES	0
+#define CROSSBAR_BCM4908_EXT_GPHY4	1
+#define CROSSBAR_BCM4908_EXT_RGMII	2
+
 #define REG_RGMII_CNTRL_P(x)		(REG_RGMII_0_CNTRL + (x))
 
 /* Relative to REG_RGMII_CNTRL */

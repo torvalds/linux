@@ -74,6 +74,7 @@ struct bcm_sf2_priv {
 	const u16			*reg_offsets;
 	unsigned int			core_reg_align;
 	unsigned int			num_cfp_rules;
+	unsigned int			num_crossbar_int_ports;
 
 	/* spinlock protecting access to the indirect registers */
 	spinlock_t			indir_lock;
