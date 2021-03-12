@@ -6462,7 +6462,7 @@ static void qlt_lport_dump(struct scsi_qla_host *vha, u64 wwpn,
 }
 
 /**
- * qla_tgt_lport_register - register lport with external module
+ * qlt_lport_register - register lport with external module
  *
  * @target_lport_ptr: pointer for tcm_qla2xxx specific lport data
  * @phys_wwpn: physical port WWPN
@@ -6538,7 +6538,7 @@ int qlt_lport_register(void *target_lport_ptr, u64 phys_wwpn,
 EXPORT_SYMBOL(qlt_lport_register);
 
 /**
- * qla_tgt_lport_deregister - Degister lport
+ * qlt_lport_deregister - Degister lport
  *
  * @vha:  Registered scsi_qla_host pointer
  */
