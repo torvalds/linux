@@ -516,7 +516,7 @@ qlafx00_pci_config(scsi_qla_host_t *vha)
 }
 
 /**
- * qlafx00_warm_reset() - Perform warm reset of iSA(CPUs being reset on SOC).
+ * qlafx00_soc_cpu_reset() - Perform warm reset of iSA(CPUs being reset on SOC).
  * @vha: HA context
  *
  */
@@ -2860,7 +2860,7 @@ qlafx00_async_event(scsi_qla_host_t *vha)
 }
 
 /**
- * qlafx00x_mbx_completion() - Process mailbox command completions.
+ * qlafx00_mbx_completion() - Process mailbox command completions.
  * @vha: SCSI driver HA context
  * @mb0: value to be written into mailbox register 0
  */
