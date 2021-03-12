@@ -164,6 +164,9 @@ static int sprd_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct pwm_state *cstate = &pwm->state;
 	int ret;
 
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -EINVAL;
+
 	if (state->enabled) {
 		if (!cstate->enabled) {
 			/*
