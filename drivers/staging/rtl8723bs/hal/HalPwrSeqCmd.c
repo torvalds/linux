@@ -39,10 +39,10 @@ u8 HalPwrSeqCmdParsing(
 	u8 CutVersion,
 	u8 FabVersion,
 	u8 InterfaceType,
-	WLAN_PWR_CFG PwrSeqCmd[]
+	struct WLAN_PWR_CFG PwrSeqCmd[]
 )
 {
-	WLAN_PWR_CFG PwrCfgCmd;
+	struct WLAN_PWR_CFG PwrCfgCmd;
 	u8 bPollingBit = false;
 	u32 AryIdx = 0;
 	u8 value = 0;
