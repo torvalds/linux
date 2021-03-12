@@ -1,12 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * Copyright ST-Ericsson 2012.
- *
- * Author: Arun Murthy <arun.murthy@stericsson.com>
- */
 
-#ifndef _AB8500_BM_H
-#define _AB8500_BM_H
+#ifndef _AB8500_CHARGER_H_
+#define _AB8500_CHARGER_H_
 
 #include <linux/kernel.h>
 #include <linux/mfd/abx500.h>
@@ -453,16 +448,11 @@ struct ab8500_bm_data {
 };
 
 struct ab8500_btemp;
-struct ab8500_gpadc;
 struct ab8500_fg;
 
-#ifdef CONFIG_AB8500_BM
 extern struct abx500_bm_data ab8500_bm_data;
 
 void ab8500_charger_usb_state_changed(u8 bm_usb_state, u16 mA);
-struct ab8500_btemp *ab8500_btemp_get(void);
-int ab8500_btemp_get_batctrl_temp(struct ab8500_btemp *btemp);
-int ab8500_btemp_get_temp(struct ab8500_btemp *btemp);
 struct ab8500_fg *ab8500_fg_get(void);
 int ab8500_fg_inst_curr_blocking(struct ab8500_fg *dev);
 int ab8500_fg_inst_curr_start(struct ab8500_fg *di);
@@ -470,7 +460,4 @@ int ab8500_fg_inst_curr_finalize(struct ab8500_fg *di, int *res);
 int ab8500_fg_inst_curr_started(struct ab8500_fg *di);
 int ab8500_fg_inst_curr_done(struct ab8500_fg *di);
 
-#else
-static struct abx500_bm_data ab8500_bm_data;
-#endif
-#endif /* _AB8500_BM_H */
+#endif /* _AB8500_CHARGER_H_ */
