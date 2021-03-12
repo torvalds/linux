@@ -371,7 +371,7 @@ int __init devtmpfs_mount(void)
 	return err;
 }
 
-static DECLARE_COMPLETION(setup_done);
+static __initdata DECLARE_COMPLETION(setup_done);
 
 static int handle(const char *name, umode_t mode, kuid_t uid, kgid_t gid,
 		  struct device *dev)
@@ -405,7 +405,7 @@ static void __noreturn devtmpfs_work_loop(void)
 	}
 }
 
-static int __init devtmpfs_setup(void *p)
+static noinline int __init devtmpfs_setup(void *p)
 {
 	int err;
 
