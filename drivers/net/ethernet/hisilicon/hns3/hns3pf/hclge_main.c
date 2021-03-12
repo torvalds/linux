@@ -751,8 +751,9 @@ static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 		handle->flags |= HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK;
 		handle->flags |= HNAE3_SUPPORT_SERDES_PARALLEL_LOOPBACK;
 
-		if (hdev->hw.mac.phydev && hdev->hw.mac.phydev->drv &&
-		    hdev->hw.mac.phydev->drv->set_loopback) {
+		if ((hdev->hw.mac.phydev && hdev->hw.mac.phydev->drv &&
+		     hdev->hw.mac.phydev->drv->set_loopback) ||
+		    hnae3_dev_phy_imp_supported(hdev)) {
 			count += 1;
 			handle->flags |= HNAE3_SUPPORT_PHY_LOOPBACK;
 		}
@@ -7270,19 +7271,19 @@ static int hclge_set_app_loopback(struct hclge_dev *hdev, bool en)
 	return ret;
 }
 
-static int hclge_cfg_serdes_loopback(struct hclge_dev *hdev, bool en,
+static int hclge_cfg_common_loopback(struct hclge_dev *hdev, bool en,
 				     enum hnae3_loop loop_mode)
 {
-#define HCLGE_SERDES_RETRY_MS	10
-#define HCLGE_SERDES_RETRY_NUM	100
+#define HCLGE_COMMON_LB_RETRY_MS	10
+#define HCLGE_COMMON_LB_RETRY_NUM	100
 
-	struct hclge_serdes_lb_cmd *req;
+	struct hclge_common_lb_cmd *req;
 	struct hclge_desc desc;
 	int ret, i = 0;
 	u8 loop_mode_b;
 
-	req = (struct hclge_serdes_lb_cmd *)desc.data;
-	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_SERDES_LOOPBACK, false);
+	req = (struct hclge_common_lb_cmd *)desc.data;
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_COMMON_LOOPBACK, false);
 
 	switch (loop_mode) {
 	case HNAE3_LOOP_SERIAL_SERDES:
@@ -7291,9 +7292,12 @@ static int hclge_cfg_serdes_loopback(struct hclge_dev *hdev, bool en,
 	case HNAE3_LOOP_PARALLEL_SERDES:
 		loop_mode_b = HCLGE_CMD_SERDES_PARALLEL_INNER_LOOP_B;
 		break;
+	case HNAE3_LOOP_PHY:
+		loop_mode_b = HCLGE_CMD_GE_PHY_INNER_LOOP_B;
+		break;
 	default:
 		dev_err(&hdev->pdev->dev,
-			"unsupported serdes loopback mode %d\n", loop_mode);
+			"unsupported common loopback mode %d\n", loop_mode);
 		return -ENOTSUPP;
 	}
 
@@ -7307,39 +7311,39 @@ static int hclge_cfg_serdes_loopback(struct hclge_dev *hdev, bool en,
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
-			"serdes loopback set fail, ret = %d\n", ret);
+			"common loopback set fail, ret = %d\n", ret);
 		return ret;
 	}
 
 	do {
-		msleep(HCLGE_SERDES_RETRY_MS);
-		hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_SERDES_LOOPBACK,
+		msleep(HCLGE_COMMON_LB_RETRY_MS);
+		hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_COMMON_LOOPBACK,
 					   true);
 		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
-				"serdes loopback get, ret = %d\n", ret);
+				"common loopback get, ret = %d\n", ret);
 			return ret;
 		}
-	} while (++i < HCLGE_SERDES_RETRY_NUM &&
-		 !(req->result & HCLGE_CMD_SERDES_DONE_B));
+	} while (++i < HCLGE_COMMON_LB_RETRY_NUM &&
+		 !(req->result & HCLGE_CMD_COMMON_LB_DONE_B));
 
-	if (!(req->result & HCLGE_CMD_SERDES_DONE_B)) {
-		dev_err(&hdev->pdev->dev, "serdes loopback set timeout\n");
+	if (!(req->result & HCLGE_CMD_COMMON_LB_DONE_B)) {
+		dev_err(&hdev->pdev->dev, "common loopback set timeout\n");
 		return -EBUSY;
-	} else if (!(req->result & HCLGE_CMD_SERDES_SUCCESS_B)) {
-		dev_err(&hdev->pdev->dev, "serdes loopback set failed in fw\n");
+	} else if (!(req->result & HCLGE_CMD_COMMON_LB_SUCCESS_B)) {
+		dev_err(&hdev->pdev->dev, "common loopback set failed in fw\n");
 		return -EIO;
 	}
 	return ret;
 }
 
-static int hclge_set_serdes_loopback(struct hclge_dev *hdev, bool en,
+static int hclge_set_common_loopback(struct hclge_dev *hdev, bool en,
 				     enum hnae3_loop loop_mode)
 {
 	int ret;
 
-	ret = hclge_cfg_serdes_loopback(hdev, en, loop_mode);
+	ret = hclge_cfg_common_loopback(hdev, en, loop_mode);
 	if (ret)
 		return ret;
 
@@ -7388,8 +7392,12 @@ static int hclge_set_phy_loopback(struct hclge_dev *hdev, bool en)
 	struct phy_device *phydev = hdev->hw.mac.phydev;
 	int ret;
 
-	if (!phydev)
+	if (!phydev) {
+		if (hnae3_dev_phy_imp_supported(hdev))
+			return hclge_set_common_loopback(hdev, en,
+							 HNAE3_LOOP_PHY);
 		return -ENOTSUPP;
+	}
 
 	if (en)
 		ret = hclge_enable_phy_loopback(hdev, phydev);
@@ -7460,7 +7468,7 @@ static int hclge_set_loopback(struct hnae3_handle *handle,
 		break;
 	case HNAE3_LOOP_SERIAL_SERDES:
 	case HNAE3_LOOP_PARALLEL_SERDES:
-		ret = hclge_set_serdes_loopback(hdev, en, loop_mode);
+		ret = hclge_set_common_loopback(hdev, en, loop_mode);
 		break;
 	case HNAE3_LOOP_PHY:
 		ret = hclge_set_phy_loopback(hdev, en);
@@ -7493,11 +7501,11 @@ static int hclge_set_default_loopback(struct hclge_dev *hdev)
 	if (ret)
 		return ret;
 
-	ret = hclge_cfg_serdes_loopback(hdev, false, HNAE3_LOOP_SERIAL_SERDES);
+	ret = hclge_cfg_common_loopback(hdev, false, HNAE3_LOOP_SERIAL_SERDES);
 	if (ret)
 		return ret;
 
-	return hclge_cfg_serdes_loopback(hdev, false,
+	return hclge_cfg_common_loopback(hdev, false,
 					 HNAE3_LOOP_PARALLEL_SERDES);
 }
 

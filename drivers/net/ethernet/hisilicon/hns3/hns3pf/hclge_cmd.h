@@ -127,7 +127,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_QUERY_MAC_TNL_INT	= 0x0310,
 	HCLGE_OPC_MAC_TNL_INT_EN	= 0x0311,
 	HCLGE_OPC_CLEAR_MAC_TNL_INT	= 0x0312,
-	HCLGE_OPC_SERDES_LOOPBACK       = 0x0315,
+	HCLGE_OPC_COMMON_LOOPBACK       = 0x0315,
 	HCLGE_OPC_CONFIG_FEC_MODE	= 0x031A,
 
 	/* PFC/Pause commands */
@@ -964,9 +964,10 @@ struct hclge_pf_rst_done_cmd {
 
 #define HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B	BIT(0)
 #define HCLGE_CMD_SERDES_PARALLEL_INNER_LOOP_B	BIT(2)
-#define HCLGE_CMD_SERDES_DONE_B			BIT(0)
-#define HCLGE_CMD_SERDES_SUCCESS_B		BIT(1)
-struct hclge_serdes_lb_cmd {
+#define HCLGE_CMD_GE_PHY_INNER_LOOP_B		BIT(3)
+#define HCLGE_CMD_COMMON_LB_DONE_B		BIT(0)
+#define HCLGE_CMD_COMMON_LB_SUCCESS_B		BIT(1)
+struct hclge_common_lb_cmd {
 	u8 mask;
 	u8 enable;
 	u8 result;
