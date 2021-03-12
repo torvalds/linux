@@ -3580,7 +3580,7 @@ static int lpfc_bsg_check_cmd_access(struct lpfc_hba *phba,
 }
 
 /**
- * lpfc_bsg_mbox_ext_cleanup - clean up context of multi-buffer mbox session
+ * lpfc_bsg_mbox_ext_session_reset - clean up context of multi-buffer mbox session
  * @phba: Pointer to HBA context object.
  *
  * This is routine clean up and reset BSG handling of multi-buffer mbox
@@ -3869,7 +3869,7 @@ lpfc_bsg_sli_cfg_dma_desc_setup(struct lpfc_hba *phba, enum nemb_type nemb_tp,
 }
 
 /**
- * lpfc_bsg_sli_cfg_mse_read_cmd_ext - sli_config non-embedded mailbox cmd read
+ * lpfc_bsg_sli_cfg_read_cmd_ext - sli_config non-embedded mailbox cmd read
  * @phba: Pointer to HBA context object.
  * @job: Pointer to the job object.
  * @nemb_tp: Enumerate of non-embedded mailbox command type.
@@ -4360,7 +4360,7 @@ lpfc_bsg_handle_sli_cfg_mbox(struct lpfc_hba *phba, struct bsg_job *job,
 }
 
 /**
- * lpfc_bsg_mbox_ext_abort_req - request to abort mbox command with ext buffers
+ * lpfc_bsg_mbox_ext_abort - request to abort mbox command with ext buffers
  * @phba: Pointer to HBA context object.
  *
  * This routine is for requesting to abort a pass-through mailbox command with
