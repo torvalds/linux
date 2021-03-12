@@ -1749,7 +1749,7 @@ static void sh_eth_emac_interrupt(struct net_device *ndev)
 		link_stat = sh_eth_read(ndev, PSR);
 		if (mdp->ether_link_active_low)
 			link_stat = ~link_stat;
-		if (!(link_stat & PHY_ST_LINK)) {
+		if (!(link_stat & PSR_LMON)) {
 			sh_eth_rcv_snd_disable(ndev);
 		} else {
 			/* Link Up */

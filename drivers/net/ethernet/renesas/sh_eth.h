@@ -208,7 +208,7 @@ enum PIR_BIT {
 };
 
 /* PSR */
-enum PHY_STATUS_BIT { PHY_ST_LINK = 0x01, };
+enum PSR_BIT { PSR_LMON = 0x01, };
 
 /* EESR */
 enum EESR_BIT {
