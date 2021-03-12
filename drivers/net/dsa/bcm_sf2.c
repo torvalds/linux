@@ -1200,7 +1200,7 @@ static const struct bcm_sf2_of_data bcm_sf2_4908_data = {
 	.type		= BCM4908_DEVICE_ID,
 	.core_reg_align	= 0,
 	.reg_offsets	= bcm_sf2_4908_reg_offsets,
-	.num_cfp_rules	= 0, /* FIXME */
+	.num_cfp_rules	= 256,
 	.num_crossbar_int_ports = 2,
 };
 
