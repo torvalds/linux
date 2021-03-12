@@ -2505,6 +2505,15 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 	vpstate->format = vop2_convert_format(fb->format->format);
 	if (vpstate->format < 0)
 		return vpstate->format;
+
+	if (state->src_w >> 16 < 4 || state->src_h >> 16 < 4 ||
+	    state->crtc_w < 4 || state->crtc_h < 4) {
+		DRM_ERROR("Invalid size: %dx%d->%dx%d, min size is 4x4\n",
+			  state->src_w >> 16, state->src_h >> 16,
+			  state->crtc_w, state->crtc_h);
+		return -EINVAL;
+	}
+
 	if (drm_rect_width(src) >> 16 > vop2_data->max_input.width ||
 	    drm_rect_height(src) >> 16 > vop2_data->max_input.height) {
 		DRM_ERROR("Invalid source: %dx%d. max input: %dx%d\n",
