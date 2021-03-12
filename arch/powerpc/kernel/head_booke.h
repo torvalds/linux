@@ -105,7 +105,10 @@ END_BTB_FLUSH_SECTION
 
 .macro prepare_transfer_to_handler
 #ifdef CONFIG_E500
+	andi.	r12,r9,MSR_PR
+	bne	777f
 	bl	prepare_transfer_to_handler
+777:
 #endif
 .endm
 
