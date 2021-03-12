@@ -29,7 +29,7 @@ orig_args="$@"
 # Get the first line of the --version output.
 IFS='
 '
-set -- $("$@" --version)
+set -- $(LC_ALL=C "$@" --version)
 
 # Split the line on spaces.
 IFS=' '
