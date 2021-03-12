@@ -464,10 +464,9 @@ static int imx_rproc_addr_init(struct imx_rproc *priv,
 
 		/* Not use resource version, because we might share region */
 		priv->mem[b].cpu_addr = devm_ioremap(&pdev->dev, res.start, resource_size(&res));
-		if (IS_ERR(priv->mem[b].cpu_addr)) {
+		if (!priv->mem[b].cpu_addr) {
 			dev_err(dev, "failed to remap %pr\n", &res);
-			err = PTR_ERR(priv->mem[b].cpu_addr);
-			return err;
+			return -ENOMEM;
 		}
 		priv->mem[b].sys_addr = res.start;
 		priv->mem[b].size = resource_size(&res);
