@@ -248,7 +248,7 @@ enum h2c_cmd {
 /*  */
 /*     Structure    -------------------------------------------------- */
 /*  */
-typedef struct _RSVDPAGE_LOC {
+struct RSVDPAGE_LOC {
 	u8 LocProbeRsp;
 	u8 LocPsPoll;
 	u8 LocNullData;
@@ -275,7 +275,7 @@ typedef struct _RSVDPAGE_LOC {
 #ifdef CONFIG_AP_WOWLAN
 	u8 LocApOffloadBCN;
 #endif /* CONFIG_AP_WOWLAN */
-} RSVDPAGE_LOC, *PRSVDPAGE_LOC;
+};
 
 #endif
 #if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
