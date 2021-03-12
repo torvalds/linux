@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/ptp_clock_kernel.h>
+#include <linux/ptp_pch.h>
 #include <linux/slab.h>
 
 #define STATION_ADDR_LEN	20
