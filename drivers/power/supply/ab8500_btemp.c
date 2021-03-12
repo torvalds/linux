@@ -1008,12 +1008,10 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 	}
 	di->bm = plat;
 
-	if (np) {
-		ret = ab8500_bm_of_probe(dev, np, di->bm);
-		if (ret) {
-			dev_err(dev, "failed to get battery information\n");
-			return ret;
-		}
+	ret = ab8500_bm_of_probe(dev, np, di->bm);
+	if (ret) {
+		dev_err(dev, "failed to get battery information\n");
+		return ret;
 	}
 
 	/* get parent data */
