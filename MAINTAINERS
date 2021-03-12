@@ -19166,7 +19166,7 @@ S:	Maintained
 F:	drivers/infiniband/hw/vmw_pvrdma/
 
 VMware PVSCSI driver
-M:	Jim Gill <jgill@vmware.com>
+M:	Vishal Bhakta <vbhakta@vmware.com>
 M:	VMware PV-Drivers <pv-drivers@vmware.com>
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
