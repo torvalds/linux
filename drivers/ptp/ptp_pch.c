@@ -37,7 +37,8 @@ enum pch_status {
 	PCH_FAILED,
 	PCH_UNSUPPORTED,
 };
-/**
+
+/*
  * struct pch_ts_regs - IEEE 1588 registers
  */
 struct pch_ts_regs {
@@ -103,7 +104,8 @@ struct pch_ts_regs {
 
 #define PCH_IEEE1588_ETH	(1 << 0)
 #define PCH_IEEE1588_CAN	(1 << 1)
-/**
+
+/*
  * struct pch_dev - Driver private data
  */
 struct pch_dev {
@@ -120,7 +122,7 @@ struct pch_dev {
 	spinlock_t register_lock;
 };
 
-/**
+/*
  * struct pch_params - 1588 module parameter
  */
 struct pch_params {
@@ -286,6 +288,7 @@ static void pch_reset(struct pch_dev *chip)
  *				    IEEE 1588 hardware when looking at PTP
  *				    traffic on the  ethernet interface
  * @addr:	dress which contain the column separated address to be used.
+ * @pdev:	PCI device.
  */
 int pch_set_station_address(u8 *addr, struct pci_dev *pdev)
 {
