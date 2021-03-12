@@ -587,9 +587,8 @@ out:
  * Returns: errno
  */
 
-int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
+void gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 {
-	int error = 0;
 	int log_write_allowed = test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
 
 	gfs2_flush_delete_work(sdp);
@@ -624,8 +623,6 @@ int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 
 	if (!log_write_allowed)
 		sdp->sd_vfs->s_flags |= SB_RDONLY;
-
-	return error;
 }
 
 /**
@@ -637,7 +634,6 @@ int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 static void gfs2_put_super(struct super_block *sb)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
-	int error;
 	struct gfs2_jdesc *jd;
 
 	/* No more recovery requests */
@@ -658,9 +654,7 @@ restart:
 	spin_unlock(&sdp->sd_jindex_spin);
 
 	if (!sb_rdonly(sb)) {
-		error = gfs2_make_fs_ro(sdp);
-		if (error)
-			gfs2_io_error(sdp);
+		gfs2_make_fs_ro(sdp);
 	}
 	WARN_ON(gfs2_withdrawing(sdp));
 

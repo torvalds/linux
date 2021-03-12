@@ -1539,9 +1539,7 @@ static int gfs2_reconfigure(struct fs_context *fc)
 			return -EINVAL;
 
 		if (fc->sb_flags & SB_RDONLY) {
-			error = gfs2_make_fs_ro(sdp);
-			if (error)
-				errorfc(fc, "unable to remount read-only");
+			gfs2_make_fs_ro(sdp);
 		} else {
 			error = gfs2_make_fs_rw(sdp);
 			if (error)
