@@ -203,7 +203,7 @@ exit:
 	return res;
 }
 
-static void c2h_wk_callback(_workitem * work);
+static void c2h_wk_callback(struct work_struct * work);
 int rtw_init_evt_priv(struct evt_priv *pevtpriv)
 {
 	/* allocate DMA-able/Non-Page memory for cmd_buf and rsp_buf */
@@ -260,7 +260,7 @@ ISR/Call-Back functions can't call this sub-function.
 
 int _rtw_enqueue_cmd(struct __queue *queue, struct cmd_obj *obj)
 {
-	_irqL irqL;
+	unsigned long irqL;
 
 	if (obj == NULL)
 		goto exit;
@@ -279,7 +279,7 @@ exit:
 
 struct	cmd_obj	*_rtw_dequeue_cmd(struct __queue *queue)
 {
-	_irqL irqL;
+	unsigned long irqL;
 	struct cmd_obj *obj;
 
 	/* spin_lock_bh(&(queue->lock)); */
@@ -1875,7 +1875,7 @@ exit:
 	return res;
 }
 
-static void c2h_wk_callback(_workitem *work)
+static void c2h_wk_callback(struct work_struct *work)
 {
 	struct evt_priv *evtpriv = container_of(work, struct evt_priv, c2h_wk);
 	struct adapter *adapter = container_of(evtpriv, struct adapter, evtpriv);

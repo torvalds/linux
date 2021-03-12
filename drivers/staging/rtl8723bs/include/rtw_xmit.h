@@ -128,7 +128,7 @@ union txdesc {
 };
 
 struct	hw_xmit	{
-	/* _lock xmit_lock; */
+	/* spinlock_t xmit_lock; */
 	/* struct list_head	pending; */
 	struct __queue *sta_queue;
 	/* struct hw_txqueue *phwtxqueue; */
@@ -284,7 +284,7 @@ struct xmit_frame {
 
 	struct pkt_attrib attrib;
 
-	_pkt *pkt;
+	struct sk_buff *pkt;
 
 	int	frame_tag;
 
@@ -312,7 +312,7 @@ struct tx_servq {
 
 
 struct sta_xmit_priv {
-	_lock	lock;
+	spinlock_t	lock;
 	signed int	option;
 	signed int	apsd_setting;	/* When bit mask is on, the associated edca queue supports APSD. */
 
@@ -359,7 +359,7 @@ enum cmdbuf_type {
 
 struct	xmit_priv {
 
-	_lock	lock;
+	spinlock_t	lock;
 
 	struct completion xmit_comp;
 	struct completion terminate_xmitthread_comp;
@@ -436,10 +436,10 @@ struct	xmit_priv {
 	u16 nqos_ssn;
 
 	int	ack_tx;
-	_mutex ack_tx_mutex;
+	struct mutex ack_tx_mutex;
 	struct submit_ctx ack_tx_ops;
 	u8 seq_no;
-	_lock lock_sctx;
+	spinlock_t lock_sctx;
 };
 
 extern struct xmit_frame *__rtw_alloc_cmdxmitframe(struct xmit_priv *pxmitpriv,
@@ -469,8 +469,8 @@ extern s32 rtw_xmitframe_enqueue(struct adapter *padapter, struct xmit_frame *px
 extern s32 rtw_xmit_classifier(struct adapter *padapter, struct xmit_frame *pxmitframe);
 extern u32 rtw_calculate_wlan_pkt_size_by_attribue(struct pkt_attrib *pattrib);
 #define rtw_wlan_pkt_size(f) rtw_calculate_wlan_pkt_size_by_attribue(&f->attrib)
-extern s32 rtw_xmitframe_coalesce(struct adapter *padapter, _pkt *pkt, struct xmit_frame *pxmitframe);
-extern s32 rtw_mgmt_xmitframe_coalesce(struct adapter *padapter, _pkt *pkt, struct xmit_frame *pxmitframe);
+extern s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct xmit_frame *pxmitframe);
+extern s32 rtw_mgmt_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct xmit_frame *pxmitframe);
 s32 _rtw_init_hw_txqueue(struct hw_txqueue *phw_txqueue, u8 ac_tag);
 void _rtw_init_sta_xmit_priv(struct sta_xmit_priv *psta_xmitpriv);
 
@@ -487,7 +487,7 @@ s32 rtw_alloc_hwxmits(struct adapter *padapter);
 void rtw_free_hwxmits(struct adapter *padapter);
 
 
-s32 rtw_xmit(struct adapter *padapter, _pkt **pkt);
+s32 rtw_xmit(struct adapter *padapter, struct sk_buff **pkt);
 bool xmitframe_hiq_filter(struct xmit_frame *xmitframe);
 
 signed int xmitframe_enqueue_for_sleeping_sta(struct adapter *padapter, struct xmit_frame *pxmitframe);

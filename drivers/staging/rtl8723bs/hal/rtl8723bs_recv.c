@@ -98,7 +98,7 @@ static void update_recvframe_phyinfo(union recv_frame *precvframe,
 		.is_beacon   = false,
 	};
 
-	/* _irqL		irqL; */
+	/* unsigned long		irqL; */
 	struct sta_priv *pstapriv;
 	struct sta_info *psta;
 
@@ -242,7 +242,7 @@ static void rtl8723bs_recv_tasklet(struct tasklet_struct *t)
 	struct __queue *recv_buf_queue;
 	u8 *ptr;
 	u32 pkt_offset, skb_len, alloc_sz;
-	_pkt *pkt_copy = NULL;
+	struct sk_buff *pkt_copy = NULL;
 	u8 shift_sz = 0, rx_report_sz = 0;
 
 	p_hal_data = GET_HAL_DATA(padapter);

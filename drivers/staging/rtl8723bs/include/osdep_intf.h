@@ -32,7 +32,7 @@ Under Async. IRP (SDIO/USB)
 The protection mechanism is through the pending queue.
 */
 
-	_mutex ioctl_mutex;
+	struct mutex ioctl_mutex;
 };
 
 
@@ -70,7 +70,7 @@ int rtw_ips_pwr_up(struct adapter *padapter);
 void rtw_ips_pwr_down(struct adapter *padapter);
 
 int rtw_drv_register_netdev(struct adapter *padapter);
-void rtw_ndev_destructor(_nic_hdl ndev);
+void rtw_ndev_destructor(struct net_device * ndev);
 
 int rtw_suspend_common(struct adapter *padapter);
 int rtw_resume_common(struct adapter *padapter);

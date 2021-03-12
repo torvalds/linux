@@ -131,7 +131,7 @@ struct sitesurvey_ctrl {
 	u64	last_tx_pkts;
 	uint	last_rx_pkts;
 	signed int	traffic_busy;
-	_timer	sitesurvey_ctrl_timer;
+	struct timer_list	sitesurvey_ctrl_timer;
 };
 
 struct RT_LINK_DETECT_T {
@@ -203,7 +203,7 @@ struct scan_limit_info {
 };
 
 struct cfg80211_wifidirect_info {
-	_timer					remain_on_ch_timer;
+	struct timer_list					remain_on_ch_timer;
 	u8 				restore_channel;
 	struct ieee80211_channel	remain_on_ch_channel;
 	enum nl80211_channel_type	remain_on_ch_type;
@@ -214,13 +214,13 @@ struct cfg80211_wifidirect_info {
 
 struct wifidirect_info {
 	struct adapter				*padapter;
-	_timer					find_phase_timer;
-	_timer					restore_p2p_state_timer;
+	struct timer_list					find_phase_timer;
+	struct timer_list					restore_p2p_state_timer;
 
 	/* 	Used to do the scanning. After confirming the peer is availalble, the driver transmits the P2P frame to peer. */
-	_timer					pre_tx_scan_timer;
-	_timer					reset_ch_sitesurvey;
-	_timer					reset_ch_sitesurvey2;	/* 	Just for resetting the scan limit function by using p2p nego */
+	struct timer_list					pre_tx_scan_timer;
+	struct timer_list					reset_ch_sitesurvey;
+	struct timer_list					reset_ch_sitesurvey2;	/* 	Just for resetting the scan limit function by using p2p nego */
 	struct tx_provdisc_req_info tx_prov_disc_info;
 	struct rx_provdisc_req_info rx_prov_disc_info;
 	struct tx_invite_req_info invitereq_info;
@@ -302,8 +302,8 @@ struct tdls_info {
 	u8 			cur_channel;
 	u8 			candidate_ch;
 	u8 			collect_pkt_num[MAX_CHANNEL_NUM];
-	_lock				cmd_lock;
-	_lock				hdl_lock;
+	spinlock_t				cmd_lock;
+	spinlock_t				hdl_lock;
 	u8 			watchdog_count;
 	u8 			dev_discovered;		/* WFD_TDLS: for sigma test */
 	u8 			tdls_enable;
@@ -329,7 +329,7 @@ enum {
 
 struct mlme_priv {
 
-	_lock	lock;
+	spinlock_t	lock;
 	signed int	fw_state;	/* shall we protect this variable? maybe not necessarily... */
 	u8 bScanInProcess;
 	u8 to_join; /* flag */
@@ -361,15 +361,15 @@ struct mlme_priv {
 
 	u32 auto_scan_int_ms;
 
-	_timer assoc_timer;
+	struct timer_list assoc_timer;
 
 	uint assoc_by_bssid;
 	uint assoc_by_rssi;
 
-	_timer scan_to_timer; /*  driver itself handles scan_timeout status. */
+	struct timer_list scan_to_timer; /*  driver itself handles scan_timeout status. */
 	unsigned long scan_start_time; /*  used to evaluate the time spent in scanning */
 
-	_timer set_scan_deny_timer;
+	struct timer_list set_scan_deny_timer;
 	atomic_t set_scan_deny; /* 0: allowed, 1: deny */
 
 	struct qos_priv qospriv;
@@ -386,7 +386,7 @@ struct mlme_priv {
 	struct ht_priv htpriv;
 
 	struct RT_LINK_DETECT_T	LinkDetectInfo;
-	_timer	dynamic_chk_timer; /* dynamic/periodic check timer */
+	struct timer_list	dynamic_chk_timer; /* dynamic/periodic check timer */
 
 	u8 acm_mask; /*  for wmm acm mask */
 	u8 ChannelPlan;
@@ -448,7 +448,7 @@ struct mlme_priv {
 	u32 p2p_go_probe_resp_ie_len; /* for GO */
 	u32 p2p_assoc_req_ie_len;
 
-	_lock	bcn_update_lock;
+	spinlock_t	bcn_update_lock;
 	u8 update_bcn;
 
 	u8 NumOfBcnInfoChkFail;

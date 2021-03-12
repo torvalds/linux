@@ -47,7 +47,7 @@ struct recv_reorder_ctrl {
 	u16 wend_b;
 	u8 wsize_b;
 	struct __queue pending_recvframe_queue;
-	_timer reordering_ctrl_timer;
+	struct timer_list reordering_ctrl_timer;
 };
 
 struct	stainfo_rxcache	{
@@ -214,7 +214,7 @@ accesser of recv_priv: rtw_recv_entry(dispatch / passive level); recv_thread(pas
 using enter_critical section to protect
 */
 struct recv_priv {
-	_lock	lock;
+	spinlock_t	lock;
 	struct __queue	free_recv_queue;
 	struct __queue	recv_pending_queue;
 	struct __queue	uc_swdec_pending_queue;
@@ -264,7 +264,7 @@ struct recv_priv {
 	/* int FalseAlmCnt_all; */
 
 
-	_timer signal_stat_timer;
+	struct timer_list signal_stat_timer;
 	u32 signal_stat_sampling_interval;
 	/* u32 signal_stat_converging_constant; */
 	struct signal_stat signal_qual_data;
@@ -275,7 +275,7 @@ struct recv_priv {
 
 struct sta_recv_priv {
 
-	_lock	lock;
+	spinlock_t	lock;
 	signed int	option;
 
 	/* struct __queue	blk_strms[MAX_RX_NUMBLKS]; */
@@ -293,7 +293,7 @@ struct sta_recv_priv {
 struct recv_buf {
 	struct list_head list;
 
-	_lock recvbuf_lock;
+	spinlock_t recvbuf_lock;
 
 	u32 ref_cnt;
 
@@ -308,7 +308,7 @@ struct recv_buf {
 	u8 *ptail;
 	u8 *pend;
 
-	_pkt	*pskb;
+	struct sk_buff	*pskb;
 	u8 reuse;
 };
 
@@ -334,8 +334,8 @@ struct recv_frame_hdr {
 	struct sk_buff	 *pkt;
 	struct sk_buff	 *pkt_newalloc;
 #else /*  CONFIG_BSD_RX_USE_MBUF */
-	_pkt	*pkt;
-	_pkt *pkt_newalloc;
+	struct sk_buff	*pkt;
+	struct sk_buff *pkt_newalloc;
 #endif /*  CONFIG_BSD_RX_USE_MBUF */
 
 	struct adapter  *adapter;

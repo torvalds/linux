@@ -15,7 +15,7 @@ struct mp_xmit_frame {
 
 	struct pkt_attrib attrib;
 
-	_pkt *pkt;
+	struct sk_buff *pkt;
 
 	int frame_tag;
 
@@ -56,7 +56,7 @@ struct MPT_CONTEXT {
 	/*  Indicate if the driver is unloading or unloaded. */
 	bool			bMptDrvUnload;
 
-	_timer			MPh2c_timeout_timer;
+	struct timer_list			MPh2c_timeout_timer;
 /*  Event used to sync H2c for BT control */
 
 	bool		MptH2cRspEvent;

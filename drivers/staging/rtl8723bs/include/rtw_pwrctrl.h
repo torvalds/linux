@@ -212,10 +212,10 @@ struct pwrctrl_priv {
 	u8 dtim;
 
 	u32 alives;
-	_workitem cpwm_event;
+	struct work_struct cpwm_event;
 	u8 brpwmtimeout;
-	_workitem rpwmtimeoutwi;
-	_timer pwr_rpwm_timer;
+	struct work_struct rpwmtimeoutwi;
+	struct timer_list pwr_rpwm_timer;
 	u8 bpower_saving; /* for LPS/IPS */
 
 	u8 b_hw_radio_off;
@@ -282,7 +282,7 @@ struct pwrctrl_priv {
 	u32 	wowlan_pattern_context[8][5];
 	u64		wowlan_fw_iv;
 #endif /*  CONFIG_WOWLAN */
-	_timer	pwr_state_check_timer;
+	struct timer_list	pwr_state_check_timer;
 	struct adapter *adapter;
 	int		pwr_state_check_interval;
 	u8 pwr_state_check_cnts;

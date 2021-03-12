@@ -53,11 +53,11 @@
 		/* u8 cmdthd_running; */
 		u8 stop_req;
 		struct adapter *padapter;
-		_mutex sctx_mutex;
+		struct mutex sctx_mutex;
 	};
 
 	struct	evt_priv {
-		_workitem c2h_wk;
+		struct work_struct c2h_wk;
 		bool c2h_wk_alive;
 		struct rtw_cbuf *c2h_queue;
 		#define C2H_QUEUE_MAX_LEN 10

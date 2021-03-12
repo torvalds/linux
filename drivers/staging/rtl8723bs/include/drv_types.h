@@ -277,7 +277,7 @@ struct rtw_traffic_statistics {
 };
 
 struct cam_ctl_t {
-	_lock lock;
+	spinlock_t lock;
 	u64 bitmap;
 };
 
@@ -303,13 +303,13 @@ struct dvobj_priv {
 
 	/* for local/global synchronization */
 	/*  */
-	_lock	lock;
+	spinlock_t	lock;
 	int macid[NUM_STA];
 
-	_mutex hw_init_mutex;
-	_mutex h2c_fwcmd_mutex;
-	_mutex setch_mutex;
-	_mutex setbw_mutex;
+	struct mutex hw_init_mutex;
+	struct mutex h2c_fwcmd_mutex;
+	struct mutex setch_mutex;
+	struct mutex setbw_mutex;
 
 	unsigned char oper_channel; /* saved channel info when call set_channel_bw */
 	unsigned char oper_bwmode;
@@ -393,7 +393,7 @@ struct adapter {
 	struct	recv_priv recvpriv;
 	struct	sta_priv stapriv;
 	struct	security_priv securitypriv;
-	_lock   security_key_mutex; /*  add for CONFIG_IEEE80211W, none 11w also can use */
+	spinlock_t   security_key_mutex; /*  add for CONFIG_IEEE80211W, none 11w also can use */
 	struct	registry_priv registrypriv;
 	struct	eeprom_priv eeprompriv;
 
@@ -432,12 +432,12 @@ struct adapter {
 	void (*intf_start)(struct adapter * adapter);
 	void (*intf_stop)(struct adapter * adapter);
 
-	_nic_hdl pnetdev;
+	struct net_device * pnetdev;
 	char old_ifname[IFNAMSIZ];
 
 	/*  used by rtw_rereg_nd_name related function */
 	struct rereg_nd_name_data {
-		_nic_hdl old_pnetdev;
+		struct net_device * old_pnetdev;
 		char old_ifname[IFNAMSIZ];
 		u8 old_ips_mode;
 		u8 old_bRegUseLed;
