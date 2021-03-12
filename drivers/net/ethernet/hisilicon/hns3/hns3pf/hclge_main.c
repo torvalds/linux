@@ -1150,8 +1150,10 @@ static void hclge_parse_fiber_link_mode(struct hclge_dev *hdev,
 	if (hnae3_dev_fec_supported(hdev))
 		hclge_convert_setting_fec(mac);
 
+	if (hnae3_dev_pause_supported(hdev))
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, mac->supported);
+
 	linkmode_set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT, mac->supported);
-	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, mac->supported);
 	linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_NONE_BIT, mac->supported);
 }
 
@@ -1163,8 +1165,11 @@ static void hclge_parse_backplane_link_mode(struct hclge_dev *hdev,
 	hclge_convert_setting_kr(mac, speed_ability);
 	if (hnae3_dev_fec_supported(hdev))
 		hclge_convert_setting_fec(mac);
+
+	if (hnae3_dev_pause_supported(hdev))
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, mac->supported);
+
 	linkmode_set_bit(ETHTOOL_LINK_MODE_Backplane_BIT, mac->supported);
-	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, mac->supported);
 	linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_NONE_BIT, mac->supported);
 }
 
@@ -1193,10 +1198,13 @@ static void hclge_parse_copper_link_mode(struct hclge_dev *hdev,
 		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, supported);
 	}
 
+	if (hnae3_dev_pause_supported(hdev)) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, supported);
+	}
+
 	linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, supported);
 	linkmode_set_bit(ETHTOOL_LINK_MODE_TP_BIT, supported);
-	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, supported);
-	linkmode_set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, supported);
 }
 
 static void hclge_parse_link_mode(struct hclge_dev *hdev, u16 speed_ability)
@@ -2889,10 +2897,12 @@ static void hclge_update_link_status(struct hclge_dev *hdev)
 	clear_bit(HCLGE_STATE_LINK_UPDATING, &hdev->state);
 }
 
-static void hclge_update_port_capability(struct hclge_mac *mac)
+static void hclge_update_port_capability(struct hclge_dev *hdev,
+					 struct hclge_mac *mac)
 {
-	/* update fec ability by speed */
-	hclge_convert_setting_fec(mac);
+	if (hnae3_dev_fec_supported(hdev))
+		/* update fec ability by speed */
+		hclge_convert_setting_fec(mac);
 
 	/* firmware can not identify back plane type, the media type
 	 * read from configuration can help deal it
@@ -3012,7 +3022,7 @@ static int hclge_update_port_info(struct hclge_dev *hdev)
 
 	if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
 		if (mac->speed_type == QUERY_ACTIVE_SPEED) {
-			hclge_update_port_capability(mac);
+			hclge_update_port_capability(hdev, mac);
 			return 0;
 		}
 		return hclge_cfg_mac_speed_dup(hdev, mac->speed,

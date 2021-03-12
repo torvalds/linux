@@ -642,6 +642,10 @@ static void hns3_get_pauseparam(struct net_device *netdev,
 				struct ethtool_pauseparam *param)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
+
+	if (!test_bit(HNAE3_DEV_SUPPORT_PAUSE_B, ae_dev->caps))
+		return;
 
 	if (h->ae_algo->ops->get_pauseparam)
 		h->ae_algo->ops->get_pauseparam(h, &param->autoneg,
@@ -652,6 +656,10 @@ static int hns3_set_pauseparam(struct net_device *netdev,
 			       struct ethtool_pauseparam *param)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
+
+	if (!test_bit(HNAE3_DEV_SUPPORT_PAUSE_B, ae_dev->caps))
+		return -EOPNOTSUPP;
 
 	netif_dbg(h, drv, netdev,
 		  "set pauseparam: autoneg=%u, rx:%u, tx:%u\n",

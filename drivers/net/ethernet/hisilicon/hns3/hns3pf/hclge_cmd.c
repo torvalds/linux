@@ -353,7 +353,10 @@ static void hclge_set_default_capability(struct hclge_dev *hdev)
 
 	set_bit(HNAE3_DEV_SUPPORT_FD_B, ae_dev->caps);
 	set_bit(HNAE3_DEV_SUPPORT_GRO_B, ae_dev->caps);
-	set_bit(HNAE3_DEV_SUPPORT_FEC_B, ae_dev->caps);
+	if (hdev->ae_dev->dev_version == HNAE3_DEVICE_VERSION_V2) {
+		set_bit(HNAE3_DEV_SUPPORT_FEC_B, ae_dev->caps);
+		set_bit(HNAE3_DEV_SUPPORT_PAUSE_B, ae_dev->caps);
+	}
 }
 
 static void hclge_parse_capability(struct hclge_dev *hdev,
@@ -378,6 +381,10 @@ static void hclge_parse_capability(struct hclge_dev *hdev,
 		set_bit(HNAE3_DEV_SUPPORT_UDP_TUNNEL_CSUM_B, ae_dev->caps);
 	if (hnae3_get_bit(caps, HCLGE_CAP_FD_FORWARD_TC_B))
 		set_bit(HNAE3_DEV_SUPPORT_FD_FORWARD_TC_B, ae_dev->caps);
+	if (hnae3_get_bit(caps, HCLGE_CAP_FEC_B))
+		set_bit(HNAE3_DEV_SUPPORT_FEC_B, ae_dev->caps);
+	if (hnae3_get_bit(caps, HCLGE_CAP_PAUSE_B))
+		set_bit(HNAE3_DEV_SUPPORT_PAUSE_B, ae_dev->caps);
 }
 
 static __le32 hclge_build_api_caps(void)
