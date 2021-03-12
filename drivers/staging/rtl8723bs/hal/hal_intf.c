@@ -111,7 +111,6 @@ uint rtw_hal_init(struct adapter *padapter)
 	RT_TRACE(_module_hal_init_c_, _drv_err_, ("-rtl871x_hal_init:status = 0x%x\n", status));
 
 	return status;
-
 }
 
 uint rtw_hal_deinit(struct adapter *padapter)
@@ -180,7 +179,6 @@ void rtw_hal_enable_interrupt(struct adapter *padapter)
 		padapter->HalFunc.enable_interrupt(padapter);
 	else
 		DBG_871X("%s: HalFunc.enable_interrupt is NULL!\n", __func__);
-
 }
 
 void rtw_hal_disable_interrupt(struct adapter *padapter)
@@ -189,7 +187,6 @@ void rtw_hal_disable_interrupt(struct adapter *padapter)
 		padapter->HalFunc.disable_interrupt(padapter);
 	else
 		DBG_871X("%s: HalFunc.disable_interrupt is NULL!\n", __func__);
-
 }
 
 u8 rtw_hal_check_ips_status(struct adapter *padapter)
@@ -269,7 +266,6 @@ s32	rtw_hal_init_recv_priv(struct adapter *padapter)
 
 void rtw_hal_free_recv_priv(struct adapter *padapter)
 {
-
 	if (padapter->HalFunc.free_recv_priv)
 		padapter->HalFunc.free_recv_priv(padapter);
 }
@@ -358,7 +354,6 @@ void rtw_hal_dm_watchdog(struct adapter *padapter)
 {
 	if (padapter->HalFunc.hal_dm_watchdog)
 		padapter->HalFunc.hal_dm_watchdog(padapter);
-
 }
 
 void rtw_hal_dm_watchdog_in_lps(struct adapter *padapter)
@@ -422,7 +417,6 @@ s32 rtw_hal_macid_sleep(struct adapter *padapter, u32 macid)
 {
 	u8 support;
 
-
 	support = false;
 	rtw_hal_get_def_var(padapter, HAL_DEF_MACID_SLEEP, &support);
 	if (false == support)
@@ -436,7 +430,6 @@ s32 rtw_hal_macid_sleep(struct adapter *padapter, u32 macid)
 s32 rtw_hal_macid_wakeup(struct adapter *padapter, u32 macid)
 {
 	u8 support;
-
 
 	support = false;
 	rtw_hal_get_def_var(padapter, HAL_DEF_MACID_SLEEP, &support);
