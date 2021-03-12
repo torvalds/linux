@@ -2728,6 +2728,11 @@ static int amdgpu_device_ip_suspend_phase2(struct amdgpu_device *adev)
 {
 	int i, r;
 
+	if (adev->in_s0ix) {
+		amdgpu_gfx_state_change_set(adev, sGpuChangeState_D3Entry);
+		return 0;
+	}
+
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.valid)
 			continue;
@@ -3721,10 +3726,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
 
 	amdgpu_fence_driver_suspend(adev);
 
-	if (!adev->in_s0ix || amdgpu_in_reset(adev))
-		r = amdgpu_device_ip_suspend_phase2(adev);
-	else
-		amdgpu_gfx_state_change_set(adev, sGpuChangeState_D3Entry);
+	r = amdgpu_device_ip_suspend_phase2(adev);
 	/* evict remaining vram memory
 	 * This second call to evict vram is to evict the gart page table
 	 * using the CPU.
