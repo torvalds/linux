@@ -1177,6 +1177,8 @@ static int bch2_dev_alloc(struct bch_fs *c, unsigned dev_idx)
 	if (!ca)
 		goto err;
 
+	ca->fs = c;
+
 	if (ca->mi.state == BCH_MEMBER_STATE_RW &&
 	    bch2_dev_allocator_start(ca)) {
 		bch2_dev_free(ca);
