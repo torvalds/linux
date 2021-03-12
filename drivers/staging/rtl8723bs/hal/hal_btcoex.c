@@ -1105,7 +1105,7 @@ void EXhalbtcoutsrc_ConnectNotify(struct BTC_COEXIST * pBtCoexist, u8 action)
 /* 	halbtcoutsrc_NormalLowPower(pBtCoexist); */
 }
 
-void EXhalbtcoutsrc_MediaStatusNotify(struct BTC_COEXIST * pBtCoexist, RT_MEDIA_STATUS mediaStatus)
+void EXhalbtcoutsrc_MediaStatusNotify(struct BTC_COEXIST * pBtCoexist, enum RT_MEDIA_STATUS mediaStatus)
 {
 	u8 mStatus;
 

@@ -165,10 +165,10 @@ enum{
 	UP_LINK,
 	DOWN_LINK,
 };
-typedef enum _RT_MEDIA_STATUS {
+enum RT_MEDIA_STATUS {
 	RT_MEDIA_DISCONNECT = 0,
 	RT_MEDIA_CONNECT       = 1
-} RT_MEDIA_STATUS;
+};
 
 #define MAX_DLFW_PAGE_SIZE			4096	/*  @ page : 4k bytes */
 enum FIRMWARE_SOURCE {
