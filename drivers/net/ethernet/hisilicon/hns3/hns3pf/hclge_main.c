@@ -8904,6 +8904,29 @@ static int hclge_set_mac_addr(struct hnae3_handle *handle, void *p,
 	return 0;
 }
 
+static int hclge_mii_ioctl(struct hclge_dev *hdev, struct ifreq *ifr, int cmd)
+{
+	struct mii_ioctl_data *data = if_mii(ifr);
+
+	if (!hnae3_dev_phy_imp_supported(hdev))
+		return -EOPNOTSUPP;
+
+	switch (cmd) {
+	case SIOCGMIIPHY:
+		data->phy_id = hdev->hw.mac.phy_addr;
+		/* this command reads phy id and register at the same time */
+		fallthrough;
+	case SIOCGMIIREG:
+		data->val_out = hclge_read_phy_reg(hdev, data->reg_num);
+		return 0;
+
+	case SIOCSMIIREG:
+		return hclge_write_phy_reg(hdev, data->reg_num, data->val_in);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int hclge_do_ioctl(struct hnae3_handle *handle, struct ifreq *ifr,
 			  int cmd)
 {
@@ -8911,7 +8934,7 @@ static int hclge_do_ioctl(struct hnae3_handle *handle, struct ifreq *ifr,
 	struct hclge_dev *hdev = vport->back;
 
 	if (!hdev->hw.mac.phydev)
-		return -EOPNOTSUPP;
+		return hclge_mii_ioctl(hdev, ifr, cmd);
 
 	return phy_mii_ioctl(hdev->hw.mac.phydev, ifr, cmd);
 }

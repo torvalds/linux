@@ -306,6 +306,7 @@ enum hclge_opcode_type {
 
 	/* PHY command */
 	HCLGE_OPC_PHY_LINK_KSETTING	= 0x7025,
+	HCLGE_OPC_PHY_REG		= 0x7026,
 };
 
 #define HCLGE_TQP_REG_OFFSET		0x80000
@@ -1164,6 +1165,13 @@ struct hclge_phy_link_ksetting_1_cmd {
 	u8 master_slave_cfg;
 	u8 master_slave_state;
 	u8 rsv[22];
+};
+
+struct hclge_phy_reg_cmd {
+	__le16 reg_addr;
+	u8 rsv0[2];
+	__le16 reg_val;
+	u8 rsv1[18];
 };
 
 int hclge_cmd_init(struct hclge_dev *hdev);
