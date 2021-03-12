@@ -270,10 +270,10 @@ DECLARE_HOOK(android_vh_set_wake_flags,
 
 enum uclamp_id;
 struct uclamp_se;
-DECLARE_RESTRICTED_HOOK(android_rvh_uclamp_eff_value,
+DECLARE_RESTRICTED_HOOK(android_rvh_uclamp_eff_get,
 	TP_PROTO(struct task_struct *p, enum uclamp_id clamp_id,
-		 struct uclamp_se *uclamp_default, unsigned long *ret),
-	TP_ARGS(p, clamp_id, uclamp_default, ret), 1);
+		 struct uclamp_se *uclamp_max, struct uclamp_se *uclamp_eff, int *ret),
+	TP_ARGS(p, clamp_id, uclamp_max, uclamp_eff, ret), 1);
 
 /* macro versions of hooks are no longer required */
 
