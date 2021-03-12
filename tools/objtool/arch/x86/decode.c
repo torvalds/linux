@@ -11,6 +11,9 @@
 #include "../../../arch/x86/lib/inat.c"
 #include "../../../arch/x86/lib/insn.c"
 
+#define CONFIG_64BIT 1
+#include <asm/nops.h>
+
 #include <asm/orc_types.h>
 #include <objtool/check.h>
 #include <objtool/elf.h>
@@ -596,11 +599,11 @@ void arch_initial_func_cfi_state(struct cfi_init_state *state)
 const char *arch_nop_insn(int len)
 {
 	static const char nops[5][5] = {
-		/* 1 */ { 0x90 },
-		/* 2 */ { 0x66, 0x90 },
-		/* 3 */ { 0x0f, 0x1f, 0x00 },
-		/* 4 */ { 0x0f, 0x1f, 0x40, 0x00 },
-		/* 5 */ { 0x0f, 0x1f, 0x44, 0x00, 0x00 },
+		{ BYTES_NOP1 },
+		{ BYTES_NOP2 },
+		{ BYTES_NOP3 },
+		{ BYTES_NOP4 },
+		{ BYTES_NOP5 },
 	};
 
 	if (len < 1 || len > 5) {
