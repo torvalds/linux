@@ -908,7 +908,7 @@ CC_FLAGS_LTO	+= -flto
 endif
 
 ifeq ($(SRCARCH),x86)
-# Workaround for compiler / linker bug
+# TODO(b/182572011): Revert workaround for compiler / linker bug.
 CC_FLAGS_LTO	+= -fvisibility=hidden
 else
 CC_FLAGS_LTO	+= -fvisibility=default
