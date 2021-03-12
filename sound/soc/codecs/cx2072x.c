@@ -827,9 +827,6 @@ static int cx2072x_config_i2spcm(struct cx2072x_priv *cx2072x)
 	}
 	regdbt2.r.i2s_bclk_invert = is_bclk_inv;
 
-	reg1.r.rx_data_one_line = 1;
-	reg1.r.tx_data_one_line = 1;
-
 	/* Configures the BCLK output */
 	bclk_rate = cx2072x->sample_rate * frame_len;
 	reg5.r.i2s_pcm_clk_div_chan_en = 0;
