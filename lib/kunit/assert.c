@@ -25,7 +25,7 @@ void kunit_base_assert_format(const struct kunit_assert *assert,
 	}
 
 	string_stream_add(stream, "%s FAILED at %s:%d\n",
-			 expect_or_assert, assert->file, assert->line);
+			  expect_or_assert, assert->file, assert->line);
 }
 EXPORT_SYMBOL_GPL(kunit_base_assert_format);
 
@@ -48,8 +48,9 @@ EXPORT_SYMBOL_GPL(kunit_fail_assert_format);
 void kunit_unary_assert_format(const struct kunit_assert *assert,
 			       struct string_stream *stream)
 {
-	struct kunit_unary_assert *unary_assert = container_of(
-			assert, struct kunit_unary_assert, assert);
+	struct kunit_unary_assert *unary_assert;
+
+	unary_assert = container_of(assert, struct kunit_unary_assert, assert);
 
 	kunit_base_assert_format(assert, stream);
 	if (unary_assert->expected_true)
@@ -67,8 +68,10 @@ EXPORT_SYMBOL_GPL(kunit_unary_assert_format);
 void kunit_ptr_not_err_assert_format(const struct kunit_assert *assert,
 				     struct string_stream *stream)
 {
-	struct kunit_ptr_not_err_assert *ptr_assert = container_of(
-			assert, struct kunit_ptr_not_err_assert, assert);
+	struct kunit_ptr_not_err_assert *ptr_assert;
+
+	ptr_assert = container_of(assert, struct kunit_ptr_not_err_assert,
+				  assert);
 
 	kunit_base_assert_format(assert, stream);
 	if (!ptr_assert->value) {
@@ -111,8 +114,10 @@ static bool is_literal(struct kunit *test, const char *text, long long value,
 void kunit_binary_assert_format(const struct kunit_assert *assert,
 				struct string_stream *stream)
 {
-	struct kunit_binary_assert *binary_assert = container_of(
-			assert, struct kunit_binary_assert, assert);
+	struct kunit_binary_assert *binary_assert;
+
+	binary_assert = container_of(assert, struct kunit_binary_assert,
+				     assert);
 
 	kunit_base_assert_format(assert, stream);
 	string_stream_add(stream,
@@ -137,8 +142,10 @@ EXPORT_SYMBOL_GPL(kunit_binary_assert_format);
 void kunit_binary_ptr_assert_format(const struct kunit_assert *assert,
 				    struct string_stream *stream)
 {
-	struct kunit_binary_ptr_assert *binary_assert = container_of(
-			assert, struct kunit_binary_ptr_assert, assert);
+	struct kunit_binary_ptr_assert *binary_assert;
+
+	binary_assert = container_of(assert, struct kunit_binary_ptr_assert,
+				     assert);
 
 	kunit_base_assert_format(assert, stream);
 	string_stream_add(stream,
@@ -159,8 +166,10 @@ EXPORT_SYMBOL_GPL(kunit_binary_ptr_assert_format);
 void kunit_binary_str_assert_format(const struct kunit_assert *assert,
 				    struct string_stream *stream)
 {
-	struct kunit_binary_str_assert *binary_assert = container_of(
-			assert, struct kunit_binary_str_assert, assert);
+	struct kunit_binary_str_assert *binary_assert;
+
+	binary_assert = container_of(assert, struct kunit_binary_str_assert,
+				     assert);
 
 	kunit_base_assert_format(assert, stream);
 	string_stream_add(stream,
