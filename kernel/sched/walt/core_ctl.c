@@ -19,6 +19,9 @@
 #include "walt.h"
 #include "trace.h"
 
+/* mask of CPUs on which there is an outstanding pause claim */
+static cpumask_t cpus_paused_by_us = { CPU_BITS_NONE };
+
 struct cluster_data {
 	bool			inited;
 	unsigned int		min_cpus;
@@ -28,7 +31,6 @@ struct cluster_data {
 	unsigned int		busy_down_thres[MAX_CPUS_PER_CLUSTER];
 	unsigned int		active_cpus;
 	unsigned int		num_cpus;
-	unsigned int		nr_paused_cpus;
 	unsigned int		nr_not_preferred_cpus;
 	cpumask_t		cpu_mask;
 	unsigned int		need_cpus;
@@ -53,7 +55,6 @@ struct cpu_data {
 	bool			not_preferred;
 	struct cluster_data	*cluster;
 	struct list_head	sib;
-	bool			paused_by_us;
 	bool			disabled;
 };
 
@@ -289,6 +290,14 @@ static ssize_t show_active_cpus(const struct cluster_data *state, char *buf)
 	return scnprintf(buf, PAGE_SIZE, "%u\n", state->active_cpus);
 }
 
+static unsigned int nr_paused_cpus(const struct cluster_data *cluster)
+{
+	cpumask_t cluster_paused_cpus;
+
+	cpumask_and(&cluster_paused_cpus, &cluster->cpu_mask, &cpus_paused_by_us);
+	return cpumask_weight(&cluster_paused_cpus);
+}
+
 static ssize_t show_global_state(const struct cluster_data *state, char *buf)
 {
 	struct cpu_data *c;
@@ -331,7 +340,7 @@ static ssize_t show_global_state(const struct cluster_data *state, char *buf)
 				"\tNeed CPUs: %u\n", cluster->need_cpus);
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				"\tNr paused CPUs: %u\n",
-						cluster->nr_paused_cpus);
+				   nr_paused_cpus(cluster));
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				"\tBoost: %u\n", (unsigned int) cluster->boost);
 	}
@@ -607,7 +616,7 @@ static int prev_cluster_nr_need_assist(int index)
 	 * Next cluster should not assist, while there are paused cpus
 	 * in this cluster.
 	 */
-	if (prev_cluster->nr_paused_cpus)
+	if (nr_paused_cpus(prev_cluster))
 		return 0;
 
 	for_each_cpu(cpu, &prev_cluster->cpu_mask)
@@ -768,7 +777,7 @@ static bool adjustment_possible(const struct cluster_data *cluster,
 							unsigned int need)
 {
 	return (need < cluster->active_cpus || (need > cluster->active_cpus &&
-						cluster->nr_paused_cpus));
+						nr_paused_cpus(cluster)));
 }
 
 static bool need_all_cpus(const struct cluster_data *cluster)
@@ -1029,8 +1038,6 @@ static void try_to_pause(struct cluster_data *cluster, unsigned int need,
 		pr_debug("Trying to pause CPU%u\n", c->cpu);
 		cpumask_set_cpu(c->cpu, pause_cpus);
 		nr_pending++;
-		c->paused_by_us = true;
-		cluster->nr_paused_cpus++;
 		move_cpu_lru(c);
 	}
 
@@ -1059,8 +1066,6 @@ again:
 
 		cpumask_set_cpu(c->cpu, pause_cpus);
 		nr_pending++;
-		c->paused_by_us = true;
-		cluster->nr_paused_cpus++;
 		move_cpu_lru(c);
 	}
 
@@ -1089,7 +1094,7 @@ static int __try_to_resume(struct cluster_data *cluster, unsigned int need,
 		if (!num_cpus--)
 			break;
 
-		if (!c->paused_by_us)
+		if (!cpumask_test_cpu(c->cpu, &cpus_paused_by_us))
 			continue;
 		if ((cpu_online(c->cpu) && cpu_active(c->cpu)) ||
 			(!force && c->not_preferred))
@@ -1101,8 +1106,6 @@ static int __try_to_resume(struct cluster_data *cluster, unsigned int need,
 
 		cpumask_set_cpu(c->cpu, unpause_cpus);
 		nr_pending++;
-		c->paused_by_us = false;
-		cluster->nr_paused_cpus--;
 		move_cpu_lru(c);
 	}
 
@@ -1122,14 +1125,71 @@ static void try_to_resume(struct cluster_data *cluster, unsigned int need,
 	 * won't be reflected yet. So use the nr_pending to adjust active
 	 * count.
 	 */
-	nr_pending = __try_to_resume(cluster, need, force_use_non_preferred,
-				     unpause_cpus);
+	nr_pending = __try_to_resume(cluster, need, force_use_non_preferred, unpause_cpus);
 
 	if (cluster->active_cpus + nr_pending == need)
 		return;
 
 	force_use_non_preferred = true;
 	__try_to_resume(cluster, need, force_use_non_preferred, unpause_cpus);
+}
+
+/*
+ * core_ctl_pause_cpus: pause a set of CPUs as requested by core_ctl, handling errors.
+ *
+ * In order to handle errors properly, and properly track success, the cpus being
+ * passed to walt_pause_cpus needs to be saved off. It needs to be saved because
+ * walt_pause_cpus will modify the value (through pause_cpus()). Pause_cpus modifies
+ * the value because it updates the variable to eliminate CPUs that are already paused.
+ * THIS code, however, must be very careful to track what cpus were requested, rather
+ * than what cpus actually were paused in this action. Otherwise, the ref-counts in
+ * walt_pause.c will get out of sync with this code.
+ */
+static void core_ctl_pause_cpus(struct cpumask *cpus_to_pause)
+{
+	cpumask_t saved_cpus;
+
+	/* be careful to only pause CPUs not paused before to ensure ref-count sync */
+	cpumask_andnot(cpus_to_pause, cpus_to_pause, &cpus_paused_by_us);
+	cpumask_copy(&saved_cpus, cpus_to_pause);
+
+	if (cpumask_any(cpus_to_pause) < nr_cpu_ids) {
+		if (walt_pause_cpus(cpus_to_pause) < 0)
+			pr_warn("core_ctl pause operation failed cpus=%*pbl paused_by_us=%*pbl\n",
+				cpumask_pr_args(cpus_to_pause),
+				cpumask_pr_args(&cpus_paused_by_us));
+		else
+			cpumask_or(&cpus_paused_by_us, &cpus_paused_by_us, &saved_cpus);
+	}
+}
+
+/*
+ * core_ctl_resume_cpus: resume a set of CPUs as requested by core_ctl, handling errors.
+ *
+ * In order to handle errors properly, and properly track success, the cpus being
+ * passed to walt_resume_cpus needs to be saved off. It needs to be saved because
+ * walt_resume_cpus will modify the value (through resume_cpus()). Resume_cpus modifies
+ * the value because it updates the variable to eliminate CPUs that are already resumed.
+ * THIS code, however, must be very careful to track what cpus were requested, rather
+ * than what cpus actually were resumed in this action. Otherwise, the ref-counts in
+ * walt_pause.c will get out of sync with this code.
+ */
+static void core_ctl_resume_cpus(struct cpumask *cpus_to_unpause)
+{
+	cpumask_t saved_cpus;
+
+	/* be careful to only unpause CPUs paused before to ensure ref-count sync */
+	cpumask_and(cpus_to_unpause, cpus_to_unpause, &cpus_paused_by_us);
+	cpumask_copy(&saved_cpus, cpus_to_unpause);
+
+	if (cpumask_any(cpus_to_unpause) < nr_cpu_ids) {
+		if (walt_resume_cpus(cpus_to_unpause) < 0)
+			pr_warn("core_ctl resume operation failed cpus=%*pbl paused_by_us=%*pbl\n",
+				cpumask_pr_args(cpus_to_unpause),
+				cpumask_pr_args(&cpus_paused_by_us));
+		else
+			cpumask_andnot(&cpus_paused_by_us, &cpus_paused_by_us, &saved_cpus);
+	}
 }
 
 static void __ref do_core_ctl(void)
@@ -1157,11 +1217,8 @@ static void __ref do_core_ctl(void)
 		}
 	}
 
-	if (cpumask_any(&cpus_to_pause) < nr_cpu_ids)
-		walt_pause_cpus(&cpus_to_pause);
-
-	if (cpumask_any(&cpus_to_unpause) < nr_cpu_ids)
-		walt_resume_cpus(&cpus_to_unpause);
+	core_ctl_pause_cpus(&cpus_to_pause);
+	core_ctl_resume_cpus(&cpus_to_unpause);
 }
 
 static int __ref try_core_ctl(void *data)
