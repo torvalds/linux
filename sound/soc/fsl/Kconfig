@@ -133,6 +133,11 @@ config SND_SOC_IMX_AUDIO_RPMSG
 	tristate
 	depends on RPMSG
 
+config SND_SOC_IMX_PCM_RPMSG
+	tristate
+	depends on SND_SOC_IMX_AUDIO_RPMSG
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+
 config SND_SOC_IMX_AUDMUX
 	tristate "Digital Audio Mux module support"
 	help
