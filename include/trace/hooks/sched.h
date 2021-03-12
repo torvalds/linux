@@ -283,6 +283,13 @@ DECLARE_HOOK(android_vh_free_task,
 	TP_PROTO(struct task_struct *p),
 	TP_ARGS(p));
 
+enum uclamp_id;
+struct uclamp_se;
+DECLARE_RESTRICTED_HOOK(android_rvh_uclamp_eff_get,
+	TP_PROTO(struct task_struct *p, enum uclamp_id clamp_id,
+		 struct uclamp_se *uclamp_max, struct uclamp_se *uclamp_eff, int *ret),
+	TP_ARGS(p, clamp_id, uclamp_max, uclamp_eff, ret), 1);
+
 DECLARE_RESTRICTED_HOOK(android_rvh_after_enqueue_task,
 	TP_PROTO(struct rq *rq, struct task_struct *p),
 	TP_ARGS(rq, p), 1);
