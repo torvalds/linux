@@ -288,27 +288,6 @@ enum EESIPR_BIT {
 	EESIPR_CERFIP	= 0x00000001,
 };
 
-/* Receive descriptor 0 bits */
-enum RD_STS_BIT {
-	RD_RACT = 0x80000000, RD_RDLE = 0x40000000,
-	RD_RFP1 = 0x20000000, RD_RFP0 = 0x10000000,
-	RD_RFE = 0x08000000, RD_RFS10 = 0x00000200,
-	RD_RFS9 = 0x00000100, RD_RFS8 = 0x00000080,
-	RD_RFS7 = 0x00000040, RD_RFS6 = 0x00000020,
-	RD_RFS5 = 0x00000010, RD_RFS4 = 0x00000008,
-	RD_RFS3 = 0x00000004, RD_RFS2 = 0x00000002,
-	RD_RFS1 = 0x00000001,
-};
-#define RDF1ST	RD_RFP1
-#define RDFEND	RD_RFP0
-#define RD_RFP	(RD_RFP1|RD_RFP0)
-
-/* Receive descriptor 1 bits */
-enum RD_LEN_BIT {
-	RD_RFL	= 0x0000ffff,	/* receive frame  length */
-	RD_RBL	= 0xffff0000,	/* receive buffer length */
-};
-
 /* FCFTR */
 enum FCFTR_BIT {
 	FCFTR_RFF2 = 0x00040000, FCFTR_RFF1 = 0x00020000,
@@ -317,21 +296,6 @@ enum FCFTR_BIT {
 };
 #define DEFAULT_FIFO_F_D_RFF	(FCFTR_RFF2 | FCFTR_RFF1 | FCFTR_RFF0)
 #define DEFAULT_FIFO_F_D_RFD	(FCFTR_RFD2 | FCFTR_RFD1 | FCFTR_RFD0)
-
-/* Transmit descriptor 0 bits */
-enum TD_STS_BIT {
-	TD_TACT = 0x80000000, TD_TDLE = 0x40000000,
-	TD_TFP1 = 0x20000000, TD_TFP0 = 0x10000000,
-	TD_TFE  = 0x08000000, TD_TWBI = 0x04000000,
-};
-#define TDF1ST	TD_TFP1
-#define TDFEND	TD_TFP0
-#define TD_TFP	(TD_TFP1|TD_TFP0)
-
-/* Transmit descriptor 1 bits */
-enum TD_LEN_BIT {
-	TD_TBL	= 0xffff0000,	/* transmit buffer length */
-};
 
 /* RMCR */
 enum RMCR_BIT {
@@ -451,6 +415,24 @@ struct sh_eth_txdesc {
 	u32 pad0;		/* padding data */
 } __aligned(2) __packed;
 
+/* Transmit descriptor 0 bits */
+enum TD_STS_BIT {
+	TD_TACT	= 0x80000000,
+	TD_TDLE	= 0x40000000,
+	TD_TFP1	= 0x20000000,
+	TD_TFP0	= 0x10000000,
+	TD_TFE	= 0x08000000,
+	TD_TWBI	= 0x04000000,
+};
+#define TDF1ST	TD_TFP1
+#define TDFEND	TD_TFP0
+#define TD_TFP	(TD_TFP1 | TD_TFP0)
+
+/* Transmit descriptor 1 bits */
+enum TD_LEN_BIT {
+	TD_TBL	= 0xffff0000,	/* transmit buffer length */
+};
+
 /* The sh ether Rx buffer descriptors.
  * This structure should be 20 bytes.
  */
@@ -460,6 +442,34 @@ struct sh_eth_rxdesc {
 	u32 addr;		/* RD2 */
 	u32 pad0;		/* padding data */
 } __aligned(2) __packed;
+
+/* Receive descriptor 0 bits */
+enum RD_STS_BIT {
+	RD_RACT	= 0x80000000,
+	RD_RDLE	= 0x40000000,
+	RD_RFP1	= 0x20000000,
+	RD_RFP0	= 0x10000000,
+	RD_RFE	= 0x08000000,
+	RD_RFS10 = 0x00000200,
+	RD_RFS9	= 0x00000100,
+	RD_RFS8	= 0x00000080,
+	RD_RFS7	= 0x00000040,
+	RD_RFS6	= 0x00000020,
+	RD_RFS5	= 0x00000010,
+	RD_RFS4	= 0x00000008,
+	RD_RFS3	= 0x00000004,
+	RD_RFS2	= 0x00000002,
+	RD_RFS1	= 0x00000001,
+};
+#define RDF1ST	RD_RFP1
+#define RDFEND	RD_RFP0
+#define RD_RFP	(RD_RFP1 | RD_RFP0)
+
+/* Receive descriptor 1 bits */
+enum RD_LEN_BIT {
+	RD_RFL	= 0x0000ffff,	/* receive frame  length */
+	RD_RBL	= 0xffff0000,	/* receive buffer length */
+};
 
 /* This structure is used by each CPU dependency handling. */
 struct sh_eth_cpu_data {
