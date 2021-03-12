@@ -558,7 +558,9 @@ static int list_devices(struct file *filp, struct dm_ioctl *param, size_t param_
 	for (n = rb_first(&name_rb_tree); n; n = rb_next(n)) {
 		hc = container_of(n, struct hash_cell, name_node);
 		needed += align_val(offsetof(struct dm_name_list, name) + strlen(hc->name) + 1);
-		needed += align_val(sizeof(uint32_t));
+		needed += align_val(sizeof(uint32_t) * 2);
+		if (param->flags & DM_UUID_FLAG && hc->uuid)
+			needed += align_val(strlen(hc->uuid) + 1);
 	}
 
 	/*
@@ -577,6 +579,7 @@ static int list_devices(struct file *filp, struct dm_ioctl *param, size_t param_
 	 * Now loop through filling out the names.
 	 */
 	for (n = rb_first(&name_rb_tree); n; n = rb_next(n)) {
+		void *uuid_ptr;
 		hc = container_of(n, struct hash_cell, name_node);
 		if (old_nl)
 			old_nl->next = (uint32_t) ((void *) nl -
@@ -588,8 +591,19 @@ static int list_devices(struct file *filp, struct dm_ioctl *param, size_t param_
 
 		old_nl = nl;
 		event_nr = align_ptr(nl->name + strlen(hc->name) + 1);
-		*event_nr = dm_get_event_nr(hc->md);
-		nl = align_ptr(event_nr + 1);
+		event_nr[0] = dm_get_event_nr(hc->md);
+		event_nr[1] = 0;
+		uuid_ptr = align_ptr(event_nr + 2);
+		if (param->flags & DM_UUID_FLAG) {
+			if (hc->uuid) {
+				event_nr[1] |= DM_NAME_LIST_FLAG_HAS_UUID;
+				strcpy(uuid_ptr, hc->uuid);
+				uuid_ptr = align_ptr(uuid_ptr + strlen(hc->uuid) + 1);
+			} else {
+				event_nr[1] |= DM_NAME_LIST_FLAG_DOESNT_HAVE_UUID;
+			}
+		}
+		nl = uuid_ptr;
 	}
 	/*
 	 * If mismatch happens, security may be compromised due to buffer
