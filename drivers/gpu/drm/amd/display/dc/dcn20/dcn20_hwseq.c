@@ -1146,6 +1146,12 @@ void dcn20_enable_plane(
 		pipe_ctx->plane_res.hubp->funcs->hubp_set_vm_system_aperture_settings(pipe_ctx->plane_res.hubp, &apt);
 	}
 
+	if (!pipe_ctx->top_pipe
+		&& pipe_ctx->plane_state
+		&& pipe_ctx->plane_state->flip_int_enabled
+		&& pipe_ctx->plane_res.hubp->funcs->hubp_set_flip_int)
+			pipe_ctx->plane_res.hubp->funcs->hubp_set_flip_int(pipe_ctx->plane_res.hubp);
+
 //	if (dc->debug.sanity_checks) {
 //		dcn10_verify_allow_pstate_change_high(dc);
 //	}
