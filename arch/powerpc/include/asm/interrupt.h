@@ -65,6 +65,8 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs, struct interrup
 	if (user_mode(regs))
 		account_cpu_user_entry();
 #endif
+
+	booke_restore_dbcr0();
 }
 
 /*
