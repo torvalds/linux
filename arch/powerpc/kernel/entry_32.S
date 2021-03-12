@@ -97,10 +97,8 @@ transfer_to_handler:
 	stw	r2,_XER(r11)
 	mfspr	r12,SPRN_SPRG_THREAD
 	tovirt(r12, r12)
-	beq	2f			/* if from user, fix up THREAD.regs */
+	beq	2f
 	addi	r2, r12, -THREAD
-	addi	r11,r1,STACK_FRAME_OVERHEAD
-	stw	r11,PT_REGS(r12)
 #ifdef CONFIG_PPC_BOOK3S_32
 	kuep_lock r11, r12
 #endif
@@ -147,7 +145,6 @@ transfer_to_syscall:
 	/* Calling convention has r9 = orig r0, r10 = regs */
 	addi	r10,r1,STACK_FRAME_OVERHEAD
 	mr	r9,r0
-	stw	r10,THREAD+PT_REGS(r2)
 	bl	system_call_exception
 
 ret_from_syscall:
