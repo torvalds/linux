@@ -801,6 +801,7 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			gpio-ranges = <&tlmm 0 0 204>;
+			wakeup-parent = <&pdc>;
 
 			qup_uart3_default_state: qup-uart3-default-state {
 				rx {
