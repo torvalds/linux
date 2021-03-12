@@ -82,6 +82,7 @@
 	port@7 {
 		label = "sw";
 		reg = <7>;
+		phy-mode = "rgmii";
 
 		fixed-link {
 			speed = <1000>;
