@@ -526,7 +526,7 @@ static int tas2562_volume_control_put(struct snd_kcontrol *kcontrol,
 
 	tas2562->volume_lvl = ucontrol->value.integer.value[0];
 
-	return ret;
+	return 0;
 }
 
 /* Digital Volume Control. From 0 dB to -110 dB in 1 dB steps */
