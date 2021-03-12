@@ -83,7 +83,7 @@ struct pcmcia_dynid {
 };
 
 /**
- * pcmcia_store_new_id - add a new PCMCIA device ID to this driver and re-probe devices
+ * new_id_store() - add a new PCMCIA device ID to this driver and re-probe devices
  * @driver: target device driver
  * @buf: buffer for scanning device ID data
  * @count: input size
