@@ -53,6 +53,8 @@ END_BTB_FLUSH_SECTION
 	mfspr	r11, SPRN_SRR1;		                                     \
 	DO_KVM	BOOKE_INTERRUPT_##intno SPRN_SRR1;			     \
 	andi.	r11, r11, MSR_PR;	/* check whether user or kernel    */\
+	LOAD_REG_IMMEDIATE(r11, MSR_KERNEL);				\
+	mtmsr	r11;							\
 	mr	r11, r1;						     \
 	beq	1f;							     \
 	BOOKE_CLEAR_BTB(r11)						\
@@ -192,6 +194,8 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 	DO_KVM	BOOKE_INTERRUPT_##intno exc_level_srr1;		             \
 	BOOKE_CLEAR_BTB(r10)						\
 	andi.	r11,r11,MSR_PR;						     \
+	LOAD_REG_IMMEDIATE(r11, MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE));	\
+	mtmsr	r11;							\
 	mfspr	r11,SPRN_SPRG_THREAD;	/* if from user, start at top of   */\
 	lwz	r11, TASK_STACK - THREAD(r11); /* this thread's kernel stack */\
 	addi	r11,r11,EXC_LVL_FRAME_OVERHEAD;	/* allocate stack frame    */\
@@ -282,8 +286,6 @@ label:
 #define EXC_XFER_TEMPLATE(hdlr, trap, msr, tfer, ret)	\
 	li	r10,trap;					\
 	stw	r10,_TRAP(r11);					\
-	lis	r10,msr@h;					\
-	ori	r10,r10,msr@l;					\
 	bl	tfer;		 				\
 	.long	hdlr;						\
 	.long	ret
