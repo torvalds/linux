@@ -129,7 +129,7 @@ transfer_to_handler:
 	stw	r12,_CTR(r11)
 	stw	r2,_XER(r11)
 	mfspr	r12,SPRN_SPRG_THREAD
-	tovirt_vmstack r12, r12
+	tovirt(r12, r12)
 	beq	2f			/* if from user, fix up THREAD.regs */
 	addi	r2, r12, -THREAD
 	addi	r11,r1,STACK_FRAME_OVERHEAD
@@ -153,8 +153,7 @@ transfer_to_handler:
 transfer_to_handler_cont:
 3:
 	mflr	r9
-	tovirt_novmstack r2, r2 	/* set r2 to current */
-	tovirt_vmstack r9, r9
+	tovirt(r9, r9)
 	lwz	r11,0(r9)		/* virtual address of handler */
 	lwz	r9,4(r9)		/* where to go when done */
 #if defined(CONFIG_PPC_8xx) && defined(CONFIG_PERF_EVENTS)
@@ -933,7 +932,6 @@ _GLOBAL(enter_rtas)
 	lis	r6,1f@ha	/* physical return address for rtas */
 	addi	r6,r6,1f@l
 	tophys(r6,r6)
-	tophys_novmstack r7, r1
 	lwz	r8,RTASENTRY(r4)
 	lwz	r4,RTASBASE(r4)
 	mfmsr	r9
@@ -942,22 +940,19 @@ _GLOBAL(enter_rtas)
 	mtmsr	r0	/* disable interrupts so SRR0/1 don't get trashed */
 	li	r9,MSR_KERNEL & ~(MSR_IR|MSR_DR)
 	mtlr	r6
-	stw	r7, THREAD + RTAS_SP(r2)
+	stw	r1, THREAD + RTAS_SP(r2)
 	mtspr	SPRN_SRR0,r8
 	mtspr	SPRN_SRR1,r9
 	rfi
-1:	tophys_novmstack r9, r1
-#ifdef CONFIG_VMAP_STACK
+1:
 	li	r0, MSR_KERNEL & ~MSR_IR	/* can take DTLB miss */
 	mtmsr	r0
 	isync
-#endif
-	lwz	r8,INT_FRAME_SIZE+4(r9)	/* get return address */
-	lwz	r9,8(r9)	/* original msr value */
+	lwz	r8,INT_FRAME_SIZE+4(r1)	/* get return address */
+	lwz	r9,8(r1)	/* original msr value */
 	addi	r1,r1,INT_FRAME_SIZE
 	li	r0,0
-	tophys_novmstack r7, r2
-	stw	r0, THREAD + RTAS_SP(r7)
+	stw	r0, THREAD + RTAS_SP(r2)
 	mtspr	SPRN_SRR0,r8
 	mtspr	SPRN_SRR1,r9
 	rfi			/* return to caller */

@@ -147,11 +147,9 @@ struct thread_struct {
 #ifdef CONFIG_PPC_RTAS
 	unsigned long	rtas_sp;	/* stack pointer for when in RTAS */
 #endif
-#endif
 #if defined(CONFIG_PPC_BOOK3S_32) && defined(CONFIG_PPC_KUAP)
 	unsigned long	kuap;		/* opened segments for user access */
 #endif
-#ifdef CONFIG_VMAP_STACK
 	unsigned long	srr0;
 	unsigned long	srr1;
 	unsigned long	dar;
@@ -160,7 +158,7 @@ struct thread_struct {
 	unsigned long	r0, r3, r4, r5, r6, r8, r9, r11;
 	unsigned long	lr, ctr;
 #endif
-#endif
+#endif /* CONFIG_PPC32 */
 	/* Debug Registers */
 	struct debug_reg debug;
 #ifdef CONFIG_PPC_FPU_REGS

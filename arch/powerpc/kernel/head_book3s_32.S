@@ -260,21 +260,14 @@ __secondary_hold_acknowledge:
 MachineCheck:
 	EXCEPTION_PROLOG_0
 #ifdef CONFIG_PPC_CHRP
-#ifdef CONFIG_VMAP_STACK
 	mtspr	SPRN_SPRG_SCRATCH2,r1
 	mfspr	r1, SPRN_SPRG_THREAD
 	lwz	r1, RTAS_SP(r1)
 	cmpwi	cr1, r1, 0
 	bne	cr1, 7f
 	mfspr	r1, SPRN_SPRG_SCRATCH2
-#else
-	mfspr	r11, SPRN_SPRG_THREAD
-	lwz	r11, RTAS_SP(r11)
-	cmpwi	cr1, r11, 0
-	bne	cr1, 7f
-#endif
 #endif /* CONFIG_PPC_CHRP */
-	EXCEPTION_PROLOG_1 for_rtas=1
+	EXCEPTION_PROLOG_1
 7:	EXCEPTION_PROLOG_2
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 #ifdef CONFIG_PPC_CHRP
@@ -288,7 +281,6 @@ MachineCheck:
 	. = 0x300
 	DO_KVM  0x300
 DataAccess:
-#ifdef CONFIG_VMAP_STACK
 #ifdef CONFIG_PPC_BOOK3S_604
 BEGIN_MMU_FTR_SECTION
 	mtspr	SPRN_SPRG_SCRATCH2,r10
@@ -310,29 +302,11 @@ ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_HPTE_TABLE)
 1:	EXCEPTION_PROLOG_0 handle_dar_dsisr=1
 	EXCEPTION_PROLOG_1
 	b	handle_page_fault_tramp_1
-#else	/* CONFIG_VMAP_STACK */
-	EXCEPTION_PROLOG handle_dar_dsisr=1
-	get_and_save_dar_dsisr_on_stack	r4, r5, r11
-#ifdef CONFIG_PPC_BOOK3S_604
-BEGIN_MMU_FTR_SECTION
-	andis.	r0, r5, (DSISR_BAD_FAULT_32S | DSISR_DABRMATCH)@h
-	bne	handle_page_fault_tramp_2	/* if not, try to put a PTE */
-	rlwinm	r3, r5, 32 - 15, 21, 21		/* DSISR_STORE -> _PAGE_RW */
-	bl	hash_page
-	b	handle_page_fault_tramp_1
-MMU_FTR_SECTION_ELSE
-#endif
-	b	handle_page_fault_tramp_2
-#ifdef CONFIG_PPC_BOOK3S_604
-ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_HPTE_TABLE)
-#endif
-#endif	/* CONFIG_VMAP_STACK */
 
 /* Instruction access exception. */
 	. = 0x400
 	DO_KVM  0x400
 InstructionAccess:
-#ifdef CONFIG_VMAP_STACK
 	mtspr	SPRN_SPRG_SCRATCH0,r10
 	mtspr	SPRN_SPRG_SCRATCH1,r11
 	mfspr	r10, SPRN_SPRG_THREAD
@@ -353,18 +327,6 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 
 	EXCEPTION_PROLOG_1
 	EXCEPTION_PROLOG_2
-#else	/* CONFIG_VMAP_STACK */
-	EXCEPTION_PROLOG
-	andis.	r0,r9,SRR1_ISI_NOPT@h	/* no pte found? */
-	beq	1f			/* if so, try to put a PTE */
-	li	r3,0			/* into the hash table */
-	mr	r4,r12			/* SRR0 is fault address */
-#ifdef CONFIG_PPC_BOOK3S_604
-BEGIN_MMU_FTR_SECTION
-	bl	hash_page
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
-#endif
-#endif	/* CONFIG_VMAP_STACK */
 	andis.	r5,r9,DSISR_SRR1_MATCH_32S@h /* Filter relevant SRR1 bits */
 	stw	r5, _DSISR(r11)
 	stw	r12, _DAR(r11)
@@ -378,7 +340,6 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 	DO_KVM  0x600
 Alignment:
 	EXCEPTION_PROLOG handle_dar_dsisr=1
-	save_dar_dsisr_on_stack r4, r5, r11
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	b	alignment_exception_tramp
 
@@ -689,18 +650,13 @@ alignment_exception_tramp:
 	EXC_XFER_STD(0x600, alignment_exception)
 
 handle_page_fault_tramp_1:
-#ifdef CONFIG_VMAP_STACK
 	EXCEPTION_PROLOG_2 handle_dar_dsisr=1
-#endif
 	lwz	r5, _DSISR(r11)
-	/* fall through */
-handle_page_fault_tramp_2:
 	andis.	r0, r5, DSISR_DABRMATCH@h
 	bne-	1f
 	EXC_XFER_LITE(0x300, handle_page_fault)
 1:	EXC_XFER_STD(0x300, do_break)
 
-#ifdef CONFIG_VMAP_STACK
 #ifdef CONFIG_PPC_BOOK3S_604
 .macro save_regs_thread		thread
 	stw	r0, THR0(\thread)
@@ -775,6 +731,7 @@ fast_hash_page_return:
 	rfi
 #endif /* CONFIG_PPC_BOOK3S_604 */
 
+#ifdef CONFIG_VMAP_STACK
 stack_overflow:
 	vmap_stack_overflow_exception
 #endif

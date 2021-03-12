@@ -74,8 +74,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 
 /*
  * Return from NAP/DOZE mode, restore some CPU specific registers,
- * r2 containing physical address of current.
- * r11 points to the exception frame (physical address).
+ * r2 containing address of current.
+ * r11 points to the exception frame.
  * We have to preserve r10.
  */
 _GLOBAL(power_save_ppc32_restore)
