@@ -19,10 +19,32 @@ ret=0
 ksft_skip=4
 
 # all tests in this script. Can be overridden with -t option
-IPV4_TESTS="ipv4_fcnal ipv4_grp_fcnal ipv4_withv6_fcnal ipv4_fcnal_runtime ipv4_large_grp ipv4_compat_mode ipv4_fdb_grp_fcnal ipv4_torture"
-IPV6_TESTS="ipv6_fcnal ipv6_grp_fcnal ipv6_fcnal_runtime ipv6_large_grp ipv6_compat_mode ipv6_fdb_grp_fcnal ipv6_torture"
+IPV4_TESTS="
+	ipv4_fcnal
+	ipv4_grp_fcnal
+	ipv4_withv6_fcnal
+	ipv4_fcnal_runtime
+	ipv4_large_grp
+	ipv4_compat_mode
+	ipv4_fdb_grp_fcnal
+	ipv4_torture
+"
 
-ALL_TESTS="basic ${IPV4_TESTS} ${IPV6_TESTS}"
+IPV6_TESTS="
+	ipv6_fcnal
+	ipv6_grp_fcnal
+	ipv6_fcnal_runtime
+	ipv6_large_grp
+	ipv6_compat_mode
+	ipv6_fdb_grp_fcnal
+	ipv6_torture
+"
+
+ALL_TESTS="
+	basic
+	${IPV4_TESTS}
+	${IPV6_TESTS}
+"
 TESTS="${ALL_TESTS}"
 VERBOSE=0
 PAUSE_ON_FAIL=no
