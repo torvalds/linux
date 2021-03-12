@@ -1341,6 +1341,7 @@ static int mlxsw_sp_qevent_span_configure(struct mlxsw_sp *mlxsw_sp,
 		goto err_analyzed_port_get;
 
 	trigger_parms.span_id = span_id;
+	trigger_parms.probability_rate = 1;
 	err = mlxsw_sp_span_agent_bind(mlxsw_sp, qevent_binding->span_trigger, mlxsw_sp_port,
 				       &trigger_parms);
 	if (err)
@@ -1404,7 +1405,9 @@ static int mlxsw_sp_qevent_trap_configure(struct mlxsw_sp *mlxsw_sp,
 					  struct mlxsw_sp_mall_entry *mall_entry,
 					  struct mlxsw_sp_qevent_binding *qevent_binding)
 {
-	struct mlxsw_sp_span_agent_parms agent_parms = {};
+	struct mlxsw_sp_span_agent_parms agent_parms = {
+		.session_id = MLXSW_SP_SPAN_SESSION_ID_BUFFER,
+	};
 	int err;
 
 	err = mlxsw_sp_trap_group_policer_hw_id_get(mlxsw_sp,

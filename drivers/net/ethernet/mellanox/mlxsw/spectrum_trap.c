@@ -49,6 +49,8 @@ enum {
 #define MLXSW_SP_TRAP_METADATA DEVLINK_TRAP_METADATA_TYPE_F_IN_PORT
 
 enum {
+	/* Packet was mirrored from ingress. */
+	MLXSW_SP_MIRROR_REASON_INGRESS = 1,
 	/* Packet was early dropped. */
 	MLXSW_SP_MIRROR_REASON_INGRESS_WRED = 9,
 };
@@ -462,11 +464,6 @@ static const struct mlxsw_sp_trap_group_item mlxsw_sp_trap_group_items_arr[] = {
 		.group = DEVLINK_TRAP_GROUP_GENERIC(PTP_GENERAL, 17),
 		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_PTP1,
 		.priority = 2,
-	},
-	{
-		.group = DEVLINK_TRAP_GROUP_GENERIC(ACL_SAMPLE, 0),
-		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_PKT_SAMPLE,
-		.priority = 0,
 	},
 	{
 		.group = DEVLINK_TRAP_GROUP_GENERIC(ACL_TRAP, 18),
@@ -990,14 +987,6 @@ static const struct mlxsw_sp_trap_item mlxsw_sp_trap_items_arr[] = {
 		.trap = MLXSW_SP_TRAP_CONTROL(PTP_GENERAL, PTP_GENERAL, TRAP),
 		.listeners_arr = {
 			MLXSW_SP_RXL_NO_MARK(PTP1, PTP1, TRAP_TO_CPU, false),
-		},
-	},
-	{
-		.trap = MLXSW_SP_TRAP_CONTROL(FLOW_ACTION_SAMPLE, ACL_SAMPLE,
-					      MIRROR),
-		.listeners_arr = {
-			MLXSW_RXL(mlxsw_sp_rx_sample_listener, PKT_SAMPLE,
-				  MIRROR_TO_CPU, false, SP_PKT_SAMPLE, DISCARD),
 		},
 	},
 	{
@@ -1709,10 +1698,23 @@ int mlxsw_sp_trap_group_policer_hw_id_get(struct mlxsw_sp *mlxsw_sp, u16 id,
 
 static const struct mlxsw_sp_trap_group_item
 mlxsw_sp1_trap_group_items_arr[] = {
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(ACL_SAMPLE, 0),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_PKT_SAMPLE,
+		.priority = 0,
+	},
 };
 
 static const struct mlxsw_sp_trap_item
 mlxsw_sp1_trap_items_arr[] = {
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(FLOW_ACTION_SAMPLE, ACL_SAMPLE,
+					      MIRROR),
+		.listeners_arr = {
+			MLXSW_RXL(mlxsw_sp_rx_sample_listener, PKT_SAMPLE,
+				  MIRROR_TO_CPU, false, SP_PKT_SAMPLE, DISCARD),
+		},
+	},
 };
 
 static int
@@ -1749,6 +1751,12 @@ mlxsw_sp2_trap_group_items_arr[] = {
 		.priority = 0,
 		.fixed_policer = true,
 	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(ACL_SAMPLE, 0),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_PKT_SAMPLE,
+		.priority = 0,
+		.fixed_policer = true,
+	},
 };
 
 static const struct mlxsw_sp_trap_item
@@ -1759,6 +1767,15 @@ mlxsw_sp2_trap_items_arr[] = {
 			MLXSW_SP_RXL_BUFFER_DISCARD(INGRESS_WRED),
 		},
 		.is_source = true,
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(FLOW_ACTION_SAMPLE, ACL_SAMPLE,
+					      MIRROR),
+		.listeners_arr = {
+			MLXSW_RXL_MIRROR(mlxsw_sp_rx_sample_listener, 1,
+					 SP_PKT_SAMPLE,
+					 MLXSW_SP_MIRROR_REASON_INGRESS),
+		},
 	},
 };
 
