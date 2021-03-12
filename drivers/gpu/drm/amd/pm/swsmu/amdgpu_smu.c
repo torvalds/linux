@@ -1474,7 +1474,8 @@ static int smu_suspend(void *handle)
 
 	smu->watermarks_bitmap &= ~(WATERMARKS_LOADED);
 
-	if (smu->is_apu)
+	/* skip CGPG when in S0ix */
+	if (smu->is_apu && !adev->in_s0ix)
 		smu_set_gfx_cgpg(&adev->smu, false);
 
 	return 0;
