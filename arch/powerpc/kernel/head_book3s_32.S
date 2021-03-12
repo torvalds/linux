@@ -269,11 +269,10 @@ __secondary_hold_acknowledge:
 7:	EXCEPTION_PROLOG_2
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 #ifdef CONFIG_PPC_CHRP
-	beq	cr1, machine_check_tramp
+	beq	cr1, 1f
 	twi	31, 0, 0
-#else
-	b	machine_check_tramp
 #endif
+1:	EXC_XFER_STD(0x200, machine_check_exception)
 
 /* Data access exception. */
 	START_EXCEPTION(0x300, DataAccess)
@@ -297,7 +296,13 @@ ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_HPTE_TABLE)
 #endif
 1:	EXCEPTION_PROLOG_0 handle_dar_dsisr=1
 	EXCEPTION_PROLOG_1
-	b	handle_page_fault_tramp_1
+	EXCEPTION_PROLOG_2 handle_dar_dsisr=1
+	lwz	r5, _DSISR(r11)
+	andis.	r0, r5, DSISR_DABRMATCH@h
+	bne-	1f
+	EXC_XFER_LITE(0x300, handle_page_fault)
+1:	EXC_XFER_STD(0x300, do_break)
+
 
 /* Instruction access exception. */
 	START_EXCEPTION(0x400, InstructionAccess)
@@ -333,7 +338,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 	START_EXCEPTION(0x600, Alignment)
 	EXCEPTION_PROLOG handle_dar_dsisr=1
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	b	alignment_exception_tramp
+	EXC_XFER_STD(0x600, alignment_exception)
 
 /* Program check exception */
 	EXCEPTION(0x700, ProgramCheck, program_check_exception, EXC_XFER_STD)
@@ -385,6 +390,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
 	START_EXCEPTION(0xf20, AltiVecUnavailableTrap)
 	b	AltiVecUnavailable
 
+	__HEAD
 /*
  * Handle TLB miss for instruction on 603/603e.
  * Note: we get an alternate set of r0 - r3 to use automatically.
@@ -627,21 +633,8 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
 	EXCEPTION(0x2e00, Trap_2e, unknown_exception, EXC_XFER_STD)
 	EXCEPTION(0x2f00, Trap_2f, unknown_exception, EXC_XFER_STD)
 
+	__HEAD
 	. = 0x3000
-
-machine_check_tramp:
-	EXC_XFER_STD(0x200, machine_check_exception)
-
-alignment_exception_tramp:
-	EXC_XFER_STD(0x600, alignment_exception)
-
-handle_page_fault_tramp_1:
-	EXCEPTION_PROLOG_2 handle_dar_dsisr=1
-	lwz	r5, _DSISR(r11)
-	andis.	r0, r5, DSISR_DABRMATCH@h
-	bne-	1f
-	EXC_XFER_LITE(0x300, handle_page_fault)
-1:	EXC_XFER_STD(0x300, do_break)
 
 #ifdef CONFIG_PPC_BOOK3S_604
 .macro save_regs_thread		thread
@@ -721,6 +714,7 @@ fast_hash_page_return:
 	vmap_stack_overflow_exception
 #endif
 
+	__HEAD
 AltiVecUnavailable:
 	EXCEPTION_PROLOG
 #ifdef CONFIG_ALTIVEC
@@ -731,12 +725,14 @@ AltiVecUnavailable:
 1:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_LITE(0xf20, altivec_unavailable_exception)
 
+	__HEAD
 PerformanceMonitor:
 	EXCEPTION_PROLOG
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_STD(0xf00, performance_monitor_exception)
 
 
+	__HEAD
 /*
  * This code is jumped to from the startup code to copy
  * the kernel image to physical address PHYSICAL_START.

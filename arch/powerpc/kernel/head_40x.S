@@ -132,6 +132,8 @@ _ENTRY(crit_esr)
 	ori	r11, r11, 1f@l
 	mtspr	SPRN_SRR0, r11
 	rfi
+
+	.text
 1:
 	lwz	r11,crit_r1@l(0)
 	stw	r11,GPR1(r1)
@@ -496,6 +498,7 @@ _ENTRY(crit_esr)
 		crit_transfer_to_handler, ret_from_crit_exc)
 
 	/* Programmable Interval Timer (PIT) Exception. (from 0x1000) */
+	__HEAD
 Decrementer:
 	EXCEPTION_PROLOG
 	lis	r0,TSR_PIS@h
@@ -504,12 +507,14 @@ Decrementer:
 	EXC_XFER_LITE(0x1000, timer_interrupt)
 
 	/* Fixed Interval Timer (FIT) Exception. (from 0x1010) */
+	__HEAD
 FITException:
 	EXCEPTION_PROLOG
 	addi	r3,r1,STACK_FRAME_OVERHEAD;
 	EXC_XFER_STD(0x1010, unknown_exception)
 
 	/* Watchdog Timer (WDT) Exception. (from 0x1020) */
+	__HEAD
 WDTException:
 	CRITICAL_EXCEPTION_PROLOG;
 	addi	r3,r1,STACK_FRAME_OVERHEAD;
@@ -523,6 +528,7 @@ WDTException:
  * reserved.
  */
 
+	__HEAD
 	/* Damn, I came up one instruction too many to fit into the
 	 * exception space :-).  Both the instruction and data TLB
 	 * miss get to this point to load the TLB.

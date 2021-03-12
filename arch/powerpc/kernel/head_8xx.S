@@ -133,18 +133,13 @@ instruction_counter:
 	START_EXCEPTION(0x600, Alignment)
 	EXCEPTION_PROLOG handle_dar_dsisr=1
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	b	.Lalignment_exception_ool
+	EXC_XFER_STD(0x600, alignment_exception)
 
 /* Program check exception */
 	EXCEPTION(0x700, ProgramCheck, program_check_exception, EXC_XFER_STD)
 
 /* Decrementer */
 	EXCEPTION(0x900, Decrementer, timer_interrupt, EXC_XFER_LITE)
-
-	/* With VMAP_STACK there's not enough room for this at 0x600 */
-	. = 0xa00
-.Lalignment_exception_ool:
-	EXC_XFER_STD(0x600, alignment_exception)
 
 /* System call */
 	START_EXCEPTION(0xc00, SystemCall)
@@ -339,25 +334,24 @@ DARFixed:/* Return from dcbx instruction bug workaround */
  * support of breakpoints and such.  Someday I will get around to
  * using them.
  */
-do_databreakpoint:
-	EXCEPTION_PROLOG_1
-	EXCEPTION_PROLOG_2 handle_dar_dsisr=1
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	mfspr	r4,SPRN_BAR
-	stw	r4,_DAR(r11)
-	EXC_XFER_STD(0x1c00, do_break)
-
 	START_EXCEPTION(0x1c00, DataBreakpoint)
 	EXCEPTION_PROLOG_0 handle_dar_dsisr=1
 	mfspr	r11, SPRN_SRR0
 	cmplwi	cr1, r11, (.Ldtlbie - PAGE_OFFSET)@l
 	cmplwi	cr7, r11, (.Litlbie - PAGE_OFFSET)@l
 	cror	4*cr1+eq, 4*cr1+eq, 4*cr7+eq
-	bne	cr1, do_databreakpoint
+	bne	cr1, 1f
 	mtcr	r10
 	mfspr	r10, SPRN_SPRG_SCRATCH0
 	mfspr	r11, SPRN_SPRG_SCRATCH1
 	rfi
+
+1:	EXCEPTION_PROLOG_1
+	EXCEPTION_PROLOG_2 handle_dar_dsisr=1
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	mfspr	r4,SPRN_BAR
+	stw	r4,_DAR(r11)
+	EXC_XFER_STD(0x1c00, do_break)
 
 #ifdef CONFIG_PERF_EVENTS
 	START_EXCEPTION(0x1d00, InstructionBreakpoint)
@@ -376,6 +370,7 @@ do_databreakpoint:
 	EXCEPTION(0x1e00, Trap_1e, unknown_exception, EXC_XFER_STD)
 	EXCEPTION(0x1f00, Trap_1f, unknown_exception, EXC_XFER_STD)
 
+	__HEAD
 	. = 0x2000
 
 /* This is the procedure to calculate the data EA for buggy dcbx,dcbi instructions

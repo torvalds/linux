@@ -70,6 +70,8 @@
 	mtspr	SPRN_SRR0, r11
 	mfspr	r11, SPRN_SPRG_SCRATCH2
 	rfi
+
+	.text
 1:
 	stw	r11,GPR1(r1)
 	stw	r11,0(r1)
@@ -163,12 +165,14 @@
  */
 #ifdef CONFIG_PPC_BOOK3S
 #define	START_EXCEPTION(n, label)		\
+	__HEAD;					\
 	. = n;					\
 	DO_KVM n;				\
 label:
 
 #else
 #define	START_EXCEPTION(n, label)		\
+	__HEAD;					\
 	. = n;					\
 label:
 
@@ -196,6 +200,7 @@ label:
 			  ret_from_except)
 
 .macro vmap_stack_overflow_exception
+	__HEAD
 vmap_stack_overflow:
 #ifdef CONFIG_SMP
 	mfspr	r1, SPRN_SPRG_THREAD
