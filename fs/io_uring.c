@@ -6212,10 +6212,12 @@ static struct file *io_file_get(struct io_submit_state *state,
 	} else {
 		trace_io_uring_file_get(ctx, fd);
 		file = __io_file_get(state, fd);
+
+		/* we don't allow fixed io_uring files */
+		if (file && unlikely(file->f_op == &io_uring_fops))
+			io_req_track_inflight(req);
 	}
 
-	if (file && unlikely(file->f_op == &io_uring_fops))
-		io_req_track_inflight(req);
 	return file;
 }
 
