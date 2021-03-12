@@ -1022,6 +1022,9 @@ void g_audio_cleanup(struct g_audio *g_audio)
 	if (card)
 		snd_card_free(card);
 
+	free_ep(&uac->c_prm, g_audio->out_ep);
+	free_ep(&uac->p_prm, g_audio->in_ep);
+
 	kfree(uac->p_prm.ureq);
 	kfree(uac->c_prm.ureq);
 	kfree(uac->p_prm.rbuf);
