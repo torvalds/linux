@@ -104,7 +104,9 @@ END_BTB_FLUSH_SECTION
 .endm
 
 .macro prepare_transfer_to_handler
+#ifdef CONFIG_E500
 	bl	prepare_transfer_to_handler
+#endif
 .endm
 
 .macro SYSCALL_ENTRY trapno intno srr1

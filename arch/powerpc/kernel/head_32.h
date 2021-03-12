@@ -132,7 +132,9 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 .endm
 
 .macro prepare_transfer_to_handler
+#ifdef CONFIG_PPC_BOOK3S_32
 	bl	prepare_transfer_to_handler
+#endif
 .endm
 
 .macro SYSCALL_ENTRY trapno
