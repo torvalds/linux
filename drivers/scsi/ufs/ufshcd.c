@@ -7143,7 +7143,7 @@ static u32 ufshcd_get_max_icc_level(int sup_curr_uA, u32 start_scan, char *buff)
 }
 
 /**
- * ufshcd_calc_icc_level - calculate the max ICC level
+ * ufshcd_find_max_sup_active_icc_level - calculate the max ICC level
  * In case regulators are not initialized we'll return 0
  * @hba: per-adapter instance
  * @desc_buf: power descriptor buffer to extract ICC levels from.
