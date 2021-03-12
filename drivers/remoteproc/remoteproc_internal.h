@@ -178,6 +178,16 @@ struct resource_table *rproc_find_loaded_rsc_table(struct rproc *rproc,
 }
 
 static inline
+struct resource_table *rproc_get_loaded_rsc_table(struct rproc *rproc,
+						  size_t *size)
+{
+	if (rproc->ops->get_loaded_rsc_table)
+		return rproc->ops->get_loaded_rsc_table(rproc, size);
+
+	return NULL;
+}
+
+static inline
 bool rproc_u64_fit_in_size_t(u64 val)
 {
 	if (sizeof(size_t) == sizeof(u64))
