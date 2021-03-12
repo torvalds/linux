@@ -419,7 +419,6 @@ static int __init devtmpfs_setup(void *p)
 	init_chroot(".");
 out:
 	*(int *)p = err;
-	complete(&setup_done);
 	return err;
 }
 
@@ -432,6 +431,7 @@ static int __ref devtmpfsd(void *p)
 {
 	int err = devtmpfs_setup(p);
 
+	complete(&setup_done);
 	if (err)
 		return err;
 	devtmpfs_work_loop();
