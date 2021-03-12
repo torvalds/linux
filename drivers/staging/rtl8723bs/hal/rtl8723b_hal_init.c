@@ -3706,7 +3706,7 @@ exit:
 	return ret;
 }
 
-static void process_c2h_event(struct adapter *padapter, PC2H_EVT_HDR pC2hEvent, u8 *c2hBuf)
+static void process_c2h_event(struct adapter *padapter, struct C2H_EVT_HDR *pC2hEvent, u8 *c2hBuf)
 {
 	u8 index = 0;
 
@@ -3750,7 +3750,7 @@ static void process_c2h_event(struct adapter *padapter, PC2H_EVT_HDR pC2hEvent, 
 
 void C2HPacketHandler_8723B(struct adapter *padapter, u8 *pbuffer, u16 length)
 {
-	C2H_EVT_HDR	C2hEvent;
+	struct C2H_EVT_HDR	C2hEvent;
 	u8 *tmpBuf = NULL;
 #ifdef CONFIG_WOWLAN
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);

@@ -170,7 +170,7 @@ struct rt_firmware_hdr {
 /* Description: Determine the types of C2H events that are the same in driver
  * and FW; First constructed by tynli. 2009.10.09.
  */
-typedef enum _C2H_EVT {
+enum C2H_EVT {
 	C2H_DBG = 0,
 	C2H_TSF = 1,
 	C2H_AP_RPT_RSP = 2,
@@ -184,21 +184,21 @@ typedef enum _C2H_EVT {
 	C2H_HW_INFO_EXCH = 10,
 	C2H_8723B_BT_MP_INFO = 11,
 	MAX_C2HEVENT
-} C2H_EVT;
+};
 
-typedef struct _C2H_EVT_HDR {
+struct C2H_EVT_HDR {
 	u8 CmdID;
 	u8 CmdLen;
 	u8 CmdSeq;
-} __attribute__((__packed__)) C2H_EVT_HDR, *PC2H_EVT_HDR;
+} __attribute__((__packed__));
 
-typedef enum tag_Package_Definition {
+enum PACKAGE_TYPE_E { /* tag_Package_Definition */
 	PACKAGE_DEFAULT,
 	PACKAGE_QFN68,
 	PACKAGE_TFBGA90,
 	PACKAGE_TFBGA80,
 	PACKAGE_TFBGA79
-} PACKAGE_TYPE_E;
+};
 
 #define INCLUDE_MULTI_FUNC_BT(_Adapter)  \
 	(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_BT)
