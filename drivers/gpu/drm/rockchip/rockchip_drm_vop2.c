@@ -803,20 +803,31 @@ static void vop2_wait_for_irq_handler(struct drm_crtc *crtc)
 	synchronize_irq(vop2->irq);
 }
 
-static void vop2_wait_for_fs_by_vcnt(struct vop2_video_port *vp, uint32_t base_vcnt)
+static bool vop2_fs_raw_status_pending(struct vop2_video_port *vp)
 {
 	struct vop2 *vop2 = vp->vop2;
-	uint32_t vcnt;
+	uint32_t offset = vp->id * 0x10;
+
+	return vop2_readl(vop2, RK3568_VP0_INT_RAW_STATUS + offset) & 0x20;
+
+}
+
+static void vop2_wait_for_fs_by_raw_status(struct vop2_video_port *vp)
+{
+	struct vop2 *vop2 = vp->vop2;
+	bool pending;
 	int ret;
 
 	/*
-	 * Spin until vcnt wraps around(from a big value to a little value)
+	 * Spin until frame start interrupt raw status bit goes high,
+	 * which means the configuration before the previous config done
+	 * has take effect.
 	 */
-	ret = readx_poll_timeout_atomic(vop2_read_vcnt, vp, vcnt,
-					vcnt < base_vcnt, 0, 20 * 1000);
+	ret = readx_poll_timeout_atomic(vop2_fs_raw_status_pending, vp, pending,
+					pending, 0, 10 * 1000);
 	if (ret)
-		DRM_DEV_ERROR(vop2->dev, "wait fs for vp%d timeout: %d--->%d\n",
-			      vp->id, base_vcnt, vcnt);
+		DRM_DEV_ERROR(vop2->dev, "wait vp%d raw fs statu timeout\n", vp->id);
+
 }
 
 static inline void vop2_cfg_done(struct drm_crtc *crtc)
@@ -857,7 +868,7 @@ static inline void vop2_cfg_done(struct drm_crtc *crtc)
 			vcnt = vop2_read_vcnt(done_vp);
 			/* if close to the last 1/8 frame, wait to next frame */
 			if (vcnt > (adjusted_mode->crtc_vtotal * 7 >> 3)) {
-				vop2_wait_for_fs_by_vcnt(done_vp, vcnt);
+				vop2_wait_for_fs_by_raw_status(done_vp);
 				done_bits = 0;
 			}
 		}
