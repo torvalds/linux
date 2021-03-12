@@ -1058,6 +1058,9 @@ config SYS_SUPPORTS_HUGETLBFS
 config ARCH_HAS_CACHE_LINE_SIZE
 	def_bool y
 
+config ARCH_HAS_FILTER_PGPROT
+	def_bool y
+
 config ARCH_ENABLE_SPLIT_PMD_PTLOCK
 	def_bool y if PGTABLE_LEVELS > 2
 
@@ -1679,6 +1682,20 @@ config ARM64_MTE
 
 	  Documentation/arm64/memory-tagging-extension.rst.
 
+endmenu
+
+menu "ARMv8.7 architectural features"
+
+config ARM64_EPAN
+	bool "Enable support for Enhanced Privileged Access Never (EPAN)"
+	default y
+	depends on ARM64_PAN
+	help
+	 Enhanced Privileged Access Never (EPAN) allows Privileged
+	 Access Never to be used with Execute-only mappings.
+
+	 The feature is detected at runtime, and will remain disabled
+	 if the cpu does not implement the feature.
 endmenu
 
 config ARM64_SVE
