@@ -926,9 +926,8 @@ void fpsimd_release_task(struct task_struct *dead_task)
  * Trapped SVE access
  *
  * Storage is allocated for the full SVE state, the current FPSIMD
- * register contents are migrated across, and TIF_SVE is set so that
- * the SVE access trap will be disabled the next time this task
- * reaches ret_to_user.
+ * register contents are migrated across, and the access trap is
+ * disabled.
  *
  * TIF_SVE should be clear on entry: otherwise, fpsimd_restore_current_state()
  * would have disabled the SVE access trap for userspace during
@@ -946,14 +945,23 @@ void do_sve_acc(unsigned int esr, struct pt_regs *regs)
 
 	get_cpu_fpsimd_context();
 
-	fpsimd_save();
-
-	/* Force ret_to_user to reload the registers: */
-	fpsimd_flush_task_state(current);
-
-	fpsimd_to_sve(current);
 	if (test_and_set_thread_flag(TIF_SVE))
 		WARN_ON(1); /* SVE access shouldn't have trapped */
+
+	/*
+	 * Convert the FPSIMD state to SVE, zeroing all the state that
+	 * is not shared with FPSIMD. If (as is likely) the current
+	 * state is live in the registers then do this there and
+	 * update our metadata for the current task including
+	 * disabling the trap, otherwise update our in-memory copy.
+	 */
+	if (!test_thread_flag(TIF_FOREIGN_FPSTATE)) {
+		sve_set_vq(sve_vq_from_vl(current->thread.sve_vl) - 1);
+		sve_flush_live();
+		fpsimd_bind_task_to_cpu();
+	} else {
+		fpsimd_to_sve(current);
+	}
 
 	put_cpu_fpsimd_context();
 }
