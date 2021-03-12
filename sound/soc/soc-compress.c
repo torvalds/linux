@@ -189,7 +189,7 @@ static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 	if (ret < 0)
 		dev_err(fe->dev, "Compressed ASoC: hw_free failed: %d\n", ret);
 
-	ret = dpcm_be_dai_shutdown(fe, stream);
+	dpcm_be_dai_shutdown(fe, stream);
 
 	/* mark FE's links ready to prune */
 	for_each_dpcm_be(fe, stream, dpcm)
