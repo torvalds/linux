@@ -20,22 +20,22 @@ static u8 GLBtcWiFiInIQKState;
 u32 GLBtcDbgType[BTC_MSG_MAX];
 static u8 GLBtcDbgBuf[BT_TMP_BUF_SIZE];
 
-typedef struct _btcoexdbginfo {
+struct BTCDBGINFO { /* _btcoexdbginfo */
 	u8 *info;
 	u32 size; /*  buffer total size */
 	u32 len; /*  now used length */
-} BTCDBGINFO, *PBTCDBGINFO;
+};
 
-static BTCDBGINFO GLBtcDbgInfo;
+static struct BTCDBGINFO GLBtcDbgInfo;
 
 #define	BT_Operation(Adapter)						false
 
-static void DBG_BT_INFO_INIT(PBTCDBGINFO pinfo, u8 *pbuf, u32 size)
+static void DBG_BT_INFO_INIT(struct BTCDBGINFO *pinfo, u8 *pbuf, u32 size)
 {
 	if (!pinfo)
 		return;
 
-	memset(pinfo, 0, sizeof(BTCDBGINFO));
+	memset(pinfo, 0, sizeof(struct BTCDBGINFO));
 
 	if (pbuf && size) {
 		pinfo->info = pbuf;
@@ -45,7 +45,7 @@ static void DBG_BT_INFO_INIT(PBTCDBGINFO pinfo, u8 *pbuf, u32 size)
 
 void DBG_BT_INFO(u8 *dbgmsg)
 {
-	PBTCDBGINFO pinfo;
+	struct BTCDBGINFO *pinfo;
 	u32 msglen;
 	u8 *pbuf;
 
@@ -1489,7 +1489,7 @@ void hal_btcoex_RecordPwrMode(struct adapter *padapter, u8 *pCmdBuf, u8 cmdLen)
 
 void hal_btcoex_DisplayBtCoexInfo(struct adapter *padapter, u8 *pbuf, u32 bufsize)
 {
-	PBTCDBGINFO pinfo;
+	struct BTCDBGINFO *pinfo;
 
 
 	pinfo = &GLBtcDbgInfo;
