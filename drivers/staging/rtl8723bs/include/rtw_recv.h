@@ -276,7 +276,7 @@ struct recv_priv {
 struct sta_recv_priv {
 
 	_lock	lock;
-	sint	option;
+	signed int	option;
 
 	/* struct __queue	blk_strms[MAX_RX_NUMBLKS]; */
 	struct __queue defrag_q;	 /* keeping the fragment frame until defrag */
@@ -393,8 +393,8 @@ extern int rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *q
 extern void rtw_free_recvframe_queue(struct __queue *pframequeue,  struct __queue *pfree_recv_queue);
 u32 rtw_free_uc_swdec_pending_queue(struct adapter *adapter);
 
-sint rtw_enqueue_recvbuf_to_head(struct recv_buf *precvbuf, struct __queue *queue);
-sint rtw_enqueue_recvbuf(struct recv_buf *precvbuf, struct __queue *queue);
+signed int rtw_enqueue_recvbuf_to_head(struct recv_buf *precvbuf, struct __queue *queue);
+signed int rtw_enqueue_recvbuf(struct recv_buf *precvbuf, struct __queue *queue);
 struct recv_buf *rtw_dequeue_recvbuf(struct __queue *queue);
 
 void rtw_reordering_ctrl_timeout_handler(struct timer_list *t);
@@ -419,7 +419,7 @@ static inline u8 *get_recvframe_data(union recv_frame *precvframe)
 
 }
 
-static inline u8 *recvframe_pull(union recv_frame *precvframe, sint sz)
+static inline u8 *recvframe_pull(union recv_frame *precvframe, signed int sz)
 {
 	/*  rx_data += sz; move rx_data sz bytes  hereafter */
 
@@ -444,7 +444,7 @@ static inline u8 *recvframe_pull(union recv_frame *precvframe, sint sz)
 
 }
 
-static inline u8 *recvframe_put(union recv_frame *precvframe, sint sz)
+static inline u8 *recvframe_put(union recv_frame *precvframe, signed int sz)
 {
 	/*  rx_tai += sz; move rx_tail sz bytes  hereafter */
 
@@ -473,7 +473,7 @@ static inline u8 *recvframe_put(union recv_frame *precvframe, sint sz)
 
 
 
-static inline u8 *recvframe_pull_tail(union recv_frame *precvframe, sint sz)
+static inline u8 *recvframe_pull_tail(union recv_frame *precvframe, signed int sz)
 {
 	/*  rmv data from rx_tail (by yitsen) */
 
@@ -507,7 +507,7 @@ static inline union recv_frame *rxmem_to_recvframe(u8 *rxmem)
 
 }
 
-static inline sint get_recvframe_len(union recv_frame *precvframe)
+static inline signed int get_recvframe_len(union recv_frame *precvframe)
 {
 	return precvframe->u.hdr.len;
 }

@@ -13,8 +13,6 @@
 
 #include <linux/types.h>
 
-typedef	signed int sint;
-
 #define FIELD_OFFSET(s, field)	((__kernel_ssize_t)&((s*)(0))->field)
 
 #define SIZE_PTR __kernel_size_t

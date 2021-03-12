@@ -85,7 +85,7 @@ static void update_BCNTIM(struct adapter *padapter)
 
 			premainder_ie = p + tim_ielen;
 
-			tim_ie_offset = (sint)(p - pie);
+			tim_ie_offset = (signed int)(p - pie);
 
 			remainder_ielen = pnetwork_mlmeext->IELength - tim_ie_offset - tim_ielen;
 

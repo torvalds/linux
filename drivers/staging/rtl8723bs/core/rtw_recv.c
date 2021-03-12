@@ -30,11 +30,11 @@ void _rtw_init_sta_recv_priv(struct sta_recv_priv *psta_recvpriv)
 	_rtw_init_queue(&psta_recvpriv->defrag_q);
 }
 
-sint _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
+signed int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
 {
-	sint i;
+	signed int i;
 	union recv_frame *precvframe;
-	sint	res = _SUCCESS;
+	signed int	res = _SUCCESS;
 
 	spin_lock_init(&precvpriv->lock);
 
@@ -168,7 +168,7 @@ int rtw_free_recvframe(union recv_frame *precvframe, struct __queue *pfree_recv_
 
 
 
-sint _rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *queue)
+signed int _rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *queue)
 {
 
 	struct adapter *padapter = precvframe->u.hdr.adapter;
@@ -187,9 +187,9 @@ sint _rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *queue)
 	return _SUCCESS;
 }
 
-sint rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *queue)
+signed int rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *queue)
 {
-	sint ret;
+	signed int ret;
 
 	/* _spinlock(&pfree_recv_queue->lock); */
 	spin_lock_bh(&queue->lock);
@@ -201,7 +201,7 @@ sint rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *queue)
 }
 
 /*
-sint	rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *queue)
+signed int	rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *queue)
 {
 	return rtw_free_recvframe(precvframe, queue);
 }
@@ -255,7 +255,7 @@ u32 rtw_free_uc_swdec_pending_queue(struct adapter *adapter)
 }
 
 
-sint rtw_enqueue_recvbuf_to_head(struct recv_buf *precvbuf, struct __queue *queue)
+signed int rtw_enqueue_recvbuf_to_head(struct recv_buf *precvbuf, struct __queue *queue)
 {
 	spin_lock_bh(&queue->lock);
 
@@ -267,7 +267,7 @@ sint rtw_enqueue_recvbuf_to_head(struct recv_buf *precvbuf, struct __queue *queu
 	return _SUCCESS;
 }
 
-sint rtw_enqueue_recvbuf(struct recv_buf *precvbuf, struct __queue *queue)
+signed int rtw_enqueue_recvbuf(struct recv_buf *precvbuf, struct __queue *queue)
 {
 	spin_lock_bh(&queue->lock);
 
@@ -305,11 +305,11 @@ struct recv_buf *rtw_dequeue_recvbuf(struct __queue *queue)
 
 }
 
-sint recvframe_chkmic(struct adapter *adapter,  union recv_frame *precvframe);
-sint recvframe_chkmic(struct adapter *adapter,  union recv_frame *precvframe)
+signed int recvframe_chkmic(struct adapter *adapter,  union recv_frame *precvframe);
+signed int recvframe_chkmic(struct adapter *adapter,  union recv_frame *precvframe)
 {
 
-	sint	i, res = _SUCCESS;
+	signed int	i, res = _SUCCESS;
 	u32 datalen;
 	u8 miccode[8];
 	u8 bmic_err = false, brpt_micerror = true;
@@ -606,10 +606,10 @@ union recv_frame *portctrl(struct adapter *adapter, union recv_frame *precv_fram
 	return prtnframe;
 }
 
-sint recv_decache(union recv_frame *precv_frame, u8 bretry, struct stainfo_rxcache *prxcache);
-sint recv_decache(union recv_frame *precv_frame, u8 bretry, struct stainfo_rxcache *prxcache)
+signed int recv_decache(union recv_frame *precv_frame, u8 bretry, struct stainfo_rxcache *prxcache);
+signed int recv_decache(union recv_frame *precv_frame, u8 bretry, struct stainfo_rxcache *prxcache)
 {
-	sint tid = precv_frame->u.hdr.attrib.priority;
+	signed int tid = precv_frame->u.hdr.attrib.priority;
 
 	u16 seq_ctrl = ((precv_frame->u.hdr.attrib.seq_num&0xffff) << 4) |
 		(precv_frame->u.hdr.attrib.frag_num & 0xf);
@@ -755,20 +755,20 @@ void count_rx_stats(struct adapter *padapter, union recv_frame *prframe, struct 
 	traffic_check_for_leave_lps(padapter, false, 0);
 }
 
-sint sta2sta_data_frame(struct adapter *adapter, union recv_frame *precv_frame,
+signed int sta2sta_data_frame(struct adapter *adapter, union recv_frame *precv_frame,
 			struct sta_info **psta);
-sint sta2sta_data_frame(struct adapter *adapter, union recv_frame *precv_frame,
+signed int sta2sta_data_frame(struct adapter *adapter, union recv_frame *precv_frame,
 			struct sta_info **psta)
 {
 	u8 *ptr = precv_frame->u.hdr.rx_data;
-	sint ret = _SUCCESS;
+	signed int ret = _SUCCESS;
 	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
 	struct sta_priv *pstapriv = &adapter->stapriv;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	u8 *mybssid  = get_bssid(pmlmepriv);
 	u8 *myhwaddr = myid(&adapter->eeprompriv);
 	u8 *sta_addr = NULL;
-	sint bmcast = IS_MCAST(pattrib->dst);
+	signed int bmcast = IS_MCAST(pattrib->dst);
 
 	/* DBG_871X("[%s] %d, seqnum:%d\n", __func__, __LINE__, pattrib->seq_num); */
 
@@ -850,19 +850,19 @@ exit:
 	return ret;
 }
 
-sint ap2sta_data_frame(struct adapter *adapter, union recv_frame *precv_frame,
+signed int ap2sta_data_frame(struct adapter *adapter, union recv_frame *precv_frame,
 		       struct sta_info **psta);
-sint ap2sta_data_frame(struct adapter *adapter, union recv_frame *precv_frame,
+signed int ap2sta_data_frame(struct adapter *adapter, union recv_frame *precv_frame,
 		       struct sta_info **psta)
 {
 	u8 *ptr = precv_frame->u.hdr.rx_data;
 	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
-	sint ret = _SUCCESS;
+	signed int ret = _SUCCESS;
 	struct sta_priv *pstapriv = &adapter->stapriv;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	u8 *mybssid  = get_bssid(pmlmepriv);
 	u8 *myhwaddr = myid(&adapter->eeprompriv);
-	sint bmcast = IS_MCAST(pattrib->dst);
+	signed int bmcast = IS_MCAST(pattrib->dst);
 
 	if ((check_fwstate(pmlmepriv, WIFI_STATION_STATE) == true) &&
 	    (check_fwstate(pmlmepriv, _FW_LINKED) == true ||
@@ -992,9 +992,9 @@ exit:
 	return ret;
 }
 
-sint sta2ap_data_frame(struct adapter *adapter, union recv_frame *precv_frame,
+signed int sta2ap_data_frame(struct adapter *adapter, union recv_frame *precv_frame,
 		       struct sta_info **psta);
-sint sta2ap_data_frame(struct adapter *adapter, union recv_frame *precv_frame,
+signed int sta2ap_data_frame(struct adapter *adapter, union recv_frame *precv_frame,
 		       struct sta_info **psta)
 {
 	u8 *ptr = precv_frame->u.hdr.rx_data;
@@ -1002,7 +1002,7 @@ sint sta2ap_data_frame(struct adapter *adapter, union recv_frame *precv_frame,
 	struct sta_priv *pstapriv = &adapter->stapriv;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	unsigned char *mybssid  = get_bssid(pmlmepriv);
-	sint ret = _SUCCESS;
+	signed int ret = _SUCCESS;
 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) {
 		/* For AP mode, RA =BSSID, TX =STA(SRC_ADDR), A3 =DST_ADDR */
@@ -1049,8 +1049,8 @@ exit:
 	return ret;
 }
 
-sint validate_recv_ctrl_frame(struct adapter *padapter, union recv_frame *precv_frame);
-sint validate_recv_ctrl_frame(struct adapter *padapter, union recv_frame *precv_frame)
+signed int validate_recv_ctrl_frame(struct adapter *padapter, union recv_frame *precv_frame);
+signed int validate_recv_ctrl_frame(struct adapter *padapter, union recv_frame *precv_frame)
 {
 	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
 	struct sta_priv *pstapriv = &padapter->stapriv;
@@ -1187,8 +1187,8 @@ sint validate_recv_ctrl_frame(struct adapter *padapter, union recv_frame *precv_
 }
 
 union recv_frame *recvframe_chk_defrag(struct adapter *padapter, union recv_frame *precv_frame);
-sint validate_recv_mgnt_frame(struct adapter *padapter, union recv_frame *precv_frame);
-sint validate_recv_mgnt_frame(struct adapter *padapter, union recv_frame *precv_frame)
+signed int validate_recv_mgnt_frame(struct adapter *padapter, union recv_frame *precv_frame);
+signed int validate_recv_mgnt_frame(struct adapter *padapter, union recv_frame *precv_frame)
 {
 	/* struct mlme_priv *pmlmepriv = &adapter->mlmepriv; */
 
@@ -1227,8 +1227,8 @@ sint validate_recv_mgnt_frame(struct adapter *padapter, union recv_frame *precv_
 
 }
 
-sint validate_recv_data_frame(struct adapter *adapter, union recv_frame *precv_frame);
-sint validate_recv_data_frame(struct adapter *adapter, union recv_frame *precv_frame)
+signed int validate_recv_data_frame(struct adapter *adapter, union recv_frame *precv_frame);
+signed int validate_recv_data_frame(struct adapter *adapter, union recv_frame *precv_frame)
 {
 	u8 bretry;
 	u8 *psa, *pda, *pbssid;
@@ -1236,7 +1236,7 @@ sint validate_recv_data_frame(struct adapter *adapter, union recv_frame *precv_f
 	u8 *ptr = precv_frame->u.hdr.rx_data;
 	struct rx_pkt_attrib	*pattrib = &precv_frame->u.hdr.attrib;
 	struct security_priv *psecuritypriv = &adapter->securitypriv;
-	sint ret = _SUCCESS;
+	signed int ret = _SUCCESS;
 
 	bretry = GetRetry(ptr);
 	pda = get_da(ptr);
@@ -1364,7 +1364,7 @@ exit:
 	return ret;
 }
 
-static sint validate_80211w_mgmt(struct adapter *adapter, union recv_frame *precv_frame)
+static signed int validate_80211w_mgmt(struct adapter *adapter, union recv_frame *precv_frame)
 {
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
@@ -1410,7 +1410,7 @@ static sint validate_80211w_mgmt(struct adapter *adapter, union recv_frame *prec
 			}
 		} else if (IS_MCAST(GetAddr1Ptr(ptr)) &&
 			(subtype == WIFI_DEAUTH || subtype == WIFI_DISASSOC)) {
-			sint BIP_ret = _SUCCESS;
+			signed int BIP_ret = _SUCCESS;
 			/* verify BIP MME IE of broadcast/multicast de-auth/disassoc packet */
 			BIP_ret = rtw_BIP_verify(adapter, (u8 *)precv_frame);
 			if (BIP_ret == _FAIL) {
@@ -1459,8 +1459,8 @@ static inline void dump_rx_packet(u8 *ptr)
 	DBG_871X("#############################\n");
 }
 
-sint validate_recv_frame(struct adapter *adapter, union recv_frame *precv_frame);
-sint validate_recv_frame(struct adapter *adapter, union recv_frame *precv_frame)
+signed int validate_recv_frame(struct adapter *adapter, union recv_frame *precv_frame);
+signed int validate_recv_frame(struct adapter *adapter, union recv_frame *precv_frame)
 {
 	/* shall check frame subtype, to / from ds, da, bssid */
 
@@ -1468,7 +1468,7 @@ sint validate_recv_frame(struct adapter *adapter, union recv_frame *precv_frame)
 
 	u8 type;
 	u8 subtype;
-	sint retval = _SUCCESS;
+	signed int retval = _SUCCESS;
 	u8 bDumpRxPkt;
 
 	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
@@ -1559,10 +1559,10 @@ exit:
 
 
 /* remove the wlanhdr and add the eth_hdr */
-sint wlanhdr_to_ethhdr(union recv_frame *precvframe);
-sint wlanhdr_to_ethhdr(union recv_frame *precvframe)
+signed int wlanhdr_to_ethhdr(union recv_frame *precvframe);
+signed int wlanhdr_to_ethhdr(union recv_frame *precvframe)
 {
-	sint	rmv_len;
+	signed int	rmv_len;
 	u16 eth_type, len;
 	u8 bsnaphdr;
 	u8 *psnap_type;

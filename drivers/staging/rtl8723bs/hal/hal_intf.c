@@ -65,7 +65,7 @@ static void rtw_hal_init_opmode(struct adapter *padapter)
 {
 	enum NDIS_802_11_NETWORK_INFRASTRUCTURE networkType = Ndis802_11InfrastructureMax;
 	struct  mlme_priv *pmlmepriv = &(padapter->mlmepriv);
-	sint fw_state;
+	signed int fw_state;
 
 	fw_state = get_fwstate(pmlmepriv);
 

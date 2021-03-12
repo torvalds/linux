@@ -30,7 +30,7 @@ void rtw_os_recv_resource_alloc(struct adapter *padapter, union recv_frame *prec
 /* free os related resource in union recv_frame */
 void rtw_os_recv_resource_free(struct recv_priv *precvpriv)
 {
-	sint i;
+	signed int i;
 	union recv_frame *precvframe;
 
 	precvframe = (union recv_frame *) precvpriv->precv_frame_buf;

@@ -130,7 +130,7 @@ SHALL not lock up more than one locks at a time!
 struct sitesurvey_ctrl {
 	u64	last_tx_pkts;
 	uint	last_rx_pkts;
-	sint	traffic_busy;
+	signed int	traffic_busy;
 	_timer	sitesurvey_ctrl_timer;
 };
 
@@ -330,7 +330,7 @@ enum {
 struct mlme_priv {
 
 	_lock	lock;
-	sint	fw_state;	/* shall we protect this variable? maybe not necessarily... */
+	signed int	fw_state;	/* shall we protect this variable? maybe not necessarily... */
 	u8 bScanInProcess;
 	u8 to_join; /* flag */
 
@@ -490,9 +490,9 @@ extern int rtw_init_mlme_priv(struct adapter *adapter);/*  (struct mlme_priv *pm
 extern void rtw_free_mlme_priv(struct mlme_priv *pmlmepriv);
 
 
-extern sint rtw_select_and_join_from_scanned_queue(struct mlme_priv *pmlmepriv);
-extern sint rtw_set_key(struct adapter *adapter, struct security_priv *psecuritypriv, sint keyid, u8 set_tx, bool enqueue);
-extern sint rtw_set_auth(struct adapter *adapter, struct security_priv *psecuritypriv);
+extern signed int rtw_select_and_join_from_scanned_queue(struct mlme_priv *pmlmepriv);
+extern signed int rtw_set_key(struct adapter *adapter, struct security_priv *psecuritypriv, signed int keyid, u8 set_tx, bool enqueue);
+extern signed int rtw_set_auth(struct adapter *adapter, struct security_priv *psecuritypriv);
 
 static inline u8 *get_bssid(struct mlme_priv *pmlmepriv)
 {	/* if sta_mode:pmlmepriv->cur_network.network.MacAddress => bssid */
@@ -500,7 +500,7 @@ static inline u8 *get_bssid(struct mlme_priv *pmlmepriv)
 	return pmlmepriv->cur_network.network.MacAddress;
 }
 
-static inline sint check_fwstate(struct mlme_priv *pmlmepriv, sint state)
+static inline signed int check_fwstate(struct mlme_priv *pmlmepriv, signed int state)
 {
 	if (pmlmepriv->fw_state & state)
 		return true;
@@ -508,7 +508,7 @@ static inline sint check_fwstate(struct mlme_priv *pmlmepriv, sint state)
 	return false;
 }
 
-static inline sint get_fwstate(struct mlme_priv *pmlmepriv)
+static inline signed int get_fwstate(struct mlme_priv *pmlmepriv)
 {
 	return pmlmepriv->fw_state;
 }
@@ -520,7 +520,7 @@ static inline sint get_fwstate(struct mlme_priv *pmlmepriv)
  * ### NOTE:#### (!!!!)
  * MUST TAKE CARE THAT BEFORE CALLING THIS FUNC, YOU SHOULD HAVE LOCKED pmlmepriv->lock
  */
-static inline void set_fwstate(struct mlme_priv *pmlmepriv, sint state)
+static inline void set_fwstate(struct mlme_priv *pmlmepriv, signed int state)
 {
 	pmlmepriv->fw_state |= state;
 	/* FOR HW integration */
@@ -528,7 +528,7 @@ static inline void set_fwstate(struct mlme_priv *pmlmepriv, sint state)
 		pmlmepriv->bScanInProcess = true;
 }
 
-static inline void _clr_fwstate_(struct mlme_priv *pmlmepriv, sint state)
+static inline void _clr_fwstate_(struct mlme_priv *pmlmepriv, signed int state)
 {
 	pmlmepriv->fw_state &= ~state;
 	/* FOR HW integration */
@@ -540,7 +540,7 @@ static inline void _clr_fwstate_(struct mlme_priv *pmlmepriv, sint state)
  * No Limit on the calling context,
  * therefore set it to be the critical section...
  */
-static inline void clr_fwstate(struct mlme_priv *pmlmepriv, sint state)
+static inline void clr_fwstate(struct mlme_priv *pmlmepriv, signed int state)
 {
 	spin_lock_bh(&pmlmepriv->lock);
 	if (check_fwstate(pmlmepriv, state) == true)
@@ -548,7 +548,7 @@ static inline void clr_fwstate(struct mlme_priv *pmlmepriv, sint state)
 	spin_unlock_bh(&pmlmepriv->lock);
 }
 
-static inline void set_scanned_network_val(struct mlme_priv *pmlmepriv, sint val)
+static inline void set_scanned_network_val(struct mlme_priv *pmlmepriv, signed int val)
 {
 	spin_lock_bh(&pmlmepriv->lock);
 	pmlmepriv->num_of_scanned = val;
@@ -600,9 +600,9 @@ extern void _rtw_free_network_nolock(struct mlme_priv *pmlmepriv, struct wlan_ne
 
 extern struct wlan_network *_rtw_find_network(struct __queue *scanned_queue, u8 *addr);
 
-extern sint rtw_if_up(struct adapter *padapter);
+extern signed int rtw_if_up(struct adapter *padapter);
 
-sint rtw_linked_check(struct adapter *padapter);
+signed int rtw_linked_check(struct adapter *padapter);
 
 u8 *rtw_get_capability_from_ie(u8 *ie);
 u8 *rtw_get_beacon_interval_from_ie(u8 *ie);

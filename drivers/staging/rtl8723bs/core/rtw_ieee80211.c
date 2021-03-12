@@ -120,7 +120,7 @@ u8 *rtw_set_fixed_ie(unsigned char *pbuf, unsigned int len, unsigned char *sourc
 
 /*  rtw_set_ie will update frame length */
 u8 *rtw_set_ie(u8 *pbuf,
-	       sint index,
+	       signed int index,
 	       uint len,
 	       u8 *source,
 	       uint *frlen) /* frame length */
@@ -140,9 +140,9 @@ u8 *rtw_set_ie(u8 *pbuf,
 /*----------------------------------------------------------------------------
 index: the information element id index, limit is the limit for search
 -----------------------------------------------------------------------------*/
-u8 *rtw_get_ie(u8 *pbuf, sint index, sint *len, sint limit)
+u8 *rtw_get_ie(u8 *pbuf, signed int index, signed int *len, signed int limit)
 {
-	sint tmp, i;
+	signed int tmp, i;
 	u8 *p;
 
 	if (limit < 1)
