@@ -358,7 +358,6 @@ _ASM_NOKPROBE_SYMBOL(fast_exception_return)
 
 	.globl	ret_from_except_full
 ret_from_except_full:
-	REST_NVGPRS(r1)
 	/* fall through */
 
 	.globl	ret_from_except

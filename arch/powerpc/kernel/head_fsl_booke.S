@@ -625,12 +625,20 @@ END_BTB_FLUSH_SECTION
 
 	/* SPE Floating Point Data */
 #ifdef CONFIG_SPE
-	EXCEPTION(0x2030, SPE_FP_DATA, SPEFloatingPointData,
-		  SPEFloatingPointException, EXC_XFER_STD)
+	START_EXCEPTION(SPEFloatingPointData)
+	NORMAL_EXCEPTION_PROLOG(0x2030, SPE_FP_DATA)
+	prepare_transfer_to_handler
+	bl	SPEFloatingPointException
+	REST_NVGPRS(r1)
+	b	interrupt_return
 
 	/* SPE Floating Point Round */
-	EXCEPTION(0x2050, SPE_FP_ROUND, SPEFloatingPointRound, \
-		  SPEFloatingPointRoundException, EXC_XFER_STD)
+	START_EXCEPTION(SPEFloatingPointRound)
+	NORMAL_EXCEPTION_PROLOG(0x2050, SPE_FP_ROUND)
+	prepare_transfer_to_handler
+	bl	SPEFloatingPointRoundException
+	REST_NVGPRS(r1)
+	b	interrupt_return
 #elif defined(CONFIG_SPE_POSSIBLE)
 	EXCEPTION(0x2040, SPE_FP_DATA, SPEFloatingPointData,
 		  unknown_exception, EXC_XFER_STD)

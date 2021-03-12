@@ -228,12 +228,18 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 /* 0x0600 - Alignment Exception */
 	START_EXCEPTION(0x0600, Alignment)
 	EXCEPTION_PROLOG 0x600 Alignment handle_dar_dsisr=1
-	EXC_XFER_STD(0x600, alignment_exception)
+	prepare_transfer_to_handler
+	bl	alignment_exception
+	REST_NVGPRS(r1)
+	b	interrupt_return
 
 /* 0x0700 - Program Exception */
 	START_EXCEPTION(0x0700, ProgramCheck)
 	EXCEPTION_PROLOG 0x700 ProgramCheck handle_dar_dsisr=1
-	EXC_XFER_STD(0x700, program_check_exception)
+	prepare_transfer_to_handler
+	bl	program_check_exception
+	REST_NVGPRS(r1)
+	b	interrupt_return
 
 	EXCEPTION(0x0800, Trap_08, unknown_exception, EXC_XFER_STD)
 	EXCEPTION(0x0900, Trap_09, unknown_exception, EXC_XFER_STD)

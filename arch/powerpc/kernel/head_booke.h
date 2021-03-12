@@ -483,14 +483,20 @@ label:
 	NORMAL_EXCEPTION_PROLOG(0x600, ALIGNMENT);		      \
 	mfspr   r4,SPRN_DEAR;           /* Grab the DEAR and save it */	      \
 	stw     r4,_DEAR(r11);						      \
-	EXC_XFER_STD(0x0600, alignment_exception)
+	prepare_transfer_to_handler;					      \
+	bl	alignment_exception;					      \
+	REST_NVGPRS(r1);						      \
+	b	interrupt_return
 
 #define PROGRAM_EXCEPTION						      \
 	START_EXCEPTION(Program)					      \
 	NORMAL_EXCEPTION_PROLOG(0x700, PROGRAM);		      \
 	mfspr	r4,SPRN_ESR;		/* Grab the ESR and save it */	      \
 	stw	r4,_ESR(r11);						      \
-	EXC_XFER_STD(0x0700, program_check_exception)
+	prepare_transfer_to_handler;					      \
+	bl	program_check_exception;				      \
+	REST_NVGPRS(r1);						      \
+	b	interrupt_return
 
 #define DECREMENTER_EXCEPTION						      \
 	START_EXCEPTION(Decrementer)					      \

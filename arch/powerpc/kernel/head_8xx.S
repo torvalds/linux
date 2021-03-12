@@ -131,10 +131,18 @@ instruction_counter:
 /* Alignment exception */
 	START_EXCEPTION(0x600, Alignment)
 	EXCEPTION_PROLOG 0x600 Alignment handle_dar_dsisr=1
-	EXC_XFER_STD(0x600, alignment_exception)
+	prepare_transfer_to_handler
+	bl	alignment_exception
+	REST_NVGPRS(r1)
+	b	interrupt_return
 
 /* Program check exception */
-	EXCEPTION(0x700, ProgramCheck, program_check_exception, EXC_XFER_STD)
+	START_EXCEPTION(0x700, ProgramCheck)
+	EXCEPTION_PROLOG 0x700 ProgramCheck
+	prepare_transfer_to_handler
+	bl	program_check_exception
+	REST_NVGPRS(r1)
+	b	interrupt_return
 
 /* Decrementer */
 	EXCEPTION(0x900, Decrementer, timer_interrupt, EXC_XFER_LITE)
@@ -149,7 +157,12 @@ instruction_counter:
 /* On the MPC8xx, this is a software emulation interrupt.  It occurs
  * for all unimplemented and illegal instructions.
  */
-	EXCEPTION(0x1000, SoftEmu, emulation_assist_interrupt, EXC_XFER_STD)
+	START_EXCEPTION(0x1000, SoftEmu)
+	EXCEPTION_PROLOG 0x1000 SoftEmu
+	prepare_transfer_to_handler
+	bl	emulation_assist_interrupt
+	REST_NVGPRS(r1)
+	b	interrupt_return
 
 /*
  * For the MPC8xx, this is a software tablewalk to load the instruction
@@ -348,7 +361,10 @@ DARFixed:/* Return from dcbx instruction bug workaround */
 	EXCEPTION_PROLOG_2 0x1c00 DataBreakpoint handle_dar_dsisr=1
 	mfspr	r4,SPRN_BAR
 	stw	r4,_DAR(r11)
-	EXC_XFER_STD(0x1c00, do_break)
+	prepare_transfer_to_handler
+	bl	do_break
+	REST_NVGPRS(r1)
+	b	interrupt_return
 
 #ifdef CONFIG_PERF_EVENTS
 	START_EXCEPTION(0x1d00, InstructionBreakpoint)

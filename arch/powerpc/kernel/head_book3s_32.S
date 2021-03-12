@@ -300,7 +300,10 @@ ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_HPTE_TABLE)
 	andis.	r0, r5, DSISR_DABRMATCH@h
 	bne-	1f
 	EXC_XFER_LITE(0x300, do_page_fault)
-1:	EXC_XFER_STD(0x300, do_break)
+1:	prepare_transfer_to_handler
+	bl	do_break
+	REST_NVGPRS(r1)
+	b	interrupt_return
 
 
 /* Instruction access exception. */
@@ -336,10 +339,18 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 /* Alignment exception */
 	START_EXCEPTION(0x600, Alignment)
 	EXCEPTION_PROLOG 0x600 Alignment handle_dar_dsisr=1
-	EXC_XFER_STD(0x600, alignment_exception)
+	prepare_transfer_to_handler
+	bl	alignment_exception
+	REST_NVGPRS(r1)
+	b	interrupt_return
 
 /* Program check exception */
-	EXCEPTION(0x700, ProgramCheck, program_check_exception, EXC_XFER_STD)
+	START_EXCEPTION(0x700, ProgramCheck)
+	EXCEPTION_PROLOG 0x700 ProgramCheck
+	prepare_transfer_to_handler
+	bl	program_check_exception
+	REST_NVGPRS(r1)
+	b	interrupt_return
 
 /* Floating-point unavailable */
 	START_EXCEPTION(0x800, FPUnavailable)
