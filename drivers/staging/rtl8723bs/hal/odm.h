@@ -1076,7 +1076,7 @@ struct DM_ODM_T { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 	u8 Adaptivity_IGI_upper;
 	u8 NHM_cnt_0;
 
-	ODM_NOISE_MONITOR noise_level;/* ODM_MAX_CHANNEL_NUM]; */
+	struct ODM_NOISE_MONITOR noise_level;/* ODM_MAX_CHANNEL_NUM]; */
 	/*  */
 	/* 2 Define STA info. */
 	/*  _ODM_STA_INFO */
