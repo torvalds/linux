@@ -2808,7 +2808,6 @@ static void usage(void)
 static void print_version(void)
 {
 	fprintf(outf, "Version %s\n", version_str);
-	fprintf(outf, "Build date %s time %s\n", __DATE__, __TIME__);
 	exit(0);
 }
 
