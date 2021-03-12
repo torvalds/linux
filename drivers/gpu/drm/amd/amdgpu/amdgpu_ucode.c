@@ -244,6 +244,17 @@ void amdgpu_ucode_print_sdma_hdr(const struct common_firmware_header *hdr)
 				container_of(sdma_hdr, struct sdma_firmware_header_v1_1, v1_0);
 			DRM_DEBUG("digest_size: %u\n", le32_to_cpu(sdma_v1_1_hdr->digest_size));
 		}
+	} else if (version_major == 2) {
+		const struct sdma_firmware_header_v2_0 *sdma_hdr =
+			container_of(hdr, struct sdma_firmware_header_v2_0, header);
+
+		DRM_DEBUG("ucode_feature_version: %u\n",
+			  le32_to_cpu(sdma_hdr->ucode_feature_version));
+		DRM_DEBUG("ctx_jt_offset: %u\n", le32_to_cpu(sdma_hdr->ctx_jt_offset));
+		DRM_DEBUG("ctx_jt_size: %u\n", le32_to_cpu(sdma_hdr->ctx_jt_size));
+		DRM_DEBUG("ctl_ucode_offset: %u\n", le32_to_cpu(sdma_hdr->ctl_ucode_offset));
+		DRM_DEBUG("ctl_jt_offset: %u\n", le32_to_cpu(sdma_hdr->ctl_jt_offset));
+		DRM_DEBUG("ctl_jt_size: %u\n", le32_to_cpu(sdma_hdr->ctl_jt_size));
 	} else {
 		DRM_ERROR("Unknown SDMA ucode version: %u.%u\n",
 			  version_major, version_minor);
