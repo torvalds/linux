@@ -107,7 +107,7 @@ struct RXHP_T {
 	bool First_time_enter;
 	bool RXHP_enable;
 	u8 TP_Mode;
-	RT_TIMER PSDTimer;
+	struct timer_list PSDTimer;
 };
 
 #define ASSOCIATE_ENTRY_NUM					32 /*  Max size of AsocEntry[]. */
@@ -169,8 +169,8 @@ struct SWAT_T { /* _SW_Antenna_Switch_ */
 	u8 TrafficLoad;
 	u8 Train_time;
 	u8 Train_time_flag;
-	RT_TIMER SwAntennaSwitchTimer;
-	RT_TIMER SwAntennaSwitchTimer_8723B;
+	struct timer_list SwAntennaSwitchTimer;
+	struct timer_list SwAntennaSwitchTimer_8723B;
 	u32 PktCnt_SWAntDivByCtrlFrame;
 	bool bSWAntDivByCtrlFrame;
 };
@@ -868,7 +868,7 @@ struct ANT_DETECTED_INFO {
 /*  2011/09/22 MH Copy from SD4 defined structure. We use to support PHY DM integration. */
 /*  */
 struct DM_ODM_T { /* DM_Out_Source_Dynamic_Mechanism_Structure */
-	/* RT_TIMER	FastAntTrainingTimer; */
+	/* struct timer_list	FastAntTrainingTimer; */
 	/*  */
 	/* 	Add for different team use temporarily */
 	/*  */
@@ -1146,14 +1146,14 @@ struct DM_ODM_T { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 
 	/* PSD */
 	bool bUserAssignLevel;
-	RT_TIMER PSDTimer;
+	struct timer_list PSDTimer;
 	u8 RSSI_BT;			/* come from BT */
 	bool bPSDinProcess;
 	bool bPSDactive;
 	bool bDMInitialGainEnable;
 
 	/* MPT DIG */
-	RT_TIMER MPT_DIGTimer;
+	struct timer_list MPT_DIGTimer;
 
 	/* for rate adaptive, in fact,  88c/92c fw will handle this */
 	u8 bUseRAMask;
@@ -1194,10 +1194,10 @@ struct DM_ODM_T { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 	/*  */
 
 	/*  ODM relative time. */
-	RT_TIMER PathDivSwitchTimer;
+	struct timer_list PathDivSwitchTimer;
 	/* 2011.09.27 add for Path Diversity */
-	RT_TIMER CCKPathDiversityTimer;
-	RT_TIMER FastAntTrainingTimer;
+	struct timer_list CCKPathDiversityTimer;
+	struct timer_list FastAntTrainingTimer;
 
 	/*  ODM relative workitem. */
 

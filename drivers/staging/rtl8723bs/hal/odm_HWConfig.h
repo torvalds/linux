@@ -128,19 +128,19 @@ void ODM_PhyStatusQuery(
 	struct odm_packet_info *pPktinfo
 );
 
-HAL_STATUS ODM_ConfigRFWithTxPwrTrackHeaderFile(struct DM_ODM_T * pDM_Odm);
+enum HAL_STATUS ODM_ConfigRFWithTxPwrTrackHeaderFile(struct DM_ODM_T * pDM_Odm);
 
-HAL_STATUS ODM_ConfigRFWithHeaderFile(
+enum HAL_STATUS ODM_ConfigRFWithHeaderFile(
 	struct DM_ODM_T * pDM_Odm,
 	enum ODM_RF_Config_Type ConfigType,
 	enum ODM_RF_RADIO_PATH_E eRFPath
 );
 
-HAL_STATUS ODM_ConfigBBWithHeaderFile(
+enum HAL_STATUS ODM_ConfigBBWithHeaderFile(
 	struct DM_ODM_T * pDM_Odm, enum ODM_BB_Config_Type ConfigType
 );
 
-HAL_STATUS ODM_ConfigFWWithHeaderFile(
+enum HAL_STATUS ODM_ConfigFWWithHeaderFile(
 	struct DM_ODM_T * pDM_Odm,
 	enum ODM_FW_Config_Type ConfigType,
 	u8 *pFirmware,
