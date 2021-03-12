@@ -174,7 +174,7 @@ static ssize_t backup_mode_show(struct device *dev,
 {
 	struct bd9571mwv_reg *bdreg = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%s\n", bdreg->bkup_mode_enabled ? "on" : "off");
+	return sysfs_emit(buf, "%s\n", bdreg->bkup_mode_enabled ? "on" : "off");
 }
 
 static ssize_t backup_mode_store(struct device *dev,
