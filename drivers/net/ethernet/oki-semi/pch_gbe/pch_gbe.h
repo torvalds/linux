@@ -612,7 +612,6 @@ void pch_gbe_free_tx_resources(struct pch_gbe_adapter *adapter,
 void pch_gbe_free_rx_resources(struct pch_gbe_adapter *adapter,
 			       struct pch_gbe_rx_ring *rx_ring);
 void pch_gbe_update_stats(struct pch_gbe_adapter *adapter);
-u32 pch_ch_control_read(struct pci_dev *pdev);
 void pch_ch_control_write(struct pci_dev *pdev, u32 val);
 u32 pch_ch_event_read(struct pci_dev *pdev);
 void pch_ch_event_write(struct pci_dev *pdev, u32 val);
