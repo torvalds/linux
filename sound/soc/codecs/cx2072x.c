@@ -1430,11 +1430,11 @@ static int cx2072x_jack_status_check(void *data)
 			state |= SND_JACK_HEADSET;
 			if (type & 0x2)
 				state |= SND_JACK_BTN_0;
-		} else if (type & 0x4) {
-			/* Nokia headset */
-			state |= SND_JACK_HEADPHONE;
 		} else {
-			/* Headphone */
+			/*
+			 * Nokia headset (type & 0x4) and
+			 * regular Headphone
+			 */
 			state |= SND_JACK_HEADPHONE;
 		}
 	}
