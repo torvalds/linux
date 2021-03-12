@@ -2994,6 +2994,141 @@ static int hclge_get_sfp_info(struct hclge_dev *hdev, struct hclge_mac *mac)
 	return 0;
 }
 
+static int hclge_get_phy_link_ksettings(struct hnae3_handle *handle,
+					struct ethtool_link_ksettings *cmd)
+{
+	struct hclge_desc desc[HCLGE_PHY_LINK_SETTING_BD_NUM];
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_phy_link_ksetting_0_cmd *req0;
+	struct hclge_phy_link_ksetting_1_cmd *req1;
+	u32 supported, advertising, lp_advertising;
+	struct hclge_dev *hdev = vport->back;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_PHY_LINK_KSETTING,
+				   true);
+	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_OPC_PHY_LINK_KSETTING,
+				   true);
+
+	ret = hclge_cmd_send(&hdev->hw, desc, HCLGE_PHY_LINK_SETTING_BD_NUM);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get phy link ksetting, ret = %d.\n", ret);
+		return ret;
+	}
+
+	req0 = (struct hclge_phy_link_ksetting_0_cmd *)desc[0].data;
+	cmd->base.autoneg = req0->autoneg;
+	cmd->base.speed = le32_to_cpu(req0->speed);
+	cmd->base.duplex = req0->duplex;
+	cmd->base.port = req0->port;
+	cmd->base.transceiver = req0->transceiver;
+	cmd->base.phy_address = req0->phy_address;
+	cmd->base.eth_tp_mdix = req0->eth_tp_mdix;
+	cmd->base.eth_tp_mdix_ctrl = req0->eth_tp_mdix_ctrl;
+	supported = le32_to_cpu(req0->supported);
+	advertising = le32_to_cpu(req0->advertising);
+	lp_advertising = le32_to_cpu(req0->lp_advertising);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						advertising);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.lp_advertising,
+						lp_advertising);
+
+	req1 = (struct hclge_phy_link_ksetting_1_cmd *)desc[1].data;
+	cmd->base.master_slave_cfg = req1->master_slave_cfg;
+	cmd->base.master_slave_state = req1->master_slave_state;
+
+	return 0;
+}
+
+static int
+hclge_set_phy_link_ksettings(struct hnae3_handle *handle,
+			     const struct ethtool_link_ksettings *cmd)
+{
+	struct hclge_desc desc[HCLGE_PHY_LINK_SETTING_BD_NUM];
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_phy_link_ksetting_0_cmd *req0;
+	struct hclge_phy_link_ksetting_1_cmd *req1;
+	struct hclge_dev *hdev = vport->back;
+	u32 advertising;
+	int ret;
+
+	if (cmd->base.autoneg == AUTONEG_DISABLE &&
+	    ((cmd->base.speed != SPEED_100 && cmd->base.speed != SPEED_10) ||
+	     (cmd->base.duplex != DUPLEX_HALF &&
+	      cmd->base.duplex != DUPLEX_FULL)))
+		return -EINVAL;
+
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_PHY_LINK_KSETTING,
+				   false);
+	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_OPC_PHY_LINK_KSETTING,
+				   false);
+
+	req0 = (struct hclge_phy_link_ksetting_0_cmd *)desc[0].data;
+	req0->autoneg = cmd->base.autoneg;
+	req0->speed = cpu_to_le32(cmd->base.speed);
+	req0->duplex = cmd->base.duplex;
+	ethtool_convert_link_mode_to_legacy_u32(&advertising,
+						cmd->link_modes.advertising);
+	req0->advertising = cpu_to_le32(advertising);
+	req0->eth_tp_mdix_ctrl = cmd->base.eth_tp_mdix_ctrl;
+
+	req1 = (struct hclge_phy_link_ksetting_1_cmd *)desc[1].data;
+	req1->master_slave_cfg = cmd->base.master_slave_cfg;
+
+	ret = hclge_cmd_send(&hdev->hw, desc, HCLGE_PHY_LINK_SETTING_BD_NUM);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to set phy link ksettings, ret = %d.\n", ret);
+		return ret;
+	}
+
+	hdev->hw.mac.autoneg = cmd->base.autoneg;
+	hdev->hw.mac.speed = cmd->base.speed;
+	hdev->hw.mac.duplex = cmd->base.duplex;
+	linkmode_copy(hdev->hw.mac.advertising, cmd->link_modes.advertising);
+
+	return 0;
+}
+
+static int hclge_update_tp_port_info(struct hclge_dev *hdev)
+{
+	struct ethtool_link_ksettings cmd;
+	int ret;
+
+	if (!hnae3_dev_phy_imp_supported(hdev))
+		return 0;
+
+	ret = hclge_get_phy_link_ksettings(&hdev->vport->nic, &cmd);
+	if (ret)
+		return ret;
+
+	hdev->hw.mac.autoneg = cmd.base.autoneg;
+	hdev->hw.mac.speed = cmd.base.speed;
+	hdev->hw.mac.duplex = cmd.base.duplex;
+
+	return 0;
+}
+
+static int hclge_tp_port_init(struct hclge_dev *hdev)
+{
+	struct ethtool_link_ksettings cmd;
+
+	if (!hnae3_dev_phy_imp_supported(hdev))
+		return 0;
+
+	cmd.base.autoneg = hdev->hw.mac.autoneg;
+	cmd.base.speed = hdev->hw.mac.speed;
+	cmd.base.duplex = hdev->hw.mac.duplex;
+	linkmode_copy(cmd.link_modes.advertising, hdev->hw.mac.advertising);
+
+	return hclge_set_phy_link_ksettings(&hdev->vport->nic, &cmd);
+}
+
 static int hclge_update_port_info(struct hclge_dev *hdev)
 {
 	struct hclge_mac *mac = &hdev->hw.mac;
@@ -3002,7 +3137,7 @@ static int hclge_update_port_info(struct hclge_dev *hdev)
 
 	/* get the port info from SFP cmd if not copper port */
 	if (mac->media_type == HNAE3_MEDIA_TYPE_COPPER)
-		return 0;
+		return hclge_update_tp_port_info(hdev);
 
 	/* if IMP does not support get SFP/qSFP info, return directly */
 	if (!hdev->support_sfp_query)
@@ -10648,7 +10783,8 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	if (ret)
 		goto err_msi_irq_uninit;
 
-	if (hdev->hw.mac.media_type == HNAE3_MEDIA_TYPE_COPPER) {
+	if (hdev->hw.mac.media_type == HNAE3_MEDIA_TYPE_COPPER &&
+	    !hnae3_dev_phy_imp_supported(hdev)) {
 		ret = hclge_mac_mdio_config(hdev);
 		if (ret)
 			goto err_msi_irq_uninit;
@@ -11038,6 +11174,13 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 	ret = hclge_mac_init(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Mac init error, ret = %d\n", ret);
+		return ret;
+	}
+
+	ret = hclge_tp_port_init(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to init tp port, ret = %d\n",
+			ret);
 		return ret;
 	}
 
@@ -11982,6 +12125,8 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.add_cls_flower = hclge_add_cls_flower,
 	.del_cls_flower = hclge_del_cls_flower,
 	.cls_flower_active = hclge_is_cls_flower_active,
+	.get_phy_link_ksettings = hclge_get_phy_link_ksettings,
+	.set_phy_link_ksettings = hclge_set_phy_link_ksettings,
 };
 
 static struct hnae3_ae_algo ae_algo = {

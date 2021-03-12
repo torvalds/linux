@@ -385,6 +385,8 @@ static void hclge_parse_capability(struct hclge_dev *hdev,
 		set_bit(HNAE3_DEV_SUPPORT_FEC_B, ae_dev->caps);
 	if (hnae3_get_bit(caps, HCLGE_CAP_PAUSE_B))
 		set_bit(HNAE3_DEV_SUPPORT_PAUSE_B, ae_dev->caps);
+	if (hnae3_get_bit(caps, HCLGE_CAP_PHY_IMP_B))
+		set_bit(HNAE3_DEV_SUPPORT_PHY_IMP_B, ae_dev->caps);
 }
 
 static __le32 hclge_build_api_caps(void)
@@ -474,6 +476,8 @@ static int hclge_firmware_compat_config(struct hclge_dev *hdev)
 
 	hnae3_set_bit(compat, HCLGE_LINK_EVENT_REPORT_EN_B, 1);
 	hnae3_set_bit(compat, HCLGE_NCSI_ERROR_REPORT_EN_B, 1);
+	if (hnae3_dev_phy_imp_supported(hdev))
+		hnae3_set_bit(compat, HCLGE_PHY_IMP_EN_B, 1);
 	req->compat = cpu_to_le32(compat);
 
 	return hclge_cmd_send(&hdev->hw, &desc, 1);

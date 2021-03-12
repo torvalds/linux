@@ -365,6 +365,8 @@ static void hns3_dbg_dev_caps(struct hnae3_handle *h)
 	dev_info(&h->pdev->dev, "support PAUSE: %s\n",
 		 test_bit(HNAE3_DEV_SUPPORT_PAUSE_B, ae_dev->caps) ?
 		 "yes" : "no");
+	dev_info(&h->pdev->dev, "support imp-controlled PHY: %s\n",
+		 test_bit(HNAE3_DEV_SUPPORT_PHY_IMP_B, caps) ? "yes" : "no");
 }
 
 static void hns3_dbg_dev_specs(struct hnae3_handle *h)

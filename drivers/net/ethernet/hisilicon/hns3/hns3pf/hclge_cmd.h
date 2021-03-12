@@ -303,6 +303,9 @@ enum hclge_opcode_type {
 	HCLGE_PPP_CMD1_INT_CMD		= 0x2101,
 	HCLGE_MAC_ETHERTYPE_IDX_RD      = 0x2105,
 	HCLGE_NCSI_INT_EN		= 0x2401,
+
+	/* PHY command */
+	HCLGE_OPC_PHY_LINK_KSETTING	= 0x7025,
 };
 
 #define HCLGE_TQP_REG_OFFSET		0x80000
@@ -1098,6 +1101,7 @@ struct hclge_query_ppu_pf_other_int_dfx_cmd {
 
 #define HCLGE_LINK_EVENT_REPORT_EN_B	0
 #define HCLGE_NCSI_ERROR_REPORT_EN_B	1
+#define HCLGE_PHY_IMP_EN_B		2
 struct hclge_firmware_compat_cmd {
 	__le32 compat;
 	u8 rsv[20];
@@ -1137,6 +1141,29 @@ struct hclge_dev_specs_1_cmd {
 	__le16 max_qset_num;
 	__le16 max_int_gl;
 	u8 rsv1[18];
+};
+
+#define HCLGE_PHY_LINK_SETTING_BD_NUM		2
+
+struct hclge_phy_link_ksetting_0_cmd {
+	__le32 speed;
+	u8 duplex;
+	u8 autoneg;
+	u8 eth_tp_mdix;
+	u8 eth_tp_mdix_ctrl;
+	u8 port;
+	u8 transceiver;
+	u8 phy_address;
+	u8 rsv;
+	__le32 supported;
+	__le32 advertising;
+	__le32 lp_advertising;
+};
+
+struct hclge_phy_link_ksetting_1_cmd {
+	u8 master_slave_cfg;
+	u8 master_slave_state;
+	u8 rsv[22];
 };
 
 int hclge_cmd_init(struct hclge_dev *hdev);
