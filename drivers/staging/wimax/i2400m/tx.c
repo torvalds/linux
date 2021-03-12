@@ -85,7 +85,7 @@
  *       can keep adding payloads to it.
  *
  *     Closed: we are not appending more payloads to this TX message
- *       (exahusted space in the queue, too many payloads or
+ *       (exhausted space in the queue, too many payloads or
  *       whichever).  We have appended padding so the whole message
  *       length is aligned to i2400m->bus_tx_block_size (as set by the
  *       bus/transport layer).
@@ -295,7 +295,7 @@ enum {
 /*
  * Calculate how much tail room is available
  *
- * Note the trick here. This path is ONLY caleed for Case A (see
+ * Note the trick here. This path is ONLY called for Case A (see
  * i2400m_tx_fifo_push() below), where we have:
  *
  *       Case A
