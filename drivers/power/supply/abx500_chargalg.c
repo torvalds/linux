@@ -28,10 +28,10 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
-#include <linux/mfd/abx500/ux500_chargalg.h>
 #include <linux/notifier.h>
 
 #include "ab8500-bm.h"
+#include "ab8500-chargalg.h"
 
 /* Watchdog kick interval */
 #define CHG_WD_INTERVAL			(6 * HZ)
