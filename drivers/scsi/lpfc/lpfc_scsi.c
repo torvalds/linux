@@ -736,7 +736,7 @@ lpfc_get_scsi_buf(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 }
 
 /**
- * lpfc_release_scsi_buf - Return a scsi buffer back to hba scsi buf list
+ * lpfc_release_scsi_buf_s3 - Return a scsi buffer back to hba scsi buf list
  * @phba: The Hba for which this call is being executed.
  * @psb: The scsi buffer which is being released.
  *
@@ -974,10 +974,10 @@ lpfc_scsi_prep_dma_buf_s3(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 #define BG_ERR_TGT	0x2
 /* Return BG_ERR_SWAP if swapping CSUM<-->CRC is required for error injection */
 #define BG_ERR_SWAP	0x10
-/**
+/*
  * Return BG_ERR_CHECK if disabling Guard/Ref/App checking is required for
  * error injection
- **/
+ */
 #define BG_ERR_CHECK	0x20
 
 /**
@@ -3699,7 +3699,7 @@ lpfc_bg_scsi_prep_dma_buf(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 /**
  * lpfc_scsi_prep_cmnd_buf - Wrapper function for IOCB/WQE mapping of scsi
  * buffer
- * @phba: The Hba for which this call is being executed.
+ * @vport: Pointer to vport object.
  * @lpfc_cmd: The scsi buffer which is going to be mapped.
  * @tmo: Timeout value for IO
  *
@@ -3721,7 +3721,7 @@ lpfc_scsi_prep_cmnd_buf(struct lpfc_vport *vport, struct lpfc_io_buf *lpfc_cmd,
  * @phba: Pointer to hba context object.
  * @vport: Pointer to vport object.
  * @lpfc_cmd: Pointer to lpfc scsi command which reported the error.
- * @rsp_iocb: Pointer to response iocb object which reported error.
+ * @fcpi_parm: FCP Initiator parameter.
  *
  * This function posts an event when there is a SCSI command reporting
  * error from the scsi device.
@@ -3836,10 +3836,10 @@ lpfc_scsi_unprep_dma_buf(struct lpfc_hba *phba, struct lpfc_io_buf *psb)
 }
 
 /**
- * lpfc_handler_fcp_err - FCP response handler
+ * lpfc_handle_fcp_err - FCP response handler
  * @vport: The virtual port for which this call is being executed.
  * @lpfc_cmd: Pointer to lpfc_io_buf data structure.
- * @rsp_iocb: The response IOCB which contains FCP error.
+ * @fcpi_parm: FCP Initiator parameter.
  *
  * This routine is called to process response IOCB with status field
  * IOSTAT_FCP_RSP_ERROR. This routine sets result field of scsi command
@@ -4023,7 +4023,7 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_io_buf *lpfc_cmd,
  * lpfc_fcp_io_cmd_wqe_cmpl - Complete a FCP IO
  * @phba: The hba for which this call is being executed.
  * @pwqeIn: The command WQE for the scsi cmnd.
- * @pwqeOut: The response WQE for the scsi cmnd.
+ * @wcqe: Pointer to driver response CQE object.
  *
  * This routine assigns scsi command result by looking into response WQE
  * status field appropriately. This routine handles QUEUE FULL condition as
@@ -4619,7 +4619,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 
 /**
  * lpfc_scsi_prep_cmnd_buf_s3 - SLI-3 IOCB init for the IO
- * @phba: Pointer to vport object for which I/O is executed
+ * @vport: Pointer to vport object.
  * @lpfc_cmd: The scsi buffer which is going to be prep'ed.
  * @tmo: timeout value for the IO
  *
@@ -4696,7 +4696,7 @@ static int lpfc_scsi_prep_cmnd_buf_s3(struct lpfc_vport *vport,
 
 /**
  * lpfc_scsi_prep_cmnd_buf_s4 - SLI-4 WQE init for the IO
- * @phba: Pointer to vport object for which I/O is executed
+ * @vport: Pointer to vport object.
  * @lpfc_cmd: The scsi buffer which is going to be prep'ed.
  * @tmo: timeout value for the IO
  *
@@ -4953,7 +4953,7 @@ lpfc_scsi_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 }
 
 /**
- * lpfc_taskmgmt_def_cmpl - IOCB completion routine for task management command
+ * lpfc_tskmgmt_def_cmpl - IOCB completion routine for task management command
  * @phba: The Hba for which this call is being executed.
  * @cmdiocbq: Pointer to lpfc_iocbq data structure.
  * @rspiocbq: Pointer to lpfc_iocbq data structure.
@@ -5098,7 +5098,7 @@ buffer_done:
 }
 
 /**
- * lpfc_poll_rearm_time - Routine to modify fcp_poll timer of hba
+ * lpfc_poll_rearm_timer - Routine to modify fcp_poll timer of hba
  * @phba: The Hba for which this call is being executed.
  *
  * This routine modifies fcp_poll_timer  field of @phba by cfg_poll_tmo.
