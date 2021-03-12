@@ -204,7 +204,7 @@ LSP clients:
 - VSCode (`clangd extension <https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd>`__)
 
 Kscope
-~~~~~~
+------
 
 For a simpler interface, `Kscope <http://sourceforge.net/projects/kscope/>`__
 is a cscope frontend which uses QT. It is lightweight, very fast and very
