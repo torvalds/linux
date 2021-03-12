@@ -5,7 +5,6 @@
  * Copyright (C) 2011 Google, Inc.
  */
 
-#include <linux/platform_device.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
@@ -84,12 +83,8 @@ struct page *ion_page_pool_alloc(struct ion_page_pool *pool)
 		page = ion_page_pool_remove(pool, false);
 	mutex_unlock(&pool->mutex);
 
-	if (!page) {
+	if (!page)
 		page = ion_page_pool_alloc_pages(pool);
-		ion_page_sync_for_device(pool->dev, page,
-					 PAGE_SIZE << pool->order,
-					 DMA_BIDIRECTIONAL);
-	}
 
 	return page;
 }
@@ -155,8 +150,7 @@ int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
 
 struct ion_page_pool *ion_page_pool_create(gfp_t gfp_mask, unsigned int order)
 {
-	struct platform_device *pdev;
-	struct ion_page_pool *pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	struct ion_page_pool *pool = kmalloc(sizeof(*pool), GFP_KERNEL);
 
 	if (!pool)
 		return NULL;
@@ -169,24 +163,10 @@ struct ion_page_pool *ion_page_pool_create(gfp_t gfp_mask, unsigned int order)
 	mutex_init(&pool->mutex);
 	plist_node_init(&pool->list, order);
 
-	pdev = platform_device_alloc("ion_pool", PLATFORM_DEVID_AUTO);
-	if (pdev) {
-		if (!platform_device_add(pdev)) {
-			pool->dev = &pdev->dev;
-			goto exit;
-		}
-		platform_device_put(pdev);
-	}
-
-exit:
 	return pool;
 }
 
 void ion_page_pool_destroy(struct ion_page_pool *pool)
 {
-	struct platform_device *pdev;
-
-	pdev = pool->dev ? to_platform_device(pool->dev) : NULL;
-	platform_device_put(pdev);
 	kfree(pool);
 }
