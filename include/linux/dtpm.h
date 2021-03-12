@@ -29,6 +29,7 @@ struct dtpm {
 struct dtpm_ops {
 	u64 (*set_power_uw)(struct dtpm *, u64);
 	u64 (*get_power_uw)(struct dtpm *);
+	int (*update_power_uw)(struct dtpm *);
 	void (*release)(struct dtpm *);
 };
 
@@ -62,7 +63,7 @@ static inline struct dtpm *to_dtpm(struct powercap_zone *zone)
 	return container_of(zone, struct dtpm, zone);
 }
 
-int dtpm_update_power(struct dtpm *dtpm, u64 power_min, u64 power_max);
+int dtpm_update_power(struct dtpm *dtpm);
 
 int dtpm_release_zone(struct powercap_zone *pcz);
 

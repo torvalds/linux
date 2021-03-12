@@ -14,6 +14,8 @@
  * The CPU hotplug is supported and the power numbers will be updated
  * if a CPU is hot plugged / unplugged.
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/cpumask.h>
 #include <linux/cpufreq.h>
 #include <linux/cpuhotplug.h>
@@ -23,8 +25,6 @@
 #include <linux/slab.h>
 #include <linux/units.h>
 
-static struct dtpm *__parent;
-
 static DEFINE_PER_CPU(struct dtpm *, dtpm_per_cpu);
 
 struct dtpm_cpu {
@@ -32,57 +32,16 @@ struct dtpm_cpu {
 	int cpu;
 };
 
-/*
- * When a new CPU is inserted at hotplug or boot time, add the power
- * contribution and update the dtpm tree.
- */
-static int power_add(struct dtpm *dtpm, struct em_perf_domain *em)
-{
-	u64 power_min, power_max;
-
-	power_min = em->table[0].power;
-	power_min *= MICROWATT_PER_MILLIWATT;
-	power_min += dtpm->power_min;
-
-	power_max = em->table[em->nr_perf_states - 1].power;
-	power_max *= MICROWATT_PER_MILLIWATT;
-	power_max += dtpm->power_max;
-
-	return dtpm_update_power(dtpm, power_min, power_max);
-}
-
-/*
- * When a CPU is unplugged, remove its power contribution from the
- * dtpm tree.
- */
-static int power_sub(struct dtpm *dtpm, struct em_perf_domain *em)
-{
-	u64 power_min, power_max;
-
-	power_min = em->table[0].power;
-	power_min *= MICROWATT_PER_MILLIWATT;
-	power_min = dtpm->power_min - power_min;
-
-	power_max = em->table[em->nr_perf_states - 1].power;
-	power_max *= MICROWATT_PER_MILLIWATT;
-	power_max = dtpm->power_max - power_max;
-
-	return dtpm_update_power(dtpm, power_min, power_max);
-}
-
 static u64 set_pd_power_limit(struct dtpm *dtpm, u64 power_limit)
 {
 	struct dtpm_cpu *dtpm_cpu = dtpm->private;
-	struct em_perf_domain *pd;
+	struct em_perf_domain *pd = em_cpu_get(dtpm_cpu->cpu);
 	struct cpumask cpus;
 	unsigned long freq;
 	u64 power;
 	int i, nr_cpus;
 
-	pd = em_cpu_get(dtpm_cpu->cpu);
-
 	cpumask_and(&cpus, cpu_online_mask, to_cpumask(pd->cpus));
-
 	nr_cpus = cpumask_weight(&cpus);
 
 	for (i = 0; i < pd->nr_perf_states; i++) {
@@ -113,6 +72,7 @@ static u64 get_pd_power_uw(struct dtpm *dtpm)
 
 	pd = em_cpu_get(dtpm_cpu->cpu);
 	freq = cpufreq_quick_get(dtpm_cpu->cpu);
+
 	cpumask_and(&cpus, cpu_online_mask, to_cpumask(pd->cpus));
 	nr_cpus = cpumask_weight(&cpus);
 
@@ -128,6 +88,27 @@ static u64 get_pd_power_uw(struct dtpm *dtpm)
 	return 0;
 }
 
+static int update_pd_power_uw(struct dtpm *dtpm)
+{
+	struct dtpm_cpu *dtpm_cpu = dtpm->private;
+	struct em_perf_domain *em = em_cpu_get(dtpm_cpu->cpu);
+	struct cpumask cpus;
+	int nr_cpus;
+
+	cpumask_and(&cpus, cpu_online_mask, to_cpumask(em->cpus));
+	nr_cpus = cpumask_weight(&cpus);
+
+	dtpm->power_min = em->table[0].power;
+	dtpm->power_min *= MICROWATT_PER_MILLIWATT;
+	dtpm->power_min *= nr_cpus;
+
+	dtpm->power_max = em->table[em->nr_perf_states - 1].power;
+	dtpm->power_max *= MICROWATT_PER_MILLIWATT;
+	dtpm->power_max *= nr_cpus;
+
+	return 0;
+}
+
 static void pd_release(struct dtpm *dtpm)
 {
 	struct dtpm_cpu *dtpm_cpu = dtpm->private;
@@ -139,21 +120,16 @@ static void pd_release(struct dtpm *dtpm)
 }
 
 static struct dtpm_ops dtpm_ops = {
-	.set_power_uw = set_pd_power_limit,
-	.get_power_uw = get_pd_power_uw,
-	.release = pd_release,
+	.set_power_uw	 = set_pd_power_limit,
+	.get_power_uw	 = get_pd_power_uw,
+	.update_power_uw = update_pd_power_uw,
+	.release	 = pd_release,
 };
 
 static int cpuhp_dtpm_cpu_offline(unsigned int cpu)
 {
-	struct cpufreq_policy *policy;
 	struct em_perf_domain *pd;
 	struct dtpm *dtpm;
-
-	policy = cpufreq_cpu_get(cpu);
-
-	if (!policy)
-		return 0;
 
 	pd = em_cpu_get(cpu);
 	if (!pd)
@@ -161,17 +137,7 @@ static int cpuhp_dtpm_cpu_offline(unsigned int cpu)
 
 	dtpm = per_cpu(dtpm_per_cpu, cpu);
 
-	power_sub(dtpm, pd);
-
-	if (cpumask_weight(policy->cpus) != 1)
-		return 0;
-
-	for_each_cpu(cpu, policy->related_cpus)
-		per_cpu(dtpm_per_cpu, cpu) = NULL;
-
-	dtpm_unregister(dtpm);
-
-	return 0;
+	return dtpm_update_power(dtpm);
 }
 
 static int cpuhp_dtpm_cpu_online(unsigned int cpu)
@@ -184,7 +150,6 @@ static int cpuhp_dtpm_cpu_online(unsigned int cpu)
 	int ret = -ENOMEM;
 
 	policy = cpufreq_cpu_get(cpu);
-
 	if (!policy)
 		return 0;
 
@@ -194,7 +159,7 @@ static int cpuhp_dtpm_cpu_online(unsigned int cpu)
 
 	dtpm = per_cpu(dtpm_per_cpu, cpu);
 	if (dtpm)
-		return power_add(dtpm, pd);
+		return dtpm_update_power(dtpm);
 
 	dtpm = dtpm_alloc(&dtpm_ops);
 	if (!dtpm)
@@ -210,26 +175,19 @@ static int cpuhp_dtpm_cpu_online(unsigned int cpu)
 	for_each_cpu(cpu, policy->related_cpus)
 		per_cpu(dtpm_per_cpu, cpu) = dtpm;
 
-	sprintf(name, "cpu%d", dtpm_cpu->cpu);
+	snprintf(name, sizeof(name), "cpu%d-cpufreq", dtpm_cpu->cpu);
 
-	ret = dtpm_register(name, dtpm, __parent);
+	ret = dtpm_register(name, dtpm, NULL);
 	if (ret)
 		goto out_kfree_dtpm_cpu;
-
-	ret = power_add(dtpm, pd);
-	if (ret)
-		goto out_dtpm_unregister;
 
 	ret = freq_qos_add_request(&policy->constraints,
 				   &dtpm_cpu->qos_req, FREQ_QOS_MAX,
 				   pd->table[pd->nr_perf_states - 1].frequency);
 	if (ret)
-		goto out_power_sub;
+		goto out_dtpm_unregister;
 
 	return 0;
-
-out_power_sub:
-	power_sub(dtpm, pd);
 
 out_dtpm_unregister:
 	dtpm_unregister(dtpm);
@@ -248,10 +206,38 @@ out_kfree_dtpm:
 
 int dtpm_register_cpu(struct dtpm *parent)
 {
-	__parent = parent;
+	int ret;
 
-	return cpuhp_setup_state(CPUHP_AP_DTPM_CPU_ONLINE,
-				 "dtpm_cpu:online",
-				 cpuhp_dtpm_cpu_online,
-				 cpuhp_dtpm_cpu_offline);
+	/*
+	 * The callbacks at CPU hotplug time are calling
+	 * dtpm_update_power() which in turns calls update_pd_power().
+	 *
+	 * The function update_pd_power() uses the online mask to
+	 * figure out the power consumption limits.
+	 *
+	 * At CPUHP_AP_ONLINE_DYN, the CPU is present in the CPU
+	 * online mask when the cpuhp_dtpm_cpu_online function is
+	 * called, but the CPU is still in the online mask for the
+	 * tear down callback. So the power can not be updated when
+	 * the CPU is unplugged.
+	 *
+	 * At CPUHP_AP_DTPM_CPU_DEAD, the situation is the opposite as
+	 * above. The CPU online mask is not up to date when the CPU
+	 * is plugged in.
+	 *
+	 * For this reason, we need to call the online and offline
+	 * callbacks at different moments when the CPU online mask is
+	 * consistent with the power numbers we want to update.
+	 */
+	ret = cpuhp_setup_state(CPUHP_AP_DTPM_CPU_DEAD, "dtpm_cpu:offline",
+				NULL, cpuhp_dtpm_cpu_offline);
+	if (ret < 0)
+		return ret;
+
+	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "dtpm_cpu:online",
+				cpuhp_dtpm_cpu_online, NULL);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }

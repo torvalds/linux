@@ -116,8 +116,6 @@ static void __dtpm_sub_power(struct dtpm *dtpm)
 		parent->power_limit -= dtpm->power_limit;
 		parent = parent->parent;
 	}
-
-	__dtpm_rebalance_weight(root);
 }
 
 static void __dtpm_add_power(struct dtpm *dtpm)
@@ -130,45 +128,45 @@ static void __dtpm_add_power(struct dtpm *dtpm)
 		parent->power_limit += dtpm->power_limit;
 		parent = parent->parent;
 	}
+}
 
-	__dtpm_rebalance_weight(root);
+static int __dtpm_update_power(struct dtpm *dtpm)
+{
+	int ret;
+
+	__dtpm_sub_power(dtpm);
+
+	ret = dtpm->ops->update_power_uw(dtpm);
+	if (ret)
+		pr_err("Failed to update power for '%s': %d\n",
+		       dtpm->zone.name, ret);
+
+	if (!test_bit(DTPM_POWER_LIMIT_FLAG, &dtpm->flags))
+		dtpm->power_limit = dtpm->power_max;
+
+	__dtpm_add_power(dtpm);
+
+	if (root)
+		__dtpm_rebalance_weight(root);
+
+	return ret;
 }
 
 /**
  * dtpm_update_power - Update the power on the dtpm
  * @dtpm: a pointer to a dtpm structure to update
- * @power_min: a u64 representing the new power_min value
- * @power_max: a u64 representing the new power_max value
  *
  * Function to update the power values of the dtpm node specified in
  * parameter. These new values will be propagated to the tree.
  *
  * Return: zero on success, -EINVAL if the values are inconsistent
  */
-int dtpm_update_power(struct dtpm *dtpm, u64 power_min, u64 power_max)
+int dtpm_update_power(struct dtpm *dtpm)
 {
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&dtpm_lock);
-
-	if (power_min == dtpm->power_min && power_max == dtpm->power_max)
-		goto unlock;
-
-	if (power_max < power_min) {
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	__dtpm_sub_power(dtpm);
-
-	dtpm->power_min = power_min;
-	dtpm->power_max = power_max;
-	if (!test_bit(DTPM_POWER_LIMIT_FLAG, &dtpm->flags))
-		dtpm->power_limit = power_max;
-
-	__dtpm_add_power(dtpm);
-
-unlock:
+	ret = __dtpm_update_power(dtpm);
 	mutex_unlock(&dtpm_lock);
 
 	return ret;
@@ -436,6 +434,7 @@ int dtpm_register(const char *name, struct dtpm *dtpm, struct dtpm *parent)
 
 	if (dtpm->ops && !(dtpm->ops->set_power_uw &&
 			   dtpm->ops->get_power_uw &&
+			   dtpm->ops->update_power_uw &&
 			   dtpm->ops->release))
 		return -EINVAL;
 
@@ -455,7 +454,8 @@ int dtpm_register(const char *name, struct dtpm *dtpm, struct dtpm *parent)
 		root = dtpm;
 	}
 
-	__dtpm_add_power(dtpm);
+	if (dtpm->ops && !dtpm->ops->update_power_uw(dtpm))
+		__dtpm_add_power(dtpm);
 
 	pr_info("Registered dtpm node '%s' / %llu-%llu uW, \n",
 		dtpm->zone.name, dtpm->power_min, dtpm->power_max);
