@@ -59,7 +59,7 @@ struct sigmadsp *devm_sigmadsp_init_i2c(struct i2c_client *client,
 
 int sigmadsp_attach(struct sigmadsp *sigmadsp,
 	struct snd_soc_component *component);
-int sigmadsp_setup(struct sigmadsp *sigmadsp, unsigned int rate);
+int sigmadsp_setup(struct sigmadsp *sigmadsp, unsigned int samplerate);
 void sigmadsp_reset(struct sigmadsp *sigmadsp);
 
 #endif
