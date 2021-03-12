@@ -104,6 +104,11 @@ nfp_flower_install_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 		return -EOPNOTSUPP;
 	}
 
+	if (action->police.rate_pkt_ps) {
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload not support packets per second");
+		return -EOPNOTSUPP;
+	}
+
 	rate = action->police.rate_bytes_ps;
 	burst = action->police.burst;
 	netdev_port_id = nfp_repr_get_port_id(netdev);

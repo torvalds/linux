@@ -1221,6 +1221,11 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 
 	/* Flow meter and max frame size */
 	if (entryp) {
+		if (entryp->police.rate_pkt_ps) {
+			NL_SET_ERR_MSG_MOD(extack, "QoS offload not support packets per second");
+			err = -EOPNOTSUPP;
+			goto free_sfi;
+		}
 		if (entryp->police.burst) {
 			fmi = kzalloc(sizeof(*fmi), GFP_KERNEL);
 			if (!fmi) {
