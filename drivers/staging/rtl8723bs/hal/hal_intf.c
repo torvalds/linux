@@ -116,7 +116,7 @@ uint rtw_hal_init(struct adapter *padapter)
 
 uint rtw_hal_deinit(struct adapter *padapter)
 {
-	uint	status = _SUCCESS;
+	uint status = _SUCCESS;
 	struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
 
 	status = padapter->HalFunc.hal_deinit(padapter);
