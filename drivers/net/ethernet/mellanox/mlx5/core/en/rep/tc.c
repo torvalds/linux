@@ -621,17 +621,15 @@ bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 	int err;
 
 	reg_c0 = (be32_to_cpu(cqe->sop_drop_qpn) & MLX5E_TC_FLOW_ID_MASK);
-	if (reg_c0 == MLX5_FS_DEFAULT_FLOW_TAG)
-		reg_c0 = 0;
-	reg_c1 = be32_to_cpu(cqe->ft_metadata);
-
-	if (!reg_c0)
+	if (!reg_c0 || reg_c0 == MLX5_FS_DEFAULT_FLOW_TAG)
 		return true;
 
 	/* If reg_c0 is not equal to the default flow tag then skb->mark
 	 * is not supported and must be reset back to 0.
 	 */
 	skb->mark = 0;
+
+	reg_c1 = be32_to_cpu(cqe->ft_metadata);
 
 	priv = netdev_priv(skb->dev);
 	esw = priv->mdev->priv.eswitch;
