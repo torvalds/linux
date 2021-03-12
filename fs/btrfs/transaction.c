@@ -746,7 +746,16 @@ got_it:
 	 * Thus it need to be called after current->journal_info initialized,
 	 * or we can deadlock.
 	 */
-	btrfs_record_root_in_trans(h, root);
+	ret = btrfs_record_root_in_trans(h, root);
+	if (ret) {
+		/*
+		 * The transaction handle is fully initialized and linked with
+		 * other structures so it needs to be ended in case of errors,
+		 * not just freed.
+		 */
+		btrfs_end_transaction(h);
+		return ERR_PTR(ret);
+	}
 
 	return h;
 
