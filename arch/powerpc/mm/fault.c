@@ -557,7 +557,7 @@ static long __do_page_fault(struct pt_regs *regs)
 	if (likely(entry)) {
 		instruction_pointer_set(regs, extable_fixup(entry));
 		return 0;
-	} else if (IS_ENABLED(CONFIG_PPC_BOOK3S_64)) {
+	} else if (!IS_ENABLED(CONFIG_PPC_BOOK3E_64)) {
 		__bad_page_fault(regs, err);
 		return 0;
 	} else {

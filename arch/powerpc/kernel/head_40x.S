@@ -207,7 +207,7 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
  */
 	START_EXCEPTION(0x0300,	DataStorage)
 	EXCEPTION_PROLOG DataStorage handle_dar_dsisr=1
-	EXC_XFER_LITE(0x300, handle_page_fault)
+	EXC_XFER_LITE(0x300, do_page_fault)
 
 /*
  * 0x0400 - Instruction Storage Exception
@@ -218,7 +218,7 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 	li	r5,0
 	stw	r5, _ESR(r11)		/* Zero ESR */
 	stw	r12, _DEAR(r11)		/* SRR0 as DEAR */
-	EXC_XFER_LITE(0x400, handle_page_fault)
+	EXC_XFER_LITE(0x400, do_page_fault)
 
 /* 0x0500 - External Interrupt Exception */
 	EXCEPTION(0x0500, HardwareInterrupt, do_IRQ, EXC_XFER_LITE)

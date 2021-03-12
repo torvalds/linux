@@ -301,7 +301,7 @@ instruction_counter:
 .Litlbie:
 	stw	r12, _DAR(r11)
 	stw	r5, _DSISR(r11)
-	EXC_XFER_LITE(0x400, handle_page_fault)
+	EXC_XFER_LITE(0x400, do_page_fault)
 
 /* This is the data TLB error on the MPC8xx.  This could be due to
  * many reasons, including a dirty update to a pte.  We bail out to
@@ -322,7 +322,7 @@ DARFixed:/* Return from dcbx instruction bug workaround */
 	tlbie	r4
 .Ldtlbie:
 	/* 0x300 is DataAccess exception, needed by bad_page_fault() */
-	EXC_XFER_LITE(0x300, handle_page_fault)
+	EXC_XFER_LITE(0x300, do_page_fault)
 
 #ifdef CONFIG_VMAP_STACK
 	vmap_stack_overflow_exception

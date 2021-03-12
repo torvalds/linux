@@ -370,7 +370,7 @@ interrupt_base:
 	stw	r4, _DEAR(r11)
 	andis.	r10,r5,(ESR_ILK|ESR_DLK)@h
 	bne	1f
-	EXC_XFER_LITE(0x0300, handle_page_fault)
+	EXC_XFER_LITE(0x0300, do_page_fault)
 1:
 	EXC_XFER_LITE(0x0300, CacheLockingException)
 

@@ -221,22 +221,6 @@ ret_from_kernel_thread:
 	b	ret_from_syscall
 
 /*
- * Top-level page fault handling.
- * This is in assembler because if do_page_fault tells us that
- * it is a bad kernel page fault, we want to save the non-volatile
- * registers before calling bad_page_fault.
- */
-	.globl	handle_page_fault
-handle_page_fault:
-	bl	do_page_fault
-	cmpwi	r3,0
-	beq+	ret_from_except
-	mr	r4,r3		/* err arg for bad_page_fault */
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	__bad_page_fault
-	b	ret_from_except_full
-
-/*
  * This routine switches between two different tasks.  The process
  * state of one is saved on its kernel stack.  Then the state
  * of the other is restored from its kernel stack.  The memory
