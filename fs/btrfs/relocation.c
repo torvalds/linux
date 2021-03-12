@@ -638,9 +638,10 @@ static int __must_check __add_reloc_root(struct btrfs_root *root)
 				   node->bytenr, &node->rb_node);
 	spin_unlock(&rc->reloc_root_tree.lock);
 	if (rb_node) {
-		btrfs_panic(fs_info, -EEXIST,
+		btrfs_err(fs_info,
 			    "Duplicate root found for start=%llu while inserting into relocation tree",
 			    node->bytenr);
+		return -EEXIST;
 	}
 
 	list_add_tail(&root->root_list, &rc->reloc_roots);
@@ -882,6 +883,7 @@ int btrfs_init_reloc_root(struct btrfs_trans_handle *trans,
 		return PTR_ERR(reloc_root);
 
 	ret = __add_reloc_root(reloc_root);
+	ASSERT(ret != -EEXIST);
 	if (ret) {
 		/* Pairs with create_reloc_root */
 		btrfs_put_root(reloc_root);
@@ -4059,6 +4061,7 @@ int btrfs_recover_relocation(struct btrfs_root *root)
 		}
 
 		err = __add_reloc_root(reloc_root);
+		ASSERT(err != -EEXIST);
 		if (err) {
 			list_add_tail(&reloc_root->root_list, &reloc_roots);
 			btrfs_put_root(fs_root);
@@ -4279,6 +4282,7 @@ int btrfs_reloc_post_snapshot(struct btrfs_trans_handle *trans,
 		return PTR_ERR(reloc_root);
 
 	ret = __add_reloc_root(reloc_root);
+	ASSERT(ret != -EEXIST);
 	if (ret) {
 		/* Pairs with create_reloc_root */
 		btrfs_put_root(reloc_root);
