@@ -49,7 +49,7 @@ struct mp_tx {
 #define MP_MAX_LINES_BYTES	256
 
 typedef void (*MPT_WORK_ITEM_HANDLER)(void *Adapter);
-typedef struct _MPT_CONTEXT {
+struct MPT_CONTEXT {
 	/*  Indicate if we have started Mass Production Test. */
 	bool			bMassProdTest;
 
@@ -148,7 +148,7 @@ typedef struct _MPT_CONTEXT {
 	u32 		mptOutLen;
     u8          mptOutBuf[100];
 
-} MPT_CONTEXT, *PMPT_CONTEXT;
+};
 /* endif */
 
 /* E-Fuse */
@@ -260,16 +260,16 @@ struct mp_priv {
 	bool bSetRxBssid;
 	bool bTxBufCkFail;
 
-	MPT_CONTEXT MptCtx;
+	struct MPT_CONTEXT MptCtx;
 
 	u8 *TXradomBuffer;
 };
 
-typedef struct _IOCMD_STRUCT_ {
+struct IOCMD_STRUCT {
 	u8 cmdclass;
 	u16 value;
 	u8 index;
-} IOCMD_STRUCT;
+};
 
 struct rf_reg_param {
 	u32 path;
