@@ -81,12 +81,12 @@ _ASM_NOKPROBE_SYMBOL(crit_transfer_to_handler)
  */
 	.globl	transfer_to_handler_full
 transfer_to_handler_full:
-	SAVE_NVGPRS(r11)
 _ASM_NOKPROBE_SYMBOL(transfer_to_handler_full)
 	/* fall through */
 
 	.globl	transfer_to_handler
 transfer_to_handler:
+	SAVE_NVGPRS(r11)
 	stw	r2,GPR2(r11)
 	stw	r12,_NIP(r11)
 	stw	r9,_MSR(r11)
@@ -234,10 +234,6 @@ handle_page_fault:
 	bl	do_page_fault
 	cmpwi	r3,0
 	beq+	ret_from_except
-	SAVE_NVGPRS(r1)
-	lwz	r0,_TRAP(r1)
-	clrrwi	r0,r0,1
-	stw	r0,_TRAP(r1)
 	mr	r4,r3		/* err arg for bad_page_fault */
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	__bad_page_fault
@@ -810,13 +806,6 @@ recheck:
 do_user_signal:			/* r10 contains MSR_KERNEL here */
 	ori	r10,r10,MSR_EE
 	mtmsr	r10		/* hard-enable interrupts */
-	/* save r13-r31 in the exception frame, if not already done */
-	lwz	r3,_TRAP(r1)
-	andi.	r0,r3,1
-	beq	2f
-	SAVE_NVGPRS(r1)
-	rlwinm	r3,r3,0,0,30
-	stw	r3,_TRAP(r1)
 2:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	mr	r4,r9
 	bl	do_notify_resume
