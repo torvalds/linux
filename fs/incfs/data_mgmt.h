@@ -377,6 +377,9 @@ ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
 			u32 min_pending_time_us, u32 max_pending_time_us,
 			struct mem_range tmp);
 
+ssize_t incfs_read_merkle_tree_blocks(struct mem_range dst,
+				      struct data_file *df, size_t offset);
+
 int incfs_get_filled_blocks(struct data_file *df,
 			    struct incfs_file_data *fd,
 			    struct incfs_get_filled_blocks_args *arg);
