@@ -71,7 +71,7 @@ void odm_NHMBB(void *pDM_VOID)
 {
 	struct DM_ODM_T * pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
 	/* u8 test_status; */
-	/* Pfalse_ALARM_STATISTICS pFalseAlmCnt = &(pDM_Odm->FalseAlmCnt); */
+	/* struct false_ALARM_STATISTICS *pFalseAlmCnt = &(pDM_Odm->FalseAlmCnt); */
 
 	pDM_Odm->NHMCurTxOkcnt =
 		*(pDM_Odm->pNumTxBytesUnicast)-pDM_Odm->NHMLastTxOkcnt;
@@ -323,7 +323,7 @@ void odm_Adaptivity(void *pDM_VOID, u8 IGI)
 void ODM_Write_DIG(void *pDM_VOID, u8 CurrentIGI)
 {
 	struct DM_ODM_T * pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
-	pDIG_T pDM_DigTable = &pDM_Odm->DM_DigTable;
+	struct DIG_T * pDM_DigTable = &pDM_Odm->DM_DigTable;
 
 	if (pDM_DigTable->bStopDIG) {
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("Stop Writing IGI\n"));
@@ -358,12 +358,12 @@ void ODM_Write_DIG(void *pDM_VOID, u8 CurrentIGI)
 
 void odm_PauseDIG(
 	void *pDM_VOID,
-	ODM_Pause_DIG_TYPE PauseType,
+	enum ODM_Pause_DIG_TYPE PauseType,
 	u8 IGIValue
 )
 {
 	struct DM_ODM_T * pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
-	pDIG_T pDM_DigTable = &pDM_Odm->DM_DigTable;
+	struct DIG_T * pDM_DigTable = &pDM_Odm->DM_DigTable;
 	static bool bPaused;
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_PauseDIG() =========>\n"));
@@ -467,7 +467,7 @@ bool odm_DigAbort(void *pDM_VOID)
 void odm_DIGInit(void *pDM_VOID)
 {
 	struct DM_ODM_T * pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
-	pDIG_T pDM_DigTable = &pDM_Odm->DM_DigTable;
+	struct DIG_T * pDM_DigTable = &pDM_Odm->DM_DigTable;
 
 	pDM_DigTable->bStopDIG = false;
 	pDM_DigTable->bPSDInProgress = false;
@@ -507,8 +507,8 @@ void odm_DIG(void *pDM_VOID)
 	struct DM_ODM_T * pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
 
 	/*  Common parameters */
-	pDIG_T pDM_DigTable = &pDM_Odm->DM_DigTable;
-	Pfalse_ALARM_STATISTICS pFalseAlmCnt = &pDM_Odm->FalseAlmCnt;
+	struct DIG_T * pDM_DigTable = &pDM_Odm->DM_DigTable;
+	struct false_ALARM_STATISTICS *pFalseAlmCnt = &pDM_Odm->FalseAlmCnt;
 	bool FirstConnect, FirstDisConnect;
 	u8 DIG_MaxOfMin, DIG_Dynamic_MIN;
 	u8 dm_dig_max, dm_dig_min;
@@ -824,7 +824,7 @@ void odm_DIG(void *pDM_VOID)
 void odm_DIGbyRSSI_LPS(void *pDM_VOID)
 {
 	struct DM_ODM_T * pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
-	Pfalse_ALARM_STATISTICS pFalseAlmCnt = &pDM_Odm->FalseAlmCnt;
+	struct false_ALARM_STATISTICS *pFalseAlmCnt = &pDM_Odm->FalseAlmCnt;
 
 	u8 RSSI_Lower = DM_DIG_MIN_NIC;   /* 0x1E or 0x1C */
 	u8 CurrentIGI = pDM_Odm->RSSI_Min;
@@ -893,7 +893,7 @@ void odm_DIGbyRSSI_LPS(void *pDM_VOID)
 void odm_FalseAlarmCounterStatistics(void *pDM_VOID)
 {
 	struct DM_ODM_T * pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
-	Pfalse_ALARM_STATISTICS FalseAlmCnt = &(pDM_Odm->FalseAlmCnt);
+	struct false_ALARM_STATISTICS * FalseAlmCnt = &(pDM_Odm->FalseAlmCnt);
 	u32 ret_value;
 
 	if (!(pDM_Odm->SupportAbility & ODM_BB_FA_CNT))
@@ -1079,8 +1079,8 @@ void odm_FAThresholdCheck(
 u8 odm_ForbiddenIGICheck(void *pDM_VOID, u8 DIG_Dynamic_MIN, u8 CurrentIGI)
 {
 	struct DM_ODM_T * pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
-	pDIG_T pDM_DigTable = &pDM_Odm->DM_DigTable;
-	Pfalse_ALARM_STATISTICS pFalseAlmCnt = &(pDM_Odm->FalseAlmCnt);
+	struct DIG_T * pDM_DigTable = &pDM_Odm->DM_DigTable;
+	struct false_ALARM_STATISTICS * pFalseAlmCnt = &(pDM_Odm->FalseAlmCnt);
 	u8 rx_gain_range_min = pDM_DigTable->rx_gain_range_min;
 
 	if (pFalseAlmCnt->Cnt_all > 10000) {
@@ -1135,7 +1135,7 @@ u8 odm_ForbiddenIGICheck(void *pDM_VOID, u8 DIG_Dynamic_MIN, u8 CurrentIGI)
 void odm_CCKPacketDetectionThresh(void *pDM_VOID)
 {
 	struct DM_ODM_T * pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
-	Pfalse_ALARM_STATISTICS FalseAlmCnt = &(pDM_Odm->FalseAlmCnt);
+	struct false_ALARM_STATISTICS * FalseAlmCnt = &(pDM_Odm->FalseAlmCnt);
 	u8 CurCCK_CCAThres;
 
 
@@ -1196,7 +1196,7 @@ void odm_CCKPacketDetectionThresh(void *pDM_VOID)
 void ODM_Write_CCK_CCA_Thres(void *pDM_VOID, u8 CurCCK_CCAThres)
 {
 	struct DM_ODM_T * pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
-	pDIG_T pDM_DigTable = &pDM_Odm->DM_DigTable;
+	struct DIG_T * pDM_DigTable = &pDM_Odm->DM_DigTable;
 
 	/* modify by Guo.Mingzhi 2012-01-03 */
 	if (pDM_DigTable->CurCCK_CCAThres != CurCCK_CCAThres)

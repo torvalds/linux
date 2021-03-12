@@ -1110,13 +1110,13 @@ struct DM_ODM_T { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 	/* ODM Structure */
 	/*  */
 	struct FAT_T DM_FatTable;
-	DIG_T DM_DigTable;
+	struct DIG_T DM_DigTable;
 	PS_T DM_PSTable;
 	struct dynamic_primary_CCA DM_PriCCA;
 	struct RXHP_T DM_RXHP_Table;
 	struct RA_T DM_RA_Table;
-	false_ALARM_STATISTICS FalseAlmCnt;
-	false_ALARM_STATISTICS FlaseAlmCntBuddyAdapter;
+	struct false_ALARM_STATISTICS FalseAlmCnt;
+	struct false_ALARM_STATISTICS FlaseAlmCntBuddyAdapter;
 	struct SWAT_T DM_SWAT_Table;
 	bool RSSI_test;
 	struct CFO_TRACKING DM_CfoTrack;
