@@ -1476,11 +1476,6 @@ static void SetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)
 				rtw_read32(padapter, 0x2fc),
 				rtw_read32(padapter, 0x8c)
 			);
-#ifdef CONFIG_PNO_SET_DEBUG
-			DBG_871X("0x1b9: 0x%02x, 0x632: 0x%02x\n", rtw_read8(padapter, 0x1b9), rtw_read8(padapter, 0x632));
-			DBG_871X("0x4fc: 0x%02x, 0x4fd: 0x%02x\n", rtw_read8(padapter, 0x4fc), rtw_read8(padapter, 0x4fd));
-			DBG_871X("TXDMA STATUS: 0x%08x\n", rtw_read32(padapter, REG_TXDMA_STATUS));
-#endif
 
 			{
 				/*  2.  Set Disable WOWLAN H2C command. */

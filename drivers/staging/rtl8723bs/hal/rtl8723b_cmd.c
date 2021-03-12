@@ -1668,18 +1668,6 @@ static void rtl8723b_set_FwRsvdPagePkt(
 			rtl8723b_fill_fake_txdesc(padapter,
 				&ReservedPagePacket[BufIndex-TxDescLen],
 				ProbeReqLength, false, false, false);
-#ifdef CONFIG_PNO_SET_DEBUG
-	{
-			int gj;
-			printk("probe req pkt =>\n");
-			for (gj = 0; gj < ProbeReqLength+TxDescLen; gj++) {
-				printk(" %02x ", ReservedPagePacket[BufIndex-TxDescLen+gj]);
-				if ((gj+1)%8 == 0)
-					printk("\n");
-			}
-			printk(" <=end\n");
-	}
-#endif
 			CurtPktPageNum =
 				(u8)PageNum_128(TxDescLen + ProbeReqLength);
 
@@ -1690,18 +1678,6 @@ static void rtl8723b_set_FwRsvdPagePkt(
 			/* PNO INFO Page */
 			RsvdPageLoc.LocPNOInfo = TotalPageNum;
 			ConstructPnoInfo(padapter, &ReservedPagePacket[BufIndex-TxDescLen], &PNOLength);
-#ifdef CONFIG_PNO_SET_DEBUG
-	{
-			int gj;
-			printk("PNO pkt =>\n");
-			for (gj = 0; gj < PNOLength; gj++) {
-				printk(" %02x ", ReservedPagePacket[BufIndex-TxDescLen+gj]);
-				if ((gj + 1)%8 == 0)
-					printk("\n");
-			}
-			printk(" <=end\n");
-	}
-#endif
 
 			CurtPktPageNum = (u8)PageNum_128(PNOLength);
 			TotalPageNum += CurtPktPageNum;
@@ -1710,18 +1686,6 @@ static void rtl8723b_set_FwRsvdPagePkt(
 			/* SSID List Page */
 			RsvdPageLoc.LocSSIDInfo = TotalPageNum;
 			ConstructSSIDList(padapter, &ReservedPagePacket[BufIndex-TxDescLen], &SSIDLegnth);
-#ifdef CONFIG_PNO_SET_DEBUG
-	{
-			int gj;
-			printk("SSID list pkt =>\n");
-			for (gj = 0; gj < SSIDLegnth; gj++) {
-				printk(" %02x ", ReservedPagePacket[BufIndex-TxDescLen+gj]);
-				if ((gj + 1)%8 == 0)
-					printk("\n");
-			}
-			printk(" <=end\n");
-	}
-#endif
 			CurtPktPageNum = (u8)PageNum_128(SSIDLegnth);
 			TotalPageNum += CurtPktPageNum;
 			BufIndex += (CurtPktPageNum*PageSize);
@@ -1729,18 +1693,6 @@ static void rtl8723b_set_FwRsvdPagePkt(
 			/* Scan Info Page */
 			RsvdPageLoc.LocScanInfo = TotalPageNum;
 			ConstructScanInfo(padapter, &ReservedPagePacket[BufIndex-TxDescLen], &ScanInfoLength);
-#ifdef CONFIG_PNO_SET_DEBUG
-	{
-			int gj;
-			printk("Scan info pkt =>\n");
-			for (gj = 0; gj < ScanInfoLength; gj++) {
-				printk(" %02x ", ReservedPagePacket[BufIndex-TxDescLen+gj]);
-				if ((gj + 1)%8 == 0)
-					printk("\n");
-			}
-			printk(" <=end\n");
-	}
-#endif
 			CurtPktPageNum = (u8)PageNum_128(ScanInfoLength);
 			TotalPageNum += CurtPktPageNum;
 			BufIndex += (CurtPktPageNum*PageSize);
