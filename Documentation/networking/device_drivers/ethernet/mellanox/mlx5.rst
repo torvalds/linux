@@ -232,6 +232,15 @@ representor is attached to bridge.
 
     $ ip link set enp8s0f0 master bridge1
 
+VLANs
+-----
+Following bridge VLAN functions are supported by mlx5:
+
+- VLAN filtering (including multiple VLANs per port)::
+
+    $ ip link set bridge1 type bridge vlan_filtering 1
+    $ bridge vlan add dev enp8s0f0 vid 2-3
+
 mlx5 subfunction
 ================
 mlx5 supports subfunction management using devlink port (see :ref:`Documentation/networking/devlink/devlink-port.rst <devlink_port>`) interface.

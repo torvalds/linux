@@ -22,6 +22,7 @@ struct mlx5_esw_bridge_offloads {
 	struct delayed_work update_work;
 
 	struct mlx5_flow_table *ingress_ft;
+	struct mlx5_flow_group *ingress_vlan_fg;
 	struct mlx5_flow_group *ingress_mac_fg;
 };
 
