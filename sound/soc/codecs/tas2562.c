@@ -200,7 +200,6 @@ static int tas2562_set_dai_tdm_slot(struct snd_soc_dai *dai,
 			right_slot = left_slot;
 		} else {
 			right_slot = __ffs(tx_mask);
-			tx_mask &= ~(1 << right_slot);
 		}
 	}
 
