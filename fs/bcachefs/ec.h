@@ -84,27 +84,42 @@ static inline void stripe_csum_set(struct bch_stripe *s,
 	memcpy(stripe_csum(s, block, csum_idx), &csum, bch_crc_bytes[s->csum_type]);
 }
 
-static inline bool __bch2_ptr_matches_stripe(const struct bch_stripe *s,
-					     const struct bch_extent_ptr *ptr,
-					     unsigned block)
+static inline bool __bch2_ptr_matches_stripe(const struct bch_extent_ptr *stripe_ptr,
+					     const struct bch_extent_ptr *data_ptr,
+					     unsigned sectors)
 {
-	unsigned nr_data = s->nr_blocks - s->nr_redundant;
-
-	if (block >= nr_data)
-		return false;
-
-	return  ptr->dev    == s->ptrs[block].dev &&
-		ptr->gen    == s->ptrs[block].gen &&
-		ptr->offset >= s->ptrs[block].offset &&
-		ptr->offset  < s->ptrs[block].offset + le16_to_cpu(s->sectors);
+	return  data_ptr->dev    == stripe_ptr->dev &&
+		data_ptr->gen    == stripe_ptr->gen &&
+		data_ptr->offset >= stripe_ptr->offset &&
+		data_ptr->offset  < stripe_ptr->offset + sectors;
 }
 
 static inline bool bch2_ptr_matches_stripe(const struct bch_stripe *s,
 					   struct extent_ptr_decoded p)
 {
+	unsigned nr_data = s->nr_blocks - s->nr_redundant;
+
 	BUG_ON(!p.has_ec);
 
-	return __bch2_ptr_matches_stripe(s, &p.ptr, p.ec.block);
+	if (p.ec.block >= nr_data)
+		return false;
+
+	return __bch2_ptr_matches_stripe(&s->ptrs[p.ec.block], &p.ptr,
+					 le16_to_cpu(s->sectors));
+}
+
+static inline bool bch2_ptr_matches_stripe_m(const struct stripe *m,
+					     struct extent_ptr_decoded p)
+{
+	unsigned nr_data = m->nr_blocks - m->nr_redundant;
+
+	BUG_ON(!p.has_ec);
+
+	if (p.ec.block >= nr_data)
+		return false;
+
+	return __bch2_ptr_matches_stripe(&m->ptrs[p.ec.block], &p.ptr,
+					 m->sectors);
 }
 
 struct bch_read_bio;

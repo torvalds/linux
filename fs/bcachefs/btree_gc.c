@@ -223,6 +223,11 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 					"pointer to nonexistent stripe %llu",
 					(u64) p.ec.idx))
 				do_update = true;
+
+			if (fsck_err_on(!bch2_ptr_matches_stripe_m(m, p), c,
+					"pointer does not match stripe %llu",
+					(u64) p.ec.idx))
+				do_update = true;
 		}
 	}
 
@@ -274,8 +279,22 @@ again:
 				if (extent_entry_type(entry) == BCH_EXTENT_ENTRY_stripe_ptr) {
 					struct stripe *m = genradix_ptr(&c->stripes[true],
 									entry->stripe_ptr.idx);
+					union bch_extent_entry *next_ptr;
 
-					if (!m || !m->alive) {
+					bkey_extent_entry_for_each_from(ptrs, next_ptr, entry)
+						if (extent_entry_type(next_ptr) == BCH_EXTENT_ENTRY_ptr)
+							goto found;
+					next_ptr = NULL;
+found:
+					if (!next_ptr) {
+						bch_err(c, "aieee, found stripe ptr with no data ptr");
+						continue;
+					}
+
+					if (!m || !m->alive ||
+					    !__bch2_ptr_matches_stripe(&m->ptrs[entry->stripe_ptr.block],
+								       &next_ptr->ptr,
+								       m->sectors)) {
 						bch2_bkey_extent_entry_drop(new, entry);
 						goto again;
 					}

@@ -22,6 +22,7 @@ struct stripe {
 	unsigned		on_heap:1;
 	u8			blocks_nonempty;
 	u16			block_sectors[BCH_BKEY_PTRS_MAX];
+	struct bch_extent_ptr	ptrs[BCH_BKEY_PTRS_MAX];
 
 	struct bch_replicas_padded r;
 };

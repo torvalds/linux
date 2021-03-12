@@ -151,7 +151,8 @@ static int bkey_matches_stripe(struct bch_stripe *s,
 
 	bkey_for_each_ptr(ptrs, ptr)
 		for (i = 0; i < nr_data; i++)
-			if (__bch2_ptr_matches_stripe(s, ptr, i))
+			if (__bch2_ptr_matches_stripe(&s->ptrs[i], ptr,
+						      le16_to_cpu(s->sectors)))
 				return i;
 
 	return -1;
