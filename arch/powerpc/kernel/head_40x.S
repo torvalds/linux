@@ -247,17 +247,15 @@ _ENTRY(crit_esr)
 	EXCEPTION(0x0F00, Trap_0F, unknown_exception, EXC_XFER_STD)
 
 /* 0x1000 - Programmable Interval Timer (PIT) Exception */
-	. = 0x1000
+	START_EXCEPTION(0x1000, DecrementerTrap)
 	b Decrementer
 
-/* 0x1010 - Fixed Interval Timer (FIT) Exception
-*/
-	. = 0x1010
+/* 0x1010 - Fixed Interval Timer (FIT) Exception */
+	START_EXCEPTION(0x1010, FITExceptionTrap)
 	b FITException
 
-/* 0x1020 - Watchdog Timer (WDT) Exception
-*/
-	. = 0x1020
+/* 0x1020 - Watchdog Timer (WDT) Exception */
+	START_EXCEPTION(0x1020, WDTExceptionTrap)
 	b WDTException
 
 /* 0x1100 - Data TLB Miss Exception

@@ -121,8 +121,7 @@ instruction_counter:
 	EXCEPTION(0x100, Reset, system_reset_exception, EXC_XFER_STD)
 
 /* Machine check */
-	. = 0x200
-MachineCheck:
+	START_EXCEPTION(0x200, MachineCheck)
 	EXCEPTION_PROLOG handle_dar_dsisr=1
 	addi r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_STD(0x200, machine_check_exception)
@@ -131,8 +130,7 @@ MachineCheck:
 	EXCEPTION(0x500, HardwareInterrupt, do_IRQ, EXC_XFER_LITE)
 
 /* Alignment exception */
-	. = 0x600
-Alignment:
+	START_EXCEPTION(0x600, Alignment)
 	EXCEPTION_PROLOG handle_dar_dsisr=1
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	b	.Lalignment_exception_ool
@@ -149,8 +147,7 @@ Alignment:
 	EXC_XFER_STD(0x600, alignment_exception)
 
 /* System call */
-	. = 0xc00
-SystemCall:
+	START_EXCEPTION(0xc00, SystemCall)
 	SYSCALL_ENTRY	0xc00
 
 /* Single step - not used on 601 */
@@ -161,7 +158,6 @@ SystemCall:
  */
 	EXCEPTION(0x1000, SoftEmu, emulation_assist_interrupt, EXC_XFER_STD)
 
-	. = 0x1100
 /*
  * For the MPC8xx, this is a software tablewalk to load the instruction
  * TLB.  The task switch loads the M_TWB register with the pointer to the first
@@ -183,7 +179,7 @@ SystemCall:
 #define INVALIDATE_ADJACENT_PAGES_CPU15(addr, tmp)
 #endif
 
-InstructionTLBMiss:
+	START_EXCEPTION(0x1100, InstructionTLBMiss)
 	mtspr	SPRN_SPRG_SCRATCH2, r10
 	mtspr	SPRN_M_TW, r11
 
@@ -239,8 +235,7 @@ InstructionTLBMiss:
 	rfi
 #endif
 
-	. = 0x1200
-DataStoreTLBMiss:
+	START_EXCEPTION(0x1200, DataStoreTLBMiss)
 	mtspr	SPRN_SPRG_SCRATCH2, r10
 	mtspr	SPRN_M_TW, r11
 	mfcr	r11
@@ -303,8 +298,7 @@ DataStoreTLBMiss:
  * to many reasons, such as executing guarded memory or illegal instruction
  * addresses.  There is nothing to do but handle a big time error fault.
  */
-	. = 0x1300
-InstructionTLBError:
+	START_EXCEPTION(0x1300, InstructionTLBError)
 	EXCEPTION_PROLOG
 	andis.	r5,r9,DSISR_SRR1_MATCH_32S@h /* Filter relevant SRR1 bits */
 	andis.	r10,r9,SRR1_ISI_NOPT@h
@@ -320,8 +314,7 @@ InstructionTLBError:
  * many reasons, including a dirty update to a pte.  We bail out to
  * a higher level function that can handle it.
  */
-	. = 0x1400
-DataTLBError:
+	START_EXCEPTION(0x1400, DataTLBError)
 	EXCEPTION_PROLOG_0 handle_dar_dsisr=1
 	mfspr	r11, SPRN_DAR
 	cmpwi	cr1, r11, RPN_PATTERN
@@ -354,8 +347,7 @@ do_databreakpoint:
 	stw	r4,_DAR(r11)
 	EXC_XFER_STD(0x1c00, do_break)
 
-	. = 0x1c00
-DataBreakpoint:
+	START_EXCEPTION(0x1c00, DataBreakpoint)
 	EXCEPTION_PROLOG_0 handle_dar_dsisr=1
 	mfspr	r11, SPRN_SRR0
 	cmplwi	cr1, r11, (.Ldtlbie - PAGE_OFFSET)@l
@@ -368,8 +360,7 @@ DataBreakpoint:
 	rfi
 
 #ifdef CONFIG_PERF_EVENTS
-	. = 0x1d00
-InstructionBreakpoint:
+	START_EXCEPTION(0x1d00, InstructionBreakpoint)
 	mtspr	SPRN_SPRG_SCRATCH0, r10
 	lwz	r10, (instruction_counter - PAGE_OFFSET)@l(0)
 	addi	r10, r10, -1

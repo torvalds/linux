@@ -255,9 +255,7 @@ __secondary_hold_acknowledge:
  * pointer when we take an exception from supervisor mode.)
  *	-- paulus.
  */
-	. = 0x200
-	DO_KVM  0x200
-MachineCheck:
+	START_EXCEPTION(0x200, MachineCheck)
 	EXCEPTION_PROLOG_0
 #ifdef CONFIG_PPC_CHRP
 	mtspr	SPRN_SPRG_SCRATCH2,r1
@@ -278,9 +276,7 @@ MachineCheck:
 #endif
 
 /* Data access exception. */
-	. = 0x300
-	DO_KVM  0x300
-DataAccess:
+	START_EXCEPTION(0x300, DataAccess)
 #ifdef CONFIG_PPC_BOOK3S_604
 BEGIN_MMU_FTR_SECTION
 	mtspr	SPRN_SPRG_SCRATCH2,r10
@@ -304,9 +300,7 @@ ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_HPTE_TABLE)
 	b	handle_page_fault_tramp_1
 
 /* Instruction access exception. */
-	. = 0x400
-	DO_KVM  0x400
-InstructionAccess:
+	START_EXCEPTION(0x400, InstructionAccess)
 	mtspr	SPRN_SPRG_SCRATCH0,r10
 	mtspr	SPRN_SPRG_SCRATCH1,r11
 	mfspr	r10, SPRN_SPRG_THREAD
@@ -336,9 +330,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 	EXCEPTION(0x500, HardwareInterrupt, do_IRQ, EXC_XFER_LITE)
 
 /* Alignment exception */
-	. = 0x600
-	DO_KVM  0x600
-Alignment:
+	START_EXCEPTION(0x600, Alignment)
 	EXCEPTION_PROLOG handle_dar_dsisr=1
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	b	alignment_exception_tramp
@@ -347,9 +339,7 @@ Alignment:
 	EXCEPTION(0x700, ProgramCheck, program_check_exception, EXC_XFER_STD)
 
 /* Floating-point unavailable */
-	. = 0x800
-	DO_KVM  0x800
-FPUnavailable:
+	START_EXCEPTION(0x800, FPUnavailable)
 #ifdef CONFIG_PPC_FPU
 BEGIN_FTR_SECTION
 /*
@@ -375,9 +365,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
 	EXCEPTION(0xb00, Trap_0b, unknown_exception, EXC_XFER_STD)
 
 /* System call */
-	. = 0xc00
-	DO_KVM  0xc00
-SystemCall:
+	START_EXCEPTION(0xc00, SystemCall)
 	SYSCALL_ENTRY	0xc00
 
 	EXCEPTION(0xd00, SingleStep, single_step_exception, EXC_XFER_STD)
@@ -391,12 +379,10 @@ SystemCall:
  * non-altivec kernel running on a machine with altivec just
  * by executing an altivec instruction.
  */
-	. = 0xf00
-	DO_KVM  0xf00
+	START_EXCEPTION(0xf00, PerformanceMonitorTrap)
 	b	PerformanceMonitor
 
-	. = 0xf20
-	DO_KVM  0xf20
+	START_EXCEPTION(0xf20, AltiVecUnavailableTrap)
 	b	AltiVecUnavailable
 
 /*
