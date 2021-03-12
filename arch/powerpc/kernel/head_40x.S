@@ -104,7 +104,7 @@ _ENTRY(crit_esr)
  * Instead we use a couple of words of memory at low physical addresses.
  * This is OK since we don't support SMP on these processors.
  */
-.macro CRITICAL_EXCEPTION_PROLOG
+.macro CRITICAL_EXCEPTION_PROLOG name
 	stw	r10,crit_r10@l(0)	/* save two registers to work with */
 	stw	r11,crit_r11@l(0)
 	mfspr	r10,SPRN_SRR0
@@ -135,6 +135,7 @@ _ENTRY(crit_esr)
 
 	.text
 1:
+\name\()_virt:
 	lwz	r11,crit_r1@l(0)
 	stw	r11,GPR1(r1)
 	stw	r11,0(r1)
@@ -162,6 +163,7 @@ _ENTRY(crit_esr)
 	stw	r10, 8(r11)
 	SAVE_4GPRS(3, r11)
 	SAVE_2GPRS(7, r11)
+_ASM_NOKPROBE_SYMBOL(\name\()_virt)
 .endm
 
 	/*
@@ -182,7 +184,7 @@ _ENTRY(crit_esr)
  */
 #define CRITICAL_EXCEPTION(n, label, hdlr)			\
 	START_EXCEPTION(n, label);				\
-	CRITICAL_EXCEPTION_PROLOG;				\
+	CRITICAL_EXCEPTION_PROLOG label;				\
 	addi	r3,r1,STACK_FRAME_OVERHEAD;			\
 	EXC_XFER_TEMPLATE(hdlr, n+2, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), \
 			  crit_transfer_to_handler, ret_from_crit_exc)
@@ -205,7 +207,7 @@ _ENTRY(crit_esr)
  * if they can't resolve the lightweight TLB fault.
  */
 	START_EXCEPTION(0x0300,	DataStorage)
-	EXCEPTION_PROLOG handle_dar_dsisr=1
+	EXCEPTION_PROLOG DataStorage handle_dar_dsisr=1
 	EXC_XFER_LITE(0x300, handle_page_fault)
 
 /*
@@ -213,7 +215,7 @@ _ENTRY(crit_esr)
  * This is caused by a fetch from non-execute or guarded pages.
  */
 	START_EXCEPTION(0x0400, InstructionAccess)
-	EXCEPTION_PROLOG
+	EXCEPTION_PROLOG InstructionAccess
 	li	r5,0
 	stw	r5, _ESR(r11)		/* Zero ESR */
 	stw	r12, _DEAR(r11)		/* SRR0 as DEAR */
@@ -224,13 +226,13 @@ _ENTRY(crit_esr)
 
 /* 0x0600 - Alignment Exception */
 	START_EXCEPTION(0x0600, Alignment)
-	EXCEPTION_PROLOG handle_dar_dsisr=1
+	EXCEPTION_PROLOG Alignment handle_dar_dsisr=1
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_STD(0x600, alignment_exception)
 
 /* 0x0700 - Program Exception */
 	START_EXCEPTION(0x0700, ProgramCheck)
-	EXCEPTION_PROLOG handle_dar_dsisr=1
+	EXCEPTION_PROLOG ProgramCheck handle_dar_dsisr=1
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_STD(0x700, program_check_exception)
 
@@ -450,7 +452,7 @@ _ENTRY(crit_esr)
  */
 	/* 0x2000 - Debug Exception */
 	START_EXCEPTION(0x2000, DebugTrap)
-	CRITICAL_EXCEPTION_PROLOG
+	CRITICAL_EXCEPTION_PROLOG DebugTrap
 
 	/*
 	 * If this is a single step or branch-taken exception in an
@@ -500,7 +502,7 @@ _ENTRY(crit_esr)
 	/* Programmable Interval Timer (PIT) Exception. (from 0x1000) */
 	__HEAD
 Decrementer:
-	EXCEPTION_PROLOG
+	EXCEPTION_PROLOG Decrementer
 	lis	r0,TSR_PIS@h
 	mtspr	SPRN_TSR,r0		/* Clear the PIT exception */
 	addi	r3,r1,STACK_FRAME_OVERHEAD
@@ -509,14 +511,14 @@ Decrementer:
 	/* Fixed Interval Timer (FIT) Exception. (from 0x1010) */
 	__HEAD
 FITException:
-	EXCEPTION_PROLOG
+	EXCEPTION_PROLOG FITException
 	addi	r3,r1,STACK_FRAME_OVERHEAD;
 	EXC_XFER_STD(0x1010, unknown_exception)
 
 	/* Watchdog Timer (WDT) Exception. (from 0x1020) */
 	__HEAD
 WDTException:
-	CRITICAL_EXCEPTION_PROLOG;
+	CRITICAL_EXCEPTION_PROLOG WDTException
 	addi	r3,r1,STACK_FRAME_OVERHEAD;
 	EXC_XFER_TEMPLATE(WatchdogException, 0x1020+2,
 	                  (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)),

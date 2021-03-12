@@ -122,7 +122,7 @@ instruction_counter:
 
 /* Machine check */
 	START_EXCEPTION(0x200, MachineCheck)
-	EXCEPTION_PROLOG handle_dar_dsisr=1
+	EXCEPTION_PROLOG MachineCheck handle_dar_dsisr=1
 	addi r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_STD(0x200, machine_check_exception)
 
@@ -131,7 +131,7 @@ instruction_counter:
 
 /* Alignment exception */
 	START_EXCEPTION(0x600, Alignment)
-	EXCEPTION_PROLOG handle_dar_dsisr=1
+	EXCEPTION_PROLOG Alignment handle_dar_dsisr=1
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_STD(0x600, alignment_exception)
 
@@ -294,7 +294,7 @@ instruction_counter:
  * addresses.  There is nothing to do but handle a big time error fault.
  */
 	START_EXCEPTION(0x1300, InstructionTLBError)
-	EXCEPTION_PROLOG
+	EXCEPTION_PROLOG InstructionTLBError
 	andis.	r5,r9,DSISR_SRR1_MATCH_32S@h /* Filter relevant SRR1 bits */
 	andis.	r10,r9,SRR1_ISI_NOPT@h
 	beq+	.Litlbie
@@ -316,7 +316,7 @@ instruction_counter:
 	beq-	cr1, FixupDAR	/* must be a buggy dcbX, icbi insn. */
 DARFixed:/* Return from dcbx instruction bug workaround */
 	EXCEPTION_PROLOG_1
-	EXCEPTION_PROLOG_2 handle_dar_dsisr=1
+	EXCEPTION_PROLOG_2 DataTLBError handle_dar_dsisr=1
 	lwz	r4, _DAR(r11)
 	lwz	r5, _DSISR(r11)
 	andis.	r10,r5,DSISR_NOHPTE@h
@@ -347,7 +347,7 @@ DARFixed:/* Return from dcbx instruction bug workaround */
 	rfi
 
 1:	EXCEPTION_PROLOG_1
-	EXCEPTION_PROLOG_2 handle_dar_dsisr=1
+	EXCEPTION_PROLOG_2 DataBreakpoint handle_dar_dsisr=1
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	mfspr	r4,SPRN_BAR
 	stw	r4,_DAR(r11)

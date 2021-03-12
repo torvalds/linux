@@ -266,7 +266,7 @@ __secondary_hold_acknowledge:
 	mfspr	r1, SPRN_SPRG_SCRATCH2
 #endif /* CONFIG_PPC_CHRP */
 	EXCEPTION_PROLOG_1
-7:	EXCEPTION_PROLOG_2
+7:	EXCEPTION_PROLOG_2 MachineCheck
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 #ifdef CONFIG_PPC_CHRP
 	beq	cr1, 1f
@@ -296,7 +296,7 @@ ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_HPTE_TABLE)
 #endif
 1:	EXCEPTION_PROLOG_0 handle_dar_dsisr=1
 	EXCEPTION_PROLOG_1
-	EXCEPTION_PROLOG_2 handle_dar_dsisr=1
+	EXCEPTION_PROLOG_2 DataAccess handle_dar_dsisr=1
 	lwz	r5, _DSISR(r11)
 	andis.	r0, r5, DSISR_DABRMATCH@h
 	bne-	1f
@@ -325,7 +325,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 	andi.	r11, r11, MSR_PR
 
 	EXCEPTION_PROLOG_1
-	EXCEPTION_PROLOG_2
+	EXCEPTION_PROLOG_2 InstructionAccess
 	andis.	r5,r9,DSISR_SRR1_MATCH_32S@h /* Filter relevant SRR1 bits */
 	stw	r5, _DSISR(r11)
 	stw	r12, _DAR(r11)
@@ -336,7 +336,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 
 /* Alignment exception */
 	START_EXCEPTION(0x600, Alignment)
-	EXCEPTION_PROLOG handle_dar_dsisr=1
+	EXCEPTION_PROLOG Alignment handle_dar_dsisr=1
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_STD(0x600, alignment_exception)
 
@@ -353,7 +353,7 @@ BEGIN_FTR_SECTION
  */
 	b 	ProgramCheck
 END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
-	EXCEPTION_PROLOG
+	EXCEPTION_PROLOG FPUnavailable
 	beq	1f
 	bl	load_up_fpu		/* if from user, just load it up */
 	b	fast_exception_return
@@ -716,7 +716,7 @@ fast_hash_page_return:
 
 	__HEAD
 AltiVecUnavailable:
-	EXCEPTION_PROLOG
+	EXCEPTION_PROLOG AltiVecUnavailable
 #ifdef CONFIG_ALTIVEC
 	beq	1f
 	bl	load_up_altivec		/* if from user, just load it up */
@@ -727,7 +727,7 @@ AltiVecUnavailable:
 
 	__HEAD
 PerformanceMonitor:
-	EXCEPTION_PROLOG
+	EXCEPTION_PROLOG PerformanceMonitor
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_STD(0xf00, performance_monitor_exception)
 
