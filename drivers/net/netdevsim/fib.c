@@ -57,6 +57,8 @@ struct nsim_fib_data {
 	struct mutex nh_lock; /* Protects NH HT */
 	struct dentry *ddir;
 	bool fail_route_offload;
+	bool fail_res_nexthop_group_replace;
+	bool fail_nexthop_bucket_replace;
 };
 
 struct nsim_fib_rt_key {
@@ -117,6 +119,7 @@ struct nsim_nexthop {
 	struct rhash_head ht_node;
 	u64 occ;
 	u32 id;
+	bool is_resilient;
 };
 
 static const struct rhashtable_params nsim_nexthop_ht_params = {
@@ -1115,6 +1118,10 @@ static struct nsim_nexthop *nsim_nexthop_create(struct nsim_fib_data *data,
 		for (i = 0; i < info->nh_grp->num_nh; i++)
 			occ += info->nh_grp->nh_entries[i].weight;
 		break;
+	case NH_NOTIFIER_INFO_TYPE_RES_TABLE:
+		occ = info->nh_res_table->num_nh_buckets;
+		nexthop->is_resilient = true;
+		break;
 	default:
 		NL_SET_ERR_MSG_MOD(info->extack, "Unsupported nexthop type");
 		kfree(nexthop);
@@ -1161,7 +1168,15 @@ static void nsim_nexthop_hw_flags_set(struct net *net,
 				      const struct nsim_nexthop *nexthop,
 				      bool trap)
 {
+	int i;
+
 	nexthop_set_hw_flags(net, nexthop->id, false, trap);
+
+	if (!nexthop->is_resilient)
+		return;
+
+	for (i = 0; i < nexthop->occ; i++)
+		nexthop_bucket_set_hw_flags(net, nexthop->id, i, false, trap);
 }
 
 static int nsim_nexthop_add(struct nsim_fib_data *data,
@@ -1262,6 +1277,32 @@ static void nsim_nexthop_remove(struct nsim_fib_data *data,
 	nsim_nexthop_destroy(nexthop);
 }
 
+static int nsim_nexthop_res_table_pre_replace(struct nsim_fib_data *data,
+					      struct nh_notifier_info *info)
+{
+	if (data->fail_res_nexthop_group_replace) {
+		NL_SET_ERR_MSG_MOD(info->extack, "Failed to replace a resilient nexthop group");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int nsim_nexthop_bucket_replace(struct nsim_fib_data *data,
+				       struct nh_notifier_info *info)
+{
+	if (data->fail_nexthop_bucket_replace) {
+		NL_SET_ERR_MSG_MOD(info->extack, "Failed to replace nexthop bucket");
+		return -EINVAL;
+	}
+
+	nexthop_bucket_set_hw_flags(info->net, info->id,
+				    info->nh_res_bucket->bucket_index,
+				    false, true);
+
+	return 0;
+}
+
 static int nsim_nexthop_event_nb(struct notifier_block *nb, unsigned long event,
 				 void *ptr)
 {
@@ -1277,6 +1318,12 @@ static int nsim_nexthop_event_nb(struct notifier_block *nb, unsigned long event,
 		break;
 	case NEXTHOP_EVENT_DEL:
 		nsim_nexthop_remove(data, info);
+		break;
+	case NEXTHOP_EVENT_RES_TABLE_PRE_REPLACE:
+		err = nsim_nexthop_res_table_pre_replace(data, info);
+		break;
+	case NEXTHOP_EVENT_BUCKET_REPLACE:
+		err = nsim_nexthop_bucket_replace(data, info);
 		break;
 	default:
 		break;
@@ -1387,6 +1434,14 @@ nsim_fib_debugfs_init(struct nsim_fib_data *data, struct nsim_dev *nsim_dev)
 	data->fail_route_offload = false;
 	debugfs_create_bool("fail_route_offload", 0600, data->ddir,
 			    &data->fail_route_offload);
+
+	data->fail_res_nexthop_group_replace = false;
+	debugfs_create_bool("fail_res_nexthop_group_replace", 0600, data->ddir,
+			    &data->fail_res_nexthop_group_replace);
+
+	data->fail_nexthop_bucket_replace = false;
+	debugfs_create_bool("fail_nexthop_bucket_replace", 0600, data->ddir,
+			    &data->fail_nexthop_bucket_replace);
 	return 0;
 }
 
