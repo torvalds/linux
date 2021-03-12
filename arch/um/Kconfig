@@ -76,6 +76,9 @@ config NR_CPUS
 	range 1 1
 	default 1
 
+config ARCH_HAS_CACHE_LINE_SIZE
+	def_bool y
+
 source "arch/$(HEADER_ARCH)/um/Kconfig"
 
 config MAY_HAVE_RUNTIME_DEPS

@@ -187,6 +187,9 @@ int os_poll(unsigned int n, const int *fds);
 extern void os_early_checks(void);
 extern void os_check_bugs(void);
 extern void check_host_supports_tls(int *supports_tls, int *tls_min);
+extern void get_host_cpu_features(
+	void (*flags_helper_func)(char *line),
+	void (*cache_helper_func)(char *line));
 
 /* mem.c */
 extern int create_mem_file(unsigned long long len);
