@@ -443,10 +443,11 @@ static void bcm_sf2_intr_disable(struct bcm_sf2_priv *priv)
 static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
 				   struct device_node *dn)
 {
+	struct device *dev = priv->dev->ds->dev;
+	struct bcm_sf2_port_status *port_st;
 	struct device_node *port;
 	unsigned int port_num;
 	struct property *prop;
-	phy_interface_t mode;
 	int err;
 
 	priv->moca_port = -1;
@@ -455,19 +456,26 @@ static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
 		if (of_property_read_u32(port, "reg", &port_num))
 			continue;
 
+		if (port_num >= DSA_MAX_PORTS) {
+			dev_err(dev, "Invalid port number %d\n", port_num);
+			continue;
+		}
+
+		port_st = &priv->port_sts[port_num];
+
 		/* Internal PHYs get assigned a specific 'phy-mode' property
 		 * value: "internal" to help flag them before MDIO probing
 		 * has completed, since they might be turned off at that
 		 * time
 		 */
-		err = of_get_phy_mode(port, &mode);
+		err = of_get_phy_mode(port, &port_st->mode);
 		if (err)
 			continue;
 
-		if (mode == PHY_INTERFACE_MODE_INTERNAL)
+		if (port_st->mode == PHY_INTERFACE_MODE_INTERNAL)
 			priv->int_phy_mask |= 1 << port_num;
 
-		if (mode == PHY_INTERFACE_MODE_MOCA)
+		if (port_st->mode == PHY_INTERFACE_MODE_MOCA)
 			priv->moca_port = port_num;
 
 		if (of_property_read_bool(port, "brcm,use-bcm-hdr"))
