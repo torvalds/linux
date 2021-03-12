@@ -340,6 +340,7 @@ static void media_graph_walk_iter(struct media_graph *graph)
 	stack_push(graph, next);
 	dev_dbg(entity->graph_obj.mdev->dev, "walk: pushing '%s' on stack\n",
 		next->name);
+	lockdep_assert_held(&entity->graph_obj.mdev->graph_mutex);
 }
 
 struct media_entity *media_graph_walk_next(struct media_graph *graph)
