@@ -874,6 +874,7 @@ ipv6_torture()
 
 	sleep 300
 	kill -9 $pid1 $pid2 $pid3 $pid4 $pid5
+	wait $pid1 $pid2 $pid3 $pid4 $pid5 2>/dev/null
 
 	# if we did not crash, success
 	log_test 0 0 "IPv6 torture test"
@@ -1476,6 +1477,7 @@ ipv4_torture()
 
 	sleep 300
 	kill -9 $pid1 $pid2 $pid3 $pid4 $pid5
+	wait $pid1 $pid2 $pid3 $pid4 $pid5 2>/dev/null
 
 	# if we did not crash, success
 	log_test 0 0 "IPv4 torture test"
