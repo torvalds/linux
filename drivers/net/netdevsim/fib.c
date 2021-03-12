@@ -14,6 +14,7 @@
  * THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  */
 
+#include <linux/bitmap.h>
 #include <linux/in6.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -1345,6 +1346,63 @@ static void nsim_nexthop_free(void *ptr, void *arg)
 	nsim_nexthop_destroy(nexthop);
 }
 
+static ssize_t nsim_nexthop_bucket_activity_write(struct file *file,
+						  const char __user *user_buf,
+						  size_t size, loff_t *ppos)
+{
+	struct nsim_fib_data *data = file->private_data;
+	struct net *net = devlink_net(data->devlink);
+	struct nsim_nexthop *nexthop;
+	unsigned long *activity;
+	loff_t pos = *ppos;
+	u16 bucket_index;
+	char buf[128];
+	int err = 0;
+	u32 nhid;
+
+	if (pos != 0)
+		return -EINVAL;
+	if (size > sizeof(buf))
+		return -EINVAL;
+	if (copy_from_user(buf, user_buf, size))
+		return -EFAULT;
+	if (sscanf(buf, "%u %hu", &nhid, &bucket_index) != 2)
+		return -EINVAL;
+
+	rtnl_lock();
+
+	nexthop = rhashtable_lookup_fast(&data->nexthop_ht, &nhid,
+					 nsim_nexthop_ht_params);
+	if (!nexthop || !nexthop->is_resilient ||
+	    bucket_index >= nexthop->occ) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	activity = bitmap_zalloc(nexthop->occ, GFP_KERNEL);
+	if (!activity) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	bitmap_set(activity, bucket_index, 1);
+	nexthop_res_grp_activity_update(net, nhid, nexthop->occ, activity);
+	bitmap_free(activity);
+
+out:
+	rtnl_unlock();
+
+	*ppos = size;
+	return err ?: size;
+}
+
+static const struct file_operations nsim_nexthop_bucket_activity_fops = {
+	.open = simple_open,
+	.write = nsim_nexthop_bucket_activity_write,
+	.llseek = no_llseek,
+	.owner = THIS_MODULE,
+};
+
 static u64 nsim_fib_ipv4_resource_occ_get(void *priv)
 {
 	struct nsim_fib_data *data = priv;
@@ -1442,6 +1500,9 @@ nsim_fib_debugfs_init(struct nsim_fib_data *data, struct nsim_dev *nsim_dev)
 	data->fail_nexthop_bucket_replace = false;
 	debugfs_create_bool("fail_nexthop_bucket_replace", 0600, data->ddir,
 			    &data->fail_nexthop_bucket_replace);
+
+	debugfs_create_file("nexthop_bucket_activity", 0200, data->ddir,
+			    data, &nsim_nexthop_bucket_activity_fops);
 	return 0;
 }
 
