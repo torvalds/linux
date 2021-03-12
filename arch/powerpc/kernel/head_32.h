@@ -57,6 +57,12 @@
 .endm
 
 .macro EXCEPTION_PROLOG_2 handle_dar_dsisr=0
+#ifdef CONFIG_PPC_8xx
+	.if	\handle_dar_dsisr
+	li	r11, RPN_PATTERN
+	mtspr	SPRN_DAR, r11	/* Tag DAR, to be used in DTLB Error */
+	.endif
+#endif
 	LOAD_REG_IMMEDIATE(r11, MSR_KERNEL & ~(MSR_IR | MSR_RI)) /* can take DTLB miss */
 	mtmsr	r11
 	isync

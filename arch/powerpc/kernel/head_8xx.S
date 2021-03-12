@@ -30,6 +30,12 @@
 #include <asm/export.h>
 #include <asm/code-patching-asm.h>
 
+/*
+ * Value for the bits that have fixed value in RPN entries.
+ * Also used for tagging DAR for DTLBerror.
+ */
+#define RPN_PATTERN	0x00f0
+
 #include "head_32.h"
 
 .macro compare_to_kernel_boundary scratch, addr
@@ -41,12 +47,6 @@
 	cmpli	cr0, \scratch, PAGE_OFFSET@h
 #endif
 .endm
-
-/*
- * Value for the bits that have fixed value in RPN entries.
- * Also used for tagging DAR for DTLBerror.
- */
-#define RPN_PATTERN	0x00f0
 
 #define PAGE_SHIFT_512K		19
 #define PAGE_SHIFT_8M		23
@@ -124,8 +124,6 @@ instruction_counter:
 	. = 0x200
 MachineCheck:
 	EXCEPTION_PROLOG handle_dar_dsisr=1
-	li	r6, RPN_PATTERN
-	mtspr	SPRN_DAR, r6	/* Tag DAR, to be used in DTLB Error */
 	addi r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_STD(0x200, machine_check_exception)
 
@@ -136,8 +134,6 @@ MachineCheck:
 	. = 0x600
 Alignment:
 	EXCEPTION_PROLOG handle_dar_dsisr=1
-	li	r6, RPN_PATTERN
-	mtspr	SPRN_DAR, r6	/* Tag DAR, to be used in DTLB Error */
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	b	.Lalignment_exception_ool
 
@@ -331,8 +327,6 @@ DataTLBError:
 	cmpwi	cr1, r11, RPN_PATTERN
 	beq-	cr1, FixupDAR	/* must be a buggy dcbX, icbi insn. */
 DARFixed:/* Return from dcbx instruction bug workaround */
-	li	r11, RPN_PATTERN
-	mtspr	SPRN_DAR, r11	/* Tag DAR, to be used in DTLB Error */
 	EXCEPTION_PROLOG_1
 	EXCEPTION_PROLOG_2 handle_dar_dsisr=1
 	lwz	r4, _DAR(r11)
