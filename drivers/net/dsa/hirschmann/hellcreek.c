@@ -1082,6 +1082,67 @@ out:
 	return err;
 }
 
+static int hellcreek_devlink_region_vlan_snapshot(struct devlink *dl,
+						  const struct devlink_region_ops *ops,
+						  struct netlink_ext_ack *extack,
+						  u8 **data)
+{
+	struct hellcreek_devlink_vlan_entry *table, *entry;
+	struct dsa_switch *ds = dsa_devlink_to_ds(dl);
+	struct hellcreek *hellcreek = ds->priv;
+	int i;
+
+	table = kcalloc(VLAN_N_VID, sizeof(*entry), GFP_KERNEL);
+	if (!table)
+		return -ENOMEM;
+
+	entry = table;
+
+	mutex_lock(&hellcreek->reg_lock);
+	for (i = 0; i < VLAN_N_VID; ++i, ++entry) {
+		entry->member = hellcreek->vidmbrcfg[i];
+		entry->vid    = i;
+	}
+	mutex_unlock(&hellcreek->reg_lock);
+
+	*data = (u8 *)table;
+
+	return 0;
+}
+
+static struct devlink_region_ops hellcreek_region_vlan_ops = {
+	.name	    = "vlan",
+	.snapshot   = hellcreek_devlink_region_vlan_snapshot,
+	.destructor = kfree,
+};
+
+static int hellcreek_setup_devlink_regions(struct dsa_switch *ds)
+{
+	struct hellcreek *hellcreek = ds->priv;
+	struct devlink_region_ops *ops;
+	struct devlink_region *region;
+	u64 size;
+
+	/* VLAN table */
+	size = VLAN_N_VID * sizeof(struct hellcreek_devlink_vlan_entry);
+	ops  = &hellcreek_region_vlan_ops;
+
+	region = dsa_devlink_region_create(ds, ops, 1, size);
+	if (IS_ERR(region))
+		return PTR_ERR(region);
+
+	hellcreek->vlan_region = region;
+
+	return 0;
+}
+
+static void hellcreek_teardown_devlink_regions(struct dsa_switch *ds)
+{
+	struct hellcreek *hellcreek = ds->priv;
+
+	dsa_devlink_region_destroy(hellcreek->vlan_region);
+}
+
 static int hellcreek_setup(struct dsa_switch *ds)
 {
 	struct hellcreek *hellcreek = ds->priv;
@@ -1143,11 +1204,24 @@ static int hellcreek_setup(struct dsa_switch *ds)
 		return ret;
 	}
 
+	ret = hellcreek_setup_devlink_regions(ds);
+	if (ret) {
+		dev_err(hellcreek->dev,
+			"Failed to setup devlink regions!\n");
+		goto err_regions;
+	}
+
 	return 0;
+
+err_regions:
+	dsa_devlink_resources_unregister(ds);
+
+	return ret;
 }
 
 static void hellcreek_teardown(struct dsa_switch *ds)
 {
+	hellcreek_teardown_devlink_regions(ds);
 	dsa_devlink_resources_unregister(ds);
 }
 
