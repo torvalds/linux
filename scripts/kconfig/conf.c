@@ -474,6 +474,8 @@ static void check_conf(struct menu *menu)
 }
 
 static struct option long_opts[] = {
+	{"help",          no_argument,       NULL,            'h'},
+	{"silent",        no_argument,       NULL,            's'},
 	{"oldaskconfig",  no_argument,       &input_mode_opt, oldaskconfig},
 	{"oldconfig",     no_argument,       &input_mode_opt, oldconfig},
 	{"syncconfig",    no_argument,       &input_mode_opt, syncconfig},
