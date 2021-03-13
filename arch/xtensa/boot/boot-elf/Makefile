@@ -6,9 +6,8 @@
 
 OBJCOPY_ARGS := -O $(if $(CONFIG_CPU_BIG_ENDIAN),elf32-xtensa-be,elf32-xtensa-le)
 
-export OBJCOPY_ARGS
-export CPPFLAGS_boot.lds += -P -C
-export KBUILD_AFLAGS += -mtext-section-literals
+CPPFLAGS_boot.lds += -P -C
+KBUILD_AFLAGS += -mtext-section-literals
 
 boot-y		:= bootstrap.o
 targets		+= $(boot-y) boot.lds
