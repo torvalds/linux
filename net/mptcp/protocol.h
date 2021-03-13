@@ -209,7 +209,6 @@ struct mptcp_pm_data {
 	u8		status;
 	struct mptcp_rm_list rm_list_tx;
 	struct mptcp_rm_list rm_list_rx;
-	u8		rm_id;
 };
 
 struct mptcp_data_frag {
