@@ -5858,15 +5858,13 @@ void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 }
 EXPORT_SYMBOL(napi_gro_flush);
 
-static struct list_head *gro_list_prepare(struct napi_struct *napi,
-					  struct sk_buff *skb)
+static void gro_list_prepare(const struct list_head *head,
+			     const struct sk_buff *skb)
 {
 	unsigned int maclen = skb->dev->hard_header_len;
 	u32 hash = skb_get_hash_raw(skb);
-	struct list_head *head;
 	struct sk_buff *p;
 
-	head = &napi->gro_hash[hash & (GRO_HASH_BUCKETS - 1)].list;
 	list_for_each_entry(p, head, list) {
 		unsigned long diffs;
 
@@ -5892,8 +5890,6 @@ static struct list_head *gro_list_prepare(struct napi_struct *napi,
 				       maclen);
 		NAPI_GRO_CB(p)->same_flow = !diffs;
 	}
-
-	return head;
 }
 
 static void skb_gro_reset_offset(struct sk_buff *skb)
@@ -5957,10 +5953,10 @@ static void gro_flush_oldest(struct napi_struct *napi, struct list_head *head)
 static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 {
 	u32 hash = skb_get_hash_raw(skb) & (GRO_HASH_BUCKETS - 1);
+	struct list_head *gro_head = &napi->gro_hash[hash].list;
 	struct list_head *head = &offload_base;
 	struct packet_offload *ptype;
 	__be16 type = skb->protocol;
-	struct list_head *gro_head;
 	struct sk_buff *pp = NULL;
 	enum gro_result ret;
 	int same_flow;
@@ -5969,7 +5965,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	if (netif_elide_gro(skb->dev))
 		goto normal;
 
-	gro_head = gro_list_prepare(napi, skb);
+	gro_list_prepare(gro_head, skb);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(ptype, head, list) {
