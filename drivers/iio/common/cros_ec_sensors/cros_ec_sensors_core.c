@@ -559,7 +559,7 @@ static int cros_ec_sensors_read_until_not_busy(
 }
 
 /**
- * read_ec_sensors_data_unsafe() - read acceleration data from EC shared memory
+ * cros_ec_sensors_read_data_unsafe() - read acceleration data from EC shared memory
  * @indio_dev:	pointer to IIO device
  * @scan_mask:	bitmap of the sensor indices to scan
  * @data:	location to store data
