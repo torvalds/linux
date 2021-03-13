@@ -219,11 +219,6 @@ void menu_add_option_modules(void)
 	modules_sym = current_entry->sym;
 }
 
-void menu_add_option_allnoconfig_y(void)
-{
-	current_entry->sym->flags |= SYMBOL_ALLNOCONFIG_Y;
-}
-
 static int menu_validate_number(struct symbol *sym, struct symbol *sym2)
 {
 	return sym2->type == S_INT || sym2->type == S_HEX ||

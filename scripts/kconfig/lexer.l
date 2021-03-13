@@ -91,7 +91,6 @@ n	[A-Za-z0-9_-]
 [ \t]*			/* whitespaces */
 \\\n			/* escaped new line */
 \n			return T_EOL;
-"allnoconfig_y"		return T_ALLNOCONFIG_Y;
 "bool"			return T_BOOL;
 "choice"		return T_CHOICE;
 "comment"		return T_COMMENT;

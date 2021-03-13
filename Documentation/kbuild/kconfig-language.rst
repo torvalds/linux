@@ -234,10 +234,6 @@ applicable everywhere (see syntax).
     enables the third modular state for all config symbols.
     At most one symbol may have the "modules" option set.
 
-  - "allnoconfig_y"
-    This declares the symbol as one that should have the value y when
-    using "allnoconfig". Used for symbols that hide other symbols.
-
 Menu dependencies
 -----------------
 

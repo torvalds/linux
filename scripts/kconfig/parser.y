@@ -45,7 +45,6 @@ static struct menu *current_menu, *current_entry;
 %token <string> T_HELPTEXT
 %token <string> T_WORD
 %token <string> T_WORD_QUOTE
-%token T_ALLNOCONFIG_Y
 %token T_BOOL
 %token T_CHOICE
 %token T_CLOSE_PAREN
@@ -220,11 +219,6 @@ config_option: T_RANGE symbol symbol if_expr T_EOL
 config_option: T_OPTION T_MODULES T_EOL
 {
 	menu_add_option_modules();
-};
-
-config_option: T_OPTION T_ALLNOCONFIG_Y T_EOL
-{
-	menu_add_option_allnoconfig_y();
 };
 
 /* choice entry */
