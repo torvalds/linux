@@ -187,6 +187,8 @@ void __init kasan_shallow_populate(void *start, void *end)
 		}
 		vaddr += PAGE_SIZE;
 	}
+
+	local_flush_tlb_all();
 }
 
 void __init kasan_init(void)
