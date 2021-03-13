@@ -109,11 +109,6 @@ EXPORT_SYMBOL_GPL(dirty_writeback_interval);
 unsigned int dirty_expire_interval = 30 * 100; /* centiseconds */
 
 /*
- * Flag that makes the machine dump writes/reads and block dirtyings.
- */
-int block_dump;
-
-/*
  * Flag that puts the machine in "laptop mode". Doubles as a timeout in jiffies:
  * a full sync is triggered after this time elapses without any disk activity.
  */

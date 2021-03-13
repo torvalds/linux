@@ -1086,15 +1086,6 @@ blk_qc_t submit_bio(struct bio *bio)
 			task_io_account_read(bio->bi_iter.bi_size);
 			count_vm_events(PGPGIN, count);
 		}
-
-		if (unlikely(block_dump)) {
-			char b[BDEVNAME_SIZE];
-			printk(KERN_DEBUG "%s(%d): %s block %Lu on %s (%u sectors)\n",
-			current->comm, task_pid_nr(current),
-				op_is_write(bio_op(bio)) ? "WRITE" : "READ",
-				(unsigned long long)bio->bi_iter.bi_sector,
-				bio_devname(bio, b), count);
-		}
 	}
 
 	/*
