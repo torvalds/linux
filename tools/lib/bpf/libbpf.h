@@ -507,6 +507,7 @@ struct xdp_link_info {
 struct bpf_xdp_set_link_opts {
 	size_t sz;
 	int old_fd;
+	size_t :0;
 };
 #define bpf_xdp_set_link_opts__last_field old_fd
 
