@@ -25,7 +25,6 @@ files can be found in mm/swap.c.
 Currently, these files are in /proc/sys/vm:
 
 - admin_reserve_kbytes
-- block_dump
 - compact_memory
 - compaction_proactiveness
 - compact_unevictable_allowed
@@ -104,13 +103,6 @@ and add the sum of their RSS.
 On x86_64 this is about 128MB.
 
 Changing this takes effect whenever an application requests memory.
-
-
-block_dump
-==========
-
-block_dump enables block I/O debugging when set to a nonzero value. More
-information on block I/O debugging is in Documentation/admin-guide/laptops/laptop-mode.rst.
 
 
 compact_memory
