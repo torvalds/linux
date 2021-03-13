@@ -26,6 +26,7 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 	int expected_opsize;
 	u8 version;
 	u8 flags;
+	u8 i;
 
 	switch (subtype) {
 	case MPTCPOPT_MP_CAPABLE:
@@ -272,14 +273,17 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 		break;
 
 	case MPTCPOPT_RM_ADDR:
-		if (opsize != TCPOLEN_MPTCP_RM_ADDR_BASE)
+		if (opsize < TCPOLEN_MPTCP_RM_ADDR_BASE + 1 ||
+		    opsize > TCPOLEN_MPTCP_RM_ADDR_BASE + MPTCP_RM_IDS_MAX)
 			break;
 
 		ptr++;
 
 		mp_opt->rm_addr = 1;
-		mp_opt->rm_id = *ptr++;
-		pr_debug("RM_ADDR: id=%d", mp_opt->rm_id);
+		mp_opt->rm_list.nr = opsize - TCPOLEN_MPTCP_RM_ADDR_BASE;
+		for (i = 0; i < mp_opt->rm_list.nr; i++)
+			mp_opt->rm_list.ids[i] = *ptr++;
+		pr_debug("RM_ADDR: rm_list_nr=%d", mp_opt->rm_list.nr);
 		break;
 
 	case MPTCPOPT_MP_PRIO:
@@ -1043,7 +1047,7 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb)
 	}
 
 	if (mp_opt.rm_addr) {
-		mptcp_pm_rm_addr_received(msk, mp_opt.rm_id);
+		mptcp_pm_rm_addr_received(msk, &mp_opt.rm_list);
 		mp_opt.rm_addr = 0;
 	}
 
