@@ -1071,12 +1071,15 @@ static bool mptcp_pm_remove_anno_addr(struct mptcp_sock *msk,
 				      struct mptcp_addr_info *addr,
 				      bool force)
 {
+	struct mptcp_rm_list list = { .nr = 0 };
 	bool ret;
+
+	list.ids[list.nr++] = addr->id;
 
 	ret = remove_anno_list_by_saddr(msk, addr);
 	if (ret || force) {
 		spin_lock_bh(&msk->pm.lock);
-		mptcp_pm_remove_addr(msk, addr->id);
+		mptcp_pm_remove_addr(msk, &list);
 		spin_unlock_bh(&msk->pm.lock);
 	}
 	return ret;
