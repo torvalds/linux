@@ -36,3 +36,9 @@ Operating Systems 2
    lab10-networking.rst
    lab11-arm-kernel-development.rst
    lab12-kernel-profiling.rst
+
+.. toctree::
+   :caption: Assignments
+   :maxdepth: 1
+
+   assign0-kernel-api.rst
