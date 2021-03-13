@@ -83,12 +83,13 @@ static inline struct workqueue_struct *index_update_wq(struct bch_write_op *op)
 
 int bch2_sum_sector_overwrites(struct btree_trans *, struct btree_iter *,
 			       struct bkey_i *, bool *, bool *, s64 *, s64 *);
-int bch2_extent_update(struct btree_trans *, struct btree_iter *,
-		       struct bkey_i *, struct disk_reservation *,
-		       u64 *, u64, s64 *, bool);
+int bch2_extent_update(struct btree_trans *, subvol_inum,
+		       struct btree_iter *, struct bkey_i *,
+		       struct disk_reservation *, u64 *, u64, s64 *, bool);
+
 int bch2_fpunch_at(struct btree_trans *, struct btree_iter *,
-		   struct bpos, u64 *, s64 *);
-int bch2_fpunch(struct bch_fs *c, u64, u64, u64, u64 *, s64 *);
+		   subvol_inum, u64, u64 *, s64 *);
+int bch2_fpunch(struct bch_fs *c, subvol_inum, u64, u64, u64 *, s64 *);
 
 static inline void bch2_write_op_init(struct bch_write_op *op, struct bch_fs *c,
 				      struct bch_io_opts opts)
@@ -108,6 +109,7 @@ static inline void bch2_write_op_init(struct bch_write_op *op, struct bch_fs *c,
 	op->devs_have.nr	= 0;
 	op->target		= 0;
 	op->opts		= opts;
+	op->subvol		= 0;
 	op->pos			= POS_MAX;
 	op->version		= ZERO_VERSION;
 	op->write_point		= (struct write_point_specifier) { 0 };
@@ -174,10 +176,10 @@ static inline void bch2_read_extent(struct btree_trans *trans,
 }
 
 void __bch2_read(struct bch_fs *, struct bch_read_bio *, struct bvec_iter,
-		 u64, struct bch_io_failures *, unsigned flags);
+		 subvol_inum, struct bch_io_failures *, unsigned flags);
 
 static inline void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
-			     u64 inode)
+			     subvol_inum inum)
 {
 	struct bch_io_failures failed = { .nr = 0 };
 
@@ -185,8 +187,9 @@ static inline void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 
 	rbio->c = c;
 	rbio->start_time = local_clock();
+	rbio->subvol = inum.subvol;
 
-	__bch2_read(c, rbio, rbio->bio.bi_iter, inode, &failed,
+	__bch2_read(c, rbio, rbio->bio.bi_iter, inum, &failed,
 		    BCH_READ_RETRY_IF_STALE|
 		    BCH_READ_MAY_PROMOTE|
 		    BCH_READ_USER_MAPPED);

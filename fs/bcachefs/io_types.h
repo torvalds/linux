@@ -62,6 +62,7 @@ struct bch_read_bio {
 	/*
 	 * pos we read from - different from data_pos for indirect extents:
 	 */
+	u32			subvol;
 	struct bpos		read_pos;
 
 	/*
@@ -124,6 +125,7 @@ struct bch_write_op {
 	u16			nonce;
 	struct bch_io_opts	opts;
 
+	u32			subvol;
 	struct bpos		pos;
 	struct bversion		version;
 
