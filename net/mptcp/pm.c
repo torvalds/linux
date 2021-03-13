@@ -218,7 +218,7 @@ void mptcp_pm_rm_addr_received(struct mptcp_sock *msk,
 
 	spin_lock_bh(&pm->lock);
 	mptcp_pm_schedule_work(msk, MPTCP_PM_RM_ADDR_RECEIVED);
-	pm->rm_id = rm_list->ids[0];
+	pm->rm_list_rx = *rm_list;
 	spin_unlock_bh(&pm->lock);
 }
 
@@ -300,6 +300,7 @@ void mptcp_pm_data_init(struct mptcp_sock *msk)
 	msk->pm.local_addr_used = 0;
 	msk->pm.subflows = 0;
 	msk->pm.rm_list_tx.nr = 0;
+	msk->pm.rm_list_rx.nr = 0;
 	WRITE_ONCE(msk->pm.work_pending, false);
 	WRITE_ONCE(msk->pm.addr_signal, 0);
 	WRITE_ONCE(msk->pm.accept_addr, false);
