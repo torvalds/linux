@@ -571,8 +571,7 @@ int main(int ac, char **av)
 		conf_usage(progname);
 		exit(1);
 	}
-	name = av[optind];
-	conf_parse(name);
+	conf_parse(av[optind]);
 	//zconfdump(stdout);
 
 	switch (input_mode) {
