@@ -1231,7 +1231,6 @@ int cdnsp_mem_init(struct cdnsp_device *pdev)
 	if (!pdev->dcbaa)
 		return -ENOMEM;
 
-	memset(pdev->dcbaa, 0, sizeof(*pdev->dcbaa));
 	pdev->dcbaa->dma = dma;
 
 	cdnsp_write_64(dma, &pdev->op_regs->dcbaa_ptr);
