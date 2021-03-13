@@ -229,10 +229,10 @@ static struct bio *bounce_clone_bio(struct bio *bio_src)
 	 *  - The point of cloning the biovec is to produce a bio with a biovec
 	 *    the caller can modify: bi_idx and bi_bvec_done should be 0.
 	 *
-	 *  - The original bio could've had more than BIO_MAX_PAGES biovecs; if
+	 *  - The original bio could've had more than BIO_MAX_VECS biovecs; if
 	 *    we tried to clone the whole thing bio_alloc_bioset() would fail.
 	 *    But the clone should succeed as long as the number of biovecs we
-	 *    actually need to allocate is fewer than BIO_MAX_PAGES.
+	 *    actually need to allocate is fewer than BIO_MAX_VECS.
 	 *
 	 *  - Lastly, bi_vcnt should not be looked at or relied upon by code
 	 *    that does not own the bio - reason being drivers don't use it for
@@ -299,7 +299,7 @@ static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
 	int sectors = 0;
 
 	bio_for_each_segment(from, *bio_orig, iter) {
-		if (i++ < BIO_MAX_PAGES)
+		if (i++ < BIO_MAX_VECS)
 			sectors += from.bv_len >> 9;
 		if (page_to_pfn(from.bv_page) > q->limits.bounce_pfn)
 			bounce = true;

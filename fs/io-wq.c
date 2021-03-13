@@ -110,7 +110,6 @@ struct io_wq {
 	io_wq_work_fn *do_work;
 
 	struct task_struct *manager;
-	struct user_struct *user;
 
 	struct io_wq_hash *hash;
 
@@ -592,7 +591,7 @@ static bool create_io_worker(struct io_wq *wq, struct io_wqe *wqe, int index)
 	tsk->pf_io_worker = worker;
 	worker->task = tsk;
 	set_cpus_allowed_ptr(tsk, cpumask_of_node(wqe->node));
-	tsk->flags |= PF_NOFREEZE | PF_NO_SETAFFINITY;
+	tsk->flags |= PF_NO_SETAFFINITY;
 
 	raw_spin_lock_irq(&wqe->lock);
 	hlist_nulls_add_head_rcu(&worker->nulls_node, &wqe->free_list);
@@ -710,7 +709,6 @@ static int io_wq_manager(void *data)
 		set_current_state(TASK_INTERRUPTIBLE);
 		io_wq_check_workers(wq);
 		schedule_timeout(HZ);
-		try_to_freeze();
 		if (fatal_signal_pending(current))
 			set_bit(IO_WQ_BIT_EXIT, &wq->state);
 	} while (!test_bit(IO_WQ_BIT_EXIT, &wq->state));
@@ -722,9 +720,9 @@ static int io_wq_manager(void *data)
 		io_wq_for_each_worker(wq->wqes[node], io_wq_worker_wake, NULL);
 	rcu_read_unlock();
 
-	/* we might not ever have created any workers */
-	if (atomic_read(&wq->worker_refs))
-		wait_for_completion(&wq->worker_done);
+	if (atomic_dec_and_test(&wq->worker_refs))
+		complete(&wq->worker_done);
+	wait_for_completion(&wq->worker_done);
 
 	spin_lock_irq(&wq->hash->wait.lock);
 	for_each_node(node)
@@ -774,13 +772,19 @@ static int io_wq_fork_manager(struct io_wq *wq)
 	if (wq->manager)
 		return 0;
 
-	reinit_completion(&wq->worker_done);
+	WARN_ON_ONCE(test_bit(IO_WQ_BIT_EXIT, &wq->state));
+
+	init_completion(&wq->worker_done);
+	atomic_set(&wq->worker_refs, 1);
 	tsk = create_io_thread(io_wq_manager, wq, NUMA_NO_NODE);
 	if (!IS_ERR(tsk)) {
 		wq->manager = get_task_struct(tsk);
 		wake_up_new_task(tsk);
 		return 0;
 	}
+
+	if (atomic_dec_and_test(&wq->worker_refs))
+		complete(&wq->worker_done);
 
 	return PTR_ERR(tsk);
 }
@@ -794,8 +798,7 @@ static void io_wqe_enqueue(struct io_wqe *wqe, struct io_wq_work *work)
 	/* Can only happen if manager creation fails after exec */
 	if (io_wq_fork_manager(wqe->wq) ||
 	    test_bit(IO_WQ_BIT_EXIT, &wqe->wq->state)) {
-		work->flags |= IO_WQ_WORK_CANCEL;
-		wqe->wq->do_work(work);
+		io_run_cancel(work, wqe);
 		return;
 	}
 
@@ -1018,13 +1021,9 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 	init_completion(&wq->exited);
 	refcount_set(&wq->refs, 1);
 
-	init_completion(&wq->worker_done);
-	atomic_set(&wq->worker_refs, 0);
-
 	ret = io_wq_fork_manager(wq);
 	if (!ret)
 		return wq;
-
 err:
 	io_wq_put_hash(data->hash);
 	cpuhp_state_remove_instance_nocalls(io_wq_online, &wq->cpuhp_node);

@@ -2441,6 +2441,7 @@ struct task_struct *create_io_thread(int (*fn)(void *), void *arg, int node)
 	if (!IS_ERR(tsk)) {
 		sigfillset(&tsk->blocked);
 		sigdelsetmask(&tsk->blocked, sigmask(SIGKILL));
+		tsk->flags |= PF_NOFREEZE;
 	}
 	return tsk;
 }
