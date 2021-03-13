@@ -1664,82 +1664,6 @@ err:
 	goto out;
 }
 
-static void bch2_read_retry(struct bch_fs *c, struct bch_read_bio *rbio,
-			    struct bvec_iter bvec_iter, u64 inode,
-			    struct bch_io_failures *failed, unsigned flags)
-{
-	struct btree_trans trans;
-	struct btree_iter *iter;
-	struct bkey_buf sk;
-	struct bkey_s_c k;
-	int ret;
-
-	flags &= ~BCH_READ_LAST_FRAGMENT;
-	flags |= BCH_READ_MUST_CLONE;
-
-	bch2_bkey_buf_init(&sk);
-	bch2_trans_init(&trans, c, 0, 0);
-retry:
-	bch2_trans_begin(&trans);
-
-	for_each_btree_key(&trans, iter, BTREE_ID_extents,
-			   POS(inode, bvec_iter.bi_sector),
-			   BTREE_ITER_SLOTS, k, ret) {
-		unsigned bytes, sectors, offset_into_extent;
-
-		bch2_bkey_buf_reassemble(&sk, c, k);
-
-		offset_into_extent = iter->pos.offset -
-			bkey_start_offset(k.k);
-		sectors = k.k->size - offset_into_extent;
-
-		ret = bch2_read_indirect_extent(&trans,
-					&offset_into_extent, &sk);
-		if (ret)
-			break;
-
-		k = bkey_i_to_s_c(sk.k);
-
-		sectors = min(sectors, k.k->size - offset_into_extent);
-
-		bch2_trans_unlock(&trans);
-
-		bytes = min(sectors, bvec_iter_sectors(bvec_iter)) << 9;
-		swap(bvec_iter.bi_size, bytes);
-
-		ret = __bch2_read_extent(&trans, rbio, bvec_iter, k,
-				offset_into_extent, failed, flags);
-		switch (ret) {
-		case READ_RETRY:
-			goto retry;
-		case READ_ERR:
-			goto err;
-		};
-
-		if (bytes == bvec_iter.bi_size)
-			goto out;
-
-		swap(bvec_iter.bi_size, bytes);
-		bio_advance_iter(&rbio->bio, &bvec_iter, bytes);
-	}
-
-	if (ret == -EINTR)
-		goto retry;
-	/*
-	 * If we get here, it better have been because there was an error
-	 * reading a btree node
-	 */
-	BUG_ON(!ret);
-	bch_err_inum_ratelimited(c, inode,
-			"read error %i from btree lookup", ret);
-err:
-	rbio->bio.bi_status = BLK_STS_IOERR;
-out:
-	bch2_trans_exit(&trans);
-	bch2_bkey_buf_exit(&sk, c);
-	bch2_rbio_done(rbio);
-}
-
 static void bch2_rbio_retry(struct work_struct *work)
 {
 	struct bch_read_bio *rbio =
@@ -1762,10 +1686,14 @@ static void bch2_rbio_retry(struct work_struct *work)
 	flags |= BCH_READ_IN_RETRY;
 	flags &= ~BCH_READ_MAY_PROMOTE;
 
-	if (flags & BCH_READ_NODECODE)
+	if (flags & BCH_READ_NODECODE) {
 		bch2_read_retry_nodecode(c, rbio, iter, inode, &failed, flags);
-	else
-		bch2_read_retry(c, rbio, iter, inode, &failed, flags);
+	} else {
+		flags &= ~BCH_READ_LAST_FRAGMENT;
+		flags |= BCH_READ_MUST_CLONE;
+
+		__bch2_read(c, rbio, iter, inode, &failed, flags);
+	}
 }
 
 static void bch2_rbio_error(struct bch_read_bio *rbio, int retry,
@@ -2270,6 +2198,9 @@ out:
 			ret = READ_RETRY;
 		}
 
+		if (!ret)
+			goto out_read_done;
+
 		return ret;
 	}
 
@@ -2296,23 +2227,17 @@ out_read_done:
 	return 0;
 }
 
-void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio, u64 inode)
+void __bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
+		 struct bvec_iter bvec_iter, u64 inode,
+		 struct bch_io_failures *failed, unsigned flags)
 {
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_buf sk;
 	struct bkey_s_c k;
-	unsigned flags = BCH_READ_RETRY_IF_STALE|
-		BCH_READ_MAY_PROMOTE|
-		BCH_READ_USER_MAPPED;
 	int ret;
 
-	BUG_ON(rbio->_state);
 	BUG_ON(flags & BCH_READ_NODECODE);
-	BUG_ON(flags & BCH_READ_IN_RETRY);
-
-	rbio->c = c;
-	rbio->start_time = local_clock();
 
 	bch2_bkey_buf_init(&sk);
 	bch2_trans_init(&trans, c, 0, 0);
@@ -2320,13 +2245,13 @@ retry:
 	bch2_trans_begin(&trans);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_extents,
-				   POS(inode, rbio->bio.bi_iter.bi_sector),
+				   POS(inode, bvec_iter.bi_sector),
 				   BTREE_ITER_SLOTS);
 	while (1) {
 		unsigned bytes, sectors, offset_into_extent;
 
 		bch2_btree_iter_set_pos(iter,
-				POS(inode, rbio->bio.bi_iter.bi_sector));
+				POS(inode, bvec_iter.bi_sector));
 
 		k = bch2_btree_iter_peek_slot(iter);
 		ret = bkey_err(k);
@@ -2358,19 +2283,26 @@ retry:
 		 */
 		bch2_trans_unlock(&trans);
 
-		bytes = min(sectors, bio_sectors(&rbio->bio)) << 9;
-		swap(rbio->bio.bi_iter.bi_size, bytes);
+		bytes = min(sectors, bvec_iter_sectors(bvec_iter)) << 9;
+		swap(bvec_iter.bi_size, bytes);
 
-		if (rbio->bio.bi_iter.bi_size == bytes)
+		if (bvec_iter.bi_size == bytes)
 			flags |= BCH_READ_LAST_FRAGMENT;
 
-		bch2_read_extent(&trans, rbio, k, offset_into_extent, flags);
+		ret = __bch2_read_extent(&trans, rbio, bvec_iter, k,
+					 offset_into_extent, failed, flags);
+		switch (ret) {
+		case READ_RETRY:
+			goto retry;
+		case READ_ERR:
+			goto err;
+		};
 
 		if (flags & BCH_READ_LAST_FRAGMENT)
 			break;
 
-		swap(rbio->bio.bi_iter.bi_size, bytes);
-		bio_advance(&rbio->bio, bytes);
+		swap(bvec_iter.bi_size, bytes);
+		bio_advance_iter(&rbio->bio, &bvec_iter, bytes);
 	}
 out:
 	bch2_trans_exit(&trans);

@@ -156,7 +156,24 @@ static inline void bch2_read_extent(struct btree_trans *trans,
 			   offset_into_extent, NULL, flags);
 }
 
-void bch2_read(struct bch_fs *, struct bch_read_bio *, u64);
+void __bch2_read(struct bch_fs *, struct bch_read_bio *, struct bvec_iter,
+		 u64, struct bch_io_failures *, unsigned flags);
+
+static inline void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
+			     u64 inode)
+{
+	struct bch_io_failures failed = { .nr = 0 };
+
+	BUG_ON(rbio->_state);
+
+	rbio->c = c;
+	rbio->start_time = local_clock();
+
+	__bch2_read(c, rbio, rbio->bio.bi_iter, inode, &failed,
+		    BCH_READ_RETRY_IF_STALE|
+		    BCH_READ_MAY_PROMOTE|
+		    BCH_READ_USER_MAPPED);
+}
 
 static inline struct bch_read_bio *rbio_init(struct bio *bio,
 					     struct bch_io_opts opts)
