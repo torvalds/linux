@@ -38,14 +38,14 @@ static int memory_init(void)
 {
 	/* TODO 2/1: call task_info_alloc for current pid */
 	ti1 = task_info_alloc(current->pid);
-	
+
 	/* TODO 2/1: call task_info_alloc for parent PID */
 	ti2 = task_info_alloc(current->parent->pid);
 
 	/* TODO 2/1: call task_info alloc for next process PID */
 	ti3 = task_info_alloc(next_task(current)->pid);
 
-	/* TODO 2/1: call text_info_alloc for next process of the nex process */
+	/* TODO 2/1: call task_info_alloc for next process of the next process */
 	ti4 = task_info_alloc(next_task(next_task(current))->pid);
 
 	return 0;
