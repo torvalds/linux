@@ -219,15 +219,6 @@ void menu_add_option_modules(void)
 	modules_sym = current_entry->sym;
 }
 
-void menu_add_option_defconfig_list(void)
-{
-	if (!sym_defconfig_list)
-		sym_defconfig_list = current_entry->sym;
-	else if (sym_defconfig_list != current_entry->sym)
-		zconf_error("trying to redefine defconfig symbol");
-	sym_defconfig_list->flags |= SYMBOL_NO_WRITE;
-}
-
 void menu_add_option_allnoconfig_y(void)
 {
 	current_entry->sym->flags |= SYMBOL_ALLNOCONFIG_Y;

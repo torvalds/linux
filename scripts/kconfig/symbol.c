@@ -35,7 +35,6 @@ static struct symbol symbol_empty = {
 	.flags = SYMBOL_VALID,
 };
 
-struct symbol *sym_defconfig_list;
 struct symbol *modules_sym;
 static tristate modules_val;
 

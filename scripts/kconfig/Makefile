@@ -13,6 +13,16 @@ ifeq ($(quiet),silent_)
 silent := -s
 endif
 
+export KCONFIG_DEFCONFIG_LIST :=
+ifneq ($(SRCARCH),um)
+kernel-release := $(shell uname -r)
+KCONFIG_DEFCONFIG_LIST := \
+	/lib/modules/$(kernel-release)/.config \
+	/etc/kernel-config \
+	/boot/config-$(kernel-release) \
+	arch/$(SRCARCH)/configs/$(KBUILD_DEFCONFIG)
+endif
+
 # We need this, in case the user has it in its environment
 unexport CONFIG_
 

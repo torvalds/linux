@@ -229,11 +229,6 @@ applicable everywhere (see syntax).
   which can modify the behaviour of the menu entry and its config
   symbol. These options are currently possible:
 
-  - "defconfig_list"
-    This declares a list of default entries which can be used when
-    looking for the default configuration (which is used when the main
-    .config doesn't exists yet.)
-
   - "modules"
     This declares the symbol to be used as the MODULES symbol, which
     enables the third modular state for all config symbols.

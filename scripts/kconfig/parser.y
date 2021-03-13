@@ -53,7 +53,6 @@ static struct menu *current_menu, *current_entry;
 %token T_COMMENT
 %token T_CONFIG
 %token T_DEFAULT
-%token T_DEFCONFIG_LIST
 %token T_DEF_BOOL
 %token T_DEF_TRISTATE
 %token T_DEPENDS
@@ -221,11 +220,6 @@ config_option: T_RANGE symbol symbol if_expr T_EOL
 config_option: T_OPTION T_MODULES T_EOL
 {
 	menu_add_option_modules();
-};
-
-config_option: T_OPTION T_DEFCONFIG_LIST T_EOL
-{
-	menu_add_option_defconfig_list();
 };
 
 config_option: T_OPTION T_ALLNOCONFIG_Y T_EOL

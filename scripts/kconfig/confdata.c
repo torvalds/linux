@@ -360,28 +360,46 @@ int conf_read_simple(const char *name, int def)
 	if (name) {
 		in = zconf_fopen(name);
 	} else {
-		struct property *prop;
+		char *env;
 
 		name = conf_get_configname();
 		in = zconf_fopen(name);
 		if (in)
 			goto load;
 		sym_add_change_count(1);
-		if (!sym_defconfig_list)
+
+		env = getenv("KCONFIG_DEFCONFIG_LIST");
+		if (!env)
 			return 1;
 
-		for_all_defaults(sym_defconfig_list, prop) {
-			if (expr_calc_value(prop->visible.expr) == no ||
-			    prop->expr->type != E_SYMBOL)
-				continue;
-			sym_calc_value(prop->expr->left.sym);
-			name = sym_get_string_value(prop->expr->left.sym);
-			in = zconf_fopen(name);
+		while (1) {
+			bool is_last;
+
+			while (isspace(*env))
+				env++;
+
+			if (!*env)
+				break;
+
+			p = env;
+			while (*p && !isspace(*p))
+				p++;
+
+			is_last = (*p == '\0');
+
+			*p = '\0';
+
+			in = zconf_fopen(env);
 			if (in) {
 				conf_message("using defaults found in %s",
-					 name);
+					     env);
 				goto load;
 			}
+
+			if (is_last)
+				break;
+
+			env = p + 1;
 		}
 	}
 	if (!in)

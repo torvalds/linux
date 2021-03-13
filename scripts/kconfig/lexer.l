@@ -99,7 +99,6 @@ n	[A-Za-z0-9_-]
 "def_bool"		return T_DEF_BOOL;
 "def_tristate"		return T_DEF_TRISTATE;
 "default"		return T_DEFAULT;
-"defconfig_list"	return T_DEFCONFIG_LIST;
 "depends"		return T_DEPENDS;
 "endchoice"		return T_ENDCHOICE;
 "endif"			return T_ENDIF;
