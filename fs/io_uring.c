@@ -6752,6 +6752,7 @@ static int io_sq_thread(void *data)
 
 			up_read(&sqd->rw_lock);
 			schedule();
+			try_to_freeze();
 			down_read(&sqd->rw_lock);
 			list_for_each_entry(ctx, &sqd->ctx_list, sqd_list)
 				io_ring_clear_wakeup_flag(ctx);
