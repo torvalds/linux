@@ -560,7 +560,7 @@ static struct sh_eth_cpu_data r7s72100_data = {
 			  EESR_TDE,
 	.fdr_value	= 0x0000070f,
 
-	.trscer_err_mask = DESC_I_RINT8 | DESC_I_RINT5,
+	.trscer_err_mask = TRSCER_RMAFCE | TRSCER_RRFCE,
 
 	.no_psr		= 1,
 	.apr		= 1,
@@ -701,7 +701,7 @@ static struct sh_eth_cpu_data rcar_gen2_data = {
 			  EESR_RDE | EESR_RFRMER | EESR_TFE | EESR_TDE,
 	.fdr_value	= 0x00000f0f,
 
-	.trscer_err_mask = DESC_I_RINT8,
+	.trscer_err_mask = TRSCER_RMAFCE,
 
 	.apr		= 1,
 	.mpr		= 1,
@@ -782,7 +782,7 @@ static struct sh_eth_cpu_data r7s9210_data = {
 
 	.fdr_value	= 0x0000070f,
 
-	.trscer_err_mask = DESC_I_RINT8 | DESC_I_RINT5,
+	.trscer_err_mask = TRSCER_RMAFCE | TRSCER_RRFCE,
 
 	.apr		= 1,
 	.mpr		= 1,
@@ -1094,7 +1094,7 @@ static struct sh_eth_cpu_data sh771x_data = {
 			  EESIPR_RRFIP | EESIPR_RTLFIP | EESIPR_RTSFIP |
 			  EESIPR_PREIP | EESIPR_CERFIP,
 
-	.trscer_err_mask = DESC_I_RINT8,
+	.trscer_err_mask = TRSCER_RMAFCE,
 
 	.tsu		= 1,
 	.dual_port	= 1,
@@ -1749,7 +1749,7 @@ static void sh_eth_emac_interrupt(struct net_device *ndev)
 		link_stat = sh_eth_read(ndev, PSR);
 		if (mdp->ether_link_active_low)
 			link_stat = ~link_stat;
-		if (!(link_stat & PHY_ST_LINK)) {
+		if (!(link_stat & PSR_LMON)) {
 			sh_eth_rcv_snd_disable(ndev);
 		} else {
 			/* Link Up */
