@@ -190,6 +190,11 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 				return -EOPNOTSUPP;
 			}
 
+			if (act->police.rate_pkt_ps) {
+				NL_SET_ERR_MSG_MOD(extack, "QoS offload not support packets per second");
+				return -EOPNOTSUPP;
+			}
+
 			/* The kernel might adjust the requested burst size so
 			 * that it is not exactly a power of two. Re-adjust it
 			 * here since the hardware only supports burst sizes
