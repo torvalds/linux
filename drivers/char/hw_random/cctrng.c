@@ -486,7 +486,6 @@ static void cc_trng_clk_fini(struct cctrng_drvdata *drvdata)
 
 static int cctrng_probe(struct platform_device *pdev)
 {
-	struct resource *req_mem_cc_regs = NULL;
 	struct cctrng_drvdata *drvdata;
 	struct device *dev = &pdev->dev;
 	int rc = 0;
@@ -510,20 +509,11 @@ static int cctrng_probe(struct platform_device *pdev)
 
 	drvdata->circ.buf = (char *)drvdata->data_buf;
 
-	/* Get device resources */
-	/* First CC registers space */
-	req_mem_cc_regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	/* Map registers space */
-	drvdata->cc_base = devm_ioremap_resource(dev, req_mem_cc_regs);
+	drvdata->cc_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(drvdata->cc_base)) {
 		dev_err(dev, "Failed to ioremap registers");
 		return PTR_ERR(drvdata->cc_base);
 	}
-
-	dev_dbg(dev, "Got MEM resource (%s): %pR\n", req_mem_cc_regs->name,
-		req_mem_cc_regs);
-	dev_dbg(dev, "CC registers mapped from %pa to 0x%p\n",
-		&req_mem_cc_regs->start, drvdata->cc_base);
 
 	/* Then IRQ */
 	irq = platform_get_irq(pdev, 0);
