@@ -82,6 +82,36 @@ static void xfgets(char *str, int size, FILE *in)
 		printf("%s", str);
 }
 
+static void set_randconfig_seed(void)
+{
+	unsigned int seed;
+	char *env;
+	bool seed_set = false;
+
+	env = getenv("KCONFIG_SEED");
+	if (env && *env) {
+		char *endp;
+
+		seed = strtol(env, &endp, 0);
+		if (*endp == '\0')
+			seed_set = true;
+	}
+
+	if (!seed_set) {
+		struct timeval now;
+
+		/*
+		 * Use microseconds derived seed, compensate for systems where it may
+		 * be zero.
+		 */
+		gettimeofday(&now, NULL);
+		seed = (now.tv_sec + 1) * (now.tv_usec + 1);
+	}
+
+	printf("KCONFIG_SEED=0x%X\n", seed);
+	srand(seed);
+}
+
 static int conf_askvalue(struct symbol *sym, const char *def)
 {
 	if (!sym_has_value(sym))
@@ -515,30 +545,8 @@ int main(int ac, char **av)
 			defconfig_file = optarg;
 			break;
 		case randconfig:
-		{
-			struct timeval now;
-			unsigned int seed;
-			char *seed_env;
-
-			/*
-			 * Use microseconds derived seed,
-			 * compensate for systems where it may be zero
-			 */
-			gettimeofday(&now, NULL);
-			seed = (unsigned int)((now.tv_sec + 1) * (now.tv_usec + 1));
-
-			seed_env = getenv("KCONFIG_SEED");
-			if( seed_env && *seed_env ) {
-				char *endp;
-				int tmp = (int)strtol(seed_env, &endp, 0);
-				if (*endp == '\0') {
-					seed = tmp;
-				}
-			}
-			fprintf( stderr, "KCONFIG_SEED=0x%X\n", seed );
-			srand(seed);
+			set_randconfig_seed();
 			break;
-		}
 		case oldaskconfig:
 		case oldconfig:
 		case allnoconfig:
