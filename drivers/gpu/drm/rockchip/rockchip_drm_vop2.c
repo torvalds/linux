@@ -1405,7 +1405,7 @@ static void vop2_setup_scale(struct vop2 *vop2, const struct vop2_win *win,
 	 */
 	if (!(win->feature & WIN_FEATURE_AFBDC)) {
 		if ((yrgb_hor_scl_mode == SCALE_DOWN) && (dst_w & 0x1)) {
-			DRM_WARN("%s dst_w[%d] should align as 2 pixel\n", win->name, dst_w);
+			dev_dbg(vop2->dev, "%s dst_w[%d] should align as 2 pixel\n", win->name, dst_w);
 			dst_w += 1;
 		}
 	}
