@@ -210,6 +210,13 @@ config MSM_LCC_8960
 	  Say Y if you want to use audio devices such as i2s, pcm,
 	  SLIMBus, etc.
 
+config MDM_GCC_9607
+	tristate "MDM9607 Global Clock Controller"
+	help
+	  Support for the global clock controller on mdm9607 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  I2C, USB, SD/eMMC, etc.
+
 config MDM_GCC_9615
 	tristate "MDM9615 Global Clock Controller"
 	help
