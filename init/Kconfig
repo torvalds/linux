@@ -2042,7 +2042,7 @@ config MODULE_SIG_FORMAT
 
 menuconfig MODULES
 	bool "Enable loadable module support"
-	option modules
+	modules
 	help
 	  Kernel modules are small pieces of compiled code which can
 	  be inserted in the running kernel, rather than being

@@ -69,7 +69,6 @@ static struct menu *current_menu, *current_entry;
 %token T_MODULES
 %token T_ON
 %token T_OPEN_PAREN
-%token T_OPTION
 %token T_OPTIONAL
 %token T_PLUS_EQUAL
 %token T_PROMPT
@@ -216,9 +215,12 @@ config_option: T_RANGE symbol symbol if_expr T_EOL
 	printd(DEBUG_PARSE, "%s:%d:range\n", zconf_curname(), zconf_lineno());
 };
 
-config_option: T_OPTION T_MODULES T_EOL
+config_option: T_MODULES T_EOL
 {
-	menu_add_option_modules();
+	if (modules_sym)
+		zconf_error("symbol '%s' redefines option 'modules' already defined by symbol '%s'",
+			    current_entry->sym->name, modules_sym->name);
+	modules_sym = current_entry->sym;
 };
 
 /* choice entry */
