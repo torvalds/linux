@@ -610,11 +610,22 @@ chk_rm_nr()
 {
 	local rm_addr_nr=$1
 	local rm_subflow_nr=$2
+	local invert=${3:-""}
 	local count
 	local dump_stats
+	local addr_ns
+	local subflow_ns
+
+	if [ -z $invert ]; then
+		addr_ns=$ns1
+		subflow_ns=$ns2
+	elif [ $invert = "invert" ]; then
+		addr_ns=$ns2
+		subflow_ns=$ns1
+	fi
 
 	printf "%-39s %s" " " "rm "
-	count=`ip netns exec $ns1 nstat -as | grep MPTcpExtRmAddr | awk '{print $2}'`
+	count=`ip netns exec $addr_ns nstat -as | grep MPTcpExtRmAddr | awk '{print $2}'`
 	[ -z "$count" ] && count=0
 	if [ "$count" != "$rm_addr_nr" ]; then
 		echo "[fail] got $count RM_ADDR[s] expected $rm_addr_nr"
@@ -625,7 +636,7 @@ chk_rm_nr()
 	fi
 
 	echo -n " - sf    "
-	count=`ip netns exec $ns2 nstat -as | grep MPTcpExtRmSubflow | awk '{print $2}'`
+	count=`ip netns exec $subflow_ns nstat -as | grep MPTcpExtRmSubflow | awk '{print $2}'`
 	[ -z "$count" ] && count=0
 	if [ "$count" != "$rm_subflow_nr" ]; then
 		echo "[fail] got $count RM_SUBFLOW[s] expected $rm_subflow_nr"
@@ -833,7 +844,7 @@ remove_tests()
 	run_tests $ns1 $ns2 10.0.1.1 0 -1 0 slow
 	chk_join_nr "remove single address" 1 1 1
 	chk_add_nr 1 1
-	chk_rm_nr 0 0
+	chk_rm_nr 1 1 invert
 
 	# subflow and signal, remove
 	reset
@@ -945,7 +956,7 @@ ipv6_tests()
 	run_tests $ns1 $ns2 dead:beef:1::1 0 -1 0 slow
 	chk_join_nr "remove single address IPv6" 1 1 1
 	chk_add_nr 1 1
-	chk_rm_nr 0 0
+	chk_rm_nr 1 1 invert
 
 	# subflow and signal IPv6, remove
 	reset
@@ -1088,7 +1099,7 @@ add_addr_ports_tests()
 	run_tests $ns1 $ns2 10.0.1.1 0 -1 0 slow
 	chk_join_nr "remove single address with port" 1 1 1
 	chk_add_nr 1 1 1
-	chk_rm_nr 0 0
+	chk_rm_nr 1 1 invert
 
 	# subflow and signal with port, remove
 	reset
