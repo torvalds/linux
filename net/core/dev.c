@@ -5953,7 +5953,7 @@ static void gro_flush_oldest(struct napi_struct *napi, struct list_head *head)
 static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 {
 	u32 hash = skb_get_hash_raw(skb) & (GRO_HASH_BUCKETS - 1);
-	struct list_head *gro_head = &napi->gro_hash[hash].list;
+	struct gro_list *gro_list = &napi->gro_hash[hash];
 	struct list_head *head = &offload_base;
 	struct packet_offload *ptype;
 	__be16 type = skb->protocol;
@@ -5965,7 +5965,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	if (netif_elide_gro(skb->dev))
 		goto normal;
 
-	gro_list_prepare(gro_head, skb);
+	gro_list_prepare(&gro_list->list, skb);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(ptype, head, list) {
@@ -6001,7 +6001,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 
 		pp = INDIRECT_CALL_INET(ptype->callbacks.gro_receive,
 					ipv6_gro_receive, inet_gro_receive,
-					gro_head, skb);
+					&gro_list->list, skb);
 		break;
 	}
 	rcu_read_unlock();
@@ -6020,7 +6020,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	if (pp) {
 		skb_list_del_init(pp);
 		napi_gro_complete(napi, pp);
-		napi->gro_hash[hash].count--;
+		gro_list->count--;
 	}
 
 	if (same_flow)
@@ -6029,16 +6029,16 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	if (NAPI_GRO_CB(skb)->flush)
 		goto normal;
 
-	if (unlikely(napi->gro_hash[hash].count >= MAX_GRO_SKBS)) {
-		gro_flush_oldest(napi, gro_head);
-	} else {
-		napi->gro_hash[hash].count++;
-	}
+	if (unlikely(gro_list->count >= MAX_GRO_SKBS))
+		gro_flush_oldest(napi, &gro_list->list);
+	else
+		gro_list->count++;
+
 	NAPI_GRO_CB(skb)->count = 1;
 	NAPI_GRO_CB(skb)->age = jiffies;
 	NAPI_GRO_CB(skb)->last = skb;
 	skb_shinfo(skb)->gso_size = skb_gro_len(skb);
-	list_add(&skb->list, gro_head);
+	list_add(&skb->list, &gro_list->list);
 	ret = GRO_HELD;
 
 pull:
@@ -6046,7 +6046,7 @@ pull:
 	if (grow > 0)
 		gro_pull_from_frag0(skb, grow);
 ok:
-	if (napi->gro_hash[hash].count) {
+	if (gro_list->count) {
 		if (!test_bit(hash, &napi->gro_bitmask))
 			__set_bit(hash, &napi->gro_bitmask);
 	} else if (test_bit(hash, &napi->gro_bitmask)) {
