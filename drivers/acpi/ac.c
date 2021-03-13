@@ -187,7 +187,7 @@ static int acpi_ac_battery_notify(struct notifier_block *nb,
 	/*
 	 * On HP Pavilion dv6-6179er AC status notifications aren't triggered
 	 * when adapter is plugged/unplugged. However, battery status
-	 * notifcations are triggered when battery starts charging or
+	 * notifications are triggered when battery starts charging or
 	 * discharging. Re-reading AC status triggers lost AC notifications,
 	 * if AC status has changed.
 	 */

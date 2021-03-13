@@ -101,14 +101,14 @@ static DEFINE_PER_CPU(struct cpc_desc *, cpc_desc_ptr);
 				(cpc)->cpc_entry.reg.space_id ==	\
 				ACPI_ADR_SPACE_PLATFORM_COMM)
 
-/* Evalutes to True if reg is a NULL register descriptor */
+/* Evaluates to True if reg is a NULL register descriptor */
 #define IS_NULL_REG(reg) ((reg)->space_id ==  ACPI_ADR_SPACE_SYSTEM_MEMORY && \
 				(reg)->address == 0 &&			\
 				(reg)->bit_width == 0 &&		\
 				(reg)->bit_offset == 0 &&		\
 				(reg)->access_width == 0)
 
-/* Evalutes to True if an optional cpc field is supported */
+/* Evaluates to True if an optional cpc field is supported */
 #define CPC_SUPPORTED(cpc) ((cpc)->type == ACPI_TYPE_INTEGER ?		\
 				!!(cpc)->cpc_entry.int_value :		\
 				!IS_NULL_REG(&(cpc)->cpc_entry.reg))
@@ -1330,7 +1330,7 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 	 * is still with OSPM.
 	 *   pending_pcc_write_cmd can also be cleared by a different CPU, if
 	 * there was a pcc CMD_READ waiting on down_write and it steals the lock
-	 * before the pcc CMD_WRITE is completed. pcc_send_cmd checks for this
+	 * before the pcc CMD_WRITE is completed. send_pcc_cmd checks for this
 	 * case during a CMD_READ and if there are pending writes it delivers
 	 * the write command before servicing the read command
 	 */
@@ -1355,8 +1355,8 @@ EXPORT_SYMBOL_GPL(cppc_set_perf);
 /**
  * cppc_get_transition_latency - returns frequency transition latency in ns
  *
- * ACPI CPPC does not explicitly specifiy how a platform can specify the
- * transition latency for perfromance change requests. The closest we have
+ * ACPI CPPC does not explicitly specify how a platform can specify the
+ * transition latency for performance change requests. The closest we have
  * is the timing information from the PCCT tables which provides the info
  * on the number and frequency of PCC commands the platform can handle.
  */

@@ -722,7 +722,7 @@ static void hmat_register_target(struct memory_target *target)
 	/*
 	 * Skip offline nodes. This can happen when memory
 	 * marked EFI_MEMORY_SP, "specific purpose", is applied
-	 * to all the memory in a promixity domain leading to
+	 * to all the memory in a proximity domain leading to
 	 * the node being marked offline / unplugged, or if
 	 * memory-only "hotplug" node is offline.
 	 */
