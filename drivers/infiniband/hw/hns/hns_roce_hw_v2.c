@@ -1194,8 +1194,10 @@ static void hns_roce_cmq_init_regs(struct hns_roce_dev *hr_dev, bool ring_type)
 			   upper_32_bits(dma));
 		roce_write(hr_dev, ROCEE_TX_CMQ_DEPTH_REG,
 			   (u32)ring->desc_num >> HNS_ROCE_CMQ_DESC_NUM_S);
-		roce_write(hr_dev, ROCEE_TX_CMQ_HEAD_REG, 0);
+
+		/* Make sure to write tail first and then head */
 		roce_write(hr_dev, ROCEE_TX_CMQ_TAIL_REG, 0);
+		roce_write(hr_dev, ROCEE_TX_CMQ_HEAD_REG, 0);
 	} else {
 		roce_write(hr_dev, ROCEE_RX_CMQ_BASEADDR_L_REG, (u32)dma);
 		roce_write(hr_dev, ROCEE_RX_CMQ_BASEADDR_H_REG,
