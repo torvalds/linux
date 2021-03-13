@@ -3227,43 +3227,43 @@ static bool filemap_map_pmd(struct vm_fault *vmf, struct page *page)
 	return false;
 }
 
-static struct page *next_uptodate_page(struct page *page,
+static struct page *next_uptodate_page(struct folio *folio,
 				       struct address_space *mapping,
 				       struct xa_state *xas, pgoff_t end_pgoff)
 {
 	unsigned long max_idx;
 
 	do {
-		if (!page)
+		if (!folio)
 			return NULL;
-		if (xas_retry(xas, page))
+		if (xas_retry(xas, folio))
 			continue;
-		if (xa_is_value(page))
+		if (xa_is_value(folio))
 			continue;
-		if (PageLocked(page))
+		if (folio_test_locked(folio))
 			continue;
-		if (!page_cache_get_speculative(page))
+		if (!folio_try_get_rcu(folio))
 			continue;
 		/* Has the page moved or been split? */
-		if (unlikely(page != xas_reload(xas)))
+		if (unlikely(folio != xas_reload(xas)))
 			goto skip;
-		if (!PageUptodate(page) || PageReadahead(page))
+		if (!folio_test_uptodate(folio) || folio_test_readahead(folio))
 			goto skip;
-		if (!trylock_page(page))
+		if (!folio_trylock(folio))
 			goto skip;
-		if (page->mapping != mapping)
+		if (folio->mapping != mapping)
 			goto unlock;
-		if (!PageUptodate(page))
+		if (!folio_test_uptodate(folio))
 			goto unlock;
 		max_idx = DIV_ROUND_UP(i_size_read(mapping->host), PAGE_SIZE);
 		if (xas->xa_index >= max_idx)
 			goto unlock;
-		return page;
+		return &folio->page;
 unlock:
-		unlock_page(page);
+		folio_unlock(folio);
 skip:
-		put_page(page);
-	} while ((page = xas_next_entry(xas, end_pgoff)) != NULL);
+		folio_put(folio);
+	} while ((folio = xas_next_entry(xas, end_pgoff)) != NULL);
 
 	return NULL;
 }
