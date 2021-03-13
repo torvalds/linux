@@ -3349,24 +3349,24 @@ EXPORT_SYMBOL(filemap_map_pages);
 vm_fault_t filemap_page_mkwrite(struct vm_fault *vmf)
 {
 	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
-	struct page *page = vmf->page;
+	struct folio *folio = page_folio(vmf->page);
 	vm_fault_t ret = VM_FAULT_LOCKED;
 
 	sb_start_pagefault(mapping->host->i_sb);
 	file_update_time(vmf->vma->vm_file);
-	lock_page(page);
-	if (page->mapping != mapping) {
-		unlock_page(page);
+	folio_lock(folio);
+	if (folio->mapping != mapping) {
+		folio_unlock(folio);
 		ret = VM_FAULT_NOPAGE;
 		goto out;
 	}
 	/*
-	 * We mark the page dirty already here so that when freeze is in
+	 * We mark the folio dirty already here so that when freeze is in
 	 * progress, we are guaranteed that writeback during freezing will
-	 * see the dirty page and writeprotect it again.
+	 * see the dirty folio and writeprotect it again.
 	 */
-	set_page_dirty(page);
-	wait_for_stable_page(page);
+	folio_mark_dirty(folio);
+	folio_wait_stable(folio);
 out:
 	sb_end_pagefault(mapping->host->i_sb);
 	return ret;
