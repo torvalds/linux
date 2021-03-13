@@ -4135,7 +4135,7 @@ static int sky2_set_coalesce(struct net_device *dev,
 /*
  * Hardware is limited to min of 128 and max of 2048 for ring size
  * and  rounded up to next power of two
- * to avoid division in modulus calclation
+ * to avoid division in modulus calculation
  */
 static unsigned long roundup_ring_size(unsigned long pending)
 {
