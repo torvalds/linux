@@ -670,6 +670,40 @@ static int __hellcreek_fdb_del(struct hellcreek *hellcreek,
 	return hellcreek_wait_fdb_ready(hellcreek);
 }
 
+static void hellcreek_populate_fdb_entry(struct hellcreek *hellcreek,
+					 struct hellcreek_fdb_entry *entry,
+					 size_t idx)
+{
+	unsigned char addr[ETH_ALEN];
+	u16 meta, mac;
+
+	/* Read values */
+	meta	= hellcreek_read(hellcreek, HR_FDBMDRD);
+	mac	= hellcreek_read(hellcreek, HR_FDBRDL);
+	addr[5] = mac & 0xff;
+	addr[4] = (mac & 0xff00) >> 8;
+	mac	= hellcreek_read(hellcreek, HR_FDBRDM);
+	addr[3] = mac & 0xff;
+	addr[2] = (mac & 0xff00) >> 8;
+	mac	= hellcreek_read(hellcreek, HR_FDBRDH);
+	addr[1] = mac & 0xff;
+	addr[0] = (mac & 0xff00) >> 8;
+
+	/* Populate @entry */
+	memcpy(entry->mac, addr, sizeof(addr));
+	entry->idx	    = idx;
+	entry->portmask	    = (meta & HR_FDBMDRD_PORTMASK_MASK) >>
+		HR_FDBMDRD_PORTMASK_SHIFT;
+	entry->age	    = (meta & HR_FDBMDRD_AGE_MASK) >>
+		HR_FDBMDRD_AGE_SHIFT;
+	entry->is_obt	    = !!(meta & HR_FDBMDRD_OBT);
+	entry->pass_blocked = !!(meta & HR_FDBMDRD_PASS_BLOCKED);
+	entry->is_static    = !!(meta & HR_FDBMDRD_STATIC);
+	entry->reprio_tc    = (meta & HR_FDBMDRD_REPRIO_TC_MASK) >>
+		HR_FDBMDRD_REPRIO_TC_SHIFT;
+	entry->reprio_en    = !!(meta & HR_FDBMDRD_REPRIO_EN);
+}
+
 /* Retrieve the index of a FDB entry by mac address. Currently we search through
  * the complete table in hardware. If that's too slow, we might have to cache
  * the complete FDB table in software.
@@ -691,39 +725,19 @@ static int hellcreek_fdb_get(struct hellcreek *hellcreek,
 	 * enter new entries anywhere.
 	 */
 	for (i = 0; i < hellcreek->fdb_entries; ++i) {
-		unsigned char addr[ETH_ALEN];
-		u16 meta, mac;
+		struct hellcreek_fdb_entry tmp = { 0 };
 
-		meta	= hellcreek_read(hellcreek, HR_FDBMDRD);
-		mac	= hellcreek_read(hellcreek, HR_FDBRDL);
-		addr[5] = mac & 0xff;
-		addr[4] = (mac & 0xff00) >> 8;
-		mac	= hellcreek_read(hellcreek, HR_FDBRDM);
-		addr[3] = mac & 0xff;
-		addr[2] = (mac & 0xff00) >> 8;
-		mac	= hellcreek_read(hellcreek, HR_FDBRDH);
-		addr[1] = mac & 0xff;
-		addr[0] = (mac & 0xff00) >> 8;
+		/* Read entry */
+		hellcreek_populate_fdb_entry(hellcreek, &tmp, i);
 
 		/* Force next entry */
 		hellcreek_write(hellcreek, 0x00, HR_FDBRDH);
 
-		if (memcmp(addr, dest, ETH_ALEN))
+		if (memcmp(tmp.mac, dest, ETH_ALEN))
 			continue;
 
 		/* Match found */
-		entry->idx	    = i;
-		entry->portmask	    = (meta & HR_FDBMDRD_PORTMASK_MASK) >>
-			HR_FDBMDRD_PORTMASK_SHIFT;
-		entry->age	    = (meta & HR_FDBMDRD_AGE_MASK) >>
-			HR_FDBMDRD_AGE_SHIFT;
-		entry->is_obt	    = !!(meta & HR_FDBMDRD_OBT);
-		entry->pass_blocked = !!(meta & HR_FDBMDRD_PASS_BLOCKED);
-		entry->is_static    = !!(meta & HR_FDBMDRD_STATIC);
-		entry->reprio_tc    = (meta & HR_FDBMDRD_REPRIO_TC_MASK) >>
-			HR_FDBMDRD_REPRIO_TC_SHIFT;
-		entry->reprio_en    = !!(meta & HR_FDBMDRD_REPRIO_EN);
-		memcpy(entry->mac, addr, sizeof(addr));
+		memcpy(entry, &tmp, sizeof(*entry));
 
 		return 0;
 	}
@@ -838,18 +852,9 @@ static int hellcreek_fdb_dump(struct dsa_switch *ds, int port,
 	for (i = 0; i < hellcreek->fdb_entries; ++i) {
 		unsigned char null_addr[ETH_ALEN] = { 0 };
 		struct hellcreek_fdb_entry entry = { 0 };
-		u16 meta, mac;
 
-		meta	= hellcreek_read(hellcreek, HR_FDBMDRD);
-		mac	= hellcreek_read(hellcreek, HR_FDBRDL);
-		entry.mac[5] = mac & 0xff;
-		entry.mac[4] = (mac & 0xff00) >> 8;
-		mac	= hellcreek_read(hellcreek, HR_FDBRDM);
-		entry.mac[3] = mac & 0xff;
-		entry.mac[2] = (mac & 0xff00) >> 8;
-		mac	= hellcreek_read(hellcreek, HR_FDBRDH);
-		entry.mac[1] = mac & 0xff;
-		entry.mac[0] = (mac & 0xff00) >> 8;
+		/* Read entry */
+		hellcreek_populate_fdb_entry(hellcreek, &entry, i);
 
 		/* Force next entry */
 		hellcreek_write(hellcreek, 0x00, HR_FDBRDH);
@@ -857,10 +862,6 @@ static int hellcreek_fdb_dump(struct dsa_switch *ds, int port,
 		/* Check valid */
 		if (!memcmp(entry.mac, null_addr, ETH_ALEN))
 			continue;
-
-		entry.portmask	= (meta & HR_FDBMDRD_PORTMASK_MASK) >>
-			HR_FDBMDRD_PORTMASK_SHIFT;
-		entry.is_static	= !!(meta & HR_FDBMDRD_STATIC);
 
 		/* Check port mask */
 		if (!(entry.portmask & BIT(port)))
