@@ -258,7 +258,7 @@ out_unlock:
 }
 
 bool mptcp_pm_rm_addr_signal(struct mptcp_sock *msk, unsigned int remaining,
-			     u8 *rm_id)
+			     struct mptcp_rm_list *rm_list)
 {
 	int ret = false;
 
@@ -271,7 +271,8 @@ bool mptcp_pm_rm_addr_signal(struct mptcp_sock *msk, unsigned int remaining,
 	if (remaining < TCPOLEN_MPTCP_RM_ADDR_BASE)
 		goto out_unlock;
 
-	*rm_id = msk->pm.rm_id;
+	rm_list->ids[0] = msk->pm.rm_id;
+	rm_list->nr = 1;
 	WRITE_ONCE(msk->pm.addr_signal, 0);
 	ret = true;
 
