@@ -170,7 +170,6 @@ static int ba431_trng_init(struct hwrng *rng)
 static int ba431_trng_probe(struct platform_device *pdev)
 {
 	struct ba431_trng *ba431;
-	struct resource *res;
 	int ret;
 
 	ba431 = devm_kzalloc(&pdev->dev, sizeof(*ba431), GFP_KERNEL);
@@ -179,8 +178,7 @@ static int ba431_trng_probe(struct platform_device *pdev)
 
 	ba431->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ba431->base = devm_ioremap_resource(&pdev->dev, res);
+	ba431->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ba431->base))
 		return PTR_ERR(ba431->base);
 
