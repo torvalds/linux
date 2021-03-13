@@ -1768,7 +1768,6 @@ config DEBUG_RSEQ
 
 config EMBEDDED
 	bool "Embedded system"
-	option allnoconfig_y
 	select EXPERT
 	help
 	  This option should be enabled if compiling the kernel for
