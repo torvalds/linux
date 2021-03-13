@@ -4,11 +4,7 @@
 # for more details.
 #
 
-ifeq ($(BIG_ENDIAN),1)
-OBJCOPY_ARGS    := -O elf32-xtensa-be
-else
-OBJCOPY_ARGS    := -O elf32-xtensa-le
-endif
+OBJCOPY_ARGS := -O $(if $(CONFIG_CPU_BIG_ENDIAN),elf32-xtensa-be,elf32-xtensa-le)
 
 export OBJCOPY_ARGS
 export CPPFLAGS_boot.lds += -P -C
