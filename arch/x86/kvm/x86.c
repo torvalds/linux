@@ -271,8 +271,7 @@ static struct kmem_cache *x86_emulator_cache;
  * When called, it means the previous get/set msr reached an invalid msr.
  * Return true if we want to ignore/silent this failed msr access.
  */
-static bool kvm_msr_ignored_check(struct kvm_vcpu *vcpu, u32 msr,
-				  u64 data, bool write)
+static bool kvm_msr_ignored_check(u32 msr, u64 data, bool write)
 {
 	const char *op = write ? "wrmsr" : "rdmsr";
 
@@ -1445,7 +1444,7 @@ static int do_get_msr_feature(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 	if (r == KVM_MSR_RET_INVALID) {
 		/* Unconditionally clear the output for simplicity */
 		*data = 0;
-		if (kvm_msr_ignored_check(vcpu, index, 0, false))
+		if (kvm_msr_ignored_check(index, 0, false))
 			r = 0;
 	}
 
@@ -1620,7 +1619,7 @@ static int kvm_set_msr_ignored_check(struct kvm_vcpu *vcpu,
 	int ret = __kvm_set_msr(vcpu, index, data, host_initiated);
 
 	if (ret == KVM_MSR_RET_INVALID)
-		if (kvm_msr_ignored_check(vcpu, index, data, true))
+		if (kvm_msr_ignored_check(index, data, true))
 			ret = 0;
 
 	return ret;
@@ -1658,7 +1657,7 @@ static int kvm_get_msr_ignored_check(struct kvm_vcpu *vcpu,
 	if (ret == KVM_MSR_RET_INVALID) {
 		/* Unconditionally clear *data for simplicity */
 		*data = 0;
-		if (kvm_msr_ignored_check(vcpu, index, 0, false))
+		if (kvm_msr_ignored_check(index, 0, false))
 			ret = 0;
 	}
 
