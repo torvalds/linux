@@ -290,15 +290,15 @@ static void page_cache_delete_batch(struct address_space *mapping,
 	XA_STATE(xas, &mapping->i_pages, pvec->pages[0]->index);
 	int total_pages = 0;
 	int i = 0;
-	struct page *page;
+	struct folio *folio;
 
 	mapping_set_update(&xas, mapping);
-	xas_for_each(&xas, page, ULONG_MAX) {
+	xas_for_each(&xas, folio, ULONG_MAX) {
 		if (i >= pagevec_count(pvec))
 			break;
 
 		/* A swap/dax/shadow entry got inserted? Skip it. */
-		if (xa_is_value(page))
+		if (xa_is_value(folio))
 			continue;
 		/*
 		 * A page got inserted in our range? Skip it. We have our
@@ -307,16 +307,16 @@ static void page_cache_delete_batch(struct address_space *mapping,
 		 * means our page has been removed, which shouldn't be
 		 * possible because we're holding the PageLock.
 		 */
-		if (page != pvec->pages[i]) {
-			VM_BUG_ON_PAGE(page->index > pvec->pages[i]->index,
-					page);
+		if (&folio->page != pvec->pages[i]) {
+			VM_BUG_ON_FOLIO(folio->index >
+						pvec->pages[i]->index, folio);
 			continue;
 		}
 
-		WARN_ON_ONCE(!PageLocked(page));
+		WARN_ON_ONCE(!folio_test_locked(folio));
 
-		if (page->index == xas.xa_index)
-			page->mapping = NULL;
+		if (folio->index == xas.xa_index)
+			folio->mapping = NULL;
 		/* Leave page->index set: truncation lookup relies on it */
 
 		/*
@@ -324,7 +324,7 @@ static void page_cache_delete_batch(struct address_space *mapping,
 		 * page or the index is of the last sub-page of this compound
 		 * page.
 		 */
-		if (page->index + compound_nr(page) - 1 == xas.xa_index)
+		if (folio->index + folio_nr_pages(folio) - 1 == xas.xa_index)
 			i++;
 		xas_store(&xas, NULL);
 		total_pages++;
