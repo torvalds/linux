@@ -3227,7 +3227,7 @@ static bool filemap_map_pmd(struct vm_fault *vmf, struct page *page)
 	return false;
 }
 
-static struct page *next_uptodate_page(struct folio *folio,
+static struct folio *next_uptodate_page(struct folio *folio,
 				       struct address_space *mapping,
 				       struct xa_state *xas, pgoff_t end_pgoff)
 {
@@ -3258,7 +3258,7 @@ static struct page *next_uptodate_page(struct folio *folio,
 		max_idx = DIV_ROUND_UP(i_size_read(mapping->host), PAGE_SIZE);
 		if (xas->xa_index >= max_idx)
 			goto unlock;
-		return &folio->page;
+		return folio;
 unlock:
 		folio_unlock(folio);
 skip:
@@ -3268,7 +3268,7 @@ skip:
 	return NULL;
 }
 
-static inline struct page *first_map_page(struct address_space *mapping,
+static inline struct folio *first_map_page(struct address_space *mapping,
 					  struct xa_state *xas,
 					  pgoff_t end_pgoff)
 {
@@ -3276,7 +3276,7 @@ static inline struct page *first_map_page(struct address_space *mapping,
 				  mapping, xas, end_pgoff);
 }
 
-static inline struct page *next_map_page(struct address_space *mapping,
+static inline struct folio *next_map_page(struct address_space *mapping,
 					 struct xa_state *xas,
 					 pgoff_t end_pgoff)
 {
@@ -3293,16 +3293,17 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 	pgoff_t last_pgoff = start_pgoff;
 	unsigned long addr;
 	XA_STATE(xas, &mapping->i_pages, start_pgoff);
-	struct page *head, *page;
+	struct folio *folio;
+	struct page *page;
 	unsigned int mmap_miss = READ_ONCE(file->f_ra.mmap_miss);
 	vm_fault_t ret = 0;
 
 	rcu_read_lock();
-	head = first_map_page(mapping, &xas, end_pgoff);
-	if (!head)
+	folio = first_map_page(mapping, &xas, end_pgoff);
+	if (!folio)
 		goto out;
 
-	if (filemap_map_pmd(vmf, head)) {
+	if (filemap_map_pmd(vmf, &folio->page)) {
 		ret = VM_FAULT_NOPAGE;
 		goto out;
 	}
@@ -3310,7 +3311,7 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 	addr = vma->vm_start + ((start_pgoff - vma->vm_pgoff) << PAGE_SHIFT);
 	vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd, addr, &vmf->ptl);
 	do {
-		page = find_subpage(head, xas.xa_index);
+		page = folio_file_page(folio, xas.xa_index);
 		if (PageHWPoison(page))
 			goto unlock;
 
@@ -3331,12 +3332,12 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 		do_set_pte(vmf, page, addr);
 		/* no need to invalidate: a not-present page won't be cached */
 		update_mmu_cache(vma, addr, vmf->pte);
-		unlock_page(head);
+		folio_unlock(folio);
 		continue;
 unlock:
-		unlock_page(head);
-		put_page(head);
-	} while ((head = next_map_page(mapping, &xas, end_pgoff)) != NULL);
+		folio_unlock(folio);
+		folio_put(folio);
+	} while ((folio = next_map_page(mapping, &xas, end_pgoff)) != NULL);
 	pte_unmap_unlock(vmf->pte, vmf->ptl);
 out:
 	rcu_read_unlock();
