@@ -492,7 +492,7 @@ static int mlx5_sf_esw_event(struct notifier_block *nb, unsigned long event, voi
 		break;
 	default:
 		break;
-	};
+	}
 
 	return 0;
 }
