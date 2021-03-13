@@ -74,6 +74,10 @@ via ``devlink``, e.g per error type (per health reporter):
      - Allows reporter-related configuration setting.
    * - ``DEVLINK_CMD_HEALTH_REPORTER_RECOVER``
      - Triggers reporter's recovery procedure.
+   * - ``DEVLINK_CMD_HEALTH_REPORTER_TEST``
+     - Triggers a fake health event on the reporter. The effects of the test
+       event in terms of recovery flow should follow closely that of a real
+       event.
    * - ``DEVLINK_CMD_HEALTH_REPORTER_DIAGNOSE``
      - Retrieves current device state related to the reporter.
    * - ``DEVLINK_CMD_HEALTH_REPORTER_DUMP_GET``
