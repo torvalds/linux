@@ -25,28 +25,28 @@
 #define SPRD_MBOX_LOCK		0x20
 #define SPRD_MBOX_FIFO_DEPTH	0x24
 
-/* Bit and mask definiation for inbox's SPRD_MBOX_FIFO_STS register */
+/* Bit and mask definition for inbox's SPRD_MBOX_FIFO_STS register */
 #define SPRD_INBOX_FIFO_DELIVER_MASK		GENMASK(23, 16)
 #define SPRD_INBOX_FIFO_OVERLOW_MASK		GENMASK(15, 8)
 #define SPRD_INBOX_FIFO_DELIVER_SHIFT		16
 #define SPRD_INBOX_FIFO_BUSY_MASK		GENMASK(7, 0)
 
-/* Bit and mask definiation for SPRD_MBOX_IRQ_STS register */
+/* Bit and mask definition for SPRD_MBOX_IRQ_STS register */
 #define SPRD_MBOX_IRQ_CLR			BIT(0)
 
-/* Bit and mask definiation for outbox's SPRD_MBOX_FIFO_STS register */
+/* Bit and mask definition for outbox's SPRD_MBOX_FIFO_STS register */
 #define SPRD_OUTBOX_FIFO_FULL			BIT(2)
 #define SPRD_OUTBOX_FIFO_WR_SHIFT		16
 #define SPRD_OUTBOX_FIFO_RD_SHIFT		24
 #define SPRD_OUTBOX_FIFO_POS_MASK		GENMASK(7, 0)
 
-/* Bit and mask definiation for inbox's SPRD_MBOX_IRQ_MSK register */
+/* Bit and mask definition for inbox's SPRD_MBOX_IRQ_MSK register */
 #define SPRD_INBOX_FIFO_BLOCK_IRQ		BIT(0)
 #define SPRD_INBOX_FIFO_OVERFLOW_IRQ		BIT(1)
 #define SPRD_INBOX_FIFO_DELIVER_IRQ		BIT(2)
 #define SPRD_INBOX_FIFO_IRQ_MASK		GENMASK(2, 0)
 
-/* Bit and mask definiation for outbox's SPRD_MBOX_IRQ_MSK register */
+/* Bit and mask definition for outbox's SPRD_MBOX_IRQ_MSK register */
 #define SPRD_OUTBOX_FIFO_NOT_EMPTY_IRQ		BIT(0)
 #define SPRD_OUTBOX_FIFO_IRQ_MASK		GENMASK(4, 0)
 
@@ -150,7 +150,7 @@ static irqreturn_t sprd_mbox_inbox_isr(int irq, void *data)
 		chan = &priv->chan[id];
 
 		/*
-		 * Check if the message was fetched by remote traget, if yes,
+		 * Check if the message was fetched by remote target, if yes,
 		 * that means the transmission has been completed.
 		 */
 		busy = fifo_sts & SPRD_INBOX_FIFO_BUSY_MASK;
