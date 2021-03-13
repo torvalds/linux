@@ -751,8 +751,9 @@ static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 		handle->flags |= HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK;
 		handle->flags |= HNAE3_SUPPORT_SERDES_PARALLEL_LOOPBACK;
 
-		if (hdev->hw.mac.phydev && hdev->hw.mac.phydev->drv &&
-		    hdev->hw.mac.phydev->drv->set_loopback) {
+		if ((hdev->hw.mac.phydev && hdev->hw.mac.phydev->drv &&
+		     hdev->hw.mac.phydev->drv->set_loopback) ||
+		    hnae3_dev_phy_imp_supported(hdev)) {
 			count += 1;
 			handle->flags |= HNAE3_SUPPORT_PHY_LOOPBACK;
 		}
@@ -2994,6 +2995,141 @@ static int hclge_get_sfp_info(struct hclge_dev *hdev, struct hclge_mac *mac)
 	return 0;
 }
 
+static int hclge_get_phy_link_ksettings(struct hnae3_handle *handle,
+					struct ethtool_link_ksettings *cmd)
+{
+	struct hclge_desc desc[HCLGE_PHY_LINK_SETTING_BD_NUM];
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_phy_link_ksetting_0_cmd *req0;
+	struct hclge_phy_link_ksetting_1_cmd *req1;
+	u32 supported, advertising, lp_advertising;
+	struct hclge_dev *hdev = vport->back;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_PHY_LINK_KSETTING,
+				   true);
+	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_OPC_PHY_LINK_KSETTING,
+				   true);
+
+	ret = hclge_cmd_send(&hdev->hw, desc, HCLGE_PHY_LINK_SETTING_BD_NUM);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to get phy link ksetting, ret = %d.\n", ret);
+		return ret;
+	}
+
+	req0 = (struct hclge_phy_link_ksetting_0_cmd *)desc[0].data;
+	cmd->base.autoneg = req0->autoneg;
+	cmd->base.speed = le32_to_cpu(req0->speed);
+	cmd->base.duplex = req0->duplex;
+	cmd->base.port = req0->port;
+	cmd->base.transceiver = req0->transceiver;
+	cmd->base.phy_address = req0->phy_address;
+	cmd->base.eth_tp_mdix = req0->eth_tp_mdix;
+	cmd->base.eth_tp_mdix_ctrl = req0->eth_tp_mdix_ctrl;
+	supported = le32_to_cpu(req0->supported);
+	advertising = le32_to_cpu(req0->advertising);
+	lp_advertising = le32_to_cpu(req0->lp_advertising);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						advertising);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.lp_advertising,
+						lp_advertising);
+
+	req1 = (struct hclge_phy_link_ksetting_1_cmd *)desc[1].data;
+	cmd->base.master_slave_cfg = req1->master_slave_cfg;
+	cmd->base.master_slave_state = req1->master_slave_state;
+
+	return 0;
+}
+
+static int
+hclge_set_phy_link_ksettings(struct hnae3_handle *handle,
+			     const struct ethtool_link_ksettings *cmd)
+{
+	struct hclge_desc desc[HCLGE_PHY_LINK_SETTING_BD_NUM];
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_phy_link_ksetting_0_cmd *req0;
+	struct hclge_phy_link_ksetting_1_cmd *req1;
+	struct hclge_dev *hdev = vport->back;
+	u32 advertising;
+	int ret;
+
+	if (cmd->base.autoneg == AUTONEG_DISABLE &&
+	    ((cmd->base.speed != SPEED_100 && cmd->base.speed != SPEED_10) ||
+	     (cmd->base.duplex != DUPLEX_HALF &&
+	      cmd->base.duplex != DUPLEX_FULL)))
+		return -EINVAL;
+
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_PHY_LINK_KSETTING,
+				   false);
+	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_OPC_PHY_LINK_KSETTING,
+				   false);
+
+	req0 = (struct hclge_phy_link_ksetting_0_cmd *)desc[0].data;
+	req0->autoneg = cmd->base.autoneg;
+	req0->speed = cpu_to_le32(cmd->base.speed);
+	req0->duplex = cmd->base.duplex;
+	ethtool_convert_link_mode_to_legacy_u32(&advertising,
+						cmd->link_modes.advertising);
+	req0->advertising = cpu_to_le32(advertising);
+	req0->eth_tp_mdix_ctrl = cmd->base.eth_tp_mdix_ctrl;
+
+	req1 = (struct hclge_phy_link_ksetting_1_cmd *)desc[1].data;
+	req1->master_slave_cfg = cmd->base.master_slave_cfg;
+
+	ret = hclge_cmd_send(&hdev->hw, desc, HCLGE_PHY_LINK_SETTING_BD_NUM);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to set phy link ksettings, ret = %d.\n", ret);
+		return ret;
+	}
+
+	hdev->hw.mac.autoneg = cmd->base.autoneg;
+	hdev->hw.mac.speed = cmd->base.speed;
+	hdev->hw.mac.duplex = cmd->base.duplex;
+	linkmode_copy(hdev->hw.mac.advertising, cmd->link_modes.advertising);
+
+	return 0;
+}
+
+static int hclge_update_tp_port_info(struct hclge_dev *hdev)
+{
+	struct ethtool_link_ksettings cmd;
+	int ret;
+
+	if (!hnae3_dev_phy_imp_supported(hdev))
+		return 0;
+
+	ret = hclge_get_phy_link_ksettings(&hdev->vport->nic, &cmd);
+	if (ret)
+		return ret;
+
+	hdev->hw.mac.autoneg = cmd.base.autoneg;
+	hdev->hw.mac.speed = cmd.base.speed;
+	hdev->hw.mac.duplex = cmd.base.duplex;
+
+	return 0;
+}
+
+static int hclge_tp_port_init(struct hclge_dev *hdev)
+{
+	struct ethtool_link_ksettings cmd;
+
+	if (!hnae3_dev_phy_imp_supported(hdev))
+		return 0;
+
+	cmd.base.autoneg = hdev->hw.mac.autoneg;
+	cmd.base.speed = hdev->hw.mac.speed;
+	cmd.base.duplex = hdev->hw.mac.duplex;
+	linkmode_copy(cmd.link_modes.advertising, hdev->hw.mac.advertising);
+
+	return hclge_set_phy_link_ksettings(&hdev->vport->nic, &cmd);
+}
+
 static int hclge_update_port_info(struct hclge_dev *hdev)
 {
 	struct hclge_mac *mac = &hdev->hw.mac;
@@ -3002,7 +3138,7 @@ static int hclge_update_port_info(struct hclge_dev *hdev)
 
 	/* get the port info from SFP cmd if not copper port */
 	if (mac->media_type == HNAE3_MEDIA_TYPE_COPPER)
-		return 0;
+		return hclge_update_tp_port_info(hdev);
 
 	/* if IMP does not support get SFP/qSFP info, return directly */
 	if (!hdev->support_sfp_query)
@@ -7135,19 +7271,19 @@ static int hclge_set_app_loopback(struct hclge_dev *hdev, bool en)
 	return ret;
 }
 
-static int hclge_cfg_serdes_loopback(struct hclge_dev *hdev, bool en,
+static int hclge_cfg_common_loopback(struct hclge_dev *hdev, bool en,
 				     enum hnae3_loop loop_mode)
 {
-#define HCLGE_SERDES_RETRY_MS	10
-#define HCLGE_SERDES_RETRY_NUM	100
+#define HCLGE_COMMON_LB_RETRY_MS	10
+#define HCLGE_COMMON_LB_RETRY_NUM	100
 
-	struct hclge_serdes_lb_cmd *req;
+	struct hclge_common_lb_cmd *req;
 	struct hclge_desc desc;
 	int ret, i = 0;
 	u8 loop_mode_b;
 
-	req = (struct hclge_serdes_lb_cmd *)desc.data;
-	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_SERDES_LOOPBACK, false);
+	req = (struct hclge_common_lb_cmd *)desc.data;
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_COMMON_LOOPBACK, false);
 
 	switch (loop_mode) {
 	case HNAE3_LOOP_SERIAL_SERDES:
@@ -7156,9 +7292,12 @@ static int hclge_cfg_serdes_loopback(struct hclge_dev *hdev, bool en,
 	case HNAE3_LOOP_PARALLEL_SERDES:
 		loop_mode_b = HCLGE_CMD_SERDES_PARALLEL_INNER_LOOP_B;
 		break;
+	case HNAE3_LOOP_PHY:
+		loop_mode_b = HCLGE_CMD_GE_PHY_INNER_LOOP_B;
+		break;
 	default:
 		dev_err(&hdev->pdev->dev,
-			"unsupported serdes loopback mode %d\n", loop_mode);
+			"unsupported common loopback mode %d\n", loop_mode);
 		return -ENOTSUPP;
 	}
 
@@ -7172,39 +7311,39 @@ static int hclge_cfg_serdes_loopback(struct hclge_dev *hdev, bool en,
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
-			"serdes loopback set fail, ret = %d\n", ret);
+			"common loopback set fail, ret = %d\n", ret);
 		return ret;
 	}
 
 	do {
-		msleep(HCLGE_SERDES_RETRY_MS);
-		hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_SERDES_LOOPBACK,
+		msleep(HCLGE_COMMON_LB_RETRY_MS);
+		hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_COMMON_LOOPBACK,
 					   true);
 		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
-				"serdes loopback get, ret = %d\n", ret);
+				"common loopback get, ret = %d\n", ret);
 			return ret;
 		}
-	} while (++i < HCLGE_SERDES_RETRY_NUM &&
-		 !(req->result & HCLGE_CMD_SERDES_DONE_B));
+	} while (++i < HCLGE_COMMON_LB_RETRY_NUM &&
+		 !(req->result & HCLGE_CMD_COMMON_LB_DONE_B));
 
-	if (!(req->result & HCLGE_CMD_SERDES_DONE_B)) {
-		dev_err(&hdev->pdev->dev, "serdes loopback set timeout\n");
+	if (!(req->result & HCLGE_CMD_COMMON_LB_DONE_B)) {
+		dev_err(&hdev->pdev->dev, "common loopback set timeout\n");
 		return -EBUSY;
-	} else if (!(req->result & HCLGE_CMD_SERDES_SUCCESS_B)) {
-		dev_err(&hdev->pdev->dev, "serdes loopback set failed in fw\n");
+	} else if (!(req->result & HCLGE_CMD_COMMON_LB_SUCCESS_B)) {
+		dev_err(&hdev->pdev->dev, "common loopback set failed in fw\n");
 		return -EIO;
 	}
 	return ret;
 }
 
-static int hclge_set_serdes_loopback(struct hclge_dev *hdev, bool en,
+static int hclge_set_common_loopback(struct hclge_dev *hdev, bool en,
 				     enum hnae3_loop loop_mode)
 {
 	int ret;
 
-	ret = hclge_cfg_serdes_loopback(hdev, en, loop_mode);
+	ret = hclge_cfg_common_loopback(hdev, en, loop_mode);
 	if (ret)
 		return ret;
 
@@ -7253,8 +7392,12 @@ static int hclge_set_phy_loopback(struct hclge_dev *hdev, bool en)
 	struct phy_device *phydev = hdev->hw.mac.phydev;
 	int ret;
 
-	if (!phydev)
+	if (!phydev) {
+		if (hnae3_dev_phy_imp_supported(hdev))
+			return hclge_set_common_loopback(hdev, en,
+							 HNAE3_LOOP_PHY);
 		return -ENOTSUPP;
+	}
 
 	if (en)
 		ret = hclge_enable_phy_loopback(hdev, phydev);
@@ -7325,7 +7468,7 @@ static int hclge_set_loopback(struct hnae3_handle *handle,
 		break;
 	case HNAE3_LOOP_SERIAL_SERDES:
 	case HNAE3_LOOP_PARALLEL_SERDES:
-		ret = hclge_set_serdes_loopback(hdev, en, loop_mode);
+		ret = hclge_set_common_loopback(hdev, en, loop_mode);
 		break;
 	case HNAE3_LOOP_PHY:
 		ret = hclge_set_phy_loopback(hdev, en);
@@ -7358,11 +7501,11 @@ static int hclge_set_default_loopback(struct hclge_dev *hdev)
 	if (ret)
 		return ret;
 
-	ret = hclge_cfg_serdes_loopback(hdev, false, HNAE3_LOOP_SERIAL_SERDES);
+	ret = hclge_cfg_common_loopback(hdev, false, HNAE3_LOOP_SERIAL_SERDES);
 	if (ret)
 		return ret;
 
-	return hclge_cfg_serdes_loopback(hdev, false,
+	return hclge_cfg_common_loopback(hdev, false,
 					 HNAE3_LOOP_PARALLEL_SERDES);
 }
 
@@ -8769,6 +8912,29 @@ static int hclge_set_mac_addr(struct hnae3_handle *handle, void *p,
 	return 0;
 }
 
+static int hclge_mii_ioctl(struct hclge_dev *hdev, struct ifreq *ifr, int cmd)
+{
+	struct mii_ioctl_data *data = if_mii(ifr);
+
+	if (!hnae3_dev_phy_imp_supported(hdev))
+		return -EOPNOTSUPP;
+
+	switch (cmd) {
+	case SIOCGMIIPHY:
+		data->phy_id = hdev->hw.mac.phy_addr;
+		/* this command reads phy id and register at the same time */
+		fallthrough;
+	case SIOCGMIIREG:
+		data->val_out = hclge_read_phy_reg(hdev, data->reg_num);
+		return 0;
+
+	case SIOCSMIIREG:
+		return hclge_write_phy_reg(hdev, data->reg_num, data->val_in);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int hclge_do_ioctl(struct hnae3_handle *handle, struct ifreq *ifr,
 			  int cmd)
 {
@@ -8776,7 +8942,7 @@ static int hclge_do_ioctl(struct hnae3_handle *handle, struct ifreq *ifr,
 	struct hclge_dev *hdev = vport->back;
 
 	if (!hdev->hw.mac.phydev)
-		return -EOPNOTSUPP;
+		return hclge_mii_ioctl(hdev, ifr, cmd);
 
 	return phy_mii_ioctl(hdev->hw.mac.phydev, ifr, cmd);
 }
@@ -10023,9 +10189,10 @@ static void hclge_get_pauseparam(struct hnae3_handle *handle, u32 *auto_neg,
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
-	struct phy_device *phydev = hdev->hw.mac.phydev;
+	u8 media_type = hdev->hw.mac.media_type;
 
-	*auto_neg = phydev ? hclge_get_autoneg(handle) : 0;
+	*auto_neg = (media_type == HNAE3_MEDIA_TYPE_COPPER) ?
+		    hclge_get_autoneg(handle) : 0;
 
 	if (hdev->tm_info.fc_mode == HCLGE_FC_PFC) {
 		*rx_en = 0;
@@ -10071,7 +10238,7 @@ static int hclge_set_pauseparam(struct hnae3_handle *handle, u32 auto_neg,
 	struct phy_device *phydev = hdev->hw.mac.phydev;
 	u32 fc_autoneg;
 
-	if (phydev) {
+	if (phydev || hnae3_dev_phy_imp_supported(hdev)) {
 		fc_autoneg = hclge_get_autoneg(handle);
 		if (auto_neg != fc_autoneg) {
 			dev_info(&hdev->pdev->dev,
@@ -10090,7 +10257,7 @@ static int hclge_set_pauseparam(struct hnae3_handle *handle, u32 auto_neg,
 
 	hclge_record_user_pauseparam(hdev, rx_en, tx_en);
 
-	if (!auto_neg)
+	if (!auto_neg || hnae3_dev_phy_imp_supported(hdev))
 		return hclge_cfg_pauseparam(hdev, rx_en, tx_en);
 
 	if (phydev)
@@ -10648,7 +10815,8 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	if (ret)
 		goto err_msi_irq_uninit;
 
-	if (hdev->hw.mac.media_type == HNAE3_MEDIA_TYPE_COPPER) {
+	if (hdev->hw.mac.media_type == HNAE3_MEDIA_TYPE_COPPER &&
+	    !hnae3_dev_phy_imp_supported(hdev)) {
 		ret = hclge_mac_mdio_config(hdev);
 		if (ret)
 			goto err_msi_irq_uninit;
@@ -11038,6 +11206,13 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 	ret = hclge_mac_init(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Mac init error, ret = %d\n", ret);
+		return ret;
+	}
+
+	ret = hclge_tp_port_init(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to init tp port, ret = %d\n",
+			ret);
 		return ret;
 	}
 
@@ -11982,6 +12157,8 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.add_cls_flower = hclge_add_cls_flower,
 	.del_cls_flower = hclge_del_cls_flower,
 	.cls_flower_active = hclge_is_cls_flower_active,
+	.get_phy_link_ksettings = hclge_get_phy_link_ksettings,
+	.set_phy_link_ksettings = hclge_set_phy_link_ksettings,
 };
 
 static struct hnae3_ae_algo ae_algo = {
