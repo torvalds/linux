@@ -22,6 +22,8 @@
 #include "lkc.h"
 #include "lxdialog/dialog.h"
 
+#define JUMP_NB			9
+
 static const char mconf_readme[] =
 "Overview\n"
 "--------\n"
