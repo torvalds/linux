@@ -1285,6 +1285,12 @@ static __always_inline bool free_pages_prepare(struct page *page,
 
 	kernel_poison_pages(page, 1 << order, 0);
 	/*
+	 * With hardware tag-based KASAN, memory tags must be set before the
+	 * page becomes unavailable via debug_pagealloc or arch_free_page.
+	 */
+	kasan_free_nondeferred_pages(page, order);
+
+	/*
 	 * arch_free_page() can make the page's contents inaccessible.  s390
 	 * does this.  So nothing which can access the page's contents should
 	 * happen after this.
@@ -1293,8 +1299,6 @@ static __always_inline bool free_pages_prepare(struct page *page,
 
 	if (debug_pagealloc_enabled_static())
 		kernel_map_pages(page, 1 << order, 0);
-
-	kasan_free_nondeferred_pages(page, order);
 
 	return true;
 }
