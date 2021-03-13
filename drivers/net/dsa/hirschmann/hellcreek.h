@@ -279,6 +279,7 @@ struct hellcreek {
 	struct mutex vlan_lock;	/* VLAN bitmaps lock */
 	struct mutex ptp_lock;	/* PTP IP register lock */
 	struct devlink_region *vlan_region;
+	struct devlink_region *fdb_region;
 	void __iomem *base;
 	void __iomem *ptp_base;
 	u16 swcfg;		/* swcfg shadow */

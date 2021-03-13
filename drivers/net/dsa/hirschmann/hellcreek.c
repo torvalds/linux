@@ -1111,9 +1111,52 @@ static int hellcreek_devlink_region_vlan_snapshot(struct devlink *dl,
 	return 0;
 }
 
+static int hellcreek_devlink_region_fdb_snapshot(struct devlink *dl,
+						 const struct devlink_region_ops *ops,
+						 struct netlink_ext_ack *extack,
+						 u8 **data)
+{
+	struct dsa_switch *ds = dsa_devlink_to_ds(dl);
+	struct hellcreek_fdb_entry *table, *entry;
+	struct hellcreek *hellcreek = ds->priv;
+	size_t i;
+
+	table = kcalloc(hellcreek->fdb_entries, sizeof(*entry), GFP_KERNEL);
+	if (!table)
+		return -ENOMEM;
+
+	entry = table;
+
+	mutex_lock(&hellcreek->reg_lock);
+
+	/* Start table read */
+	hellcreek_read(hellcreek, HR_FDBMAX);
+	hellcreek_write(hellcreek, 0x00, HR_FDBMAX);
+
+	for (i = 0; i < hellcreek->fdb_entries; ++i, ++entry) {
+		/* Read current entry */
+		hellcreek_populate_fdb_entry(hellcreek, entry, i);
+
+		/* Advance read pointer */
+		hellcreek_write(hellcreek, 0x00, HR_FDBRDH);
+	}
+
+	mutex_unlock(&hellcreek->reg_lock);
+
+	*data = (u8 *)table;
+
+	return 0;
+}
+
 static struct devlink_region_ops hellcreek_region_vlan_ops = {
 	.name	    = "vlan",
 	.snapshot   = hellcreek_devlink_region_vlan_snapshot,
+	.destructor = kfree,
+};
+
+static struct devlink_region_ops hellcreek_region_fdb_ops = {
+	.name	    = "fdb",
+	.snapshot   = hellcreek_devlink_region_fdb_snapshot,
 	.destructor = kfree,
 };
 
@@ -1123,6 +1166,7 @@ static int hellcreek_setup_devlink_regions(struct dsa_switch *ds)
 	struct devlink_region_ops *ops;
 	struct devlink_region *region;
 	u64 size;
+	int ret;
 
 	/* VLAN table */
 	size = VLAN_N_VID * sizeof(struct hellcreek_devlink_vlan_entry);
@@ -1134,13 +1178,31 @@ static int hellcreek_setup_devlink_regions(struct dsa_switch *ds)
 
 	hellcreek->vlan_region = region;
 
+	/* FDB table */
+	size = hellcreek->fdb_entries * sizeof(struct hellcreek_fdb_entry);
+	ops  = &hellcreek_region_fdb_ops;
+
+	region = dsa_devlink_region_create(ds, ops, 1, size);
+	if (IS_ERR(region)) {
+		ret = PTR_ERR(region);
+		goto err_fdb;
+	}
+
+	hellcreek->fdb_region = region;
+
 	return 0;
+
+err_fdb:
+	dsa_devlink_region_destroy(hellcreek->vlan_region);
+
+	return ret;
 }
 
 static void hellcreek_teardown_devlink_regions(struct dsa_switch *ds)
 {
 	struct hellcreek *hellcreek = ds->priv;
 
+	dsa_devlink_region_destroy(hellcreek->fdb_region);
 	dsa_devlink_region_destroy(hellcreek->vlan_region);
 }
 
