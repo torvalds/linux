@@ -433,7 +433,7 @@ static void hellcreek_unapply_vlan(struct hellcreek *hellcreek, int port,
 
 	mutex_lock(&hellcreek->reg_lock);
 
-	hellcreek_select_vlan(hellcreek, vid, 0);
+	hellcreek_select_vlan(hellcreek, vid, false);
 
 	/* Setup port vlan membership */
 	hellcreek_select_vlan_params(hellcreek, port, &shift, &mask);
