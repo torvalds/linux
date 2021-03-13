@@ -615,12 +615,12 @@ enum v4l2_mpeg_video_frame_skip_mode -
     :header-rows:  0
     :stub-columns: 0
 
-    * - ``V4L2_MPEG_FRAME_SKIP_MODE_DISABLED``
+    * - ``V4L2_MPEG_VIDEO_FRAME_SKIP_MODE_DISABLED``
       - Frame skip mode is disabled.
-    * - ``V4L2_MPEG_FRAME_SKIP_MODE_LEVEL_LIMIT``
+    * - ``V4L2_MPEG_VIDEO_FRAME_SKIP_MODE_LEVEL_LIMIT``
       - Frame skip mode enabled and buffer limit is set by the chosen
         level and is defined by the standard.
-    * - ``V4L2_MPEG_FRAME_SKIP_MODE_BUF_LIMIT``
+    * - ``V4L2_MPEG_VIDEO_FRAME_SKIP_MODE_BUF_LIMIT``
       - Frame skip mode enabled and buffer limit is set by the
         :ref:`VBV (MPEG1/2/4) <v4l2-mpeg-video-vbv-size>` or
         :ref:`CPB (H264) buffer size <v4l2-mpeg-video-h264-cpb-size>` control.
@@ -1935,12 +1935,12 @@ enum v4l2_mpeg_mfc51_video_frame_skip_mode -
     :header-rows:  0
     :stub-columns: 0
 
-    * - ``V4L2_MPEG_MFC51_FRAME_SKIP_MODE_DISABLED``
+    * - ``V4L2_MPEG_MFC51_VIDEO_FRAME_SKIP_MODE_DISABLED``
       - Frame skip mode is disabled.
-    * - ``V4L2_MPEG_MFC51_FRAME_SKIP_MODE_LEVEL_LIMIT``
+    * - ``V4L2_MPEG_MFC51_VIDEO_FRAME_SKIP_MODE_LEVEL_LIMIT``
       - Frame skip mode enabled and buffer limit is set by the chosen
 	level and is defined by the standard.
-    * - ``V4L2_MPEG_MFC51_FRAME_SKIP_MODE_BUF_LIMIT``
+    * - ``V4L2_MPEG_MFC51_VIDEO_FRAME_SKIP_MODE_BUF_LIMIT``
       - Frame skip mode enabled and buffer limit is set by the VBV
 	(MPEG1/2/4) or CPB (H264) buffer size control.
 
