@@ -571,6 +571,10 @@ static int handle_hca_cap(struct mlx5_core_dev *dev, void *set_ctx)
 
 	mlx5_vhca_state_cap_handle(dev, set_hca_cap);
 
+	if (MLX5_CAP_GEN_MAX(dev, num_total_dynamic_vf_msix))
+		MLX5_SET(cmd_hca_cap, set_hca_cap, num_total_dynamic_vf_msix,
+			 MLX5_CAP_GEN_MAX(dev, num_total_dynamic_vf_msix));
+
 	return set_caps(dev, set_ctx, MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE);
 }
 
