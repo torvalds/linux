@@ -68,6 +68,7 @@ enum cmdq_code {
 struct cmdq_cb_data {
 	int			sta;
 	void			*data;
+	struct cmdq_pkt		*pkt;
 };
 
 typedef void (*cmdq_async_flush_cb)(struct cmdq_cb_data data);

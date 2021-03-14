@@ -188,6 +188,7 @@ static void cmdq_task_exec_done(struct cmdq_task *task, int sta)
 	WARN_ON(cb->cb == (cmdq_async_flush_cb)NULL);
 	data.sta = sta;
 	data.data = cb->data;
+	data.pkt = task->pkt;
 	if (cb->cb)
 		cb->cb(data);
 
@@ -456,6 +457,7 @@ static int cmdq_mbox_flush(struct mbox_chan *chan, unsigned long timeout)
 				 list_entry) {
 		data.sta = -ECONNABORTED;
 		data.data = cb->data;
+		data.pkt = task->pkt;
 		cb = &task->pkt->async_cb;
 		if (cb->cb)
 			cb->cb(data);
