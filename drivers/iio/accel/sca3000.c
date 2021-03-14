@@ -351,7 +351,7 @@ static int __sca3000_unlock_reg_lock(struct sca3000_state *st)
 }
 
 /**
- * sca3000_write_ctrl_reg() write to a lock protect ctrl register
+ * sca3000_write_ctrl_reg() - write to a lock protect ctrl register
  * @st: Driver specific device instance data.
  * @sel: selects which registers we wish to write to
  * @val: the value to be written
@@ -389,7 +389,7 @@ error_ret:
 }
 
 /**
- * sca3000_read_ctrl_reg() read from lock protected control register.
+ * sca3000_read_ctrl_reg() - read from lock protected control register.
  * @st: Driver specific device instance data.
  * @ctrl_reg: Which ctrl register do we want to read.
  *
@@ -421,7 +421,7 @@ error_ret:
 }
 
 /**
- * sca3000_show_rev() - sysfs interface to read the chip revision number
+ * sca3000_print_rev() - sysfs interface to read the chip revision number
  * @indio_dev: Device instance specific generic IIO data.
  * Driver specific device instance data can be obtained via
  * via iio_priv(indio_dev)
@@ -902,7 +902,7 @@ static int sca3000_read_event_value(struct iio_dev *indio_dev,
 }
 
 /**
- * sca3000_write_value() - control of threshold and period
+ * sca3000_write_event_value() - control of threshold and period
  * @indio_dev: Device instance specific IIO information.
  * @chan: Description of the channel for which the event is being
  * configured.
