@@ -163,9 +163,6 @@ static int ad7150_write_event_params(struct iio_dev *indio_dev,
 				     enum iio_event_type type,
 				     enum iio_event_direction dir)
 {
-	int ret;
-	u16 value;
-	u8 sens, timeout;
 	struct ad7150_chip_info *chip = iio_priv(indio_dev);
 	int rising = (dir == IIO_EV_DIR_RISING);
 	u64 event_code;
@@ -177,26 +174,31 @@ static int ad7150_write_event_params(struct iio_dev *indio_dev,
 
 	switch (type) {
 		/* Note completely different from the adaptive versions */
-	case IIO_EV_TYPE_THRESH:
-		value = chip->threshold[rising][chan];
+	case IIO_EV_TYPE_THRESH: {
+		u16 value = chip->threshold[rising][chan];
 		return i2c_smbus_write_word_swapped(chip->client,
 						    ad7150_addresses[chan][3],
 						    value);
-	case IIO_EV_TYPE_THRESH_ADAPTIVE:
+	}
+	case IIO_EV_TYPE_THRESH_ADAPTIVE: {
+		int ret;
+		u8 sens, timeout;
+
 		sens = chip->thresh_sensitivity[rising][chan];
+		ret = i2c_smbus_write_byte_data(chip->client,
+						ad7150_addresses[chan][4],
+						sens);
+		if (ret)
+			return ret;
+
 		timeout = chip->thresh_timeout[rising][chan];
-		break;
+		return i2c_smbus_write_byte_data(chip->client,
+						 ad7150_addresses[chan][5],
+						 timeout);
+	}
 	default:
 		return -EINVAL;
 	}
-	ret = i2c_smbus_write_byte_data(chip->client,
-					ad7150_addresses[chan][4],
-					sens);
-	if (ret)
-		return ret;
-	return i2c_smbus_write_byte_data(chip->client,
-					ad7150_addresses[chan][5],
-					timeout);
 }
 
 static int ad7150_write_event_config(struct iio_dev *indio_dev,
