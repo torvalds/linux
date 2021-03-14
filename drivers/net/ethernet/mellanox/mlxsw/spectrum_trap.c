@@ -204,6 +204,55 @@ static void mlxsw_sp_rx_ptp_listener(struct sk_buff *skb, u8 local_port,
 	mlxsw_sp_ptp_receive(mlxsw_sp, skb, local_port);
 }
 
+static struct mlxsw_sp_port *
+mlxsw_sp_sample_tx_port_get(struct mlxsw_sp *mlxsw_sp,
+			    const struct mlxsw_rx_md_info *rx_md_info)
+{
+	u8 local_port;
+
+	if (!rx_md_info->tx_port_valid)
+		return NULL;
+
+	if (rx_md_info->tx_port_is_lag)
+		local_port = mlxsw_core_lag_mapping_get(mlxsw_sp->core,
+							rx_md_info->tx_lag_id,
+							rx_md_info->tx_lag_port_index);
+	else
+		local_port = rx_md_info->tx_sys_port;
+
+	if (local_port >= mlxsw_core_max_ports(mlxsw_sp->core))
+		return NULL;
+
+	return mlxsw_sp->ports[local_port];
+}
+
+/* The latency units are determined according to MOGCR.mirror_latency_units. It
+ * defaults to 64 nanoseconds.
+ */
+#define MLXSW_SP_MIRROR_LATENCY_SHIFT	6
+
+static void mlxsw_sp_psample_md_init(struct mlxsw_sp *mlxsw_sp,
+				     struct psample_metadata *md,
+				     struct sk_buff *skb, int in_ifindex,
+				     bool truncate, u32 trunc_size)
+{
+	struct mlxsw_rx_md_info *rx_md_info = &mlxsw_skb_cb(skb)->rx_md_info;
+	struct mlxsw_sp_port *mlxsw_sp_port;
+
+	md->trunc_size = truncate ? trunc_size : skb->len;
+	md->in_ifindex = in_ifindex;
+	mlxsw_sp_port = mlxsw_sp_sample_tx_port_get(mlxsw_sp, rx_md_info);
+	md->out_ifindex = mlxsw_sp_port && mlxsw_sp_port->dev ?
+			  mlxsw_sp_port->dev->ifindex : 0;
+	md->out_tc_valid = rx_md_info->tx_tc_valid;
+	md->out_tc = rx_md_info->tx_tc;
+	md->out_tc_occ_valid = rx_md_info->tx_congestion_valid;
+	md->out_tc_occ = rx_md_info->tx_congestion;
+	md->latency_valid = rx_md_info->latency_valid;
+	md->latency = rx_md_info->latency;
+	md->latency <<= MLXSW_SP_MIRROR_LATENCY_SHIFT;
+}
+
 static void mlxsw_sp_rx_sample_listener(struct sk_buff *skb, u8 local_port,
 					void *trap_ctx)
 {
@@ -229,8 +278,9 @@ static void mlxsw_sp_rx_sample_listener(struct sk_buff *skb, u8 local_port,
 	 * Ethernet header.
 	 */
 	skb_push(skb, ETH_HLEN);
-	md.trunc_size = sample->truncate ? sample->trunc_size : skb->len;
-	md.in_ifindex = mlxsw_sp_port->dev->ifindex;
+	mlxsw_sp_psample_md_init(mlxsw_sp, &md, skb,
+				 mlxsw_sp_port->dev->ifindex, sample->truncate,
+				 sample->trunc_size);
 	psample_sample_packet(sample->psample_group, skb, sample->rate, &md);
 out:
 	consume_skb(skb);
