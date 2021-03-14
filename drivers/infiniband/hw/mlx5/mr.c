@@ -1946,7 +1946,7 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 			mr->mtt_mr = NULL;
 		}
 		if (mr->klm_mr) {
-			mlx5_ib_dereg_mr(&mr->klm_mr->ibmr, NULL);
+			rc = mlx5_ib_dereg_mr(&mr->klm_mr->ibmr, NULL);
 			if (rc)
 				return rc;
 			mr->klm_mr = NULL;
