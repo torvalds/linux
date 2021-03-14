@@ -3,6 +3,7 @@
  * AD7150 capacitive sensor driver supporting AD7150/1/6
  *
  * Copyright 2010-2011 Analog Devices Inc.
+ * Copyright 2021 Jonathan Cameron <Jonathan.Cameron@huawei.com>
  */
 
 #include <linux/bitfield.h>
