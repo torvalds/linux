@@ -116,6 +116,8 @@ enum {
 	DR_STE_V1_ACTION_MDFY_FLD_IPV6_SRC_OUT_3	= 0x4f,
 	DR_STE_V1_ACTION_MDFY_FLD_TCP_MISC_0		= 0x5e,
 	DR_STE_V1_ACTION_MDFY_FLD_TCP_MISC_1		= 0x5f,
+	DR_STE_V1_ACTION_MDFY_FLD_CFG_HDR_0_0		= 0x6f,
+	DR_STE_V1_ACTION_MDFY_FLD_CFG_HDR_0_1		= 0x70,
 	DR_STE_V1_ACTION_MDFY_FLD_METADATA_2_CQE	= 0x7b,
 	DR_STE_V1_ACTION_MDFY_FLD_GNRL_PURPOSE		= 0x7c,
 	DR_STE_V1_ACTION_MDFY_FLD_REGISTER_2		= 0x8c,
@@ -245,6 +247,12 @@ static const struct mlx5dr_ste_action_modify_field dr_ste_v1_action_modify_field
 	},
 	[MLX5_ACTION_IN_FIELD_OUT_FIRST_VID] = {
 		.hw_field = DR_STE_V1_ACTION_MDFY_FLD_L2_OUT_2, .start = 0, .end = 15,
+	},
+	[MLX5_ACTION_IN_FIELD_OUT_EMD_31_0] = {
+		.hw_field = DR_STE_V1_ACTION_MDFY_FLD_CFG_HDR_0_1, .start = 0, .end = 31,
+	},
+	[MLX5_ACTION_IN_FIELD_OUT_EMD_47_32] = {
+		.hw_field = DR_STE_V1_ACTION_MDFY_FLD_CFG_HDR_0_0, .start = 0, .end = 15,
 	},
 };
 
