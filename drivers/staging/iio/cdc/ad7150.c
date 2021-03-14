@@ -108,9 +108,9 @@ static int ad7150_read_raw(struct iio_dev *indio_dev,
 			   int *val2,
 			   long mask)
 {
-	int ret;
 	struct ad7150_chip_info *chip = iio_priv(indio_dev);
 	int channel = chan->channel;
+	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -143,10 +143,10 @@ static int ad7150_read_event_config(struct iio_dev *indio_dev,
 				    enum iio_event_type type,
 				    enum iio_event_direction dir)
 {
-	int ret;
+	struct ad7150_chip_info *chip = iio_priv(indio_dev);
 	u8 threshtype;
 	bool thrfixed;
-	struct ad7150_chip_info *chip = iio_priv(indio_dev);
+	int ret;
 
 	ret = i2c_smbus_read_byte_data(chip->client, AD7150_CFG_REG);
 	if (ret < 0)
@@ -227,10 +227,8 @@ static int ad7150_write_event_config(struct iio_dev *indio_dev,
 				     enum iio_event_type type,
 				     enum iio_event_direction dir, int state)
 {
-	u8 thresh_type, cfg, fixed;
-	int ret;
 	struct ad7150_chip_info *chip = iio_priv(indio_dev);
-	int rising = (dir == IIO_EV_DIR_RISING);
+	int ret;
 
 	/*
 	 * There is only a single shared control and no on chip
@@ -251,6 +249,8 @@ static int ad7150_write_event_config(struct iio_dev *indio_dev,
 
 	mutex_lock(&chip->state_lock);
 	if ((type != chip->type) || (dir != chip->dir)) {
+		int rising = (dir == IIO_EV_DIR_RISING);
+		u8 thresh_type, cfg, fixed;
 
 		/*
 		 * Need to temporarily disable both interrupts if
@@ -528,9 +528,9 @@ static const struct iio_info ad7150_info_no_irq = {
 static int ad7150_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	int ret;
 	struct ad7150_chip_info *chip;
 	struct iio_dev *indio_dev;
+	int ret;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
 	if (!indio_dev)
