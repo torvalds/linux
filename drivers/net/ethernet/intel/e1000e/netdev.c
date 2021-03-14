@@ -5987,7 +5987,7 @@ static void e1000_reset_task(struct work_struct *work)
 }
 
 /**
- * e1000_get_stats64 - Get System Network Statistics
+ * e1000e_get_stats64 - Get System Network Statistics
  * @netdev: network interface device structure
  * @stats: rtnl_link_stats64 pointer
  *
@@ -6160,7 +6160,7 @@ static int e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr,
 }
 
 /**
- * e1000e_hwtstamp_ioctl - control hardware time stamping
+ * e1000e_hwtstamp_set - control hardware time stamping
  * @netdev: network interface device structure
  * @ifr: interface request
  *
@@ -6818,7 +6818,7 @@ static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
 }
 
 /**
- * e1000e_disable_aspm_locked   Disable ASPM states.
+ * e1000e_disable_aspm_locked - Disable ASPM states.
  * @pdev: pointer to PCI device struct
  * @state: bit-mask of ASPM states to disable
  *
