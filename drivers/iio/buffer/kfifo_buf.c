@@ -180,7 +180,7 @@ static void devm_iio_kfifo_release(struct device *dev, void *res)
 }
 
 /**
- * devm_iio_fifo_allocate - Resource-managed iio_kfifo_allocate()
+ * devm_iio_kfifo_allocate - Resource-managed iio_kfifo_allocate()
  * @dev:		Device to allocate kfifo buffer for
  *
  * RETURNS:
