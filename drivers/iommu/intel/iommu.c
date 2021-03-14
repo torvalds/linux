@@ -5380,6 +5380,9 @@ intel_iommu_dev_enable_feat(struct device *dev, enum iommu_dev_features feat)
 		if (!info)
 			return -EINVAL;
 
+		if (!info->pasid_enabled || !info->pri_enabled || !info->ats_enabled)
+			return -EINVAL;
+
 		if (info->iommu->flags & VTD_FLAG_SVM_CAPABLE)
 			return 0;
 	}
