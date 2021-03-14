@@ -220,15 +220,6 @@ struct pwrctrl_priv {
 	u8 wowlan_wake_reason;
 	u8 wowlan_ap_mode;
 	u8 wowlan_mode;
-#ifdef CONFIG_WOWLAN
-	u8 wowlan_pattern;
-	u8 wowlan_magic;
-	u8 wowlan_unicast;
-	u8 wowlan_pattern_idx;
-	u8 wowlan_pno_enable;
-	u32 	wowlan_pattern_context[8][5];
-	u64		wowlan_fw_iv;
-#endif /*  CONFIG_WOWLAN */
 	struct timer_list	pwr_state_check_timer;
 	struct adapter *adapter;
 	int		pwr_state_check_interval;

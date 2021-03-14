@@ -10,7 +10,7 @@
 #include <rtw_debug.h>
 #include <hal_com_h2c.h>
 
-#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
+#ifdef CONFIG_AP_WOWLAN
 #include <linux/inetdevice.h>
 #endif
 
@@ -2113,7 +2113,7 @@ int rtw_config_gpio(struct net_device *netdev, int gpio_num, bool isOutput)
 EXPORT_SYMBOL(rtw_config_gpio);
 #endif
 
-#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
+#ifdef CONFIG_AP_WOWLAN
 void rtw_get_current_ip_address(struct adapter *padapter, u8 *pcurrentip)
 {
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
@@ -2139,53 +2139,4 @@ void rtw_get_current_ip_address(struct adapter *padapter, u8 *pcurrentip)
 	}
 }
 #endif
-#ifdef CONFIG_WOWLAN
-void rtw_get_sec_iv(struct adapter *padapter, u8 *pcur_dot11txpn, u8 *StaAddr)
-{
-	struct sta_info *psta;
-	struct security_priv *psecpriv = &padapter->securitypriv;
-
-	memset(pcur_dot11txpn, 0, 8);
-	if (!StaAddr)
-		return;
-	psta = rtw_get_stainfo(&padapter->stapriv, StaAddr);
-	DBG_871X("%s(): StaAddr: %02x %02x %02x %02x %02x %02x\n",
-		__func__, StaAddr[0], StaAddr[1], StaAddr[2],
-		StaAddr[3], StaAddr[4], StaAddr[5]);
-
-	if (psta) {
-		if (psecpriv->dot11PrivacyAlgrthm != _NO_PRIVACY_ && psta->dot11txpn.val > 0)
-			psta->dot11txpn.val--;
-		AES_IV(pcur_dot11txpn, psta->dot11txpn, 0);
-
-		DBG_871X("%s(): CurrentIV: %02x %02x %02x %02x %02x %02x %02x %02x\n"
-		, __func__, pcur_dot11txpn[0], pcur_dot11txpn[1],
-		pcur_dot11txpn[2], pcur_dot11txpn[3], pcur_dot11txpn[4],
-		pcur_dot11txpn[5], pcur_dot11txpn[6], pcur_dot11txpn[7]);
-	}
-}
-
-void rtw_set_sec_pn(struct adapter *padapter)
-{
-		struct sta_info         *psta;
-		struct mlme_ext_priv    *pmlmeext = &(padapter->mlmeextpriv);
-		struct mlme_ext_info    *pmlmeinfo = &(pmlmeext->mlmext_info);
-		struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
-		struct security_priv *psecpriv = &padapter->securitypriv;
-
-		psta = rtw_get_stainfo(&padapter->stapriv,
-		get_my_bssid(&pmlmeinfo->network));
-
-		if (psta) {
-			if (pwrpriv->wowlan_fw_iv > psta->dot11txpn.val) {
-				if (psecpriv->dot11PrivacyAlgrthm != _NO_PRIVACY_)
-					psta->dot11txpn.val = pwrpriv->wowlan_fw_iv + 2;
-			} else {
-				DBG_871X("%s(): FW IV is smaller than driver\n", __func__);
-				psta->dot11txpn.val += 2;
-			}
-			DBG_871X("%s: dot11txpn: 0x%016llx\n", __func__, psta->dot11txpn.val);
-		}
-}
-#endif /* CONFIG_WOWLAN */
 

@@ -1114,7 +1114,7 @@ void HalQueryTxOQTBufferStatus8723BSdio(struct adapter *adapter)
 	haldata->SdioTxOQTFreeSpace = SdioLocalCmd52Read1Byte(adapter, SDIO_REG_OQT_FREE_PG);
 }
 
-#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
+#ifdef CONFIG_AP_WOWLAN
 u8 RecvOnePkt(struct adapter *adapter, u32 size)
 {
 	struct recv_buf *recvbuf;
@@ -1149,4 +1149,4 @@ u8 RecvOnePkt(struct adapter *adapter, u32 size)
 	DBG_871X("-%s-\n", __func__);
 	return res;
 }
-#endif /* CONFIG_WOWLAN */
+#endif /* CONFIG_AP_WOWLAN */

@@ -350,7 +350,7 @@ static u8 PS_RDY_CHECK(struct adapter *padapter)
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 
-#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
+#ifdef CONFIG_AP_WOWLAN
 	if (pwrpriv->bInSuspend && pwrpriv->wowlan_mode)
 		return true;
 	else if (pwrpriv->bInSuspend && pwrpriv->wowlan_ap_mode)
@@ -391,7 +391,7 @@ static u8 PS_RDY_CHECK(struct adapter *padapter)
 void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_ant_mode, const char *msg)
 {
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
-#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
+#ifdef CONFIG_AP_WOWLAN
 	struct debug_priv *pdbgpriv = &padapter->dvobj->drv_dbg;
 #endif
 
@@ -422,7 +422,7 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 			pwrpriv->pwr_mode = ps_mode;
 			rtw_set_rpwm(padapter, PS_STATE_S4);
 
-#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
+#ifdef CONFIG_AP_WOWLAN
 			if (pwrpriv->wowlan_mode || pwrpriv->wowlan_ap_mode) {
 				unsigned long start_time;
 				u32 delay_ms;

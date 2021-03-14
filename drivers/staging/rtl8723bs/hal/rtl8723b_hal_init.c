@@ -369,9 +369,6 @@ s32 rtl8723b_FirmwareDownload(struct adapter *padapter, bool  bUsedWoWLANFw)
 	u8 tmp_ps;
 
 	RT_TRACE(_module_hal_init_c_, _drv_info_, ("+%s\n", __func__));
-#ifdef CONFIG_WOWLAN
-	RT_TRACE(_module_hal_init_c_, _drv_notice_, ("+%s, bUsedWoWLANFw:%d\n", __func__, bUsedWoWLANFw));
-#endif
 	pFirmware = kzalloc(sizeof(struct rt_firmware), GFP_KERNEL);
 	if (!pFirmware)
 		return _FAIL;
@@ -393,12 +390,7 @@ s32 rtl8723b_FirmwareDownload(struct adapter *padapter, bool  bUsedWoWLANFw)
 		pdbgpriv->dbg_downloadfw_pwr_state_cnt++;
 	}
 
-#ifdef CONFIG_WOWLAN
-	if (bUsedWoWLANFw)
-		fwfilepath = "rtlwifi/rtl8723bs_wowlan.bin";
-	else
-#endif /*  CONFIG_WOWLAN */
-		fwfilepath = "rtlwifi/rtl8723bs_nic.bin";
+	fwfilepath = "rtlwifi/rtl8723bs_nic.bin";
 
 	pr_info("rtl8723bs: acquire FW from file:%s\n", fwfilepath);
 
@@ -535,7 +527,7 @@ void rtl8723b_InitializeFirmwareVars(struct adapter *padapter)
 /* pHalData->H2CStopInsertQueue = false; */
 }
 
-#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
+#ifdef CONFIG_AP_WOWLAN
 /*  */
 
 /*  */
@@ -566,7 +558,7 @@ void SetFwRelatedForWoWLAN8723b(
 	/*  */
 	rtl8723b_InitializeFirmwareVars(padapter);
 }
-#endif /* CONFIG_WOWLAN */
+#endif /* CONFIG_AP_WOWLAN */
 
 static void rtl8723b_free_hal_data(struct adapter *padapter)
 {
@@ -3752,14 +3744,6 @@ void C2HPacketHandler_8723B(struct adapter *padapter, u8 *pbuffer, u16 length)
 {
 	struct C2H_EVT_HDR	C2hEvent;
 	u8 *tmpBuf = NULL;
-#ifdef CONFIG_WOWLAN
-	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
-
-	if (pwrpriv->wowlan_mode) {
-		DBG_871X("%s(): return because wowolan_mode ==true! CMDID =%d\n", __func__, pbuffer[0]);
-		return;
-	}
-#endif
 	C2hEvent.CmdID = pbuffer[0];
 	C2hEvent.CmdSeq = pbuffer[1];
 	C2hEvent.CmdLen = length-2;
@@ -4314,19 +4298,6 @@ void GetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 		val16 = rtw_read16(padapter, REG_TXPKT_EMPTY);
 		*val = (val16 & BIT(10)) ? true:false;
 		break;
-#ifdef CONFIG_WOWLAN
-	case HW_VAR_RPWM_TOG:
-		*val = rtw_read8(padapter, SDIO_LOCAL_BASE|SDIO_REG_HRPWM1) & BIT7;
-		break;
-	case HW_VAR_WAKEUP_REASON:
-		*val = rtw_read8(padapter, REG_WOWLAN_WAKE_REASON);
-		if (*val == 0xEA)
-			*val = 0;
-		break;
-	case HW_VAR_SYS_CLKR:
-		*val = rtw_read8(padapter, REG_SYS_CLKR);
-		break;
-#endif
 	default:
 		GetHwReg(padapter, variable, val);
 		break;
@@ -4460,14 +4431,6 @@ u8 GetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable, v
 
 	return bResult;
 }
-
-#ifdef CONFIG_WOWLAN
-void Hal_DetectWoWMode(struct adapter *padapter)
-{
-	adapter_to_pwrctl(padapter)->bSupportRemoteWakeup = true;
-	DBG_871X("%s\n", __func__);
-}
-#endif /* CONFIG_WOWLAN */
 
 void rtl8723b_start_thread(struct adapter *padapter)
 {

@@ -377,11 +377,6 @@ static void rtw_sdio_if1_deinit(struct adapter *if1)
 
 	rtw_cancel_all_timer(if1);
 
-#ifdef CONFIG_WOWLAN
-	adapter_to_pwrctl(if1)->wowlan_mode = false;
-	DBG_871X_LEVEL(_drv_always_, "%s wowlan_mode:%d\n", __func__, adapter_to_pwrctl(if1)->wowlan_mode);
-#endif /* CONFIG_WOWLAN */
-
 	rtw_dev_unload(if1);
 	DBG_871X("+r871xu_dev_remove, hw_init_completed =%d\n", if1->hw_init_completed);
 

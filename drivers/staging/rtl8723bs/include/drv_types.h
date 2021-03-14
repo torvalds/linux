@@ -534,11 +534,6 @@ int rtw_set_gpio_output_value(struct net_device *netdev, int gpio_num, bool isHi
 int rtw_config_gpio(struct net_device *netdev, int gpio_num, bool isOutput);
 #endif
 
-#ifdef CONFIG_WOWLAN
-void rtw_suspend_wow(struct adapter *padapter);
-int rtw_resume_process_wow(struct adapter *padapter);
-#endif
-
 static inline u8 *myid(struct eeprom_priv *peepriv)
 {
 	return peepriv->mac_addr;

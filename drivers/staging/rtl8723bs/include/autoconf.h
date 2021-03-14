@@ -40,9 +40,6 @@
  * Platform dependent
  */
 #define WAKEUP_GPIO_IDX	12	/* WIFI Chip Side */
-#ifdef CONFIG_WOWLAN
-#define CONFIG_GTK_OL
-#endif /* CONFIG_WOWLAN */
 
 /*
  * Debug Related Config

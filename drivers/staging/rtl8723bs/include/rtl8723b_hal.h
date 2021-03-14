@@ -96,11 +96,7 @@ struct rt_firmware_hdr {
 
 /* For WoWLan, more reserved page */
 /* ARP Rsp:1, RWC:1, GTK Info:1, GTK RSP:2, GTK EXT MEM:2, PNO: 6 */
-#ifdef CONFIG_WOWLAN
-#define WOWLAN_PAGE_NUM_8723B 0x07
-#else
 #define WOWLAN_PAGE_NUM_8723B 0x00
-#endif
 
 #ifdef CONFIG_AP_WOWLAN
 #define AP_WOWLAN_PAGE_NUM_8723B 0x02
@@ -244,9 +240,6 @@ u8 GetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable,
 void rtl8723b_InitBeaconParameters(struct adapter *padapter);
 void _InitBurstPktLen_8723BS(struct adapter *adapter);
 void _8051Reset8723(struct adapter *padapter);
-#ifdef CONFIG_WOWLAN
-void Hal_DetectWoWMode(struct adapter *padapter);
-#endif /* CONFIG_WOWLAN */
 
 void rtl8723b_start_thread(struct adapter *padapter);
 void rtl8723b_stop_thread(struct adapter *padapter);

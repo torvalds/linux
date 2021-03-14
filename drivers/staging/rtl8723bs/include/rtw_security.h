@@ -129,9 +129,6 @@ struct security_priv {
 
 
 	u8 binstallGrpkey;
-#ifdef CONFIG_GTK_OL
-	u8 binstallKCK_KEK;
-#endif /* CONFIG_GTK_OL */
 	u8 binstallBIPkey;
 	u8 busetkipkey;
 	/* _timer tkip_timer; */
