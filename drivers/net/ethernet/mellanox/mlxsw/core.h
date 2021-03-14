@@ -60,6 +60,21 @@ struct mlxsw_tx_info {
 
 struct mlxsw_rx_md_info {
 	u32 cookie_index;
+	u32 latency;
+	u32 tx_congestion;
+	union {
+		/* Valid when 'tx_port_valid' is set. */
+		u16 tx_sys_port;
+		u16 tx_lag_id;
+	};
+	u8 tx_lag_port_index; /* Valid when 'tx_port_is_lag' is set. */
+	u8 tx_tc;
+	u8 latency_valid:1,
+	   tx_congestion_valid:1,
+	   tx_tc_valid:1,
+	   tx_port_valid:1,
+	   tx_port_is_lag:1,
+	   unused:3;
 };
 
 bool mlxsw_core_skb_transmit_busy(struct mlxsw_core *mlxsw_core,
