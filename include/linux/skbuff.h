@@ -3680,11 +3680,10 @@ static inline void * __must_check
 __skb_header_pointer(const struct sk_buff *skb, int offset, int len,
 		     const void *data, int hlen, void *buffer)
 {
-	if (hlen - offset >= len)
+	if (likely(hlen - offset >= len))
 		return (void *)data + offset;
 
-	if (!skb ||
-	    skb_copy_bits(skb, offset, buffer, len) < 0)
+	if (!skb || unlikely(skb_copy_bits(skb, offset, buffer, len) < 0))
 		return NULL;
 
 	return buffer;
