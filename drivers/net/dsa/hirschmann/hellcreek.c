@@ -596,6 +596,83 @@ static void hellcreek_setup_vlan_membership(struct dsa_switch *ds, int port,
 		hellcreek_unapply_vlan(hellcreek, upstream, vid);
 }
 
+static void hellcreek_port_set_ucast_flood(struct hellcreek *hellcreek,
+					   int port, bool enable)
+{
+	struct hellcreek_port *hellcreek_port;
+	u16 val;
+
+	hellcreek_port = &hellcreek->ports[port];
+
+	dev_dbg(hellcreek->dev, "%s unicast flooding on port %d\n",
+		enable ? "Enable" : "Disable", port);
+
+	mutex_lock(&hellcreek->reg_lock);
+
+	hellcreek_select_port(hellcreek, port);
+	val = hellcreek_port->ptcfg;
+	if (enable)
+		val &= ~HR_PTCFG_UUC_FLT;
+	else
+		val |= HR_PTCFG_UUC_FLT;
+	hellcreek_write(hellcreek, val, HR_PTCFG);
+	hellcreek_port->ptcfg = val;
+
+	mutex_unlock(&hellcreek->reg_lock);
+}
+
+static void hellcreek_port_set_mcast_flood(struct hellcreek *hellcreek,
+					   int port, bool enable)
+{
+	struct hellcreek_port *hellcreek_port;
+	u16 val;
+
+	hellcreek_port = &hellcreek->ports[port];
+
+	dev_dbg(hellcreek->dev, "%s multicast flooding on port %d\n",
+		enable ? "Enable" : "Disable", port);
+
+	mutex_lock(&hellcreek->reg_lock);
+
+	hellcreek_select_port(hellcreek, port);
+	val = hellcreek_port->ptcfg;
+	if (enable)
+		val &= ~HR_PTCFG_UMC_FLT;
+	else
+		val |= HR_PTCFG_UMC_FLT;
+	hellcreek_write(hellcreek, val, HR_PTCFG);
+	hellcreek_port->ptcfg = val;
+
+	mutex_unlock(&hellcreek->reg_lock);
+}
+
+static int hellcreek_pre_bridge_flags(struct dsa_switch *ds, int port,
+				      struct switchdev_brport_flags flags,
+				      struct netlink_ext_ack *extack)
+{
+	if (flags.mask & ~(BR_FLOOD | BR_MCAST_FLOOD))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int hellcreek_bridge_flags(struct dsa_switch *ds, int port,
+				  struct switchdev_brport_flags flags,
+				  struct netlink_ext_ack *extack)
+{
+	struct hellcreek *hellcreek = ds->priv;
+
+	if (flags.mask & BR_FLOOD)
+		hellcreek_port_set_ucast_flood(hellcreek, port,
+					       !!(flags.val & BR_FLOOD));
+
+	if (flags.mask & BR_MCAST_FLOOD)
+		hellcreek_port_set_mcast_flood(hellcreek, port,
+					       !!(flags.val & BR_MCAST_FLOOD));
+
+	return 0;
+}
+
 static int hellcreek_port_bridge_join(struct dsa_switch *ds, int port,
 				      struct net_device *br)
 {
@@ -1655,31 +1732,33 @@ static int hellcreek_port_setup_tc(struct dsa_switch *ds, int port,
 }
 
 static const struct dsa_switch_ops hellcreek_ds_ops = {
-	.get_ethtool_stats   = hellcreek_get_ethtool_stats,
-	.get_sset_count	     = hellcreek_get_sset_count,
-	.get_strings	     = hellcreek_get_strings,
-	.get_tag_protocol    = hellcreek_get_tag_protocol,
-	.get_ts_info	     = hellcreek_get_ts_info,
-	.phylink_validate    = hellcreek_phylink_validate,
-	.port_bridge_join    = hellcreek_port_bridge_join,
-	.port_bridge_leave   = hellcreek_port_bridge_leave,
-	.port_disable	     = hellcreek_port_disable,
-	.port_enable	     = hellcreek_port_enable,
-	.port_fdb_add	     = hellcreek_fdb_add,
-	.port_fdb_del	     = hellcreek_fdb_del,
-	.port_fdb_dump	     = hellcreek_fdb_dump,
-	.port_hwtstamp_set   = hellcreek_port_hwtstamp_set,
-	.port_hwtstamp_get   = hellcreek_port_hwtstamp_get,
-	.port_prechangeupper = hellcreek_port_prechangeupper,
-	.port_rxtstamp	     = hellcreek_port_rxtstamp,
-	.port_setup_tc	     = hellcreek_port_setup_tc,
-	.port_stp_state_set  = hellcreek_port_stp_state_set,
-	.port_txtstamp	     = hellcreek_port_txtstamp,
-	.port_vlan_add	     = hellcreek_vlan_add,
-	.port_vlan_del	     = hellcreek_vlan_del,
-	.port_vlan_filtering = hellcreek_vlan_filtering,
-	.setup		     = hellcreek_setup,
-	.teardown	     = hellcreek_teardown,
+	.get_ethtool_stats     = hellcreek_get_ethtool_stats,
+	.get_sset_count	       = hellcreek_get_sset_count,
+	.get_strings	       = hellcreek_get_strings,
+	.get_tag_protocol      = hellcreek_get_tag_protocol,
+	.get_ts_info	       = hellcreek_get_ts_info,
+	.phylink_validate      = hellcreek_phylink_validate,
+	.port_bridge_flags     = hellcreek_bridge_flags,
+	.port_bridge_join      = hellcreek_port_bridge_join,
+	.port_bridge_leave     = hellcreek_port_bridge_leave,
+	.port_disable	       = hellcreek_port_disable,
+	.port_enable	       = hellcreek_port_enable,
+	.port_fdb_add	       = hellcreek_fdb_add,
+	.port_fdb_del	       = hellcreek_fdb_del,
+	.port_fdb_dump	       = hellcreek_fdb_dump,
+	.port_hwtstamp_set     = hellcreek_port_hwtstamp_set,
+	.port_hwtstamp_get     = hellcreek_port_hwtstamp_get,
+	.port_pre_bridge_flags = hellcreek_pre_bridge_flags,
+	.port_prechangeupper   = hellcreek_port_prechangeupper,
+	.port_rxtstamp	       = hellcreek_port_rxtstamp,
+	.port_setup_tc	       = hellcreek_port_setup_tc,
+	.port_stp_state_set    = hellcreek_port_stp_state_set,
+	.port_txtstamp	       = hellcreek_port_txtstamp,
+	.port_vlan_add	       = hellcreek_vlan_add,
+	.port_vlan_del	       = hellcreek_vlan_del,
+	.port_vlan_filtering   = hellcreek_vlan_filtering,
+	.setup		       = hellcreek_setup,
+	.teardown	       = hellcreek_teardown,
 };
 
 static int hellcreek_probe(struct platform_device *pdev)
