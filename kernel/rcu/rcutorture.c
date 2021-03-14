@@ -331,6 +331,7 @@ struct rcu_torture_ops {
 	void (*read_delay)(struct torture_random_state *rrsp,
 			   struct rt_read_seg *rtrsp);
 	void (*readunlock)(int idx);
+	int (*readlock_held)(void);
 	unsigned long (*get_gp_seq)(void);
 	unsigned long (*gp_diff)(unsigned long new, unsigned long old);
 	void (*deferred_free)(struct rcu_torture *p);
@@ -358,6 +359,11 @@ static struct rcu_torture_ops *cur_ops;
 /*
  * Definitions for rcu torture testing.
  */
+
+static int torture_readlock_not_held(void)
+{
+	return rcu_read_lock_bh_held() || rcu_read_lock_sched_held();
+}
 
 static int rcu_torture_read_lock(void) __acquires(RCU)
 {
@@ -488,6 +494,7 @@ static struct rcu_torture_ops rcu_ops = {
 	.readlock	= rcu_torture_read_lock,
 	.read_delay	= rcu_read_delay,
 	.readunlock	= rcu_torture_read_unlock,
+	.readlock_held	= torture_readlock_not_held,
 	.get_gp_seq	= rcu_get_gp_seq,
 	.gp_diff	= rcu_seq_diff,
 	.deferred_free	= rcu_torture_deferred_free,
@@ -540,6 +547,7 @@ static struct rcu_torture_ops rcu_busted_ops = {
 	.readlock	= rcu_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= rcu_torture_read_unlock,
+	.readlock_held	= torture_readlock_not_held,
 	.get_gp_seq	= rcu_no_completed,
 	.deferred_free	= rcu_busted_torture_deferred_free,
 	.sync		= synchronize_rcu_busted,
@@ -587,6 +595,11 @@ srcu_read_delay(struct torture_random_state *rrsp, struct rt_read_seg *rtrsp)
 static void srcu_torture_read_unlock(int idx) __releases(srcu_ctlp)
 {
 	srcu_read_unlock(srcu_ctlp, idx);
+}
+
+static int torture_srcu_read_lock_held(void)
+{
+	return srcu_read_lock_held(srcu_ctlp);
 }
 
 static unsigned long srcu_torture_completed(void)
@@ -646,6 +659,7 @@ static struct rcu_torture_ops srcu_ops = {
 	.readlock	= srcu_torture_read_lock,
 	.read_delay	= srcu_read_delay,
 	.readunlock	= srcu_torture_read_unlock,
+	.readlock_held	= torture_srcu_read_lock_held,
 	.get_gp_seq	= srcu_torture_completed,
 	.deferred_free	= srcu_torture_deferred_free,
 	.sync		= srcu_torture_synchronize,
@@ -681,6 +695,7 @@ static struct rcu_torture_ops srcud_ops = {
 	.readlock	= srcu_torture_read_lock,
 	.read_delay	= srcu_read_delay,
 	.readunlock	= srcu_torture_read_unlock,
+	.readlock_held	= torture_srcu_read_lock_held,
 	.get_gp_seq	= srcu_torture_completed,
 	.deferred_free	= srcu_torture_deferred_free,
 	.sync		= srcu_torture_synchronize,
@@ -700,6 +715,7 @@ static struct rcu_torture_ops busted_srcud_ops = {
 	.readlock	= srcu_torture_read_lock,
 	.read_delay	= rcu_read_delay,
 	.readunlock	= srcu_torture_read_unlock,
+	.readlock_held	= torture_srcu_read_lock_held,
 	.get_gp_seq	= srcu_torture_completed,
 	.deferred_free	= srcu_torture_deferred_free,
 	.sync		= srcu_torture_synchronize,
@@ -787,6 +803,7 @@ static struct rcu_torture_ops trivial_ops = {
 	.readlock	= rcu_torture_read_lock_trivial,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= rcu_torture_read_unlock_trivial,
+	.readlock_held	= torture_readlock_not_held,
 	.get_gp_seq	= rcu_no_completed,
 	.sync		= synchronize_rcu_trivial,
 	.exp_sync	= synchronize_rcu_trivial,
@@ -850,6 +867,7 @@ static struct rcu_torture_ops tasks_tracing_ops = {
 	.readlock	= tasks_tracing_torture_read_lock,
 	.read_delay	= srcu_read_delay,  /* just reuse srcu's version. */
 	.readunlock	= tasks_tracing_torture_read_unlock,
+	.readlock_held	= rcu_read_lock_trace_held,
 	.get_gp_seq	= rcu_no_completed,
 	.deferred_free	= rcu_tasks_tracing_torture_deferred_free,
 	.sync		= synchronize_rcu_tasks_trace,
@@ -869,11 +887,6 @@ static unsigned long rcutorture_seq_diff(unsigned long new, unsigned long old)
 	if (!cur_ops->gp_diff)
 		return new - old;
 	return cur_ops->gp_diff(new, old);
-}
-
-static bool __maybe_unused torturing_tasks(void)
-{
-	return cur_ops == &tasks_ops || cur_ops == &tasks_rude_ops;
 }
 
 /*
@@ -1553,11 +1566,7 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp, long myid)
 	started = cur_ops->get_gp_seq();
 	ts = rcu_trace_clock_local();
 	p = rcu_dereference_check(rcu_torture_current,
-				  rcu_read_lock_bh_held() ||
-				  rcu_read_lock_sched_held() ||
-				  srcu_read_lock_held(srcu_ctlp) ||
-				  rcu_read_lock_trace_held() ||
-				  torturing_tasks());
+				  !cur_ops->readlock_held || cur_ops->readlock_held());
 	if (p == NULL) {
 		/* Wait for rcu_torture_writer to get underway */
 		rcutorture_one_extend(&readstate, 0, trsp, rtrsp);
