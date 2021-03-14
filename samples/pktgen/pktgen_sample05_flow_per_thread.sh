@@ -31,18 +31,15 @@ if [ -n "$DST_PORT" ]; then
     validate_ports $UDP_DST_MIN $UDP_DST_MAX
 fi
 
-# Base Config
-DELAY="0"  # Zero means max speed
-
 # General cleanup everything since last run
-pg_ctrl "reset"
+[ -z "$APPEND" ] && pg_ctrl "reset"
 
 # Threads are specified with parameter -t value in $THREADS
 for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     dev=${DEV}@${thread}
 
     # Add remove all other devices and add_device $dev to thread
-    pg_thread $thread "rem_device_all"
+    [ -z "$APPEND" ] && pg_thread $thread "rem_device_all"
     pg_thread $thread "add_device" $dev
 
     # Base config
@@ -91,7 +88,11 @@ function print_result() {
 # trap keyboard interrupt (Ctrl-C)
 trap true SIGINT
 
-echo "Running... ctrl^C to stop" >&2
-pg_ctrl "start"
+if [ -z "$APPEND" ]; then
+    echo "Running... ctrl^C to stop" >&2
+    pg_ctrl "start"
 
-print_result
+    print_result
+else
+    echo "Append mode: config done. Do more or use 'pg_ctrl start' to run"
+fi
