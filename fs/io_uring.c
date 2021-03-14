@@ -258,7 +258,7 @@ enum {
 
 struct io_sq_data {
 	refcount_t		refs;
-	struct rw_semaphore	rw_lock;
+	struct mutex		lock;
 
 	/* ctx's that are using this sqd */
 	struct list_head	ctx_list;
@@ -6689,16 +6689,15 @@ static int io_sq_thread(void *data)
 		set_cpus_allowed_ptr(current, cpu_online_mask);
 	current->flags |= PF_NO_SETAFFINITY;
 
-	down_read(&sqd->rw_lock);
-
+	mutex_lock(&sqd->lock);
 	while (!test_bit(IO_SQ_THREAD_SHOULD_STOP, &sqd->state)) {
 		int ret;
 		bool cap_entries, sqt_spin, needs_sched;
 
 		if (test_bit(IO_SQ_THREAD_SHOULD_PARK, &sqd->state)) {
-			up_read(&sqd->rw_lock);
+			mutex_unlock(&sqd->lock);
 			cond_resched();
-			down_read(&sqd->rw_lock);
+			mutex_lock(&sqd->lock);
 			io_run_task_work();
 			timeout = jiffies + sqd->sq_thread_idle;
 			continue;
@@ -6745,10 +6744,10 @@ static int io_sq_thread(void *data)
 			list_for_each_entry(ctx, &sqd->ctx_list, sqd_list)
 				io_ring_set_wakeup_flag(ctx);
 
-			up_read(&sqd->rw_lock);
+			mutex_unlock(&sqd->lock);
 			schedule();
 			try_to_freeze();
-			down_read(&sqd->rw_lock);
+			mutex_lock(&sqd->lock);
 			list_for_each_entry(ctx, &sqd->ctx_list, sqd_list)
 				io_ring_clear_wakeup_flag(ctx);
 		}
@@ -6756,20 +6755,13 @@ static int io_sq_thread(void *data)
 		finish_wait(&sqd->wait, &wait);
 		timeout = jiffies + sqd->sq_thread_idle;
 	}
-	up_read(&sqd->rw_lock);
-	down_write(&sqd->rw_lock);
-	/*
-	 * someone may have parked and added a cancellation task_work, run
-	 * it first because we don't want it in io_uring_cancel_sqpoll()
-	 */
-	io_run_task_work();
 
 	list_for_each_entry(ctx, &sqd->ctx_list, sqd_list)
 		io_uring_cancel_sqpoll(ctx);
 	sqd->thread = NULL;
 	list_for_each_entry(ctx, &sqd->ctx_list, sqd_list)
 		io_ring_set_wakeup_flag(ctx);
-	up_write(&sqd->rw_lock);
+	mutex_unlock(&sqd->lock);
 
 	io_run_task_work();
 	complete(&sqd->exited);
@@ -7071,21 +7063,21 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 }
 
 static void io_sq_thread_unpark(struct io_sq_data *sqd)
-	__releases(&sqd->rw_lock)
+	__releases(&sqd->lock)
 {
 	WARN_ON_ONCE(sqd->thread == current);
 
 	clear_bit(IO_SQ_THREAD_SHOULD_PARK, &sqd->state);
-	up_write(&sqd->rw_lock);
+	mutex_unlock(&sqd->lock);
 }
 
 static void io_sq_thread_park(struct io_sq_data *sqd)
-	__acquires(&sqd->rw_lock)
+	__acquires(&sqd->lock)
 {
 	WARN_ON_ONCE(sqd->thread == current);
 
 	set_bit(IO_SQ_THREAD_SHOULD_PARK, &sqd->state);
-	down_write(&sqd->rw_lock);
+	mutex_lock(&sqd->lock);
 	/* set again for consistency, in case concurrent parks are happening */
 	set_bit(IO_SQ_THREAD_SHOULD_PARK, &sqd->state);
 	if (sqd->thread)
@@ -7096,11 +7088,11 @@ static void io_sq_thread_stop(struct io_sq_data *sqd)
 {
 	WARN_ON_ONCE(sqd->thread == current);
 
-	down_write(&sqd->rw_lock);
+	mutex_lock(&sqd->lock);
 	set_bit(IO_SQ_THREAD_SHOULD_STOP, &sqd->state);
 	if (sqd->thread)
 		wake_up_process(sqd->thread);
-	up_write(&sqd->rw_lock);
+	mutex_unlock(&sqd->lock);
 	wait_for_completion(&sqd->exited);
 }
 
@@ -7182,7 +7174,7 @@ static struct io_sq_data *io_get_sq_data(struct io_uring_params *p,
 
 	refcount_set(&sqd->refs, 1);
 	INIT_LIST_HEAD(&sqd->ctx_list);
-	init_rwsem(&sqd->rw_lock);
+	mutex_init(&sqd->lock);
 	init_waitqueue_head(&sqd->wait);
 	init_completion(&sqd->exited);
 	return sqd;
