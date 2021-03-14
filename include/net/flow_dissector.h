@@ -368,8 +368,8 @@ static inline void *skb_flow_dissector_target(struct flow_dissector *flow_dissec
 struct bpf_flow_dissector {
 	struct bpf_flow_keys	*flow_keys;
 	const struct sk_buff	*skb;
-	void			*data;
-	void			*data_end;
+	const void		*data;
+	const void		*data_end;
 };
 
 static inline void
