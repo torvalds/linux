@@ -111,7 +111,7 @@ static int ad7150_read_raw(struct iio_dev *indio_dev,
 						  ad7150_addresses[channel][0]);
 		if (ret < 0)
 			return ret;
-		*val = ret;
+		*val = ret >> 4;
 
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_AVERAGE_RAW:
