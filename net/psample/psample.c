@@ -356,9 +356,11 @@ static int psample_tunnel_meta_len(struct ip_tunnel_info *tun_info)
 #endif
 
 void psample_sample_packet(struct psample_group *group, struct sk_buff *skb,
-			   u32 trunc_size, int in_ifindex, int out_ifindex,
-			   u32 sample_rate)
+			   u32 sample_rate, const struct psample_metadata *md)
 {
+	int out_ifindex = md->out_ifindex;
+	int in_ifindex = md->in_ifindex;
+	u32 trunc_size = md->trunc_size;
 #ifdef CONFIG_INET
 	struct ip_tunnel_info *tun_info;
 #endif

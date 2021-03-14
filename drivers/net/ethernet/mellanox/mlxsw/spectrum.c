@@ -2217,7 +2217,7 @@ void mlxsw_sp_sample_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp->ports[local_port];
 	struct mlxsw_sp_port_sample *sample;
-	u32 size;
+	struct psample_metadata md = {};
 
 	if (unlikely(!mlxsw_sp_port)) {
 		dev_warn_ratelimited(mlxsw_sp->bus_info->dev, "Port %d: sample skb received for non-existent port\n",
@@ -2229,9 +2229,9 @@ void mlxsw_sp_sample_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
 	sample = rcu_dereference(mlxsw_sp_port->sample);
 	if (!sample)
 		goto out_unlock;
-	size = sample->truncate ? sample->trunc_size : skb->len;
-	psample_sample_packet(sample->psample_group, skb, size,
-			      mlxsw_sp_port->dev->ifindex, 0, sample->rate);
+	md.trunc_size = sample->truncate ? sample->trunc_size : skb->len;
+	md.in_ifindex = mlxsw_sp_port->dev->ifindex;
+	psample_sample_packet(sample->psample_group, skb, sample->rate, &md);
 out_unlock:
 	rcu_read_unlock();
 out:
