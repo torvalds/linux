@@ -49,6 +49,7 @@ tools/labs/docs/Dockerfile for dependencies):
 
    lectures/intro.rst
    lectures/syscalls.rst
+   lectures/processes.rst
    lectures/interrupts.rst
    lectures/smp.rst
    lectures/debugging.rst

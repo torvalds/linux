@@ -12,3 +12,5 @@ SO2 Lecture 03 - Processes
    :inline-contents: False
    :level: 1
 
+.. include:: ../lectures/processes.rst
+   :start-line: 6
