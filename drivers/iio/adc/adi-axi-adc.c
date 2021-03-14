@@ -23,7 +23,7 @@
 #include <linux/fpga/adi-axi-common.h>
 #include <linux/iio/adc/adi-axi-adc.h>
 
-/**
+/*
  * Register definitions:
  *   https://wiki.analog.com/resources/fpga/docs/axi_adc_ip#register_map
  */
