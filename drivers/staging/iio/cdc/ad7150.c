@@ -109,18 +109,20 @@ static int ad7150_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = i2c_smbus_read_word_data(chip->client,
-					       ad7150_addresses[channel][0]);
+		ret = i2c_smbus_read_word_swapped(chip->client,
+						  ad7150_addresses[channel][0]);
 		if (ret < 0)
 			return ret;
-		*val = swab16(ret);
+		*val = ret;
+
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_AVERAGE_RAW:
-		ret = i2c_smbus_read_word_data(chip->client,
-					       ad7150_addresses[channel][1]);
+		ret = i2c_smbus_read_word_swapped(chip->client,
+						  ad7150_addresses[channel][1]);
 		if (ret < 0)
 			return ret;
-		*val = swab16(ret);
+		*val = ret;
+
 		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
@@ -188,9 +190,9 @@ static int ad7150_write_event_params(struct iio_dev *indio_dev,
 		/* Note completely different from the adaptive versions */
 	case IIO_EV_TYPE_THRESH:
 		value = chip->threshold[rising][chan];
-		return i2c_smbus_write_word_data(chip->client,
-						 ad7150_addresses[chan][3],
-						 swab16(value));
+		return i2c_smbus_write_word_swapped(chip->client,
+						    ad7150_addresses[chan][3],
+						    value);
 	case IIO_EV_TYPE_MAG_ADAPTIVE:
 		sens = chip->mag_sensitivity[rising][chan];
 		timeout = chip->mag_timeout[rising][chan];
