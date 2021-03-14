@@ -573,11 +573,9 @@ static int ad7150_probe(struct i2c_client *client,
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
 	if (!indio_dev)
 		return -ENOMEM;
+
 	chip = iio_priv(indio_dev);
 	mutex_init(&chip->state_lock);
-	/* this is only used for device removal purposes */
-	i2c_set_clientdata(client, indio_dev);
-
 	chip->client = client;
 
 	indio_dev->name = id->name;
@@ -624,14 +622,7 @@ static int ad7150_probe(struct i2c_client *client,
 		}
 	}
 
-	ret = devm_iio_device_register(indio_dev->dev.parent, indio_dev);
-	if (ret)
-		return ret;
-
-	dev_info(&client->dev, "%s capacitive sensor registered,irq: %d\n",
-		 id->name, client->irq);
-
-	return 0;
+	return devm_iio_device_register(indio_dev->dev.parent, indio_dev);
 }
 
 static const struct i2c_device_id ad7150_id[] = {
