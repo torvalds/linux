@@ -155,8 +155,8 @@ void vnt_init_bands(struct vnt_private *priv)
 /**
  * set_channel() - Set NIC media channel
  *
- * @pDeviceHandler: The adapter to be set
- * @uConnectionChannel: Channel to be set
+ * @priv: The adapter to be set
+ * @ch: Channel to be set
  *
  * Return Value: true if succeeded; false if failed.
  *
