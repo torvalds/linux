@@ -2225,15 +2225,12 @@ void mlxsw_sp_sample_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
 		goto out;
 	}
 
-	rcu_read_lock();
 	sample = rcu_dereference(mlxsw_sp_port->sample);
 	if (!sample)
-		goto out_unlock;
+		goto out;
 	md.trunc_size = sample->truncate ? sample->trunc_size : skb->len;
 	md.in_ifindex = mlxsw_sp_port->dev->ifindex;
 	psample_sample_packet(sample->psample_group, skb, sample->rate, &md);
-out_unlock:
-	rcu_read_unlock();
 out:
 	consume_skb(skb);
 }
