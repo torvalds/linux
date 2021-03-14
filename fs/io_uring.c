@@ -258,6 +258,7 @@ enum {
 
 struct io_sq_data {
 	refcount_t		refs;
+	atomic_t		park_pending;
 	struct mutex		lock;
 
 	/* ctx's that are using this sqd */
@@ -7067,7 +7068,13 @@ static void io_sq_thread_unpark(struct io_sq_data *sqd)
 {
 	WARN_ON_ONCE(sqd->thread == current);
 
+	/*
+	 * Do the dance but not conditional clear_bit() because it'd race with
+	 * other threads incrementing park_pending and setting the bit.
+	 */
 	clear_bit(IO_SQ_THREAD_SHOULD_PARK, &sqd->state);
+	if (atomic_dec_return(&sqd->park_pending))
+		set_bit(IO_SQ_THREAD_SHOULD_PARK, &sqd->state);
 	mutex_unlock(&sqd->lock);
 }
 
@@ -7076,10 +7083,9 @@ static void io_sq_thread_park(struct io_sq_data *sqd)
 {
 	WARN_ON_ONCE(sqd->thread == current);
 
+	atomic_inc(&sqd->park_pending);
 	set_bit(IO_SQ_THREAD_SHOULD_PARK, &sqd->state);
 	mutex_lock(&sqd->lock);
-	/* set again for consistency, in case concurrent parks are happening */
-	set_bit(IO_SQ_THREAD_SHOULD_PARK, &sqd->state);
 	if (sqd->thread)
 		wake_up_process(sqd->thread);
 }
@@ -7099,6 +7105,8 @@ static void io_sq_thread_stop(struct io_sq_data *sqd)
 static void io_put_sq_data(struct io_sq_data *sqd)
 {
 	if (refcount_dec_and_test(&sqd->refs)) {
+		WARN_ON_ONCE(atomic_read(&sqd->park_pending));
+
 		io_sq_thread_stop(sqd);
 		kfree(sqd);
 	}
@@ -7172,6 +7180,7 @@ static struct io_sq_data *io_get_sq_data(struct io_uring_params *p,
 	if (!sqd)
 		return ERR_PTR(-ENOMEM);
 
+	atomic_set(&sqd->park_pending, 0);
 	refcount_set(&sqd->refs, 1);
 	INIT_LIST_HEAD(&sqd->ctx_list);
 	mutex_init(&sqd->lock);
