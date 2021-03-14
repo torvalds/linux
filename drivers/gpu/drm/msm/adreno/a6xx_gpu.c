@@ -1339,9 +1339,6 @@ static void a6xx_destroy(struct msm_gpu *gpu)
 
 	adreno_gpu_cleanup(adreno_gpu);
 
-	if (a6xx_gpu->opp_table)
-		dev_pm_opp_put_supported_hw(a6xx_gpu->opp_table);
-
 	kfree(a6xx_gpu);
 }
 
@@ -1474,7 +1471,6 @@ static u32 fuse_to_supp_hw(struct device *dev, u32 revn, u32 fuse)
 static int a6xx_set_supported_hw(struct device *dev, struct a6xx_gpu *a6xx_gpu,
 		u32 revn)
 {
-	struct opp_table *opp_table;
 	u32 supp_hw = UINT_MAX;
 	u16 speedbin;
 	int ret;
@@ -1497,11 +1493,10 @@ static int a6xx_set_supported_hw(struct device *dev, struct a6xx_gpu *a6xx_gpu,
 	supp_hw = fuse_to_supp_hw(dev, revn, speedbin);
 
 done:
-	opp_table = dev_pm_opp_set_supported_hw(dev, &supp_hw, 1);
-	if (IS_ERR(opp_table))
-		return PTR_ERR(opp_table);
+	ret = devm_pm_opp_set_supported_hw(dev, &supp_hw, 1);
+	if (ret)
+		return ret;
 
-	a6xx_gpu->opp_table = opp_table;
 	return 0;
 }
 
