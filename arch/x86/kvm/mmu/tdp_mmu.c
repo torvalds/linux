@@ -337,7 +337,18 @@ static void handle_removed_tdp_mmu_page(struct kvm *kvm, u64 *pt,
 				cpu_relax();
 			}
 		} else {
+			/*
+			 * If the SPTE is not MMU-present, there is no backing
+			 * page associated with the SPTE and so no side effects
+			 * that need to be recorded, and exclusive ownership of
+			 * mmu_lock ensures the SPTE can't be made present.
+			 * Note, zapping MMIO SPTEs is also unnecessary as they
+			 * are guarded by the memslots generation, not by being
+			 * unreachable.
+			 */
 			old_child_spte = READ_ONCE(*sptep);
+			if (!is_shadow_present_pte(old_child_spte))
+				continue;
 
 			/*
 			 * Marking the SPTE as a removed SPTE is not
