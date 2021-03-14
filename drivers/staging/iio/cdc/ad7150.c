@@ -49,6 +49,8 @@
 /* AD7150 masks */
 #define AD7150_THRESHTYPE_MSK			GENMASK(6, 5)
 
+#define AD7150_CH_TIMEOUT_RECEDING		GENMASK(3, 0)
+#define AD7150_CH_TIMEOUT_APPROACHING		GENMASK(7, 4)
 /**
  * struct ad7150_chip_info - instance specific chip data
  * @client: i2c client for this device
@@ -59,7 +61,9 @@
  *	from 'average' value.
  * @thresh_timeout: a timeout, in samples from the moment an
  *	adaptive threshold event occurs to when the average
- *	value jumps to current value.
+ *	value jumps to current value.  Note made up of two fields,
+ *      3:0 are for timeout receding - applies if below lower threshold
+ *      7:4 are for timeout approaching - applies if above upper threshold
  * @old_state: store state from previous event, allowing confirmation
  *	of new condition.
  * @conversion_mode: the current conversion mode.
@@ -191,7 +195,14 @@ static int ad7150_write_event_params(struct iio_dev *indio_dev,
 		if (ret)
 			return ret;
 
-		timeout = chip->thresh_timeout[rising][chan];
+		/*
+		 * Single timeout register contains timeouts for both
+		 * directions.
+		 */
+		timeout = FIELD_PREP(AD7150_CH_TIMEOUT_APPROACHING,
+				     chip->thresh_timeout[1][chan]);
+		timeout |= FIELD_PREP(AD7150_CH_TIMEOUT_RECEDING,
+				      chip->thresh_timeout[0][chan]);
 		return i2c_smbus_write_byte_data(chip->client,
 						 ad7150_addresses[chan][5],
 						 timeout);
@@ -364,6 +375,9 @@ static ssize_t ad7150_store_timeout(struct device *dev,
 	ret = kstrtou8(buf, 10, &data);
 	if (ret < 0)
 		return ret;
+
+	if (data > GENMASK(3, 0))
+		return -EINVAL;
 
 	mutex_lock(&chip->state_lock);
 	switch (type) {
