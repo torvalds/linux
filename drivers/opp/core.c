@@ -2460,25 +2460,19 @@ static void devm_pm_opp_detach_genpd(void *data)
  *
  * This is a resource-managed version of dev_pm_opp_attach_genpd().
  *
- * Return: pointer to 'struct opp_table' on success and errorno otherwise.
+ * Return: 0 on success and errorno otherwise.
  */
-struct opp_table *
-devm_pm_opp_attach_genpd(struct device *dev, const char **names,
-			 struct device ***virt_devs)
+int devm_pm_opp_attach_genpd(struct device *dev, const char **names,
+			     struct device ***virt_devs)
 {
 	struct opp_table *opp_table;
-	int err;
 
 	opp_table = dev_pm_opp_attach_genpd(dev, names, virt_devs);
 	if (IS_ERR(opp_table))
-		return opp_table;
+		return PTR_ERR(opp_table);
 
-	err = devm_add_action_or_reset(dev, devm_pm_opp_detach_genpd,
-				       opp_table);
-	if (err)
-		return ERR_PTR(err);
-
-	return opp_table;
+	return devm_add_action_or_reset(dev, devm_pm_opp_detach_genpd,
+					opp_table);
 }
 EXPORT_SYMBOL_GPL(devm_pm_opp_attach_genpd);
 
