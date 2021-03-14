@@ -2513,7 +2513,7 @@ static int qib_7322_bringup_serdes(struct qib_pportdata *ppd)
 }
 
 /**
- * qib_7322_quiet_serdes - set serdes to txidle
+ * qib_7322_mini_quiet_serdes - set serdes to txidle
  * @ppd: the qlogic_ib device
  * Called when driver is being unloaded
  */
@@ -3859,7 +3859,7 @@ static void qib_7322_tidtemplate(struct qib_devdata *dd)
 }
 
 /**
- * qib_init_7322_get_base_info - set chip-specific flags for user code
+ * qib_7322_get_base_info - set chip-specific flags for user code
  * @rcd: the qlogic_ib ctxt
  * @kinfo: qib_base_info pointer
  *

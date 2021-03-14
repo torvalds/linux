@@ -251,7 +251,7 @@ static void i40iw_destroy_cqp(struct i40iw_device *iwdev, bool free_hwcqp)
 }
 
 /**
- * i40iw_disable_irqs - disable device interrupts
+ * i40iw_disable_irq - disable device interrupts
  * @dev: hardware control device structure
  * @msix_vec: msix vector to disable irq
  * @dev_id: parameter to pass to free_irq (used during irq setup)

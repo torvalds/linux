@@ -1322,7 +1322,7 @@ CNTR_ELEM(#name, \
 	  access_ibp_##cntr)
 
 /**
- * hfi_addr_from_offset - return addr for readq/writeq
+ * hfi1_addr_from_offset - return addr for readq/writeq
  * @dd: the dd device
  * @offset: the offset of the CSR within bar0
  *
@@ -8316,7 +8316,7 @@ static void is_interrupt(struct hfi1_devdata *dd, unsigned int source)
 }
 
 /**
- * gerneral_interrupt() -  General interrupt handler
+ * general_interrupt -  General interrupt handler
  * @irq: MSIx IRQ vector
  * @data: hfi1 devdata
  *

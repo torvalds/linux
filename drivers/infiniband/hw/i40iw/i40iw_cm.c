@@ -905,7 +905,7 @@ static int i40iw_send_mpa_reject(struct i40iw_cm_node *cm_node,
 }
 
 /**
- * recv_mpa - process an IETF MPA frame
+ * i40iw_parse_mpa - process an IETF MPA frame
  * @cm_node: connection's node
  * @buffer: Data pointer
  * @type: to return accept or reject
@@ -4360,7 +4360,7 @@ void i40iw_cm_teardown_connections(struct i40iw_device *iwdev, u32 *ipaddr,
 }
 
 /**
- * i40iw_ifdown_notify - process an ifdown on an interface
+ * i40iw_if_notify - process an ifdown on an interface
  * @iwdev: device pointer
  * @netdev: network interface device structure
  * @ipaddr: Pointer to IPv4 or IPv6 address

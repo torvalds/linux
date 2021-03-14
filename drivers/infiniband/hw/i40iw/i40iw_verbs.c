@@ -647,7 +647,7 @@ error:
 }
 
 /**
- * i40iw_query - query qp attributes
+ * i40iw_query_qp - query qp attributes
  * @ibqp: qp pointer
  * @attr: attributes pointer
  * @attr_mask: Not used
@@ -1846,7 +1846,7 @@ static struct ib_mr *i40iw_get_dma_mr(struct ib_pd *pd, int acc)
 }
 
 /**
- * i40iw_del_mem_list - Deleting pbl list entries for CQ/QP
+ * i40iw_del_memlist - Deleting pbl list entries for CQ/QP
  * @iwmr: iwmr for IB's user page addresses
  * @ucontext: ptr to user context
  */
