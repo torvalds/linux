@@ -4448,7 +4448,7 @@ void poke_blanked_console(void)
 	might_sleep();
 
 	/* This isn't perfectly race free, but a race here would be mostly harmless,
-	 * at worse, we'll do a spurrious blank and it's unlikely
+	 * at worst, we'll do a spurious blank and it's unlikely
 	 */
 	del_timer(&console_timer);
 	blank_timer_expired = 0;
