@@ -12,6 +12,7 @@
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
@@ -650,9 +651,16 @@ static const struct i2c_device_id ad7150_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, ad7150_id);
 
+static const struct of_device_id ad7150_of_match[] = {
+	{ "adi,ad7150" },
+	{ "adi,ad7151" },
+	{ "adi,ad7156" },
+	{}
+};
 static struct i2c_driver ad7150_driver = {
 	.driver = {
 		.name = "ad7150",
+		.of_match_table = ad7150_of_match,
 	},
 	.probe = ad7150_probe,
 	.id_table = ad7150_id,
