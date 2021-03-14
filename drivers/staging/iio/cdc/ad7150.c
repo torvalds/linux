@@ -12,6 +12,7 @@
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
 #include <linux/iio/iio.h>
@@ -533,11 +534,19 @@ static const struct iio_info ad7150_info_no_irq = {
 	.read_raw = &ad7150_read_raw,
 };
 
+static void ad7150_reg_disable(void *data)
+{
+	struct regulator *reg = data;
+
+	regulator_disable(reg);
+}
+
 static int ad7150_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct ad7150_chip_info *chip;
 	struct iio_dev *indio_dev;
+	struct regulator *reg;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
@@ -551,6 +560,18 @@ static int ad7150_probe(struct i2c_client *client,
 	indio_dev->name = id->name;
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
+
+	reg = devm_regulator_get(&client->dev, "vdd");
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
+
+	ret = regulator_enable(reg);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(&client->dev, ad7150_reg_disable, reg);
+	if (ret)
+		return ret;
 
 	chip->interrupts[0] = fwnode_irq_get(dev_fwnode(&client->dev), 0);
 	if (chip->interrupts[0] < 0)
