@@ -2047,6 +2047,36 @@ put_opp_table:
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_put_regulators);
 
+static void devm_pm_opp_regulators_release(void *data)
+{
+	dev_pm_opp_put_regulators(data);
+}
+
+/**
+ * devm_pm_opp_set_regulators() - Set regulator names for the device
+ * @dev: Device for which regulator name is being set.
+ * @names: Array of pointers to the names of the regulator.
+ * @count: Number of regulators.
+ *
+ * This is a resource-managed variant of dev_pm_opp_set_regulators().
+ *
+ * Return: 0 on success and errorno otherwise.
+ */
+int devm_pm_opp_set_regulators(struct device *dev,
+			       const char * const names[],
+			       unsigned int count)
+{
+	struct opp_table *opp_table;
+
+	opp_table = dev_pm_opp_set_regulators(dev, names, count);
+	if (IS_ERR(opp_table))
+		return PTR_ERR(opp_table);
+
+	return devm_add_action_or_reset(dev, devm_pm_opp_regulators_release,
+					opp_table);
+}
+EXPORT_SYMBOL_GPL(devm_pm_opp_set_regulators);
+
 /**
  * dev_pm_opp_set_clkname() - Set clk name for the device
  * @dev: Device for which clk name is being set.
