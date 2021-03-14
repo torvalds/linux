@@ -1303,11 +1303,6 @@ int qib_sdma_verbs_send(struct qib_pportdata *, struct rvt_sge_state *,
 /* ppd->sdma_lock should be locked before calling this. */
 int qib_sdma_make_progress(struct qib_pportdata *dd);
 
-static inline int qib_sdma_empty(const struct qib_pportdata *ppd)
-{
-	return ppd->sdma_descq_added == ppd->sdma_descq_removed;
-}
-
 /* must be called under qib_sdma_lock */
 static inline u16 qib_sdma_descq_freecnt(const struct qib_pportdata *ppd)
 {
@@ -1362,27 +1357,6 @@ static inline u32 qib_get_rcvhdrtail(const struct qib_ctxtdata *rcd)
 	 */
 	return (u32) le64_to_cpu(
 		*((volatile __le64 *)rcd->rcvhdrtail_kvaddr)); /* DMA'ed */
-}
-
-static inline u32 qib_get_hdrqtail(const struct qib_ctxtdata *rcd)
-{
-	const struct qib_devdata *dd = rcd->dd;
-	u32 hdrqtail;
-
-	if (dd->flags & QIB_NODMA_RTAIL) {
-		__le32 *rhf_addr;
-		u32 seq;
-
-		rhf_addr = (__le32 *) rcd->rcvhdrq +
-			rcd->head + dd->rhf_offset;
-		seq = qib_hdrget_seq(rhf_addr);
-		hdrqtail = rcd->head;
-		if (seq == rcd->seq_cnt)
-			hdrqtail++;
-	} else
-		hdrqtail = qib_get_rcvhdrtail(rcd);
-
-	return hdrqtail;
 }
 
 /*

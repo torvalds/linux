@@ -717,12 +717,6 @@ static inline void incr_cntr64(u64 *cntr)
 		(*cntr)++;
 }
 
-static inline void incr_cntr32(u32 *cntr)
-{
-	if (*cntr < (u32)-1LL)
-		(*cntr)++;
-}
-
 #define MAX_NAME_SIZE 64
 struct hfi1_msix_entry {
 	enum irq_type type;
