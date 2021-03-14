@@ -92,11 +92,6 @@ struct rt_firmware_hdr {
 #define BCNQ_PAGE_NUM_8723B  0x08
 #define BCNQ1_PAGE_NUM_8723B 0x00
 
-#ifdef CONFIG_PNO_SUPPORT
-#undef BCNQ1_PAGE_NUM_8723B
-#define BCNQ1_PAGE_NUM_8723B 0x00 /* 0x04 */
-#endif
-
 #define MAX_RX_DMA_BUFFER_SIZE_8723B 0x2800 /* RX 10K */
 
 /* For WoWLan, more reserved page */
@@ -105,11 +100,6 @@ struct rt_firmware_hdr {
 #define WOWLAN_PAGE_NUM_8723B 0x07
 #else
 #define WOWLAN_PAGE_NUM_8723B 0x00
-#endif
-
-#ifdef CONFIG_PNO_SUPPORT
-#undef WOWLAN_PAGE_NUM_8723B
-#define WOWLAN_PAGE_NUM_8723B 0x0d
 #endif
 
 #ifdef CONFIG_AP_WOWLAN

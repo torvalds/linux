@@ -2189,11 +2189,3 @@ void rtw_set_sec_pn(struct adapter *padapter)
 }
 #endif /* CONFIG_WOWLAN */
 
-#ifdef CONFIG_PNO_SUPPORT
-#define	CSCAN_TLV_TYPE_SSID_IE	'S'
-#define CIPHER_IE "key_mgmt ="
-#define CIPHER_NONE "NONE"
-#define CIPHER_WPA_PSK "WPA-PSK"
-#define CIPHER_WPA_EAP "WPA-EAP IEEE8021X"
-
-#endif /* CONFIG_PNO_SUPPORT */

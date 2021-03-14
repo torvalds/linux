@@ -462,125 +462,6 @@ static void ConstructARPResponse(
 	}
 }
 
-#ifdef CONFIG_PNO_SUPPORT
-static void ConstructPnoInfo(
-	struct adapter *padapter, u8 *pframe, u32 *pLength
-)
-{
-
-	struct pwrctrl_priv *pwrctl = adapter_to_pwrctl(padapter);
-
-	u8 *pPnoInfoPkt = pframe;
-	pPnoInfoPkt = (u8 *)(pframe + *pLength);
-	memcpy(pPnoInfoPkt, &pwrctl->pnlo_info->ssid_num, 4);
-
-	*pLength += 4;
-	pPnoInfoPkt += 4;
-	memcpy(pPnoInfoPkt, &pwrctl->pnlo_info->fast_scan_period, 4);
-
-	*pLength += 4;
-	pPnoInfoPkt += 4;
-	memcpy(pPnoInfoPkt, &pwrctl->pnlo_info->fast_scan_iterations, 4);
-
-	*pLength += 4;
-	pPnoInfoPkt += 4;
-	memcpy(pPnoInfoPkt, &pwrctl->pnlo_info->slow_scan_period, 4);
-
-	*pLength += 4;
-	pPnoInfoPkt += 4;
-	memcpy(pPnoInfoPkt, &pwrctl->pnlo_info->ssid_length,
-			MAX_PNO_LIST_COUNT);
-
-	*pLength += MAX_PNO_LIST_COUNT;
-	pPnoInfoPkt += MAX_PNO_LIST_COUNT;
-	memcpy(pPnoInfoPkt, &pwrctl->pnlo_info->ssid_cipher_info,
-			MAX_PNO_LIST_COUNT);
-
-	*pLength += MAX_PNO_LIST_COUNT;
-	pPnoInfoPkt += MAX_PNO_LIST_COUNT;
-	memcpy(pPnoInfoPkt, &pwrctl->pnlo_info->ssid_channel_info,
-			MAX_PNO_LIST_COUNT);
-
-	*pLength += MAX_PNO_LIST_COUNT;
-	pPnoInfoPkt += MAX_PNO_LIST_COUNT;
-}
-
-static void ConstructSSIDList(
-	struct adapter *padapter, u8 *pframe, u32 *pLength
-)
-{
-	int i = 0;
-	u8 *pSSIDListPkt = pframe;
-	struct pwrctrl_priv *pwrctl = adapter_to_pwrctl(padapter);
-
-	pSSIDListPkt = (u8 *)(pframe + *pLength);
-
-	for (i = 0; i < pwrctl->pnlo_info->ssid_num ; i++) {
-		memcpy(pSSIDListPkt, &pwrctl->pno_ssid_list->node[i].SSID,
-			pwrctl->pnlo_info->ssid_length[i]);
-
-		*pLength += WLAN_SSID_MAXLEN;
-		pSSIDListPkt += WLAN_SSID_MAXLEN;
-	}
-}
-
-static void ConstructScanInfo(
-	struct adapter *padapter, u8 *pframe, u32 *pLength
-)
-{
-	int i = 0;
-	u8 *pScanInfoPkt = pframe;
-	struct pwrctrl_priv *pwrctl = adapter_to_pwrctl(padapter);
-
-	pScanInfoPkt = (u8 *)(pframe + *pLength);
-
-	memcpy(pScanInfoPkt, &pwrctl->pscan_info->channel_num, 1);
-
-	*pLength += 1;
-	pScanInfoPkt += 1;
-	memcpy(pScanInfoPkt, &pwrctl->pscan_info->orig_ch, 1);
-
-
-	*pLength += 1;
-	pScanInfoPkt += 1;
-	memcpy(pScanInfoPkt, &pwrctl->pscan_info->orig_bw, 1);
-
-
-	*pLength += 1;
-	pScanInfoPkt += 1;
-	memcpy(pScanInfoPkt, &pwrctl->pscan_info->orig_40_offset, 1);
-
-	*pLength += 1;
-	pScanInfoPkt += 1;
-	memcpy(pScanInfoPkt, &pwrctl->pscan_info->orig_80_offset, 1);
-
-	*pLength += 1;
-	pScanInfoPkt += 1;
-	memcpy(pScanInfoPkt, &pwrctl->pscan_info->periodScan, 1);
-
-	*pLength += 1;
-	pScanInfoPkt += 1;
-	memcpy(pScanInfoPkt, &pwrctl->pscan_info->period_scan_time, 1);
-
-	*pLength += 1;
-	pScanInfoPkt += 1;
-	memcpy(pScanInfoPkt, &pwrctl->pscan_info->enableRFE, 1);
-
-	*pLength += 1;
-	pScanInfoPkt += 1;
-	memcpy(pScanInfoPkt, &pwrctl->pscan_info->rfe_type, 8);
-
-	*pLength += 8;
-	pScanInfoPkt += 8;
-
-	for (i = 0; i < MAX_SCAN_LIST_COUNT; i++) {
-		memcpy(pScanInfoPkt, &pwrctl->pscan_info->ssid_channel_info[i], 4);
-		*pLength += 4;
-		pScanInfoPkt += 4;
-	}
-}
-#endif
-
 #ifdef CONFIG_GTK_OL
 static void ConstructGTKResponse(
 	struct adapter *padapter, u8 *pframe, u32 *pLength
@@ -666,48 +547,6 @@ static void ConstructGTKResponse(
 }
 #endif /* CONFIG_GTK_OL */
 
-#ifdef CONFIG_PNO_SUPPORT
-static void ConstructProbeReq(struct adapter *padapter, u8 *pframe, u32 *pLength)
-{
-	struct ieee80211_hdr *pwlanhdr;
-	u16 *fctrl;
-	u32 pktlen;
-	unsigned char *mac;
-	unsigned char bssrate[NumRates];
-	int bssrate_len = 0;
-	u8 bc_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
-	pwlanhdr = (struct ieee80211_hdr *)pframe;
-	mac = myid(&(padapter->eeprompriv));
-
-	fctrl = &(pwlanhdr->frame_control);
-	*(fctrl) = 0;
-
-	/* broadcast probe request frame */
-	memcpy(pwlanhdr->addr1, bc_addr, ETH_ALEN);
-	memcpy(pwlanhdr->addr3, bc_addr, ETH_ALEN);
-
-	memcpy(pwlanhdr->addr2, mac, ETH_ALEN);
-
-	SetSeqNum(pwlanhdr, 0);
-	SetFrameSubType(pframe, WIFI_PROBEREQ);
-
-	pktlen = sizeof(struct ieee80211_hdr_3addr);
-	pframe += pktlen;
-
-	pframe = rtw_set_ie(pframe, WLAN_EID_SSID, 0, NULL, &pktlen);
-
-	get_rate_set(padapter, bssrate, &bssrate_len);
-
-	if (bssrate_len > 8) {
-		pframe = rtw_set_ie(pframe, WLAN_EID_SUPP_RATES, 8, bssrate, &pktlen);
-		pframe = rtw_set_ie(pframe, WLAN_EID_EXT_SUPP_RATES, (bssrate_len - 8), (bssrate + 8), &pktlen);
-	} else
-		pframe = rtw_set_ie(pframe, WLAN_EID_SUPP_RATES, bssrate_len, bssrate, &pktlen);
-
-	*pLength = pktlen;
-}
-#endif /* CONFIG_PNO_SUPPORT */
 #endif /* CONFIG_WOWLAN */
 
 #ifdef CONFIG_AP_WOWLAN
@@ -875,15 +714,6 @@ static void rtl8723b_set_FwAoacRsvdPage_cmd(struct adapter *padapter, struct RSV
 		RT_PRINT_DATA(_module_hal_init_c_, _drv_always_, "u1H2CAoacRsvdPageParm:", u1H2CAoacRsvdPageParm, H2C_AOAC_RSVDPAGE_LOC_LEN);
 		FillH2CCmd8723B(padapter, H2C_8723B_AOAC_RSVD_PAGE, H2C_AOAC_RSVDPAGE_LOC_LEN, u1H2CAoacRsvdPageParm);
 	} else {
-#ifdef CONFIG_PNO_SUPPORT
-		if (!pwrpriv->pno_in_resume) {
-			DBG_871X("NLO_INFO =%d\n", rsvdpageloc->LocPNOInfo);
-			memset(&u1H2CAoacRsvdPageParm, 0, sizeof(u1H2CAoacRsvdPageParm));
-			SET_H2CCMD_AOAC_RSVDPAGE_LOC_NLO_INFO(u1H2CAoacRsvdPageParm, rsvdpageloc->LocPNOInfo);
-			FillH2CCmd8723B(padapter, H2C_AOAC_RSVDPAGE3, H2C_AOAC_RSVDPAGE_LOC_LEN, u1H2CAoacRsvdPageParm);
-			msleep(10);
-		}
-#endif
 	}
 
 #endif /*  CONFIG_WOWLAN */
@@ -1183,11 +1013,6 @@ static void rtl8723b_set_FwWoWlanCtrl_Cmd(struct adapter *padapter, u8 bFuncEn)
 	u8 gpio_high_active = 0; /* 0: low active, 1: high active */
 	u8 magic_pkt = 0;
 
-#ifdef CONFIG_PNO_SUPPORT
-	if (!ppwrpriv->wowlan_pno_enable)
-		magic_pkt = 1;
-#endif
-
 	if (psecpriv->dot11PrivacyAlgrthm == _WEP40_ || psecpriv->dot11PrivacyAlgrthm == _WEP104_)
 		hw_unicast = 1;
 
@@ -1240,28 +1065,9 @@ static void rtl8723b_set_FwRemoteWakeCtrl_Cmd(struct adapter *padapter, u8 benab
 		else
 			SET_H2CCMD_REMOTE_WAKE_CTRL_ARP_ACTION(u1H2CRemoteWakeCtrlParm, 1);
 	}
-#ifdef CONFIG_PNO_SUPPORT
-	else {
-		SET_H2CCMD_REMOTE_WAKECTRL_ENABLE(u1H2CRemoteWakeCtrlParm, benable);
-		SET_H2CCMD_REMOTE_WAKE_CTRL_NLO_OFFLOAD_EN(u1H2CRemoteWakeCtrlParm, benable);
-	}
-#endif
 	RT_PRINT_DATA(_module_hal_init_c_, _drv_always_, "u1H2CRemoteWakeCtrlParm:", u1H2CRemoteWakeCtrlParm, H2C_REMOTE_WAKE_CTRL_LEN);
 	FillH2CCmd8723B(padapter, H2C_8723B_REMOTE_WAKE_CTRL,
 		H2C_REMOTE_WAKE_CTRL_LEN, u1H2CRemoteWakeCtrlParm);
-#ifdef CONFIG_PNO_SUPPORT
-	if (ppwrpriv->wowlan_pno_enable && !ppwrpriv->pno_in_resume) {
-		res = rtw_read8(padapter, REG_PNO_STATUS);
-		DBG_871X("cmd: 0x81 REG_PNO_STATUS: 0x%02x\n", res);
-		while (!(res&BIT(7)) && count < 25) {
-			DBG_871X("[%d] cmd: 0x81 REG_PNO_STATUS: 0x%02x\n", count, res);
-			res = rtw_read8(padapter, REG_PNO_STATUS);
-			count++;
-			msleep(2);
-		}
-		DBG_871X("cmd: 0x81 REG_PNO_STATUS: 0x%02x\n", res);
-	}
-#endif /* CONFIG_PNO_SUPPORT */
 }
 
 static void rtl8723b_set_FwAOACGlobalInfo_Cmd(struct adapter *padapter,  u8 group_alg, u8 pairwise_alg)
@@ -1277,26 +1083,6 @@ static void rtl8723b_set_FwAOACGlobalInfo_Cmd(struct adapter *padapter,  u8 grou
 
 	FillH2CCmd8723B(padapter, H2C_8723B_AOAC_GLOBAL_INFO, H2C_AOAC_GLOBAL_INFO_LEN, u1H2CAOACGlobalInfoParm);
 }
-
-#ifdef CONFIG_PNO_SUPPORT
-static void rtl8723b_set_FwScanOffloadInfo_cmd(struct adapter *padapter, struct RSVDPAGE_LOC *rsvdpageloc, u8 enable)
-{
-	u8 u1H2CScanOffloadInfoParm[H2C_SCAN_OFFLOAD_CTRL_LEN] = {0};
-
-	DBG_871X("%s: loc_probe_packet:%d, loc_scan_info: %d loc_ssid_info:%d\n",
-		__func__, rsvdpageloc->LocProbePacket, rsvdpageloc->LocScanInfo, rsvdpageloc->LocSSIDInfo);
-
-	SET_H2CCMD_AOAC_NLO_FUN_EN(u1H2CScanOffloadInfoParm, enable);
-	SET_H2CCMD_AOAC_RSVDPAGE_LOC_SCAN_INFO(u1H2CScanOffloadInfoParm, rsvdpageloc->LocScanInfo);
-	SET_H2CCMD_AOAC_RSVDPAGE_LOC_PROBE_PACKET(u1H2CScanOffloadInfoParm, rsvdpageloc->LocProbePacket);
-	SET_H2CCMD_AOAC_RSVDPAGE_LOC_SSID_INFO(u1H2CScanOffloadInfoParm, rsvdpageloc->LocSSIDInfo);
-
-	RT_PRINT_DATA(_module_hal_init_c_, _drv_always_, "u1H2CScanOffloadInfoParm:", u1H2CScanOffloadInfoParm, H2C_SCAN_OFFLOAD_CTRL_LEN);
-	FillH2CCmd8723B(padapter, H2C_8723B_D0_SCAN_OFFLOAD_INFO, H2C_SCAN_OFFLOAD_CTRL_LEN, u1H2CScanOffloadInfoParm);
-
-	msleep(20);
-}
-#endif /* CONFIG_PNO_SUPPORT */
 
 void rtl8723b_set_wowlan_cmd(struct adapter *padapter, u8 enable)
 {
@@ -1656,54 +1442,7 @@ static void rtl8723b_set_FwRsvdPagePkt(
 	} else
 #endif /* CONFIG_WOWLAN */
 	{
-#ifdef CONFIG_PNO_SUPPORT
-		if (!pwrctl->pno_in_resume && pwrctl->pno_inited) {
-			/* Probe Request */
-			RsvdPageLoc.LocProbePacket = TotalPageNum;
-			ConstructProbeReq(
-				padapter,
-				&ReservedPagePacket[BufIndex],
-				&ProbeReqLength);
-
-			rtl8723b_fill_fake_txdesc(padapter,
-				&ReservedPagePacket[BufIndex-TxDescLen],
-				ProbeReqLength, false, false, false);
-			CurtPktPageNum =
-				(u8)PageNum_128(TxDescLen + ProbeReqLength);
-
-			TotalPageNum += CurtPktPageNum;
-
-			BufIndex += (CurtPktPageNum*PageSize);
-
-			/* PNO INFO Page */
-			RsvdPageLoc.LocPNOInfo = TotalPageNum;
-			ConstructPnoInfo(padapter, &ReservedPagePacket[BufIndex-TxDescLen], &PNOLength);
-
-			CurtPktPageNum = (u8)PageNum_128(PNOLength);
-			TotalPageNum += CurtPktPageNum;
-			BufIndex += (CurtPktPageNum*PageSize);
-
-			/* SSID List Page */
-			RsvdPageLoc.LocSSIDInfo = TotalPageNum;
-			ConstructSSIDList(padapter, &ReservedPagePacket[BufIndex-TxDescLen], &SSIDLegnth);
-			CurtPktPageNum = (u8)PageNum_128(SSIDLegnth);
-			TotalPageNum += CurtPktPageNum;
-			BufIndex += (CurtPktPageNum*PageSize);
-
-			/* Scan Info Page */
-			RsvdPageLoc.LocScanInfo = TotalPageNum;
-			ConstructScanInfo(padapter, &ReservedPagePacket[BufIndex-TxDescLen], &ScanInfoLength);
-			CurtPktPageNum = (u8)PageNum_128(ScanInfoLength);
-			TotalPageNum += CurtPktPageNum;
-			BufIndex += (CurtPktPageNum*PageSize);
-
-			TotalPacketLen = BufIndex + ScanInfoLength;
-		} else {
 		TotalPacketLen = BufIndex + BTQosNullLength;
-	}
-#else /* CONFIG_PNO_SUPPORT */
-		TotalPacketLen = BufIndex + BTQosNullLength;
-#endif
 	}
 
 	if (TotalPacketLen > MaxRsvdPageBufSize) {
@@ -1725,14 +1464,6 @@ static void rtl8723b_set_FwRsvdPagePkt(
 		rtl8723b_set_FwAoacRsvdPage_cmd(padapter, &RsvdPageLoc);
 	} else {
 		rtl8723b_set_FwAoacRsvdPage_cmd(padapter, &RsvdPageLoc);
-#ifdef CONFIG_PNO_SUPPORT
-		if (pwrctl->pno_in_resume)
-			rtl8723b_set_FwScanOffloadInfo_cmd(padapter,
-					&RsvdPageLoc, 0);
-		else
-			rtl8723b_set_FwScanOffloadInfo_cmd(padapter,
-					&RsvdPageLoc, 1);
-#endif
 	}
 	return;
 

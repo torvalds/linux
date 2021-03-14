@@ -1555,14 +1555,6 @@ static void SetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)
 				if (psta)
 					rtl8723b_set_FwMediaStatusRpt_cmd(padapter, RT_MEDIA_CONNECT, psta->mac_id);
 			}
-#ifdef CONFIG_PNO_SUPPORT
-			rtw_write8(padapter, 0x1b8, 0);
-			DBG_871X("reset 0x1b8: %d\n", rtw_read8(padapter, 0x1b8));
-			rtw_write8(padapter, 0x1b9, 0);
-			DBG_871X("reset 0x1b9: %d\n", rtw_read8(padapter, 0x1b9));
-			rtw_write8(padapter, REG_PNO_STATUS, 0);
-			DBG_871X("reset REG_PNO_STATUS: %d\n", rtw_read8(padapter, REG_PNO_STATUS));
-#endif
 			break;
 
 		default:

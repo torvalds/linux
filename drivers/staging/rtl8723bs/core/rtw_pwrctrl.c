@@ -1149,29 +1149,11 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 
 	pwrctrlpriv->wowlan_mode = false;
 	pwrctrlpriv->wowlan_ap_mode = false;
-
-#ifdef CONFIG_PNO_SUPPORT
-	pwrctrlpriv->pno_inited = false;
-	pwrctrlpriv->pnlo_info = NULL;
-	pwrctrlpriv->pscan_info = NULL;
-	pwrctrlpriv->pno_ssid_list = NULL;
-	pwrctrlpriv->pno_in_resume = true;
-#endif
 }
 
 
 void rtw_free_pwrctrl_priv(struct adapter *adapter)
 {
-#ifdef CONFIG_PNO_SUPPORT
-	if (pwrctrlpriv->pnlo_info)
-		printk("****** pnlo_info memory leak********\n");
-
-	if (pwrctrlpriv->pscan_info)
-		printk("****** pscan_info memory leak********\n");
-
-	if (pwrctrlpriv->pno_ssid_list)
-		printk("****** pno_ssid_list memory leak********\n");
-#endif
 }
 
 inline void rtw_set_ips_deny(struct adapter *padapter, u32 ms)

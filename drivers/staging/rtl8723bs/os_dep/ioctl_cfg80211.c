@@ -3095,54 +3095,6 @@ exit:
 	return ret;
 }
 
-#if defined(CONFIG_PNO_SUPPORT)
-static int cfg80211_rtw_sched_scan_start(struct wiphy *wiphy, struct net_device *dev,
-					 struct cfg80211_sched_scan_request *request)
-{
-	struct adapter *padapter = rtw_netdev_priv(dev);
-	struct	mlme_priv *pmlmepriv = &(padapter->mlmepriv);
-	int ret;
-
-	if (padapter->bup == false) {
-		DBG_871X("%s: net device is down.\n", __func__);
-		return -EIO;
-	}
-
-	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) == true ||
-		check_fwstate(pmlmepriv, _FW_LINKED) == true  ||
-		check_fwstate(pmlmepriv, _FW_UNDER_LINKING) == true) {
-		DBG_871X("%s: device is busy.\n", __func__);
-		rtw_scan_abort(padapter);
-	}
-
-	if (request == NULL) {
-		DBG_871X("%s: invalid cfg80211_requests parameters.\n", __func__);
-		return -EINVAL;
-	}
-
-	ret = rtw_android_cfg80211_pno_setup(dev, request->ssids,
-			request->n_ssids, request->interval);
-
-	if (ret < 0) {
-		DBG_871X("%s ret: %d\n", __func__, ret);
-		goto exit;
-	}
-
-	ret = rtw_android_pno_enable(dev, true);
-	if (ret < 0) {
-		DBG_871X("%s ret: %d\n", __func__, ret);
-		goto exit;
-	}
-exit:
-	return ret;
-}
-
-static int cfg80211_rtw_sched_scan_stop(struct wiphy *wiphy, struct net_device *dev)
-{
-	return rtw_android_pno_enable(dev, false);
-}
-#endif /* CONFIG_PNO_SUPPORT */
-
 static void rtw_cfg80211_init_ht_capab(struct ieee80211_sta_ht_cap *ht_cap, enum nl80211_band band, u8 rf_type)
 {
 
@@ -3248,9 +3200,6 @@ static void rtw_cfg80211_preinit_wiphy(struct adapter *padapter, struct wiphy *w
 
 #if defined(CONFIG_PM)
 	wiphy->max_sched_scan_reqs = 1;
-#ifdef CONFIG_PNO_SUPPORT
-	wiphy->max_sched_scan_ssids = MAX_PNO_LIST_COUNT;
-#endif
 #endif
 
 #if defined(CONFIG_PM)
@@ -3297,11 +3246,6 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
 	.change_bss = cfg80211_rtw_change_bss,
 
 	.mgmt_tx = cfg80211_rtw_mgmt_tx,
-
-#if defined(CONFIG_PNO_SUPPORT)
-	.sched_scan_start = cfg80211_rtw_sched_scan_start,
-	.sched_scan_stop = cfg80211_rtw_sched_scan_stop,
-#endif /* CONFIG_PNO_SUPPORT */
 };
 
 int rtw_wdev_alloc(struct adapter *padapter, struct device *dev)

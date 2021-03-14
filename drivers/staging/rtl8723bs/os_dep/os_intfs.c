@@ -1505,10 +1505,6 @@ int rtw_resume_process_wow(struct adapter *padapter)
 		goto exit;
 	}
 
-#ifdef CONFIG_PNO_SUPPORT
-	pwrpriv->pno_in_resume = true;
-#endif
-
 	if (pwrpriv->wowlan_mode) {
 		rtw_set_ps_mode(padapter, PS_MODE_ACTIVE, 0, 0, "WOWLAN");
 
@@ -1780,9 +1776,6 @@ int rtw_resume_common(struct adapter *padapter)
 
 	if (pwrpriv) {
 		pwrpriv->bInSuspend = false;
-	#ifdef CONFIG_PNO_SUPPORT
-		pwrpriv->pno_in_resume = false;
-	#endif
 	}
 	DBG_871X_LEVEL(_drv_always_, "%s:%d in %d ms\n", __func__, ret,
 		jiffies_to_msecs(jiffies - start_time));
