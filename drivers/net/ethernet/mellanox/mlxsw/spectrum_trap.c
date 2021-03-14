@@ -108,7 +108,7 @@ static void mlxsw_sp_rx_drop_listener(struct sk_buff *skb, u8 local_port,
 static void mlxsw_sp_rx_acl_drop_listener(struct sk_buff *skb, u8 local_port,
 					  void *trap_ctx)
 {
-	u32 cookie_index = mlxsw_skb_cb(skb)->cookie_index;
+	u32 cookie_index = mlxsw_skb_cb(skb)->rx_md_info.cookie_index;
 	const struct flow_action_cookie *fa_cookie;
 	struct devlink_port *in_devlink_port;
 	struct mlxsw_sp_port *mlxsw_sp_port;

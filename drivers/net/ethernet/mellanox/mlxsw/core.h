@@ -58,6 +58,10 @@ struct mlxsw_tx_info {
 	bool is_emad;
 };
 
+struct mlxsw_rx_md_info {
+	u32 cookie_index;
+};
+
 bool mlxsw_core_skb_transmit_busy(struct mlxsw_core *mlxsw_core,
 				  const struct mlxsw_tx_info *tx_info);
 int mlxsw_core_skb_transmit(struct mlxsw_core *mlxsw_core, struct sk_buff *skb,
@@ -515,7 +519,7 @@ enum mlxsw_devlink_param_id {
 struct mlxsw_skb_cb {
 	union {
 		struct mlxsw_tx_info tx_info;
-		u32 cookie_index; /* Only used during receive */
+		struct mlxsw_rx_md_info rx_md_info;
 	};
 };
 
