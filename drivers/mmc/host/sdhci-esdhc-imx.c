@@ -1507,8 +1507,6 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 
 static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id =
-			of_match_device(imx_esdhc_dt_ids, &pdev->dev);
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_host *host;
 	struct cqhci_host *cq_host;
@@ -1524,7 +1522,7 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 
 	imx_data = sdhci_pltfm_priv(pltfm_host);
 
-	imx_data->socdata = of_id->data;
+	imx_data->socdata = device_get_match_data(&pdev->dev);
 
 	if (imx_data->socdata->flags & ESDHC_FLAG_PMQOS)
 		cpu_latency_qos_add_request(&imx_data->pm_qos_req, 0);
