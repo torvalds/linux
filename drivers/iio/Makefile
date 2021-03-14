@@ -18,6 +18,7 @@ obj-y += adc/
 obj-y += afe/
 obj-y += amplifiers/
 obj-y += buffer/
+obj-y += cdc/
 obj-y += chemical/
 obj-y += common/
 obj-y += dac/
