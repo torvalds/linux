@@ -122,6 +122,18 @@ static int ad7150_read_raw(struct iio_dev *indio_dev,
 		*val = ret;
 
 		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_SCALE:
+		/*
+		 * Base units for capacitance are nano farads and the value
+		 * calculated from the datasheet formula is in picofarad
+		 * so multiply by 1000
+		 */
+		*val = 1000;
+		*val2 = 40944 >> 4; /* To match shift in _RAW */
+		return IIO_VAL_FRACTIONAL;
+	case IIO_CHAN_INFO_OFFSET:
+		*val = -(12288 >> 4); /* To match shift in _RAW */
+		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		/* Strangely same for both 1 and 2 chan parts */
 		*val = 100;
@@ -425,6 +437,8 @@ static const struct iio_event_spec ad7150_events[] = {
 		.channel = _chan,				\
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |	\
 		BIT(IIO_CHAN_INFO_AVERAGE_RAW),			\
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) | \
+			BIT(IIO_CHAN_INFO_OFFSET),		\
 		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),\
 		.event_spec = ad7150_events,			\
 		.num_event_specs = ARRAY_SIZE(ad7150_events),	\
@@ -436,6 +450,8 @@ static const struct iio_event_spec ad7150_events[] = {
 		.channel = _chan,				\
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |	\
 		BIT(IIO_CHAN_INFO_AVERAGE_RAW),			\
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) | \
+			BIT(IIO_CHAN_INFO_OFFSET),		\
 		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),\
 	}
 
