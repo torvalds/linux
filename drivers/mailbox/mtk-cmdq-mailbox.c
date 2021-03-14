@@ -188,7 +188,10 @@ static void cmdq_task_exec_done(struct cmdq_task *task, int sta)
 	WARN_ON(cb->cb == (cmdq_async_flush_cb)NULL);
 	data.sta = sta;
 	data.data = cb->data;
-	cb->cb(data);
+	if (cb->cb)
+		cb->cb(data);
+
+	mbox_chan_received_data(task->thread->chan, &data);
 
 	list_del(&task->list_entry);
 }
@@ -451,12 +454,13 @@ static int cmdq_mbox_flush(struct mbox_chan *chan, unsigned long timeout)
 
 	list_for_each_entry_safe(task, tmp, &thread->task_busy_list,
 				 list_entry) {
+		data.sta = -ECONNABORTED;
+		data.data = cb->data;
 		cb = &task->pkt->async_cb;
-		if (cb->cb) {
-			data.sta = -ECONNABORTED;
-			data.data = cb->data;
+		if (cb->cb)
 			cb->cb(data);
-		}
+
+		mbox_chan_received_data(task->thread->chan, &data);
 		list_del(&task->list_entry);
 		kfree(task);
 	}
