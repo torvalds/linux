@@ -294,13 +294,22 @@ static int ad7150_read_event_value(struct iio_dev *indio_dev,
 	int rising = (dir == IIO_EV_DIR_RISING);
 
 	/* Complex register sharing going on here */
-	switch (type) {
-	case IIO_EV_TYPE_THRESH_ADAPTIVE:
-		*val = chip->thresh_sensitivity[rising][chan->channel];
-		return IIO_VAL_INT;
-	case IIO_EV_TYPE_THRESH:
-		*val = chip->threshold[rising][chan->channel];
-		return IIO_VAL_INT;
+	switch (info) {
+	case IIO_EV_INFO_VALUE:
+		switch (type) {
+		case IIO_EV_TYPE_THRESH_ADAPTIVE:
+			*val = chip->thresh_sensitivity[rising][chan->channel];
+			return IIO_VAL_INT;
+		case IIO_EV_TYPE_THRESH:
+			*val = chip->threshold[rising][chan->channel];
+			return IIO_VAL_INT;
+		default:
+			return -EINVAL;
+		}
+	case IIO_EV_INFO_TIMEOUT:
+		*val = 0;
+		*val2 = chip->thresh_timeout[rising][chan->channel] * 10000;
+		return IIO_VAL_INT_PLUS_MICRO;
 	default:
 		return -EINVAL;
 	}
@@ -318,13 +327,36 @@ static int ad7150_write_event_value(struct iio_dev *indio_dev,
 	int rising = (dir == IIO_EV_DIR_RISING);
 
 	mutex_lock(&chip->state_lock);
-	switch (type) {
-	case IIO_EV_TYPE_THRESH_ADAPTIVE:
-		chip->thresh_sensitivity[rising][chan->channel] = val;
+	switch (info) {
+	case IIO_EV_INFO_VALUE:
+		switch (type) {
+		case IIO_EV_TYPE_THRESH_ADAPTIVE:
+			chip->thresh_sensitivity[rising][chan->channel] = val;
+			break;
+		case IIO_EV_TYPE_THRESH:
+			chip->threshold[rising][chan->channel] = val;
+			break;
+		default:
+			ret = -EINVAL;
+			goto error_ret;
+		}
 		break;
-	case IIO_EV_TYPE_THRESH:
-		chip->threshold[rising][chan->channel] = val;
+	case IIO_EV_INFO_TIMEOUT: {
+		/*
+		 * Raw timeout is in cycles of 10 msecs as long as both
+		 * channels are enabled.
+		 * In terms of INT_PLUS_MICRO, that is in units of 10,000
+		 */
+		int timeout = val2 / 10000;
+
+		if (val != 0 || timeout < 0 || timeout > 15 || val2 % 10000) {
+			ret = -EINVAL;
+			goto error_ret;
+		}
+
+		chip->thresh_timeout[rising][chan->channel] = timeout;
 		break;
+	}
 	default:
 		ret = -EINVAL;
 		goto error_ret;
@@ -337,91 +369,6 @@ error_ret:
 	mutex_unlock(&chip->state_lock);
 	return ret;
 }
-
-static ssize_t ad7150_show_timeout(struct device *dev,
-				   struct device_attribute *attr,
-				   char *buf)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct ad7150_chip_info *chip = iio_priv(indio_dev);
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	u8 value;
-
-	/* use the event code for consistency reasons */
-	int chan = IIO_EVENT_CODE_EXTRACT_CHAN(this_attr->address);
-	int rising = (IIO_EVENT_CODE_EXTRACT_DIR(this_attr->address)
-		      == IIO_EV_DIR_RISING) ? 1 : 0;
-
-	switch (IIO_EVENT_CODE_EXTRACT_TYPE(this_attr->address)) {
-	case IIO_EV_TYPE_THRESH_ADAPTIVE:
-		value = chip->thresh_timeout[rising][chan];
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return sprintf(buf, "%d\n", value);
-}
-
-static ssize_t ad7150_store_timeout(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf,
-				    size_t len)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct ad7150_chip_info *chip = iio_priv(indio_dev);
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	int chan = IIO_EVENT_CODE_EXTRACT_CHAN(this_attr->address);
-	enum iio_event_direction dir;
-	enum iio_event_type type;
-	int rising;
-	u8 data;
-	int ret;
-
-	type = IIO_EVENT_CODE_EXTRACT_TYPE(this_attr->address);
-	dir = IIO_EVENT_CODE_EXTRACT_DIR(this_attr->address);
-	rising = (dir == IIO_EV_DIR_RISING);
-
-	ret = kstrtou8(buf, 10, &data);
-	if (ret < 0)
-		return ret;
-
-	if (data > GENMASK(3, 0))
-		return -EINVAL;
-
-	mutex_lock(&chip->state_lock);
-	switch (type) {
-	case IIO_EV_TYPE_THRESH_ADAPTIVE:
-		chip->thresh_timeout[rising][chan] = data;
-		break;
-	default:
-		ret = -EINVAL;
-		goto error_ret;
-	}
-
-	ret = ad7150_write_event_params(indio_dev, chan, type, dir);
-error_ret:
-	mutex_unlock(&chip->state_lock);
-
-	if (ret < 0)
-		return ret;
-
-	return len;
-}
-
-#define AD7150_TIMEOUT(chan, type, dir, ev_type, ev_dir)		\
-	IIO_DEVICE_ATTR(in_capacitance##chan##_##type##_##dir##_timeout, \
-		0644,							\
-		&ad7150_show_timeout,					\
-		&ad7150_store_timeout,					\
-		IIO_UNMOD_EVENT_CODE(IIO_CAPACITANCE,			\
-				     chan,				\
-				     IIO_EV_TYPE_##ev_type,		\
-				     IIO_EV_DIR_##ev_dir))
-static AD7150_TIMEOUT(0, thresh_adaptive, rising, THRESH_ADAPTIVE, RISING);
-static AD7150_TIMEOUT(0, thresh_adaptive, falling, THRESH_ADAPTIVE, FALLING);
-static AD7150_TIMEOUT(1, thresh_adaptive, rising, THRESH_ADAPTIVE, RISING);
-static AD7150_TIMEOUT(1, thresh_adaptive, falling, THRESH_ADAPTIVE, FALLING);
 
 static const struct iio_event_spec ad7150_events[] = {
 	{
@@ -438,12 +385,14 @@ static const struct iio_event_spec ad7150_events[] = {
 		.type = IIO_EV_TYPE_THRESH_ADAPTIVE,
 		.dir = IIO_EV_DIR_RISING,
 		.mask_separate = BIT(IIO_EV_INFO_VALUE) |
-			BIT(IIO_EV_INFO_ENABLE),
+			BIT(IIO_EV_INFO_ENABLE) |
+			BIT(IIO_EV_INFO_TIMEOUT),
 	}, {
 		.type = IIO_EV_TYPE_THRESH_ADAPTIVE,
 		.dir = IIO_EV_DIR_FALLING,
 		.mask_separate = BIT(IIO_EV_INFO_VALUE) |
-			BIT(IIO_EV_INFO_ENABLE),
+			BIT(IIO_EV_INFO_ENABLE) |
+			BIT(IIO_EV_INFO_TIMEOUT),
 	},
 };
 
@@ -538,15 +487,11 @@ static irqreturn_t ad7150_event_handler(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
-/* Timeouts not currently handled by core */
+static IIO_CONST_ATTR(in_capacitance_thresh_adaptive_timeout_available,
+		      "[0 0.01 0.15]");
+
 static struct attribute *ad7150_event_attributes[] = {
-	&iio_dev_attr_in_capacitance0_thresh_adaptive_rising_timeout
-	.dev_attr.attr,
-	&iio_dev_attr_in_capacitance0_thresh_adaptive_falling_timeout
-	.dev_attr.attr,
-	&iio_dev_attr_in_capacitance1_thresh_adaptive_rising_timeout
-	.dev_attr.attr,
-	&iio_dev_attr_in_capacitance1_thresh_adaptive_falling_timeout
+	&iio_const_attr_in_capacitance_thresh_adaptive_timeout_available
 	.dev_attr.attr,
 	NULL,
 };
