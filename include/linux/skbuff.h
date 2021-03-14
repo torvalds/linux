@@ -1292,10 +1292,10 @@ __skb_set_sw_hash(struct sk_buff *skb, __u32 hash, bool is_l4)
 void __skb_get_hash(struct sk_buff *skb);
 u32 __skb_get_hash_symmetric(const struct sk_buff *skb);
 u32 skb_get_poff(const struct sk_buff *skb);
-u32 __skb_get_poff(const struct sk_buff *skb, void *data,
+u32 __skb_get_poff(const struct sk_buff *skb, const void *data,
 		   const struct flow_keys_basic *keys, int hlen);
 __be32 __skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8 ip_proto,
-			    void *data, int hlen_proto);
+			    const void *data, int hlen_proto);
 
 static inline __be32 skb_flow_get_ports(const struct sk_buff *skb,
 					int thoff, u8 ip_proto)
@@ -1314,9 +1314,8 @@ bool bpf_flow_dissect(struct bpf_prog *prog, struct bpf_flow_dissector *ctx,
 bool __skb_flow_dissect(const struct net *net,
 			const struct sk_buff *skb,
 			struct flow_dissector *flow_dissector,
-			void *target_container,
-			void *data, __be16 proto, int nhoff, int hlen,
-			unsigned int flags);
+			void *target_container, const void *data,
+			__be16 proto, int nhoff, int hlen, unsigned int flags);
 
 static inline bool skb_flow_dissect(const struct sk_buff *skb,
 				    struct flow_dissector *flow_dissector,
@@ -1338,9 +1337,9 @@ static inline bool skb_flow_dissect_flow_keys(const struct sk_buff *skb,
 static inline bool
 skb_flow_dissect_flow_keys_basic(const struct net *net,
 				 const struct sk_buff *skb,
-				 struct flow_keys_basic *flow, void *data,
-				 __be16 proto, int nhoff, int hlen,
-				 unsigned int flags)
+				 struct flow_keys_basic *flow,
+				 const void *data, __be16 proto,
+				 int nhoff, int hlen, unsigned int flags)
 {
 	memset(flow, 0, sizeof(*flow));
 	return __skb_flow_dissect(net, skb, &flow_keys_basic_dissector, flow,
@@ -3678,14 +3677,13 @@ __wsum skb_checksum(const struct sk_buff *skb, int offset, int len,
 		    __wsum csum);
 
 static inline void * __must_check
-__skb_header_pointer(const struct sk_buff *skb, int offset,
-		     int len, void *data, int hlen, void *buffer)
+__skb_header_pointer(const struct sk_buff *skb, int offset, int len,
+		     const void *data, int hlen, void *buffer)
 {
-	if (hlen - offset >= len)
-		return data + offset;
+	if (likely(hlen - offset >= len))
+		return (void *)data + offset;
 
-	if (!skb ||
-	    skb_copy_bits(skb, offset, buffer, len) < 0)
+	if (!skb || unlikely(skb_copy_bits(skb, offset, buffer, len) < 0))
 		return NULL;
 
 	return buffer;
