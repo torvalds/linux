@@ -11,11 +11,7 @@ C ISA2+pooncerelease+poacquirerelease+poacquireonce
  * (AKA non-rf) link, so release-acquire is all that is needed.
  *)
 
-{
-	int x;
-	int y;
-	int z;
-}
+{}
 
 P0(int *x, int *y)
 {

@@ -409,7 +409,8 @@ mcp77_clk = {
 };
 
 int
-mcp77_clk_new(struct nvkm_device *device, int index, struct nvkm_clk **pclk)
+mcp77_clk_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_clk **pclk)
 {
 	struct mcp77_clk *clk;
 
@@ -417,5 +418,5 @@ mcp77_clk_new(struct nvkm_device *device, int index, struct nvkm_clk **pclk)
 		return -ENOMEM;
 	*pclk = &clk->base;
 
-	return nvkm_clk_ctor(&mcp77_clk, device, index, true, &clk->base);
+	return nvkm_clk_ctor(&mcp77_clk, device, type, inst, true, &clk->base);
 }

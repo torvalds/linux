@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (C) 2020 Purism SPC <kernel@puri.sm>
+
+/dts-v1/;
+
+#include "imx8mq-librem5.dtsi"
+
+/ {
+	model = "Purism Librem 5r4";
+	compatible = "purism,librem5r4", "purism,librem5", "fsl,imx8mq";
+};
+
+&accel_gyro {
+	mount-matrix =  "1",  "0",  "0",
+			"0",  "1",  "0",
+			"0",  "0", "-1";
+};
+
+&bat {
+	maxim,rsns-microohm = <1667>;
+};
+
+&bq25895 {
+	ti,battery-regulation-voltage = <4200000>; /* uV */
+	ti,charge-current = <1500000>; /* uA */
+	ti,termination-current = <144000>;  /* uA */
+};
+
+&led_backlight {
+	led-max-microamp = <25000>;
+};
+
+&proximity {
+	proximity-near-level = <10>;
+};

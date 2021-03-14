@@ -241,10 +241,12 @@
 	};
 
 	soc@0 {
-		compatible = "simple-bus";
+		compatible = "fsl,imx8mn-soc", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x0 0x3e000000>;
+		nvmem-cells = <&imx8mn_uid>;
+		nvmem-cell-names = "soc_unique_id";
 
 		aips1: bus@30000000 {
 			compatible = "fsl,aips-bus", "simple-bus";
@@ -253,7 +255,7 @@
 			#size-cells = <1>;
 			ranges;
 
-			spba: bus@30000000 {
+			spba: spba-bus@30000000 {
 				compatible = "fsl,spba-bus", "simple-bus";
 				#address-cells = <1>;
 				#size-cells = <1>;
@@ -531,8 +533,16 @@
 				#address-cells = <1>;
 				#size-cells = <1>;
 
+				imx8mn_uid: unique-id@410 {
+					reg = <0x4 0x8>;
+				};
+
 				cpu_speed_grade: speed-grade@10 {
 					reg = <0x10 4>;
+				};
+
+				fec_mac_address: mac-address@90 {
+					reg = <0x90 6>;
 				};
 			};
 
@@ -581,7 +591,9 @@
 						<&clk IMX8MN_CLK_NOC>,
 						<&clk IMX8MN_CLK_AUDIO_AHB>,
 						<&clk IMX8MN_CLK_IPG_AUDIO_ROOT>,
-						<&clk IMX8MN_SYS_PLL3>;
+						<&clk IMX8MN_SYS_PLL3>,
+						<&clk IMX8MN_AUDIO_PLL1>,
+						<&clk IMX8MN_AUDIO_PLL2>;
 				assigned-clock-parents = <&clk IMX8MN_SYS_PLL1_800M>,
 							 <&clk IMX8MN_ARM_PLL_OUT>,
 							 <&clk IMX8MN_SYS_PLL3_OUT>,
@@ -589,7 +601,9 @@
 				assigned-clock-rates = <0>, <0>, <0>,
 							<400000000>,
 							<400000000>,
-							<600000000>;
+							<600000000>,
+							<393216000>,
+							<361267200>;
 			};
 
 			src: reset-controller@30390000 {
@@ -875,6 +889,19 @@
 				status = "disabled";
 			};
 
+			flexspi: spi@30bb0000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "nxp,imx8mm-fspi";
+				reg = <0x30bb0000 0x10000>, <0x8000000 0x10000000>;
+				reg-names = "fspi_base", "fspi_mmap";
+				interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MN_CLK_QSPI_ROOT>,
+					 <&clk IMX8MN_CLK_QSPI_ROOT>;
+				clock-names = "fspi", "fspi_en";
+				status = "disabled";
+			};
+
 			sdma1: dma-controller@30bd0000 {
 				compatible = "fsl,imx8mn-sdma", "fsl,imx8mq-sdma";
 				reg = <0x30bd0000 0x10000>;
@@ -903,13 +930,18 @@
 				assigned-clocks = <&clk IMX8MN_CLK_ENET_AXI>,
 						  <&clk IMX8MN_CLK_ENET_TIMER>,
 						  <&clk IMX8MN_CLK_ENET_REF>,
-						  <&clk IMX8MN_CLK_ENET_TIMER>;
+						  <&clk IMX8MN_CLK_ENET_PHY_REF>;
 				assigned-clock-parents = <&clk IMX8MN_SYS_PLL1_266M>,
 							 <&clk IMX8MN_SYS_PLL2_100M>,
-							 <&clk IMX8MN_SYS_PLL2_125M>;
-				assigned-clock-rates = <0>, <0>, <125000000>, <100000000>;
+							 <&clk IMX8MN_SYS_PLL2_125M>,
+							 <&clk IMX8MN_SYS_PLL2_50M>;
+				assigned-clock-rates = <0>, <100000000>, <125000000>, <0>;
 				fsl,num-tx-queues = <3>;
 				fsl,num-rx-queues = <3>;
+				nvmem-cells = <&fec_mac_address>;
+				nvmem-cell-names = "mac-address";
+				nvmem_macaddr_swap;
+				fsl,stop-mode = <&gpr 0x10 3>;
 				status = "disabled";
 			};
 

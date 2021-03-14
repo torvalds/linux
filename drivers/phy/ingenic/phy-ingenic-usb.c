@@ -82,18 +82,7 @@
 #define USBPCR1_PORT_RST			BIT(21)
 #define USBPCR1_WORD_IF_16BIT		BIT(19)
 
-enum ingenic_usb_phy_version {
-	ID_JZ4770,
-	ID_JZ4775,
-	ID_JZ4780,
-	ID_X1000,
-	ID_X1830,
-	ID_X2000,
-};
-
 struct ingenic_soc_info {
-	enum ingenic_usb_phy_version version;
-
 	void (*usb_phy_init)(struct phy *phy);
 };
 
@@ -300,38 +289,26 @@ static void x2000_usb_phy_init(struct phy *phy)
 }
 
 static const struct ingenic_soc_info jz4770_soc_info = {
-	.version = ID_JZ4770,
-
 	.usb_phy_init = jz4770_usb_phy_init,
 };
 
 static const struct ingenic_soc_info jz4775_soc_info = {
-	.version = ID_JZ4775,
-
 	.usb_phy_init = jz4775_usb_phy_init,
 };
 
 static const struct ingenic_soc_info jz4780_soc_info = {
-	.version = ID_JZ4780,
-
 	.usb_phy_init = jz4780_usb_phy_init,
 };
 
 static const struct ingenic_soc_info x1000_soc_info = {
-	.version = ID_X1000,
-
 	.usb_phy_init = x1000_usb_phy_init,
 };
 
 static const struct ingenic_soc_info x1830_soc_info = {
-	.version = ID_X1830,
-
 	.usb_phy_init = x1830_usb_phy_init,
 };
 
 static const struct ingenic_soc_info x2000_soc_info = {
-	.version = ID_X2000,
-
 	.usb_phy_init = x2000_usb_phy_init,
 };
 

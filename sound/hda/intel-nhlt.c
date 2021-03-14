@@ -31,18 +31,44 @@ int intel_nhlt_get_dmic_geo(struct device *dev, struct nhlt_acpi_table *nhlt)
 	struct nhlt_endpoint *epnt;
 	struct nhlt_dmic_array_config *cfg;
 	struct nhlt_vendor_dmic_array_config *cfg_vendor;
+	struct nhlt_fmt *fmt_configs;
 	unsigned int dmic_geo = 0;
-	u8 j;
+	u16 max_ch = 0;
+	u8 i, j;
 
 	if (!nhlt)
 		return 0;
 
-	epnt = (struct nhlt_endpoint *)nhlt->desc;
+	for (j = 0, epnt = nhlt->desc; j < nhlt->endpoint_count; j++,
+	     epnt = (struct nhlt_endpoint *)((u8 *)epnt + epnt->length)) {
 
-	for (j = 0; j < nhlt->endpoint_count; j++) {
-		if (epnt->linktype == NHLT_LINK_DMIC) {
-			cfg = (struct nhlt_dmic_array_config  *)
-					(epnt->config.caps);
+		if (epnt->linktype != NHLT_LINK_DMIC)
+			continue;
+
+		cfg = (struct nhlt_dmic_array_config  *)(epnt->config.caps);
+		fmt_configs = (struct nhlt_fmt *)(epnt->config.caps + epnt->config.size);
+
+		/* find max number of channels based on format_configuration */
+		if (fmt_configs->fmt_count) {
+			dev_dbg(dev, "%s: found %d format definitions\n",
+				__func__, fmt_configs->fmt_count);
+
+			for (i = 0; i < fmt_configs->fmt_count; i++) {
+				struct wav_fmt_ext *fmt_ext;
+
+				fmt_ext = &fmt_configs->fmt_config[i].fmt_ext;
+
+				if (fmt_ext->fmt.channels > max_ch)
+					max_ch = fmt_ext->fmt.channels;
+			}
+			dev_dbg(dev, "%s: max channels found %d\n", __func__, max_ch);
+		} else {
+			dev_dbg(dev, "%s: No format information found\n", __func__);
+		}
+
+		if (cfg->device_config.config_type != NHLT_CONFIG_TYPE_MIC_ARRAY) {
+			dmic_geo = max_ch;
+		} else {
 			switch (cfg->array_type) {
 			case NHLT_MIC_ARRAY_2CH_SMALL:
 			case NHLT_MIC_ARRAY_2CH_BIG:
@@ -59,12 +85,22 @@ int intel_nhlt_get_dmic_geo(struct device *dev, struct nhlt_acpi_table *nhlt)
 				dmic_geo = cfg_vendor->nb_mics;
 				break;
 			default:
-				dev_warn(dev, "undefined DMIC array_type 0x%0x\n",
-					 cfg->array_type);
+				dev_warn(dev, "%s: undefined DMIC array_type 0x%0x\n",
+					 __func__, cfg->array_type);
+			}
+
+			if (dmic_geo > 0) {
+				dev_dbg(dev, "%s: Array with %d dmics\n", __func__, dmic_geo);
+			}
+			if (max_ch > dmic_geo) {
+				dev_dbg(dev, "%s: max channels %d exceed dmic number %d\n",
+					__func__, max_ch, dmic_geo);
 			}
 		}
-		epnt = (struct nhlt_endpoint *)((u8 *)epnt + epnt->length);
 	}
+
+	dev_dbg(dev, "%s: dmic number %d max_ch %d\n",
+		__func__, dmic_geo, max_ch);
 
 	return dmic_geo;
 }

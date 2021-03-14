@@ -46,6 +46,11 @@
  #define PF_XDP AF_XDP
 #endif
 
+enum xsk_prog {
+	XSK_PROG_FALLBACK,
+	XSK_PROG_REDIRECT_FLAGS,
+};
+
 struct xsk_umem {
 	struct xsk_ring_prod *fill_save;
 	struct xsk_ring_cons *comp_save;
@@ -351,6 +356,54 @@ int xsk_umem__create_v0_0_2(struct xsk_umem **umem_ptr, void *umem_area,
 COMPAT_VERSION(xsk_umem__create_v0_0_2, xsk_umem__create, LIBBPF_0.0.2)
 DEFAULT_VERSION(xsk_umem__create_v0_0_4, xsk_umem__create, LIBBPF_0.0.4)
 
+static enum xsk_prog get_xsk_prog(void)
+{
+	enum xsk_prog detected = XSK_PROG_FALLBACK;
+	struct bpf_load_program_attr prog_attr;
+	struct bpf_create_map_attr map_attr;
+	__u32 size_out, retval, duration;
+	char data_in = 0, data_out;
+	struct bpf_insn insns[] = {
+		BPF_LD_MAP_FD(BPF_REG_1, 0),
+		BPF_MOV64_IMM(BPF_REG_2, 0),
+		BPF_MOV64_IMM(BPF_REG_3, XDP_PASS),
+		BPF_EMIT_CALL(BPF_FUNC_redirect_map),
+		BPF_EXIT_INSN(),
+	};
+	int prog_fd, map_fd, ret;
+
+	memset(&map_attr, 0, sizeof(map_attr));
+	map_attr.map_type = BPF_MAP_TYPE_XSKMAP;
+	map_attr.key_size = sizeof(int);
+	map_attr.value_size = sizeof(int);
+	map_attr.max_entries = 1;
+
+	map_fd = bpf_create_map_xattr(&map_attr);
+	if (map_fd < 0)
+		return detected;
+
+	insns[0].imm = map_fd;
+
+	memset(&prog_attr, 0, sizeof(prog_attr));
+	prog_attr.prog_type = BPF_PROG_TYPE_XDP;
+	prog_attr.insns = insns;
+	prog_attr.insns_cnt = ARRAY_SIZE(insns);
+	prog_attr.license = "GPL";
+
+	prog_fd = bpf_load_program_xattr(&prog_attr, NULL, 0);
+	if (prog_fd < 0) {
+		close(map_fd);
+		return detected;
+	}
+
+	ret = bpf_prog_test_run(prog_fd, 0, &data_in, 1, &data_out, &size_out, &retval, &duration);
+	if (!ret && retval == XDP_PASS)
+		detected = XSK_PROG_REDIRECT_FLAGS;
+	close(prog_fd);
+	close(map_fd);
+	return detected;
+}
+
 static int xsk_load_xdp_prog(struct xsk_socket *xsk)
 {
 	static const int log_buf_size = 16 * 1024;
@@ -358,7 +411,7 @@ static int xsk_load_xdp_prog(struct xsk_socket *xsk)
 	char log_buf[log_buf_size];
 	int err, prog_fd;
 
-	/* This is the C-program:
+	/* This is the fallback C-program:
 	 * SEC("xdp_sock") int xdp_sock_prog(struct xdp_md *ctx)
 	 * {
 	 *     int ret, index = ctx->rx_queue_index;
@@ -414,9 +467,31 @@ static int xsk_load_xdp_prog(struct xsk_socket *xsk)
 		/* The jumps are to this instruction */
 		BPF_EXIT_INSN(),
 	};
-	size_t insns_cnt = sizeof(prog) / sizeof(struct bpf_insn);
 
-	prog_fd = bpf_load_program(BPF_PROG_TYPE_XDP, prog, insns_cnt,
+	/* This is the post-5.3 kernel C-program:
+	 * SEC("xdp_sock") int xdp_sock_prog(struct xdp_md *ctx)
+	 * {
+	 *     return bpf_redirect_map(&xsks_map, ctx->rx_queue_index, XDP_PASS);
+	 * }
+	 */
+	struct bpf_insn prog_redirect_flags[] = {
+		/* r2 = *(u32 *)(r1 + 16) */
+		BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1, 16),
+		/* r1 = xskmap[] */
+		BPF_LD_MAP_FD(BPF_REG_1, ctx->xsks_map_fd),
+		/* r3 = XDP_PASS */
+		BPF_MOV64_IMM(BPF_REG_3, 2),
+		/* call bpf_redirect_map */
+		BPF_EMIT_CALL(BPF_FUNC_redirect_map),
+		BPF_EXIT_INSN(),
+	};
+	size_t insns_cnt[] = {sizeof(prog) / sizeof(struct bpf_insn),
+			      sizeof(prog_redirect_flags) / sizeof(struct bpf_insn),
+	};
+	struct bpf_insn *progs[] = {prog, prog_redirect_flags};
+	enum xsk_prog option = get_xsk_prog();
+
+	prog_fd = bpf_load_program(BPF_PROG_TYPE_XDP, progs[option], insns_cnt[option],
 				   "LGPL-2.1 or BSD-2-Clause", 0, log_buf,
 				   log_buf_size);
 	if (prog_fd < 0) {
@@ -442,7 +517,7 @@ static int xsk_get_max_queues(struct xsk_socket *xsk)
 	struct ifreq ifr = {};
 	int fd, err, ret;
 
-	fd = socket(AF_INET, SOCK_DGRAM, 0);
+	fd = socket(AF_LOCAL, SOCK_DGRAM, 0);
 	if (fd < 0)
 		return -errno;
 

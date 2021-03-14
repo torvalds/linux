@@ -11,6 +11,7 @@
 #define LINK_TIMER_VAL(ns)		((u32)((ns) / SGMII_CLOCK_PERIOD_NS))
 
 #define SGMII_AN_LINK_TIMER_NS		1600000 /* defined by SGMII spec */
+#define IEEE8023_LINK_TIMER_NS		10000000
 
 #define LINK_TIMER_LO			0x12
 #define LINK_TIMER_HI			0x13
@@ -83,6 +84,7 @@ static void lynx_pcs_get_state(struct phylink_pcs *pcs,
 	struct lynx_pcs *lynx = phylink_pcs_to_lynx(pcs);
 
 	switch (state->interface) {
+	case PHY_INTERFACE_MODE_1000BASEX:
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_QSGMII:
 		phylink_mii_c22_pcs_get_state(lynx->mdio, state);
@@ -106,6 +108,30 @@ static void lynx_pcs_get_state(struct phylink_pcs *pcs,
 		phy_speed_to_str(state->speed),
 		phy_duplex_to_str(state->duplex),
 		state->link, state->an_enabled, state->an_complete);
+}
+
+static int lynx_pcs_config_1000basex(struct mdio_device *pcs,
+				     unsigned int mode,
+				     const unsigned long *advertising)
+{
+	struct mii_bus *bus = pcs->bus;
+	int addr = pcs->addr;
+	u32 link_timer;
+	int err;
+
+	link_timer = LINK_TIMER_VAL(IEEE8023_LINK_TIMER_NS);
+	mdiobus_write(bus, addr, LINK_TIMER_LO, link_timer & 0xffff);
+	mdiobus_write(bus, addr, LINK_TIMER_HI, link_timer >> 16);
+
+	err = mdiobus_modify(bus, addr, IF_MODE,
+			     IF_MODE_SGMII_EN | IF_MODE_USE_SGMII_AN,
+			     0);
+	if (err)
+		return err;
+
+	return phylink_mii_c22_pcs_config(pcs, mode,
+					  PHY_INTERFACE_MODE_1000BASEX,
+					  advertising);
 }
 
 static int lynx_pcs_config_sgmii(struct mdio_device *pcs, unsigned int mode,
@@ -163,6 +189,8 @@ static int lynx_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 	struct lynx_pcs *lynx = phylink_pcs_to_lynx(pcs);
 
 	switch (ifmode) {
+	case PHY_INTERFACE_MODE_1000BASEX:
+		return lynx_pcs_config_1000basex(lynx->mdio, mode, advertising);
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_QSGMII:
 		return lynx_pcs_config_sgmii(lynx->mdio, mode, advertising);
@@ -183,6 +211,13 @@ static int lynx_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 	}
 
 	return 0;
+}
+
+static void lynx_pcs_an_restart(struct phylink_pcs *pcs)
+{
+	struct lynx_pcs *lynx = phylink_pcs_to_lynx(pcs);
+
+	phylink_mii_c22_pcs_an_restart(lynx->mdio);
 }
 
 static void lynx_pcs_link_up_sgmii(struct mdio_device *pcs, unsigned int mode,
@@ -290,6 +325,7 @@ static void lynx_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 static const struct phylink_pcs_ops lynx_pcs_phylink_ops = {
 	.pcs_get_state = lynx_pcs_get_state,
 	.pcs_config = lynx_pcs_config,
+	.pcs_an_restart = lynx_pcs_an_restart,
 	.pcs_link_up = lynx_pcs_link_up,
 };
 

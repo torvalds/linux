@@ -64,7 +64,7 @@ Case2	ReportID_3	TP	Absolute
 
 Command Read/Write
 ------------------
-To read/write to RAM, need to send a commands to the device.
+To read/write to RAM, need to send a command to the device.
 
 The command format is as below.
 
@@ -80,7 +80,7 @@ Byte6	Value Byte
 Byte7	Checksum
 =====	======================
 
-Command Byte is read=0xD1/write=0xD2 .
+Command Byte is read=0xD1/write=0xD2.
 
 Address is read/write RAM address.
 

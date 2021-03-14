@@ -1388,7 +1388,7 @@ static pci_ers_result_t aer_root_reset(struct pci_dev *dev)
 	if (type == PCI_EXP_TYPE_RC_END)
 		root = dev->rcec;
 	else
-		root = dev;
+		root = pcie_find_root_port(dev);
 
 	/*
 	 * If the platform retained control of AER, an RCiEP may not have
@@ -1414,7 +1414,8 @@ static pci_ers_result_t aer_root_reset(struct pci_dev *dev)
 		}
 	} else {
 		rc = pci_bus_error_reset(dev);
-		pci_info(dev, "Root Port link has been reset (%d)\n", rc);
+		pci_info(dev, "%s Port link has been reset (%d)\n",
+			pci_is_root_bus(dev->bus) ? "Root" : "Downstream", rc);
 	}
 
 	if ((host->native_aer || pcie_ports_native) && aer) {

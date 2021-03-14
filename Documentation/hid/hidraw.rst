@@ -21,7 +21,7 @@ Hidraw is the only alternative, short of writing a custom kernel driver, for
 these non-conformant devices.
 
 A benefit of hidraw is that its use by userspace applications is independent
-of the underlying hardware type.  Currently, Hidraw is implemented for USB
+of the underlying hardware type.  Currently, hidraw is implemented for USB
 and Bluetooth.  In the future, as new hardware bus types are developed which
 use the HID specification, hidraw will be expanded to add support for these
 new bus types.
@@ -31,9 +31,10 @@ create hidraw device nodes.  Udev will typically create the device nodes
 directly under /dev (eg: /dev/hidraw0).  As this location is distribution-
 and udev rule-dependent, applications should use libudev to locate hidraw
 devices attached to the system.  There is a tutorial on libudev with a
-working example at:
+working example at::
 
 	http://www.signal11.us/oss/udev/
+	https://web.archive.org/web/2019*/www.signal11.us
 
 The HIDRAW API
 ---------------

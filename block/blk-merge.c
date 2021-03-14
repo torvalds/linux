@@ -298,14 +298,13 @@ split:
  * Split a bio into two bios, chain the two bios, submit the second half and
  * store a pointer to the first half in *@bio. If the second bio is still too
  * big it will be split by a recursive call to this function. Since this
- * function may allocate a new bio from @bio->bi_disk->queue->bio_split, it is
- * the responsibility of the caller to ensure that
- * @bio->bi_disk->queue->bio_split is only released after processing of the
- * split bio has finished.
+ * function may allocate a new bio from q->bio_split, it is the responsibility
+ * of the caller to ensure that q->bio_split is only released after processing
+ * of the split bio has finished.
  */
 void __blk_queue_split(struct bio **bio, unsigned int *nr_segs)
 {
-	struct request_queue *q = (*bio)->bi_disk->queue;
+	struct request_queue *q = (*bio)->bi_bdev->bd_disk->queue;
 	struct bio *split = NULL;
 
 	switch (bio_op(*bio)) {
@@ -358,9 +357,9 @@ void __blk_queue_split(struct bio **bio, unsigned int *nr_segs)
  *
  * Split a bio into two bios, chains the two bios, submit the second half and
  * store a pointer to the first half in *@bio. Since this function may allocate
- * a new bio from @bio->bi_disk->queue->bio_split, it is the responsibility of
- * the caller to ensure that @bio->bi_disk->queue->bio_split is only released
- * after processing of the split bio has finished.
+ * a new bio from q->bio_split, it is the responsibility of the caller to ensure
+ * that q->bio_split is only released after processing of the split bio has
+ * finished.
  */
 void blk_queue_split(struct bio **bio)
 {
@@ -866,7 +865,7 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 		return false;
 
 	/* must be same device */
-	if (rq->rq_disk != bio->bi_disk)
+	if (rq->rq_disk != bio->bi_bdev->bd_disk)
 		return false;
 
 	/* only merge integrity protected bio into ditto rq */

@@ -28,6 +28,9 @@ SoCs has each of these instances form a cluster and combine multiple clusters
 into a single IP block present within the Main NavSS. The interrupt lines from
 all these clusters are multiplexed and routed to different processor subsystems
 over a limited number of common interrupt output lines of an Interrupt Router.
+The AM64x SoCS also uses a single IP block comprising of multiple clusters,
+but the number of clusters are smaller, and the interrupt output lines are
+connected directly to various processors.
 
 Mailbox Device Node:
 ====================
@@ -42,6 +45,7 @@ Required properties:
 			    "ti,omap4-mailbox" for OMAP44xx, OMAP54xx, AM33xx,
 						   AM43xx and DRA7xx SoCs
 			    "ti,am654-mailbox" for K3 AM65x and J721E SoCs
+			    "ti,am64-mailbox" for K3 AM64x SoCs
 - reg:			Contains the mailbox register address range (base
 			address and length)
 - interrupts:		Contains the interrupt information for the mailbox

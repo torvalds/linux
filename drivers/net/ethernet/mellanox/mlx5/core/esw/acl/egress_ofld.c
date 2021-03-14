@@ -150,7 +150,7 @@ static void esw_acl_egress_ofld_groups_destroy(struct mlx5_vport *vport)
 
 static bool esw_acl_egress_needed(const struct mlx5_eswitch *esw, u16 vport_num)
 {
-	return mlx5_eswitch_is_vf_vport(esw, vport_num);
+	return mlx5_eswitch_is_vf_vport(esw, vport_num) || mlx5_esw_is_sf_vport(esw, vport_num);
 }
 
 int esw_acl_egress_ofld_setup(struct mlx5_eswitch *esw, struct mlx5_vport *vport)

@@ -1,4 +1,4 @@
-/**
+/*
  * \file mga_ioc32.c
  *
  * 32-bit ioctl compatibility routines for the MGA DRM.
@@ -159,13 +159,13 @@ static struct {
 };
 
 /**
- * Called whenever a 32-bit process running under a 64-bit kernel
- * performs an ioctl on /dev/dri/card<n>.
+ * mga_compat_ioctl - Called whenever a 32-bit process running under
+ *                    a 64-bit kernel performs an ioctl on /dev/dri/card<n>.
  *
- * \param filp file pointer.
- * \param cmd command.
- * \param arg user argument.
- * \return zero on success or negative number on failure.
+ * @filp: file pointer.
+ * @cmd:  command.
+ * @arg:  user argument.
+ * return: zero on success or negative number on failure.
  */
 long mga_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {

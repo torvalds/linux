@@ -6,8 +6,6 @@
  * Copyright (c) 2010, ST-Ericsson
  */
 #include <linux/firmware.h>
-#include <linux/slab.h>
-#include <linux/mm.h>
 #include <linux/bitfield.h>
 
 #include "fwio.h"

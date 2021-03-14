@@ -1181,7 +1181,7 @@ static struct snd_soc_dai_driver cs42l73_dai[] = {
 			.formats = CS42L73_FORMATS,
 		},
 		.ops = &cs42l73_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	 },
 	{
 		.name = "cs42l73-asp",
@@ -1201,7 +1201,7 @@ static struct snd_soc_dai_driver cs42l73_dai[] = {
 			.formats = CS42L73_FORMATS,
 		},
 		.ops = &cs42l73_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	 },
 	{
 		.name = "cs42l73-vsp",
@@ -1221,7 +1221,7 @@ static struct snd_soc_dai_driver cs42l73_dai[] = {
 			.formats = CS42L73_FORMATS,
 		},
 		.ops = &cs42l73_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	 }
 };
 

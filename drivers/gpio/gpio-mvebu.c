@@ -70,7 +70,12 @@
  */
 #define PWM_BLINK_ON_DURATION_OFF	0x0
 #define PWM_BLINK_OFF_DURATION_OFF	0x4
+#define PWM_BLINK_COUNTER_B_OFF		0x8
 
+/* Armada 8k variant gpios register offsets */
+#define AP80X_GPIO0_OFF_A8K		0x1040
+#define CP11X_GPIO0_OFF_A8K		0x100
+#define CP11X_GPIO1_OFF_A8K		0x140
 
 /* The MV78200 has per-CPU registers for edge mask and level mask */
 #define GPIO_EDGE_MASK_MV78200_OFF(cpu)	  ((cpu) ? 0x30 : 0x18)
@@ -93,6 +98,7 @@
 
 struct mvebu_pwm {
 	struct regmap		*regs;
+	u32			 offset;
 	unsigned long		 clk_rate;
 	struct gpio_desc	*gpiod;
 	struct pwm_chip		 chip;
@@ -283,12 +289,12 @@ mvebu_gpio_write_level_mask(struct mvebu_gpio_chip *mvchip, u32 val)
  */
 static unsigned int mvebu_pwmreg_blink_on_duration(struct mvebu_pwm *mvpwm)
 {
-	return PWM_BLINK_ON_DURATION_OFF;
+	return mvpwm->offset + PWM_BLINK_ON_DURATION_OFF;
 }
 
 static unsigned int mvebu_pwmreg_blink_off_duration(struct mvebu_pwm *mvpwm)
 {
-	return PWM_BLINK_OFF_DURATION_OFF;
+	return mvpwm->offset + PWM_BLINK_OFF_DURATION_OFF;
 }
 
 /*
@@ -667,26 +673,21 @@ static void mvebu_pwm_get_state(struct pwm_chip *chip,
 	spin_lock_irqsave(&mvpwm->lock, flags);
 
 	regmap_read(mvpwm->regs, mvebu_pwmreg_blink_on_duration(mvpwm), &u);
-	val = (unsigned long long) u * NSEC_PER_SEC;
-	do_div(val, mvpwm->clk_rate);
-	if (val > UINT_MAX)
-		state->duty_cycle = UINT_MAX;
-	else if (val)
-		state->duty_cycle = val;
+	/* Hardware treats zero as 2^32. See mvebu_pwm_apply(). */
+	if (u > 0)
+		val = u;
 	else
-		state->duty_cycle = 1;
+		val = UINT_MAX + 1ULL;
+	state->duty_cycle = DIV_ROUND_UP_ULL(val * NSEC_PER_SEC,
+			mvpwm->clk_rate);
 
-	val = (unsigned long long) u; /* on duration */
 	regmap_read(mvpwm->regs, mvebu_pwmreg_blink_off_duration(mvpwm), &u);
-	val += (unsigned long long) u; /* period = on + off duration */
-	val *= NSEC_PER_SEC;
-	do_div(val, mvpwm->clk_rate);
-	if (val > UINT_MAX)
-		state->period = UINT_MAX;
-	else if (val)
-		state->period = val;
+	/* period = on + off duration */
+	if (u > 0)
+		val += u;
 	else
-		state->period = 1;
+		val += UINT_MAX + 1ULL;
+	state->period = DIV_ROUND_UP_ULL(val * NSEC_PER_SEC, mvpwm->clk_rate);
 
 	regmap_read(mvchip->regs, GPIO_BLINK_EN_OFF + mvchip->offset, &u);
 	if (u)
@@ -708,19 +709,27 @@ static int mvebu_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	val = (unsigned long long) mvpwm->clk_rate * state->duty_cycle;
 	do_div(val, NSEC_PER_SEC);
-	if (val > UINT_MAX)
+	if (val > UINT_MAX + 1ULL)
 		return -EINVAL;
-	if (val)
+	/*
+	 * Zero on/off values don't work as expected. Experimentation shows
+	 * that zero value is treated as 2^32. This behavior is not documented.
+	 */
+	if (val == UINT_MAX + 1ULL)
+		on = 0;
+	else if (val)
 		on = val;
 	else
 		on = 1;
 
-	val = (unsigned long long) mvpwm->clk_rate *
-		(state->period - state->duty_cycle);
+	val = (unsigned long long) mvpwm->clk_rate * state->period;
 	do_div(val, NSEC_PER_SEC);
-	if (val > UINT_MAX)
+	val -= on;
+	if (val > UINT_MAX + 1ULL)
 		return -EINVAL;
-	if (val)
+	if (val == UINT_MAX + 1ULL)
+		off = 0;
+	else if (val)
 		off = val;
 	else
 		off = 1;
@@ -778,51 +787,80 @@ static int mvebu_pwm_probe(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	struct mvebu_pwm *mvpwm;
 	void __iomem *base;
+	u32 offset;
 	u32 set;
 
-	if (!of_device_is_compatible(mvchip->chip.of_node,
-				     "marvell,armada-370-gpio"))
+	if (of_device_is_compatible(mvchip->chip.of_node,
+				    "marvell,armada-370-gpio")) {
+		/*
+		 * There are only two sets of PWM configuration registers for
+		 * all the GPIO lines on those SoCs which this driver reserves
+		 * for the first two GPIO chips. So if the resource is missing
+		 * we can't treat it as an error.
+		 */
+		if (!platform_get_resource_byname(pdev, IORESOURCE_MEM, "pwm"))
+			return 0;
+		offset = 0;
+	} else if (mvchip->soc_variant == MVEBU_GPIO_SOC_VARIANT_A8K) {
+		int ret = of_property_read_u32(dev->of_node,
+					       "marvell,pwm-offset", &offset);
+		if (ret < 0)
+			return 0;
+	} else {
 		return 0;
-
-	/*
-	 * There are only two sets of PWM configuration registers for
-	 * all the GPIO lines on those SoCs which this driver reserves
-	 * for the first two GPIO chips. So if the resource is missing
-	 * we can't treat it as an error.
-	 */
-	if (!platform_get_resource_byname(pdev, IORESOURCE_MEM, "pwm"))
-		return 0;
+	}
 
 	if (IS_ERR(mvchip->clk))
 		return PTR_ERR(mvchip->clk);
-
-	/*
-	 * Use set A for lines of GPIO chip with id 0, B for GPIO chip
-	 * with id 1. Don't allow further GPIO chips to be used for PWM.
-	 */
-	if (id == 0)
-		set = 0;
-	else if (id == 1)
-		set = U32_MAX;
-	else
-		return -EINVAL;
-	regmap_write(mvchip->regs,
-		     GPIO_BLINK_CNT_SELECT_OFF + mvchip->offset, set);
 
 	mvpwm = devm_kzalloc(dev, sizeof(struct mvebu_pwm), GFP_KERNEL);
 	if (!mvpwm)
 		return -ENOMEM;
 	mvchip->mvpwm = mvpwm;
 	mvpwm->mvchip = mvchip;
+	mvpwm->offset = offset;
 
-	base = devm_platform_ioremap_resource_byname(pdev, "pwm");
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	if (mvchip->soc_variant == MVEBU_GPIO_SOC_VARIANT_A8K) {
+		mvpwm->regs = mvchip->regs;
 
-	mvpwm->regs = devm_regmap_init_mmio(&pdev->dev, base,
-					    &mvebu_gpio_regmap_config);
-	if (IS_ERR(mvpwm->regs))
-		return PTR_ERR(mvpwm->regs);
+		switch (mvchip->offset) {
+		case AP80X_GPIO0_OFF_A8K:
+		case CP11X_GPIO0_OFF_A8K:
+			/* Blink counter A */
+			set = 0;
+			break;
+		case CP11X_GPIO1_OFF_A8K:
+			/* Blink counter B */
+			set = U32_MAX;
+			mvpwm->offset += PWM_BLINK_COUNTER_B_OFF;
+			break;
+		default:
+			return -EINVAL;
+		}
+	} else {
+		base = devm_platform_ioremap_resource_byname(pdev, "pwm");
+		if (IS_ERR(base))
+			return PTR_ERR(base);
+
+		mvpwm->regs = devm_regmap_init_mmio(&pdev->dev, base,
+						    &mvebu_gpio_regmap_config);
+		if (IS_ERR(mvpwm->regs))
+			return PTR_ERR(mvpwm->regs);
+
+		/*
+		 * Use set A for lines of GPIO chip with id 0, B for GPIO chip
+		 * with id 1. Don't allow further GPIO chips to be used for PWM.
+		 */
+		if (id == 0)
+			set = 0;
+		else if (id == 1)
+			set = U32_MAX;
+		else
+			return -EINVAL;
+	}
+
+	regmap_write(mvchip->regs,
+		     GPIO_BLINK_CNT_SELECT_OFF + mvchip->offset, set);
 
 	mvpwm->clk_rate = clk_get_rate(mvchip->clk);
 	if (!mvpwm->clk_rate) {

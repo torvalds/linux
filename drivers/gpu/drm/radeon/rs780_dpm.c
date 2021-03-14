@@ -223,16 +223,15 @@ static void rs780_preset_starting_fbdiv(struct radeon_device *rdev)
 static void rs780_voltage_scaling_init(struct radeon_device *rdev)
 {
 	struct igp_power_info *pi = rs780_get_pi(rdev);
-	struct drm_device *dev = rdev->ddev;
 	u32 fv_throt_pwm_fb_div_range[3];
 	u32 fv_throt_pwm_range[4];
 
-	if (dev->pdev->device == 0x9614) {
+	if (rdev->pdev->device == 0x9614) {
 		fv_throt_pwm_fb_div_range[0] = RS780D_FVTHROTPWMFBDIVRANGEREG0_DFLT;
 		fv_throt_pwm_fb_div_range[1] = RS780D_FVTHROTPWMFBDIVRANGEREG1_DFLT;
 		fv_throt_pwm_fb_div_range[2] = RS780D_FVTHROTPWMFBDIVRANGEREG2_DFLT;
-	} else if ((dev->pdev->device == 0x9714) ||
-		   (dev->pdev->device == 0x9715)) {
+	} else if ((rdev->pdev->device == 0x9714) ||
+		   (rdev->pdev->device == 0x9715)) {
 		fv_throt_pwm_fb_div_range[0] = RS880D_FVTHROTPWMFBDIVRANGEREG0_DFLT;
 		fv_throt_pwm_fb_div_range[1] = RS880D_FVTHROTPWMFBDIVRANGEREG1_DFLT;
 		fv_throt_pwm_fb_div_range[2] = RS880D_FVTHROTPWMFBDIVRANGEREG2_DFLT;

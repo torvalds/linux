@@ -411,6 +411,17 @@ struct drm_device;
 # define DP_DS_10BPC		            1
 # define DP_DS_12BPC		            2
 # define DP_DS_16BPC		            3
+/* HDMI2.1 PCON FRL CONFIGURATION */
+# define DP_PCON_MAX_FRL_BW                 (7 << 2)
+# define DP_PCON_MAX_0GBPS                  (0 << 2)
+# define DP_PCON_MAX_9GBPS                  (1 << 2)
+# define DP_PCON_MAX_18GBPS                 (2 << 2)
+# define DP_PCON_MAX_24GBPS                 (3 << 2)
+# define DP_PCON_MAX_32GBPS                 (4 << 2)
+# define DP_PCON_MAX_40GBPS                 (5 << 2)
+# define DP_PCON_MAX_48GBPS                 (6 << 2)
+# define DP_PCON_SOURCE_CTL_MODE            (1 << 5)
+
 /* offset 3 for DVI */
 # define DP_DS_DVI_DUAL_LINK		    (1 << 1)
 # define DP_DS_DVI_HIGH_COLOR_DEPTH	    (1 << 2)
@@ -421,6 +432,17 @@ struct drm_device;
 # define DP_DS_HDMI_YCBCR444_TO_422_CONV    (1 << 3)
 # define DP_DS_HDMI_YCBCR444_TO_420_CONV    (1 << 4)
 
+/*
+ * VESA DP-to-HDMI PCON Specification adds caps for colorspace
+ * conversion in DFP cap DPCD 83h. Sec6.1 Table-3.
+ * Based on the available support the source can enable
+ * color conversion by writing into PROTOCOL_COVERTER_CONTROL_2
+ * DPCD 3052h.
+ */
+# define DP_DS_HDMI_BT601_RGB_YCBCR_CONV    (1 << 5)
+# define DP_DS_HDMI_BT709_RGB_YCBCR_CONV    (1 << 6)
+# define DP_DS_HDMI_BT2020_RGB_YCBCR_CONV   (1 << 7)
+
 #define DP_MAX_DOWNSTREAM_PORTS		    0x10
 
 /* DP Forward error Correction Registers */
@@ -429,6 +451,84 @@ struct drm_device;
 # define DP_FEC_UNCORR_BLK_ERROR_COUNT_CAP  (1 << 1)
 # define DP_FEC_CORR_BLK_ERROR_COUNT_CAP    (1 << 2)
 # define DP_FEC_BIT_ERROR_COUNT_CAP	    (1 << 3)
+
+/* DP-HDMI2.1 PCON DSC ENCODER SUPPORT */
+#define DP_PCON_DSC_ENCODER_CAP_SIZE        0xC	/* 0x9E - 0x92 */
+#define DP_PCON_DSC_ENCODER                 0x092
+# define DP_PCON_DSC_ENCODER_SUPPORTED      (1 << 0)
+# define DP_PCON_DSC_PPS_ENC_OVERRIDE       (1 << 1)
+
+/* DP-HDMI2.1 PCON DSC Version */
+#define DP_PCON_DSC_VERSION                 0x093
+# define DP_PCON_DSC_MAJOR_MASK		    (0xF << 0)
+# define DP_PCON_DSC_MINOR_MASK		    (0xF << 4)
+# define DP_PCON_DSC_MAJOR_SHIFT	    0
+# define DP_PCON_DSC_MINOR_SHIFT	    4
+
+/* DP-HDMI2.1 PCON DSC RC Buffer block size */
+#define DP_PCON_DSC_RC_BUF_BLK_INFO	    0x094
+# define DP_PCON_DSC_RC_BUF_BLK_SIZE	    (0x3 << 0)
+# define DP_PCON_DSC_RC_BUF_BLK_1KB	    0
+# define DP_PCON_DSC_RC_BUF_BLK_4KB	    1
+# define DP_PCON_DSC_RC_BUF_BLK_16KB	    2
+# define DP_PCON_DSC_RC_BUF_BLK_64KB	    3
+
+/* DP-HDMI2.1 PCON DSC RC Buffer size */
+#define DP_PCON_DSC_RC_BUF_SIZE		    0x095
+
+/* DP-HDMI2.1 PCON DSC Slice capabilities-1 */
+#define DP_PCON_DSC_SLICE_CAP_1		    0x096
+# define DP_PCON_DSC_1_PER_DSC_ENC     (0x1 << 0)
+# define DP_PCON_DSC_2_PER_DSC_ENC     (0x1 << 1)
+# define DP_PCON_DSC_4_PER_DSC_ENC     (0x1 << 3)
+# define DP_PCON_DSC_6_PER_DSC_ENC     (0x1 << 4)
+# define DP_PCON_DSC_8_PER_DSC_ENC     (0x1 << 5)
+# define DP_PCON_DSC_10_PER_DSC_ENC    (0x1 << 6)
+# define DP_PCON_DSC_12_PER_DSC_ENC    (0x1 << 7)
+
+#define DP_PCON_DSC_BUF_BIT_DEPTH	    0x097
+# define DP_PCON_DSC_BIT_DEPTH_MASK	    (0xF << 0)
+# define DP_PCON_DSC_DEPTH_9_BITS	    0
+# define DP_PCON_DSC_DEPTH_10_BITS	    1
+# define DP_PCON_DSC_DEPTH_11_BITS	    2
+# define DP_PCON_DSC_DEPTH_12_BITS	    3
+# define DP_PCON_DSC_DEPTH_13_BITS	    4
+# define DP_PCON_DSC_DEPTH_14_BITS	    5
+# define DP_PCON_DSC_DEPTH_15_BITS	    6
+# define DP_PCON_DSC_DEPTH_16_BITS	    7
+# define DP_PCON_DSC_DEPTH_8_BITS	    8
+
+#define DP_PCON_DSC_BLOCK_PREDICTION	    0x098
+# define DP_PCON_DSC_BLOCK_PRED_SUPPORT	    (0x1 << 0)
+
+#define DP_PCON_DSC_ENC_COLOR_FMT_CAP	    0x099
+# define DP_PCON_DSC_ENC_RGB		    (0x1 << 0)
+# define DP_PCON_DSC_ENC_YUV444		    (0x1 << 1)
+# define DP_PCON_DSC_ENC_YUV422_S	    (0x1 << 2)
+# define DP_PCON_DSC_ENC_YUV422_N	    (0x1 << 3)
+# define DP_PCON_DSC_ENC_YUV420_N	    (0x1 << 4)
+
+#define DP_PCON_DSC_ENC_COLOR_DEPTH_CAP	    0x09A
+# define DP_PCON_DSC_ENC_8BPC		    (0x1 << 1)
+# define DP_PCON_DSC_ENC_10BPC		    (0x1 << 2)
+# define DP_PCON_DSC_ENC_12BPC		    (0x1 << 3)
+
+#define DP_PCON_DSC_MAX_SLICE_WIDTH	    0x09B
+
+/* DP-HDMI2.1 PCON DSC Slice capabilities-2 */
+#define DP_PCON_DSC_SLICE_CAP_2             0x09C
+# define DP_PCON_DSC_16_PER_DSC_ENC	    (0x1 << 0)
+# define DP_PCON_DSC_20_PER_DSC_ENC         (0x1 << 1)
+# define DP_PCON_DSC_24_PER_DSC_ENC         (0x1 << 2)
+
+/* DP-HDMI2.1 PCON HDMI TX Encoder Bits/pixel increment */
+#define DP_PCON_DSC_BPP_INCR		    0x09E
+# define DP_PCON_DSC_BPP_INCR_MASK	    (0x7 << 0)
+# define DP_PCON_DSC_ONE_16TH_BPP	    0
+# define DP_PCON_DSC_ONE_8TH_BPP	    1
+# define DP_PCON_DSC_ONE_4TH_BPP	    2
+# define DP_PCON_DSC_ONE_HALF_BPP	    3
+# define DP_PCON_DSC_ONE_BPP		    4
 
 /* DP Extended DSC Capabilities */
 #define DP_DSC_BRANCH_OVERALL_THROUGHPUT_0  0x0a0   /* DP 1.4a SCR */
@@ -935,6 +1035,11 @@ struct drm_device;
 # define DP_CEC_IRQ                          (1 << 2)
 
 #define DP_LINK_SERVICE_IRQ_VECTOR_ESI0     0x2005   /* 1.2 */
+# define RX_CAP_CHANGED                      (1 << 0)
+# define LINK_STATUS_CHANGED                 (1 << 1)
+# define STREAM_STATUS_CHANGED               (1 << 2)
+# define HDMI_LINK_STATUS_CHANGED            (1 << 3)
+# define CONNECTED_OFF_ENTRY_REQUESTED       (1 << 4)
 
 #define DP_PSR_ERROR_STATUS                 0x2006  /* XXX 1.2? */
 # define DP_PSR_LINK_CRC_ERROR              (1 << 0)
@@ -1054,6 +1159,51 @@ struct drm_device;
 #define DP_CEC_TX_MESSAGE_BUFFER               0x3020
 #define DP_CEC_MESSAGE_BUFFER_LENGTH             0x10
 
+/* PCON CONFIGURE-1 FRL FOR HDMI SINK */
+#define DP_PCON_HDMI_LINK_CONFIG_1             0x305A
+# define DP_PCON_ENABLE_MAX_FRL_BW             (7 << 0)
+# define DP_PCON_ENABLE_MAX_BW_0GBPS	       0
+# define DP_PCON_ENABLE_MAX_BW_9GBPS	       1
+# define DP_PCON_ENABLE_MAX_BW_18GBPS	       2
+# define DP_PCON_ENABLE_MAX_BW_24GBPS	       3
+# define DP_PCON_ENABLE_MAX_BW_32GBPS	       4
+# define DP_PCON_ENABLE_MAX_BW_40GBPS	       5
+# define DP_PCON_ENABLE_MAX_BW_48GBPS	       6
+# define DP_PCON_ENABLE_SOURCE_CTL_MODE       (1 << 3)
+# define DP_PCON_ENABLE_CONCURRENT_LINK       (1 << 4)
+# define DP_PCON_ENABLE_LINK_FRL_MODE         (1 << 5)
+# define DP_PCON_ENABLE_HPD_READY	      (1 << 6)
+# define DP_PCON_ENABLE_HDMI_LINK             (1 << 7)
+
+/* PCON CONFIGURE-2 FRL FOR HDMI SINK */
+#define DP_PCON_HDMI_LINK_CONFIG_2            0x305B
+# define DP_PCON_MAX_LINK_BW_MASK             (0x3F << 0)
+# define DP_PCON_FRL_BW_MASK_9GBPS            (1 << 0)
+# define DP_PCON_FRL_BW_MASK_18GBPS           (1 << 1)
+# define DP_PCON_FRL_BW_MASK_24GBPS           (1 << 2)
+# define DP_PCON_FRL_BW_MASK_32GBPS           (1 << 3)
+# define DP_PCON_FRL_BW_MASK_40GBPS           (1 << 4)
+# define DP_PCON_FRL_BW_MASK_48GBPS           (1 << 5)
+# define DP_PCON_FRL_LINK_TRAIN_EXTENDED      (1 << 6)
+
+/* PCON HDMI LINK STATUS */
+#define DP_PCON_HDMI_TX_LINK_STATUS           0x303B
+# define DP_PCON_HDMI_TX_LINK_ACTIVE          (1 << 0)
+# define DP_PCON_FRL_READY		      (1 << 1)
+
+/* PCON HDMI POST FRL STATUS */
+#define DP_PCON_HDMI_POST_FRL_STATUS          0x3036
+# define DP_PCON_HDMI_LINK_MODE               (1 << 0)
+# define DP_PCON_HDMI_MODE_TMDS               0
+# define DP_PCON_HDMI_MODE_FRL                1
+# define DP_PCON_HDMI_FRL_TRAINED_BW          (0x3F << 1)
+# define DP_PCON_FRL_TRAINED_BW_9GBPS	      (1 << 1)
+# define DP_PCON_FRL_TRAINED_BW_18GBPS	      (1 << 2)
+# define DP_PCON_FRL_TRAINED_BW_24GBPS	      (1 << 3)
+# define DP_PCON_FRL_TRAINED_BW_32GBPS	      (1 << 4)
+# define DP_PCON_FRL_TRAINED_BW_40GBPS	      (1 << 5)
+# define DP_PCON_FRL_TRAINED_BW_48GBPS	      (1 << 6)
+
 #define DP_PROTOCOL_CONVERTER_CONTROL_0		0x3050 /* DP 1.3 */
 # define DP_HDMI_DVI_OUTPUT_CONFIG		(1 << 0) /* DP 1.3 */
 #define DP_PROTOCOL_CONVERTER_CONTROL_1		0x3051 /* DP 1.3 */
@@ -1063,6 +1213,48 @@ struct drm_device;
 # define DP_HDMI_FORCE_SCRAMBLING		(1 << 3) /* DP 1.4 */
 #define DP_PROTOCOL_CONVERTER_CONTROL_2		0x3052 /* DP 1.3 */
 # define DP_CONVERSION_TO_YCBCR422_ENABLE	(1 << 0) /* DP 1.3 */
+# define DP_PCON_ENABLE_DSC_ENCODER	        (1 << 1)
+# define DP_PCON_ENCODER_PPS_OVERRIDE_MASK	(0x3 << 2)
+# define DP_PCON_ENC_PPS_OVERRIDE_DISABLED      0
+# define DP_PCON_ENC_PPS_OVERRIDE_EN_PARAMS     1
+# define DP_PCON_ENC_PPS_OVERRIDE_EN_BUFFER     2
+# define DP_CONVERSION_RGB_YCBCR_MASK	       (7 << 4)
+# define DP_CONVERSION_BT601_RGB_YCBCR_ENABLE  (1 << 4)
+# define DP_CONVERSION_BT709_RGB_YCBCR_ENABLE  (1 << 5)
+# define DP_CONVERSION_BT2020_RGB_YCBCR_ENABLE (1 << 6)
+
+/* PCON Downstream HDMI ERROR Status per Lane */
+#define DP_PCON_HDMI_ERROR_STATUS_LN0          0x3037
+#define DP_PCON_HDMI_ERROR_STATUS_LN1          0x3038
+#define DP_PCON_HDMI_ERROR_STATUS_LN2          0x3039
+#define DP_PCON_HDMI_ERROR_STATUS_LN3          0x303A
+# define DP_PCON_HDMI_ERROR_COUNT_MASK         (0x7 << 0)
+# define DP_PCON_HDMI_ERROR_COUNT_THREE_PLUS   (1 << 0)
+# define DP_PCON_HDMI_ERROR_COUNT_TEN_PLUS     (1 << 1)
+# define DP_PCON_HDMI_ERROR_COUNT_HUNDRED_PLUS (1 << 2)
+
+/* PCON HDMI CONFIG PPS Override Buffer
+ * Valid Offsets to be added to Base : 0-127
+ */
+#define DP_PCON_HDMI_PPS_OVERRIDE_BASE        0x3100
+
+/* PCON HDMI CONFIG PPS Override Parameter: Slice height
+ * Offset-0 8LSBs of the Slice height.
+ * Offset-1 8MSBs of the Slice height.
+ */
+#define DP_PCON_HDMI_PPS_OVRD_SLICE_HEIGHT    0x3180
+
+/* PCON HDMI CONFIG PPS Override Parameter: Slice width
+ * Offset-0 8LSBs of the Slice width.
+ * Offset-1 8MSBs of the Slice width.
+ */
+#define DP_PCON_HDMI_PPS_OVRD_SLICE_WIDTH    0x3182
+
+/* PCON HDMI CONFIG PPS Override Parameter: bits_per_pixel
+ * Offset-0 8LSBs of the bits_per_pixel.
+ * Offset-1 2MSBs of the bits_per_pixel.
+ */
+#define DP_PCON_HDMI_PPS_OVRD_BPP	     0x3184
 
 /* HDCP 1.3 and HDCP 2.2 */
 #define DP_AUX_HDCP_BKSV		0x68000
@@ -1837,16 +2029,13 @@ struct drm_dp_desc {
 
 int drm_dp_read_desc(struct drm_dp_aux *aux, struct drm_dp_desc *desc,
 		     bool is_branch);
-u32 drm_dp_get_edid_quirks(const struct edid *edid);
 
 /**
  * enum drm_dp_quirk - Display Port sink/branch device specific quirks
  *
  * Display Port sink and branch devices in the wild have a variety of bugs, try
  * to collect them here. The quirks are shared, but it's up to the drivers to
- * implement workarounds for them. Note that because some devices have
- * unreliable OUIDs, the EDID of sinks should also be checked for quirks using
- * drm_dp_get_edid_quirks().
+ * implement workarounds for them.
  */
 enum drm_dp_quirk {
 	/**
@@ -1879,16 +2068,6 @@ enum drm_dp_quirk {
 	 */
 	DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD,
 	/**
-	 * @DP_QUIRK_FORCE_DPCD_BACKLIGHT:
-	 *
-	 * The device is telling the truth when it says that it uses DPCD
-	 * backlight controls, even if the system's firmware disagrees. This
-	 * quirk should be checked against both the ident and panel EDID.
-	 * When present, the driver should honor the DPCD backlight
-	 * capabilities advertised.
-	 */
-	DP_QUIRK_FORCE_DPCD_BACKLIGHT,
-	/**
 	 * @DP_DPCD_QUIRK_CAN_DO_MAX_LINK_RATE_3_24_GBPS:
 	 *
 	 * The device supports a link rate of 3.24 Gbps (multiplier 0xc) despite
@@ -1900,16 +2079,14 @@ enum drm_dp_quirk {
 /**
  * drm_dp_has_quirk() - does the DP device have a specific quirk
  * @desc: Device descriptor filled by drm_dp_read_desc()
- * @edid_quirks: Optional quirk bitmask filled by drm_dp_get_edid_quirks()
  * @quirk: Quirk to query for
  *
  * Return true if DP device identified by @desc has @quirk.
  */
 static inline bool
-drm_dp_has_quirk(const struct drm_dp_desc *desc, u32 edid_quirks,
-		 enum drm_dp_quirk quirk)
+drm_dp_has_quirk(const struct drm_dp_desc *desc, enum drm_dp_quirk quirk)
 {
-	return (desc->quirks | edid_quirks) & BIT(quirk);
+	return desc->quirks & BIT(quirk);
 }
 
 #ifdef CONFIG_DRM_DP_CEC
@@ -1967,4 +2144,30 @@ int drm_dp_get_phy_test_pattern(struct drm_dp_aux *aux,
 				struct drm_dp_phy_test_params *data);
 int drm_dp_set_phy_test_pattern(struct drm_dp_aux *aux,
 				struct drm_dp_phy_test_params *data, u8 dp_rev);
+int drm_dp_get_pcon_max_frl_bw(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+			       const u8 port_cap[4]);
+int drm_dp_pcon_frl_prepare(struct drm_dp_aux *aux, bool enable_frl_ready_hpd);
+bool drm_dp_pcon_is_frl_ready(struct drm_dp_aux *aux);
+int drm_dp_pcon_frl_configure_1(struct drm_dp_aux *aux, int max_frl_gbps,
+				bool concurrent_mode);
+int drm_dp_pcon_frl_configure_2(struct drm_dp_aux *aux, int max_frl_mask,
+				bool extended_train_mode);
+int drm_dp_pcon_reset_frl_config(struct drm_dp_aux *aux);
+int drm_dp_pcon_frl_enable(struct drm_dp_aux *aux);
+
+bool drm_dp_pcon_hdmi_link_active(struct drm_dp_aux *aux);
+int drm_dp_pcon_hdmi_link_mode(struct drm_dp_aux *aux, u8 *frl_trained_mask);
+void drm_dp_pcon_hdmi_frl_link_error_count(struct drm_dp_aux *aux,
+					   struct drm_connector *connector);
+bool drm_dp_pcon_enc_is_dsc_1_2(const u8 pcon_dsc_dpcd[DP_PCON_DSC_ENCODER_CAP_SIZE]);
+int drm_dp_pcon_dsc_max_slices(const u8 pcon_dsc_dpcd[DP_PCON_DSC_ENCODER_CAP_SIZE]);
+int drm_dp_pcon_dsc_max_slice_width(const u8 pcon_dsc_dpcd[DP_PCON_DSC_ENCODER_CAP_SIZE]);
+int drm_dp_pcon_dsc_bpp_incr(const u8 pcon_dsc_dpcd[DP_PCON_DSC_ENCODER_CAP_SIZE]);
+int drm_dp_pcon_pps_default(struct drm_dp_aux *aux);
+int drm_dp_pcon_pps_override_buf(struct drm_dp_aux *aux, u8 pps_buf[128]);
+int drm_dp_pcon_pps_override_param(struct drm_dp_aux *aux, u8 pps_param[6]);
+bool drm_dp_downstream_rgb_to_ycbcr_conversion(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+					       const u8 port_cap[4], u8 color_spc);
+int drm_dp_pcon_convert_rgb_to_ycbcr(struct drm_dp_aux *aux, u8 color_spc);
+
 #endif /* _DRM_DP_HELPER_H_ */

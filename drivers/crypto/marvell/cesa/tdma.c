@@ -177,7 +177,7 @@ int mv_cesa_tdma_process(struct mv_cesa_engine *engine, u32 status)
 
 	/*
 	 * Save the last request in error to engine->req, so that the core
-	 * knows which request was fautly
+	 * knows which request was faulty
 	 */
 	if (res) {
 		spin_lock_bh(&engine->lock);
@@ -349,4 +349,54 @@ int mv_cesa_dma_add_op_transfers(struct mv_cesa_tdma_chain *chain,
 	} while (mv_cesa_req_dma_iter_next_transfer(dma_iter, sgiter, len));
 
 	return 0;
+}
+
+size_t mv_cesa_sg_copy(struct mv_cesa_engine *engine,
+		       struct scatterlist *sgl, unsigned int nents,
+		       unsigned int sram_off, size_t buflen, off_t skip,
+		       bool to_sram)
+{
+	unsigned int sg_flags = SG_MITER_ATOMIC;
+	struct sg_mapping_iter miter;
+	unsigned int offset = 0;
+
+	if (to_sram)
+		sg_flags |= SG_MITER_FROM_SG;
+	else
+		sg_flags |= SG_MITER_TO_SG;
+
+	sg_miter_start(&miter, sgl, nents, sg_flags);
+
+	if (!sg_miter_skip(&miter, skip))
+		return 0;
+
+	while ((offset < buflen) && sg_miter_next(&miter)) {
+		unsigned int len;
+
+		len = min(miter.length, buflen - offset);
+
+		if (to_sram) {
+			if (engine->pool)
+				memcpy(engine->sram_pool + sram_off + offset,
+				       miter.addr, len);
+			else
+				memcpy_toio(engine->sram + sram_off + offset,
+					    miter.addr, len);
+		} else {
+			if (engine->pool)
+				memcpy(miter.addr,
+				       engine->sram_pool + sram_off + offset,
+				       len);
+			else
+				memcpy_fromio(miter.addr,
+					      engine->sram + sram_off + offset,
+					      len);
+		}
+
+		offset += len;
+	}
+
+	sg_miter_stop(&miter);
+
+	return offset;
 }

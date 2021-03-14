@@ -217,6 +217,8 @@ struct igc_adapter {
 	struct timecounter tc;
 	struct timespec64 prev_ptp_time; /* Pre-reset PTP clock */
 	ktime_t ptp_reset_start; /* Reset time in clock mono */
+
+	char fw_version[32];
 };
 
 void igc_up(struct igc_adapter *adapter);

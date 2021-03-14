@@ -3,7 +3,10 @@ config STAGING_BOARD
 	bool "Staging Board Support"
 	depends on OF_ADDRESS && OF_IRQ && CLKDEV_LOOKUP
 	help
-	  Select to enable per-board staging support code.
+	  Staging board base is to support continuous upstream
+	  in-tree development and integration of platform devices.
 
-	  If in doubt, say N here.
-
+	  Helps developers integrate devices as platform devices for
+	  device drivers that only provide platform device bindings.
+	  This in turn allows for incremental development of both
+	  hardware feature support and DT binding work in parallel.

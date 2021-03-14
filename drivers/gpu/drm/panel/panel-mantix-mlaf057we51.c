@@ -9,6 +9,7 @@
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/regulator/consumer.h>
 
 #include <video/mipi_display.h>
@@ -22,6 +23,7 @@
 /* Manufacturer specific Commands send via DSI */
 #define MANTIX_CMD_OTP_STOP_RELOAD_MIPI 0x41
 #define MANTIX_CMD_INT_CANCEL           0x4C
+#define MANTIX_CMD_SPI_FINISH           0x90
 
 struct mantix {
 	struct device *dev;
@@ -33,6 +35,8 @@ struct mantix {
 	struct regulator *avdd;
 	struct regulator *avee;
 	struct regulator *vddi;
+
+	const struct drm_display_mode *default_mode;
 };
 
 static inline struct mantix *panel_to_mantix(struct drm_panel *panel)
@@ -64,6 +68,10 @@ static int mantix_init_sequence(struct mantix *ctx)
 
 	dsi_generic_write_seq(dsi, MANTIX_CMD_OTP_STOP_RELOAD_MIPI, 0x5A, 0x09);
 	dsi_generic_write_seq(dsi, 0x80, 0x64, 0x00, 0x64, 0x00, 0x00);
+	msleep(20);
+
+	dsi_generic_write_seq(dsi, MANTIX_CMD_SPI_FINISH, 0xA5);
+	dsi_generic_write_seq(dsi, MANTIX_CMD_OTP_STOP_RELOAD_MIPI, 0x00, 0x2F);
 	msleep(20);
 
 	dev_dbg(dev, "Panel init sequence done\n");
@@ -182,7 +190,7 @@ static int mantix_prepare(struct drm_panel *panel)
 	return 0;
 }
 
-static const struct drm_display_mode default_mode = {
+static const struct drm_display_mode default_mode_mantix = {
 	.hdisplay    = 720,
 	.hsync_start = 720 + 45,
 	.hsync_end   = 720 + 45 + 14,
@@ -197,17 +205,32 @@ static const struct drm_display_mode default_mode = {
 	.height_mm   = 130,
 };
 
+static const struct drm_display_mode default_mode_ys = {
+	.hdisplay    = 720,
+	.hsync_start = 720 + 45,
+	.hsync_end   = 720 + 45 + 14,
+	.htotal	     = 720 + 45 + 14 + 25,
+	.vdisplay    = 1440,
+	.vsync_start = 1440 + 175,
+	.vsync_end   = 1440 + 175 + 8,
+	.vtotal	     = 1440 + 175 + 8 + 50,
+	.clock	     = 85298,
+	.flags	     = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
+	.width_mm    = 65,
+	.height_mm   = 130,
+};
+
 static int mantix_get_modes(struct drm_panel *panel,
 			    struct drm_connector *connector)
 {
 	struct mantix *ctx = panel_to_mantix(panel);
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(connector->dev, &default_mode);
+	mode = drm_mode_duplicate(connector->dev, ctx->default_mode);
 	if (!mode) {
 		dev_err(ctx->dev, "Failed to add mode %ux%u@%u\n",
-			default_mode.hdisplay, default_mode.vdisplay,
-			drm_mode_vrefresh(&default_mode));
+			ctx->default_mode->hdisplay, ctx->default_mode->vdisplay,
+			drm_mode_vrefresh(ctx->default_mode));
 		return -ENOMEM;
 	}
 
@@ -238,6 +261,7 @@ static int mantix_probe(struct mipi_dsi_device *dsi)
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
+	ctx->default_mode = of_device_get_match_data(dev);
 
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->reset_gpio)) {
@@ -288,8 +312,8 @@ static int mantix_probe(struct mipi_dsi_device *dsi)
 	}
 
 	dev_info(dev, "%ux%u@%u %ubpp dsi %udl - ready\n",
-		 default_mode.hdisplay, default_mode.vdisplay,
-		 drm_mode_vrefresh(&default_mode),
+		 ctx->default_mode->hdisplay, ctx->default_mode->vdisplay,
+		 drm_mode_vrefresh(ctx->default_mode),
 		 mipi_dsi_pixel_format_to_bpp(dsi->format), dsi->lanes);
 
 	return 0;
@@ -316,7 +340,8 @@ static int mantix_remove(struct mipi_dsi_device *dsi)
 }
 
 static const struct of_device_id mantix_of_match[] = {
-	{ .compatible = "mantix,mlaf057we51-x" },
+	{ .compatible = "mantix,mlaf057we51-x", .data = &default_mode_mantix },
+	{ .compatible = "ys,ys57pss36bh5gq", .data = &default_mode_ys },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mantix_of_match);

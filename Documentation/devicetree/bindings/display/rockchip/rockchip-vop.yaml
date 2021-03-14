@@ -70,10 +70,7 @@ properties:
       - const: dclk
 
   port:
-    type: object
-    description:
-      A port node with endpoint definitions as defined in
-      Documentation/devicetree/bindings/media/video-interfaces.txt.
+    $ref: /schemas/graph.yaml#/properties/port
 
   assigned-clocks:
     maxItems: 2

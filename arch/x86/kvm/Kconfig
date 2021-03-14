@@ -103,6 +103,15 @@ config KVM_AMD_SEV
 	  Provides support for launching Encrypted VMs (SEV) and Encrypted VMs
 	  with Encrypted State (SEV-ES) on AMD processors.
 
+config KVM_XEN
+	bool "Support for Xen hypercall interface"
+	depends on KVM
+	help
+	  Provides KVM support for the hosting Xen HVM guests and
+	  passing Xen hypercalls to userspace.
+
+	  If in doubt, say "N".
+
 config KVM_MMU_AUDIT
 	bool "Audit KVM MMU"
 	depends on KVM && TRACEPOINTS

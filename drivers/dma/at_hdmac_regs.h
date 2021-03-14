@@ -7,8 +7,6 @@
 #ifndef AT_HDMAC_REGS_H
 #define	AT_HDMAC_REGS_H
 
-#include <linux/platform_data/dma-atmel.h>
-
 #define	AT_DMA_MAX_NR_CHANNELS	8
 
 
@@ -148,7 +146,31 @@
 #define	ATC_AUTO		(0x1 << 31)	/* Auto multiple buffer tx enable */
 
 /* Bitfields in CFG */
-/* are in at_hdmac.h */
+#define ATC_PER_MSB(h)	((0x30U & (h)) >> 4)	/* Extract most significant bits of a handshaking identifier */
+
+#define	ATC_SRC_PER(h)		(0xFU & (h))	/* Channel src rq associated with periph handshaking ifc h */
+#define	ATC_DST_PER(h)		((0xFU & (h)) <<  4)	/* Channel dst rq associated with periph handshaking ifc h */
+#define	ATC_SRC_REP		(0x1 <<  8)	/* Source Replay Mod */
+#define	ATC_SRC_H2SEL		(0x1 <<  9)	/* Source Handshaking Mod */
+#define		ATC_SRC_H2SEL_SW	(0x0 <<  9)
+#define		ATC_SRC_H2SEL_HW	(0x1 <<  9)
+#define	ATC_SRC_PER_MSB(h)	(ATC_PER_MSB(h) << 10)	/* Channel src rq (most significant bits) */
+#define	ATC_DST_REP		(0x1 << 12)	/* Destination Replay Mod */
+#define	ATC_DST_H2SEL		(0x1 << 13)	/* Destination Handshaking Mod */
+#define		ATC_DST_H2SEL_SW	(0x0 << 13)
+#define		ATC_DST_H2SEL_HW	(0x1 << 13)
+#define	ATC_DST_PER_MSB(h)	(ATC_PER_MSB(h) << 14)	/* Channel dst rq (most significant bits) */
+#define	ATC_SOD			(0x1 << 16)	/* Stop On Done */
+#define	ATC_LOCK_IF		(0x1 << 20)	/* Interface Lock */
+#define	ATC_LOCK_B		(0x1 << 21)	/* AHB Bus Lock */
+#define	ATC_LOCK_IF_L		(0x1 << 22)	/* Master Interface Arbiter Lock */
+#define		ATC_LOCK_IF_L_CHUNK	(0x0 << 22)
+#define		ATC_LOCK_IF_L_BUFFER	(0x1 << 22)
+#define	ATC_AHB_PROT_MASK	(0x7 << 24)	/* AHB Protection */
+#define	ATC_FIFOCFG_MASK	(0x3 << 28)	/* FIFO Request Configuration */
+#define		ATC_FIFOCFG_LARGESTBURST	(0x0 << 28)
+#define		ATC_FIFOCFG_HALFFIFO		(0x1 << 28)
+#define		ATC_FIFOCFG_ENOUGHSPACE		(0x2 << 28)
 
 /* Bitfields in SPIP */
 #define	ATC_SPIP_HOLE(x)	(0xFFFFU & (x))

@@ -17,8 +17,8 @@ struct pt_regs;
 extern int xmon(struct pt_regs *excp);
 extern irqreturn_t xmon_irq(int, void *);
 #else
-static inline void xmon_setup(void) { };
-static inline void xmon_register_spus(struct list_head *list) { };
+static inline void xmon_setup(void) { }
+static inline void xmon_register_spus(struct list_head *list) { }
 #endif
 
 #if defined(CONFIG_XMON) && defined(CONFIG_SMP)

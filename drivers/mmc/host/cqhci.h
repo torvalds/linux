@@ -22,10 +22,13 @@
 
 /* capabilities */
 #define CQHCI_CAP			0x04
+#define CQHCI_CAP_CS			0x10000000 /* Crypto Support */
+
 /* configuration */
 #define CQHCI_CFG			0x08
 #define CQHCI_DCMD			0x00001000
 #define CQHCI_TASK_DESC_SZ		0x00000100
+#define CQHCI_CRYPTO_GENERAL_ENABLE	0x00000002
 #define CQHCI_ENABLE			0x00000001
 
 /* control */
@@ -39,8 +42,11 @@
 #define CQHCI_IS_TCC			BIT(1)
 #define CQHCI_IS_RED			BIT(2)
 #define CQHCI_IS_TCL			BIT(3)
+#define CQHCI_IS_GCE			BIT(4) /* General Crypto Error */
+#define CQHCI_IS_ICCE			BIT(5) /* Invalid Crypto Config Error */
 
-#define CQHCI_IS_MASK (CQHCI_IS_TCC | CQHCI_IS_RED)
+#define CQHCI_IS_MASK (CQHCI_IS_TCC | CQHCI_IS_RED | \
+		       CQHCI_IS_GCE | CQHCI_IS_ICCE)
 
 /* interrupt status enable */
 #define CQHCI_ISTE			0x14
@@ -78,6 +84,9 @@
 /* task clear */
 #define CQHCI_TCLR			0x38
 
+/* task descriptor processing error */
+#define CQHCI_TDPE			0x3c
+
 /* send status config 1 */
 #define CQHCI_SSC1			0x40
 #define CQHCI_SSC1_CBC_MASK		GENMASK(19, 16)
@@ -107,6 +116,10 @@
 /* command response argument */
 #define CQHCI_CRA			0x5C
 
+/* crypto capabilities */
+#define CQHCI_CCAP			0x100
+#define CQHCI_CRYPTOCAP			0x104
+
 #define CQHCI_INT_ALL			0xF
 #define CQHCI_IC_DEFAULT_ICCTH		31
 #define CQHCI_IC_DEFAULT_ICTOVAL	1
@@ -133,10 +146,69 @@
 #define CQHCI_CMD_TIMING(x)		(((x) & 1) << 22)
 #define CQHCI_RESP_TYPE(x)		(((x) & 0x3) << 23)
 
+/* crypto task descriptor fields (for bits 64-127 of task descriptor) */
+#define CQHCI_CRYPTO_ENABLE_BIT		(1ULL << 47)
+#define CQHCI_CRYPTO_KEYSLOT(x)		((u64)(x) << 32)
+
 /* transfer descriptor fields */
 #define CQHCI_DAT_LENGTH(x)		(((x) & 0xFFFF) << 16)
 #define CQHCI_DAT_ADDR_LO(x)		(((x) & 0xFFFFFFFF) << 32)
 #define CQHCI_DAT_ADDR_HI(x)		(((x) & 0xFFFFFFFF) << 0)
+
+/* CCAP - Crypto Capability 100h */
+union cqhci_crypto_capabilities {
+	__le32 reg_val;
+	struct {
+		u8 num_crypto_cap;
+		u8 config_count;
+		u8 reserved;
+		u8 config_array_ptr;
+	};
+};
+
+enum cqhci_crypto_key_size {
+	CQHCI_CRYPTO_KEY_SIZE_INVALID	= 0,
+	CQHCI_CRYPTO_KEY_SIZE_128	= 1,
+	CQHCI_CRYPTO_KEY_SIZE_192	= 2,
+	CQHCI_CRYPTO_KEY_SIZE_256	= 3,
+	CQHCI_CRYPTO_KEY_SIZE_512	= 4,
+};
+
+enum cqhci_crypto_alg {
+	CQHCI_CRYPTO_ALG_AES_XTS		= 0,
+	CQHCI_CRYPTO_ALG_BITLOCKER_AES_CBC	= 1,
+	CQHCI_CRYPTO_ALG_AES_ECB		= 2,
+	CQHCI_CRYPTO_ALG_ESSIV_AES_CBC		= 3,
+};
+
+/* x-CRYPTOCAP - Crypto Capability X */
+union cqhci_crypto_cap_entry {
+	__le32 reg_val;
+	struct {
+		u8 algorithm_id;
+		u8 sdus_mask; /* Supported data unit size mask */
+		u8 key_size;
+		u8 reserved;
+	};
+};
+
+#define CQHCI_CRYPTO_CONFIGURATION_ENABLE (1 << 7)
+#define CQHCI_CRYPTO_KEY_MAX_SIZE 64
+/* x-CRYPTOCFG - Crypto Configuration X */
+union cqhci_crypto_cfg_entry {
+	__le32 reg_val[32];
+	struct {
+		u8 crypto_key[CQHCI_CRYPTO_KEY_MAX_SIZE];
+		u8 data_unit_size;
+		u8 crypto_cap_idx;
+		u8 reserved_1;
+		u8 config_enable;
+		u8 reserved_multi_host;
+		u8 reserved_2;
+		u8 vsb[2];
+		u8 reserved_3[56];
+	};
+};
 
 struct cqhci_host_ops;
 struct mmc_host;
@@ -196,6 +268,12 @@ struct cqhci_host {
 	struct completion halt_comp;
 	wait_queue_head_t wait_queue;
 	struct cqhci_slot *slot;
+
+#ifdef CONFIG_MMC_CRYPTO
+	union cqhci_crypto_capabilities crypto_capabilities;
+	union cqhci_crypto_cap_entry *crypto_cap_array;
+	u32 crypto_cfg_register;
+#endif
 };
 
 struct cqhci_host_ops {
@@ -208,6 +286,10 @@ struct cqhci_host_ops {
 				 u64 *data);
 	void (*pre_enable)(struct mmc_host *mmc);
 	void (*post_disable)(struct mmc_host *mmc);
+#ifdef CONFIG_MMC_CRYPTO
+	int (*program_key)(struct cqhci_host *cq_host,
+			   const union cqhci_crypto_cfg_entry *cfg, int slot);
+#endif
 };
 
 static inline void cqhci_writel(struct cqhci_host *host, u32 val, int reg)

@@ -20,7 +20,17 @@
 #define TB_CTL_RETRIES		4
 
 /**
- * struct tb_cfg - thunderbolt control channel
+ * struct tb_ctl - Thunderbolt control channel
+ * @nhi: Pointer to the NHI structure
+ * @tx: Transmit ring
+ * @rx: Receive ring
+ * @frame_pool: DMA pool for control messages
+ * @rx_packets: Received control messages
+ * @request_queue_lock: Lock protecting @request_queue
+ * @request_queue: List of outstanding requests
+ * @running: Is the control channel running at the moment
+ * @callback: Callback called when hotplug message is received
+ * @callback_data: Data passed to @callback
  */
 struct tb_ctl {
 	struct tb_nhi *nhi;
@@ -338,7 +348,7 @@ static void tb_ctl_tx_callback(struct tb_ring *ring, struct ring_frame *frame,
 	tb_ctl_pkg_free(pkg);
 }
 
-/**
+/*
  * tb_cfg_tx() - transmit a packet on the control channel
  *
  * len must be a multiple of four.
@@ -375,7 +385,7 @@ static int tb_ctl_tx(struct tb_ctl *ctl, const void *data, size_t len,
 	return res;
 }
 
-/**
+/*
  * tb_ctl_handle_event() - acknowledge a plug event, invoke ctl->callback
  */
 static bool tb_ctl_handle_event(struct tb_ctl *ctl, enum tb_cfg_pkg_type type,
@@ -602,6 +612,9 @@ struct tb_cfg_result tb_cfg_request_sync(struct tb_ctl *ctl,
 
 /**
  * tb_ctl_alloc() - allocate a control channel
+ * @nhi: Pointer to NHI
+ * @cb: Callback called for plug events
+ * @cb_data: Data passed to @cb
  *
  * cb will be invoked once for every hot plug event.
  *
@@ -649,6 +662,7 @@ err:
 
 /**
  * tb_ctl_free() - free a control channel
+ * @ctl: Control channel to free
  *
  * Must be called after tb_ctl_stop.
  *
@@ -677,6 +691,7 @@ void tb_ctl_free(struct tb_ctl *ctl)
 
 /**
  * tb_cfg_start() - start/resume the control channel
+ * @ctl: Control channel to start
  */
 void tb_ctl_start(struct tb_ctl *ctl)
 {
@@ -691,7 +706,8 @@ void tb_ctl_start(struct tb_ctl *ctl)
 }
 
 /**
- * control() - pause the control channel
+ * tb_ctrl_stop() - pause the control channel
+ * @ctl: Control channel to stop
  *
  * All invocations of ctl->callback will have finished after this method
  * returns.
@@ -784,6 +800,9 @@ static bool tb_cfg_copy(struct tb_cfg_request *req, const struct ctl_pkg *pkg)
 
 /**
  * tb_cfg_reset() - send a reset packet and wait for a response
+ * @ctl: Control channel pointer
+ * @route: Router string for the router to send reset
+ * @timeout_msec: Timeout in ms how long to wait for the response
  *
  * If the switch at route is incorrectly configured then we will not receive a
  * reply (even though the switch will reset). The caller should check for
@@ -820,9 +839,17 @@ struct tb_cfg_result tb_cfg_reset(struct tb_ctl *ctl, u64 route,
 }
 
 /**
- * tb_cfg_read() - read from config space into buffer
+ * tb_cfg_read_raw() - read from config space into buffer
+ * @ctl: Pointer to the control channel
+ * @buffer: Buffer where the data is read
+ * @route: Route string of the router
+ * @port: Port number when reading from %TB_CFG_PORT, %0 otherwise
+ * @space: Config space selector
+ * @offset: Dword word offset of the register to start reading
+ * @length: Number of dwords to read
+ * @timeout_msec: Timeout in ms how long to wait for the response
  *
- * Offset and length are in dwords.
+ * Reads from router config space without translating the possible error.
  */
 struct tb_cfg_result tb_cfg_read_raw(struct tb_ctl *ctl, void *buffer,
 		u64 route, u32 port, enum tb_cfg_space space,
@@ -884,8 +911,16 @@ struct tb_cfg_result tb_cfg_read_raw(struct tb_ctl *ctl, void *buffer,
 
 /**
  * tb_cfg_write() - write from buffer into config space
+ * @ctl: Pointer to the control channel
+ * @buffer: Data to write
+ * @route: Route string of the router
+ * @port: Port number when writing to %TB_CFG_PORT, %0 otherwise
+ * @space: Config space selector
+ * @offset: Dword word offset of the register to start writing
+ * @length: Number of dwords to write
+ * @timeout_msec: Timeout in ms how long to wait for the response
  *
- * Offset and length are in dwords.
+ * Writes to router config space without translating the possible error.
  */
 struct tb_cfg_result tb_cfg_write_raw(struct tb_ctl *ctl, const void *buffer,
 		u64 route, u32 port, enum tb_cfg_space space,
@@ -1022,6 +1057,8 @@ int tb_cfg_write(struct tb_ctl *ctl, const void *buffer, u64 route, u32 port,
 
 /**
  * tb_cfg_get_upstream_port() - get upstream port number of switch at route
+ * @ctl: Pointer to the control channel
+ * @route: Route string of the router
  *
  * Reads the first dword from the switches TB_CFG_SWITCH config area and
  * returns the port number from which the reply originated.

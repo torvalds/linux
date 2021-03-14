@@ -37,6 +37,7 @@ properties:
     maxItems: 1
 
   port:
+    $ref: /schemas/graph.yaml#/properties/port
     description: Connection to controller providing HDMI signals
 
 required:

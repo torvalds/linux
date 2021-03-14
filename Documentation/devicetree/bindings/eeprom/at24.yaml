@@ -96,9 +96,6 @@ properties:
       # These are special cases that don't conform to the above pattern.
       # Each requires a standard at24 model as fallback.
       - items:
-          - const: rohm,br24t01
-          - const: atmel,24c01
-      - items:
           - const: nxp,se97b
           - const: atmel,24c02
       - items:
@@ -113,6 +110,12 @@ properties:
       - items:
           - const: renesas,r1ex24128
           - const: atmel,24c128
+      - items:
+          - const: rohm,br24g01
+          - const: atmel,24c01
+      - items:
+          - const: rohm,br24t01
+          - const: atmel,24c01
 
   label:
     description: Descriptive name of the EEPROM.

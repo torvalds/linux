@@ -290,7 +290,7 @@ int snd_opl3_load_patch(struct snd_opl3 *opl3,
 	}
 
 	if (name)
-		strlcpy(patch->name, name, sizeof(patch->name));
+		strscpy(patch->name, name, sizeof(patch->name));
 
 	return 0;
 }

@@ -435,7 +435,7 @@ struct dce_i2c_hw *acquire_i2c_hw_engine(
 	return dce_i2c_hw;
 }
 
-enum i2c_channel_operation_result dce_i2c_hw_engine_wait_on_operation_result(
+static enum i2c_channel_operation_result dce_i2c_hw_engine_wait_on_operation_result(
 	struct dce_i2c_hw *dce_i2c_hw,
 	uint32_t timeout,
 	enum i2c_channel_operation_result expected_result)
@@ -502,7 +502,7 @@ static uint32_t get_transaction_timeout_hw(
 	return period_timeout * num_of_clock_stretches;
 }
 
-bool dce_i2c_hw_engine_submit_payload(
+static bool dce_i2c_hw_engine_submit_payload(
 	struct dce_i2c_hw *dce_i2c_hw,
 	struct i2c_payload *payload,
 	bool middle_of_transaction,

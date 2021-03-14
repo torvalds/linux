@@ -148,7 +148,7 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 		mob->pt_level += VMW_MOBFMT_PTDEPTH_1 - SVGA3D_MOBFMT_PTDEPTH_1;
 	}
 
-	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
 		ret = -ENOMEM;
 		goto out_no_fifo;
@@ -170,7 +170,7 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 	 */
 	BUG_ON(mob->pt_level == VMW_MOBFMT_PTDEPTH_2);
 
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 	otable->page_table = mob;
 
 	return 0;
@@ -203,7 +203,7 @@ static void vmw_takedown_otable_base(struct vmw_private *dev_priv,
 		return;
 
 	bo = otable->page_table->pt_bo;
-	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
 		return;
 
@@ -215,7 +215,7 @@ static void vmw_takedown_otable_base(struct vmw_private *dev_priv,
 	cmd->body.sizeInBytes = 0;
 	cmd->body.validSizeInBytes = 0;
 	cmd->body.ptDepth = SVGA3D_MOBFMT_INVALID;
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	if (bo) {
 		int ret;
@@ -558,12 +558,12 @@ void vmw_mob_unbind(struct vmw_private *dev_priv,
 		BUG_ON(ret != 0);
 	}
 
-	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (cmd) {
 		cmd->header.id = SVGA_3D_CMD_DESTROY_GB_MOB;
 		cmd->header.size = sizeof(cmd->body);
 		cmd->body.mobid = mob->id;
-		vmw_fifo_commit(dev_priv, sizeof(*cmd));
+		vmw_cmd_commit(dev_priv, sizeof(*cmd));
 	}
 
 	if (bo) {
@@ -625,7 +625,7 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 
 	vmw_fifo_resource_inc(dev_priv);
 
-	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
 		goto out_no_cmd_space;
 
@@ -636,7 +636,7 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 	cmd->body.base = mob->pt_root_page >> PAGE_SHIFT;
 	cmd->body.sizeInBytes = num_data_pages * PAGE_SIZE;
 
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	return 0;
 

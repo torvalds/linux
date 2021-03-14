@@ -66,7 +66,8 @@ g94_i2c = {
 };
 
 int
-g94_i2c_new(struct nvkm_device *device, int index, struct nvkm_i2c **pi2c)
+g94_i2c_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	    struct nvkm_i2c **pi2c)
 {
-	return nvkm_i2c_new_(&g94_i2c, device, index, pi2c);
+	return nvkm_i2c_new_(&g94_i2c, device, type, inst, pi2c);
 }

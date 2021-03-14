@@ -122,6 +122,8 @@ static struct lapb_cb *lapb_create_cb(void)
 
 	timer_setup(&lapb->t1timer, NULL, 0);
 	timer_setup(&lapb->t2timer, NULL, 0);
+	lapb->t1timer_stop = true;
+	lapb->t2timer_stop = true;
 
 	lapb->t1      = LAPB_DEFAULT_T1;
 	lapb->t2      = LAPB_DEFAULT_T2;
@@ -129,6 +131,8 @@ static struct lapb_cb *lapb_create_cb(void)
 	lapb->mode    = LAPB_DEFAULT_MODE;
 	lapb->window  = LAPB_DEFAULT_WINDOW;
 	lapb->state   = LAPB_STATE_0;
+
+	spin_lock_init(&lapb->lock);
 	refcount_set(&lapb->refcnt, 1);
 out:
 	return lapb;
@@ -178,10 +182,22 @@ int lapb_unregister(struct net_device *dev)
 		goto out;
 	lapb_put(lapb);
 
+	/* Wait for other refs to "lapb" to drop */
+	while (refcount_read(&lapb->refcnt) > 2)
+		usleep_range(1, 10);
+
+	spin_lock_bh(&lapb->lock);
+
 	lapb_stop_t1timer(lapb);
 	lapb_stop_t2timer(lapb);
 
 	lapb_clear_queues(lapb);
+
+	spin_unlock_bh(&lapb->lock);
+
+	/* Wait for running timers to stop */
+	del_timer_sync(&lapb->t1timer);
+	del_timer_sync(&lapb->t2timer);
 
 	__lapb_remove_cb(lapb);
 
@@ -201,6 +217,8 @@ int lapb_getparms(struct net_device *dev, struct lapb_parms_struct *parms)
 	if (!lapb)
 		goto out;
 
+	spin_lock_bh(&lapb->lock);
+
 	parms->t1      = lapb->t1 / HZ;
 	parms->t2      = lapb->t2 / HZ;
 	parms->n2      = lapb->n2;
@@ -219,6 +237,7 @@ int lapb_getparms(struct net_device *dev, struct lapb_parms_struct *parms)
 	else
 		parms->t2timer = (lapb->t2timer.expires - jiffies) / HZ;
 
+	spin_unlock_bh(&lapb->lock);
 	lapb_put(lapb);
 	rc = LAPB_OK;
 out:
@@ -233,6 +252,8 @@ int lapb_setparms(struct net_device *dev, struct lapb_parms_struct *parms)
 
 	if (!lapb)
 		goto out;
+
+	spin_lock_bh(&lapb->lock);
 
 	rc = LAPB_INVALUE;
 	if (parms->t1 < 1 || parms->t2 < 1 || parms->n2 < 1)
@@ -256,6 +277,7 @@ int lapb_setparms(struct net_device *dev, struct lapb_parms_struct *parms)
 
 	rc = LAPB_OK;
 out_put:
+	spin_unlock_bh(&lapb->lock);
 	lapb_put(lapb);
 out:
 	return rc;
@@ -269,6 +291,8 @@ int lapb_connect_request(struct net_device *dev)
 
 	if (!lapb)
 		goto out;
+
+	spin_lock_bh(&lapb->lock);
 
 	rc = LAPB_OK;
 	if (lapb->state == LAPB_STATE_1)
@@ -285,24 +309,18 @@ int lapb_connect_request(struct net_device *dev)
 
 	rc = LAPB_OK;
 out_put:
+	spin_unlock_bh(&lapb->lock);
 	lapb_put(lapb);
 out:
 	return rc;
 }
 EXPORT_SYMBOL(lapb_connect_request);
 
-int lapb_disconnect_request(struct net_device *dev)
+static int __lapb_disconnect_request(struct lapb_cb *lapb)
 {
-	struct lapb_cb *lapb = lapb_devtostruct(dev);
-	int rc = LAPB_BADTOKEN;
-
-	if (!lapb)
-		goto out;
-
 	switch (lapb->state) {
 	case LAPB_STATE_0:
-		rc = LAPB_NOTCONNECTED;
-		goto out_put;
+		return LAPB_NOTCONNECTED;
 
 	case LAPB_STATE_1:
 		lapb_dbg(1, "(%p) S1 TX DISC(1)\n", lapb->dev);
@@ -310,12 +328,10 @@ int lapb_disconnect_request(struct net_device *dev)
 		lapb_send_control(lapb, LAPB_DISC, LAPB_POLLON, LAPB_COMMAND);
 		lapb->state = LAPB_STATE_0;
 		lapb_start_t1timer(lapb);
-		rc = LAPB_NOTCONNECTED;
-		goto out_put;
+		return LAPB_NOTCONNECTED;
 
 	case LAPB_STATE_2:
-		rc = LAPB_OK;
-		goto out_put;
+		return LAPB_OK;
 	}
 
 	lapb_clear_queues(lapb);
@@ -328,8 +344,22 @@ int lapb_disconnect_request(struct net_device *dev)
 	lapb_dbg(1, "(%p) S3 DISC(1)\n", lapb->dev);
 	lapb_dbg(0, "(%p) S3 -> S2\n", lapb->dev);
 
-	rc = LAPB_OK;
-out_put:
+	return LAPB_OK;
+}
+
+int lapb_disconnect_request(struct net_device *dev)
+{
+	struct lapb_cb *lapb = lapb_devtostruct(dev);
+	int rc = LAPB_BADTOKEN;
+
+	if (!lapb)
+		goto out;
+
+	spin_lock_bh(&lapb->lock);
+
+	rc = __lapb_disconnect_request(lapb);
+
+	spin_unlock_bh(&lapb->lock);
 	lapb_put(lapb);
 out:
 	return rc;
@@ -344,6 +374,8 @@ int lapb_data_request(struct net_device *dev, struct sk_buff *skb)
 	if (!lapb)
 		goto out;
 
+	spin_lock_bh(&lapb->lock);
+
 	rc = LAPB_NOTCONNECTED;
 	if (lapb->state != LAPB_STATE_3 && lapb->state != LAPB_STATE_4)
 		goto out_put;
@@ -352,6 +384,7 @@ int lapb_data_request(struct net_device *dev, struct sk_buff *skb)
 	lapb_kick(lapb);
 	rc = LAPB_OK;
 out_put:
+	spin_unlock_bh(&lapb->lock);
 	lapb_put(lapb);
 out:
 	return rc;
@@ -364,7 +397,9 @@ int lapb_data_received(struct net_device *dev, struct sk_buff *skb)
 	int rc = LAPB_BADTOKEN;
 
 	if (lapb) {
+		spin_lock_bh(&lapb->lock);
 		lapb_data_input(lapb, skb);
+		spin_unlock_bh(&lapb->lock);
 		lapb_put(lapb);
 		rc = LAPB_OK;
 	}
@@ -435,6 +470,8 @@ static int lapb_device_event(struct notifier_block *this, unsigned long event,
 	if (!lapb)
 		return NOTIFY_DONE;
 
+	spin_lock_bh(&lapb->lock);
+
 	switch (event) {
 	case NETDEV_UP:
 		lapb_dbg(0, "(%p) Interface up: %s\n", dev, dev->name);
@@ -454,7 +491,7 @@ static int lapb_device_event(struct notifier_block *this, unsigned long event,
 		break;
 	case NETDEV_GOING_DOWN:
 		if (netif_carrier_ok(dev))
-			lapb_disconnect_request(dev);
+			__lapb_disconnect_request(lapb);
 		break;
 	case NETDEV_DOWN:
 		lapb_dbg(0, "(%p) Interface down: %s\n", dev, dev->name);
@@ -489,6 +526,7 @@ static int lapb_device_event(struct notifier_block *this, unsigned long event,
 		break;
 	}
 
+	spin_unlock_bh(&lapb->lock);
 	lapb_put(lapb);
 	return NOTIFY_DONE;
 }

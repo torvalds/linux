@@ -179,7 +179,7 @@ static __inline__ void __user *arch_compat_alloc_user_space(long len)
 
 static inline int __is_compat_task(struct task_struct *t)
 {
-	return test_ti_thread_flag(task_thread_info(t), TIF_32BIT);
+	return test_tsk_thread_flag(t, TIF_32BIT);
 }
 
 static inline int is_compat_task(void)

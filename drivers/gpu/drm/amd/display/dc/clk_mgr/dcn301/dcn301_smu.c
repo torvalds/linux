@@ -103,7 +103,7 @@ int dcn301_smu_send_msg_with_param(
 	/* Trigger the message transaction by writing the message ID */
 	REG_WRITE(MP1_SMN_C2PMSG_67, msg_id);
 
-	result = dcn301_smu_wait_for_response(clk_mgr, 10, 1000);
+	result = dcn301_smu_wait_for_response(clk_mgr, 10, 200000);
 
 	ASSERT(result == VBIOSSMC_Result_OK);
 

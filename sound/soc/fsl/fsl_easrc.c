@@ -1530,7 +1530,7 @@ static int fsl_easrc_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_dai_ops fsl_easrc_dai_ops = {
+static const struct snd_soc_dai_ops fsl_easrc_dai_ops = {
 	.startup = fsl_easrc_startup,
 	.trigger = fsl_easrc_trigger,
 	.hw_params = fsl_easrc_hw_params,

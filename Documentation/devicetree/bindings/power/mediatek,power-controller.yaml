@@ -23,6 +23,7 @@ properties:
 
   compatible:
     enum:
+      - mediatek,mt8167-power-controller
       - mediatek,mt8173-power-controller
       - mediatek,mt8183-power-controller
       - mediatek,mt8192-power-controller
@@ -59,6 +60,7 @@ patternProperties:
       reg:
         description: |
           Power domain index. Valid values are defined in:
+              "include/dt-bindings/power/mt8167-power.h" - for MT8167 type power domain.
               "include/dt-bindings/power/mt8173-power.h" - for MT8173 type power domain.
               "include/dt-bindings/power/mt8183-power.h" - for MT8183 type power domain.
               "include/dt-bindings/power/mt8192-power.h" - for MT8192 type power domain.
@@ -81,6 +83,9 @@ patternProperties:
           In order to follow properly the power-up sequencing, the clocks must
           be specified by order, adding first the BASIC clocks followed by the
           SUSBSYS clocks.
+
+      domain-supply:
+        description: domain regulator supply.
 
       mediatek,infracfg:
         $ref: /schemas/types.yaml#/definitions/phandle
@@ -130,6 +135,9 @@ patternProperties:
               be specified by order, adding first the BASIC clocks followed by the
               SUSBSYS clocks.
 
+          domain-supply:
+            description: domain regulator supply.
+
           mediatek,infracfg:
             $ref: /schemas/types.yaml#/definitions/phandle
             description: phandle to the device containing the INFRACFG register range.
@@ -177,6 +185,9 @@ patternProperties:
                   In order to follow properly the power-up sequencing, the clocks must
                   be specified by order, adding first the BASIC clocks followed by the
                   SUSBSYS clocks.
+
+              domain-supply:
+                description: domain regulator supply.
 
               mediatek,infracfg:
                 $ref: /schemas/types.yaml#/definitions/phandle

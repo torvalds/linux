@@ -22,6 +22,8 @@
 # define PR_SET_SYSCALL_USER_DISPATCH	59
 # define PR_SYS_DISPATCH_OFF	0
 # define PR_SYS_DISPATCH_ON	1
+# define SYSCALL_DISPATCH_FILTER_ALLOW	0
+# define SYSCALL_DISPATCH_FILTER_BLOCK	1
 #endif
 
 #ifdef __NR_syscalls
@@ -55,8 +57,8 @@ unsigned long trapped_call_count = 0;
 unsigned long native_call_count = 0;
 
 char selector;
-#define SYSCALL_BLOCK   (selector = PR_SYS_DISPATCH_ON)
-#define SYSCALL_UNBLOCK (selector = PR_SYS_DISPATCH_OFF)
+#define SYSCALL_BLOCK   (selector = SYSCALL_DISPATCH_FILTER_BLOCK)
+#define SYSCALL_UNBLOCK (selector = SYSCALL_DISPATCH_FILTER_ALLOW)
 
 #define CALIBRATION_STEP 100000
 #define CALIBRATE_TO_SECS 5
@@ -170,7 +172,7 @@ int main(void)
 	syscall(MAGIC_SYSCALL_1);
 
 #ifdef TEST_BLOCKED_RETURN
-	if (selector == PR_SYS_DISPATCH_OFF) {
+	if (selector == SYSCALL_DISPATCH_FILTER_ALLOW) {
 		fprintf(stderr, "Failed to return with selector blocked.\n");
 		exit(-1);
 	}

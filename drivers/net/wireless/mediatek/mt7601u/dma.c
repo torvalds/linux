@@ -74,7 +74,8 @@ bad_frame:
 }
 
 static void mt7601u_rx_process_seg(struct mt7601u_dev *dev, u8 *data,
-				   u32 seg_len, struct page *p)
+				   u32 seg_len, struct page *p,
+				   struct list_head *list)
 {
 	struct sk_buff *skb;
 	struct mt7601u_rxwi *rxwi;
@@ -104,9 +105,13 @@ static void mt7601u_rx_process_seg(struct mt7601u_dev *dev, u8 *data,
 	if (!skb)
 		return;
 
-	spin_lock(&dev->mac_lock);
-	ieee80211_rx(dev->hw, skb);
-	spin_unlock(&dev->mac_lock);
+	local_bh_disable();
+	rcu_read_lock();
+
+	ieee80211_rx_list(dev->hw, NULL, skb, list);
+
+	rcu_read_unlock();
+	local_bh_enable();
 }
 
 static u16 mt7601u_rx_next_seg_len(u8 *data, u32 data_len)
@@ -130,6 +135,7 @@ mt7601u_rx_process_entry(struct mt7601u_dev *dev, struct mt7601u_dma_buf_rx *e)
 	u32 seg_len, data_len = e->urb->actual_length;
 	u8 *data = page_address(e->p);
 	struct page *new_p = NULL;
+	LIST_HEAD(list);
 	int cnt = 0;
 
 	if (!test_bit(MT7601U_STATE_INITIALIZED, &dev->state))
@@ -140,7 +146,8 @@ mt7601u_rx_process_entry(struct mt7601u_dev *dev, struct mt7601u_dma_buf_rx *e)
 		new_p = dev_alloc_pages(MT_RX_ORDER);
 
 	while ((seg_len = mt7601u_rx_next_seg_len(data, data_len))) {
-		mt7601u_rx_process_seg(dev, data, seg_len, new_p ? e->p : NULL);
+		mt7601u_rx_process_seg(dev, data, seg_len,
+				       new_p ? e->p : NULL, &list);
 
 		data_len -= seg_len;
 		data += seg_len;
@@ -150,10 +157,11 @@ mt7601u_rx_process_entry(struct mt7601u_dev *dev, struct mt7601u_dma_buf_rx *e)
 	if (cnt > 1)
 		trace_mt_rx_dma_aggr(dev, cnt, !!new_p);
 
+	netif_receive_skb_list(&list);
+
 	if (new_p) {
 		/* we have one extra ref from the allocator */
-		__free_pages(e->p, MT_RX_ORDER);
-
+		put_page(e->p);
 		e->p = new_p;
 	}
 }
@@ -192,6 +200,7 @@ static void mt7601u_complete_rx(struct urb *urb)
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 	case -ENOENT:
+	case -EPROTO:
 		return;
 	default:
 		dev_err_ratelimited(dev->dev, "rx urb failed: %d\n",
@@ -237,6 +246,7 @@ static void mt7601u_complete_tx(struct urb *urb)
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 	case -ENOENT:
+	case -EPROTO:
 		return;
 	default:
 		dev_err_ratelimited(dev->dev, "tx urb failed: %d\n",
@@ -310,7 +320,6 @@ static int mt7601u_dma_submit_tx(struct mt7601u_dev *dev,
 	}
 
 	e = &q->e[q->end];
-	e->skb = skb;
 	usb_fill_bulk_urb(e->urb, usb_dev, snd_pipe, skb->data, skb->len,
 			  mt7601u_complete_tx, q);
 	ret = usb_submit_urb(e->urb, GFP_ATOMIC);
@@ -328,6 +337,7 @@ static int mt7601u_dma_submit_tx(struct mt7601u_dev *dev,
 
 	q->end = (q->end + 1) % q->entries;
 	q->used++;
+	e->skb = skb;
 
 	if (q->used >= q->entries)
 		ieee80211_stop_queue(dev->hw, skb_get_queue_mapping(skb));

@@ -340,6 +340,7 @@ struct vba_vars_st {
 	unsigned int DSCInputBitPerComponent[DC__NUM_DPP__MAX];
 	enum output_format_class OutputFormat[DC__NUM_DPP__MAX];
 	enum output_encoder_class Output[DC__NUM_DPP__MAX];
+	bool skip_dio_check[DC__NUM_DPP__MAX];
 	unsigned int BlendingAndTiming[DC__NUM_DPP__MAX];
 	bool SynchronizedVBlank;
 	unsigned int NumberOfCursors[DC__NUM_DPP__MAX];

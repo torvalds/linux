@@ -119,17 +119,3 @@ bool dal_hw_factory_init(
 		return false;
 	}
 }
-
-void dal_hw_factory_destroy(
-	struct dc_context *ctx,
-	struct hw_factory **factory)
-{
-	if (!factory || !*factory) {
-		BREAK_TO_DEBUGGER();
-		return;
-	}
-
-	kfree(*factory);
-
-	*factory = NULL;
-}

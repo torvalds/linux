@@ -65,12 +65,12 @@ int rvu_mbox_handler_cpt_lf_alloc(struct rvu *rvu,
 	int num_lfs, slot;
 	u64 val;
 
+	blkaddr = req->blkaddr ? req->blkaddr : BLKADDR_CPT0;
+	if (blkaddr != BLKADDR_CPT0 && blkaddr != BLKADDR_CPT1)
+		return -ENODEV;
+
 	if (req->eng_grpmsk == 0x0)
 		return CPT_AF_ERR_GRP_INVALID;
-
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, 0);
-	if (blkaddr < 0)
-		return blkaddr;
 
 	block = &rvu->hw->block[blkaddr];
 	num_lfs = rvu_get_rsrc_mapcount(rvu_get_pfvf(rvu, pcifunc),
@@ -114,23 +114,17 @@ int rvu_mbox_handler_cpt_lf_alloc(struct rvu *rvu,
 	return 0;
 }
 
-int rvu_mbox_handler_cpt_lf_free(struct rvu *rvu, struct msg_req *req,
-				 struct msg_rsp *rsp)
+static int cpt_lf_free(struct rvu *rvu, struct msg_req *req, int blkaddr)
 {
 	u16 pcifunc = req->hdr.pcifunc;
+	int num_lfs, cptlf, slot;
 	struct rvu_block *block;
-	int cptlf, blkaddr;
-	int num_lfs, slot;
-
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, 0);
-	if (blkaddr < 0)
-		return blkaddr;
 
 	block = &rvu->hw->block[blkaddr];
 	num_lfs = rvu_get_rsrc_mapcount(rvu_get_pfvf(rvu, pcifunc),
 					block->addr);
 	if (!num_lfs)
-		return CPT_AF_ERR_LF_INVALID;
+		return 0;
 
 	for (slot = 0; slot < num_lfs; slot++) {
 		cptlf = rvu_get_lf(rvu, block, pcifunc, slot);
@@ -144,6 +138,21 @@ int rvu_mbox_handler_cpt_lf_free(struct rvu *rvu, struct msg_req *req,
 	}
 
 	return 0;
+}
+
+int rvu_mbox_handler_cpt_lf_free(struct rvu *rvu, struct msg_req *req,
+				 struct msg_rsp *rsp)
+{
+	int ret;
+
+	ret = cpt_lf_free(rvu, req, BLKADDR_CPT0);
+	if (ret)
+		return ret;
+
+	if (is_block_implemented(rvu->hw, BLKADDR_CPT1))
+		ret = cpt_lf_free(rvu, req, BLKADDR_CPT1);
+
+	return ret;
 }
 
 static bool is_valid_offset(struct rvu *rvu, struct cpt_rd_wr_reg_msg *req)
@@ -208,9 +217,9 @@ int rvu_mbox_handler_cpt_rd_wr_register(struct rvu *rvu,
 {
 	int blkaddr;
 
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, 0);
-	if (blkaddr < 0)
-		return blkaddr;
+	blkaddr = req->blkaddr ? req->blkaddr : BLKADDR_CPT0;
+	if (blkaddr != BLKADDR_CPT0 && blkaddr != BLKADDR_CPT1)
+		return -ENODEV;
 
 	/* This message is accepted only if sent from CPT PF/VF */
 	if (!is_cpt_pf(rvu, req->hdr.pcifunc) &&
@@ -228,6 +237,95 @@ int rvu_mbox_handler_cpt_rd_wr_register(struct rvu *rvu,
 		rvu_write64(rvu, blkaddr, req->reg_offset, req->val);
 	else
 		rsp->val = rvu_read64(rvu, blkaddr, req->reg_offset);
+
+	return 0;
+}
+
+#define INPROG_INFLIGHT(reg)    ((reg) & 0x1FF)
+#define INPROG_GRB_PARTIAL(reg) ((reg) & BIT_ULL(31))
+#define INPROG_GRB(reg)         (((reg) >> 32) & 0xFF)
+#define INPROG_GWB(reg)         (((reg) >> 40) & 0xFF)
+
+static void cpt_lf_disable_iqueue(struct rvu *rvu, int blkaddr, int slot)
+{
+	int i = 0, hard_lp_ctr = 100000;
+	u64 inprog, grp_ptr;
+	u16 nq_ptr, dq_ptr;
+
+	/* Disable instructions enqueuing */
+	rvu_write64(rvu, blkaddr, CPT_AF_BAR2_ALIASX(slot, CPT_LF_CTL), 0x0);
+
+	/* Disable executions in the LF's queue */
+	inprog = rvu_read64(rvu, blkaddr,
+			    CPT_AF_BAR2_ALIASX(slot, CPT_LF_INPROG));
+	inprog &= ~BIT_ULL(16);
+	rvu_write64(rvu, blkaddr,
+		    CPT_AF_BAR2_ALIASX(slot, CPT_LF_INPROG), inprog);
+
+	/* Wait for CPT queue to become execution-quiescent */
+	do {
+		inprog = rvu_read64(rvu, blkaddr,
+				    CPT_AF_BAR2_ALIASX(slot, CPT_LF_INPROG));
+		if (INPROG_GRB_PARTIAL(inprog)) {
+			i = 0;
+			hard_lp_ctr--;
+		} else {
+			i++;
+		}
+
+		grp_ptr = rvu_read64(rvu, blkaddr,
+				     CPT_AF_BAR2_ALIASX(slot,
+							CPT_LF_Q_GRP_PTR));
+		nq_ptr = (grp_ptr >> 32) & 0x7FFF;
+		dq_ptr = grp_ptr & 0x7FFF;
+
+	} while (hard_lp_ctr && (i < 10) && (nq_ptr != dq_ptr));
+
+	if (hard_lp_ctr == 0)
+		dev_warn(rvu->dev, "CPT FLR hits hard loop counter\n");
+
+	i = 0;
+	hard_lp_ctr = 100000;
+	do {
+		inprog = rvu_read64(rvu, blkaddr,
+				    CPT_AF_BAR2_ALIASX(slot, CPT_LF_INPROG));
+
+		if ((INPROG_INFLIGHT(inprog) == 0) &&
+		    (INPROG_GWB(inprog) < 40) &&
+		    ((INPROG_GRB(inprog) == 0) ||
+		     (INPROG_GRB((inprog)) == 40))) {
+			i++;
+		} else {
+			i = 0;
+			hard_lp_ctr--;
+		}
+	} while (hard_lp_ctr && (i < 10));
+
+	if (hard_lp_ctr == 0)
+		dev_warn(rvu->dev, "CPT FLR hits hard loop counter\n");
+}
+
+int rvu_cpt_lf_teardown(struct rvu *rvu, u16 pcifunc, int lf, int slot)
+{
+	int blkaddr;
+	u64 reg;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, pcifunc);
+	if (blkaddr != BLKADDR_CPT0 && blkaddr != BLKADDR_CPT1)
+		return -EINVAL;
+
+	/* Enable BAR2 ALIAS for this pcifunc. */
+	reg = BIT_ULL(16) | pcifunc;
+	rvu_write64(rvu, blkaddr, CPT_AF_BAR2_SEL, reg);
+
+	cpt_lf_disable_iqueue(rvu, blkaddr, slot);
+
+	/* Set group drop to help clear out hardware */
+	reg = rvu_read64(rvu, blkaddr, CPT_AF_BAR2_ALIASX(slot, CPT_LF_INPROG));
+	reg |= BIT_ULL(17);
+	rvu_write64(rvu, blkaddr, CPT_AF_BAR2_ALIASX(slot, CPT_LF_INPROG), reg);
+
+	rvu_write64(rvu, blkaddr, CPT_AF_BAR2_SEL, 0);
 
 	return 0;
 }

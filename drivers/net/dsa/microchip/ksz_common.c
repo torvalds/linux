@@ -213,15 +213,6 @@ void ksz_port_fast_age(struct dsa_switch *ds, int port)
 }
 EXPORT_SYMBOL_GPL(ksz_port_fast_age);
 
-int ksz_port_vlan_prepare(struct dsa_switch *ds, int port,
-			  const struct switchdev_obj_port_vlan *vlan)
-{
-	/* nothing needed */
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(ksz_port_vlan_prepare);
-
 int ksz_port_fdb_dump(struct dsa_switch *ds, int port, dsa_fdb_dump_cb_t *cb,
 		      void *data)
 {
@@ -253,16 +244,8 @@ int ksz_port_fdb_dump(struct dsa_switch *ds, int port, dsa_fdb_dump_cb_t *cb,
 }
 EXPORT_SYMBOL_GPL(ksz_port_fdb_dump);
 
-int ksz_port_mdb_prepare(struct dsa_switch *ds, int port,
-			 const struct switchdev_obj_port_mdb *mdb)
-{
-	/* nothing to do */
-	return 0;
-}
-EXPORT_SYMBOL_GPL(ksz_port_mdb_prepare);
-
-void ksz_port_mdb_add(struct dsa_switch *ds, int port,
-		      const struct switchdev_obj_port_mdb *mdb)
+int ksz_port_mdb_add(struct dsa_switch *ds, int port,
+		     const struct switchdev_obj_port_mdb *mdb)
 {
 	struct ksz_device *dev = ds->priv;
 	struct alu_struct alu;
@@ -284,7 +267,7 @@ void ksz_port_mdb_add(struct dsa_switch *ds, int port,
 
 	/* no available entry */
 	if (index == dev->num_statics && !empty)
-		return;
+		return -ENOSPC;
 
 	/* add entry */
 	if (index == dev->num_statics) {
@@ -301,6 +284,8 @@ void ksz_port_mdb_add(struct dsa_switch *ds, int port,
 		alu.fid = mdb->vid;
 	}
 	dev->dev_ops->w_sta_mac_table(dev, index, &alu);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(ksz_port_mdb_add);
 
@@ -400,7 +385,7 @@ int ksz_switch_register(struct ksz_device *dev,
 		gpiod_set_value_cansleep(dev->reset_gpio, 1);
 		usleep_range(10000, 12000);
 		gpiod_set_value_cansleep(dev->reset_gpio, 0);
-		usleep_range(100, 1000);
+		msleep(100);
 	}
 
 	mutex_init(&dev->dev_mutex);
@@ -434,7 +419,7 @@ int ksz_switch_register(struct ksz_device *dev,
 				if (of_property_read_u32(port, "reg",
 							 &port_num))
 					continue;
-				if (port_num >= dev->port_cnt)
+				if (!(dev->port_mask & BIT(port_num)))
 					return -EINVAL;
 				of_get_phy_mode(port,
 						&dev->ports[port_num].interface);

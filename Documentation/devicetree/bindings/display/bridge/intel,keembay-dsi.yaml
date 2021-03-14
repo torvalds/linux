@@ -35,28 +35,20 @@ properties:
       - const: clk_mipi_cfg
 
   ports:
-    type: object
+    $ref: /schemas/graph.yaml#/properties/ports
 
     properties:
-      '#address-cells':
-        const: 1
-
-      '#size-cells':
-        const: 0
-
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: MIPI DSI input port.
 
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: DSI output port.
 
     required:
       - port@0
       - port@1
-
-    additionalProperties: false
 
 required:
   - compatible

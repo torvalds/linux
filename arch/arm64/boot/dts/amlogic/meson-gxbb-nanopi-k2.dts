@@ -134,7 +134,7 @@
 
 	sound {
 		compatible = "amlogic,gx-sound-card";
-		model = "GXBB-NANOPI-K2";
+		model = "NANOPI-K2";
 		assigned-clocks = <&clkc CLKID_MPLL0>,
 				  <&clkc CLKID_MPLL1>,
 				  <&clkc CLKID_MPLL2>;

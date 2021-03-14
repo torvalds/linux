@@ -17,6 +17,8 @@ struct cgroup;
 struct perf_counts;
 struct perf_stat_evsel;
 union perf_event;
+struct bpf_counter_ops;
+struct target;
 
 typedef int (evsel__sb_cb_t)(union perf_event *event, void *data);
 
@@ -127,6 +129,8 @@ struct evsel {
 	 * See also evsel__has_callchain().
 	 */
 	__u64			synth_sample_type;
+	struct list_head	bpf_counter_list;
+	struct bpf_counter_ops	*bpf_counter_ops;
 };
 
 struct perf_missing_features {
@@ -145,6 +149,8 @@ struct perf_missing_features {
 	bool branch_hw_idx;
 	bool cgroup;
 	bool data_page_size;
+	bool code_page_size;
+	bool weight_struct;
 };
 
 extern struct perf_missing_features perf_missing_features;
@@ -238,6 +244,8 @@ void __evsel__reset_sample_bit(struct evsel *evsel, enum perf_event_sample_forma
 	__evsel__reset_sample_bit(evsel, PERF_SAMPLE_##bit)
 
 void evsel__set_sample_id(struct evsel *evsel, bool use_sample_identifier);
+
+void arch_evsel__set_sample_weight(struct evsel *evsel);
 
 int evsel__set_filter(struct evsel *evsel, const char *filter);
 int evsel__append_tp_filter(struct evsel *evsel, const char *filter);
@@ -424,4 +432,5 @@ static inline bool evsel__is_dummy_event(struct evsel *evsel)
 struct perf_env *evsel__env(struct evsel *evsel);
 
 int evsel__store_ids(struct evsel *evsel, struct evlist *evlist);
+
 #endif /* __PERF_EVSEL_H */

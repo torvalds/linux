@@ -16,8 +16,7 @@
 
 #include "../tools/testing/selftests/kselftest_module.h"
 
-static unsigned total_tests __initdata;
-static unsigned failed_tests __initdata;
+KSTM_MODULE_GLOBALS();
 
 static char pbl_buffer[PAGE_SIZE] __initdata;
 

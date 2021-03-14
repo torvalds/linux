@@ -234,7 +234,7 @@ static int gsc_probe(struct i2c_client *client)
 
 	ret = devm_regmap_add_irq_chip(dev, gsc->regmap, client->irq,
 				       IRQF_ONESHOT | IRQF_SHARED |
-				       IRQF_TRIGGER_FALLING, 0,
+				       IRQF_TRIGGER_LOW, 0,
 				       &gsc_irq_chip, &irq_data);
 	if (ret)
 		return ret;

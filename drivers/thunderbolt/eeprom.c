@@ -12,7 +12,7 @@
 #include <linux/slab.h>
 #include "tb.h"
 
-/**
+/*
  * tb_eeprom_ctl_write() - write control word
  */
 static int tb_eeprom_ctl_write(struct tb_switch *sw, struct tb_eeprom_ctl *ctl)
@@ -20,7 +20,7 @@ static int tb_eeprom_ctl_write(struct tb_switch *sw, struct tb_eeprom_ctl *ctl)
 	return tb_sw_write(sw, ctl, TB_CFG_SWITCH, sw->cap_plug_events + 4, 1);
 }
 
-/**
+/*
  * tb_eeprom_ctl_write() - read control word
  */
 static int tb_eeprom_ctl_read(struct tb_switch *sw, struct tb_eeprom_ctl *ctl)
@@ -33,7 +33,7 @@ enum tb_eeprom_transfer {
 	TB_EEPROM_OUT,
 };
 
-/**
+/*
  * tb_eeprom_active - enable rom access
  *
  * WARNING: Always disable access after usage. Otherwise the controller will
@@ -62,7 +62,7 @@ static int tb_eeprom_active(struct tb_switch *sw, bool enable)
 	}
 }
 
-/**
+/*
  * tb_eeprom_transfer - transfer one bit
  *
  * If TB_EEPROM_IN is passed, then the bit can be retrieved from ctl->data_in.
@@ -90,7 +90,7 @@ static int tb_eeprom_transfer(struct tb_switch *sw, struct tb_eeprom_ctl *ctl,
 	return tb_eeprom_ctl_write(sw, ctl);
 }
 
-/**
+/*
  * tb_eeprom_out - write one byte to the bus
  */
 static int tb_eeprom_out(struct tb_switch *sw, u8 val)
@@ -110,7 +110,7 @@ static int tb_eeprom_out(struct tb_switch *sw, u8 val)
 	return 0;
 }
 
-/**
+/*
  * tb_eeprom_in - read one byte from the bus
  */
 static int tb_eeprom_in(struct tb_switch *sw, u8 *val)
@@ -131,7 +131,7 @@ static int tb_eeprom_in(struct tb_switch *sw, u8 *val)
 	return 0;
 }
 
-/**
+/*
  * tb_eeprom_get_drom_offset - get drom offset within eeprom
  */
 static int tb_eeprom_get_drom_offset(struct tb_switch *sw, u16 *offset)
@@ -162,7 +162,7 @@ static int tb_eeprom_get_drom_offset(struct tb_switch *sw, u16 *offset)
 	return 0;
 }
 
-/**
+/*
  * tb_eeprom_read_n - read count bytes from offset into val
  */
 static int tb_eeprom_read_n(struct tb_switch *sw, u16 offset, u8 *val,
@@ -279,7 +279,9 @@ struct tb_drom_entry_port {
 
 
 /**
- * tb_drom_read_uid_only - read uid directly from drom
+ * tb_drom_read_uid_only() - Read UID directly from DROM
+ * @sw: Router whose UID to read
+ * @uid: UID is placed here
  *
  * Does not use the cached copy in sw->drom. Used during resume to check switch
  * identity.
@@ -374,7 +376,7 @@ static int tb_drom_parse_entry_port(struct tb_switch *sw,
 	return 0;
 }
 
-/**
+/*
  * tb_drom_parse_entries - parse the linked list of drom entries
  *
  * Drom must have been copied to sw->drom.
@@ -410,7 +412,7 @@ static int tb_drom_parse_entries(struct tb_switch *sw)
 	return 0;
 }
 
-/**
+/*
  * tb_drom_copy_efi - copy drom supplied by EFI to sw->drom if present
  */
 static int tb_drom_copy_efi(struct tb_switch *sw, u16 *size)
@@ -520,7 +522,14 @@ static int tb_drom_read_n(struct tb_switch *sw, u16 offset, u8 *val,
 }
 
 /**
- * tb_drom_read - copy drom to sw->drom and parse it
+ * tb_drom_read() - Copy DROM to sw->drom and parse it
+ * @sw: Router whose DROM to read and parse
+ *
+ * This function reads router DROM and if successful parses the entries and
+ * populates the fields in @sw accordingly. Can be called for any router
+ * generation.
+ *
+ * Returns %0 in case of success and negative errno otherwise.
  */
 int tb_drom_read(struct tb_switch *sw)
 {

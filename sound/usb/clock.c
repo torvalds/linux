@@ -298,6 +298,11 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 	if (selector) {
 		int ret, i, cur;
 
+		if (selector->bNrInPins == 1) {
+			ret = 1;
+			goto find_source;
+		}
+
 		/* the entity ID we are looking for is a selector.
 		 * find out what it currently selects */
 		ret = uac_clock_selector_get_val(chip, selector->bClockID);
@@ -314,6 +319,7 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 			return -EINVAL;
 		}
 
+	find_source:
 		cur = ret;
 		ret = __uac_clock_find_source(chip, fmt,
 					      selector->baCSourceID[ret - 1],
@@ -646,10 +652,10 @@ static int set_sample_rate_v2v3(struct snd_usb_audio *chip,
 		cur_rate = prev_rate;
 
 	if (cur_rate != rate) {
-		usb_audio_warn(chip,
-			       "%d:%d: freq mismatch (RO clock): req %d, clock runs @%d\n",
-			       fmt->iface, fmt->altsetting, rate, cur_rate);
-		return -ENXIO;
+		usb_audio_dbg(chip,
+			      "%d:%d: freq mismatch: req %d, clock runs @%d\n",
+			      fmt->iface, fmt->altsetting, rate, cur_rate);
+		/* continue processing */
 	}
 
 validation:

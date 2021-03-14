@@ -247,8 +247,11 @@ static inline bool ns_capable_setid(struct user_namespace *ns, int cap)
 	return true;
 }
 #endif /* CONFIG_MULTIUSER */
-extern bool privileged_wrt_inode_uidgid(struct user_namespace *ns, const struct inode *inode);
-extern bool capable_wrt_inode_uidgid(const struct inode *inode, int cap);
+bool privileged_wrt_inode_uidgid(struct user_namespace *ns,
+				 struct user_namespace *mnt_userns,
+				 const struct inode *inode);
+bool capable_wrt_inode_uidgid(struct user_namespace *mnt_userns,
+			      const struct inode *inode, int cap);
 extern bool file_ns_capable(const struct file *file, struct user_namespace *ns, int cap);
 extern bool ptracer_capable(struct task_struct *tsk, struct user_namespace *ns);
 static inline bool perfmon_capable(void)
@@ -268,8 +271,11 @@ static inline bool checkpoint_restore_ns_capable(struct user_namespace *ns)
 }
 
 /* audit system wants to get cap info from files as well */
-extern int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data *cpu_caps);
+int get_vfs_caps_from_disk(struct user_namespace *mnt_userns,
+			   const struct dentry *dentry,
+			   struct cpu_vfs_cap_data *cpu_caps);
 
-extern int cap_convert_nscap(struct dentry *dentry, const void **ivalue, size_t size);
+int cap_convert_nscap(struct user_namespace *mnt_userns, struct dentry *dentry,
+		      const void **ivalue, size_t size);
 
 #endif /* !_LINUX_CAPABILITY_H */

@@ -5,9 +5,11 @@
  */
 
 #include "gem/i915_gem_object.h"
+
 #include "i915_drv.h"
 #include "i915_vma.h"
 #include "intel_engine.h"
+#include "intel_gpu_commands.h"
 #include "intel_ring.h"
 #include "intel_timeline.h"
 
@@ -40,7 +42,7 @@ int intel_ring_pin(struct intel_ring *ring, struct i915_gem_ww_ctx *ww)
 	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
 	flags = PIN_OFFSET_BIAS | i915_ggtt_pin_bias(vma);
 
-	if (vma->obj->stolen)
+	if (i915_gem_object_is_stolen(vma->obj))
 		flags |= PIN_MAPPABLE;
 	else
 		flags |= PIN_HIGH;

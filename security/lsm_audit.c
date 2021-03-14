@@ -291,18 +291,19 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 		struct dentry *dentry;
 		struct inode *inode;
 
+		rcu_read_lock();
 		inode = a->u.inode;
-		dentry = d_find_alias(inode);
+		dentry = d_find_alias_rcu(inode);
 		if (dentry) {
 			audit_log_format(ab, " name=");
 			spin_lock(&dentry->d_lock);
 			audit_log_untrustedstring(ab, dentry->d_name.name);
 			spin_unlock(&dentry->d_lock);
-			dput(dentry);
 		}
 		audit_log_format(ab, " dev=");
 		audit_log_untrustedstring(ab, inode->i_sb->s_id);
 		audit_log_format(ab, " ino=%lu", inode->i_ino);
+		rcu_read_unlock();
 		break;
 	}
 	case LSM_AUDIT_DATA_TASK: {

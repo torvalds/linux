@@ -43,8 +43,6 @@ static __always_inline void arch_check_user_regs(struct pt_regs *regs)
 }
 #define arch_check_user_regs arch_check_user_regs
 
-#define ARCH_SYSCALL_EXIT_WORK		(_TIF_SINGLESTEP)
-
 static inline void arch_exit_to_user_mode_prepare(struct pt_regs *regs,
 						  unsigned long ti_work)
 {

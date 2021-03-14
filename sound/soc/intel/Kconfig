@@ -203,6 +203,8 @@ config SND_SOC_INTEL_KEEMBAY
 	tristate "Keembay Platforms"
 	depends on ARCH_KEEMBAY || COMPILE_TEST
 	depends on COMMON_CLK
+	select SND_DMAENGINE_PCM
+	select SND_SOC_GENERIC_DMAENGINE_PCM
 	help
 	  If you have a Intel Keembay platform then enable this option
 	  by saying Y or m.

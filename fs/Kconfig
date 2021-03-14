@@ -203,7 +203,7 @@ config TMPFS_XATTR
 
 config TMPFS_INODE64
 	bool "Use 64-bit ino_t by default in tmpfs"
-	depends on TMPFS && 64BIT
+	depends on TMPFS && 64BIT && !(S390 || ALPHA)
 	default n
 	help
 	  tmpfs has historically used only inode numbers as wide as an unsigned
@@ -332,6 +332,10 @@ config NFS_COMMON
 	bool
 	depends on NFSD || NFS_FS || LOCKD
 	default y
+
+config NFS_V4_2_SSC_HELPER
+	tristate
+	default y if NFS_V4=y || NFS_FS=y
 
 source "net/sunrpc/Kconfig"
 source "fs/ceph/Kconfig"

@@ -4,7 +4,7 @@
  * Module Name: nsrepair2 - Repair for objects returned by specific
  *                          predefined methods
  *
- * Copyright (C) 2000 - 2020, Intel Corp.
+ * Copyright (C) 2000 - 2021, Intel Corp.
  *
  *****************************************************************************/
 
@@ -495,8 +495,9 @@ acpi_ns_repair_HID(struct acpi_evaluate_info *info,
 		   union acpi_operand_object **return_object_ptr)
 {
 	union acpi_operand_object *return_object = *return_object_ptr;
-	char *dest;
+	union acpi_operand_object *new_string;
 	char *source;
+	char *dest;
 
 	ACPI_FUNCTION_NAME(ns_repair_HID);
 
@@ -517,6 +518,13 @@ acpi_ns_repair_HID(struct acpi_evaluate_info *info,
 		return_ACPI_STATUS(AE_OK);
 	}
 
+	/* It is simplest to always create a new string object */
+
+	new_string = acpi_ut_create_string_object(return_object->string.length);
+	if (!new_string) {
+		return_ACPI_STATUS(AE_NO_MEMORY);
+	}
+
 	/*
 	 * Remove a leading asterisk if present. For some unknown reason, there
 	 * are many machines in the field that contains IDs like this.
@@ -526,7 +534,7 @@ acpi_ns_repair_HID(struct acpi_evaluate_info *info,
 	source = return_object->string.pointer;
 	if (*source == '*') {
 		source++;
-		return_object->string.length--;
+		new_string->string.length--;
 
 		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
 				  "%s: Removed invalid leading asterisk\n",
@@ -541,11 +549,12 @@ acpi_ns_repair_HID(struct acpi_evaluate_info *info,
 	 * "NNNN####" where N is an uppercase letter or decimal digit, and
 	 * # is a hex digit.
 	 */
-	for (dest = return_object->string.pointer; *source; dest++, source++) {
+	for (dest = new_string->string.pointer; *source; dest++, source++) {
 		*dest = (char)toupper((int)*source);
 	}
-	return_object->string.pointer[return_object->string.length] = 0;
 
+	acpi_ut_remove_reference(return_object);
+	*return_object_ptr = new_string;
 	return_ACPI_STATUS(AE_OK);
 }
 

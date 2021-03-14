@@ -46,8 +46,7 @@ properties:
 if:
   properties:
     compatible:
-      items:
-        const: allwinner,sun50i-h6-crypto
+      const: allwinner,sun50i-h6-crypto
 then:
   properties:
     clocks:

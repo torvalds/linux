@@ -318,7 +318,7 @@
 			status = "disabled";
 		};
 
-		lbc: localbus@80380000 {
+		lbc: local-bus@80380000 {
 			compatible = "hisilicon,hisi-localbus", "simple-bus";
 			reg = <0x0 0x80380000 0x0 0x10000>;
 			status = "disabled";

@@ -74,6 +74,14 @@
 	cpu-idle-states = <&BIG_CPU_SLEEP_1>;
 };
 
+&pcie0 {
+	status = "okay";
+};
+
+&pcie_phy {
+	status = "okay";
+};
+
 &pm8005_lsid1 {
 	pm8005-regulators {
 		compatible = "qcom,pm8005-regulators";
@@ -293,6 +301,14 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&sdc2_clk_on  &sdc2_cmd_on  &sdc2_data_on  &sdc2_cd_on>;
 	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
+};
+
+&ufshc {
+	status = "okay";
+};
+
+&ufsphy {
+	status = "okay";
 };
 
 &usb3 {

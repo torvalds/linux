@@ -1075,9 +1075,8 @@ static struct roce_hem_item *hem_list_alloc_item(struct hns_roce_dev *hr_dev,
 		return NULL;
 
 	if (exist_bt) {
-		hem->addr = dma_alloc_coherent(hr_dev->dev,
-						   count * BA_BYTE_LEN,
-						   &hem->dma_addr, GFP_KERNEL);
+		hem->addr = dma_alloc_coherent(hr_dev->dev, count * BA_BYTE_LEN,
+					       &hem->dma_addr, GFP_KERNEL);
 		if (!hem->addr) {
 			kfree(hem);
 			return NULL;
@@ -1336,6 +1335,10 @@ static int hem_list_alloc_root_bt(struct hns_roce_dev *hr_dev,
 	if (ba_num < 1)
 		return -ENOMEM;
 
+	if (ba_num > unit)
+		return -ENOBUFS;
+
+	ba_num = min_t(int, ba_num, unit);
 	INIT_LIST_HEAD(&temp_root);
 	offset = r->offset;
 	/* indicate to last region */

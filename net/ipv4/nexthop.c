@@ -22,7 +22,7 @@ static void remove_nexthop(struct net *net, struct nexthop *nh,
 #define NH_DEV_HASHBITS  8
 #define NH_DEV_HASHSIZE (1U << NH_DEV_HASHBITS)
 
-static const struct nla_policy rtm_nh_policy[NHA_MAX + 1] = {
+static const struct nla_policy rtm_nh_policy_new[] = {
 	[NHA_ID]		= { .type = NLA_U32 },
 	[NHA_GROUP]		= { .type = NLA_BINARY },
 	[NHA_GROUP_TYPE]	= { .type = NLA_U16 },
@@ -31,6 +31,15 @@ static const struct nla_policy rtm_nh_policy[NHA_MAX + 1] = {
 	[NHA_GATEWAY]		= { .type = NLA_BINARY },
 	[NHA_ENCAP_TYPE]	= { .type = NLA_U16 },
 	[NHA_ENCAP]		= { .type = NLA_NESTED },
+	[NHA_FDB]		= { .type = NLA_FLAG },
+};
+
+static const struct nla_policy rtm_nh_policy_get[] = {
+	[NHA_ID]		= { .type = NLA_U32 },
+};
+
+static const struct nla_policy rtm_nh_policy_dump[] = {
+	[NHA_OIF]		= { .type = NLA_U32 },
 	[NHA_GROUPS]		= { .type = NLA_FLAG },
 	[NHA_MASTER]		= { .type = NLA_U32 },
 	[NHA_FDB]		= { .type = NLA_FLAG },
@@ -62,6 +71,7 @@ __nh_notifier_single_info_init(struct nh_notifier_single_info *nh_info,
 static int nh_notifier_single_info_init(struct nh_notifier_info *info,
 					const struct nexthop *nh)
 {
+	info->type = NH_NOTIFIER_INFO_TYPE_SINGLE;
 	info->nh = kzalloc(sizeof(*info->nh), GFP_KERNEL);
 	if (!info->nh)
 		return -ENOMEM;
@@ -76,13 +86,13 @@ static void nh_notifier_single_info_fini(struct nh_notifier_info *info)
 	kfree(info->nh);
 }
 
-static int nh_notifier_grp_info_init(struct nh_notifier_info *info,
-				     const struct nexthop *nh)
+static int nh_notifier_mp_info_init(struct nh_notifier_info *info,
+				    struct nh_group *nhg)
 {
-	struct nh_group *nhg = rtnl_dereference(nh->nh_grp);
 	u16 num_nh = nhg->num_nh;
 	int i;
 
+	info->type = NH_NOTIFIER_INFO_TYPE_GRP;
 	info->nh_grp = kzalloc(struct_size(info->nh_grp, nh_entries, num_nh),
 			       GFP_KERNEL);
 	if (!info->nh_grp)
@@ -103,27 +113,41 @@ static int nh_notifier_grp_info_init(struct nh_notifier_info *info,
 	return 0;
 }
 
-static void nh_notifier_grp_info_fini(struct nh_notifier_info *info)
+static int nh_notifier_grp_info_init(struct nh_notifier_info *info,
+				     const struct nexthop *nh)
 {
-	kfree(info->nh_grp);
+	struct nh_group *nhg = rtnl_dereference(nh->nh_grp);
+
+	if (nhg->mpath)
+		return nh_notifier_mp_info_init(info, nhg);
+	return -EINVAL;
+}
+
+static void nh_notifier_grp_info_fini(struct nh_notifier_info *info,
+				      const struct nexthop *nh)
+{
+	struct nh_group *nhg = rtnl_dereference(nh->nh_grp);
+
+	if (nhg->mpath)
+		kfree(info->nh_grp);
 }
 
 static int nh_notifier_info_init(struct nh_notifier_info *info,
 				 const struct nexthop *nh)
 {
 	info->id = nh->id;
-	info->is_grp = nh->is_group;
 
-	if (info->is_grp)
+	if (nh->is_group)
 		return nh_notifier_grp_info_init(info, nh);
 	else
 		return nh_notifier_single_info_init(info, nh);
 }
 
-static void nh_notifier_info_fini(struct nh_notifier_info *info)
+static void nh_notifier_info_fini(struct nh_notifier_info *info,
+				  const struct nexthop *nh)
 {
-	if (info->is_grp)
-		nh_notifier_grp_info_fini(info);
+	if (nh->is_group)
+		nh_notifier_grp_info_fini(info, nh);
 	else
 		nh_notifier_single_info_fini(info);
 }
@@ -152,7 +176,7 @@ static int call_nexthop_notifiers(struct net *net,
 
 	err = blocking_notifier_call_chain(&net->nexthop.notifier_chain,
 					   event_type, &info);
-	nh_notifier_info_fini(&info);
+	nh_notifier_info_fini(&info, nh);
 
 	return notifier_to_errno(err);
 }
@@ -173,7 +197,7 @@ static int call_nexthop_notifier(struct notifier_block *nb, struct net *net,
 		return err;
 
 	err = nb->notifier_call(nb, event_type, &info);
-	nh_notifier_info_fini(&info);
+	nh_notifier_info_fini(&info, nh);
 
 	return notifier_to_errno(err);
 }
@@ -200,7 +224,7 @@ static void nexthop_devhash_add(struct net *net, struct nh_info *nhi)
 	hlist_add_head(&nhi->dev_hash, head);
 }
 
-static void nexthop_free_mpath(struct nexthop *nh)
+static void nexthop_free_group(struct nexthop *nh)
 {
 	struct nh_group *nhg;
 	int i;
@@ -240,7 +264,7 @@ void nexthop_free_rcu(struct rcu_head *head)
 	struct nexthop *nh = container_of(head, struct nexthop, rcu);
 
 	if (nh->is_group)
-		nexthop_free_mpath(nh);
+		nexthop_free_group(nh);
 	else
 		nexthop_free_single(nh);
 
@@ -565,7 +589,8 @@ static int nh_check_attr_fdb_group(struct nexthop *nh, u8 *nh_family,
 	return 0;
 }
 
-static int nh_check_attr_group(struct net *net, struct nlattr *tb[],
+static int nh_check_attr_group(struct net *net,
+			       struct nlattr *tb[], size_t tb_size,
 			       struct netlink_ext_ack *extack)
 {
 	unsigned int len = nla_len(tb[NHA_GROUP]);
@@ -624,7 +649,7 @@ static int nh_check_attr_group(struct net *net, struct nlattr *tb[],
 			return -EINVAL;
 		}
 	}
-	for (i = NHA_GROUP_TYPE + 1; i < __NHA_MAX; ++i) {
+	for (i = NHA_GROUP_TYPE + 1; i < tb_size; ++i) {
 		if (!tb[i])
 			continue;
 		if (i == NHA_FDB)
@@ -670,21 +695,16 @@ static bool ipv4_good_nh(const struct fib_nh *nh)
 	return !!(state & NUD_VALID);
 }
 
-struct nexthop *nexthop_select_path(struct nexthop *nh, int hash)
+static struct nexthop *nexthop_select_path_mp(struct nh_group *nhg, int hash)
 {
 	struct nexthop *rc = NULL;
-	struct nh_group *nhg;
 	int i;
 
-	if (!nh->is_group)
-		return nh;
-
-	nhg = rcu_dereference(nh->nh_grp);
 	for (i = 0; i < nhg->num_nh; ++i) {
 		struct nh_grp_entry *nhge = &nhg->nh_entries[i];
 		struct nh_info *nhi;
 
-		if (hash > atomic_read(&nhge->upper_bound))
+		if (hash > atomic_read(&nhge->mpath.upper_bound))
 			continue;
 
 		nhi = rcu_dereference(nhge->nh->nh_info);
@@ -710,6 +730,21 @@ struct nexthop *nexthop_select_path(struct nexthop *nh, int hash)
 	}
 
 	return rc;
+}
+
+struct nexthop *nexthop_select_path(struct nexthop *nh, int hash)
+{
+	struct nh_group *nhg;
+
+	if (!nh->is_group)
+		return nh;
+
+	nhg = rcu_dereference(nh->nh_grp);
+	if (nhg->mpath)
+		return nexthop_select_path_mp(nhg, hash);
+
+	/* Unreachable. */
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(nexthop_select_path);
 
@@ -904,7 +939,7 @@ static void nh_group_rebalance(struct nh_group *nhg)
 
 		w += nhge->weight;
 		upper_bound = DIV_ROUND_CLOSEST_ULL((u64)w << 31, total) - 1;
-		atomic_set(&nhge->upper_bound, upper_bound);
+		atomic_set(&nhge->mpath.upper_bound, upper_bound);
 	}
 }
 
@@ -1446,10 +1481,13 @@ static struct nexthop *nexthop_create_group(struct net *net,
 		nhg->nh_entries[i].nh_parent = nh;
 	}
 
-	if (cfg->nh_grp_type == NEXTHOP_GRP_TYPE_MPATH) {
+	if (cfg->nh_grp_type == NEXTHOP_GRP_TYPE_MPATH)
 		nhg->mpath = 1;
+
+	WARN_ON_ONCE(nhg->mpath != 1);
+
+	if (nhg->mpath)
 		nh_group_rebalance(nhg);
-	}
 
 	if (cfg->nh_fdb)
 		nhg->fdb_nh = 1;
@@ -1643,11 +1681,12 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 			    struct netlink_ext_ack *extack)
 {
 	struct nhmsg *nhm = nlmsg_data(nlh);
-	struct nlattr *tb[NHA_MAX + 1];
+	struct nlattr *tb[ARRAY_SIZE(rtm_nh_policy_new)];
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(*nhm), tb, NHA_MAX, rtm_nh_policy,
-			  extack);
+	err = nlmsg_parse(nlh, sizeof(*nhm), tb,
+			  ARRAY_SIZE(rtm_nh_policy_new) - 1,
+			  rtm_nh_policy_new, extack);
 	if (err < 0)
 		return err;
 
@@ -1671,11 +1710,6 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 		fallthrough;
 	default:
 		NL_SET_ERR_MSG(extack, "Invalid address family");
-		goto out;
-	}
-
-	if (tb[NHA_GROUPS] || tb[NHA_MASTER]) {
-		NL_SET_ERR_MSG(extack, "Invalid attributes in request");
 		goto out;
 	}
 
@@ -1720,7 +1754,7 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 			NL_SET_ERR_MSG(extack, "Invalid group type");
 			goto out;
 		}
-		err = nh_check_attr_group(net, tb, extack);
+		err = nh_check_attr_group(net, tb, ARRAY_SIZE(tb), extack);
 
 		/* no other attributes should be set */
 		goto out;
@@ -1838,49 +1872,44 @@ static int rtm_new_nexthop(struct sk_buff *skb, struct nlmsghdr *nlh,
 	return err;
 }
 
-static int nh_valid_get_del_req(struct nlmsghdr *nlh, u32 *id,
-				struct netlink_ext_ack *extack)
+static int __nh_valid_get_del_req(const struct nlmsghdr *nlh,
+				  struct nlattr **tb, u32 *id,
+				  struct netlink_ext_ack *extack)
 {
 	struct nhmsg *nhm = nlmsg_data(nlh);
-	struct nlattr *tb[NHA_MAX + 1];
-	int err, i;
 
-	err = nlmsg_parse(nlh, sizeof(*nhm), tb, NHA_MAX, rtm_nh_policy,
-			  extack);
-	if (err < 0)
-		return err;
-
-	err = -EINVAL;
-	for (i = 0; i < __NHA_MAX; ++i) {
-		if (!tb[i])
-			continue;
-
-		switch (i) {
-		case NHA_ID:
-			break;
-		default:
-			NL_SET_ERR_MSG_ATTR(extack, tb[i],
-					    "Unexpected attribute in request");
-			goto out;
-		}
-	}
 	if (nhm->nh_protocol || nhm->resvd || nhm->nh_scope || nhm->nh_flags) {
 		NL_SET_ERR_MSG(extack, "Invalid values in header");
-		goto out;
+		return -EINVAL;
 	}
 
 	if (!tb[NHA_ID]) {
 		NL_SET_ERR_MSG(extack, "Nexthop id is missing");
-		goto out;
+		return -EINVAL;
 	}
 
 	*id = nla_get_u32(tb[NHA_ID]);
-	if (!(*id))
+	if (!(*id)) {
 		NL_SET_ERR_MSG(extack, "Invalid nexthop id");
-	else
-		err = 0;
-out:
-	return err;
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int nh_valid_get_del_req(const struct nlmsghdr *nlh, u32 *id,
+				struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[ARRAY_SIZE(rtm_nh_policy_get)];
+	int err;
+
+	err = nlmsg_parse(nlh, sizeof(struct nhmsg), tb,
+			  ARRAY_SIZE(rtm_nh_policy_get) - 1,
+			  rtm_nh_policy_get, extack);
+	if (err < 0)
+		return err;
+
+	return __nh_valid_get_del_req(nlh, tb, id, extack);
 }
 
 /* rtnl */
@@ -1949,16 +1978,23 @@ errout_free:
 	goto out;
 }
 
-static bool nh_dump_filtered(struct nexthop *nh, int dev_idx, int master_idx,
-			     bool group_filter, u8 family)
+struct nh_dump_filter {
+	int dev_idx;
+	int master_idx;
+	bool group_filter;
+	bool fdb_filter;
+};
+
+static bool nh_dump_filtered(struct nexthop *nh,
+			     struct nh_dump_filter *filter, u8 family)
 {
 	const struct net_device *dev;
 	const struct nh_info *nhi;
 
-	if (group_filter && !nh->is_group)
+	if (filter->group_filter && !nh->is_group)
 		return true;
 
-	if (!dev_idx && !master_idx && !family)
+	if (!filter->dev_idx && !filter->master_idx && !family)
 		return false;
 
 	if (nh->is_group)
@@ -1969,70 +2005,48 @@ static bool nh_dump_filtered(struct nexthop *nh, int dev_idx, int master_idx,
 		return true;
 
 	dev = nhi->fib_nhc.nhc_dev;
-	if (dev_idx && (!dev || dev->ifindex != dev_idx))
+	if (filter->dev_idx && (!dev || dev->ifindex != filter->dev_idx))
 		return true;
 
-	if (master_idx) {
+	if (filter->master_idx) {
 		struct net_device *master;
 
 		if (!dev)
 			return true;
 
 		master = netdev_master_upper_dev_get((struct net_device *)dev);
-		if (!master || master->ifindex != master_idx)
+		if (!master || master->ifindex != filter->master_idx)
 			return true;
 	}
 
 	return false;
 }
 
-static int nh_valid_dump_req(const struct nlmsghdr *nlh, int *dev_idx,
-			     int *master_idx, bool *group_filter,
-			     bool *fdb_filter, struct netlink_callback *cb)
+static int __nh_valid_dump_req(const struct nlmsghdr *nlh, struct nlattr **tb,
+			       struct nh_dump_filter *filter,
+			       struct netlink_ext_ack *extack)
 {
-	struct netlink_ext_ack *extack = cb->extack;
-	struct nlattr *tb[NHA_MAX + 1];
 	struct nhmsg *nhm;
-	int err, i;
 	u32 idx;
 
-	err = nlmsg_parse(nlh, sizeof(*nhm), tb, NHA_MAX, rtm_nh_policy,
-			  NULL);
-	if (err < 0)
-		return err;
-
-	for (i = 0; i <= NHA_MAX; ++i) {
-		if (!tb[i])
-			continue;
-
-		switch (i) {
-		case NHA_OIF:
-			idx = nla_get_u32(tb[i]);
-			if (idx > INT_MAX) {
-				NL_SET_ERR_MSG(extack, "Invalid device index");
-				return -EINVAL;
-			}
-			*dev_idx = idx;
-			break;
-		case NHA_MASTER:
-			idx = nla_get_u32(tb[i]);
-			if (idx > INT_MAX) {
-				NL_SET_ERR_MSG(extack, "Invalid master device index");
-				return -EINVAL;
-			}
-			*master_idx = idx;
-			break;
-		case NHA_GROUPS:
-			*group_filter = true;
-			break;
-		case NHA_FDB:
-			*fdb_filter = true;
-			break;
-		default:
-			NL_SET_ERR_MSG(extack, "Unsupported attribute in dump request");
+	if (tb[NHA_OIF]) {
+		idx = nla_get_u32(tb[NHA_OIF]);
+		if (idx > INT_MAX) {
+			NL_SET_ERR_MSG(extack, "Invalid device index");
 			return -EINVAL;
 		}
+		filter->dev_idx = idx;
 	}
+	if (tb[NHA_MASTER]) {
+		idx = nla_get_u32(tb[NHA_MASTER]);
+		if (idx > INT_MAX) {
+			NL_SET_ERR_MSG(extack, "Invalid master device index");
+			return -EINVAL;
+		}
+		filter->master_idx = idx;
+	}
+	filter->group_filter = nla_get_flag(tb[NHA_GROUPS]);
+	filter->fdb_filter = nla_get_flag(tb[NHA_FDB]);
 
 	nhm = nlmsg_data(nlh);
 	if (nhm->nh_protocol || nhm->resvd || nhm->nh_scope || nhm->nh_flags) {
@@ -2043,24 +2057,49 @@ static int nh_valid_dump_req(const struct nlmsghdr *nlh, int *dev_idx,
 	return 0;
 }
 
-/* rtnl */
-static int rtm_dump_nexthop(struct sk_buff *skb, struct netlink_callback *cb)
+static int nh_valid_dump_req(const struct nlmsghdr *nlh,
+			     struct nh_dump_filter *filter,
+			     struct netlink_callback *cb)
 {
-	bool group_filter = false, fdb_filter = false;
-	struct nhmsg *nhm = nlmsg_data(cb->nlh);
-	int dev_filter_idx = 0, master_idx = 0;
-	struct net *net = sock_net(skb->sk);
-	struct rb_root *root = &net->nexthop.rb_root;
+	struct nlattr *tb[ARRAY_SIZE(rtm_nh_policy_dump)];
+	int err;
+
+	err = nlmsg_parse(nlh, sizeof(struct nhmsg), tb,
+			  ARRAY_SIZE(rtm_nh_policy_dump) - 1,
+			  rtm_nh_policy_dump, cb->extack);
+	if (err < 0)
+		return err;
+
+	return __nh_valid_dump_req(nlh, tb, filter, cb->extack);
+}
+
+struct rtm_dump_nh_ctx {
+	u32 idx;
+};
+
+static struct rtm_dump_nh_ctx *
+rtm_dump_nh_ctx(struct netlink_callback *cb)
+{
+	struct rtm_dump_nh_ctx *ctx = (void *)cb->ctx;
+
+	BUILD_BUG_ON(sizeof(*ctx) > sizeof(cb->ctx));
+	return ctx;
+}
+
+static int rtm_dump_walk_nexthops(struct sk_buff *skb,
+				  struct netlink_callback *cb,
+				  struct rb_root *root,
+				  struct rtm_dump_nh_ctx *ctx,
+				  int (*nh_cb)(struct sk_buff *skb,
+					       struct netlink_callback *cb,
+					       struct nexthop *nh, void *data),
+				  void *data)
+{
 	struct rb_node *node;
 	int idx = 0, s_idx;
 	int err;
 
-	err = nh_valid_dump_req(cb->nlh, &dev_filter_idx, &master_idx,
-				&group_filter, &fdb_filter, cb);
-	if (err < 0)
-		return err;
-
-	s_idx = cb->args[0];
+	s_idx = ctx->idx;
 	for (node = rb_first(root); node; node = rb_next(node)) {
 		struct nexthop *nh;
 
@@ -2068,30 +2107,58 @@ static int rtm_dump_nexthop(struct sk_buff *skb, struct netlink_callback *cb)
 			goto cont;
 
 		nh = rb_entry(node, struct nexthop, rb_node);
-		if (nh_dump_filtered(nh, dev_filter_idx, master_idx,
-				     group_filter, nhm->nh_family))
-			goto cont;
-
-		err = nh_fill_node(skb, nh, RTM_NEWNEXTHOP,
-				   NETLINK_CB(cb->skb).portid,
-				   cb->nlh->nlmsg_seq, NLM_F_MULTI);
-		if (err < 0) {
-			if (likely(skb->len))
-				goto out;
-
-			goto out_err;
-		}
+		ctx->idx = idx;
+		err = nh_cb(skb, cb, nh, data);
+		if (err)
+			return err;
 cont:
 		idx++;
+	}
+
+	ctx->idx = idx;
+	return 0;
+}
+
+static int rtm_dump_nexthop_cb(struct sk_buff *skb, struct netlink_callback *cb,
+			       struct nexthop *nh, void *data)
+{
+	struct nhmsg *nhm = nlmsg_data(cb->nlh);
+	struct nh_dump_filter *filter = data;
+
+	if (nh_dump_filtered(nh, filter, nhm->nh_family))
+		return 0;
+
+	return nh_fill_node(skb, nh, RTM_NEWNEXTHOP,
+			    NETLINK_CB(cb->skb).portid,
+			    cb->nlh->nlmsg_seq, NLM_F_MULTI);
+}
+
+/* rtnl */
+static int rtm_dump_nexthop(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct rtm_dump_nh_ctx *ctx = rtm_dump_nh_ctx(cb);
+	struct net *net = sock_net(skb->sk);
+	struct rb_root *root = &net->nexthop.rb_root;
+	struct nh_dump_filter filter = {};
+	int err;
+
+	err = nh_valid_dump_req(cb->nlh, &filter, cb);
+	if (err < 0)
+		return err;
+
+	err = rtm_dump_walk_nexthops(skb, cb, root, ctx,
+				     &rtm_dump_nexthop_cb, &filter);
+	if (err < 0) {
+		if (likely(skb->len))
+			goto out;
+		goto out_err;
 	}
 
 out:
 	err = skb->len;
 out_err:
-	cb->args[0] = idx;
 	cb->seq = net->nexthop.seq;
 	nl_dump_check_consistent(cb, nlmsg_hdr(skb));
-
 	return err;
 }
 

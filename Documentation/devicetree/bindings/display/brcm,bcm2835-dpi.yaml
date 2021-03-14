@@ -27,10 +27,9 @@ properties:
       - const: pixel
 
   port:
-    type: object
-    description: >
-      Port node with a single endpoint connecting to the panel, as
-      defined in Documentation/devicetree/bindings/media/video-interfaces.txt.
+    $ref: /schemas/graph.yaml#/properties/port
+    description:
+      Port node with a single endpoint connecting to the panel.
 
 required:
   - compatible

@@ -135,11 +135,11 @@ Resume
 On transmit:
 ------------
 
-dev->header_ops != NULL
+dev_has_header(dev) == true
    mac_header -> ll header
    data       -> ll header
 
-dev->header_ops == NULL (ll header is invisible to us)
+dev_has_header(dev) == false (ll header is invisible to us)
    mac_header -> data
    data       -> data
 

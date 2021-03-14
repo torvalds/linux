@@ -133,6 +133,7 @@
 			compatible = "qcom,kryo280";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <1024>;
 			cpu-idle-states = <&LITTLE_CPU_SLEEP_0 &LITTLE_CPU_SLEEP_1>;
 			next-level-cache = <&L2_0>;
 			L2_0: l2-cache {
@@ -152,6 +153,7 @@
 			compatible = "qcom,kryo280";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <1024>;
 			cpu-idle-states = <&LITTLE_CPU_SLEEP_0 &LITTLE_CPU_SLEEP_1>;
 			next-level-cache = <&L2_0>;
 			L1_I_1: l1-icache {
@@ -167,6 +169,7 @@
 			compatible = "qcom,kryo280";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <1024>;
 			cpu-idle-states = <&LITTLE_CPU_SLEEP_0 &LITTLE_CPU_SLEEP_1>;
 			next-level-cache = <&L2_0>;
 			L1_I_2: l1-icache {
@@ -182,6 +185,7 @@
 			compatible = "qcom,kryo280";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <1024>;
 			cpu-idle-states = <&LITTLE_CPU_SLEEP_0 &LITTLE_CPU_SLEEP_1>;
 			next-level-cache = <&L2_0>;
 			L1_I_3: l1-icache {
@@ -197,6 +201,7 @@
 			compatible = "qcom,kryo280";
 			reg = <0x0 0x100>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <1536>;
 			cpu-idle-states = <&BIG_CPU_SLEEP_0 &BIG_CPU_SLEEP_1>;
 			next-level-cache = <&L2_1>;
 			L2_1: l2-cache {
@@ -216,6 +221,7 @@
 			compatible = "qcom,kryo280";
 			reg = <0x0 0x101>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <1536>;
 			cpu-idle-states = <&BIG_CPU_SLEEP_0 &BIG_CPU_SLEEP_1>;
 			next-level-cache = <&L2_1>;
 			L1_I_101: l1-icache {
@@ -231,6 +237,7 @@
 			compatible = "qcom,kryo280";
 			reg = <0x0 0x102>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <1536>;
 			cpu-idle-states = <&BIG_CPU_SLEEP_0 &BIG_CPU_SLEEP_1>;
 			next-level-cache = <&L2_1>;
 			L1_I_102: l1-icache {
@@ -246,6 +253,7 @@
 			compatible = "qcom,kryo280";
 			reg = <0x0 0x103>;
 			enable-method = "psci";
+			capacity-dmips-mhz = <1536>;
 			cpu-idle-states = <&BIG_CPU_SLEEP_0 &BIG_CPU_SLEEP_1>;
 			next-level-cache = <&L2_1>;
 			L1_I_103: l1-icache {
@@ -379,43 +387,43 @@
 					compatible = "operating-points-v2";
 
 					rpmpd_opp_ret: opp1 {
-						opp-level = <16>;
+						opp-level = <RPM_SMD_LEVEL_RETENTION>;
 					};
 
 					rpmpd_opp_ret_plus: opp2 {
-						opp-level = <32>;
+						opp-level = <RPM_SMD_LEVEL_RETENTION_PLUS>;
 					};
 
 					rpmpd_opp_min_svs: opp3 {
-						opp-level = <48>;
+						opp-level = <RPM_SMD_LEVEL_MIN_SVS>;
 					};
 
 					rpmpd_opp_low_svs: opp4 {
-						opp-level = <64>;
+						opp-level = <RPM_SMD_LEVEL_LOW_SVS>;
 					};
 
 					rpmpd_opp_svs: opp5 {
-						opp-level = <128>;
+						opp-level = <RPM_SMD_LEVEL_SVS>;
 					};
 
 					rpmpd_opp_svs_plus: opp6 {
-						opp-level = <192>;
+						opp-level = <RPM_SMD_LEVEL_SVS_PLUS>;
 					};
 
 					rpmpd_opp_nom: opp7 {
-						opp-level = <256>;
+						opp-level = <RPM_SMD_LEVEL_NOM>;
 					};
 
 					rpmpd_opp_nom_plus: opp8 {
-						opp-level = <320>;
+						opp-level = <RPM_SMD_LEVEL_NOM_PLUS>;
 					};
 
 					rpmpd_opp_turbo: opp9 {
-						opp-level = <384>;
+						opp-level = <RPM_SMD_LEVEL_TURBO>;
 					};
 
 					rpmpd_opp_turbo_plus: opp10 {
-						opp-level = <512>;
+						opp-level = <RPM_SMD_LEVEL_BINNING>;
 					};
 				};
 			};
@@ -937,6 +945,7 @@
 			num-lanes = <1>;
 			phys = <&pciephy>;
 			phy-names = "pciephy";
+			status = "disabled";
 
 			ranges = <0x01000000 0x0 0x1b200000 0x1b200000 0x0 0x100000>,
 				 <0x02000000 0x0 0x1b300000 0x1b300000 0x0 0xd00000>;
@@ -962,11 +971,12 @@
 			perst-gpios = <&tlmm 35 GPIO_ACTIVE_LOW>;
 		};
 
-		phy@1c06000 {
+		pcie_phy: phy@1c06000 {
 			compatible = "qcom,msm8998-qmp-pcie-phy";
 			reg = <0x01c06000 0x18c>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			status = "disabled";
 			ranges;
 
 			clocks = <&gcc GCC_PCIE_PHY_AUX_CLK>,
@@ -999,6 +1009,7 @@
 			phy-names = "ufsphy";
 			lanes-per-direction = <2>;
 			power-domains = <&gcc UFS_GDSC>;
+			status = "disabled";
 			#reset-cells = <1>;
 
 			clock-names =
@@ -1038,6 +1049,7 @@
 			reg = <0x01da7000 0x18c>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			status = "disabled";
 			ranges;
 
 			clock-names =
@@ -1073,6 +1085,278 @@
 			#gpio-cells = <0x2>;
 			interrupt-controller;
 			#interrupt-cells = <0x2>;
+
+			sdc2_clk_on: sdc2_clk_on {
+				config {
+					pins = "sdc2_clk";
+					bias-disable;
+					drive-strength = <16>;
+				};
+			};
+
+			sdc2_clk_off: sdc2_clk_off {
+				config {
+					pins = "sdc2_clk";
+					bias-disable;
+					drive-strength = <2>;
+				};
+			};
+
+			sdc2_cmd_on: sdc2_cmd_on {
+				config {
+					pins = "sdc2_cmd";
+					bias-pull-up;
+					drive-strength = <10>;
+				};
+			};
+
+			sdc2_cmd_off: sdc2_cmd_off {
+				config {
+					pins = "sdc2_cmd";
+					bias-pull-up;
+					drive-strength = <2>;
+				};
+			};
+
+			sdc2_data_on: sdc2_data_on {
+				config {
+					pins = "sdc2_data";
+					bias-pull-up;
+					drive-strength = <10>;
+				};
+			};
+
+			sdc2_data_off: sdc2_data_off {
+				config {
+					pins = "sdc2_data";
+					bias-pull-up;
+					drive-strength = <2>;
+				};
+			};
+
+			sdc2_cd_on: sdc2_cd_on {
+				mux {
+					pins = "gpio95";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio95";
+					bias-pull-up;
+					drive-strength = <2>;
+				};
+			};
+
+			sdc2_cd_off: sdc2_cd_off {
+				mux {
+					pins = "gpio95";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio95";
+					bias-pull-up;
+					drive-strength = <2>;
+				};
+			};
+
+			blsp1_uart3_on: blsp1_uart3_on {
+				tx {
+					pins = "gpio45";
+					function = "blsp_uart3_a";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				rx {
+					pins = "gpio46";
+					function = "blsp_uart3_a";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				cts {
+					pins = "gpio47";
+					function = "blsp_uart3_a";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				rfr {
+					pins = "gpio48";
+					function = "blsp_uart3_a";
+					drive-strength = <2>;
+					bias-disable;
+				};
+			};
+
+			blsp1_i2c1_default: blsp1-i2c1-default {
+				pins = "gpio2", "gpio3";
+				function = "blsp_i2c1";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp1_i2c1_sleep: blsp1-i2c1-sleep {
+				pins = "gpio2", "gpio3";
+				function = "blsp_i2c1";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			blsp1_i2c2_default: blsp1-i2c2-default {
+				pins = "gpio32", "gpio33";
+				function = "blsp_i2c2";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp1_i2c2_sleep: blsp1-i2c2-sleep {
+				pins = "gpio32", "gpio33";
+				function = "blsp_i2c2";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			blsp1_i2c3_default: blsp1-i2c3-default {
+				pins = "gpio47", "gpio48";
+				function = "blsp_i2c3";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp1_i2c3_sleep: blsp1-i2c3-sleep {
+				pins = "gpio47", "gpio48";
+				function = "blsp_i2c3";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			blsp1_i2c4_default: blsp1-i2c4-default {
+				pins = "gpio10", "gpio11";
+				function = "blsp_i2c4";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp1_i2c4_sleep: blsp1-i2c4-sleep {
+				pins = "gpio10", "gpio11";
+				function = "blsp_i2c4";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			blsp1_i2c5_default: blsp1-i2c5-default {
+				pins = "gpio87", "gpio88";
+				function = "blsp_i2c5";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp1_i2c5_sleep: blsp1-i2c5-sleep {
+				pins = "gpio87", "gpio88";
+				function = "blsp_i2c5";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			blsp1_i2c6_default: blsp1-i2c6-default {
+				pins = "gpio43", "gpio44";
+				function = "blsp_i2c6";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp1_i2c6_sleep: blsp1-i2c6-sleep {
+				pins = "gpio43", "gpio44";
+				function = "blsp_i2c6";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+			/* 6 interfaces per QUP, BLSP2 indexes are numbered (n)+6 */
+			blsp2_i2c1_default: blsp2-i2c1-default {
+				pins = "gpio55", "gpio56";
+				function = "blsp_i2c7";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp2_i2c1_sleep: blsp2-i2c1-sleep {
+				pins = "gpio55", "gpio56";
+				function = "blsp_i2c7";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			blsp2_i2c2_default: blsp2-i2c2-default {
+				pins = "gpio6", "gpio7";
+				function = "blsp_i2c8";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp2_i2c2_sleep: blsp2-i2c2-sleep {
+				pins = "gpio6", "gpio7";
+				function = "blsp_i2c8";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			blsp2_i2c3_default: blsp2-i2c3-default {
+				pins = "gpio51", "gpio52";
+				function = "blsp_i2c9";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp2_i2c3_sleep: blsp2-i2c3-sleep {
+				pins = "gpio51", "gpio52";
+				function = "blsp_i2c9";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			blsp2_i2c4_default: blsp2-i2c4-default {
+				pins = "gpio67", "gpio68";
+				function = "blsp_i2c10";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp2_i2c4_sleep: blsp2-i2c4-sleep {
+				pins = "gpio67", "gpio68";
+				function = "blsp_i2c10";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			blsp2_i2c5_default: blsp2-i2c5-default {
+				pins = "gpio60", "gpio61";
+				function = "blsp_i2c11";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp2_i2c5_sleep: blsp2-i2c5-sleep {
+				pins = "gpio60", "gpio61";
+				function = "blsp_i2c11";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			blsp2_i2c6_default: blsp2-i2c6-default {
+				pins = "gpio83", "gpio84";
+				function = "blsp_i2c12";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp2_i2c6_sleep: blsp2-i2c6-sleep {
+				pins = "gpio83", "gpio84";
+				function = "blsp_i2c12";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
 		};
 
 		remoteproc_mss: remoteproc@4080000 {
@@ -1789,6 +2073,11 @@
 			clocks = <&gcc GCC_BLSP1_QUP1_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp1_dma 6>, <&blsp1_dma 7>;
+			dma-names = "tx", "rx";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp1_i2c1_default>;
+			pinctrl-1 = <&blsp1_i2c1_sleep>;
 			clock-frequency = <400000>;
 
 			status = "disabled";
@@ -1804,6 +2093,11 @@
 			clocks = <&gcc GCC_BLSP1_QUP2_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp1_dma 8>, <&blsp1_dma 9>;
+			dma-names = "tx", "rx";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp1_i2c2_default>;
+			pinctrl-1 = <&blsp1_i2c2_sleep>;
 			clock-frequency = <400000>;
 
 			status = "disabled";
@@ -1819,6 +2113,11 @@
 			clocks = <&gcc GCC_BLSP1_QUP3_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp1_dma 10>, <&blsp1_dma 11>;
+			dma-names = "tx", "rx";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp1_i2c3_default>;
+			pinctrl-1 = <&blsp1_i2c3_sleep>;
 			clock-frequency = <400000>;
 
 			status = "disabled";
@@ -1834,6 +2133,11 @@
 			clocks = <&gcc GCC_BLSP1_QUP4_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp1_dma 12>, <&blsp1_dma 13>;
+			dma-names = "tx", "rx";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp1_i2c4_default>;
+			pinctrl-1 = <&blsp1_i2c4_sleep>;
 			clock-frequency = <400000>;
 
 			status = "disabled";
@@ -1849,6 +2153,11 @@
 			clocks = <&gcc GCC_BLSP1_QUP5_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp1_dma 14>, <&blsp1_dma 15>;
+			dma-names = "tx", "rx";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp1_i2c5_default>;
+			pinctrl-1 = <&blsp1_i2c5_sleep>;
 			clock-frequency = <400000>;
 
 			status = "disabled";
@@ -1864,11 +2173,29 @@
 			clocks = <&gcc GCC_BLSP1_QUP6_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp1_dma 16>, <&blsp1_dma 17>;
+			dma-names = "tx", "rx";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp1_i2c6_default>;
+			pinctrl-1 = <&blsp1_i2c6_sleep>;
 			clock-frequency = <400000>;
 
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
+		};
+
+		blsp2_dma: dma@c184000 {
+			compatible = "qcom,bam-v1.7.0";
+			reg = <0x0c184000 0x25000>;
+			interrupts = <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP2_AHB_CLK>;
+			clock-names = "bam_clk";
+			#dma-cells = <1>;
+			qcom,ee = <0>;
+			qcom,controlled-remotely;
+			num-channels = <18>;
+			qcom,num-ees = <4>;
 		};
 
 		blsp2_uart1: serial@c1b0000 {
@@ -1881,7 +2208,7 @@
 			status = "disabled";
 		};
 
-		blsp2_i2c0: i2c@c1b5000 {
+		blsp2_i2c1: i2c@c1b5000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x0c1b5000 0x600>;
 			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
@@ -1889,6 +2216,11 @@
 			clocks = <&gcc GCC_BLSP2_QUP1_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP2_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp2_dma 6>, <&blsp2_dma 7>;
+			dma-names = "tx", "rx";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp2_i2c1_default>;
+			pinctrl-1 = <&blsp2_i2c1_sleep>;
 			clock-frequency = <400000>;
 
 			status = "disabled";
@@ -1896,7 +2228,7 @@
 			#size-cells = <0>;
 		};
 
-		blsp2_i2c1: i2c@c1b6000 {
+		blsp2_i2c2: i2c@c1b6000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x0c1b6000 0x600>;
 			interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
@@ -1904,6 +2236,11 @@
 			clocks = <&gcc GCC_BLSP2_QUP2_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP2_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp2_dma 8>, <&blsp2_dma 9>;
+			dma-names = "tx", "rx";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp2_i2c2_default>;
+			pinctrl-1 = <&blsp2_i2c2_sleep>;
 			clock-frequency = <400000>;
 
 			status = "disabled";
@@ -1911,7 +2248,7 @@
 			#size-cells = <0>;
 		};
 
-		blsp2_i2c2: i2c@c1b7000 {
+		blsp2_i2c3: i2c@c1b7000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x0c1b7000 0x600>;
 			interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
@@ -1919,6 +2256,11 @@
 			clocks = <&gcc GCC_BLSP2_QUP3_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP2_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp2_dma 10>, <&blsp2_dma 11>;
+			dma-names = "tx", "rx";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp2_i2c3_default>;
+			pinctrl-1 = <&blsp2_i2c3_sleep>;
 			clock-frequency = <400000>;
 
 			status = "disabled";
@@ -1926,7 +2268,7 @@
 			#size-cells = <0>;
 		};
 
-		blsp2_i2c3: i2c@c1b8000 {
+		blsp2_i2c4: i2c@c1b8000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x0c1b8000 0x600>;
 			interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
@@ -1934,6 +2276,11 @@
 			clocks = <&gcc GCC_BLSP2_QUP4_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP2_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp2_dma 12>, <&blsp2_dma 13>;
+			dma-names = "tx", "rx";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp2_i2c4_default>;
+			pinctrl-1 = <&blsp2_i2c4_sleep>;
 			clock-frequency = <400000>;
 
 			status = "disabled";
@@ -1941,7 +2288,7 @@
 			#size-cells = <0>;
 		};
 
-		blsp2_i2c4: i2c@c1b9000 {
+		blsp2_i2c5: i2c@c1b9000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x0c1b9000 0x600>;
 			interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
@@ -1949,6 +2296,11 @@
 			clocks = <&gcc GCC_BLSP2_QUP5_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP2_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp2_dma 14>, <&blsp2_dma 15>;
+			dma-names = "tx", "rx";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp2_i2c5_default>;
+			pinctrl-1 = <&blsp2_i2c5_sleep>;
 			clock-frequency = <400000>;
 
 			status = "disabled";
@@ -1956,7 +2308,7 @@
 			#size-cells = <0>;
 		};
 
-		blsp2_i2c5: i2c@c1ba000 {
+		blsp2_i2c6: i2c@c1ba000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x0c1ba000 0x600>;
 			interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
@@ -1964,6 +2316,11 @@
 			clocks = <&gcc GCC_BLSP2_QUP6_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP2_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp2_dma 16>, <&blsp2_dma 17>;
+			dma-names = "tx", "rx";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp2_i2c6_default>;
+			pinctrl-1 = <&blsp2_i2c6_sleep>;
 			clock-frequency = <400000>;
 
 			status = "disabled";
@@ -2110,5 +2467,3 @@
 		};
 	};
 };
-
-#include "msm8998-pins.dtsi"

@@ -185,9 +185,9 @@ static int snd_add_child_device(struct device *dev,
 		goto error;
 	}
 
-	strcpy(card->driver, audio_driver->driver.name);
-	strcpy(card->shortname, audio_driver->shortname);
-	strcpy(card->longname, audio_driver->longname);
+	strscpy(card->driver, audio_driver->driver.name, sizeof(card->driver));
+	strscpy(card->shortname, audio_driver->shortname, sizeof(card->shortname));
+	strscpy(card->longname, audio_driver->longname, sizeof(card->longname));
 
 	err = audio_driver->newpcm(chip, audio_driver->shortname,
 		audio_driver->route,

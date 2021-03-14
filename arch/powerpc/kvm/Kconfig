@@ -54,6 +54,7 @@ config KVM_BOOK3S_32
 	select KVM
 	select KVM_BOOK3S_32_HANDLER
 	select KVM_BOOK3S_PR_POSSIBLE
+	select PPC_FPU
 	help
 	  Support running unmodified book3s_32 guest kernels
 	  in virtual machines on book3s_32 host processors.

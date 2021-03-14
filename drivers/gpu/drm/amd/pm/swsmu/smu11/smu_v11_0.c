@@ -78,6 +78,9 @@ MODULE_FIRMWARE("amdgpu/dimgrey_cavefish_smc.bin");
 #define PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE_MASK 0xC000
 #define PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT 0xE
 
+#define mmTHM_BACO_CNTL_ARCT			0xA7
+#define mmTHM_BACO_CNTL_ARCT_BASE_IDX		0
+
 static int link_width[] = {0, 1, 2, 4, 8, 12, 16};
 static int link_speed[] = {25, 50, 80, 160};
 
@@ -474,12 +477,14 @@ int smu_v11_0_fini_smc_tables(struct smu_context *smu)
 int smu_v11_0_init_power(struct smu_context *smu)
 {
 	struct smu_power_context *smu_power = &smu->smu_power;
+	size_t size = smu->adev->asic_type == CHIP_VANGOGH ?
+			sizeof(struct smu_11_5_power_context) :
+			sizeof(struct smu_11_0_power_context);
 
-	smu_power->power_context = kzalloc(sizeof(struct smu_11_0_power_context),
-					   GFP_KERNEL);
+	smu_power->power_context = kzalloc(size, GFP_KERNEL);
 	if (!smu_power->power_context)
 		return -ENOMEM;
-	smu_power->power_context_size = sizeof(struct smu_11_0_power_context);
+	smu_power->power_context_size = size;
 
 	return 0;
 }
@@ -1119,6 +1124,7 @@ int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable)
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_DIMGREY_CAVEFISH:
+	case CHIP_VANGOGH:
 		if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
 			return 0;
 		if (enable)
@@ -1136,10 +1142,10 @@ int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable)
 uint32_t
 smu_v11_0_get_fan_control_mode(struct smu_context *smu)
 {
-	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_FAN_CONTROL_BIT))
-		return AMD_FAN_CTRL_MANUAL;
-	else
+	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_FAN_CONTROL_BIT))
 		return AMD_FAN_CTRL_AUTO;
+	else
+		return smu->user_dpm_profile.fan_mode;
 }
 
 static int
@@ -1174,6 +1180,35 @@ smu_v11_0_set_fan_static_mode(struct smu_context *smu, uint32_t mode)
 }
 
 int
+smu_v11_0_set_fan_speed_percent(struct smu_context *smu, uint32_t speed)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t duty100, duty;
+	uint64_t tmp64;
+
+	if (speed > 100)
+		speed = 100;
+
+	if (smu_v11_0_auto_fan_control(smu, 0))
+		return -EINVAL;
+
+	duty100 = REG_GET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL1),
+				CG_FDO_CTRL1, FMAX_DUTY100);
+	if (!duty100)
+		return -EINVAL;
+
+	tmp64 = (uint64_t)speed * duty100;
+	do_div(tmp64, 100);
+	duty = (uint32_t)tmp64;
+
+	WREG32_SOC15(THM, 0, mmCG_FDO_CTRL0,
+		     REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL0),
+				   CG_FDO_CTRL0, FDO_STATIC_DUTY, duty));
+
+	return smu_v11_0_set_fan_static_mode(smu, FDO_PWM_MODE_STATIC);
+}
+
+int
 smu_v11_0_set_fan_control_mode(struct smu_context *smu,
 			       uint32_t mode)
 {
@@ -1181,7 +1216,7 @@ smu_v11_0_set_fan_control_mode(struct smu_context *smu,
 
 	switch (mode) {
 	case AMD_FAN_CTRL_NONE:
-		ret = smu_v11_0_set_fan_speed_rpm(smu, smu->fan_max_rpm);
+		ret = smu_v11_0_set_fan_speed_percent(smu, 100);
 		break;
 	case AMD_FAN_CTRL_MANUAL:
 		ret = smu_v11_0_auto_fan_control(smu, 0);
@@ -1199,58 +1234,6 @@ smu_v11_0_set_fan_control_mode(struct smu_context *smu,
 	}
 
 	return ret;
-}
-
-int smu_v11_0_set_fan_speed_rpm(struct smu_context *smu,
-				       uint32_t speed)
-{
-	struct amdgpu_device *adev = smu->adev;
-	int ret;
-	uint32_t tach_period, crystal_clock_freq;
-
-	if (!speed)
-		return -EINVAL;
-
-	ret = smu_v11_0_auto_fan_control(smu, 0);
-	if (ret)
-		return ret;
-
-	/*
-	 * crystal_clock_freq div by 4 is required since the fan control
-	 * module refers to 25MHz
-	 */
-
-	crystal_clock_freq = amdgpu_asic_get_xclk(adev) / 4;
-	tach_period = 60 * crystal_clock_freq * 10000 / (8 * speed);
-	WREG32_SOC15(THM, 0, mmCG_TACH_CTRL,
-		     REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_TACH_CTRL),
-				   CG_TACH_CTRL, TARGET_PERIOD,
-				   tach_period));
-
-	ret = smu_v11_0_set_fan_static_mode(smu, FDO_PWM_MODE_STATIC_RPM);
-
-	return ret;
-}
-
-int smu_v11_0_get_fan_speed_rpm(struct smu_context *smu,
-				uint32_t *speed)
-{
-	struct amdgpu_device *adev = smu->adev;
-	uint32_t tach_period, crystal_clock_freq;
-	uint64_t tmp64;
-
-	tach_period = REG_GET_FIELD(RREG32_SOC15(THM, 0, mmCG_TACH_CTRL),
-				    CG_TACH_CTRL, TARGET_PERIOD);
-	if (!tach_period)
-		return -EINVAL;
-
-	crystal_clock_freq = amdgpu_asic_get_xclk(adev);
-
-	tmp64 = (uint64_t)crystal_clock_freq * 60 * 10000;
-	do_div(tmp64, (tach_period * 8));
-	*speed = (uint32_t)tmp64;
-
-	return 0;
 }
 
 int smu_v11_0_set_xgmi_pstate(struct smu_context *smu,
@@ -1552,9 +1535,15 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 			break;
 		default:
 			if (!ras || !ras->supported) {
-				data = RREG32_SOC15(THM, 0, mmTHM_BACO_CNTL);
-				data |= 0x80000000;
-				WREG32_SOC15(THM, 0, mmTHM_BACO_CNTL, data);
+				if (adev->asic_type == CHIP_ARCTURUS) {
+					data = RREG32_SOC15(THM, 0, mmTHM_BACO_CNTL_ARCT);
+					data |= 0x80000000;
+					WREG32_SOC15(THM, 0, mmTHM_BACO_CNTL_ARCT, data);
+				} else {
+					data = RREG32_SOC15(THM, 0, mmTHM_BACO_CNTL);
+					data |= 0x80000000;
+					WREG32_SOC15(THM, 0, mmTHM_BACO_CNTL, data);
+				}
 
 				ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_EnterBaco, 0, NULL);
 			} else {
@@ -2041,30 +2030,6 @@ int smu_v11_0_get_current_pcie_link_speed(struct smu_context *smu)
 		speed_level = 0;
 
 	return link_speed[speed_level];
-}
-
-void smu_v11_0_init_gpu_metrics_v1_0(struct gpu_metrics_v1_0 *gpu_metrics)
-{
-	memset(gpu_metrics, 0xFF, sizeof(struct gpu_metrics_v1_0));
-
-	gpu_metrics->common_header.structure_size =
-				sizeof(struct gpu_metrics_v1_0);
-	gpu_metrics->common_header.format_revision = 1;
-	gpu_metrics->common_header.content_revision = 0;
-
-	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
-}
-
-void smu_v11_0_init_gpu_metrics_v2_0(struct gpu_metrics_v2_0 *gpu_metrics)
-{
-	memset(gpu_metrics, 0xFF, sizeof(struct gpu_metrics_v2_0));
-
-	gpu_metrics->common_header.structure_size =
-				sizeof(struct gpu_metrics_v2_0);
-	gpu_metrics->common_header.format_revision = 2;
-	gpu_metrics->common_header.content_revision = 0;
-
-	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
 }
 
 int smu_v11_0_gfx_ulv_control(struct smu_context *smu,

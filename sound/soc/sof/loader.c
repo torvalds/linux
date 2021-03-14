@@ -731,6 +731,8 @@ int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev)
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: request firmware %s failed err: %d\n",
 			fw_filename, ret);
+		dev_err(sdev->dev,
+			"you may need to download the firmware from https://github.com/thesofproject/sof-bin/\n");
 		goto err;
 	} else {
 		dev_dbg(sdev->dev, "request_firmware %s successful\n",
@@ -811,7 +813,6 @@ EXPORT_SYMBOL(snd_sof_load_firmware);
 int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 {
 	int ret;
-	int init_core_mask;
 
 	init_waitqueue_head(&sdev->boot_wait);
 
@@ -843,8 +844,6 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
-	init_core_mask = ret;
-
 	/*
 	 * now wait for the DSP to boot. There are 3 possible outcomes:
 	 * 1. Boot wait times out indicating FW boot failure.
@@ -873,9 +872,6 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev, "error: failed post fw run op\n");
 		return ret;
 	}
-
-	/* fw boot is complete. Update the active cores mask */
-	sdev->enabled_cores_mask = init_core_mask;
 
 	return 0;
 }

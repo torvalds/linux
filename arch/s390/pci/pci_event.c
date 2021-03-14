@@ -80,7 +80,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 	enum zpci_state state;
 	int ret;
 
-	if (zdev && zdev->zbus && zdev->zbus->bus)
+	if (zdev && zdev->zbus->bus)
 		pdev = pci_get_slot(zdev->zbus->bus, zdev->devfn);
 
 	zpci_err("avail CCDF:\n");
@@ -89,7 +89,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 	switch (ccdf->pec) {
 	case 0x0301: /* Reserved|Standby -> Configured */
 		if (!zdev) {
-			ret = clp_add_pci_device(ccdf->fid, ccdf->fh, 1);
+			zpci_create_device(ccdf->fid, ccdf->fh, ZPCI_FN_STATE_CONFIGURED);
 			break;
 		}
 		/* the configuration request may be stale */
@@ -116,7 +116,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 		break;
 	case 0x0302: /* Reserved -> Standby */
 		if (!zdev) {
-			clp_add_pci_device(ccdf->fid, ccdf->fh, 0);
+			zpci_create_device(ccdf->fid, ccdf->fh, ZPCI_FN_STATE_STANDBY);
 			break;
 		}
 		zdev->fh = ccdf->fh;

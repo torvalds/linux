@@ -1,4 +1,5 @@
 perf-y += header.o
+perf-y += machine.o
 perf-y += kvm-stat.o
 perf-y += perf_regs.o
 perf-y += mem-events.o

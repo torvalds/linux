@@ -8,9 +8,6 @@
 #ifndef WFX_DATA_TX_H
 #define WFX_DATA_TX_H
 
-#include <linux/list.h>
-#include <net/mac80211.h>
-
 #include "hif_api_cmd.h"
 #include "hif_api_mib.h"
 
@@ -35,6 +32,7 @@ struct tx_policy_cache {
 
 struct wfx_tx_priv {
 	ktime_t xmit_timestamp;
+	unsigned char icv_size;
 };
 
 void wfx_tx_policy_init(struct wfx_vif *wvif);

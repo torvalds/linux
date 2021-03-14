@@ -50,10 +50,10 @@ bool syscall_user_dispatch(struct pt_regs *regs)
 		if (unlikely(__get_user(state, sd->selector)))
 			do_exit(SIGSEGV);
 
-		if (likely(state == PR_SYS_DISPATCH_OFF))
+		if (likely(state == SYSCALL_DISPATCH_FILTER_ALLOW))
 			return false;
 
-		if (state != PR_SYS_DISPATCH_ON)
+		if (state != SYSCALL_DISPATCH_FILTER_BLOCK)
 			do_exit(SIGSYS);
 	}
 

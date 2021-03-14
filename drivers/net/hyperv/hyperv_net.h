@@ -105,9 +105,43 @@ struct ndis_recv_scale_param { /* NDIS_RECEIVE_SCALE_PARAMETERS */
 	u32 processor_masks_entry_size;
 };
 
-/* Fwd declaration */
-struct ndis_tcp_ip_checksum_info;
-struct ndis_pkt_8021q_info;
+struct ndis_tcp_ip_checksum_info {
+	union {
+		struct {
+			u32 is_ipv4:1;
+			u32 is_ipv6:1;
+			u32 tcp_checksum:1;
+			u32 udp_checksum:1;
+			u32 ip_header_checksum:1;
+			u32 reserved:11;
+			u32 tcp_header_offset:10;
+		} transmit;
+		struct {
+			u32 tcp_checksum_failed:1;
+			u32 udp_checksum_failed:1;
+			u32 ip_checksum_failed:1;
+			u32 tcp_checksum_succeeded:1;
+			u32 udp_checksum_succeeded:1;
+			u32 ip_checksum_succeeded:1;
+			u32 loopback:1;
+			u32 tcp_checksum_value_invalid:1;
+			u32 ip_checksum_value_invalid:1;
+		} receive;
+		u32  value;
+	};
+};
+
+struct ndis_pkt_8021q_info {
+	union {
+		struct {
+			u32 pri:3; /* User Priority */
+			u32 cfi:1; /* Canonical Format ID */
+			u32 vlanid:12; /* VLAN ID */
+			u32 reserved:16;
+		};
+		u32 value;
+	};
+};
 
 /*
  * Represent netvsc packet which contains 1 RNDIS and 1 ethernet frame
@@ -194,7 +228,8 @@ int netvsc_send(struct net_device *net,
 		struct sk_buff *skb,
 		bool xdp_tx);
 void netvsc_linkstatus_callback(struct net_device *net,
-				struct rndis_message *resp);
+				struct rndis_message *resp,
+				void *data);
 int netvsc_recv_callback(struct net_device *net,
 			 struct netvsc_device *nvdev,
 			 struct netvsc_channel *nvchan);
@@ -884,15 +919,20 @@ struct multi_recv_comp {
 #define NVSP_RSC_MAX 562 /* Max #RSC frags in a vmbus xfer page pkt */
 
 struct nvsc_rsc {
-	const struct ndis_pkt_8021q_info *vlan;
-	const struct ndis_tcp_ip_checksum_info *csum_info;
-	const u32 *hash_info;
+	struct ndis_pkt_8021q_info vlan;
+	struct ndis_tcp_ip_checksum_info csum_info;
+	u32 hash_info;
+	u8 ppi_flags; /* valid/present bits for the above PPIs */
 	u8 is_last; /* last RNDIS msg in a vmtransfer_page */
 	u32 cnt; /* #fragments in an RSC packet */
 	u32 pktlen; /* Full packet length */
 	void *data[NVSP_RSC_MAX];
 	u32 len[NVSP_RSC_MAX];
 };
+
+#define NVSC_RSC_VLAN		BIT(0)	/* valid/present bit for 'vlan' */
+#define NVSC_RSC_CSUM_INFO	BIT(1)	/* valid/present bit for 'csum_info' */
+#define NVSC_RSC_HASH_INFO	BIT(2)	/* valid/present bit for 'hash_info' */
 
 struct netvsc_stats {
 	u64 packets;
@@ -1002,6 +1042,7 @@ struct net_device_context {
 struct netvsc_channel {
 	struct vmbus_channel *channel;
 	struct netvsc_device *net_device;
+	void *recv_buf; /* buffer to copy packets out from the receive buffer */
 	const struct vmpacket_descriptor *desc;
 	struct napi_struct napi;
 	struct multi_send_data msd;
@@ -1234,18 +1275,6 @@ struct rndis_pktinfo_id {
 	u16 pkt_id;
 };
 
-struct ndis_pkt_8021q_info {
-	union {
-		struct {
-			u32 pri:3; /* User Priority */
-			u32 cfi:1; /* Canonical Format ID */
-			u32 vlanid:12; /* VLAN ID */
-			u32 reserved:16;
-		};
-		u32 value;
-	};
-};
-
 struct ndis_object_header {
 	u8 type;
 	u8 revision;
@@ -1433,32 +1462,6 @@ struct ndis_offload_params {
 	struct {
 		u8 encapsulated_packet_task_offload;
 		u8 encapsulation_types;
-	};
-};
-
-struct ndis_tcp_ip_checksum_info {
-	union {
-		struct {
-			u32 is_ipv4:1;
-			u32 is_ipv6:1;
-			u32 tcp_checksum:1;
-			u32 udp_checksum:1;
-			u32 ip_header_checksum:1;
-			u32 reserved:11;
-			u32 tcp_header_offset:10;
-		} transmit;
-		struct {
-			u32 tcp_checksum_failed:1;
-			u32 udp_checksum_failed:1;
-			u32 ip_checksum_failed:1;
-			u32 tcp_checksum_succeeded:1;
-			u32 udp_checksum_succeeded:1;
-			u32 ip_checksum_succeeded:1;
-			u32 loopback:1;
-			u32 tcp_checksum_value_invalid:1;
-			u32 ip_checksum_value_invalid:1;
-		} receive;
-		u32  value;
 	};
 };
 

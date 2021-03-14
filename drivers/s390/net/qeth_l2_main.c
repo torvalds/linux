@@ -157,7 +157,7 @@ static void qeth_l2_drain_rx_mode_cache(struct qeth_card *card)
 
 static void qeth_l2_fill_header(struct qeth_qdio_out_q *queue,
 				struct qeth_hdr *hdr, struct sk_buff *skb,
-				int ipv, unsigned int data_len)
+				__be16 proto, unsigned int data_len)
 {
 	int cast_type = qeth_get_ether_cast_type(skb);
 	struct vlan_ethhdr *veth = vlan_eth_hdr(skb);
@@ -169,7 +169,7 @@ static void qeth_l2_fill_header(struct qeth_qdio_out_q *queue,
 	} else {
 		hdr->hdr.l2.id = QETH_HEADER_TYPE_LAYER2;
 		if (skb->ip_summed == CHECKSUM_PARTIAL)
-			qeth_tx_csum(skb, &hdr->hdr.l2.flags[1], ipv);
+			qeth_tx_csum(skb, &hdr->hdr.l2.flags[1], proto);
 	}
 
 	/* set byte byte 3 to casting flags */
@@ -551,7 +551,7 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	if (IS_OSN(card))
 		rc = qeth_l2_xmit_osn(card, skb, queue);
 	else
-		rc = qeth_xmit(card, skb, queue, qeth_get_ip_version(skb),
+		rc = qeth_xmit(card, skb, queue, vlan_get_protocol(skb),
 			       qeth_l2_fill_header);
 
 	if (!rc)

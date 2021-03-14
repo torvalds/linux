@@ -33,9 +33,9 @@
 	 * during TX anyway and that it only controls drive enable DE
 	 * line. Hence, the RX is always enabled here.
 	 */
-	rs485-rx-en {
+	rs485-rx-en-hog {
 		gpio-hog;
-		gpios = <8 GPIO_ACTIVE_HIGH>;
+		gpios = <8 0>;
 		output-low;
 		line-name = "rs485-rx-en";
 	};
@@ -61,9 +61,9 @@
 	 * order to reset the Hub when USB bus is powered down, but
 	 * so far there is no such functionality.
 	 */
-	usb-hub {
+	usb-hub-hog {
 		gpio-hog;
-		gpios = <2 GPIO_ACTIVE_HIGH>;
+		gpios = <2 0>;
 		output-high;
 		line-name = "usb-hub-reset";
 	};
@@ -87,6 +87,12 @@
 	};
 };
 
+&i2c4 {
+	touchscreen@49 {
+		status = "disabled";
+	};
+};
+
 &i2c5 {	/* TP7/TP8 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c5_pins_a>;
@@ -104,7 +110,7 @@
 	 * are used for on-board microSD slot instead.
 	 */
 	/delete-property/broken-cd;
-	cd-gpios = <&gpioi 10 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+	cd-gpios = <&gpioi 10 GPIO_ACTIVE_HIGH>;
 	disable-wp;
 };
 
@@ -152,6 +158,4 @@
 
 &usbphyc_port0 {
 	phy-supply = <&vdd_usb>;
-	vdda1v1-supply = <&reg11>;
-	vdda1v8-supply = <&reg18>;
 };

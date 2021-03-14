@@ -45,7 +45,7 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv)
 	unsigned long stack, sp;
 	int pid, fds[2], ret, n;
 
-	stack = alloc_stack(__cant_sleep());
+	stack = alloc_stack(0, __cant_sleep());
 	if (stack == 0)
 		return -ENOMEM;
 
@@ -116,7 +116,7 @@ int run_helper_thread(int (*proc)(void *), void *arg, unsigned int flags,
 	unsigned long stack, sp;
 	int pid, status, err;
 
-	stack = alloc_stack(__cant_sleep());
+	stack = alloc_stack(0, __cant_sleep());
 	if (stack == 0)
 		return -ENOMEM;
 

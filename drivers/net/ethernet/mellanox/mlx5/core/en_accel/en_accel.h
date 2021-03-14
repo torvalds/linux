@@ -85,7 +85,7 @@ mlx5e_tx_tunnel_accel(struct sk_buff *skb, struct mlx5_wqe_eth_seg *eseg, u16 ih
 	}
 
 	mlx5e_set_eseg_swp(skb, eseg, &swp_spec);
-	if (skb_vlan_tag_present(skb) &&  ihs)
+	if (skb_vlan_tag_present(skb) && ihs)
 		mlx5e_eseg_swp_offsets_add_vlan(eseg);
 }
 
@@ -144,9 +144,9 @@ static inline bool mlx5e_accel_tx_is_ipsec_flow(struct mlx5e_accel_tx_state *sta
 {
 #ifdef CONFIG_MLX5_EN_IPSEC
 	return mlx5e_ipsec_is_tx_flow(&state->ipsec);
-#endif
-
+#else
 	return false;
+#endif
 }
 
 static inline unsigned int mlx5e_accel_tx_ids_len(struct mlx5e_txqsq *sq,
@@ -173,7 +173,7 @@ static inline bool mlx5e_accel_tx_eseg(struct mlx5e_priv *priv,
 #endif
 
 #if IS_ENABLED(CONFIG_GENEVE)
-	if (skb->encapsulation)
+	if (skb->encapsulation && skb->ip_summed == CHECKSUM_PARTIAL)
 		mlx5e_tx_tunnel_accel(skb, eseg, ihs);
 #endif
 

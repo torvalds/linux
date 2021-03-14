@@ -9,12 +9,12 @@
 
 	soc {
 		pci@40000000 {
-			status = "ok";
+			status = "okay";
 			perst-gpio = <&tlmm 38 0x1>;
 		};
 
 		spi@78b6000 {
-			status = "ok";
+			status = "okay";
 		};
 
 		pinctrl@1000000 {
@@ -43,13 +43,13 @@
 		serial@78b0000 {
 			pinctrl-0 = <&serial_1_pins>;
 			pinctrl-names = "default";
-			status = "ok";
+			status = "okay";
 		};
 
 		spi@78b5000 {
 			pinctrl-0 = <&spi_0_pins>;
 			pinctrl-names = "default";
-			status = "ok";
+			status = "okay";
 			cs-gpios = <&tlmm 12 0>;
 
 			m25p80@0 {

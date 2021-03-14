@@ -6,8 +6,6 @@ config MXC_CLK
 
 config MXC_CLK_SCU
 	tristate
-	depends on ARCH_MXC
-	depends on IMX_SCU && HAVE_ARM_SMCCC
 
 config CLK_IMX1
 	def_bool SOC_IMX1

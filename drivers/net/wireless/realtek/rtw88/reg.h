@@ -306,6 +306,8 @@
 #define REG_DARFRC		0x0430
 #define REG_DARFRCH		0x0434
 #define REG_RARFRCH		0x043C
+#define REG_RRSR		0x0440
+#define BITS_RRSR_RSC		GENMASK(22, 21)
 #define REG_ARFR0		0x0444
 #define REG_ARFRH0		0x0448
 #define REG_ARFR1_V1		0x044C

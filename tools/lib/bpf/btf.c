@@ -858,6 +858,7 @@ static struct btf *btf_parse_elf(const char *path, struct btf *base_btf,
 	Elf_Scn *scn = NULL;
 	Elf *elf = NULL;
 	GElf_Ehdr ehdr;
+	size_t shstrndx;
 
 	if (elf_version(EV_CURRENT) == EV_NONE) {
 		pr_warn("failed to init libelf for %s\n", path);
@@ -882,7 +883,14 @@ static struct btf *btf_parse_elf(const char *path, struct btf *base_btf,
 		pr_warn("failed to get EHDR from %s\n", path);
 		goto done;
 	}
-	if (!elf_rawdata(elf_getscn(elf, ehdr.e_shstrndx), NULL)) {
+
+	if (elf_getshdrstrndx(elf, &shstrndx)) {
+		pr_warn("failed to get section names section index for %s\n",
+			path);
+		goto done;
+	}
+
+	if (!elf_rawdata(elf_getscn(elf, shstrndx), NULL)) {
 		pr_warn("failed to get e_shstrndx from %s\n", path);
 		goto done;
 	}
@@ -897,7 +905,7 @@ static struct btf *btf_parse_elf(const char *path, struct btf *base_btf,
 				idx, path);
 			goto done;
 		}
-		name = elf_strptr(elf, ehdr.e_shstrndx, sh.sh_name);
+		name = elf_strptr(elf, shstrndx, sh.sh_name);
 		if (!name) {
 			pr_warn("failed to get section(%d) name from %s\n",
 				idx, path);

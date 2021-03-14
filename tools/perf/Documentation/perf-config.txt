@@ -238,6 +238,13 @@ buildid.*::
 		cache location, or to disable it altogether. If you want to disable it,
 		set buildid.dir to /dev/null. The default is $HOME/.debug
 
+buildid-cache.*::
+	buildid-cache.debuginfod=URLs
+		Specify debuginfod URLs to be used when retrieving perf.data binaries,
+		it follows the same syntax as the DEBUGINFOD_URLS variable, like:
+
+		  buildid-cache.debuginfod=http://192.168.122.174:8002
+
 annotate.*::
 	These are in control of addresses, jump function, source code
 	in lines of assembly code from a specific program.
@@ -552,11 +559,12 @@ kmem.*::
 
 record.*::
 	record.build-id::
-		This option can be 'cache', 'no-cache' or 'skip'.
+		This option can be 'cache', 'no-cache', 'skip' or 'mmap'.
 		'cache' is to post-process data and save/update the binaries into
 		the build-id cache (in ~/.debug). This is the default.
 		But if this option is 'no-cache', it will not update the build-id cache.
 		'skip' skips post-processing and does not update the cache.
+		'mmap' skips post-processing and reads build-ids from MMAP events.
 
 	record.call-graph::
 		This is identical to 'call-graph.record-mode', except it is
@@ -694,6 +702,20 @@ auxtrace.*::
 		can be changed using this option. Ex, auxtrace.dumpdir=/tmp.
 		If the directory does not exist or has the wrong file type,
 		the current directory is used.
+
+daemon.*::
+
+	daemon.base::
+		Base path for daemon data. All sessions data are stored under
+		this path.
+
+session-<NAME>.*::
+
+	session-<NAME>.run::
+
+		Defines new record session for daemon. The value is record's
+		command line without the 'record' keyword.
+
 
 SEE ALSO
 --------

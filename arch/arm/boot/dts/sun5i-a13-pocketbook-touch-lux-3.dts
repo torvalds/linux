@@ -28,6 +28,7 @@
 		enable-gpios = <&pio 1 4 GPIO_ACTIVE_HIGH>; /* PB4 */
 		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
 		default-brightness-level = <8>;
+		power-supply = <&reg_vcc3v3>;
 	};
 
 	chosen {
@@ -37,7 +38,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		power {
+		led {
 			gpios = <&pio 4 8 GPIO_ACTIVE_LOW>; /* PE8 */
 			default-state = "on";
 		};

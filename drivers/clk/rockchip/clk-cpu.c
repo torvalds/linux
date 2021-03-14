@@ -51,10 +51,6 @@
  */
 struct rockchip_cpuclk {
 	struct clk_hw				hw;
-
-	struct clk_mux				cpu_mux;
-	const struct clk_ops			*cpu_mux_ops;
-
 	struct clk				*alt_parent;
 	void __iomem				*reg_base;
 	struct notifier_block			clk_nb;

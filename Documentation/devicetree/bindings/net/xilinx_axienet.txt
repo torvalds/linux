@@ -38,6 +38,10 @@ Optional properties:
 		  1 to enable partial TX checksum offload,
 		  2 to enable full TX checksum offload
 - xlnx,rxcsum	: Same values as xlnx,txcsum but for RX checksum offload
+- xlnx,switch-x-sgmii : Boolean to indicate the Ethernet core is configured to
+		  support both 1000BaseX and SGMII modes. If set, the phy-mode
+		  should be set to match the mode selected on core reset (i.e.
+		  by the basex_or_sgmii core input line).
 - clocks	: AXI bus clock for the device. Refer to common clock bindings.
 		  Used to calculate MDIO clock divisor. If not specified, it is
 		  auto-detected from the CPU clock (but only on platforms where

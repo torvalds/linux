@@ -10,10 +10,7 @@ C MP+polockmbonce+poacquiresilsil
  * executed before the lock was acquired (loosely speaking).
  *)
 
-{
-	spinlock_t lo;
-	int x;
-}
+{}
 
 P0(spinlock_t *lo, int *x) // Producer
 {

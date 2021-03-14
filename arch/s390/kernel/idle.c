@@ -14,11 +14,35 @@
 #include <linux/cpu.h>
 #include <linux/sched/cputime.h>
 #include <trace/events/power.h>
+#include <asm/cpu_mf.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
 #include "entry.h"
 
 static DEFINE_PER_CPU(struct s390_idle_data, s390_idle);
+
+void account_idle_time_irq(void)
+{
+	struct s390_idle_data *idle = this_cpu_ptr(&s390_idle);
+	u64 cycles_new[8];
+	int i;
+
+	clear_cpu_flag(CIF_ENABLED_WAIT);
+	if (smp_cpu_mtid) {
+		stcctm(MT_DIAG, smp_cpu_mtid, cycles_new);
+		for (i = 0; i < smp_cpu_mtid; i++)
+			this_cpu_add(mt_cycles[i], cycles_new[i] - idle->mt_cycles_enter[i]);
+	}
+
+	idle->clock_idle_exit = S390_lowcore.int_clock;
+	idle->timer_idle_exit = S390_lowcore.sys_enter_timer;
+
+	S390_lowcore.steal_timer += idle->clock_idle_enter - S390_lowcore.last_update_clock;
+	S390_lowcore.last_update_clock = idle->clock_idle_exit;
+
+	S390_lowcore.system_timer += S390_lowcore.last_update_timer - idle->timer_idle_enter;
+	S390_lowcore.last_update_timer = idle->timer_idle_exit;
+}
 
 void arch_cpu_idle(void)
 {

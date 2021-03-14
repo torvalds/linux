@@ -1581,7 +1581,7 @@ static struct snd_soc_dai_driver cs43130_dai[] = {
 			.formats = CS43130_PCM_FORMATS,
 		},
 		.ops = &cs43130_pcm_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.name = "cs43130-asp-dop",
@@ -1594,7 +1594,7 @@ static struct snd_soc_dai_driver cs43130_dai[] = {
 			.formats = CS43130_DOP_FORMATS,
 		},
 		.ops = &cs43130_dop_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.name = "cs43130-xsp-dop",
@@ -1607,7 +1607,7 @@ static struct snd_soc_dai_driver cs43130_dai[] = {
 			.formats = CS43130_DOP_FORMATS,
 		},
 		.ops = &cs43130_dop_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.name = "cs43130-xsp-dsd",

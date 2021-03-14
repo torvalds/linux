@@ -262,7 +262,7 @@ gm200_acr_hsfw_boot(struct nvkm_acr *acr, struct nvkm_acr_hsf *hsf,
 	hsf->func->bld(acr, hsf);
 
 	/* Boot the falcon. */
-	nvkm_mc_intr_mask(device, falcon->owner->index, false);
+	nvkm_mc_intr_mask(device, falcon->owner->type, falcon->owner->inst, false);
 
 	nvkm_falcon_wr32(falcon, 0x040, 0xdeada5a5);
 	nvkm_falcon_set_start_addr(falcon, hsf->imem_tag << 8);
@@ -279,7 +279,7 @@ gm200_acr_hsfw_boot(struct nvkm_acr *acr, struct nvkm_acr_hsf *hsf,
 		return -EIO;
 
 	nvkm_falcon_clear_interrupt(falcon, intr_clear);
-	nvkm_mc_intr_mask(device, falcon->owner->index, true);
+	nvkm_mc_intr_mask(device, falcon->owner->type, falcon->owner->inst, true);
 	return ret;
 }
 
@@ -478,7 +478,8 @@ gm200_acr_fwif[] = {
 };
 
 int
-gm200_acr_new(struct nvkm_device *device, int index, struct nvkm_acr **pacr)
+gm200_acr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_acr **pacr)
 {
-	return nvkm_acr_new_(gm200_acr_fwif, device, index, pacr);
+	return nvkm_acr_new_(gm200_acr_fwif, device, type, inst, pacr);
 }

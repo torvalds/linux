@@ -36,7 +36,7 @@ if:
   properties:
     compatible:
       contains:
-        const: brcm,bcm2711-hvs"
+        const: brcm,bcm2711-hvs
 
 then:
   required:

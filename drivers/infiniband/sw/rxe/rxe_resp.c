@@ -99,6 +99,7 @@ static inline enum resp_states get_req(struct rxe_qp *qp,
 		while ((skb = skb_dequeue(&qp->req_pkts))) {
 			rxe_drop_ref(qp);
 			kfree_skb(skb);
+			ib_device_put(qp->ibqp.device);
 		}
 
 		/* go drain recv wr queue */
@@ -585,11 +586,10 @@ static struct sk_buff *prepare_ack_packet(struct rxe_qp *qp,
 	ack->qp = qp;
 	ack->opcode = opcode;
 	ack->mask = rxe_opcode[opcode].mask;
-	ack->offset = pkt->offset;
 	ack->paylen = paylen;
 
 	/* fill in bth using the request packet headers */
-	memcpy(ack->hdr, pkt->hdr, pkt->offset + RXE_BTH_BYTES);
+	memcpy(ack->hdr, pkt->hdr, RXE_BTH_BYTES);
 
 	bth_set_opcode(ack, opcode);
 	bth_set_qpn(ack, qp->attr.dest_qp_num);
@@ -872,6 +872,11 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 			else
 				wc->network_hdr_type = RDMA_NETWORK_IPV6;
 
+			if (is_vlan_dev(skb->dev)) {
+				wc->wc_flags |= IB_WC_WITH_VLAN;
+				wc->vlan_id = vlan_dev_vlan_id(skb->dev);
+			}
+
 			if (pkt->mask & RXE_IMMDT_MASK) {
 				wc->wc_flags |= IB_WC_WITH_IMM;
 				wc->ex.imm_data = immdt_imm(pkt);
@@ -1012,6 +1017,7 @@ static enum resp_states cleanup(struct rxe_qp *qp,
 		skb = skb_dequeue(&qp->req_pkts);
 		rxe_drop_ref(qp);
 		kfree_skb(skb);
+		ib_device_put(qp->ibqp.device);
 	}
 
 	if (qp->resp.mr) {
@@ -1176,6 +1182,7 @@ static void rxe_drain_req_pkts(struct rxe_qp *qp, bool notify)
 	while ((skb = skb_dequeue(&qp->req_pkts))) {
 		rxe_drop_ref(qp);
 		kfree_skb(skb);
+		ib_device_put(qp->ibqp.device);
 	}
 
 	if (notify)

@@ -758,7 +758,8 @@ static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			MT_STORE_FIELD(inrange_state);
 			return 1;
 		case HID_DG_CONFIDENCE:
-			if (cls->name == MT_CLS_WIN_8 &&
+			if ((cls->name == MT_CLS_WIN_8 ||
+			     cls->name == MT_CLS_WIN_8_FORCE_MULTI_INPUT) &&
 				(field->application == HID_DG_TOUCHPAD ||
 				 field->application == HID_DG_TOUCHSCREEN))
 				app->quirks |= MT_QUIRK_CONFIDENCE;
@@ -1746,6 +1747,13 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 }
 
 #ifdef CONFIG_PM
+static int mt_suspend(struct hid_device *hdev, pm_message_t state)
+{
+	/* High latency is desirable for power savings during S3/S0ix */
+	mt_set_modes(hdev, HID_LATENCY_HIGH, true, true);
+	return 0;
+}
+
 static int mt_reset_resume(struct hid_device *hdev)
 {
 	mt_release_contacts(hdev);
@@ -1760,6 +1768,8 @@ static int mt_resume(struct hid_device *hdev)
 	 * Tested on 3M, Stantum, Cypress, Zytronic, eGalax, and Elan panels. */
 
 	hid_hw_idle(hdev, 0, 0, HID_REQ_SET_IDLE);
+
+	mt_set_modes(hdev, HID_LATENCY_NORMAL, true, true);
 
 	return 0;
 }
@@ -2154,6 +2164,7 @@ static struct hid_driver mt_driver = {
 	.event = mt_event,
 	.report = mt_report,
 #ifdef CONFIG_PM
+	.suspend = mt_suspend,
 	.reset_resume = mt_reset_resume,
 	.resume = mt_resume,
 #endif

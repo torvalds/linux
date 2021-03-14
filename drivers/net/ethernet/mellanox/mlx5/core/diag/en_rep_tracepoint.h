@@ -15,7 +15,7 @@ TRACE_EVENT(mlx5e_rep_neigh_update,
 	    TP_PROTO(const struct mlx5e_neigh_hash_entry *nhe, const u8 *ha,
 		     bool neigh_connected),
 	    TP_ARGS(nhe, ha, neigh_connected),
-	    TP_STRUCT__entry(__string(devname, nhe->m_neigh.dev->name)
+	    TP_STRUCT__entry(__string(devname, nhe->neigh_dev->name)
 			     __array(u8, ha, ETH_ALEN)
 			     __array(u8, v4, 4)
 			     __array(u8, v6, 16)
@@ -25,7 +25,7 @@ TRACE_EVENT(mlx5e_rep_neigh_update,
 			struct in6_addr *pin6;
 			__be32 *p32;
 
-			__assign_str(devname, mn->dev->name);
+			__assign_str(devname, nhe->neigh_dev->name);
 			__entry->neigh_connected = neigh_connected;
 			memcpy(__entry->ha, ha, ETH_ALEN);
 

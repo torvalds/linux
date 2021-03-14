@@ -3043,16 +3043,24 @@ int tcf_exts_validate(struct net *net, struct tcf_proto *tp, struct nlattr **tb,
 		size_t attr_size = 0;
 
 		if (exts->police && tb[exts->police]) {
+			struct tc_action_ops *a_o;
+
+			a_o = tc_action_load_ops("police", tb[exts->police], rtnl_held, extack);
+			if (IS_ERR(a_o))
+				return PTR_ERR(a_o);
 			act = tcf_action_init_1(net, tp, tb[exts->police],
 						rate_tlv, "police", ovr,
-						TCA_ACT_BIND, rtnl_held,
+						TCA_ACT_BIND, a_o, rtnl_held,
 						extack);
-			if (IS_ERR(act))
+			if (IS_ERR(act)) {
+				module_put(a_o->owner);
 				return PTR_ERR(act);
+			}
 
 			act->type = exts->type = TCA_OLD_COMPAT;
 			exts->actions[0] = act;
 			exts->nr_actions = 1;
+			tcf_idr_insert_many(exts->actions);
 		} else if (exts->action && tb[exts->action]) {
 			int err;
 

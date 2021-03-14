@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2020 Linaro Ltd.
+ * Copyright (C) 2018-2021 Linaro Ltd.
  */
 
 #include <linux/refcount.h>
@@ -31,142 +31,154 @@
  */
 
 /**
+ * struct ipa_interconnect - IPA interconnect information
+ * @path:		Interconnect path
+ * @average_bandwidth:	Average interconnect bandwidth (KB/second)
+ * @peak_bandwidth:	Peak interconnect bandwidth (KB/second)
+ */
+struct ipa_interconnect {
+	struct icc_path *path;
+	u32 average_bandwidth;
+	u32 peak_bandwidth;
+};
+
+/**
  * struct ipa_clock - IPA clocking information
  * @count:		Clocking reference count
  * @mutex:		Protects clock enable/disable
  * @core:		IPA core clock
- * @memory_path:	Memory interconnect
- * @imem_path:		Internal memory interconnect
- * @config_path:	Configuration space interconnect
- * @interconnect_data:	Interconnect configuration data
+ * @interconnect_count:	Number of elements in interconnect[]
+ * @interconnect:	Interconnect array
  */
 struct ipa_clock {
 	refcount_t count;
 	struct mutex mutex; /* protects clock enable/disable */
 	struct clk *core;
-	struct icc_path *memory_path;
-	struct icc_path *imem_path;
-	struct icc_path *config_path;
-	const struct ipa_interconnect_data *interconnect_data;
+	u32 interconnect_count;
+	struct ipa_interconnect *interconnect;
 };
 
-static struct icc_path *
-ipa_interconnect_init_one(struct device *dev, const char *name)
+static int ipa_interconnect_init_one(struct device *dev,
+				     struct ipa_interconnect *interconnect,
+				     const struct ipa_interconnect_data *data)
 {
 	struct icc_path *path;
 
-	path = of_icc_get(dev, name);
-	if (IS_ERR(path))
-		dev_err(dev, "error %ld getting %s interconnect\n",
-			PTR_ERR(path), name);
+	path = of_icc_get(dev, data->name);
+	if (IS_ERR(path)) {
+		int ret = PTR_ERR(path);
 
-	return path;
+		dev_err_probe(dev, ret, "error getting %s interconnect\n",
+			      data->name);
+
+		return ret;
+	}
+
+	interconnect->path = path;
+	interconnect->average_bandwidth = data->average_bandwidth;
+	interconnect->peak_bandwidth = data->peak_bandwidth;
+
+	return 0;
+}
+
+static void ipa_interconnect_exit_one(struct ipa_interconnect *interconnect)
+{
+	icc_put(interconnect->path);
+	memset(interconnect, 0, sizeof(*interconnect));
 }
 
 /* Initialize interconnects required for IPA operation */
-static int ipa_interconnect_init(struct ipa_clock *clock, struct device *dev)
+static int ipa_interconnect_init(struct ipa_clock *clock, struct device *dev,
+				 const struct ipa_interconnect_data *data)
 {
-	struct icc_path *path;
+	struct ipa_interconnect *interconnect;
+	u32 count;
+	int ret;
 
-	path = ipa_interconnect_init_one(dev, "memory");
-	if (IS_ERR(path))
-		goto err_return;
-	clock->memory_path = path;
+	count = clock->interconnect_count;
+	interconnect = kcalloc(count, sizeof(*interconnect), GFP_KERNEL);
+	if (!interconnect)
+		return -ENOMEM;
+	clock->interconnect = interconnect;
 
-	path = ipa_interconnect_init_one(dev, "imem");
-	if (IS_ERR(path))
-		goto err_memory_path_put;
-	clock->imem_path = path;
-
-	path = ipa_interconnect_init_one(dev, "config");
-	if (IS_ERR(path))
-		goto err_imem_path_put;
-	clock->config_path = path;
+	while (count--) {
+		ret = ipa_interconnect_init_one(dev, interconnect, data++);
+		if (ret)
+			goto out_unwind;
+		interconnect++;
+	}
 
 	return 0;
 
-err_imem_path_put:
-	icc_put(clock->imem_path);
-err_memory_path_put:
-	icc_put(clock->memory_path);
-err_return:
-	return PTR_ERR(path);
+out_unwind:
+	while (interconnect-- > clock->interconnect)
+		ipa_interconnect_exit_one(interconnect);
+	kfree(clock->interconnect);
+	clock->interconnect = NULL;
+
+	return ret;
 }
 
 /* Inverse of ipa_interconnect_init() */
 static void ipa_interconnect_exit(struct ipa_clock *clock)
 {
-	icc_put(clock->config_path);
-	icc_put(clock->imem_path);
-	icc_put(clock->memory_path);
+	struct ipa_interconnect *interconnect;
+
+	interconnect = clock->interconnect + clock->interconnect_count;
+	while (interconnect-- > clock->interconnect)
+		ipa_interconnect_exit_one(interconnect);
+	kfree(clock->interconnect);
+	clock->interconnect = NULL;
 }
 
 /* Currently we only use one bandwidth level, so just "enable" interconnects */
 static int ipa_interconnect_enable(struct ipa *ipa)
 {
-	const struct ipa_interconnect_data *data;
+	struct ipa_interconnect *interconnect;
 	struct ipa_clock *clock = ipa->clock;
 	int ret;
+	u32 i;
 
-	data = &clock->interconnect_data[IPA_INTERCONNECT_MEMORY];
-	ret = icc_set_bw(clock->memory_path, data->average_rate,
-			 data->peak_rate);
-	if (ret)
-		return ret;
-
-	data = &clock->interconnect_data[IPA_INTERCONNECT_IMEM];
-	ret = icc_set_bw(clock->imem_path, data->average_rate,
-			 data->peak_rate);
-	if (ret)
-		goto err_memory_path_disable;
-
-	data = &clock->interconnect_data[IPA_INTERCONNECT_CONFIG];
-	ret = icc_set_bw(clock->config_path, data->average_rate,
-			 data->peak_rate);
-	if (ret)
-		goto err_imem_path_disable;
+	interconnect = clock->interconnect;
+	for (i = 0; i < clock->interconnect_count; i++) {
+		ret = icc_set_bw(interconnect->path,
+				 interconnect->average_bandwidth,
+				 interconnect->peak_bandwidth);
+		if (ret)
+			goto out_unwind;
+		interconnect++;
+	}
 
 	return 0;
 
-err_imem_path_disable:
-	(void)icc_set_bw(clock->imem_path, 0, 0);
-err_memory_path_disable:
-	(void)icc_set_bw(clock->memory_path, 0, 0);
+out_unwind:
+	while (interconnect-- > clock->interconnect)
+		(void)icc_set_bw(interconnect->path, 0, 0);
 
 	return ret;
 }
 
 /* To disable an interconnect, we just its bandwidth to 0 */
-static int ipa_interconnect_disable(struct ipa *ipa)
+static void ipa_interconnect_disable(struct ipa *ipa)
 {
-	const struct ipa_interconnect_data *data;
+	struct ipa_interconnect *interconnect;
 	struct ipa_clock *clock = ipa->clock;
+	int result = 0;
+	u32 count;
 	int ret;
 
-	ret = icc_set_bw(clock->memory_path, 0, 0);
-	if (ret)
-		return ret;
+	count = clock->interconnect_count;
+	interconnect = clock->interconnect + count;
+	while (count--) {
+		interconnect--;
+		ret = icc_set_bw(interconnect->path, 0, 0);
+		if (ret && !result)
+			result = ret;
+	}
 
-	ret = icc_set_bw(clock->imem_path, 0, 0);
-	if (ret)
-		goto err_memory_path_reenable;
-
-	ret = icc_set_bw(clock->config_path, 0, 0);
-	if (ret)
-		goto err_imem_path_reenable;
-
-	return 0;
-
-err_imem_path_reenable:
-	data = &clock->interconnect_data[IPA_INTERCONNECT_IMEM];
-	(void)icc_set_bw(clock->imem_path, data->average_rate,
-			 data->peak_rate);
-err_memory_path_reenable:
-	data = &clock->interconnect_data[IPA_INTERCONNECT_MEMORY];
-	(void)icc_set_bw(clock->memory_path, data->average_rate,
-			 data->peak_rate);
-
-	return ret;
+	if (result)
+		dev_err(&ipa->pdev->dev,
+			"error %d disabling IPA interconnects\n", ret);
 }
 
 /* Turn on IPA clocks, including interconnects */
@@ -189,7 +201,7 @@ static int ipa_clock_enable(struct ipa *ipa)
 static void ipa_clock_disable(struct ipa *ipa)
 {
 	clk_disable_unprepare(ipa->clock->core);
-	(void)ipa_interconnect_disable(ipa);
+	ipa_interconnect_disable(ipa);
 }
 
 /* Get an IPA clock reference, but only if the reference count is
@@ -269,7 +281,8 @@ ipa_clock_init(struct device *dev, const struct ipa_clock_data *data)
 
 	clk = clk_get(dev, "core");
 	if (IS_ERR(clk)) {
-		dev_err(dev, "error %ld getting core clock\n", PTR_ERR(clk));
+		dev_err_probe(dev, PTR_ERR(clk), "error getting core clock\n");
+
 		return ERR_CAST(clk);
 	}
 
@@ -286,9 +299,9 @@ ipa_clock_init(struct device *dev, const struct ipa_clock_data *data)
 		goto err_clk_put;
 	}
 	clock->core = clk;
-	clock->interconnect_data = data->interconnect;
+	clock->interconnect_count = data->interconnect_count;
 
-	ret = ipa_interconnect_init(clock, dev);
+	ret = ipa_interconnect_init(clock, dev, data->interconnect_data);
 	if (ret)
 		goto err_kfree;
 

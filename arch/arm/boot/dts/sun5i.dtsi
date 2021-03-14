@@ -726,6 +726,18 @@
 			#size-cells = <0>;
 		};
 
+		mali: gpu@1c40000 {
+			compatible = "allwinner,sun4i-a10-mali", "arm,mali-400";
+			reg = <0x01c40000 0x10000>;
+			interrupts = <69>, <70>, <71>, <72>,  <73>;
+			interrupt-names = "gp", "gpmmu", "pp0", "ppmmu0", "pmu";
+			clocks = <&ccu CLK_AHB_GPU>, <&ccu CLK_GPU>;
+			clock-names = "bus", "core";
+			resets = <&ccu RST_GPU>;
+			assigned-clocks = <&ccu CLK_GPU>;
+			assigned-clock-rates = <320000000>;
+		};
+
 		timer@1c60000 {
 			compatible = "allwinner,sun5i-a13-hstimer";
 			reg = <0x01c60000 0x1000>;

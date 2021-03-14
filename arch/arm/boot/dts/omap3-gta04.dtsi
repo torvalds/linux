@@ -114,7 +114,7 @@
 		gpio-sck = <&gpio1 12 GPIO_ACTIVE_HIGH>;
 		gpio-miso = <&gpio1 18 GPIO_ACTIVE_HIGH>;
 		gpio-mosi = <&gpio1 20 GPIO_ACTIVE_HIGH>;
-		cs-gpios = <&gpio1 19 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&gpio1 19 GPIO_ACTIVE_LOW>;
 		num-chipselects = <1>;
 
 		/* lcd panel */
@@ -124,7 +124,6 @@
 			spi-max-frequency = <100000>;
 			spi-cpol;
 			spi-cpha;
-			spi-cs-high;
 
 			backlight= <&backlight>;
 			label = "lcd";
@@ -489,8 +488,8 @@
 		};
 
 		twl_power: power {
-			compatible = "ti,twl4030-power";
-			ti,use_poweroff;
+			compatible = "ti,twl4030-power-idle";
+			ti,system-power-controller;
 		};
 	};
 };

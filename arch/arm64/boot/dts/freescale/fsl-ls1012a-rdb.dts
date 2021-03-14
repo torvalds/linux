@@ -7,11 +7,17 @@
  */
 /dts-v1/;
 
+#include <dt-bindings/interrupt-controller/irq.h>
 #include "fsl-ls1012a.dtsi"
 
 / {
 	model = "LS1012A RDB Board";
 	compatible = "fsl,ls1012a-rdb", "fsl,ls1012a";
+
+	aliases {
+		mmc0 = &esdhc0;
+		mmc1 = &esdhc1;
+	};
 };
 
 &duart0 {
@@ -33,6 +39,50 @@
 
 &i2c0 {
 	status = "okay";
+
+	accelerometer@1e {
+		compatible = "nxp,fxos8700";
+		reg = <0x1e>;
+		interrupt-parent = <&gpio26>;
+		interrupts = <13 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "INT1";
+	};
+
+	gyroscope@20 {
+		compatible = "nxp,fxas21002c";
+		reg = <0x20>;
+	};
+
+	gpio@24 {
+		compatible = "nxp,pcal9555a";
+		reg = <0x24>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	gpio@25 {
+		compatible = "nxp,pcal9555a";
+		reg = <0x25>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	gpio26: gpio@26 {
+		compatible = "nxp,pcal9555a";
+		reg = <0x26>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	current-sensor@40 {
+		compatible = "ti,ina220";
+		reg = <0x40>;
+		shunt-resistor = <2000>;
+	};
 };
 
 &qspi {

@@ -340,6 +340,7 @@ struct vas_instance {
 	struct vas_window *rxwin[VAS_COP_TYPE_MAX];
 	struct vas_window *windows[VAS_WINDOWS_PER_CHIP];
 
+	char *name;
 	char *dbgname;
 	struct dentry *dbgdir;
 };

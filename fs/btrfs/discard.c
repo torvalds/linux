@@ -185,10 +185,12 @@ static struct btrfs_block_group *find_next_block_group(
 }
 
 /**
- * peek_discard_list - wrap find_next_block_group()
- * @discard_ctl: discard control
+ * Wrap find_next_block_group()
+ *
+ * @discard_ctl:   discard control
  * @discard_state: the discard_state of the block_group after state management
  * @discard_index: the discard_index of the block_group after state management
+ * @now:           time when discard was invoked, in ns
  *
  * This wraps find_next_block_group() and sets the block_group to be in use.
  * discard_state's control flow is managed here.  Variables related to

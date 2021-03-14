@@ -238,19 +238,19 @@ struct mhuv2_mbox_chan_priv {
 };
 
 /* Macro for reading a bitfield within a physically mapped packed struct */
-#define readl_relaxed_bitfield(_regptr, _field)				\
+#define readl_relaxed_bitfield(_regptr, _type, _field)			\
 	({								\
 		u32 _regval;						\
 		_regval = readl_relaxed((_regptr));			\
-		(*(typeof((_regptr)))(&_regval))._field;		\
+		(*(_type *)(&_regval))._field;				\
 	})
 
 /* Macro for writing a bitfield within a physically mapped packed struct */
-#define writel_relaxed_bitfield(_value, _regptr, _field)		\
+#define writel_relaxed_bitfield(_value, _regptr, _type, _field)		\
 	({								\
 		u32 _regval;						\
 		_regval = readl_relaxed(_regptr);			\
-		(*(typeof(_regptr))(&_regval))._field = _value;		\
+		(*(_type *)(&_regval))._field = _value;			\
 		writel_relaxed(_regval, _regptr);			\
 	})
 
@@ -496,7 +496,7 @@ static const struct mhuv2_protocol_ops mhuv2_data_transfer_ops = {
 
 /* Interrupt handlers */
 
-static struct mbox_chan *get_irq_chan_comb(struct mhuv2 *mhu, u32 *reg)
+static struct mbox_chan *get_irq_chan_comb(struct mhuv2 *mhu, u32 __iomem *reg)
 {
 	struct mbox_chan *chans = mhu->mbox.chans;
 	int channel = 0, i, offset = 0, windows, protocol, ch_wn;
@@ -699,7 +699,9 @@ static irqreturn_t mhuv2_receiver_interrupt(int irq, void *arg)
 		ret = IRQ_HANDLED;
 	}
 
-	kfree(data);
+	if (!IS_ERR(data))
+		kfree(data);
+
 	return ret;
 }
 
@@ -969,8 +971,8 @@ static int mhuv2_tx_init(struct amba_device *adev, struct mhuv2 *mhu,
 	mhu->mbox.ops = &mhuv2_sender_ops;
 	mhu->send = reg;
 
-	mhu->windows = readl_relaxed_bitfield(&mhu->send->mhu_cfg, num_ch);
-	mhu->minor = readl_relaxed_bitfield(&mhu->send->aidr, arch_minor_rev);
+	mhu->windows = readl_relaxed_bitfield(&mhu->send->mhu_cfg, struct mhu_cfg_t, num_ch);
+	mhu->minor = readl_relaxed_bitfield(&mhu->send->aidr, struct aidr_t, arch_minor_rev);
 
 	spin_lock_init(&mhu->doorbell_pending_lock);
 
@@ -990,7 +992,7 @@ static int mhuv2_tx_init(struct amba_device *adev, struct mhuv2 *mhu,
 			mhu->mbox.txdone_poll = false;
 			mhu->irq = adev->irq[0];
 
-			writel_relaxed_bitfield(1, &mhu->send->int_en, chcomb);
+			writel_relaxed_bitfield(1, &mhu->send->int_en, struct int_en_t, chcomb);
 
 			/* Disable all channel interrupts */
 			for (i = 0; i < mhu->windows; i++)
@@ -1023,8 +1025,8 @@ static int mhuv2_rx_init(struct amba_device *adev, struct mhuv2 *mhu,
 	mhu->mbox.ops = &mhuv2_receiver_ops;
 	mhu->recv = reg;
 
-	mhu->windows = readl_relaxed_bitfield(&mhu->recv->mhu_cfg, num_ch);
-	mhu->minor = readl_relaxed_bitfield(&mhu->recv->aidr, arch_minor_rev);
+	mhu->windows = readl_relaxed_bitfield(&mhu->recv->mhu_cfg, struct mhu_cfg_t, num_ch);
+	mhu->minor = readl_relaxed_bitfield(&mhu->recv->aidr, struct aidr_t, arch_minor_rev);
 
 	mhu->irq = adev->irq[0];
 	if (!mhu->irq) {
@@ -1045,7 +1047,7 @@ static int mhuv2_rx_init(struct amba_device *adev, struct mhuv2 *mhu,
 		writel_relaxed(0xFFFFFFFF, &mhu->recv->ch_wn[i].mask_set);
 
 	if (mhu->minor)
-		writel_relaxed_bitfield(1, &mhu->recv->int_en, chcomb);
+		writel_relaxed_bitfield(1, &mhu->recv->int_en, struct int_en_t, chcomb);
 
 	return 0;
 }
@@ -1095,14 +1097,12 @@ static int mhuv2_probe(struct amba_device *adev, const struct amba_id *id)
 	return ret;
 }
 
-static int mhuv2_remove(struct amba_device *adev)
+static void mhuv2_remove(struct amba_device *adev)
 {
 	struct mhuv2 *mhu = amba_get_drvdata(adev);
 
 	if (mhu->frame == SENDER_FRAME)
 		writel_relaxed(0x0, &mhu->send->access_request);
-
-	return 0;
 }
 
 static struct amba_id mhuv2_ids[] = {
