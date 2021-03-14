@@ -570,20 +570,6 @@ static int ad7150_probe(struct i2c_client *client,
 			return ret;
 	}
 
-	if (client->dev.platform_data) {
-		ret = devm_request_threaded_irq(&client->dev, *(unsigned int *)
-						client->dev.platform_data,
-						NULL,
-						&ad7150_event_handler,
-						IRQF_TRIGGER_RISING |
-						IRQF_TRIGGER_FALLING |
-						IRQF_ONESHOT,
-						"ad7150_irq2",
-						indio_dev);
-		if (ret)
-			return ret;
-	}
-
 	ret = devm_iio_device_register(indio_dev->dev.parent, indio_dev);
 	if (ret)
 		return ret;
