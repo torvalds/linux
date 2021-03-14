@@ -52,9 +52,11 @@ typedef enum data_cmd (*move_pred_fn)(struct bch_fs *, void *,
 				struct bkey_s_c,
 				struct bch_io_opts *, struct data_opts *);
 
-int bch2_move_data(struct bch_fs *, struct bch_ratelimit *,
+int bch2_move_data(struct bch_fs *,
+		   enum btree_id, struct bpos,
+		   enum btree_id, struct bpos,
+		   struct bch_ratelimit *,
 		   struct write_point_specifier,
-		   struct bpos, struct bpos,
 		   move_pred_fn, void *,
 		   struct bch_move_stats *);
 

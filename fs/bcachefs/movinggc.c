@@ -219,9 +219,11 @@ static int bch2_copygc(struct bch_fs *c)
 			sizeof(h->data[0]),
 			bucket_offset_cmp, NULL);
 
-	ret = bch2_move_data(c, &c->copygc_pd.rate,
+	ret = bch2_move_data(c,
+			     0,			POS_MIN,
+			     BTREE_ID_NR,	POS_MAX,
+			     &c->copygc_pd.rate,
 			     writepoint_ptr(&c->copygc_write_point),
-			     POS_MIN, POS_MAX,
 			     copygc_pred, NULL,
 			     &move_stats);
 

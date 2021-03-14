@@ -239,10 +239,11 @@ static int bch2_rebalance_thread(void *arg)
 		rebalance_work_reset(c);
 
 		bch2_move_data(c,
+			       0,		POS_MIN,
+			       BTREE_ID_NR,	POS_MAX,
 			       /* ratelimiting disabled for now */
 			       NULL, /*  &r->pd.rate, */
 			       writepoint_ptr(&c->rebalance_write_point),
-			       POS_MIN, POS_MAX,
 			       rebalance_pred, NULL,
 			       &r->move_stats);
 	}

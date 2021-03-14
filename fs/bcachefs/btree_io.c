@@ -920,6 +920,8 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	unsigned u64s;
 	int ret, retry_read = 0, write = READ;
 
+	b->version_ondisk = U16_MAX;
+
 	iter = mempool_alloc(&c->fill_iter, GFP_NOIO);
 	sort_iter_init(iter, b);
 	iter->size = (btree_blocks(c) + 1) * 2;
@@ -999,6 +1001,9 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 
 			sectors = vstruct_sectors(bne, c->block_bits);
 		}
+
+		b->version_ondisk = min(b->version_ondisk,
+					le16_to_cpu(i->version));
 
 		ret = validate_bset(c, ca, b, i, sectors,
 				    READ, have_retry);

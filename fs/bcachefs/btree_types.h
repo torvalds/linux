@@ -76,6 +76,7 @@ struct btree {
 	u16			written;
 	u8			nsets;
 	u8			nr_key_bits;
+	u16			version_ondisk;
 
 	struct bkey_format	format;
 
