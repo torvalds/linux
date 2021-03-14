@@ -1029,8 +1029,8 @@ static int validate_recv_data_frame(struct adapter *adapter,
 	int ret = _SUCCESS;
 
 	bretry = GetRetry(ptr);
-	pda = get_da(ptr);
-	psa = get_sa(ptr);
+	pda = ieee80211_get_DA((struct ieee80211_hdr *)ptr);
+	psa = ieee80211_get_SA((struct ieee80211_hdr *)ptr);
 	pbssid = get_hdr_bssid(ptr);
 
 	if (!pbssid) {
