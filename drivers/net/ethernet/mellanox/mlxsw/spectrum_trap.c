@@ -208,17 +208,32 @@ static void mlxsw_sp_rx_sample_listener(struct sk_buff *skb, u8 local_port,
 					void *trap_ctx)
 {
 	struct mlxsw_sp *mlxsw_sp = devlink_trap_ctx_priv(trap_ctx);
+	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct mlxsw_sp_port_sample *sample;
+	struct psample_metadata md = {};
 	int err;
 
 	err = __mlxsw_sp_rx_no_mark_listener(skb, local_port, trap_ctx);
 	if (err)
 		return;
 
-	/* The sample handler expects skb->data to point to the start of the
+	mlxsw_sp_port = mlxsw_sp->ports[local_port];
+	if (!mlxsw_sp_port)
+		goto out;
+
+	sample = rcu_dereference(mlxsw_sp_port->sample);
+	if (!sample)
+		goto out;
+
+	/* The psample module expects skb->data to point to the start of the
 	 * Ethernet header.
 	 */
 	skb_push(skb, ETH_HLEN);
-	mlxsw_sp_sample_receive(mlxsw_sp, skb, local_port);
+	md.trunc_size = sample->truncate ? sample->trunc_size : skb->len;
+	md.in_ifindex = mlxsw_sp_port->dev->ifindex;
+	psample_sample_packet(sample->psample_group, skb, sample->rate, &md);
+out:
+	consume_skb(skb);
 }
 
 #define MLXSW_SP_TRAP_DROP(_id, _group_id)				      \
