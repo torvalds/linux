@@ -584,18 +584,11 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 	regcache_cache_only(ahub->regmap_ahub, true);
 
 	pm_runtime_enable(&pdev->dev);
-	if (!pm_runtime_enabled(&pdev->dev)) {
-		ret = tegra30_ahub_runtime_resume(&pdev->dev);
-		if (ret)
-			goto err_pm_disable;
-	}
 
 	of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
 
 	return 0;
 
-err_pm_disable:
-	pm_runtime_disable(&pdev->dev);
 err_unset_ahub:
 	ahub = NULL;
 
@@ -605,8 +598,6 @@ err_unset_ahub:
 static int tegra30_ahub_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-	if (!pm_runtime_status_suspended(&pdev->dev))
-		tegra30_ahub_runtime_suspend(&pdev->dev);
 
 	ahub = NULL;
 
