@@ -51,6 +51,12 @@
 
 #define AD7150_CH_TIMEOUT_RECEDING		GENMASK(3, 0)
 #define AD7150_CH_TIMEOUT_APPROACHING		GENMASK(7, 4)
+
+enum {
+	AD7150,
+	AD7151,
+};
+
 /**
  * struct ad7150_chip_info - instance specific chip data
  * @client: i2c client for this device
@@ -447,9 +453,30 @@ static const struct iio_event_spec ad7150_events[] = {
 		.num_event_specs = ARRAY_SIZE(ad7150_events),	\
 	}
 
+#define AD7150_CAPACITANCE_CHAN_NO_IRQ(_chan)	{		\
+		.type = IIO_CAPACITANCE,			\
+		.indexed = 1,					\
+		.channel = _chan,				\
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |	\
+		BIT(IIO_CHAN_INFO_AVERAGE_RAW),			\
+	}
+
 static const struct iio_chan_spec ad7150_channels[] = {
 	AD7150_CAPACITANCE_CHAN(0),
-	AD7150_CAPACITANCE_CHAN(1)
+	AD7150_CAPACITANCE_CHAN(1),
+};
+
+static const struct iio_chan_spec ad7150_channels_no_irq[] = {
+	AD7150_CAPACITANCE_CHAN_NO_IRQ(0),
+	AD7150_CAPACITANCE_CHAN_NO_IRQ(1),
+};
+
+static const struct iio_chan_spec ad7151_channels[] = {
+	AD7150_CAPACITANCE_CHAN(0),
+};
+
+static const struct iio_chan_spec ad7151_channels_no_irq[] = {
+	AD7150_CAPACITANCE_CHAN_NO_IRQ(0),
 };
 
 static irqreturn_t ad7150_event_handler(int irq, void *private)
@@ -532,6 +559,10 @@ static const struct iio_info ad7150_info = {
 	.write_event_value = &ad7150_write_event_value,
 };
 
+static const struct iio_info ad7150_info_no_irq = {
+	.read_raw = &ad7150_read_raw,
+};
+
 static int ad7150_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -550,14 +581,24 @@ static int ad7150_probe(struct i2c_client *client,
 	chip->client = client;
 
 	indio_dev->name = id->name;
-	indio_dev->channels = ad7150_channels;
-	indio_dev->num_channels = ARRAY_SIZE(ad7150_channels);
-
-	indio_dev->info = &ad7150_info;
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	if (client->irq) {
+		indio_dev->info = &ad7150_info;
+		switch (id->driver_data) {
+		case AD7150:
+			indio_dev->channels = ad7150_channels;
+			indio_dev->num_channels = ARRAY_SIZE(ad7150_channels);
+			break;
+		case AD7151:
+			indio_dev->channels = ad7151_channels;
+			indio_dev->num_channels = ARRAY_SIZE(ad7151_channels);
+			break;
+		default:
+			return -EINVAL;
+		}
+
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						NULL,
 						&ad7150_event_handler,
@@ -568,6 +609,20 @@ static int ad7150_probe(struct i2c_client *client,
 						indio_dev);
 		if (ret)
 			return ret;
+	} else {
+		indio_dev->info = &ad7150_info_no_irq;
+		switch (id->driver_data) {
+		case AD7150:
+			indio_dev->channels = ad7150_channels_no_irq;
+			indio_dev->num_channels = ARRAY_SIZE(ad7150_channels_no_irq);
+			break;
+		case AD7151:
+			indio_dev->channels = ad7151_channels_no_irq;
+			indio_dev->num_channels = ARRAY_SIZE(ad7151_channels_no_irq);
+			break;
+		default:
+			return -EINVAL;
+		}
 	}
 
 	ret = devm_iio_device_register(indio_dev->dev.parent, indio_dev);
@@ -581,9 +636,9 @@ static int ad7150_probe(struct i2c_client *client,
 }
 
 static const struct i2c_device_id ad7150_id[] = {
-	{ "ad7150", 0 },
-	{ "ad7151", 0 },
-	{ "ad7156", 0 },
+	{ "ad7150", AD7150 },
+	{ "ad7151", AD7151 },
+	{ "ad7156", AD7150 },
 	{}
 };
 
