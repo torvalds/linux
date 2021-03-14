@@ -460,6 +460,8 @@ static const struct of_device_id tegra20_i2s_of_match[] = {
 static const struct dev_pm_ops tegra20_i2s_pm_ops = {
 	SET_RUNTIME_PM_OPS(tegra20_i2s_runtime_suspend,
 			   tegra20_i2s_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 static struct platform_driver tegra20_i2s_driver = {
