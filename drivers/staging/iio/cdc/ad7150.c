@@ -17,9 +17,6 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
-/*
- * AD7150 registers definition
- */
 
 #define AD7150_STATUS_REG		0
 #define   AD7150_STATUS_OUT1		BIT(3)
@@ -88,10 +85,6 @@ struct ad7150_chip_info {
 	enum iio_event_type type;
 	enum iio_event_direction dir;
 };
-
-/*
- * sysfs nodes
- */
 
 static const u8 ad7150_addresses[][6] = {
 	{ AD7150_CH1_DATA_HIGH_REG, AD7150_CH1_AVG_HIGH_REG,
@@ -172,8 +165,7 @@ static int ad7150_read_event_config(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-/* state_lock should be held to ensure consistent state*/
-
+/* state_lock should be held to ensure consistent state */
 static int ad7150_write_event_params(struct iio_dev *indio_dev,
 				     unsigned int chan,
 				     enum iio_event_type type,
