@@ -89,6 +89,16 @@ ap_ts_pen_1v8: &i2c4 {
 	data-lanes = <0 1 2 3>;
 };
 
+&sound {
+	compatible = "google,sc7180-coachz";
+	model = "sc7180-adau7002-max98357a";
+	audio-routing = "PDM_DAT", "DMIC";
+};
+
+&sound_multimedia0_codec {
+	sound-dai = <&adau7002>;
+};
+
 /* PINCTRL - modifications to sc7180-trogdor.dtsi */
 
 &en_pp3300_dx_edp {
