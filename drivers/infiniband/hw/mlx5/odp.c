@@ -1531,20 +1531,24 @@ enum {
 	MLX5_IB_NUM_PF_DRAIN	= 64,
 };
 
-static int
-mlx5_ib_create_pf_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
+int mlx5r_odp_create_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
 {
 	struct mlx5_eq_param param = {};
-	int err;
+	int err = 0;
 
+	mutex_lock(&dev->odp_eq_mutex);
+	if (eq->core)
+		goto unlock;
 	INIT_WORK(&eq->work, mlx5_ib_eq_pf_action);
 	spin_lock_init(&eq->lock);
 	eq->dev = dev;
 
 	eq->pool = mempool_create_kmalloc_pool(MLX5_IB_NUM_PF_DRAIN,
 					       sizeof(struct mlx5_pagefault));
-	if (!eq->pool)
-		return -ENOMEM;
+	if (!eq->pool) {
+		err = -ENOMEM;
+		goto unlock;
+	}
 
 	eq->wq = alloc_workqueue("mlx5_ib_page_fault",
 				 WQ_HIGHPRI | WQ_UNBOUND | WQ_MEM_RECLAIM,
@@ -1555,7 +1559,7 @@ mlx5_ib_create_pf_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
 	}
 
 	eq->irq_nb.notifier_call = mlx5_ib_eq_pf_int;
-	param = (struct mlx5_eq_param) {
+	param = (struct mlx5_eq_param){
 		.irq_index = 0,
 		.nent = MLX5_IB_NUM_PF_EQE,
 	};
@@ -1571,21 +1575,27 @@ mlx5_ib_create_pf_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
 		goto err_eq;
 	}
 
+	mutex_unlock(&dev->odp_eq_mutex);
 	return 0;
 err_eq:
 	mlx5_eq_destroy_generic(dev->mdev, eq->core);
 err_wq:
+	eq->core = NULL;
 	destroy_workqueue(eq->wq);
 err_mempool:
 	mempool_destroy(eq->pool);
+unlock:
+	mutex_unlock(&dev->odp_eq_mutex);
 	return err;
 }
 
 static int
-mlx5_ib_destroy_pf_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
+mlx5_ib_odp_destroy_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
 {
 	int err;
 
+	if (!eq->core)
+		return 0;
 	mlx5_eq_disable(dev->mdev, eq->core, &eq->irq_nb);
 	err = mlx5_eq_destroy_generic(dev->mdev, eq->core);
 	cancel_work_sync(&eq->work);
@@ -1642,8 +1652,7 @@ int mlx5_ib_odp_init_one(struct mlx5_ib_dev *dev)
 		}
 	}
 
-	ret = mlx5_ib_create_pf_eq(dev, &dev->odp_pf_eq);
-
+	mutex_init(&dev->odp_eq_mutex);
 	return ret;
 }
 
@@ -1652,7 +1661,7 @@ void mlx5_ib_odp_cleanup_one(struct mlx5_ib_dev *dev)
 	if (!(dev->odp_caps.general_caps & IB_ODP_SUPPORT))
 		return;
 
-	mlx5_ib_destroy_pf_eq(dev, &dev->odp_pf_eq);
+	mlx5_ib_odp_destroy_eq(dev, &dev->odp_pf_eq);
 }
 
 int mlx5_ib_odp_init(void)

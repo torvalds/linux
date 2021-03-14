@@ -1080,6 +1080,7 @@ struct mlx5_ib_dev {
 	struct mutex			slow_path_mutex;
 	struct ib_odp_caps	odp_caps;
 	u64			odp_max_size;
+	struct mutex		odp_eq_mutex;
 	struct mlx5_ib_pf_eq	odp_pf_eq;
 
 	struct xarray		odp_mkeys;
@@ -1358,6 +1359,7 @@ struct ib_mr *mlx5_ib_reg_dm_mr(struct ib_pd *pd, struct ib_dm *dm,
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev);
 int mlx5_ib_odp_init_one(struct mlx5_ib_dev *ibdev);
+int mlx5r_odp_create_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq);
 void mlx5_ib_odp_cleanup_one(struct mlx5_ib_dev *ibdev);
 int __init mlx5_ib_odp_init(void);
 void mlx5_ib_odp_cleanup(void);
@@ -1377,6 +1379,11 @@ static inline void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 }
 
 static inline int mlx5_ib_odp_init_one(struct mlx5_ib_dev *ibdev) { return 0; }
+static inline int mlx5r_odp_create_eq(struct mlx5_ib_dev *dev,
+				      struct mlx5_ib_pf_eq *eq)
+{
+	return 0;
+}
 static inline void mlx5_ib_odp_cleanup_one(struct mlx5_ib_dev *ibdev) {}
 static inline int mlx5_ib_odp_init(void) { return 0; }
 static inline void mlx5_ib_odp_cleanup(void)				    {}

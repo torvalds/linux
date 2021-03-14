@@ -1500,6 +1500,9 @@ static struct ib_mr *create_user_odp_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (!IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING))
 		return ERR_PTR(-EOPNOTSUPP);
 
+	err = mlx5r_odp_create_eq(dev, &dev->odp_pf_eq);
+	if (err)
+		return ERR_PTR(err);
 	if (!start && length == U64_MAX) {
 		if (iova != 0)
 			return ERR_PTR(-EINVAL);
