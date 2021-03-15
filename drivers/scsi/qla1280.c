@@ -3054,7 +3054,7 @@ qla1280_32bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 
 	/* Check for empty slot in outstanding command list. */
 	for (cnt = 0; cnt < MAX_OUTSTANDING_COMMANDS &&
-		     (ha->outstanding_cmds[cnt] != 0); cnt++) ;
+	     ha->outstanding_cmds[cnt]; cnt++);
 
 	if (cnt >= MAX_OUTSTANDING_COMMANDS) {
 		status = SCSI_MLQUEUE_HOST_BUSY;
