@@ -286,8 +286,9 @@
 
 	pmic-5v-hog {
 		gpio-hog;
-		gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+		gpios = <1 GPIO_ACTIVE_HIGH>;
 		input;
+		lane-mapping = "pmic-5v";
 	};
 };
 
