@@ -49,6 +49,7 @@ void tdp_iter_start(struct tdp_iter *iter, u64 *root_pt, int root_level,
 	iter->root_level = root_level;
 	iter->min_level = min_level;
 	iter->pt_path[iter->root_level - 1] = (tdp_ptep_t)root_pt;
+	iter->as_id = kvm_mmu_page_as_id(sptep_to_sp(root_pt));
 
 	tdp_iter_restart(iter);
 }
@@ -167,10 +168,5 @@ void tdp_iter_next(struct tdp_iter *iter)
 			return;
 	} while (try_step_up(iter));
 	iter->valid = false;
-}
-
-tdp_ptep_t tdp_iter_root_pt(struct tdp_iter *iter)
-{
-	return iter->pt_path[iter->root_level - 1];
 }
 

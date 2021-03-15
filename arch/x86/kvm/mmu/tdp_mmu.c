@@ -203,11 +203,6 @@ static void handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
 				u64 old_spte, u64 new_spte, int level,
 				bool shared);
 
-static int kvm_mmu_page_as_id(struct kvm_mmu_page *sp)
-{
-	return sp->role.smm ? 1 : 0;
-}
-
 static void handle_changed_spte_acc_track(u64 old_spte, u64 new_spte, int level)
 {
 	bool pfn_changed = spte_to_pfn(old_spte) != spte_to_pfn(new_spte);
@@ -497,10 +492,6 @@ static inline bool tdp_mmu_set_spte_atomic(struct kvm *kvm,
 					   struct tdp_iter *iter,
 					   u64 new_spte)
 {
-	u64 *root_pt = tdp_iter_root_pt(iter);
-	struct kvm_mmu_page *root = sptep_to_sp(root_pt);
-	int as_id = kvm_mmu_page_as_id(root);
-
 	lockdep_assert_held_read(&kvm->mmu_lock);
 
 	/*
@@ -514,8 +505,8 @@ static inline bool tdp_mmu_set_spte_atomic(struct kvm *kvm,
 		      new_spte) != iter->old_spte)
 		return false;
 
-	handle_changed_spte(kvm, as_id, iter->gfn, iter->old_spte, new_spte,
-			    iter->level, true);
+	handle_changed_spte(kvm, iter->as_id, iter->gfn, iter->old_spte,
+			    new_spte, iter->level, true);
 
 	return true;
 }
@@ -569,10 +560,6 @@ static inline void __tdp_mmu_set_spte(struct kvm *kvm, struct tdp_iter *iter,
 				      u64 new_spte, bool record_acc_track,
 				      bool record_dirty_log)
 {
-	tdp_ptep_t root_pt = tdp_iter_root_pt(iter);
-	struct kvm_mmu_page *root = sptep_to_sp(root_pt);
-	int as_id = kvm_mmu_page_as_id(root);
-
 	lockdep_assert_held_write(&kvm->mmu_lock);
 
 	/*
@@ -586,13 +573,13 @@ static inline void __tdp_mmu_set_spte(struct kvm *kvm, struct tdp_iter *iter,
 
 	WRITE_ONCE(*rcu_dereference(iter->sptep), new_spte);
 
-	__handle_changed_spte(kvm, as_id, iter->gfn, iter->old_spte, new_spte,
-			      iter->level, false);
+	__handle_changed_spte(kvm, iter->as_id, iter->gfn, iter->old_spte,
+			      new_spte, iter->level, false);
 	if (record_acc_track)
 		handle_changed_spte_acc_track(iter->old_spte, new_spte,
 					      iter->level);
 	if (record_dirty_log)
-		handle_changed_spte_dirty_log(kvm, as_id, iter->gfn,
+		handle_changed_spte_dirty_log(kvm, iter->as_id, iter->gfn,
 					      iter->old_spte, new_spte,
 					      iter->level);
 }
