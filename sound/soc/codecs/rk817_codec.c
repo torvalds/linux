@@ -480,34 +480,12 @@ static SOC_ENUM_SINGLE_DECL(rk817_call_path_type,
 static SOC_ENUM_SINGLE_DECL(rk817_modem_input_type,
 	0, 0, rk817_modem_input_mode);
 
-static int rk817_playback_path_get(struct snd_kcontrol *kcontrol,
-				   struct snd_ctl_elem_value *ucontrol)
+static int rk817_playback_path_config(struct snd_soc_component *component,
+				      long pre_path, long target_path)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
 
-	DBG("%s : playback_path %ld\n", __func__, rk817->playback_path);
-
-	ucontrol->value.integer.value[0] = rk817->playback_path;
-
-	return 0;
-}
-
-static int rk817_playback_path_put(struct snd_kcontrol *kcontrol,
-				   struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
-	struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
-	long int pre_path;
-
-	if (rk817->playback_path == ucontrol->value.integer.value[0]) {
-		DBG("%s : playback_path is not changed!\n",
-		    __func__);
-		return 0;
-	}
-
-	pre_path = rk817->playback_path;
-	rk817->playback_path = ucontrol->value.integer.value[0];
+	rk817->playback_path = target_path;
 
 	DBG("%s : set playback_path %ld, pre_path %ld\n",
 	    __func__, rk817->playback_path, pre_path);
@@ -660,32 +638,41 @@ static int rk817_playback_path_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int rk817_capture_path_get(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_value *ucontrol)
+static int rk817_playback_path_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
 
-	dev_dbg(component->dev, "%s:capture_path %ld\n", __func__, rk817->capture_path);
-	ucontrol->value.integer.value[0] = rk817->capture_path;
+	DBG("%s : playback_path %ld\n", __func__, rk817->playback_path);
+
+	ucontrol->value.integer.value[0] = rk817->playback_path;
+
 	return 0;
 }
 
-static int rk817_capture_path_put(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_value *ucontrol)
+static int rk817_playback_path_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
-	long int pre_path;
 
-	if (rk817->capture_path == ucontrol->value.integer.value[0]) {
-		dev_dbg(component->dev, "%s:capture_path is not changed!\n",
-			__func__);
+	if (rk817->playback_path == ucontrol->value.integer.value[0]) {
+		DBG("%s : playback_path is not changed!\n",
+		    __func__);
 		return 0;
 	}
 
-	pre_path = rk817->capture_path;
-	rk817->capture_path = ucontrol->value.integer.value[0];
+	return rk817_playback_path_config(component, rk817->playback_path,
+					  ucontrol->value.integer.value[0]);
+}
+
+static int rk817_capture_path_config(struct snd_soc_component *component,
+				     long pre_path, long target_path)
+{
+	struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
+
+	rk817->capture_path = target_path;
 
 	DBG("%s : set capture_path %ld, pre_path %ld\n", __func__,
 	    rk817->capture_path, pre_path);
@@ -777,6 +764,36 @@ static int rk817_capture_path_put(struct snd_kcontrol *kcontrol,
 	}
 
 	return 0;
+}
+
+static int rk817_capture_path_get(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
+
+	DBG("%s : capture_path %ld\n", __func__,
+	    rk817->capture_path);
+
+	ucontrol->value.integer.value[0] = rk817->capture_path;
+
+	return 0;
+}
+
+static int rk817_capture_path_put(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
+
+	if (rk817->capture_path == ucontrol->value.integer.value[0]) {
+		DBG("%s : capture_path is not changed!\n",
+		    __func__);
+		return 0;
+	}
+
+	return rk817_capture_path_config(component, rk817->capture_path,
+					 ucontrol->value.integer.value[0]);
 }
 
 static struct snd_kcontrol_new rk817_snd_path_controls[] = {
