@@ -4431,19 +4431,16 @@ u8 GetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable, v
 
 void rtl8723b_start_thread(struct adapter *padapter)
 {
-#ifndef CONFIG_SDIO_TX_TASKLET
 	struct xmit_priv *xmitpriv = &padapter->xmitpriv;
 
 	xmitpriv->SdioXmitThread = kthread_run(rtl8723bs_xmit_thread, padapter, "RTWHALXT");
 	if (IS_ERR(xmitpriv->SdioXmitThread)) {
 		RT_TRACE(_module_hal_xmit_c_, _drv_err_, ("%s: start rtl8723bs_xmit_thread FAIL!!\n", __func__));
 	}
-#endif
 }
 
 void rtl8723b_stop_thread(struct adapter *padapter)
 {
-#ifndef CONFIG_SDIO_TX_TASKLET
 	struct xmit_priv *xmitpriv = &padapter->xmitpriv;
 
 	/*  stop xmit_buf_thread */
@@ -4452,5 +4449,4 @@ void rtl8723b_stop_thread(struct adapter *padapter)
 		wait_for_completion(&xmitpriv->SdioXmitTerminate);
 		xmitpriv->SdioXmitThread = NULL;
 	}
-#endif
 }

@@ -124,10 +124,6 @@ free_xmitbuf:
 	/* pxmitbuf->priv_data = NULL; */
 	rtw_free_xmitbuf(pxmitpriv, pxmitbuf);
 
-#ifdef CONFIG_SDIO_TX_TASKLET
-	tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
-#endif
-
 	return _FAIL;
 }
 
@@ -601,11 +597,7 @@ s32	rtl8723bs_hal_xmitframe_enqueue(
 
 		pxmitpriv->tx_drop++;
 	} else {
-#ifdef CONFIG_SDIO_TX_TASKLET
-		tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
-#else
 		complete(&pxmitpriv->SdioXmitStart);
-#endif
 	}
 
 	return err;
