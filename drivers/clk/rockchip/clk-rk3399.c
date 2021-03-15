@@ -1657,4 +1657,3 @@ builtin_platform_driver_probe(clk_rk3399_driver, clk_rk3399_probe);
 
 MODULE_DESCRIPTION("Rockchip RK3399 Clock Driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:clk-rk3399");
