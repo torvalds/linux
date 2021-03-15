@@ -11,6 +11,8 @@
 #include <linux/kvm_host.h>
 #include <linux/types.h>
 
+#define KVM_PGTABLE_MAX_LEVELS		4U
+
 typedef u64 kvm_pte_t;
 
 /**

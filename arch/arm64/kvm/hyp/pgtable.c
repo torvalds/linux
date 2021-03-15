@@ -10,8 +10,6 @@
 #include <linux/bitfield.h>
 #include <asm/kvm_pgtable.h>
 
-#define KVM_PGTABLE_MAX_LEVELS		4U
-
 #define KVM_PTE_VALID			BIT(0)
 
 #define KVM_PTE_TYPE			BIT(1)
