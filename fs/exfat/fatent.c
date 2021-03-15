@@ -320,7 +320,7 @@ release_bhs:
 }
 
 int exfat_alloc_cluster(struct inode *inode, unsigned int num_alloc,
-		struct exfat_chain *p_chain)
+		struct exfat_chain *p_chain, bool sync_bmap)
 {
 	int ret = -ENOSPC;
 	unsigned int num_clusters = 0, total_cnt;
@@ -388,7 +388,7 @@ int exfat_alloc_cluster(struct inode *inode, unsigned int num_alloc,
 		}
 
 		/* update allocation bitmap */
-		if (exfat_set_bitmap(inode, new_clu)) {
+		if (exfat_set_bitmap(inode, new_clu, sync_bmap)) {
 			ret = -EIO;
 			goto free_cluster;
 		}
