@@ -76,7 +76,13 @@ static void default_handle_irq(struct pt_regs *regs)
 	panic("IRQ taken without a root IRQ handler\n");
 }
 
+static void default_handle_fiq(struct pt_regs *regs)
+{
+	panic("FIQ taken without a root FIQ handler\n");
+}
+
 void (*handle_arch_irq)(struct pt_regs *) __ro_after_init = default_handle_irq;
+void (*handle_arch_fiq)(struct pt_regs *) __ro_after_init = default_handle_fiq;
 
 int __init set_handle_irq(void (*handle_irq)(struct pt_regs *))
 {
@@ -85,6 +91,16 @@ int __init set_handle_irq(void (*handle_irq)(struct pt_regs *))
 
 	handle_arch_irq = handle_irq;
 	pr_info("Root IRQ handler: %ps\n", handle_irq);
+	return 0;
+}
+
+int __init set_handle_fiq(void (*handle_fiq)(struct pt_regs *))
+{
+	if (handle_arch_fiq != default_handle_fiq)
+		return -EBUSY;
+
+	handle_arch_fiq = handle_fiq;
+	pr_info("Root FIQ handler: %ps\n", handle_fiq);
 	return 0;
 }
 
