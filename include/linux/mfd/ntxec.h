@@ -33,5 +33,6 @@ static inline __be16 ntxec_reg8(u8 value)
 
 /* Known firmware versions */
 #define NTXEC_VERSION_KOBO_AURA	0xd726	/* found in Kobo Aura */
+#define NTXEC_VERSION_TOLINO_SHINE2 0xf110 /* found in Tolino Shine 2 HD */
 
 #endif

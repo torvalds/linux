@@ -96,6 +96,38 @@ static struct notifier_block ntxec_restart_handler = {
 	.priority = 128,
 };
 
+static int regmap_ignore_write(void *context,
+			       unsigned int reg, unsigned int val)
+
+{
+	struct regmap *regmap = context;
+
+	regmap_write(regmap, reg, val);
+
+	return 0;
+}
+
+static int regmap_wrap_read(void *context, unsigned int reg,
+			    unsigned int *val)
+{
+	struct regmap *regmap = context;
+
+	return regmap_read(regmap, reg, val);
+}
+
+/*
+ * Some firmware versions do not ack written data, add a wrapper. It
+ * is used to stack another regmap on top.
+ */
+static const struct regmap_config regmap_config_noack = {
+	.name = "ntxec_noack",
+	.reg_bits = 8,
+	.val_bits = 16,
+	.cache_type = REGCACHE_NONE,
+	.reg_write = regmap_ignore_write,
+	.reg_read = regmap_wrap_read
+};
+
 static const struct regmap_config regmap_config = {
 	.name = "ntxec",
 	.reg_bits = 8,
@@ -104,8 +136,12 @@ static const struct regmap_config regmap_config = {
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 };
 
-static const struct mfd_cell ntxec_subdevices[] = {
+static const struct mfd_cell ntxec_subdev[] = {
 	{ .name = "ntxec-rtc" },
+	{ .name = "ntxec-pwm" },
+};
+
+static const struct mfd_cell ntxec_subdev_pwm[] = {
 	{ .name = "ntxec-pwm" },
 };
 
@@ -114,6 +150,8 @@ static int ntxec_probe(struct i2c_client *client)
 	struct ntxec *ec;
 	unsigned int version;
 	int res;
+	const struct mfd_cell *subdevs;
+	size_t n_subdevs;
 
 	ec = devm_kmalloc(&client->dev, sizeof(*ec), GFP_KERNEL);
 	if (!ec)
@@ -137,6 +175,18 @@ static int ntxec_probe(struct i2c_client *client)
 	/* Bail out if we encounter an unknown firmware version */
 	switch (version) {
 	case NTXEC_VERSION_KOBO_AURA:
+		subdevs = ntxec_subdev;
+		n_subdevs = ARRAY_SIZE(ntxec_subdev);
+		break;
+	case NTXEC_VERSION_TOLINO_SHINE2:
+		subdevs = ntxec_subdev_pwm;
+		n_subdevs = ARRAY_SIZE(ntxec_subdev_pwm);
+		/* Another regmap stacked on top of the other */
+		ec->regmap = devm_regmap_init(ec->dev, NULL,
+					      ec->regmap,
+					      &regmap_config_noack);
+		if (IS_ERR(ec->regmap))
+			return PTR_ERR(ec->regmap);
 		break;
 	default:
 		dev_err(ec->dev,
@@ -181,8 +231,8 @@ static int ntxec_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, ec);
 
-	res = devm_mfd_add_devices(ec->dev, PLATFORM_DEVID_NONE, ntxec_subdevices,
-				   ARRAY_SIZE(ntxec_subdevices), NULL, 0, NULL);
+	res = devm_mfd_add_devices(ec->dev, PLATFORM_DEVID_NONE,
+				   subdevs, n_subdevs, NULL, 0, NULL);
 	if (res)
 		dev_err(ec->dev, "Failed to add subdevices: %d\n", res);
 
