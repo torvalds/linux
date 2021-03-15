@@ -594,8 +594,8 @@ u8 PHY_GetTxPowerIndex(
 void PHY_SetTxPowerLevel8723B(struct adapter *Adapter, u8 Channel)
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
-	struct DM_ODM_T * pDM_Odm = &pHalData->odmpriv;
-	struct FAT_T * pDM_FatTable = &pDM_Odm->DM_FatTable;
+	struct DM_ODM_T *pDM_Odm = &pHalData->odmpriv;
+	struct FAT_T *pDM_FatTable = &pDM_Odm->DM_FatTable;
 	u8 RFPath = ODM_RF_PATH_A;
 
 	if (pHalData->AntDivCfg) {/*  antenna diversity Enable */
