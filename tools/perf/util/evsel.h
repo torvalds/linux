@@ -19,6 +19,7 @@ struct perf_stat_evsel;
 union perf_event;
 struct bpf_counter_ops;
 struct target;
+struct hashmap;
 
 typedef int (evsel__sb_cb_t)(union perf_event *event, void *data);
 
@@ -112,7 +113,7 @@ struct evsel {
 	bool			merged_stat;
 	bool			reset_group;
 	bool			errored;
-	unsigned long		*per_pkg_mask;
+	struct hashmap		*per_pkg_mask;
 	struct evsel		*leader;
 	struct list_head	config_terms;
 	int			err;
@@ -433,4 +434,5 @@ struct perf_env *evsel__env(struct evsel *evsel);
 
 int evsel__store_ids(struct evsel *evsel, struct evlist *evlist);
 
+void evsel__zero_per_pkg(struct evsel *evsel);
 #endif /* __PERF_EVSEL_H */

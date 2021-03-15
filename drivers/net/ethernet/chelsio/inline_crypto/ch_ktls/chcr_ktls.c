@@ -672,7 +672,7 @@ static int chcr_ktls_cpl_act_open_rpl(struct adapter *adap,
 	if (tx_info->pending_close) {
 		spin_unlock(&tx_info->lock);
 		if (!status) {
-			/* it's a late success, tcb status is establised,
+			/* it's a late success, tcb status is established,
 			 * mark it close.
 			 */
 			chcr_ktls_mark_tcb_close(tx_info);
@@ -930,7 +930,7 @@ chcr_ktls_get_tx_flits(u32 nr_frags, unsigned int key_ctx_len)
 }
 
 /*
- * chcr_ktls_check_tcp_options: To check if there is any TCP option availbale
+ * chcr_ktls_check_tcp_options: To check if there is any TCP option available
  * other than timestamp.
  * @skb - skb contains partial record..
  * return: 1 / 0
@@ -1115,7 +1115,7 @@ static int chcr_ktls_xmit_wr_complete(struct sk_buff *skb,
 	}
 
 	if (unlikely(credits < ETHTXQ_STOP_THRES)) {
-		/* Credits are below the threshold vaues, stop the queue after
+		/* Credits are below the threshold values, stop the queue after
 		 * injecting the Work Request for this packet.
 		 */
 		chcr_eth_txq_stop(q);
@@ -2006,7 +2006,7 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* TCP segments can be in received either complete or partial.
 	 * chcr_end_part_handler will handle cases if complete record or end
-	 * part of the record is received. Incase of partial end part of record,
+	 * part of the record is received. In case of partial end part of record,
 	 * we will send the complete record again.
 	 */
 

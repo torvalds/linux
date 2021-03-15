@@ -118,13 +118,22 @@ int truncate_bdev_range(struct block_device *bdev, fmode_t mode,
 	if (!(mode & FMODE_EXCL)) {
 		int err = bd_prepare_to_claim(bdev, truncate_bdev_range);
 		if (err)
-			return err;
+			goto invalidate;
 	}
 
 	truncate_inode_pages_range(bdev->bd_inode->i_mapping, lstart, lend);
 	if (!(mode & FMODE_EXCL))
 		bd_abort_claiming(bdev, truncate_bdev_range);
 	return 0;
+
+invalidate:
+	/*
+	 * Someone else has handle exclusively open. Try invalidating instead.
+	 * The 'end' argument is inclusive so the rounding is safe.
+	 */
+	return invalidate_inode_pages2_range(bdev->bd_inode->i_mapping,
+					     lstart >> PAGE_SHIFT,
+					     lend >> PAGE_SHIFT);
 }
 
 static void set_init_blocksize(struct block_device *bdev)
@@ -423,7 +432,7 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 		dio->size += bio->bi_iter.bi_size;
 		pos += bio->bi_iter.bi_size;
 
-		nr_pages = bio_iov_vecs_to_alloc(iter, BIO_MAX_PAGES);
+		nr_pages = bio_iov_vecs_to_alloc(iter, BIO_MAX_VECS);
 		if (!nr_pages) {
 			bool polled = false;
 
@@ -491,8 +500,8 @@ blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	if (!iov_iter_count(iter))
 		return 0;
 
-	nr_pages = bio_iov_vecs_to_alloc(iter, BIO_MAX_PAGES + 1);
-	if (is_sync_kiocb(iocb) && nr_pages <= BIO_MAX_PAGES)
+	nr_pages = bio_iov_vecs_to_alloc(iter, BIO_MAX_VECS + 1);
+	if (is_sync_kiocb(iocb) && nr_pages <= BIO_MAX_VECS)
 		return __blkdev_direct_IO_simple(iocb, iter, nr_pages);
 
 	return __blkdev_direct_IO(iocb, iter, bio_max_segs(nr_pages));

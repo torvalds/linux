@@ -163,33 +163,36 @@ static __init void __parse_cmdline(const char *cmdline, bool parse_aliases)
 	} while (1);
 }
 
+static __init const u8 *get_bootargs_cmdline(void)
+{
+	const u8 *prop;
+	void *fdt;
+	int node;
+
+	fdt = get_early_fdt_ptr();
+	if (!fdt)
+		return NULL;
+
+	node = fdt_path_offset(fdt, "/chosen");
+	if (node < 0)
+		return NULL;
+
+	prop = fdt_getprop(fdt, node, "bootargs", NULL);
+	if (!prop)
+		return NULL;
+
+	return strlen(prop) ? prop : NULL;
+}
+
 static __init void parse_cmdline(void)
 {
-	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE)) {
-		const u8 *prop;
-		void *fdt;
-		int node;
+	const u8 *prop = get_bootargs_cmdline();
 
-		fdt = get_early_fdt_ptr();
-		if (!fdt)
-			goto out;
+	if (IS_ENABLED(CONFIG_CMDLINE_FORCE) || !prop)
+		__parse_cmdline(CONFIG_CMDLINE, true);
 
-		node = fdt_path_offset(fdt, "/chosen");
-		if (node < 0)
-			goto out;
-
-		prop = fdt_getprop(fdt, node, "bootargs", NULL);
-		if (!prop)
-			goto out;
-
+	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE) && prop)
 		__parse_cmdline(prop, true);
-
-		if (!IS_ENABLED(CONFIG_CMDLINE_EXTEND))
-			return;
-	}
-
-out:
-	__parse_cmdline(CONFIG_CMDLINE, true);
 }
 
 /* Keep checkers quiet */
