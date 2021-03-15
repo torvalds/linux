@@ -1862,10 +1862,7 @@ static int dpcm_fe_dai_hw_free(struct snd_pcm_substream *substream)
 	dev_dbg(fe->dev, "ASoC: hw_free FE %s\n", fe->dai_link->name);
 
 	/* call hw_free on the frontend */
-	err = soc_pcm_hw_free(substream);
-	if (err < 0)
-		dev_err(fe->dev,"ASoC: hw_free FE %s failed\n",
-			fe->dai_link->name);
+	soc_pcm_hw_free(substream);
 
 	/* only hw_params backends that are either sinks or sources
 	 * to this frontend DAI */
