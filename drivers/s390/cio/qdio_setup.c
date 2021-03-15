@@ -267,9 +267,6 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 		q->is_input_q = 0;
 		setup_storage_lists(q, irq_ptr,
 				    qdio_init->output_sbal_addr_array[i], i);
-
-		tasklet_setup(&q->u.out.tasklet, qdio_outbound_tasklet);
-		timer_setup(&q->u.out.timer, qdio_outbound_timer, 0);
 	}
 }
 
@@ -442,7 +439,6 @@ int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 	irq_ptr->int_parm = init_data->int_parm;
 	irq_ptr->nr_input_qs = init_data->no_input_qs;
 	irq_ptr->nr_output_qs = init_data->no_output_qs;
-	irq_ptr->scan_threshold = init_data->scan_threshold;
 	ccw_device_get_schid(cdev, &irq_ptr->schid);
 	setup_queues(irq_ptr, init_data);
 

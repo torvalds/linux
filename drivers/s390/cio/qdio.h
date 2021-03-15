@@ -138,9 +138,6 @@ struct siga_flag {
 struct qdio_dev_perf_stat {
 	unsigned int adapter_int;
 	unsigned int qdio_int;
-	unsigned int pci_request_int;
-
-	unsigned int tasklet_outbound;
 
 	unsigned int siga_read;
 	unsigned int siga_write;
@@ -150,7 +147,6 @@ struct qdio_dev_perf_stat {
 	unsigned int stop_polling;
 	unsigned int inbound_queue_full;
 	unsigned int outbound_call;
-	unsigned int outbound_handler;
 	unsigned int outbound_queue_full;
 	unsigned int fast_requeue;
 	unsigned int target_full;
@@ -180,12 +176,6 @@ struct qdio_input_q {
 };
 
 struct qdio_output_q {
-	/* PCIs are enabled for the queue */
-	int pci_out_enabled;
-	/* timer to check for more outbound work */
-	struct timer_list timer;
-	/* tasklet to check for completions */
-	struct tasklet_struct tasklet;
 };
 
 /*
@@ -263,7 +253,6 @@ struct qdio_irq {
 	struct qdio_ssqd_desc ssqd_desc;
 	void (*orig_handler) (struct ccw_device *, unsigned long, struct irb *);
 
-	unsigned int scan_threshold;	/* used SBALs before tasklet schedule */
 	int perf_stat_enabled;
 
 	struct qdr *qdr;
@@ -360,8 +349,6 @@ void qdio_thinint_exit(void);
 int test_nonshared_ind(struct qdio_irq *);
 
 /* prototypes for setup */
-void qdio_outbound_tasklet(struct tasklet_struct *t);
-void qdio_outbound_timer(struct timer_list *t);
 void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		      struct irb *irb);
 int qdio_allocate_qs(struct qdio_irq *irq_ptr, int nr_input_qs,
