@@ -413,6 +413,8 @@ extern int fix_alignment(struct pt_regs *);
 #define NET_IP_ALIGN	0
 #endif
 
+int do_mathemu(struct pt_regs *regs);
+
 #endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_PROCESSOR_H */
