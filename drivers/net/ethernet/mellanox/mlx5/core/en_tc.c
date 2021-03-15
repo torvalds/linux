@@ -447,11 +447,11 @@ static void mlx5e_hairpin_destroy_transport(struct mlx5e_hairpin *hp)
 
 static int mlx5e_hairpin_fill_rqt_rqns(struct mlx5e_hairpin *hp, void *rqtc)
 {
-	u32 *indirection_rqt, rqn;
 	struct mlx5e_priv *priv = hp->func_priv;
 	int i, ix, sz = MLX5E_INDIR_RQT_SIZE;
+	u32 *indirection_rqt, rqn;
 
-	indirection_rqt = kzalloc(sz, GFP_KERNEL);
+	indirection_rqt = kcalloc(sz, sizeof(*indirection_rqt), GFP_KERNEL);
 	if (!indirection_rqt)
 		return -ENOMEM;
 
