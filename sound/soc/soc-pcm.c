@@ -2261,6 +2261,10 @@ int dpcm_be_dai_prepare(struct snd_soc_pcm_runtime *fe, int stream)
 
 		be->dpcm[stream].state = SND_SOC_DPCM_STATE_PREPARE;
 	}
+
+	if (ret < 0)
+		dev_err(fe->dev, "ASoC: %s() failed (%d)\n", __func__, ret);
+
 	return ret;
 }
 
@@ -2297,6 +2301,9 @@ static int dpcm_fe_dai_prepare(struct snd_pcm_substream *substream)
 out:
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
 	mutex_unlock(&fe->card->mutex);
+
+	if (ret < 0)
+		dev_err(fe->dev, "ASoC: %s() failed (%d)\n", __func__, ret);
 
 	return ret;
 }
