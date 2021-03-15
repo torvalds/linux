@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,39 +23,15 @@
  *
  */
 
-#ifndef __DAL_TYPES_H__
-#define __DAL_TYPES_H__
+#include "dcn303_hwseq.h"
+#include "dcn30/dcn30_init.h"
+#include "dc.h"
 
-#include "signal_types.h"
-#include "dc_types.h"
+void dcn303_hw_sequencer_construct(struct dc *dc)
+{
+	dcn30_hw_sequencer_construct(dc);
 
-struct dal_logger;
-struct dc_bios;
-
-enum dce_version {
-	DCE_VERSION_UNKNOWN = (-1),
-	DCE_VERSION_6_0,
-	DCE_VERSION_6_1,
-	DCE_VERSION_6_4,
-	DCE_VERSION_8_0,
-	DCE_VERSION_8_1,
-	DCE_VERSION_8_3,
-	DCE_VERSION_10_0,
-	DCE_VERSION_11_0,
-	DCE_VERSION_11_2,
-	DCE_VERSION_11_22,
-	DCE_VERSION_12_0,
-	DCE_VERSION_12_1,
-	DCE_VERSION_MAX,
-	DCN_VERSION_1_0,
-	DCN_VERSION_1_01,
-	DCN_VERSION_2_0,
-	DCN_VERSION_2_1,
-	DCN_VERSION_3_0,
-	DCN_VERSION_3_01,
-	DCN_VERSION_3_02,
-	DCN_VERSION_3_03,
-	DCN_VERSION_MAX
-};
-
-#endif /* __DAL_TYPES_H__ */
+	dc->hwseq->funcs.dpp_pg_control = dcn303_dpp_pg_control;
+	dc->hwseq->funcs.hubp_pg_control = dcn303_hubp_pg_control;
+	dc->hwseq->funcs.dsc_pg_control = dcn303_dsc_pg_control;
+}

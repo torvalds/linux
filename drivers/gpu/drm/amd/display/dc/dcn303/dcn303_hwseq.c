@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,39 +23,36 @@
  *
  */
 
-#ifndef __DAL_TYPES_H__
-#define __DAL_TYPES_H__
+#include "dcn303_hwseq.h"
 
-#include "signal_types.h"
-#include "dc_types.h"
+#include "dce/dce_hwseq.h"
 
-struct dal_logger;
-struct dc_bios;
+#include "reg_helper.h"
+#include "dc.h"
 
-enum dce_version {
-	DCE_VERSION_UNKNOWN = (-1),
-	DCE_VERSION_6_0,
-	DCE_VERSION_6_1,
-	DCE_VERSION_6_4,
-	DCE_VERSION_8_0,
-	DCE_VERSION_8_1,
-	DCE_VERSION_8_3,
-	DCE_VERSION_10_0,
-	DCE_VERSION_11_0,
-	DCE_VERSION_11_2,
-	DCE_VERSION_11_22,
-	DCE_VERSION_12_0,
-	DCE_VERSION_12_1,
-	DCE_VERSION_MAX,
-	DCN_VERSION_1_0,
-	DCN_VERSION_1_01,
-	DCN_VERSION_2_0,
-	DCN_VERSION_2_1,
-	DCN_VERSION_3_0,
-	DCN_VERSION_3_01,
-	DCN_VERSION_3_02,
-	DCN_VERSION_3_03,
-	DCN_VERSION_MAX
-};
+#define DC_LOGGER_INIT(logger)
 
-#endif /* __DAL_TYPES_H__ */
+#define CTX \
+	hws->ctx
+#define REG(reg)\
+	hws->regs->reg
+
+#undef FN
+#define FN(reg_name, field_name) \
+	hws->shifts->field_name, hws->masks->field_name
+
+
+void dcn303_dpp_pg_control(struct dce_hwseq *hws, unsigned int dpp_inst, bool power_on)
+{
+	/*DCN303 removes PG registers*/
+}
+
+void dcn303_hubp_pg_control(struct dce_hwseq *hws, unsigned int hubp_inst, bool power_on)
+{
+	/*DCN303 removes PG registers*/
+}
+
+void dcn303_dsc_pg_control(struct dce_hwseq *hws, unsigned int dsc_inst, bool power_on)
+{
+	/*DCN303 removes PG registers*/
+}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,39 +23,26 @@
  *
  */
 
-#ifndef __DAL_TYPES_H__
-#define __DAL_TYPES_H__
+#ifndef __DCN303_DCCG_H__
+#define __DCN303_DCCG_H__
 
-#include "signal_types.h"
-#include "dc_types.h"
+#include "dcn30/dcn30_dccg.h"
 
-struct dal_logger;
-struct dc_bios;
 
-enum dce_version {
-	DCE_VERSION_UNKNOWN = (-1),
-	DCE_VERSION_6_0,
-	DCE_VERSION_6_1,
-	DCE_VERSION_6_4,
-	DCE_VERSION_8_0,
-	DCE_VERSION_8_1,
-	DCE_VERSION_8_3,
-	DCE_VERSION_10_0,
-	DCE_VERSION_11_0,
-	DCE_VERSION_11_2,
-	DCE_VERSION_11_22,
-	DCE_VERSION_12_0,
-	DCE_VERSION_12_1,
-	DCE_VERSION_MAX,
-	DCN_VERSION_1_0,
-	DCN_VERSION_1_01,
-	DCN_VERSION_2_0,
-	DCN_VERSION_2_1,
-	DCN_VERSION_3_0,
-	DCN_VERSION_3_01,
-	DCN_VERSION_3_02,
-	DCN_VERSION_3_03,
-	DCN_VERSION_MAX
-};
+#define DCCG_REG_LIST_DCN3_03() \
+	SR(DPPCLK_DTO_CTRL),\
+	DCCG_SRII(DTO_PARAM, DPPCLK, 0),\
+	DCCG_SRII(DTO_PARAM, DPPCLK, 1),\
+	SR(REFCLK_CNTL)
 
-#endif /* __DAL_TYPES_H__ */
+#define DCCG_MASK_SH_LIST_DCN3_03(mask_sh) \
+		DCCG_SFI(DPPCLK_DTO_CTRL, DTO_ENABLE, DPPCLK, 0, mask_sh),\
+		DCCG_SFI(DPPCLK_DTO_CTRL, DTO_DB_EN, DPPCLK, 0, mask_sh),\
+		DCCG_SFI(DPPCLK_DTO_CTRL, DTO_ENABLE, DPPCLK, 1, mask_sh),\
+		DCCG_SFI(DPPCLK_DTO_CTRL, DTO_DB_EN, DPPCLK, 1, mask_sh),\
+		DCCG_SF(DPPCLK0_DTO_PARAM, DPPCLK0_DTO_PHASE, mask_sh),\
+		DCCG_SF(DPPCLK0_DTO_PARAM, DPPCLK0_DTO_MODULO, mask_sh),\
+		DCCG_SF(REFCLK_CNTL, REFCLK_CLOCK_EN, mask_sh),\
+		DCCG_SF(REFCLK_CNTL, REFCLK_SRC_SEL, mask_sh)
+
+#endif //__DCN303_DCCG_H__
