@@ -1,6 +1,6 @@
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: :ref:`Documentation/admin-guide/README.rst <Linux kernel release 5.x>`
+:Original: Documentation/admin-guide/README.rst
 
 :译者:
 

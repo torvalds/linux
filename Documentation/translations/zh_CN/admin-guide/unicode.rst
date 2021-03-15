@@ -1,6 +1,6 @@
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: :ref:`Documentation/admin-guide/unicode.rst`
+:Original: Documentation/admin-guide/unicode.rst
 
 :译者:
 
