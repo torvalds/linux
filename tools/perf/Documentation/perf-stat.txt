@@ -142,7 +142,10 @@ Do not aggregate counts across all monitored CPUs.
 
 -n::
 --null::
-        null run - don't start any counters
+null run - Don't start any counters.
+
+This can be useful to measure just elapsed wall-clock time - or to assess the
+raw overhead of perf stat itself, without running any counters.
 
 -v::
 --verbose::
