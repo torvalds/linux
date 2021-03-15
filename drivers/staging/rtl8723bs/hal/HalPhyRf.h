@@ -37,10 +37,10 @@ struct TXPWRTRACK_CFG {
 	FuncSwing GetDeltaSwingTable;
 };
 
-void ConfigureTxpowerTrack(struct DM_ODM_T * pDM_Odm, struct TXPWRTRACK_CFG * pConfig);
+void ConfigureTxpowerTrack(struct DM_ODM_T *pDM_Odm, struct TXPWRTRACK_CFG *pConfig);
 
 
-void ODM_ClearTxPowerTrackingState(struct DM_ODM_T * pDM_Odm);
+void ODM_ClearTxPowerTrackingState(struct DM_ODM_T *pDM_Odm);
 
 void ODM_TXPowerTrackingCallback_ThermalMeter(struct adapter *Adapter);
 
