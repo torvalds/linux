@@ -13,3 +13,5 @@
 #define KVM_HYP_CPU_FTR_REG(name) extern struct arm64_ftr_reg kvm_nvhe_sym(name)
 #endif
 #endif
+
+KVM_HYP_CPU_FTR_REG(arm64_ftr_reg_ctrel0);
