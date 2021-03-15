@@ -2906,9 +2906,9 @@ static ssize_t amdgpu_hwmon_show_mclk_label(struct device *dev,
  *
  * - pwm1_max: pulse width modulation fan control maximum level (255)
  *
- * - fan1_min: an minimum value Unit: revolution/min (RPM)
+ * - fan1_min: a minimum value Unit: revolution/min (RPM)
  *
- * - fan1_max: an maxmum value Unit: revolution/max (RPM)
+ * - fan1_max: a maximum value Unit: revolution/max (RPM)
  *
  * - fan1_input: fan speed in RPM
  *
