@@ -91,9 +91,6 @@ static void Update_ODM_ComInfo_8723b(struct adapter *Adapter)
 		| ODM_MAC_EDCA_TURBO
 		| ODM_RF_TX_PWR_TRACK
 		| ODM_RF_CALIBRATION
-#ifdef CONFIG_ODM_ADAPTIVITY
-		| ODM_BB_ADAPTIVITY
-#endif
 		;
 
 	/*  */
