@@ -270,7 +270,7 @@ u8 PHY_GetRateSectionIndexOfTxPowerByRate(
 )
 {
 	struct hal_com_data	*pHalData = GET_HAL_DATA(padapter);
-	struct DM_ODM_T * pDM_Odm = &pHalData->odmpriv;
+	struct DM_ODM_T *pDM_Odm = &pHalData->odmpriv;
 	u8	index = 0;
 
 	if (pDM_Odm->PhyRegPgVersion == 0) {
@@ -795,7 +795,7 @@ void PHY_StoreTxPowerByRate(
 )
 {
 	struct hal_com_data	*pHalData = GET_HAL_DATA(padapter);
-	struct DM_ODM_T *		pDM_Odm = &pHalData->odmpriv;
+	struct DM_ODM_T *pDM_Odm = &pHalData->odmpriv;
 
 	if (pDM_Odm->PhyRegPgVersion > 0)
 		PHY_StoreTxPowerByRateNew(padapter, Band, RfPath, TxNum, RegAddr, BitMask, Data);
@@ -1188,7 +1188,7 @@ u8 PHY_GetTxPowerIndexBase(
 s8 PHY_GetTxPowerTrackingOffset(struct adapter *padapter, u8 RFPath, u8 Rate)
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(padapter);
-	struct DM_ODM_T * pDM_Odm = &pHalData->odmpriv;
+	struct DM_ODM_T *pDM_Odm = &pHalData->odmpriv;
 	s8 offset = 0;
 
 	if (pDM_Odm->RFCalibrateInfo.TxPowerTrackControl  == false)
