@@ -125,22 +125,26 @@ static struct xpcs_id {
 	u32 mask;
 	const int *supported;
 	const phy_interface_t *interface;
+	int an_mode;
 } xpcs_id_list[] = {
 	{
 		.id = SYNOPSYS_XPCS_USXGMII_ID,
 		.mask = SYNOPSYS_XPCS_MASK,
 		.supported = xpcs_usxgmii_features,
 		.interface = xpcs_usxgmii_interfaces,
+		.an_mode = DW_AN_C73,
 	}, {
 		.id = SYNOPSYS_XPCS_10GKR_ID,
 		.mask = SYNOPSYS_XPCS_MASK,
 		.supported = xpcs_10gkr_features,
 		.interface = xpcs_10gkr_interfaces,
+		.an_mode = DW_AN_C73,
 	}, {
 		.id = SYNOPSYS_XPCS_XLGMII_ID,
 		.mask = SYNOPSYS_XPCS_MASK,
 		.supported = xpcs_xlgmii_features,
 		.interface = xpcs_xlgmii_interfaces,
+		.an_mode = DW_AN_C73,
 	},
 };
 
@@ -195,9 +199,17 @@ static int xpcs_poll_reset(struct mdio_xpcs_args *xpcs, int dev)
 	return (ret & MDIO_CTRL1_RESET) ? -ETIMEDOUT : 0;
 }
 
-static int xpcs_soft_reset(struct mdio_xpcs_args *xpcs, int dev)
+static int xpcs_soft_reset(struct mdio_xpcs_args *xpcs)
 {
-	int ret;
+	int ret, dev;
+
+	switch (xpcs->an_mode) {
+	case DW_AN_C73:
+		dev = MDIO_MMD_PCS;
+		break;
+	default:
+		return -1;
+	}
 
 	ret = xpcs_write(xpcs, dev, MDIO_CTRL1, MDIO_CTRL1_RESET);
 	if (ret < 0)
@@ -212,8 +224,8 @@ static int xpcs_soft_reset(struct mdio_xpcs_args *xpcs, int dev)
 		dev_warn(&(__xpcs)->bus->dev, ##__args); \
 })
 
-static int xpcs_read_fault(struct mdio_xpcs_args *xpcs,
-			   struct phylink_link_state *state)
+static int xpcs_read_fault_c73(struct mdio_xpcs_args *xpcs,
+			       struct phylink_link_state *state)
 {
 	int ret;
 
@@ -263,7 +275,7 @@ static int xpcs_read_fault(struct mdio_xpcs_args *xpcs,
 	return 0;
 }
 
-static int xpcs_read_link(struct mdio_xpcs_args *xpcs, bool an)
+static int xpcs_read_link_c73(struct mdio_xpcs_args *xpcs, bool an)
 {
 	bool link = true;
 	int ret;
@@ -357,7 +369,7 @@ static int xpcs_config_usxgmii(struct mdio_xpcs_args *xpcs, int speed)
 	return xpcs_write_vpcs(xpcs, MDIO_CTRL1, ret | DW_USXGMII_RST);
 }
 
-static int xpcs_config_aneg_c73(struct mdio_xpcs_args *xpcs)
+static int _xpcs_config_aneg_c73(struct mdio_xpcs_args *xpcs)
 {
 	int ret, adv;
 
@@ -401,11 +413,11 @@ static int xpcs_config_aneg_c73(struct mdio_xpcs_args *xpcs)
 	return xpcs_write(xpcs, MDIO_MMD_AN, DW_SR_AN_ADV1, adv);
 }
 
-static int xpcs_config_aneg(struct mdio_xpcs_args *xpcs)
+static int xpcs_config_aneg_c73(struct mdio_xpcs_args *xpcs)
 {
 	int ret;
 
-	ret = xpcs_config_aneg_c73(xpcs);
+	ret = _xpcs_config_aneg_c73(xpcs);
 	if (ret < 0)
 		return ret;
 
@@ -418,8 +430,8 @@ static int xpcs_config_aneg(struct mdio_xpcs_args *xpcs)
 	return xpcs_write(xpcs, MDIO_MMD_AN, MDIO_CTRL1, ret);
 }
 
-static int xpcs_aneg_done(struct mdio_xpcs_args *xpcs,
-			  struct phylink_link_state *state)
+static int xpcs_aneg_done_c73(struct mdio_xpcs_args *xpcs,
+			      struct phylink_link_state *state)
 {
 	int ret;
 
@@ -434,7 +446,7 @@ static int xpcs_aneg_done(struct mdio_xpcs_args *xpcs,
 
 		/* Check if Aneg outcome is valid */
 		if (!(ret & DW_C73_AN_ADV_SF)) {
-			xpcs_config_aneg(xpcs);
+			xpcs_config_aneg_c73(xpcs);
 			return 0;
 		}
 
@@ -444,8 +456,8 @@ static int xpcs_aneg_done(struct mdio_xpcs_args *xpcs,
 	return 0;
 }
 
-static int xpcs_read_lpa(struct mdio_xpcs_args *xpcs,
-			 struct phylink_link_state *state)
+static int xpcs_read_lpa_c73(struct mdio_xpcs_args *xpcs,
+			     struct phylink_link_state *state)
 {
 	int ret;
 
@@ -493,8 +505,8 @@ static int xpcs_read_lpa(struct mdio_xpcs_args *xpcs,
 	return 0;
 }
 
-static void xpcs_resolve_lpa(struct mdio_xpcs_args *xpcs,
-			     struct phylink_link_state *state)
+static void xpcs_resolve_lpa_c73(struct mdio_xpcs_args *xpcs,
+				 struct phylink_link_state *state)
 {
 	int max_speed = xpcs_get_max_usxgmii_speed(state->lp_advertising);
 
@@ -590,10 +602,49 @@ static int xpcs_config(struct mdio_xpcs_args *xpcs,
 {
 	int ret;
 
-	if (state->an_enabled) {
-		ret = xpcs_config_aneg(xpcs);
+	switch (xpcs->an_mode) {
+	case DW_AN_C73:
+		if (state->an_enabled) {
+			ret = xpcs_config_aneg_c73(xpcs);
+			if (ret)
+				return ret;
+		}
+		break;
+	default:
+		return -1;
+	}
+
+	return 0;
+}
+
+static int xpcs_get_state_c73(struct mdio_xpcs_args *xpcs,
+			      struct phylink_link_state *state)
+{
+	int ret;
+
+	/* Link needs to be read first ... */
+	state->link = xpcs_read_link_c73(xpcs, state->an_enabled) > 0 ? 1 : 0;
+
+	/* ... and then we check the faults. */
+	ret = xpcs_read_fault_c73(xpcs, state);
+	if (ret) {
+		ret = xpcs_soft_reset(xpcs);
 		if (ret)
 			return ret;
+
+		state->link = 0;
+
+		return xpcs_config(xpcs, state);
+	}
+
+	if (state->an_enabled && xpcs_aneg_done_c73(xpcs, state)) {
+		state->an_complete = true;
+		xpcs_read_lpa_c73(xpcs, state);
+		xpcs_resolve_lpa_c73(xpcs, state);
+	} else if (state->an_enabled) {
+		state->link = 0;
+	} else if (state->link) {
+		xpcs_resolve_pma(xpcs, state);
 	}
 
 	return 0;
@@ -604,29 +655,14 @@ static int xpcs_get_state(struct mdio_xpcs_args *xpcs,
 {
 	int ret;
 
-	/* Link needs to be read first ... */
-	state->link = xpcs_read_link(xpcs, state->an_enabled) > 0 ? 1 : 0;
-
-	/* ... and then we check the faults. */
-	ret = xpcs_read_fault(xpcs, state);
-	if (ret) {
-		ret = xpcs_soft_reset(xpcs, MDIO_MMD_PCS);
+	switch (xpcs->an_mode) {
+	case DW_AN_C73:
+		ret = xpcs_get_state_c73(xpcs, state);
 		if (ret)
 			return ret;
-
-		state->link = 0;
-
-		return xpcs_config(xpcs, state);
-	}
-
-	if (state->an_enabled && xpcs_aneg_done(xpcs, state)) {
-		state->an_complete = true;
-		xpcs_read_lpa(xpcs, state);
-		xpcs_resolve_lpa(xpcs, state);
-	} else if (state->an_enabled) {
-		state->link = 0;
-	} else if (state->link) {
-		xpcs_resolve_pma(xpcs, state);
+		break;
+	default:
+		return -1;
 	}
 
 	return 0;
@@ -676,6 +712,8 @@ static bool xpcs_check_features(struct mdio_xpcs_args *xpcs,
 	for (i = 0; match->supported[i] != __ETHTOOL_LINK_MODE_MASK_NBITS; i++)
 		set_bit(match->supported[i], xpcs->supported);
 
+	xpcs->an_mode = match->an_mode;
+
 	return true;
 }
 
@@ -692,7 +730,7 @@ static int xpcs_probe(struct mdio_xpcs_args *xpcs, phy_interface_t interface)
 			match = entry;
 
 			if (xpcs_check_features(xpcs, match, interface))
-				return xpcs_soft_reset(xpcs, MDIO_MMD_PCS);
+				return xpcs_soft_reset(xpcs);
 		}
 	}
 
