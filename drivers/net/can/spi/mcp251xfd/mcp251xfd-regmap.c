@@ -321,6 +321,40 @@ mcp251xfd_regmap_crc_read(void *context,
 		if (err != -EBADMSG)
 			return err;
 
+		/* MCP251XFD_REG_TBC is the time base counter
+		 * register. It increments once per SYS clock tick,
+		 * which is 20 or 40 MHz.
+		 *
+		 * Observation shows that if the lowest byte (which is
+		 * transferred first on the SPI bus) of that register
+		 * is 0x00 or 0x80 the calculated CRC doesn't always
+		 * match the transferred one.
+		 *
+		 * If the highest bit in the lowest byte is flipped
+		 * the transferred CRC matches the calculated one. We
+		 * assume for now the CRC calculation in the chip
+		 * works on wrong data and the transferred data is
+		 * correct.
+		 */
+		if (reg == MCP251XFD_REG_TBC &&
+		    (buf_rx->data[0] == 0x0 || buf_rx->data[0] == 0x80)) {
+			/* Flip highest bit in lowest byte of le32 */
+			buf_rx->data[0] ^= 0x80;
+
+			/* re-check CRC */
+			err = mcp251xfd_regmap_crc_read_check_crc(buf_rx,
+								  buf_tx,
+								  val_len);
+			if (!err) {
+				/* If CRC is now correct, assume
+				 * transferred data was OK, flip bit
+				 * back to original value.
+				 */
+				buf_rx->data[0] ^= 0x80;
+				goto out;
+			}
+		}
+
 		/* MCP251XFD_REG_OSC is the first ever reg we read from.
 		 *
 		 * The chip may be in deep sleep and this SPI transfer
