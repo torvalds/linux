@@ -465,6 +465,8 @@ struct amdgpu_dm_connector {
 #endif
 	bool force_yuv420_output;
 	struct dsc_preferred_settings dsc_settings;
+	/* Cached display modes */
+	struct drm_display_mode freesync_vid_base;
 };
 
 #define to_amdgpu_dm_connector(x) container_of(x, struct amdgpu_dm_connector, base)

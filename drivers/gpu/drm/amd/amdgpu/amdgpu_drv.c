@@ -166,6 +166,7 @@ int amdgpu_mes;
 int amdgpu_noretry = -1;
 int amdgpu_force_asic_type = -1;
 int amdgpu_tmz = -1; /* auto */
+uint amdgpu_freesync_vid_mode;
 int amdgpu_reset_method = -1; /* auto */
 int amdgpu_num_kcq = -1;
 
@@ -827,6 +828,17 @@ module_param_named(backlight, amdgpu_backlight, bint, 0444);
  */
 MODULE_PARM_DESC(tmz, "Enable TMZ feature (-1 = auto (default), 0 = off, 1 = on)");
 module_param_named(tmz, amdgpu_tmz, int, 0444);
+
+/**
+ * DOC: freesync_video (uint)
+ * Enabled the optimization to adjust front porch timing to achieve seamless mode change experience
+ * when setting a freesync supported mode for which full modeset is not needed.
+ * The default value: 0 (off).
+ */
+MODULE_PARM_DESC(
+	freesync_video,
+	"Enable freesync modesetting optimization feature (0 = off (default), 1 = on)");
+module_param_named(freesync_video, amdgpu_freesync_vid_mode, uint, 0444);
 
 /**
  * DOC: reset_method (int)
