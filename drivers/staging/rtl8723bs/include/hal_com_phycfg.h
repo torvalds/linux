@@ -72,7 +72,7 @@ struct bb_register_def {
 
 u8
 PHY_GetTxPowerByRateBase(
-struct adapter *	Adapter,
+struct adapter *Adapter,
 u8 		Band,
 u8 		RfPath,
 u8 		TxNum,
@@ -92,9 +92,9 @@ struct adapter *padapter,
 u32 		RegAddr,
 u32 		BitMask,
 u32 		Value,
-	u8*		RateIndex,
-	s8*		PwrByRateVal,
-	u8*		RateNum
+u8		*RateIndex,
+s8		*PwrByRateVal,
+u8		*RateNum
 	);
 
 u8
@@ -104,7 +104,7 @@ u8 Rate
 
 void
 PHY_SetTxPowerIndexByRateSection(
-struct adapter *	padapter,
+struct adapter *padapter,
 u8 		RFPath,
 u8 		Channel,
 u8 		RateSection
@@ -138,11 +138,11 @@ u8 	path
 
 void
 PHY_SetTxPowerIndexByRateArray(
-struct adapter *	padapter,
+struct adapter *padapter,
 u8 		RFPath,
 enum CHANNEL_WIDTH	BandWidth,
 u8 		Channel,
-u8*			Rates,
+u8		*Rates,
 u8 		RateArraySize
 	);
 
@@ -164,12 +164,12 @@ u32 		Data
 
 void
 PHY_TxPowerByRateConfiguration(
-	struct adapter *		padapter
+	struct adapter *padapter
 	);
 
 u8
 PHY_GetTxPowerIndexBase(
-struct adapter *	padapter,
+struct adapter *padapter,
 u8 		RFPath,
 u8 		Rate,
 enum CHANNEL_WIDTH	BandWidth,
@@ -186,7 +186,7 @@ u8 		Channel
 
 void
 PHY_SetTxPowerLimit(
-struct adapter *		Adapter,
+struct adapter *Adapter,
 u8 			*Regulation,
 u8 			*Band,
 u8 			*Bandwidth,
@@ -198,12 +198,12 @@ u8 			*PowerLimit
 
 void
 PHY_ConvertTxPowerLimitToPowerIndex(
-struct adapter *		Adapter
+struct adapter *Adapter
 	);
 
 void
 PHY_InitTxPowerLimit(
-struct adapter *		Adapter
+struct adapter *Adapter
 	);
 
 s8
@@ -215,7 +215,7 @@ PHY_GetTxPowerTrackingOffset(
 
 void
 Hal_ChannelPlanToRegulation(
-struct adapter *	Adapter,
+struct adapter *Adapter,
 u16 			ChannelPlan
 	);
 
