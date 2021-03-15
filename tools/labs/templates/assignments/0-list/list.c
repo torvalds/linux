@@ -66,18 +66,16 @@ static ssize_t list_write(struct file *file, const char __user *buffer,
 	return local_buffer_size;
 }
 
-static const struct file_operations r_fops = {
-	.owner		= THIS_MODULE,
-	.open		= list_read_open,
-	.read		= seq_read,
-	.release	= single_release,
+static const struct proc_ops r_pops = {
+	.proc_open		= list_read_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
 };
 
-static const struct file_operations w_fops = {
-	.owner		= THIS_MODULE,
-	.open		= list_write_open,
-	.write		= list_write,
-	.release	= single_release,
+static const struct proc_ops w_pops = {
+	.proc_open		= list_write_open,
+	.proc_write		= list_write,
+	.proc_release	= single_release,
 };
 
 static int list_init(void)
@@ -87,12 +85,12 @@ static int list_init(void)
 		return -ENOMEM;
 
 	proc_list_read = proc_create(procfs_file_read, 0000, proc_list,
-				     &r_fops);
+				     &r_pops);
 	if (!proc_list_read)
 		goto proc_list_cleanup;
 
 	proc_list_write = proc_create(procfs_file_write, 0000, proc_list,
-				      &w_fops);
+				      &w_pops);
 	if (!proc_list_write)
 		goto proc_list_read_cleanup;
 
