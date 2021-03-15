@@ -90,5 +90,20 @@ static inline void mte_assign_mem_tag_range(void *addr, size_t size)
 
 #endif /* CONFIG_ARM64_MTE */
 
+#ifdef CONFIG_KASAN_HW_TAGS
+/* Whether the MTE asynchronous mode is enabled. */
+DECLARE_STATIC_KEY_FALSE(mte_async_mode);
+
+static inline bool system_uses_mte_async_mode(void)
+{
+	return static_branch_unlikely(&mte_async_mode);
+}
+#else
+static inline bool system_uses_mte_async_mode(void)
+{
+	return false;
+}
+#endif /* CONFIG_KASAN_HW_TAGS */
+
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_MTE_H  */
