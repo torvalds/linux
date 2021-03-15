@@ -325,17 +325,7 @@ static char *translate_scan(struct adapter *padapter,
 	}
 
 
-	#ifdef CONFIG_SKIP_SIGNAL_SCALE_MAPPING
-	{
-		/* Do signal scale mapping when using percentage as the unit of signal strength, since the scale mapping is skipped in odm */
-
-		struct hal_com_data *pHal = GET_HAL_DATA(padapter);
-
-		iwe.u.qual.level = (u8)odm_SignalScaleMapping(&pHal->odmpriv, ss);
-	}
-	#else
 	iwe.u.qual.level = (u8)ss;/*  */
-	#endif
 
 	iwe.u.qual.qual = (u8)sq;   /*  signal quality */
 
@@ -4695,18 +4685,7 @@ static struct iw_statistics *rtw_get_wireless_stats(struct net_device *dev)
 		piwstats->qual.noise = 0;
 		/* DBG_871X("No link  level:%d, qual:%d, noise:%d\n", tmp_level, tmp_qual, tmp_noise); */
 	} else {
-		#ifdef CONFIG_SKIP_SIGNAL_SCALE_MAPPING
-		{
-			/* Do signal scale mapping when using percentage as the unit of signal strength, since the scale mapping is skipped in odm */
-
-			struct hal_com_data *pHal = GET_HAL_DATA(padapter);
-
-			tmp_level = (u8)odm_SignalScaleMapping(&pHal->odmpriv, padapter->recvpriv.signal_strength);
-		}
-		#else
 		tmp_level = padapter->recvpriv.signal_strength;
-		#endif
-
 		tmp_qual = padapter->recvpriv.signal_qual;
 		tmp_noise = padapter->recvpriv.noise;
 		DBG_871X("level:%d, qual:%d, noise:%d, rssi (%d)\n", tmp_level, tmp_qual, tmp_noise, padapter->recvpriv.rssi);

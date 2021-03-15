@@ -226,19 +226,10 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 	/* UI BSS List signal strength(in percentage), make it good looking, from 0~100. */
 	/* It is assigned to the BSS List in GetValueFromBeaconOrProbeRsp(). */
 	if (isCCKrate) {
-#ifdef CONFIG_SKIP_SIGNAL_SCALE_MAPPING
-		pPhyInfo->SignalStrength = (u8)PWDB_ALL;
-#else
 		pPhyInfo->signal_strength = (u8)(odm_SignalScaleMapping(pDM_Odm, PWDB_ALL));/* PWDB_ALL; */
-#endif
 	} else {
 		if (rf_rx_num != 0) {
-#ifdef CONFIG_SKIP_SIGNAL_SCALE_MAPPING
-			total_rssi /= rf_rx_num;
-			pPhyInfo->signal_strength = (u8)total_rssi;
-#else
 			pPhyInfo->signal_strength = (u8)(odm_SignalScaleMapping(pDM_Odm, total_rssi /= rf_rx_num));
-#endif
 		}
 	}
 
