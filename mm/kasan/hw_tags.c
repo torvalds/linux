@@ -252,4 +252,10 @@ void kasan_enable_tagging_sync(void)
 }
 EXPORT_SYMBOL_GPL(kasan_enable_tagging_sync);
 
+void kasan_force_async_fault(void)
+{
+	hw_force_async_tag_fault();
+}
+EXPORT_SYMBOL_GPL(kasan_force_async_fault);
+
 #endif
