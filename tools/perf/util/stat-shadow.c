@@ -9,6 +9,7 @@
 #include "expr.h"
 #include "metricgroup.h"
 #include "cgroup.h"
+#include "units.h"
 #include <linux/zalloc.h>
 
 /*
@@ -1270,18 +1271,15 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 		generic_metric(config, evsel->metric_expr, evsel->metric_events, NULL,
 				evsel->name, evsel->metric_name, NULL, 1, cpu, out, st);
 	} else if (runtime_stat_n(st, STAT_NSECS, cpu, &rsd) != 0) {
-		char unit = 'M';
-		char unit_buf[10];
+		char unit = ' ';
+		char unit_buf[10] = "/sec";
 
 		total = runtime_stat_avg(st, STAT_NSECS, cpu, &rsd);
-
 		if (total)
-			ratio = 1000.0 * avg / total;
-		if (ratio < 0.001) {
-			ratio *= 1000;
-			unit = 'K';
-		}
-		snprintf(unit_buf, sizeof(unit_buf), "%c/sec", unit);
+			ratio = convert_unit_double(1000000000.0 * avg / total, &unit);
+
+		if (unit != ' ')
+			snprintf(unit_buf, sizeof(unit_buf), "%c/sec", unit);
 		print_metric(config, ctxp, NULL, "%8.3f", unit_buf, ratio);
 	} else if (perf_stat_evsel__is(evsel, SMI_NUM)) {
 		print_smi_cost(config, cpu, out, st, &rsd);
