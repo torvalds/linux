@@ -324,6 +324,8 @@ static int parse_line(char *line)
 		str = NULL;
 	}
 	tokens[5] = strtok(str, "\n");
+	if (!tokens[5])
+		goto err_exit;
 
 	/* index/main-leaf */
 	index = strtoull(tokens[0], NULL, 0);
