@@ -1203,11 +1203,9 @@ static int soc_probe_component(struct snd_soc_card *card,
 	}
 
 	ret = snd_soc_component_probe(component);
-	if (ret < 0) {
-		dev_err(component->dev,
-			"ASoC: failed to probe component %d\n", ret);
+	if (ret < 0)
 		goto err_probe;
-	}
+
 	WARN(dapm->idle_bias_off &&
 	     dapm->bias_level != SND_SOC_BIAS_OFF,
 	     "codec %s can not start from non-off bias with idle_bias_off==1\n",

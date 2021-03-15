@@ -2781,11 +2781,8 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &rtd->ops);
 
 	ret = snd_soc_pcm_component_new(rtd);
-	if (ret < 0) {
-		dev_err(rtd->dev, "ASoC: pcm constructor failed for dailink %s: %d\n",
-			rtd->dai_link->name, ret);
+	if (ret < 0)
 		return ret;
-	}
 
 	pcm->no_device_suspend = true;
 out:
