@@ -406,7 +406,7 @@ static int dr_get_tbl_copy_details(struct mlx5dr_domain *dmn,
 		alloc_size = *num_stes * DR_STE_SIZE;
 	}
 
-	*data = kzalloc(alloc_size, GFP_KERNEL);
+	*data = kvzalloc(alloc_size, GFP_KERNEL);
 	if (!*data)
 		return -ENOMEM;
 
@@ -505,7 +505,7 @@ int mlx5dr_send_postsend_htbl(struct mlx5dr_domain *dmn,
 	}
 
 out_free:
-	kfree(data);
+	kvfree(data);
 	return ret;
 }
 
@@ -562,7 +562,7 @@ int mlx5dr_send_postsend_formatted_htbl(struct mlx5dr_domain *dmn,
 	}
 
 out_free:
-	kfree(data);
+	kvfree(data);
 	return ret;
 }
 

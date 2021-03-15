@@ -287,7 +287,7 @@ int mlx5dr_cmd_create_empty_flow_group(struct mlx5_core_dev *mdev,
 	u32 *in;
 	int err;
 
-	in = kzalloc(inlen, GFP_KERNEL);
+	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
 
@@ -302,7 +302,7 @@ int mlx5dr_cmd_create_empty_flow_group(struct mlx5_core_dev *mdev,
 	*group_id = MLX5_GET(create_flow_group_out, out, group_id);
 
 out:
-	kfree(in);
+	kvfree(in);
 	return err;
 }
 
