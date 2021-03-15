@@ -246,7 +246,7 @@ int v4l2_mc_create_media_graph(struct media_device *mdev)
 			pad_sink = media_get_pad_index(decoder, true,
 						       PAD_SIGNAL_ANALOG);
 			if (pad_sink < 0) {
-				dev_warn(mdev->dev, "couldn't get tuner analog pad sink\n");
+				dev_warn(mdev->dev, "couldn't get decoder analog pad sink\n");
 				return -EINVAL;
 			}
 			ret = media_create_pad_link(entity, 0, decoder,
