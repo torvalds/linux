@@ -503,6 +503,7 @@ struct rkcif_device {
 	struct notifier_block		reset_notifier; /* reset for mipi csi crc err */
 	struct rkcif_work_struct	reset_work;
 	struct rkcif_timer		reset_watchdog_timer;
+	struct work_struct		async_register_work;
 	unsigned int			buf_wake_up_cnt;
 
 	bool				iommu_en;

@@ -542,6 +542,16 @@ static int _set_pipeline_default_fmt(struct rkcif_device *dev)
 	return 0;
 }
 
+static void subdev_itf_register_work(struct work_struct *work)
+{
+	struct rkcif_device *dev = container_of(work,
+						struct rkcif_device,
+						async_register_work);
+
+	if (dev->chip_id >= CHIP_RK1808_CIF)
+		platform_driver_register(&rkcif_subdev_driver);
+}
+
 static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 {
 	struct rkcif_device *dev;
@@ -585,6 +595,14 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 	ret = _set_pipeline_default_fmt(dev);
 	if (ret < 0)
 		goto unregister_lvds;
+
+	INIT_WORK(&dev->async_register_work, subdev_itf_register_work);
+	if (schedule_work(&dev->async_register_work))
+		v4l2_info(&dev->v4l2_dev,
+			 "async register subdev itf successfully\n");
+	else
+		v4l2_info(&dev->v4l2_dev,
+			 "async register subdev itf failed\n");
 
 	v4l2_info(&dev->v4l2_dev, "Async subdev notifier completed\n");
 

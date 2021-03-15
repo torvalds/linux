@@ -2173,7 +2173,9 @@ int rkcif_update_sensor_info(struct rkcif_stream *stream)
 
 	sensor = sd_to_sensor(stream->cifdev, sensor_sd);
 	if (!sensor) {
-		v4l2_err(&stream->cifdev->v4l2_dev, "get sensor for updating failed!\n");
+		v4l2_err(&stream->cifdev->v4l2_dev,
+			 "%s: stream[%d] get remote sensor failed!\n",
+			 __func__, stream->id);
 		return -ENODEV;
 	}
 	ret = v4l2_subdev_call(sensor->sd, video, g_mbus_config,
@@ -2205,6 +2207,10 @@ int rkcif_update_sensor_info(struct rkcif_stream *stream)
 		terminal_sensor->lanes = 4;
 		break;
 	default:
+		v4l2_err(&stream->cifdev->v4l2_dev, "%s:get sd:%s lane num failed!\n",
+			 __func__,
+			 terminal_sensor->sd ?
+			 terminal_sensor->sd->name : "null");
 		return -EINVAL;
 	}
 
