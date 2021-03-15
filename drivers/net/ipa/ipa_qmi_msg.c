@@ -56,7 +56,7 @@ struct qmi_elem_info ipa_indication_register_req_ei[] = {
 		.elem_size	=
 			sizeof_field(struct ipa_indication_register_req,
 				     ipa_mhi_ready_ind_valid),
-		.tlv_type	= 0x11,
+		.tlv_type	= 0x12,
 		.offset		= offsetof(struct ipa_indication_register_req,
 					   ipa_mhi_ready_ind_valid),
 	},
@@ -66,7 +66,7 @@ struct qmi_elem_info ipa_indication_register_req_ei[] = {
 		.elem_size	=
 			sizeof_field(struct ipa_indication_register_req,
 				     ipa_mhi_ready_ind),
-		.tlv_type	= 0x11,
+		.tlv_type	= 0x12,
 		.offset		= offsetof(struct ipa_indication_register_req,
 					   ipa_mhi_ready_ind),
 	},
