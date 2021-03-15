@@ -151,7 +151,7 @@ struct atm_dev {
 	const char	*type;		/* device type name */
 	int		number;		/* device index */
 	void		*dev_data;	/* per-device data */
-	void		*phy_data;	/* private PHY date */
+	void		*phy_data;	/* private PHY data */
 	unsigned long	flags;		/* device flags (ATM_DF_*) */
 	struct list_head local;		/* local ATM addresses */
 	struct list_head lecs;		/* LECS ATM addresses learned via ILMI */

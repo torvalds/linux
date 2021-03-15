@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "../../../../arch/x86/include/asm/insn.h"
 #include "archinsn.h"
 #include "event.h"
 #include "machine.h"
 #include "thread.h"
 #include "symbol.h"
+#include "../../../../arch/x86/include/asm/insn.h"
 
 void arch_fetch_insn(struct perf_sample *sample,
 		     struct thread *thread,
