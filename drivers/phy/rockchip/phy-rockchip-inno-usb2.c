@@ -2241,6 +2241,18 @@ static int rk3568_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 	/* turn off differential reciver in suspend mode */
 	writel(reg & ~BIT(2), rphy->phy_base + 0x30);
 
+	reg = readl(rphy->phy_base);
+	/* Enable otg port pre-emphasis during non-chirp phase */
+	reg &= ~(0x07 << 0);
+	reg |= (0x04 << 0);
+	writel(reg, rphy->phy_base);
+
+	reg = readl(rphy->phy_base + 0x0400);
+	/* Enable host port pre-emphasis during non-chirp phase */
+	reg &= ~(0x07 << 0);
+	reg |= (0x04 << 0);
+	writel(reg, rphy->phy_base + 0x0400);
+
 	if (rphy->phy_cfg->reg == 0xfe8a0000) {
 		/*
 		 * Set the bvalid filter time to 10ms
