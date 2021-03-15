@@ -23,7 +23,7 @@
 	} while (0)
 
 
-void ConfigureTxpowerTrack(struct DM_ODM_T * pDM_Odm, struct TXPWRTRACK_CFG * pConfig)
+void ConfigureTxpowerTrack(struct DM_ODM_T *pDM_Odm, struct TXPWRTRACK_CFG *pConfig)
 {
 	ConfigureTxpowerTrack_8723B(pConfig);
 }
@@ -36,7 +36,7 @@ void ConfigureTxpowerTrack(struct DM_ODM_T * pDM_Odm, struct TXPWRTRACK_CFG * pC
 /*  NOTE: If Tx BB swing or Tx scaling is varified during run-time, still */
 /*        need to call this function. */
 /*  */
-void ODM_ClearTxPowerTrackingState(struct DM_ODM_T * pDM_Odm)
+void ODM_ClearTxPowerTrackingState(struct DM_ODM_T *pDM_Odm)
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(pDM_Odm->Adapter);
 	u8 p = 0;
@@ -74,7 +74,7 @@ void ODM_TXPowerTrackingCallback_ThermalMeter(struct adapter *Adapter)
 {
 
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
-	struct DM_ODM_T * pDM_Odm = &pHalData->odmpriv;
+	struct DM_ODM_T *pDM_Odm = &pHalData->odmpriv;
 
 	u8 ThermalValue = 0, delta, delta_LCK, delta_IQK, p = 0, i = 0;
 	u8 ThermalValue_AVG_count = 0;
