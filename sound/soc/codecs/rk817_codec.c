@@ -1050,6 +1050,10 @@ static int rk817_suspend(struct snd_soc_component *component)
 
 static int rk817_resume(struct snd_soc_component *component)
 {
+	struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
+
+	rk817_capture_path_config(component, OFF, rk817->capture_path);
+	rk817_playback_path_config(component, OFF, rk817->playback_path);
 	return 0;
 }
 
