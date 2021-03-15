@@ -121,11 +121,7 @@ int rtw_mc2u_disable = 0;
 
 static int rtw_80211d;
 
-#ifdef CONFIG_QOS_OPTIMIZATION
-static int rtw_qos_opt_enable = 1;/* 0: disable, 1:enable */
-#else
 static int rtw_qos_opt_enable;/* 0: disable, 1:enable */
-#endif
 module_param(rtw_qos_opt_enable, int, 0644);
 
 static char *ifname = "wlan%d";
