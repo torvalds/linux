@@ -56,11 +56,11 @@
 	pcie30_3v3: gpio-regulator {
 		compatible = "regulator-gpio";
 		regulator-name = "pcie30_3v3";
-		regulator-min-microvolt = <0100000>;
+		regulator-min-microvolt = <100000>;
 		regulator-max-microvolt = <3300000>;
 		gpios = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
 		gpios-states = <0x1>;
-		states = <0100000 0x0
+		states = <100000 0x0
 			  3300000 0x1>;
 	};
 
