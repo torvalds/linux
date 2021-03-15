@@ -37,7 +37,6 @@
 #define VDPASIM_BLK_SEG_MAX	32
 #define VDPASIM_BLK_VQ_NUM	1
 
-static struct vdpasim *vdpasim_blk_dev;
 static char vdpasim_blk_id[VIRTIO_BLK_ID_BYTES] = "vdpa_blk_sim";
 
 static bool vdpasim_blk_check_range(u64 start_sector, size_t range_size)
@@ -241,11 +240,23 @@ static void vdpasim_blk_get_config(struct vdpasim *vdpasim, void *config)
 	blk_config->blk_size = cpu_to_vdpasim32(vdpasim, SECTOR_SIZE);
 }
 
-static int __init vdpasim_blk_init(void)
+static void vdpasim_blk_mgmtdev_release(struct device *dev)
+{
+}
+
+static struct device vdpasim_blk_mgmtdev = {
+	.init_name = "vdpasim_blk",
+	.release = vdpasim_blk_mgmtdev_release,
+};
+
+static int vdpasim_blk_dev_add(struct vdpa_mgmt_dev *mdev, const char *name)
 {
 	struct vdpasim_dev_attr dev_attr = {};
+	struct vdpasim *simdev;
 	int ret;
 
+	dev_attr.mgmt_dev = mdev;
+	dev_attr.name = name;
 	dev_attr.id = VIRTIO_ID_BLOCK;
 	dev_attr.supported_features = VDPASIM_BLK_FEATURES;
 	dev_attr.nvqs = VDPASIM_BLK_VQ_NUM;
@@ -254,29 +265,68 @@ static int __init vdpasim_blk_init(void)
 	dev_attr.work_fn = vdpasim_blk_work;
 	dev_attr.buffer_size = VDPASIM_BLK_CAPACITY << SECTOR_SHIFT;
 
-	vdpasim_blk_dev = vdpasim_create(&dev_attr);
-	if (IS_ERR(vdpasim_blk_dev)) {
-		ret = PTR_ERR(vdpasim_blk_dev);
-		goto out;
-	}
+	simdev = vdpasim_create(&dev_attr);
+	if (IS_ERR(simdev))
+		return PTR_ERR(simdev);
 
-	ret = vdpa_register_device(&vdpasim_blk_dev->vdpa, VDPASIM_BLK_VQ_NUM);
+	ret = _vdpa_register_device(&simdev->vdpa, VDPASIM_BLK_VQ_NUM);
 	if (ret)
 		goto put_dev;
 
 	return 0;
 
 put_dev:
-	put_device(&vdpasim_blk_dev->vdpa.dev);
-out:
+	put_device(&simdev->vdpa.dev);
+	return ret;
+}
+
+static void vdpasim_blk_dev_del(struct vdpa_mgmt_dev *mdev,
+				struct vdpa_device *dev)
+{
+	struct vdpasim *simdev = container_of(dev, struct vdpasim, vdpa);
+
+	_vdpa_unregister_device(&simdev->vdpa);
+}
+
+static const struct vdpa_mgmtdev_ops vdpasim_blk_mgmtdev_ops = {
+	.dev_add = vdpasim_blk_dev_add,
+	.dev_del = vdpasim_blk_dev_del
+};
+
+static struct virtio_device_id id_table[] = {
+	{ VIRTIO_ID_BLOCK, VIRTIO_DEV_ANY_ID },
+	{ 0 },
+};
+
+static struct vdpa_mgmt_dev mgmt_dev = {
+	.device = &vdpasim_blk_mgmtdev,
+	.id_table = id_table,
+	.ops = &vdpasim_blk_mgmtdev_ops,
+};
+
+static int __init vdpasim_blk_init(void)
+{
+	int ret;
+
+	ret = device_register(&vdpasim_blk_mgmtdev);
+	if (ret)
+		return ret;
+
+	ret = vdpa_mgmtdev_register(&mgmt_dev);
+	if (ret)
+		goto parent_err;
+
+	return 0;
+
+parent_err:
+	device_unregister(&vdpasim_blk_mgmtdev);
 	return ret;
 }
 
 static void __exit vdpasim_blk_exit(void)
 {
-	struct vdpa_device *vdpa = &vdpasim_blk_dev->vdpa;
-
-	vdpa_unregister_device(vdpa);
+	vdpa_mgmtdev_unregister(&mgmt_dev);
+	device_unregister(&vdpasim_blk_mgmtdev);
 }
 
 module_init(vdpasim_blk_init)
