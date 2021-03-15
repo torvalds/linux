@@ -452,9 +452,21 @@ static int do_suspend(void)
 	return ret;
 }
 
+/**
+ * struct pseries_suspend_info - State shared between CPUs for join/suspend.
+ * @counter: Threads are to increment this upon resuming from suspend
+ *           or if an error is received from H_JOIN. The thread which performs
+ *           the first increment (i.e. sets it to 1) is responsible for
+ *           waking the other threads.
+ */
+struct pseries_suspend_info {
+	atomic_t counter;
+};
+
 static int do_join(void *arg)
 {
-	atomic_t *counter = arg;
+	struct pseries_suspend_info *info = arg;
+	atomic_t *counter = &info->counter;
 	long hvrc;
 	int ret;
 
@@ -535,11 +547,15 @@ static int pseries_suspend(u64 handle)
 	int ret;
 
 	while (true) {
-		atomic_t counter = ATOMIC_INIT(0);
+		struct pseries_suspend_info info;
 		unsigned long vasi_state;
 		int vasi_err;
 
-		ret = stop_machine(do_join, &counter, cpu_online_mask);
+		info = (struct pseries_suspend_info) {
+			.counter = ATOMIC_INIT(0),
+		};
+
+		ret = stop_machine(do_join, &info, cpu_online_mask);
 		if (ret == 0)
 			break;
 		/*
