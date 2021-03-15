@@ -277,7 +277,7 @@ static enum es_result vc_decode_insn(struct es_em_ctxt *ctxt)
 			return ES_EXCEPTION;
 		}
 
-		insn_init(&ctxt->insn, buffer, MAX_INSN_SIZE - res, 1);
+		insn_init(&ctxt->insn, buffer, MAX_INSN_SIZE, 1);
 		insn_get_length(&ctxt->insn);
 	}
 
