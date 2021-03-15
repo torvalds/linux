@@ -71,14 +71,20 @@ static void init_irq_stacks(void)
 }
 #endif
 
-void (*handle_arch_irq)(struct pt_regs *) __ro_after_init;
+static void default_handle_irq(struct pt_regs *regs)
+{
+	panic("IRQ taken without a root IRQ handler\n");
+}
+
+void (*handle_arch_irq)(struct pt_regs *) __ro_after_init = default_handle_irq;
 
 int __init set_handle_irq(void (*handle_irq)(struct pt_regs *))
 {
-	if (handle_arch_irq)
+	if (handle_arch_irq != default_handle_irq)
 		return -EBUSY;
 
 	handle_arch_irq = handle_irq;
+	pr_info("Root IRQ handler: %ps\n", handle_irq);
 	return 0;
 }
 
@@ -87,8 +93,6 @@ void __init init_IRQ(void)
 	init_irq_stacks();
 	init_irq_scs();
 	irqchip_init();
-	if (!handle_arch_irq)
-		panic("No interrupt controller found.");
 
 	if (system_uses_irq_prio_masking()) {
 		/*
