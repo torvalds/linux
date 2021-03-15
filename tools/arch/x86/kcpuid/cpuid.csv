@@ -379,12 +379,22 @@
 0x80000008,    0,  EAX,   15:8, lnr_adr_bits, Linear Address Bits
 0x80000007,    0,  EBX,      9, wbnoinvd, WBNOINVD
 
+# 0x8000001E
+# EAX: Extended APIC ID
+0x8000001E,	0, EAX,   31:0, extended_apic_id, Extended APIC ID
+# EBX: Core Identifiers
+0x8000001E,	0, EBX,    7:0, core_id, Identifies the logical core ID
+0x8000001E,	0, EBX,   15:8, threads_per_core, The number of threads per core is threads_per_core + 1
+# ECX: Node Identifiers
+0x8000001E,	0, ECX,    7:0, node_id, Node ID
+0x8000001E,	0, ECX,   10:8, nodes_per_processor, Nodes per processor { 0: 1 node, else reserved }
+
 # 8000001F: AMD Secure Encryption
-0x8000001F,	0, EAX, 0, sme,	Secure Memory Encryption
-0x8000001F,	0, EAX, 1, sev,	Secure Encrypted Virtualization
-0x8000001F,	0, EAX, 2, vmpgflush, VM Page Flush MSR
-0x8000001F,	0, EAX, 3, seves, SEV Encrypted State
-0x8000001F,	0, EBX, 5:0, c-bit, Page table bit number used to enable memory encryption
-0x8000001F,	0, EBX, 11:6, mem_encrypt_physaddr_width, Reduction of physical address space in bits with SME enabled
-0x8000001F,	0, ECX, 31:0, num_encrypted_guests, Maximum ASID value that may be used for an SEV-enabled guest
-0x8000001F,	0, EDX, 31:0, minimum_sev_asid, Minimum ASID value that must be used for an SEV-enabled, SEV-ES-disabled guest
+0x8000001F,	0, EAX,	     0, sme,	Secure Memory Encryption
+0x8000001F,	0, EAX,      1, sev,	Secure Encrypted Virtualization
+0x8000001F,	0, EAX,      2, vmpgflush, VM Page Flush MSR
+0x8000001F,	0, EAX,      3, seves, SEV Encrypted State
+0x8000001F,	0, EBX,    5:0, c-bit, Page table bit number used to enable memory encryption
+0x8000001F,	0, EBX,   11:6, mem_encrypt_physaddr_width, Reduction of physical address space in bits with SME enabled
+0x8000001F,	0, ECX,   31:0, num_encrypted_guests, Maximum ASID value that may be used for an SEV-enabled guest
+0x8000001F,	0, EDX,   31:0, minimum_sev_asid, Minimum ASID value that must be used for an SEV-enabled, SEV-ES-disabled guest
