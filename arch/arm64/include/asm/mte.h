@@ -98,10 +98,39 @@ static inline bool system_uses_mte_async_mode(void)
 {
 	return static_branch_unlikely(&mte_async_mode);
 }
+
+void mte_check_tfsr_el1(void);
+
+static inline void mte_check_tfsr_entry(void)
+{
+	mte_check_tfsr_el1();
+}
+
+static inline void mte_check_tfsr_exit(void)
+{
+	/*
+	 * The asynchronous faults are sync'ed automatically with
+	 * TFSR_EL1 on kernel entry but for exit an explicit dsb()
+	 * is required.
+	 */
+	dsb(nsh);
+	isb();
+
+	mte_check_tfsr_el1();
+}
 #else
 static inline bool system_uses_mte_async_mode(void)
 {
 	return false;
+}
+static inline void mte_check_tfsr_el1(void)
+{
+}
+static inline void mte_check_tfsr_entry(void)
+{
+}
+static inline void mte_check_tfsr_exit(void)
+{
 }
 #endif /* CONFIG_KASAN_HW_TAGS */
 
