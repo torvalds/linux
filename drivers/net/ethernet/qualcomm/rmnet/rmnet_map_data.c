@@ -359,7 +359,7 @@ int rmnet_map_checksum_downlink_packet(struct sk_buff *skb, u16 len)
 
 	csum_trailer = (struct rmnet_map_dl_csum_trailer *)(skb->data + len);
 
-	if (!csum_trailer->valid) {
+	if (!(csum_trailer->flags & MAP_CSUM_DL_VALID_FLAG)) {
 		priv->stats.csum_valid_unset++;
 		return -EINVAL;
 	}
