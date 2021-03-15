@@ -8,6 +8,9 @@
 
 struct pt_regs;
 
+int set_handle_irq(void (*handle_irq)(struct pt_regs *));
+#define set_handle_irq	set_handle_irq
+
 static inline int nr_legacy_irqs(void)
 {
 	return 0;

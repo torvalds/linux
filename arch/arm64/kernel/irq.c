@@ -71,6 +71,17 @@ static void init_irq_stacks(void)
 }
 #endif
 
+void (*handle_arch_irq)(struct pt_regs *) __ro_after_init;
+
+int __init set_handle_irq(void (*handle_irq)(struct pt_regs *))
+{
+	if (handle_arch_irq)
+		return -EBUSY;
+
+	handle_arch_irq = handle_irq;
+	return 0;
+}
+
 void __init init_IRQ(void)
 {
 	init_irq_stacks();
