@@ -1808,7 +1808,7 @@ static int dpcm_fe_dai_shutdown(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-int dpcm_be_dai_hw_free(struct snd_soc_pcm_runtime *fe, int stream)
+void dpcm_be_dai_hw_free(struct snd_soc_pcm_runtime *fe, int stream)
 {
 	struct snd_soc_dpcm *dpcm;
 
@@ -1847,14 +1847,12 @@ int dpcm_be_dai_hw_free(struct snd_soc_pcm_runtime *fe, int stream)
 
 		be->dpcm[stream].state = SND_SOC_DPCM_STATE_HW_FREE;
 	}
-
-	return 0;
 }
 
 static int dpcm_fe_dai_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *fe = asoc_substream_to_rtd(substream);
-	int err, stream = substream->stream;
+	int stream = substream->stream;
 
 	mutex_lock_nested(&fe->card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_FE);
@@ -1866,9 +1864,7 @@ static int dpcm_fe_dai_hw_free(struct snd_pcm_substream *substream)
 
 	/* only hw_params backends that are either sinks or sources
 	 * to this frontend DAI */
-	err = dpcm_be_dai_hw_free(fe, stream);
-	if (err < 0)
-		dev_err(fe->dev, "ASoC: hw_free BE failed %d\n", err);
+	dpcm_be_dai_hw_free(fe, stream);
 
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_HW_FREE;
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
@@ -2330,9 +2326,7 @@ static int dpcm_run_update_shutdown(struct snd_soc_pcm_runtime *fe, int stream)
 		err = dpcm_be_dai_trigger(fe, stream, SNDRV_PCM_TRIGGER_STOP);
 	}
 
-	err = dpcm_be_dai_hw_free(fe, stream);
-	if (err < 0)
-		dev_err(fe->dev,"ASoC: hw_free FE failed %d\n", err);
+	dpcm_be_dai_hw_free(fe, stream);
 
 	dpcm_be_dai_shutdown(fe, stream);
 

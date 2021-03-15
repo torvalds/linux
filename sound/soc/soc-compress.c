@@ -175,7 +175,6 @@ static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(fe, 0);
 	struct snd_soc_dpcm *dpcm;
 	int stream = cstream->direction; /* SND_COMPRESS_xxx is same as SNDRV_PCM_STREAM_xxx */
-	int ret;
 
 	mutex_lock_nested(&fe->card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
 
@@ -183,9 +182,7 @@ static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 
 	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_FE;
 
-	ret = dpcm_be_dai_hw_free(fe, stream);
-	if (ret < 0)
-		dev_err(fe->dev, "Compressed ASoC: hw_free failed: %d\n", ret);
+	dpcm_be_dai_hw_free(fe, stream);
 
 	dpcm_be_dai_shutdown(fe, stream);
 
