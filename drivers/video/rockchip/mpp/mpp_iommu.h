@@ -33,6 +33,8 @@ struct mpp_dma_buffer {
 
 	struct kref ref;
 	ktime_t last_used;
+	/* alloc by device */
+	struct device *dev;
 };
 
 struct mpp_dma_session {
@@ -74,9 +76,8 @@ mpp_dma_session_create(struct device *dev);
 int mpp_dma_session_destroy(struct mpp_dma_session *dma);
 
 struct mpp_dma_buffer *
-mpp_dma_alloc(struct mpp_dma_session *dma, size_t size);
-int mpp_dma_free(struct mpp_dma_session *dma,
-		 struct mpp_dma_buffer *buffer);
+mpp_dma_alloc(struct device *dev, size_t size);
+int mpp_dma_free(struct mpp_dma_buffer *buffer);
 
 struct mpp_dma_buffer *
 mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,

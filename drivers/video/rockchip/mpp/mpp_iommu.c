@@ -125,7 +125,7 @@ int mpp_dma_release_fd(struct mpp_dma_session *dma, int fd)
 }
 
 struct mpp_dma_buffer *
-mpp_dma_alloc(struct mpp_dma_session *dma, size_t size)
+mpp_dma_alloc(struct device *dev, size_t size)
 {
 	size_t align_size;
 	dma_addr_t iova;
@@ -136,15 +136,13 @@ mpp_dma_alloc(struct mpp_dma_session *dma, size_t size)
 		return NULL;
 
 	align_size = PAGE_ALIGN(size);
-	buffer->vaddr = dma_alloc_coherent(dma->dev,
-					   align_size,
-					   &iova,
-					   GFP_KERNEL);
+	buffer->vaddr = dma_alloc_coherent(dev, align_size, &iova, GFP_KERNEL);
 	if (!buffer->vaddr)
 		goto fail_dma_alloc;
 
-	buffer->size = PAGE_ALIGN(size);
+	buffer->size = align_size;
 	buffer->iova = iova;
+	buffer->dev = dev;
 
 	return buffer;
 fail_dma_alloc:
@@ -152,14 +150,15 @@ fail_dma_alloc:
 	return NULL;
 }
 
-int mpp_dma_free(struct mpp_dma_session *dma,
-		 struct mpp_dma_buffer *buffer)
+int mpp_dma_free(struct mpp_dma_buffer *buffer)
 {
-	dma_free_coherent(dma->dev, buffer->size,
-			  buffer->vaddr, buffer->iova);
+	dma_free_coherent(buffer->dev, buffer->size,
+			buffer->vaddr, buffer->iova);
 	buffer->vaddr = NULL;
 	buffer->iova = 0;
 	buffer->size = 0;
+	buffer->dev = NULL;
+	kfree(buffer);
 
 	return 0;
 }
