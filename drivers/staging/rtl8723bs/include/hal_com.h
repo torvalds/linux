@@ -215,9 +215,9 @@ u8 MRateToHwRate(u8 rate);
 u8 HwRateToMRate(u8 rate);
 
 void HalSetBrateCfg(
-	struct adapter *	Adapter,
-	u8 	*mBratesOS,
-	u16 		*pBrateCfg);
+	struct adapter *Adapter,
+	u8 *mBratesOS,
+	u16	*pBrateCfg);
 
 bool
 Hal_MappingOutPipe(
@@ -227,7 +227,7 @@ u8 NumOutPipe
 
 void hal_init_macaddr(struct adapter *adapter);
 
-void rtw_init_hal_com_default_value(struct adapter * Adapter);
+void rtw_init_hal_com_default_value(struct adapter *Adapter);
 
 void c2h_evt_clear(struct adapter *adapter);
 s32 c2h_evt_read_88xx(struct adapter *adapter, u8 *buf);
@@ -279,12 +279,12 @@ void rtw_bb_rf_gain_offset(struct adapter *padapter);
 
 void GetHalODMVar(struct adapter *Adapter,
 	enum HAL_ODM_VARIABLE		eVariable,
-	void *				pValue1,
-	void *				pValue2);
+	void *pValue1,
+	void *pValue2);
 void SetHalODMVar(
-	struct adapter *			Adapter,
+	struct adapter *Adapter,
 	enum HAL_ODM_VARIABLE		eVariable,
-	void *				pValue1,
+	void *pValue1,
 	bool					bSet);
 
 #ifdef CONFIG_BACKGROUND_NOISE_MONITOR
