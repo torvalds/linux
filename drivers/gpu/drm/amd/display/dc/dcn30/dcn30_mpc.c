@@ -357,7 +357,7 @@ void mpc3_set_output_gamma(
 		next_mode = LUT_RAM_A;
 
 	mpc3_power_on_ogam_lut(mpc, mpcc_id, true);
-	mpc3_configure_ogam_lut(mpc, mpcc_id, next_mode == LUT_RAM_A ? true:false);
+	mpc3_configure_ogam_lut(mpc, mpcc_id, next_mode == LUT_RAM_A);
 
 	if (next_mode == LUT_RAM_A)
 		mpc3_program_luta(mpc, mpcc_id, params);
