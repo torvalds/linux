@@ -1359,8 +1359,8 @@ static void amdgpu_drv_delayed_reset_work_handler(struct work_struct *work)
 	}
 	for (i = 0; i < mgpu_info.num_dgpu; i++) {
 		adev = mgpu_info.gpu_ins[i].adev;
-		adev->gmc.xgmi.pending_reset = false;
 		flush_work(&adev->xgmi_reset_work);
+		adev->gmc.xgmi.pending_reset = false;
 	}
 
 	/* reset function will rebuild the xgmi hive info , clear it now */
