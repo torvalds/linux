@@ -36,7 +36,7 @@ int bch2_create_trans(struct btree_trans *trans, u64 dir_inum,
 	if (!name)
 		new_inode->bi_flags |= BCH_INODE_UNLINKED;
 
-	inode_iter = bch2_inode_create(trans, new_inode);
+	inode_iter = bch2_inode_create(trans, new_inode, U32_MAX);
 	ret = PTR_ERR_OR_ZERO(inode_iter);
 	if (ret)
 		goto err;
@@ -79,6 +79,10 @@ int bch2_create_trans(struct btree_trans *trans, u64 dir_inum,
 		new_inode->bi_dir		= dir_u->bi_inum;
 		new_inode->bi_dir_offset	= dir_offset;
 	}
+
+	/* XXX use bch2_btree_iter_set_snapshot() */
+	inode_iter->snapshot = U32_MAX;
+	bch2_btree_iter_set_pos(inode_iter, SPOS(0, new_inode->bi_inum, U32_MAX));
 
 	ret = bch2_inode_write(trans, inode_iter, new_inode);
 err:

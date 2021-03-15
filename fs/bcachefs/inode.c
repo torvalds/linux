@@ -471,12 +471,13 @@ static inline u32 bkey_generation(struct bkey_s_c k)
 }
 
 struct btree_iter *bch2_inode_create(struct btree_trans *trans,
-				     struct bch_inode_unpacked *inode_u)
+				     struct bch_inode_unpacked *inode_u,
+				     u32 snapshot)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter *iter = NULL;
 	struct bkey_s_c k;
-	u64 min, max, start, *hint;
+	u64 min, max, start, pos, *hint;
 	int ret;
 
 	u64 cpu = raw_smp_processor_id();
@@ -493,39 +494,70 @@ struct btree_iter *bch2_inode_create(struct btree_trans *trans,
 
 	if (start >= max || start < min)
 		start = min;
+
+	pos = start;
+	iter = bch2_trans_get_iter(trans, BTREE_ID_inodes, POS(0, pos),
+				   BTREE_ITER_ALL_SNAPSHOTS|
+				   BTREE_ITER_INTENT);
 again:
-	for_each_btree_key(trans, iter, BTREE_ID_inodes, POS(0, start),
-			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
-		if (bkey_cmp(iter->pos, POS(0, max)) > 0)
-			break;
+	while ((k = bch2_btree_iter_peek(iter)).k &&
+	       !(ret = bkey_err(k)) &&
+	       bkey_cmp(k.k->p, POS(0, max)) < 0) {
+		while (pos < iter->pos.offset) {
+			if (!bch2_btree_key_cache_find(c, BTREE_ID_inodes, POS(0, pos)))
+				goto found_slot;
+
+			pos++;
+		}
+
+		if (k.k->p.snapshot == snapshot &&
+		    k.k->type != KEY_TYPE_inode &&
+		    !bch2_btree_key_cache_find(c, BTREE_ID_inodes, SPOS(0, pos, snapshot))) {
+			bch2_btree_iter_next(iter);
+			continue;
+		}
 
 		/*
-		 * There's a potential cache coherency issue with the btree key
-		 * cache code here - we're iterating over the btree, skipping
-		 * that cache. We should never see an empty slot that isn't
-		 * actually empty due to a pending update in the key cache
-		 * because the update that creates the inode isn't done with a
-		 * cached iterator, but - better safe than sorry, check the
-		 * cache before using a slot:
+		 * We don't need to iterate over keys in every snapshot once
+		 * we've found just one:
 		 */
-		if (k.k->type != KEY_TYPE_inode &&
-		    !bch2_btree_key_cache_find(c, BTREE_ID_inodes, iter->pos))
+		pos = iter->pos.offset + 1;
+		bch2_btree_iter_set_pos(iter, POS(0, pos));
+	}
+
+	while (!ret && pos < max) {
+		if (!bch2_btree_key_cache_find(c, BTREE_ID_inodes, POS(0, pos)))
 			goto found_slot;
+
+		pos++;
 	}
 
-	bch2_trans_iter_put(trans, iter);
+	if (!ret && start == min)
+		ret = -ENOSPC;
 
-	if (ret)
+	if (ret) {
+		bch2_trans_iter_put(trans, iter);
 		return ERR_PTR(ret);
-
-	if (start != min) {
-		/* Retry from start */
-		start = min;
-		goto again;
 	}
 
-	return ERR_PTR(-ENOSPC);
+	/* Retry from start */
+	pos = start = min;
+	bch2_btree_iter_set_pos(iter, POS(0, pos));
+	goto again;
 found_slot:
+	bch2_btree_iter_set_pos(iter, SPOS(0, pos, snapshot));
+	k = bch2_btree_iter_peek_slot(iter);
+	ret = bkey_err(k);
+	if (ret) {
+		bch2_trans_iter_put(trans, iter);
+		return ERR_PTR(ret);
+	}
+
+	/* We may have raced while the iterator wasn't pointing at pos: */
+	if (k.k->type == KEY_TYPE_inode ||
+	    bch2_btree_key_cache_find(c, BTREE_ID_inodes, k.k->p))
+		goto again;
+
 	*hint			= k.k->p.offset;
 	inode_u->bi_inum	= k.k->p.offset;
 	inode_u->bi_generation	= bkey_generation(k);
