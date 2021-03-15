@@ -93,11 +93,18 @@ void hl_hpriv_put(struct hl_fpriv *hpriv)
 static int hl_device_release(struct inode *inode, struct file *filp)
 {
 	struct hl_fpriv *hpriv = filp->private_data;
+	struct hl_device *hdev = hpriv->hdev;
+
+	filp->private_data = NULL;
+
+	if (!hdev) {
+		pr_crit("Closing FD after device was removed. Memory leak will occur and it is advised to reboot.\n");
+		put_pid(hpriv->taskpid);
+		return 0;
+	}
 
 	hl_cb_mgr_fini(hpriv->hdev, &hpriv->cb_mgr);
 	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
-
-	filp->private_data = NULL;
 
 	hl_hpriv_put(hpriv);
 
@@ -107,15 +114,20 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 static int hl_device_release_ctrl(struct inode *inode, struct file *filp)
 {
 	struct hl_fpriv *hpriv = filp->private_data;
-	struct hl_device *hdev;
+	struct hl_device *hdev = hpriv->hdev;
 
 	filp->private_data = NULL;
 
-	hdev = hpriv->hdev;
+	if (!hdev) {
+		pr_err("Closing FD after device was removed\n");
+		goto out;
+	}
 
 	mutex_lock(&hdev->fpriv_list_lock);
 	list_del(&hpriv->dev_node);
 	mutex_unlock(&hdev->fpriv_list_lock);
+out:
+	put_pid(hpriv->taskpid);
 
 	kfree(hpriv);
 
@@ -134,7 +146,13 @@ static int hl_device_release_ctrl(struct inode *inode, struct file *filp)
 static int hl_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct hl_fpriv *hpriv = filp->private_data;
+	struct hl_device *hdev = hpriv->hdev;
 	unsigned long vm_pgoff;
+
+	if (!hdev) {
+		pr_err_ratelimited("Trying to mmap after device was removed! Please close FD\n");
+		return -ENODEV;
+	}
 
 	vm_pgoff = vma->vm_pgoff;
 	vma->vm_pgoff = HL_MMAP_OFFSET_VALUE_GET(vm_pgoff);
@@ -883,6 +901,16 @@ wait_for_processes:
 	return -EBUSY;
 }
 
+static void device_disable_open_processes(struct hl_device *hdev)
+{
+	struct hl_fpriv *hpriv;
+
+	mutex_lock(&hdev->fpriv_list_lock);
+	list_for_each_entry(hpriv, &hdev->fpriv_list, dev_node)
+		hpriv->hdev = NULL;
+	mutex_unlock(&hdev->fpriv_list_lock);
+}
+
 /*
  * hl_device_reset - reset the device
  *
@@ -1556,8 +1584,10 @@ void hl_device_fini(struct hl_device *hdev)
 		HL_PENDING_RESET_LONG_SEC);
 
 	rc = device_kill_open_processes(hdev, HL_PENDING_RESET_LONG_SEC);
-	if (rc)
+	if (rc) {
 		dev_crit(hdev->dev, "Failed to kill all open processes\n");
+		device_disable_open_processes(hdev);
+	}
 
 	hl_cb_pool_fini(hdev);
 

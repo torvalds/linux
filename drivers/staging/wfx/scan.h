@@ -8,6 +8,8 @@
 #ifndef WFX_SCAN_H
 #define WFX_SCAN_H
 
+#include <net/mac80211.h>
+
 struct wfx_dev;
 struct wfx_vif;
 
