@@ -71,6 +71,46 @@ struct qmi_elem_info ipa_indication_register_req_ei[] = {
 					   ipa_mhi_ready_ind),
 	},
 	{
+		.data_type	= QMI_OPT_FLAG,
+		.elem_len	= 1,
+		.elem_size	=
+			sizeof_field(struct ipa_indication_register_req,
+				     endpoint_desc_ind_valid),
+		.tlv_type	= 0x13,
+		.offset		= offsetof(struct ipa_indication_register_req,
+					   endpoint_desc_ind_valid),
+	},
+	{
+		.data_type	= QMI_UNSIGNED_1_BYTE,
+		.elem_len	= 1,
+		.elem_size	=
+			sizeof_field(struct ipa_indication_register_req,
+				     endpoint_desc_ind),
+		.tlv_type	= 0x13,
+		.offset		= offsetof(struct ipa_indication_register_req,
+					   endpoint_desc_ind),
+	},
+	{
+		.data_type	= QMI_OPT_FLAG,
+		.elem_len	= 1,
+		.elem_size	=
+			sizeof_field(struct ipa_indication_register_req,
+				     bw_change_ind_valid),
+		.tlv_type	= 0x14,
+		.offset		= offsetof(struct ipa_indication_register_req,
+					   bw_change_ind_valid),
+	},
+	{
+		.data_type	= QMI_UNSIGNED_1_BYTE,
+		.elem_len	= 1,
+		.elem_size	=
+			sizeof_field(struct ipa_indication_register_req,
+				     bw_change_ind),
+		.tlv_type	= 0x14,
+		.offset		= offsetof(struct ipa_indication_register_req,
+					   bw_change_ind),
+	},
+	{
 		.data_type	= QMI_EOTI,
 	},
 };
