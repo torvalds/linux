@@ -26,9 +26,11 @@ u64 gcr_kernel_excl __ro_after_init;
 
 static bool report_fault_once = true;
 
+#ifdef CONFIG_KASAN_HW_TAGS
 /* Whether the MTE asynchronous mode is enabled. */
 DEFINE_STATIC_KEY_FALSE(mte_async_mode);
 EXPORT_SYMBOL_GPL(mte_async_mode);
+#endif
 
 static void mte_sync_page_tags(struct page *page, pte_t *ptep, bool check_swap)
 {
@@ -120,6 +122,7 @@ static inline void __mte_enable_kernel(const char *mode, unsigned long tcf)
 	pr_info_once("MTE: enabled in %s mode at EL1\n", mode);
 }
 
+#ifdef CONFIG_KASAN_HW_TAGS
 void mte_enable_kernel_sync(void)
 {
 	/*
@@ -147,6 +150,7 @@ void mte_enable_kernel_async(void)
 	if (!system_uses_mte_async_mode())
 		static_branch_enable(&mte_async_mode);
 }
+#endif
 
 void mte_set_report_once(bool state)
 {
