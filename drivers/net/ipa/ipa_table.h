@@ -55,7 +55,10 @@ static inline bool ipa_filter_map_valid(struct ipa *ipa, u32 filter_mask)
  * ipa_table_hash_support() - Return true if hashed tables are supported
  * @ipa:	IPA pointer
  */
-bool ipa_table_hash_support(struct ipa *ipa);
+static inline bool ipa_table_hash_support(struct ipa *ipa)
+{
+	return ipa->version != IPA_VERSION_4_2;
+}
 
 /**
  * ipa_table_reset() - Reset filter and route tables entries to "none"

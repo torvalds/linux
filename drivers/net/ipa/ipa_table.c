@@ -239,11 +239,6 @@ static void ipa_table_validate_build(void)
 
 #endif /* !IPA_VALIDATE */
 
-bool ipa_table_hash_support(struct ipa *ipa)
-{
-	return ipa->version != IPA_VERSION_4_2;
-}
-
 /* Zero entry count means no table, so just return a 0 address */
 static dma_addr_t ipa_table_addr(struct ipa *ipa, bool filter_mask, u16 count)
 {
