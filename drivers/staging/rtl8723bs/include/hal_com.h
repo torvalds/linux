@@ -286,14 +286,4 @@ void SetHalODMVar(
 	enum HAL_ODM_VARIABLE		eVariable,
 	void *pValue1,
 	bool					bSet);
-
-#ifdef CONFIG_BACKGROUND_NOISE_MONITOR
-struct noise_info {
-	u8 bPauseDIG;
-	u8 IGIValue;
-	u32 max_time;/* ms */
-	u8 chan;
-};
-#endif
-
 #endif /* __HAL_COMMON_H__ */

@@ -4211,18 +4211,6 @@ void site_survey(struct adapter *padapter)
 		channel_scan_time_ms = pmlmeext->chan_scan_time;
 
 		set_survey_timer(pmlmeext, channel_scan_time_ms);
-#ifdef CONFIG_BACKGROUND_NOISE_MONITOR
-		{
-			struct noise_info info;
-
-			info.bPauseDIG = false;
-			info.IGIValue = 0;
-			info.max_time = channel_scan_time_ms/2;/* ms */
-			info.chan = survey_channel;
-			rtw_hal_set_odm_var(padapter, HAL_ODM_NOISE_MONITOR, &info, false);
-		}
-#endif
-
 	} else {
 
 		/* 	channel number is 0 or this channel is not valid. */

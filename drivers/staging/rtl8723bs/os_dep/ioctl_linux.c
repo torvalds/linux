@@ -313,12 +313,7 @@ static char *translate_scan(struct adapter *padapter,
 	/* Add quality statistics */
 	iwe.cmd = IWEVQUAL;
 	iwe.u.qual.updated = IW_QUAL_QUAL_UPDATED | IW_QUAL_LEVEL_UPDATED
-	#ifdef CONFIG_BACKGROUND_NOISE_MONITOR
-		| IW_QUAL_NOISE_UPDATED
-	#else
-		| IW_QUAL_NOISE_INVALID
-	#endif
-	;
+		| IW_QUAL_NOISE_INVALID;
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED) == true &&
 		is_same_network(&pmlmepriv->cur_network.network, &pnetwork->network, 0)) {
@@ -344,15 +339,7 @@ static char *translate_scan(struct adapter *padapter,
 
 	iwe.u.qual.qual = (u8)sq;   /*  signal quality */
 
-	#ifdef CONFIG_BACKGROUND_NOISE_MONITOR
-	{
-		s16 tmp_noise = 0;
-		rtw_hal_get_odm_var(padapter, HAL_ODM_NOISE_MONITOR, &(pnetwork->network.Configuration.DSConfig), &(tmp_noise));
-		iwe.u.qual.noise = tmp_noise;
-	}
-	#else
 	iwe.u.qual.noise = 0; /*  noise level */
-	#endif
 
 	/* DBG_871X("iqual =%d, ilevel =%d, inoise =%d, iupdated =%d\n", iwe.u.qual.qual, iwe.u.qual.level , iwe.u.qual.noise, iwe.u.qual.updated); */
 
@@ -3076,23 +3063,6 @@ static int rtw_dbg_port(struct net_device *dev,
 						}
 					}
 					break;
-#ifdef CONFIG_BACKGROUND_NOISE_MONITOR
-				case 0x1e:
-					{
-						struct hal_com_data	*pHalData = GET_HAL_DATA(padapter);
-						PDM_ODM_T pDM_Odm = &pHalData->odmpriv;
-						u8 chan = rtw_get_oper_ch(padapter);
-						DBG_871X("===========================================\n");
-						ODM_InbandNoise_Monitor(pDM_Odm, true, 0x1e, 100);
-						DBG_871X("channel(%d), noise_a = %d, noise_b = %d , noise_all:%d\n",
-							chan, pDM_Odm->noise_level.noise[ODM_RF_PATH_A],
-							pDM_Odm->noise_level.noise[ODM_RF_PATH_B],
-							pDM_Odm->noise_level.noise_all);
-						DBG_871X("===========================================\n");
-
-					}
-					break;
-#endif
 				case 0x23:
 					{
 						DBG_871X("turn %s the bNotifyChannelChange Variable\n", (extra_arg == 1)?"on":"off");
@@ -4738,24 +4708,6 @@ static struct iw_statistics *rtw_get_wireless_stats(struct net_device *dev)
 		#endif
 
 		tmp_qual = padapter->recvpriv.signal_qual;
-#ifdef CONFIG_BACKGROUND_NOISE_MONITOR
-		if (rtw_linked_check(padapter)) {
-			struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
-			struct noise_info info;
-			info.bPauseDIG = true;
-			info.IGIValue = 0x1e;
-			info.max_time = 100;/* ms */
-			info.chan = pmlmeext->cur_channel ;/* rtw_get_oper_ch(padapter); */
-			rtw_ps_deny(padapter, PS_DENY_IOCTL);
-			LeaveAllPowerSaveModeDirect(padapter);
-
-			rtw_hal_set_odm_var(padapter, HAL_ODM_NOISE_MONITOR, &info, false);
-			/* ODM_InbandNoise_Monitor(podmpriv, true, 0x20, 100); */
-			rtw_ps_deny_cancel(padapter, PS_DENY_IOCTL);
-			rtw_hal_get_odm_var(padapter, HAL_ODM_NOISE_MONITOR, &(info.chan), &(padapter->recvpriv.noise));
-			DBG_871X("chan:%d, noise_level:%d\n", info.chan, padapter->recvpriv.noise);
-		}
-#endif
 		tmp_noise = padapter->recvpriv.noise;
 		DBG_871X("level:%d, qual:%d, noise:%d, rssi (%d)\n", tmp_level, tmp_qual, tmp_noise, padapter->recvpriv.rssi);
 

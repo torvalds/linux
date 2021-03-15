@@ -1262,20 +1262,6 @@ void GetHalODMVar(
 )
 {
 	switch (eVariable) {
-#ifdef CONFIG_BACKGROUND_NOISE_MONITOR
-	case HAL_ODM_NOISE_MONITOR:
-		{
-			struct hal_com_data	*pHalData = GET_HAL_DATA(Adapter);
-			u8 chan = *(u8 *)pValue1;
-			*(s16 *)pValue2 = pHalData->noise[chan];
-			#ifdef DBG_NOISE_MONITOR
-			DBG_8192C("### Noise monitor chan(%d)-noise:%d (dBm) ###\n",
-				chan, pHalData->noise[chan]);
-			#endif
-
-		}
-		break;
-#endif/* ifdef CONFIG_BACKGROUND_NOISE_MONITOR */
 	default:
 		break;
 	}
@@ -1313,27 +1299,6 @@ void SetHalODMVar(
 	case HAL_ODM_WIFI_DISPLAY_STATE:
 			ODM_CmnInfoUpdate(podmpriv, ODM_CMNINFO_WIFI_DISPLAY, bSet);
 		break;
-	#ifdef CONFIG_BACKGROUND_NOISE_MONITOR
-	case HAL_ODM_NOISE_MONITOR:
-		{
-			struct noise_info *pinfo = pValue1;
-
-			#ifdef DBG_NOISE_MONITOR
-			DBG_8192C("### Noise monitor chan(%d)-bPauseDIG:%d, IGIValue:0x%02x, max_time:%d (ms) ###\n",
-				pinfo->chan, pinfo->bPauseDIG, pinfo->IGIValue, pinfo->max_time);
-			#endif
-
-			pHalData->noise[pinfo->chan] = ODM_InbandNoise_Monitor(podmpriv, pinfo->bPauseDIG, pinfo->IGIValue, pinfo->max_time);
-			DBG_871X("chan_%d, noise = %d (dBm)\n", pinfo->chan, pHalData->noise[pinfo->chan]);
-			#ifdef DBG_NOISE_MONITOR
-			DBG_871X("noise_a = %d, noise_b = %d  noise_all:%d\n",
-				podmpriv->noise_level.noise[ODM_RF_PATH_A],
-				podmpriv->noise_level.noise[ODM_RF_PATH_B],
-				podmpriv->noise_level.noise_all);
-			#endif
-		}
-		break;
-	#endif/* ifdef CONFIG_BACKGROUND_NOISE_MONITOR */
 
 	default:
 		break;
