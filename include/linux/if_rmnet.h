@@ -6,20 +6,17 @@
 #define _LINUX_IF_RMNET_H_
 
 struct rmnet_map_header {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-	u8  pad_len:6;
-	u8  reserved_bit:1;
-	u8  cd_bit:1;
-#elif defined (__BIG_ENDIAN_BITFIELD)
-	u8  cd_bit:1;
-	u8  reserved_bit:1;
-	u8  pad_len:6;
-#else
-#error	"Please fix <asm/byteorder.h>"
-#endif
-	u8  mux_id;
-	__be16 pkt_len;
+	u8 flags;			/* MAP_CMD_FLAG, MAP_PAD_LEN_MASK */
+	u8 mux_id;
+	__be16 pkt_len;			/* Length of packet, including pad */
 }  __aligned(1);
+
+/* rmnet_map_header flags field:
+ *  PAD_LEN:	number of pad bytes following packet data
+ *  CMD:	1 = packet contains a MAP command; 0 = packet contains data
+ */
+#define MAP_PAD_LEN_MASK		GENMASK(5, 0)
+#define MAP_CMD_FLAG			BIT(7)
 
 struct rmnet_map_dl_csum_trailer {
 	u8  reserved1;
