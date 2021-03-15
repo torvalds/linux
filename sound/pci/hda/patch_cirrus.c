@@ -1292,8 +1292,13 @@ enum {
 	CS8409_BULLSEYE,
 	CS8409_WARLOCK,
 	CS8409_CYBORG,
-	CS8409_VERBS,
+	CS8409_FIXUPS,
 };
+
+static void cs8409_cs42l42_fixups(struct hda_codec *codec,
+				    const struct hda_fixup *fix, int action);
+static int cs8409_cs42l42_exec_verb(struct hdac_device *dev,
+		unsigned int cmd, unsigned int flags, unsigned int *res);
 
 /* Dell Inspiron models with cs8409/cs42l42 */
 static const struct hda_model_fixup cs8409_models[] = {
@@ -1368,48 +1373,28 @@ static const struct hda_pintbl cs8409_cs42l42_pincfgs[] = {
 	{} /* terminator */
 };
 
-static const struct hda_verb cs8409_cs42l42_add_verbs[] = {
-	{ 0x24, 0x71c, 0xF0 }, /* Widget node ASP-1-TX */
-	{ 0x24, 0x71d, 0x20 },
-	{ 0x24, 0x71e, 0x21 },
-	{ 0x24, 0x71f, 0x04 },
-	{ 0x34, 0x71c, 0x50 }, /* Widget node ASP-1-RX0 */
-	{ 0x34, 0x71d, 0x20 },
-	{ 0x34, 0x71e, 0xa1 },
-	{ 0x34, 0x71f, 0x04 },
-	{ 0x2C, 0x71c, 0xF0 }, /* Widget node ASP-2-TX */
-	{ 0x2C, 0x71d, 0x00 },
-	{ 0x2C, 0x71e, 0x10 },
-	{ 0x2C, 0x71f, 0x90 },
-	{ 0x44, 0x71c, 0x90 }, /* Widget node DMIC-1 */
-	{ 0x44, 0x71d, 0x00 },
-	{ 0x44, 0x71e, 0xA0 },
-	{ 0x44, 0x71f, 0x90 },
-	{} /* terminator */
-};
-
 static const struct hda_fixup cs8409_fixups[] = {
 	[CS8409_BULLSEYE] = {
 		.type = HDA_FIXUP_PINS,
 		.v.pins = cs8409_cs42l42_pincfgs,
 		.chained = true,
-		.chain_id = CS8409_VERBS,
+		.chain_id = CS8409_FIXUPS,
 	},
 	[CS8409_WARLOCK] = {
 		.type = HDA_FIXUP_PINS,
 		.v.pins = cs8409_cs42l42_pincfgs,
 		.chained = true,
-		.chain_id = CS8409_VERBS,
+		.chain_id = CS8409_FIXUPS,
 	},
 	[CS8409_CYBORG] = {
 		.type = HDA_FIXUP_PINS,
 		.v.pins = cs8409_cs42l42_pincfgs,
 		.chained = true,
-		.chain_id = CS8409_VERBS,
+		.chain_id = CS8409_FIXUPS,
 	},
-	[CS8409_VERBS] = {
-		.type = HDA_FIXUP_VERBS,
-		.v.verbs = cs8409_cs42l42_add_verbs,
+	[CS8409_FIXUPS] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cs8409_cs42l42_fixups,
 	},
 };
 
@@ -2004,26 +1989,6 @@ static void cs8409_jack_unsol_event(struct hda_codec *codec, unsigned int res)
 	}
 }
 
-static int cs8409_cs42l42_build_controls(struct hda_codec *codec)
-{
-	int err;
-
-	err = snd_hda_gen_build_controls(codec);
-	if (err < 0)
-		return err;
-
-	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_BUILD);
-
-	/* Run jack auto detect first time on boot
-	 * after controls have been added, to check if jack has
-	 * been already plugged in
-	 */
-	cs8409_cs42l42_run_jack_detect(codec);
-	usleep_range(100000, 150000);
-
-	return 0;
-}
-
 #ifdef CONFIG_PM
 /* Manage PDREF, when transition to D3hot */
 static int cs8409_suspend(struct hda_codec *codec)
@@ -2043,31 +2008,6 @@ static int cs8409_suspend(struct hda_codec *codec)
 	return 0;
 }
 #endif
-
-static void cs8409_cs42l42_cap_sync_hook(struct hda_codec *codec,
-					 struct snd_kcontrol *kcontrol,
-					 struct snd_ctl_elem_value *ucontrol)
-{
-	struct cs_spec *spec = codec->spec;
-	unsigned int curval, expval;
-	/* CS8409 DMIC Pin only allows the setting of the Stream Parameters in
-	 * Power State D0. When a headset is unplugged, and the path is switched to
-	 * the DMIC, the Stream is restarted with the new ADC, but this is done in
-	 * Power State D3. Restart the Stream now DMIC is in D0.
-	 */
-	if (spec->gen.cur_adc == CS8409_CS42L42_DMIC_ADC_PIN_NID) {
-		curval = snd_hda_codec_read(codec, spec->gen.cur_adc,
-			0, AC_VERB_GET_CONV, 0);
-		expval = (spec->gen.cur_adc_stream_tag << 4) | 0;
-		if (curval != expval) {
-			codec_dbg(codec, "%s Restarting Stream after DMIC switch\n", __func__);
-			__snd_hda_codec_cleanup_stream(codec, spec->gen.cur_adc, 1);
-			snd_hda_codec_setup_stream(codec, spec->gen.cur_adc,
-					   spec->gen.cur_adc_stream_tag, 0,
-					   spec->gen.cur_adc_format);
-		}
-	}
-}
 
 /* Enable/Disable Unsolicited Response for gpio(s) 3,4 */
 static void cs8409_enable_ur(struct hda_codec *codec, int flag)
@@ -2152,25 +2092,14 @@ static int cs8409_cs42l42_init(struct hda_codec *codec)
 {
 	int ret = snd_hda_gen_init(codec);
 
-	if (!ret) {
-		/* On Dell platforms with suspend D3 mode support we
-		 * have to re-initialise cs8409 bridge and companion
-		 * cs42l42 codec
-		 */
-		snd_hda_sequence_write(codec, cs8409_cs42l42_init_verbs);
-		snd_hda_sequence_write(codec, cs8409_cs42l42_add_verbs);
-
-		cs8409_cs42l42_hw_init(codec);
-
-		cs8409_cs42l42_run_jack_detect(codec);
-		usleep_range(100000, 150000);
-	}
+	if (!ret)
+		snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_INIT);
 
 	return ret;
 }
 
 static const struct hda_codec_ops cs8409_cs42l42_patch_ops = {
-	.build_controls = cs8409_cs42l42_build_controls,
+	.build_controls = cs_build_controls,
 	.build_pcms = snd_hda_gen_build_pcms,
 	.init = cs8409_cs42l42_init,
 	.free = cs_free,
@@ -2180,66 +2109,91 @@ static const struct hda_codec_ops cs8409_cs42l42_patch_ops = {
 #endif
 };
 
-static int cs8409_cs42l42_fixup(struct hda_codec *codec)
+static void cs8409_cs42l42_fixups(struct hda_codec *codec,
+				    const struct hda_fixup *fix, int action)
 {
-	int err;
 	struct cs_spec *spec = codec->spec;
 	int caps;
 
-	/* Basic initial sequence for specific hw configuration */
-	snd_hda_sequence_write(codec, cs8409_cs42l42_init_verbs);
+	switch (action) {
+	case HDA_FIXUP_ACT_PRE_PROBE:
+		snd_hda_add_verbs(codec, cs8409_cs42l42_init_verbs);
+		/* verb exec op override */
+		spec->exec_verb = codec->core.exec_verb;
+		codec->core.exec_verb = cs8409_cs42l42_exec_verb;
 
-	/* CS8409 is simple HDA bridge and intended to be used with a remote
-	 * companion codec. Most of input/output PIN(s) have only basic
-	 * capabilities. NID(s) 0x24 and 0x34 have only OUTC and INC
-	 * capabilities and no presence detect capable (PDC) and call to
-	 * snd_hda_gen_build_controls() will mark them as non detectable
-	 * phantom jacks. However, in this configuration companion codec
-	 * CS42L42 is connected to these pins and it has jack detect
-	 * capabilities. We have to override pin capabilities,
-	 * otherwise they will not be created as input devices.
-	 */
-	caps = snd_hdac_read_parm(&codec->core, CS8409_CS42L42_HP_PIN_NID,
-			AC_PAR_PIN_CAP);
-	if (caps >= 0)
-		snd_hdac_override_parm(&codec->core,
-			CS8409_CS42L42_HP_PIN_NID, AC_PAR_PIN_CAP,
-			(caps | (AC_PINCAP_IMP_SENSE | AC_PINCAP_PRES_DETECT)));
+		mutex_init(&spec->cs8409_i2c_mux);
 
-	caps = snd_hdac_read_parm(&codec->core, CS8409_CS42L42_AMIC_PIN_NID,
-			AC_PAR_PIN_CAP);
-	if (caps >= 0)
-		snd_hdac_override_parm(&codec->core,
-			CS8409_CS42L42_AMIC_PIN_NID, AC_PAR_PIN_CAP,
-			(caps | (AC_PINCAP_IMP_SENSE | AC_PINCAP_PRES_DETECT)));
+		codec->patch_ops = cs8409_cs42l42_patch_ops;
 
-	snd_hda_override_wcaps(codec, CS8409_CS42L42_HP_PIN_NID,
-		(get_wcaps(codec, CS8409_CS42L42_HP_PIN_NID) | AC_WCAP_UNSOL_CAP));
+		spec->gen.suppress_auto_mute = 1;
+		spec->gen.no_primary_hp = 1;
+		spec->gen.suppress_vmaster = 1;
 
-	snd_hda_override_wcaps(codec, CS8409_CS42L42_AMIC_PIN_NID,
-		(get_wcaps(codec, CS8409_CS42L42_AMIC_PIN_NID) | AC_WCAP_UNSOL_CAP));
+		/* GPIO 5 out, 3,4 in */
+		spec->gpio_dir = GPIO5_INT;
+		spec->gpio_data = 0;
+		spec->gpio_mask = 0x03f;
 
-	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
+		spec->cs42l42_hp_jack_in = 0;
+		spec->cs42l42_mic_jack_in = 0;
 
-	err = snd_hda_parse_pin_defcfg(codec, &spec->gen.autocfg, 0, 0);
-	if (err < 0)
-		return err;
+		/* Basic initial sequence for specific hw configuration */
+		snd_hda_sequence_write(codec, cs8409_cs42l42_init_verbs);
 
-	err = snd_hda_gen_parse_auto_config(codec, &spec->gen.autocfg);
-	if (err < 0)
-		return err;
+		/* CS8409 is simple HDA bridge and intended to be used with a remote
+		 * companion codec. Most of input/output PIN(s) have only basic
+		 * capabilities. NID(s) 0x24 and 0x34 have only OUTC and INC
+		 * capabilities and no presence detect capable (PDC) and call to
+		 * snd_hda_gen_build_controls() will mark them as non detectable
+		 * phantom jacks. However, in this configuration companion codec
+		 * CS42L42 is connected to these pins and it has jack detect
+		 * capabilities. We have to override pin capabilities,
+		 * otherwise they will not be created as input devices.
+		 */
+		caps = snd_hdac_read_parm(&codec->core, CS8409_CS42L42_HP_PIN_NID,
+				AC_PAR_PIN_CAP);
+		if (caps >= 0)
+			snd_hdac_override_parm(&codec->core,
+				CS8409_CS42L42_HP_PIN_NID, AC_PAR_PIN_CAP,
+				(caps | (AC_PINCAP_IMP_SENSE | AC_PINCAP_PRES_DETECT)));
 
-	if (!snd_hda_gen_add_kctl(
-			&spec->gen, NULL, &cs8409_cs42l42_hp_volume_mixer))
-		return -1;
+		caps = snd_hdac_read_parm(&codec->core, CS8409_CS42L42_AMIC_PIN_NID,
+				AC_PAR_PIN_CAP);
+		if (caps >= 0)
+			snd_hdac_override_parm(&codec->core,
+				CS8409_CS42L42_AMIC_PIN_NID, AC_PAR_PIN_CAP,
+				(caps | (AC_PINCAP_IMP_SENSE | AC_PINCAP_PRES_DETECT)));
 
-	if (!snd_hda_gen_add_kctl(
-			&spec->gen, NULL, &cs8409_cs42l42_amic_volume_mixer))
-		return -1;
+		snd_hda_override_wcaps(codec, CS8409_CS42L42_HP_PIN_NID,
+			(get_wcaps(codec, CS8409_CS42L42_HP_PIN_NID) | AC_WCAP_UNSOL_CAP));
 
-	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
-
-	return 0;
+		snd_hda_override_wcaps(codec, CS8409_CS42L42_AMIC_PIN_NID,
+			(get_wcaps(codec, CS8409_CS42L42_AMIC_PIN_NID) | AC_WCAP_UNSOL_CAP));
+		break;
+	case HDA_FIXUP_ACT_PROBE:
+		snd_hda_gen_add_kctl(&spec->gen,
+			NULL, &cs8409_cs42l42_hp_volume_mixer);
+		snd_hda_gen_add_kctl(&spec->gen,
+			NULL, &cs8409_cs42l42_amic_volume_mixer);
+		cs8409_cs42l42_hw_init(codec);
+		snd_hda_codec_set_name(codec, "CS8409/CS42L42");
+		break;
+	case HDA_FIXUP_ACT_INIT:
+		cs8409_cs42l42_hw_init(codec);
+		fallthrough;
+	case HDA_FIXUP_ACT_BUILD:
+		/* Run jack auto detect first time on boot
+		 * after controls have been added, to check if jack has
+		 * been already plugged in.
+		 * Run immediately after init.
+		 */
+		cs8409_cs42l42_run_jack_detect(codec);
+		usleep_range(100000, 150000);
+		break;
+	default:
+		break;
+	}
 }
 
 static int cs8409_cs42l42_exec_verb(struct hdac_device *dev,
@@ -2280,11 +2234,9 @@ static int cs8409_cs42l42_exec_verb(struct hdac_device *dev,
 
 static int patch_cs8409(struct hda_codec *codec)
 {
-	struct cs_spec *spec;
-	int err = -EINVAL;
+	int err;
 
-	spec = cs_alloc_spec(codec, CS8409_VENDOR_NID);
-	if (!spec)
+	if (!cs_alloc_spec(codec, CS8409_VENDOR_NID))
 		return -ENOMEM;
 
 	snd_hda_pick_fixup(codec,
@@ -2295,52 +2247,16 @@ static int patch_cs8409(struct hda_codec *codec)
 			codec->bus->pci->subsystem_vendor,
 			codec->bus->pci->subsystem_device);
 
-	switch (codec->fixup_id) {
-	/* Dell platforms with CS42L42 companion codec */
-	case CS8409_BULLSEYE:
-	case CS8409_WARLOCK:
-	case CS8409_CYBORG:
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
-		snd_hda_add_verbs(codec, cs8409_cs42l42_add_verbs);
-
-		/* verb exec op override */
-		spec->exec_verb = codec->core.exec_verb;
-		codec->core.exec_verb = cs8409_cs42l42_exec_verb;
-
-		mutex_init(&spec->cs8409_i2c_mux);
-
-		codec->patch_ops = cs8409_cs42l42_patch_ops;
-
-		spec->gen.cap_sync_hook = cs8409_cs42l42_cap_sync_hook;
-
-		spec->gen.suppress_auto_mute = 1;
-		spec->gen.no_primary_hp = 1;
-		spec->gen.suppress_vmaster = 1;
-		/* GPIO 5 out, 3,4 in */
-		spec->gpio_dir = GPIO5_INT;
-		spec->gpio_data = 0;
-		spec->gpio_mask = 0x03f;
-
-		spec->cs42l42_hp_jack_in = 0;
-		spec->cs42l42_mic_jack_in = 0;
-
-		err = cs8409_cs42l42_fixup(codec);
-		break;
-
-	default:
-		codec_err(codec, "VID=%08x, DEV=%08x not supported\n",
-				codec->bus->pci->subsystem_vendor,
-				codec->bus->pci->subsystem_device);
-		break;
+	err = cs_parse_auto_config(codec);
+	if (err < 0) {
+		cs_free(codec);
+		return err;
 	}
 
-	if (!err) {
-		cs8409_cs42l42_hw_init(codec);
-		snd_hda_codec_set_name(codec, "CS8409/CS42L42");
-	} else
-		cs_free(codec);
-
-	return err;
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
+	return 0;
 }
 
 /*
