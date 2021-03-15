@@ -1290,8 +1290,12 @@ int dpcm_path_get(struct snd_soc_pcm_runtime *fe,
 			fe->card->component_chaining ?
 				NULL : dpcm_end_walk_at_be);
 
-	dev_dbg(fe->dev, "ASoC: found %d audio %s paths\n", paths,
+	if (paths > 0)
+		dev_dbg(fe->dev, "ASoC: found %d audio %s paths\n", paths,
 			stream ? "capture" : "playback");
+	else if (paths == 0)
+		dev_dbg(fe->dev, "ASoC: %s no valid %s path\n", fe->dai_link->name,
+			 stream ? "capture" : "playback");
 
 	return paths;
 }
@@ -2457,13 +2461,8 @@ static int soc_dpcm_fe_runtime_update(struct snd_soc_pcm_runtime *fe, int new)
 			continue;
 
 		paths = dpcm_path_get(fe, stream, &list);
-		if (paths < 0) {
-			dev_warn(fe->dev, "ASoC: %s no valid %s path\n",
-				 fe->dai_link->name,
-				 stream == SNDRV_PCM_STREAM_PLAYBACK ?
-				 "playback" : "capture");
+		if (paths < 0)
 			return paths;
-		}
 
 		/* update any playback/capture paths */
 		count = dpcm_process_paths(fe, stream, &list, new);
@@ -2556,12 +2555,8 @@ static int dpcm_fe_dai_open(struct snd_pcm_substream *fe_substream)
 	fe->dpcm[stream].runtime = fe_substream->runtime;
 
 	ret = dpcm_path_get(fe, stream, &list);
-	if (ret < 0) {
+	if (ret < 0)
 		goto open_end;
-	} else if (ret == 0) {
-		dev_dbg(fe->dev, "ASoC: %s no valid %s route\n",
-			fe->dai_link->name, stream ? "capture" : "playback");
-	}
 
 	/* calculate valid and active FE <-> BE dpcms */
 	dpcm_process_paths(fe, stream, &list, 1);
