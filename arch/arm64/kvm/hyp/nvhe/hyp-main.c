@@ -46,11 +46,11 @@ static void handle_host_hcall(unsigned long func_id,
 		__kvm_tlb_flush_vmid(kern_hyp_va(mmu));
 		break;
 	}
-	case KVM_HOST_SMCCC_FUNC(__kvm_tlb_flush_local_vmid): {
+	case KVM_HOST_SMCCC_FUNC(__kvm_flush_cpu_context): {
 		unsigned long r1 = host_ctxt->regs.regs[1];
 		struct kvm_s2_mmu *mmu = (struct kvm_s2_mmu *)r1;
 
-		__kvm_tlb_flush_local_vmid(kern_hyp_va(mmu));
+		__kvm_flush_cpu_context(kern_hyp_va(mmu));
 		break;
 	}
 	case KVM_HOST_SMCCC_FUNC(__kvm_timer_set_cntvoff): {
