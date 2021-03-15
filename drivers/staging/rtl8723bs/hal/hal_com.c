@@ -1289,7 +1289,7 @@ void SetHalODMVar(
 )
 {
 	struct hal_com_data	*pHalData = GET_HAL_DATA(Adapter);
-	struct DM_ODM_T * podmpriv = &pHalData->odmpriv;
+	struct DM_ODM_T *podmpriv = &pHalData->odmpriv;
 	/* _irqL irqL; */
 	switch (eVariable) {
 	case HAL_ODM_STA_INFO:
