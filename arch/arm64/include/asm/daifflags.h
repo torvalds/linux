@@ -13,8 +13,8 @@
 #include <asm/ptrace.h>
 
 #define DAIF_PROCCTX		0
-#define DAIF_PROCCTX_NOIRQ	PSR_I_BIT
-#define DAIF_ERRCTX		(PSR_I_BIT | PSR_A_BIT)
+#define DAIF_PROCCTX_NOIRQ	(PSR_I_BIT | PSR_F_BIT)
+#define DAIF_ERRCTX		(PSR_A_BIT | PSR_I_BIT | PSR_F_BIT)
 #define DAIF_MASK		(PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT)
 
 
@@ -47,7 +47,7 @@ static inline unsigned long local_daif_save_flags(void)
 	if (system_uses_irq_prio_masking()) {
 		/* If IRQs are masked with PMR, reflect it in the flags */
 		if (read_sysreg_s(SYS_ICC_PMR_EL1) != GIC_PRIO_IRQON)
-			flags |= PSR_I_BIT;
+			flags |= PSR_I_BIT | PSR_F_BIT;
 	}
 
 	return flags;
@@ -69,7 +69,7 @@ static inline void local_daif_restore(unsigned long flags)
 	bool irq_disabled = flags & PSR_I_BIT;
 
 	WARN_ON(system_has_prio_mask_debugging() &&
-		!(read_sysreg(daif) & PSR_I_BIT));
+		(read_sysreg(daif) & (PSR_I_BIT | PSR_F_BIT)) != (PSR_I_BIT | PSR_F_BIT));
 
 	if (!irq_disabled) {
 		trace_hardirqs_on();
@@ -86,7 +86,7 @@ static inline void local_daif_restore(unsigned long flags)
 			 * If interrupts are disabled but we can take
 			 * asynchronous errors, we can take NMIs
 			 */
-			flags &= ~PSR_I_BIT;
+			flags &= ~(PSR_I_BIT | PSR_F_BIT);
 			pmr = GIC_PRIO_IRQOFF;
 		} else {
 			pmr = GIC_PRIO_IRQON | GIC_PRIO_PSR_I_SET;
