@@ -1022,6 +1022,8 @@ patternProperties:
     description: Silergy Corp.
   "^silex-insight,.*":
     description: Silex Insight
+  "^siliconfile,.*":
+    description: Siliconfile Technologies lnc.
   "^siliconmitus,.*":
     description: Silicon Mitus, Inc.
   "^simtek,.*":
