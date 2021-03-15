@@ -15,7 +15,7 @@
 
 void
 ODM_ReadAndConfig_MP_8723B_AGC_TAB(/*  TC: Test Chip, MP: MP Chip */
-	struct DM_ODM_T *  pDM_Odm
+	struct DM_ODM_T *pDM_Odm
 );
 
 /******************************************************************************
@@ -24,7 +24,7 @@ ODM_ReadAndConfig_MP_8723B_AGC_TAB(/*  TC: Test Chip, MP: MP Chip */
 
 void
 ODM_ReadAndConfig_MP_8723B_PHY_REG(/*  TC: Test Chip, MP: MP Chip */
-	struct DM_ODM_T *  pDM_Odm
+	struct DM_ODM_T *pDM_Odm
 );
 
 /******************************************************************************
@@ -33,7 +33,7 @@ ODM_ReadAndConfig_MP_8723B_PHY_REG(/*  TC: Test Chip, MP: MP Chip */
 
 void
 ODM_ReadAndConfig_MP_8723B_PHY_REG_PG(/*  TC: Test Chip, MP: MP Chip */
-	struct DM_ODM_T *  pDM_Odm
+	struct DM_ODM_T *pDM_Odm
 );
 u32 ODM_GetVersion_MP_8723B_PHY_REG_PG(void);
 
