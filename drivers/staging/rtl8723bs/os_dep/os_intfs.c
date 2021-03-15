@@ -205,7 +205,7 @@ int _netdev_open(struct net_device *pnetdev);
 int netdev_open(struct net_device *pnetdev);
 static int netdev_close(struct net_device *pnetdev);
 
-static void loadparam(struct adapter *padapter, struct net_device * pnetdev)
+static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 {
 	struct registry_priv  *registry_par = &padapter->registrypriv;
 
