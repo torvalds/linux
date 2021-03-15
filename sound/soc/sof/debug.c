@@ -451,8 +451,7 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 
 	dentry = file->f_path.dentry;
 	if ((!strcmp(dentry->d_name.name, "ipc_flood_count") ||
-	     !strcmp(dentry->d_name.name, "ipc_flood_duration_ms")) &&
-	    dfse->cache_buf) {
+	     !strcmp(dentry->d_name.name, "ipc_flood_duration_ms"))) {
 		if (*ppos)
 			return 0;
 
