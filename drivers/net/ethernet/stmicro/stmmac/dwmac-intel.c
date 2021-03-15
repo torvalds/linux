@@ -9,6 +9,9 @@
 #include "dwmac4.h"
 #include "stmmac.h"
 
+#define INTEL_MGBE_ADHOC_ADDR	0x15
+#define INTEL_MGBE_XPCS_ADDR	0x16
+
 struct intel_priv_data {
 	int mdio_adhoc_addr;	/* mdio address for serdes & etc */
 };
@@ -332,6 +335,16 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 
 	/* Use the last Rx queue */
 	plat->vlan_fail_q = plat->rx_queues_to_use - 1;
+
+	/* Intel mgbe SGMII interface uses pcs-xcps */
+	if (plat->phy_interface == PHY_INTERFACE_MODE_SGMII) {
+		plat->mdio_bus_data->has_xpcs = true;
+		plat->mdio_bus_data->xpcs_an_inband = true;
+	}
+
+	/* Ensure mdio bus scan skips intel serdes and pcs-xpcs */
+	plat->mdio_bus_data->phy_mask = 1 << INTEL_MGBE_ADHOC_ADDR;
+	plat->mdio_bus_data->phy_mask |= 1 << INTEL_MGBE_XPCS_ADDR;
 
 	return 0;
 }
@@ -664,7 +677,7 @@ static int intel_eth_pci_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	plat->bsp_priv = intel_priv;
-	intel_priv->mdio_adhoc_addr = 0x15;
+	intel_priv->mdio_adhoc_addr = INTEL_MGBE_ADHOC_ADDR;
 
 	ret = info->setup(pdev, plat);
 	if (ret)
