@@ -19,7 +19,7 @@
 #define ValidCnt				5
 
 static s16 odm_InbandNoise_Monitor_NSeries(
-	struct DM_ODM_T * pDM_Odm,
+	struct DM_ODM_T *pDM_Odm,
 	u8 bPauseDIG,
 	u8 IGIValue,
 	u32 max_time
