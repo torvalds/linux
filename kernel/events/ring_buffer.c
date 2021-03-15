@@ -804,7 +804,7 @@ struct perf_buffer *rb_alloc(int nr_pages, long watermark, int cpu, int flags)
 {
 	struct perf_buffer *rb;
 	unsigned long size;
-	int i;
+	int i, node;
 
 	size = sizeof(struct perf_buffer);
 	size += nr_pages * sizeof(void *);
@@ -812,7 +812,8 @@ struct perf_buffer *rb_alloc(int nr_pages, long watermark, int cpu, int flags)
 	if (order_base_2(size) >= PAGE_SHIFT+MAX_ORDER)
 		goto fail;
 
-	rb = kzalloc(size, GFP_KERNEL);
+	node = (cpu == -1) ? cpu : cpu_to_node(cpu);
+	rb = kzalloc_node(size, GFP_KERNEL, node);
 	if (!rb)
 		goto fail;
 
@@ -906,11 +907,13 @@ struct perf_buffer *rb_alloc(int nr_pages, long watermark, int cpu, int flags)
 	struct perf_buffer *rb;
 	unsigned long size;
 	void *all_buf;
+	int node;
 
 	size = sizeof(struct perf_buffer);
 	size += sizeof(void *);
 
-	rb = kzalloc(size, GFP_KERNEL);
+	node = (cpu == -1) ? cpu : cpu_to_node(cpu);
+	rb = kzalloc_node(size, GFP_KERNEL, node);
 	if (!rb)
 		goto fail;
 
