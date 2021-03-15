@@ -2147,7 +2147,7 @@ out:
 out_err:
 	cb->args[1] = idx;
 	cb->args[0] = h;
-	cb->seq = net->dev_base_seq;
+	cb->seq = tgt_net->dev_base_seq;
 	nl_dump_check_consistent(cb, nlmsg_hdr(skb));
 	if (netnsid >= 0)
 		put_net(tgt_net);

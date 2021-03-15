@@ -3554,6 +3554,8 @@ int mlx4_en_reset_config(struct net_device *dev,
 			en_err(priv, "Failed starting port\n");
 	}
 
+	if (!err)
+		err = mlx4_en_moderation_update(priv);
 out:
 	mutex_unlock(&mdev->state_lock);
 	kfree(tmp);

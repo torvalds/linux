@@ -963,7 +963,7 @@ struct kvm_arch {
 	struct kvm_pit *vpit;
 	atomic_t vapics_in_nmi_mode;
 	struct mutex apic_map_lock;
-	struct kvm_apic_map *apic_map;
+	struct kvm_apic_map __rcu *apic_map;
 	atomic_t apic_map_dirty;
 
 	bool apic_access_page_done;
@@ -1036,7 +1036,7 @@ struct kvm_arch {
 
 	bool bus_lock_detection_enabled;
 
-	struct kvm_pmu_event_filter *pmu_event_filter;
+	struct kvm_pmu_event_filter __rcu *pmu_event_filter;
 	struct task_struct *nx_lpage_recovery_thread;
 
 #ifdef CONFIG_X86_64

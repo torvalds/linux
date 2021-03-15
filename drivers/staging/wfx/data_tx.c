@@ -6,9 +6,14 @@
  * Copyright (c) 2010, ST-Ericsson
  */
 #include <net/mac80211.h>
+#include <linux/etherdevice.h>
 
+#include "data_tx.h"
 #include "wfx.h"
+#include "bh.h"
 #include "sta.h"
+#include "queue.h"
+#include "debug.h"
 #include "traces.h"
 #include "hif_tx_mib.h"
 
