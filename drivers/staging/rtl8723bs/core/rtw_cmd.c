@@ -203,7 +203,7 @@ exit:
 	return res;
 }
 
-static void c2h_wk_callback(struct work_struct * work);
+static void c2h_wk_callback(struct work_struct *work);
 int rtw_init_evt_priv(struct evt_priv *pevtpriv)
 {
 	/* allocate DMA-able/Non-Page memory for cmd_buf and rsp_buf */
