@@ -3115,7 +3115,7 @@ static s32 igb_init_i2c(struct igb_adapter *adapter)
 		return 0;
 
 	/* Initialize the i2c bus which is controlled by the registers.
-	 * This bus will use the i2c_algo_bit structue that implements
+	 * This bus will use the i2c_algo_bit structure that implements
 	 * the protocol through toggling of the 4 bits in the register.
 	 */
 	adapter->i2c_adap.owner = THIS_MODULE;
