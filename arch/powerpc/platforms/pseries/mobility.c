@@ -458,9 +458,12 @@ static int do_suspend(void)
  *           or if an error is received from H_JOIN. The thread which performs
  *           the first increment (i.e. sets it to 1) is responsible for
  *           waking the other threads.
+ * @done: False if join/suspend is in progress. True if the operation is
+ *        complete (successful or not).
  */
 struct pseries_suspend_info {
 	atomic_t counter;
+	bool done;
 };
 
 static int do_join(void *arg)
@@ -470,6 +473,7 @@ static int do_join(void *arg)
 	long hvrc;
 	int ret;
 
+retry:
 	/* Must ensure MSR.EE off for H_JOIN. */
 	hard_irq_disable();
 	hvrc = plpar_hcall_norets(H_JOIN);
@@ -485,8 +489,20 @@ static int do_join(void *arg)
 	case H_SUCCESS:
 		/*
 		 * The suspend is complete and this cpu has received a
-		 * prod.
+		 * prod, or we've received a stray prod from unrelated
+		 * code (e.g. paravirt spinlocks) and we need to join
+		 * again.
+		 *
+		 * This barrier orders the return from H_JOIN above vs
+		 * the load of info->done. It pairs with the barrier
+		 * in the wakeup/prod path below.
 		 */
+		smp_mb();
+		if (READ_ONCE(info->done) == false) {
+			pr_info_ratelimited("premature return from H_JOIN on CPU %i, retrying",
+					    smp_processor_id());
+			goto retry;
+		}
 		ret = 0;
 		break;
 	case H_BAD_MODE:
@@ -500,6 +516,13 @@ static int do_join(void *arg)
 
 	if (atomic_inc_return(counter) == 1) {
 		pr_info("CPU %u waking all threads\n", smp_processor_id());
+		WRITE_ONCE(info->done, true);
+		/*
+		 * This barrier orders the store to info->done vs subsequent
+		 * H_PRODs to wake the other CPUs. It pairs with the barrier
+		 * in the H_SUCCESS case above.
+		 */
+		smp_mb();
 		prod_others();
 	}
 	/*
@@ -553,6 +576,7 @@ static int pseries_suspend(u64 handle)
 
 		info = (struct pseries_suspend_info) {
 			.counter = ATOMIC_INIT(0),
+			.done = false,
 		};
 
 		ret = stop_machine(do_join, &info, cpu_online_mask);
