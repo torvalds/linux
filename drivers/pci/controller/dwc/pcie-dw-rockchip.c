@@ -111,6 +111,9 @@ struct reset_bulk_data	{
 
 #define PCIE_PL_ORDER_RULE_CTRL_OFF	0x8B4
 
+#define FAKE_MIN_VOL			100000
+#define FAKE_MAX_VOL			3300000
+
 struct rk_pcie {
 	struct dw_pcie			*pci;
 	enum rk_pcie_device_mode	mode;
@@ -1172,6 +1175,48 @@ static int rk_pcie_init_irq_domain(struct rk_pcie *rockchip)
 	return 0;
 }
 
+static int rk_pcie_enable_power(struct rk_pcie *rk_pcie)
+{
+	int ret = 0;
+	struct device *dev = rk_pcie->pci->dev;
+
+	if (IS_ERR(rk_pcie->vpcie3v3))
+		return ret;
+
+	ret = regulator_set_voltage(rk_pcie->vpcie3v3, FAKE_MAX_VOL, FAKE_MAX_VOL);
+	if (ret) {
+		dev_err(dev, "fail to set vpcie3v3 regulator\n");
+		return ret;
+	}
+
+	ret = regulator_enable(rk_pcie->vpcie3v3);
+	if (ret)
+		dev_err(dev, "fail to enable vpcie3v3 regulator\n");
+
+	return ret;
+}
+
+static int rk_pcie_disable_power(struct rk_pcie *rk_pcie)
+{
+	int ret = 0;
+	struct device *dev = rk_pcie->pci->dev;
+
+	if (IS_ERR(rk_pcie->vpcie3v3))
+		return ret;
+
+	ret = regulator_set_voltage(rk_pcie->vpcie3v3, FAKE_MIN_VOL, FAKE_MIN_VOL);
+	if (ret) {
+		dev_err(dev, "fail to set vpcie3v3 regulator\n");
+		return ret;
+	}
+
+	ret = regulator_disable(rk_pcie->vpcie3v3);
+	if (ret)
+		dev_err(dev, "fail to disable vpcie3v3 regulator\n");
+
+	return ret;
+}
+
 static int rk_pcie_really_probe(void *p)
 {
 	struct platform_device *pdev = p;
@@ -1231,13 +1276,9 @@ static int rk_pcie_really_probe(void *p)
 		dev_info(dev, "no vpcie3v3 regulator found\n");
 	}
 
-	if (!IS_ERR(rk_pcie->vpcie3v3)) {
-		ret = regulator_enable(rk_pcie->vpcie3v3);
-		if (ret) {
-			dev_err(pci->dev, "fail to enable vpcie3v3 regulator\n");
-			return ret;
-		}
-	}
+	ret = rk_pcie_enable_power(rk_pcie);
+	if (ret)
+		return ret;
 
 	ret = rk_pcie_phy_init(rk_pcie);
 	if (ret) {
@@ -1349,8 +1390,8 @@ remove_irq_domain:
 deinit_clk:
 	rk_pcie_clk_deinit(rk_pcie);
 disable_vpcie3v3:
-	if (!IS_ERR(rk_pcie->vpcie3v3))
-		regulator_disable(rk_pcie->vpcie3v3);
+	rk_pcie_disable_power(rk_pcie);
+
 	return ret;
 }
 
@@ -1384,15 +1425,9 @@ static int __maybe_unused rockchip_dw_pcie_suspend(struct device *dev)
 
 	rk_pcie->in_suspend = true;
 
-	if (!IS_ERR(rk_pcie->vpcie3v3)) {
-		ret = regulator_disable(rk_pcie->vpcie3v3);
-		if (ret) {
-			dev_err(dev, "fail to disable vpcie3v3 regulator\n");
-			return ret;
-		}
-	}
+	ret = rk_pcie_disable_power(rk_pcie);
 
-	return 0;
+	return ret;
 }
 
 static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
@@ -1401,13 +1436,9 @@ static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
 	bool std_rc = rk_pcie->mode == RK_PCIE_RC_TYPE && !rk_pcie->dma_obj;
 	int ret;
 
-	if (!IS_ERR(rk_pcie->vpcie3v3)) {
-		ret = regulator_enable(rk_pcie->vpcie3v3);
-		if (ret) {
-			dev_err(dev, "fail to enable vpcie3v3 regulator\n");
-			return ret;
-		}
-	}
+	ret = rk_pcie_enable_power(rk_pcie);
+	if (ret)
+		return ret;
 
 	ret = clk_bulk_enable(rk_pcie->clk_cnt, rk_pcie->clks);
 	if (ret) {
@@ -1478,8 +1509,8 @@ std_rc_done:
 
 	return 0;
 err:
-	if (!IS_ERR(rk_pcie->vpcie3v3))
-		regulator_disable(rk_pcie->vpcie3v3);
+	rk_pcie_disable_power(rk_pcie);
+
 	return ret;
 }
 
