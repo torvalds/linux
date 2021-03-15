@@ -207,7 +207,7 @@ struct registry_priv {
 
 /* For registry parameters */
 #define RGTRY_OFT(field) ((u32)FIELD_OFFSET(struct registry_priv, field))
-#define RGTRY_SZ(field)   sizeof(((struct registry_priv*) 0)->field)
+#define RGTRY_SZ(field)   sizeof(((struct registry_priv *)0)->field)
 #define BSSID_OFT(field) ((u32)FIELD_OFFSET(struct wlan_bssid_ex, field))
 #define BSSID_SZ(field)   sizeof(((struct wlan_bssid_ex *) 0)->field)
 
@@ -401,7 +401,7 @@ struct adapter {
 
 	u32 setband;
 
-	void *		HalData;
+	void *HalData;
 	u32 hal_data_sz;
 	struct hal_ops	HalFunc;
 
@@ -429,15 +429,15 @@ struct adapter {
 	void (*intf_free_irq)(struct dvobj_priv *dvobj);
 
 
-	void (*intf_start)(struct adapter * adapter);
-	void (*intf_stop)(struct adapter * adapter);
+	void (*intf_start)(struct adapter *adapter);
+	void (*intf_stop)(struct adapter *adapter);
 
-	struct net_device * pnetdev;
+	struct net_device *pnetdev;
 	char old_ifname[IFNAMSIZ];
 
 	/*  used by rtw_rereg_nd_name related function */
 	struct rereg_nd_name_data {
-		struct net_device * old_pnetdev;
+		struct net_device *old_pnetdev;
 		char old_ifname[IFNAMSIZ];
 		u8 old_ips_mode;
 		u8 old_bRegUseLed;
