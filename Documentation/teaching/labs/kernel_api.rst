@@ -196,10 +196,10 @@ call:
    pr_alert(fmt, ...); /* similar to printk(KERN_ALERT pr_fmt(fmt), ...); */
    pr_crit(fmt, ...); /* similar to printk(KERN_CRIT pr_fmt(fmt), ...); */
    pr_err(fmt, ...); /* similar to printk(KERN_ERR pr_fmt(fmt), ...); */
-   pr_warning(fmt, ...); /* similar to printk(KERN_WARNING pr_fmt(fmt), ...); */
-   pr_warn(fmt, ...); /* similar to cu printk(KERN_WARNING pr_fmt(fmt), ...); */
+   pr_warn(fmt, ...); /* similar to printk(KERN_WARNING pr_fmt(fmt), ...); */
    pr_notice(fmt, ...); /* similar to printk(KERN_NOTICE pr_fmt(fmt), ...); */
    pr_info(fmt, ...); /* similar to printk(KERN_INFO pr_fmt(fmt), ...); */
+   pr_debug(fmt, ...); /* similar to printk(KERN_DEBUG pr_fmt(fmt), ...); */
 
 A special case is :c:func:`pr_debug` that calls the :c:func:`printk` function
 only when the :c:macro:`DEBUG` macro is defined or if dynamic debugging is used.
