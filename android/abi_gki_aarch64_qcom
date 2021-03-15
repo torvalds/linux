@@ -1555,6 +1555,7 @@
   pci_bus_type
   pci_clear_master
   pci_d3cold_disable
+  pci_dev_present
   pci_device_group
   pci_disable_device
   pci_disable_msi
