@@ -189,7 +189,7 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 	return true;
 }
 
-int _rtw_xmit_entry(struct sk_buff *pkt, struct net_device * pnetdev)
+int _rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
 {
 	struct adapter *padapter = rtw_netdev_priv(pnetdev);
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
@@ -244,7 +244,7 @@ exit:
 	return 0;
 }
 
-int rtw_xmit_entry(struct sk_buff *pkt, struct net_device * pnetdev)
+int rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
 {
 	int ret = 0;
 
