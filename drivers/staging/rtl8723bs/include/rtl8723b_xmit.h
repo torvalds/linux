@@ -443,7 +443,7 @@ s32 rtl8723bs_xmit_buf_handler(struct adapter *padapter);
 int rtl8723bs_xmit_thread(void *context);
 #define hal_xmit_handler rtl8723bs_xmit_buf_handler
 
-u8 BWMapping_8723B(struct adapter * Adapter, struct pkt_attrib *pattrib);
-u8 SCMapping_8723B(struct adapter * Adapter, struct pkt_attrib	*pattrib);
+u8 BWMapping_8723B(struct adapter *Adapter, struct pkt_attrib *pattrib);
+u8 SCMapping_8723B(struct adapter *Adapter, struct pkt_attrib *pattrib);
 
 #endif
