@@ -87,7 +87,8 @@ static inline void mte_set_mem_tag_range(void *addr, size_t size,
 	}
 }
 
-void mte_enable_kernel(void);
+void mte_enable_kernel_sync(void);
+void mte_enable_kernel_async(void);
 void mte_init_tags(u64 max_tag);
 
 void mte_set_report_once(bool state);
@@ -115,7 +116,11 @@ static inline void mte_set_mem_tag_range(void *addr, size_t size,
 {
 }
 
-static inline void mte_enable_kernel(void)
+static inline void mte_enable_kernel_sync(void)
+{
+}
+
+static inline void mte_enable_kernel_async(void)
 {
 }
 
