@@ -1882,14 +1882,14 @@ static int dpcm_fe_dai_hw_free(struct snd_pcm_substream *substream)
 
 int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int stream)
 {
+	struct snd_soc_pcm_runtime *be;
+	struct snd_pcm_substream *be_substream;
 	struct snd_soc_dpcm *dpcm;
 	int ret;
 
 	for_each_dpcm_be(fe, stream, dpcm) {
-
-		struct snd_soc_pcm_runtime *be = dpcm->be;
-		struct snd_pcm_substream *be_substream =
-			snd_soc_dpcm_get_substream(be, stream);
+		be = dpcm->be;
+		be_substream = snd_soc_dpcm_get_substream(be, stream);
 
 		/* is this op for this BE ? */
 		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
@@ -1929,11 +1929,13 @@ int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int stream)
 	return 0;
 
 unwind:
+	dev_dbg(fe->dev, "ASoC: %s() failed at %s (%d)\n",
+		__func__, be->dai_link->name, ret);
+
 	/* disable any enabled and non active backends */
 	for_each_dpcm_be_rollback(fe, stream, dpcm) {
-		struct snd_soc_pcm_runtime *be = dpcm->be;
-		struct snd_pcm_substream *be_substream =
-			snd_soc_dpcm_get_substream(be, stream);
+		be = dpcm->be;
+		be_substream = snd_soc_dpcm_get_substream(be, stream);
 
 		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
 			continue;
@@ -1966,10 +1968,8 @@ static int dpcm_fe_dai_hw_params(struct snd_pcm_substream *substream,
 	memcpy(&fe->dpcm[stream].hw_params, params,
 			sizeof(struct snd_pcm_hw_params));
 	ret = dpcm_be_dai_hw_params(fe, stream);
-	if (ret < 0) {
-		dev_err(fe->dev,"ASoC: hw_params BE failed %d\n", ret);
+	if (ret < 0)
 		goto out;
-	}
 
 	dev_dbg(fe->dev, "ASoC: hw_params FE %s rate %d chan %x fmt %d\n",
 			fe->dai_link->name, params_rate(params),
@@ -1985,6 +1985,10 @@ static int dpcm_fe_dai_hw_params(struct snd_pcm_substream *substream,
 out:
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
 	mutex_unlock(&fe->card->mutex);
+
+	if (ret < 0)
+		dev_err(fe->dev, "ASoC: %s failed (%d)\n", __func__, ret);
+
 	return ret;
 }
 
