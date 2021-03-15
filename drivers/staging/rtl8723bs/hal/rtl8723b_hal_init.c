@@ -4454,34 +4454,3 @@ void rtl8723b_stop_thread(struct adapter *padapter)
 	}
 #endif
 }
-
-#if defined(CONFIG_CHECK_BT_HANG)
-extern void check_bt_status_work(void *data);
-void rtl8723bs_init_checkbthang_workqueue(struct adapter *adapter)
-{
-	adapter->priv_checkbt_wq = alloc_workqueue("sdio_wq", 0, 0);
-	INIT_DELAYED_WORK(&adapter->checkbt_work, (void *)check_bt_status_work);
-}
-
-void rtl8723bs_free_checkbthang_workqueue(struct adapter *adapter)
-{
-	if (adapter->priv_checkbt_wq) {
-		cancel_delayed_work_sync(&adapter->checkbt_work);
-		flush_workqueue(adapter->priv_checkbt_wq);
-		destroy_workqueue(adapter->priv_checkbt_wq);
-		adapter->priv_checkbt_wq = NULL;
-	}
-}
-
-void rtl8723bs_cancle_checkbthang_workqueue(struct adapter *adapter)
-{
-	if (adapter->priv_checkbt_wq)
-		cancel_delayed_work_sync(&adapter->checkbt_work);
-}
-
-void rtl8723bs_hal_check_bt_hang(struct adapter *adapter)
-{
-	if (adapter->priv_checkbt_wq)
-		queue_delayed_work(adapter->priv_checkbt_wq, &(adapter->checkbt_work), 0);
-}
-#endif

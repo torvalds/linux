@@ -244,13 +244,6 @@ void _8051Reset8723(struct adapter *padapter);
 void rtl8723b_start_thread(struct adapter *padapter);
 void rtl8723b_stop_thread(struct adapter *padapter);
 
-#if defined(CONFIG_CHECK_BT_HANG)
-void rtl8723bs_init_checkbthang_workqueue(struct adapter *adapter);
-void rtl8723bs_free_checkbthang_workqueue(struct adapter *adapter);
-void rtl8723bs_cancle_checkbthang_workqueue(struct adapter *adapter);
-void rtl8723bs_hal_check_bt_hang(struct adapter *adapter);
-#endif
-
 int FirmwareDownloadBT(struct adapter *adapter, struct rt_firmware *firmware);
 
 void CCX_FwC2HTxRpt_8723b(struct adapter *padapter, u8 *pdata, u8 len);

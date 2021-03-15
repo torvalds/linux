@@ -1525,11 +1525,4 @@ void rtl8723bs_set_hal_ops(struct adapter *padapter)
 	pHalFunc->hal_xmit = &rtl8723bs_hal_xmit;
 	pHalFunc->mgnt_xmit = &rtl8723bs_mgnt_xmit;
 	pHalFunc->hal_xmitframe_enqueue = &rtl8723bs_hal_xmitframe_enqueue;
-
-#if defined(CONFIG_CHECK_BT_HANG)
-	pHalFunc->hal_init_checkbthang_workqueue = &rtl8723bs_init_checkbthang_workqueue;
-	pHalFunc->hal_free_checkbthang_workqueue = &rtl8723bs_free_checkbthang_workqueue;
-	pHalFunc->hal_cancle_checkbthang_workqueue = &rtl8723bs_cancle_checkbthang_workqueue;
-	pHalFunc->hal_checke_bt_hang = &rtl8723bs_hal_check_bt_hang;
-#endif
 }
