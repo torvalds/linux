@@ -904,6 +904,10 @@ static inline void ptep_modify_prot_commit(struct vm_area_struct *vma,
 #define pgprot_device pgprot_noncached
 #endif
 
+#ifndef pgprot_mhp
+#define pgprot_mhp(prot)	(prot)
+#endif
+
 #ifdef CONFIG_MMU
 #ifndef pgprot_modify
 #define pgprot_modify pgprot_modify

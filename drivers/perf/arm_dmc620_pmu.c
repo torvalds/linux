@@ -681,6 +681,7 @@ static int dmc620_pmu_device_probe(struct platform_device *pdev)
 	if (!name) {
 		dev_err(&pdev->dev,
 			  "Create name failed, PMU @%pa\n", &res->start);
+		ret = -ENOMEM;
 		goto out_teardown_dev;
 	}
 
