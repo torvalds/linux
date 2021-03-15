@@ -88,12 +88,12 @@ void mlx5_core_unreserve_gids(struct mlx5_core_dev *dev, unsigned int count)
 int mlx5_core_reserved_gid_alloc(struct mlx5_core_dev *dev, int *gid_index)
 {
 	int end = dev->roce.reserved_gids.start +
-		  dev->roce.reserved_gids.count;
+		  dev->roce.reserved_gids.count - 1;
 	int index = 0;
 
-	index = ida_simple_get(&dev->roce.reserved_gids.ida,
-			       dev->roce.reserved_gids.start, end,
-			       GFP_KERNEL);
+	index = ida_alloc_range(&dev->roce.reserved_gids.ida,
+				dev->roce.reserved_gids.start, end,
+				GFP_KERNEL);
 	if (index < 0)
 		return index;
 
@@ -105,7 +105,7 @@ int mlx5_core_reserved_gid_alloc(struct mlx5_core_dev *dev, int *gid_index)
 void mlx5_core_reserved_gid_free(struct mlx5_core_dev *dev, int gid_index)
 {
 	mlx5_core_dbg(dev, "Freeing reserved GID %u\n", gid_index);
-	ida_simple_remove(&dev->roce.reserved_gids.ida, gid_index);
+	ida_free(&dev->roce.reserved_gids.ida, gid_index);
 }
 
 unsigned int mlx5_core_reserved_gids_count(struct mlx5_core_dev *dev)

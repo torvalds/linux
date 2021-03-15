@@ -707,7 +707,7 @@ static void *mlx5_fpga_ipsec_create_sa_ctx(struct mlx5_core_dev *mdev,
 	}
 
 	if (accel_xfrm->attrs.action == MLX5_ACCEL_ESP_ACTION_DECRYPT) {
-		err = ida_simple_get(&fipsec->halloc, 1, 0, GFP_KERNEL);
+		err = ida_alloc_min(&fipsec->halloc, 1, GFP_KERNEL);
 		if (err < 0) {
 			context = ERR_PTR(err);
 			goto exists;
@@ -758,7 +758,7 @@ delete_hash:
 unlock_hash:
 	mutex_unlock(&fipsec->sa_hash_lock);
 	if (accel_xfrm->attrs.action == MLX5_ACCEL_ESP_ACTION_DECRYPT)
-		ida_simple_remove(&fipsec->halloc, sa_ctx->sa_handle);
+		ida_free(&fipsec->halloc, sa_ctx->sa_handle);
 exists:
 	mutex_unlock(&fpga_xfrm->lock);
 	kfree(sa_ctx);
@@ -852,7 +852,7 @@ mlx5_fpga_ipsec_release_sa_ctx(struct mlx5_fpga_ipsec_sa_ctx *sa_ctx)
 
 	if (sa_ctx->fpga_xfrm->accel_xfrm.attrs.action &
 	    MLX5_ACCEL_ESP_ACTION_DECRYPT)
-		ida_simple_remove(&fipsec->halloc, sa_ctx->sa_handle);
+		ida_free(&fipsec->halloc, sa_ctx->sa_handle);
 
 	mutex_lock(&fipsec->sa_hash_lock);
 	WARN_ON(rhashtable_remove_fast(&fipsec->sa_hash, &sa_ctx->hash,
