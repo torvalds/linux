@@ -208,9 +208,9 @@ void bch2_migrate_read_done(struct migrate_write *m, struct bch_read_bio *rbio)
 	BUG_ON(!m->op.wbio.bio.bi_vcnt);
 
 	m->ptr		= rbio->pick.ptr;
-	m->offset	= rbio->pos.offset - rbio->pick.crc.offset;
+	m->offset	= rbio->data_pos.offset - rbio->pick.crc.offset;
 	m->op.devs_have	= rbio->devs_have;
-	m->op.pos	= rbio->pos;
+	m->op.pos	= rbio->data_pos;
 	m->op.version	= rbio->version;
 	m->op.crc	= rbio->pick.crc;
 	m->op.wbio.bio.bi_iter.bi_size = m->op.crc.compressed_size << 9;
@@ -492,7 +492,9 @@ static int bch2_move_extent(struct btree_trans *trans,
 	 * ctxt when doing wakeup
 	 */
 	closure_get(&ctxt->cl);
-	bch2_read_extent(trans, &io->rbio, k, 0,
+	bch2_read_extent(trans, &io->rbio,
+			 bkey_start_pos(k.k),
+			 btree_id, k, 0,
 			 BCH_READ_NODECODE|
 			 BCH_READ_LAST_FRAGMENT);
 	return 0;

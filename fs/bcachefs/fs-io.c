@@ -788,6 +788,7 @@ retry:
 	while (1) {
 		struct bkey_s_c k;
 		unsigned bytes, sectors, offset_into_extent;
+		enum btree_id data_btree = BTREE_ID_extents;
 
 		bch2_btree_iter_set_pos(iter,
 				POS(inum, rbio->bio.bi_iter.bi_sector));
@@ -803,7 +804,7 @@ retry:
 
 		bch2_bkey_buf_reassemble(&sk, c, k);
 
-		ret = bch2_read_indirect_extent(trans,
+		ret = bch2_read_indirect_extent(trans, &data_btree,
 					&offset_into_extent, &sk);
 		if (ret)
 			break;
@@ -827,7 +828,8 @@ retry:
 		if (bkey_extent_is_allocation(k.k))
 			bch2_add_page_sectors(&rbio->bio, k);
 
-		bch2_read_extent(trans, rbio, k, offset_into_extent, flags);
+		bch2_read_extent(trans, rbio, iter->pos,
+				 data_btree, k, offset_into_extent, flags);
 
 		if (flags & BCH_READ_LAST_FRAGMENT)
 			break;

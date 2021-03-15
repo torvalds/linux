@@ -121,12 +121,15 @@ int __bch2_read_indirect_extent(struct btree_trans *, unsigned *,
 				struct bkey_buf *);
 
 static inline int bch2_read_indirect_extent(struct btree_trans *trans,
+					    enum btree_id *data_btree,
 					    unsigned *offset_into_extent,
 					    struct bkey_buf *k)
 {
-	return k->k->k.type == KEY_TYPE_reflink_p
-		? __bch2_read_indirect_extent(trans, offset_into_extent, k)
-		: 0;
+	if (k->k->k.type != KEY_TYPE_reflink_p)
+		return 0;
+
+	*data_btree = BTREE_ID_reflink;
+	return __bch2_read_indirect_extent(trans, offset_into_extent, k);
 }
 
 enum bch_read_flags {
@@ -143,17 +146,17 @@ enum bch_read_flags {
 };
 
 int __bch2_read_extent(struct btree_trans *, struct bch_read_bio *,
-		       struct bvec_iter, struct bkey_s_c, unsigned,
+		       struct bvec_iter, struct bpos, enum btree_id,
+		       struct bkey_s_c, unsigned,
 		       struct bch_io_failures *, unsigned);
 
 static inline void bch2_read_extent(struct btree_trans *trans,
-				    struct bch_read_bio *rbio,
-				    struct bkey_s_c k,
-				    unsigned offset_into_extent,
-				    unsigned flags)
+			struct bch_read_bio *rbio, struct bpos read_pos,
+			enum btree_id data_btree, struct bkey_s_c k,
+			unsigned offset_into_extent, unsigned flags)
 {
-	__bch2_read_extent(trans, rbio, rbio->bio.bi_iter, k,
-			   offset_into_extent, NULL, flags);
+	__bch2_read_extent(trans, rbio, rbio->bio.bi_iter, read_pos,
+			   data_btree, k, offset_into_extent, NULL, flags);
 }
 
 void __bch2_read(struct bch_fs *, struct bch_read_bio *, struct bvec_iter,

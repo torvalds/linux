@@ -908,6 +908,8 @@ retry:
 	while ((k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret = bkey_err(k)) &&
 	       bkey_cmp(iter->pos, end) < 0) {
+		enum btree_id data_btree = BTREE_ID_extents;
+
 		if (!bkey_extent_is_data(k.k) &&
 		    k.k->type != KEY_TYPE_reservation) {
 			bch2_btree_iter_next(iter);
@@ -920,7 +922,7 @@ retry:
 
 		bch2_bkey_buf_reassemble(&cur, c, k);
 
-		ret = bch2_read_indirect_extent(&trans,
+		ret = bch2_read_indirect_extent(&trans, &data_btree,
 					&offset_into_extent, &cur);
 		if (ret)
 			break;

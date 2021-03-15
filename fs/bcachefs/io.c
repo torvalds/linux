@@ -1627,8 +1627,8 @@ static void bch2_read_retry_nodecode(struct bch_fs *c, struct bch_read_bio *rbio
 	bch2_bkey_buf_init(&sk);
 	bch2_trans_init(&trans, c, 0, 0);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_extents,
-				   rbio->pos, BTREE_ITER_SLOTS);
+	iter = bch2_trans_get_iter(&trans, rbio->data_btree,
+				   rbio->read_pos, BTREE_ITER_SLOTS);
 retry:
 	rbio->bio.bi_status = 0;
 
@@ -1642,14 +1642,17 @@ retry:
 
 	if (!bch2_bkey_matches_ptr(c, k,
 				   rbio->pick.ptr,
-				   rbio->pos.offset -
+				   rbio->data_pos.offset -
 				   rbio->pick.crc.offset)) {
 		/* extent we wanted to read no longer exists: */
 		rbio->hole = true;
 		goto out;
 	}
 
-	ret = __bch2_read_extent(&trans, rbio, bvec_iter, k, 0, failed, flags);
+	ret = __bch2_read_extent(&trans, rbio, bvec_iter,
+				 rbio->read_pos,
+				 rbio->data_btree,
+				 k, 0, failed, flags);
 	if (ret == READ_RETRY)
 		goto retry;
 	if (ret)
@@ -1671,7 +1674,7 @@ static void bch2_rbio_retry(struct work_struct *work)
 	struct bch_fs *c	= rbio->c;
 	struct bvec_iter iter	= rbio->bvec_iter;
 	unsigned flags		= rbio->flags;
-	u64 inode		= rbio->pos.inode;
+	u64 inode		= rbio->read_pos.inode;
 	struct bch_io_failures failed = { .nr = 0 };
 
 	trace_read_retry(&rbio->bio);
@@ -1719,7 +1722,7 @@ static int __bch2_rbio_narrow_crcs(struct btree_trans *trans,
 				   struct bch_read_bio *rbio)
 {
 	struct bch_fs *c = rbio->c;
-	u64 data_offset = rbio->pos.offset - rbio->pick.crc.offset;
+	u64 data_offset = rbio->data_pos.offset - rbio->pick.crc.offset;
 	struct bch_extent_crc_unpacked new_crc;
 	struct btree_iter *iter = NULL;
 	struct bkey_i *new;
@@ -1729,7 +1732,7 @@ static int __bch2_rbio_narrow_crcs(struct btree_trans *trans,
 	if (crc_is_compressed(rbio->pick.crc))
 		return 0;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_extents, rbio->pos,
+	iter = bch2_trans_get_iter(trans, rbio->data_btree, rbio->data_pos,
 				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 	k = bch2_btree_iter_peek_slot(iter);
 	if ((ret = bkey_err(k)))
@@ -1862,14 +1865,14 @@ csum_err:
 		return;
 	}
 
-	bch2_dev_inum_io_error(ca, rbio->pos.inode, (u64) rbio->bvec_iter.bi_sector,
+	bch2_dev_inum_io_error(ca, rbio->read_pos.inode, (u64) rbio->bvec_iter.bi_sector,
 		"data checksum error: expected %0llx:%0llx got %0llx:%0llx (type %u)",
 		rbio->pick.crc.csum.hi, rbio->pick.crc.csum.lo,
 		csum.hi, csum.lo, crc.csum_type);
 	bch2_rbio_error(rbio, READ_RETRY_AVOID, BLK_STS_IOERR);
 	return;
 decompression_err:
-	bch_err_inum_ratelimited(c, rbio->pos.inode,
+	bch_err_inum_ratelimited(c, rbio->read_pos.inode,
 				 "decompression error");
 	bch2_rbio_error(rbio, READ_ERR, BLK_STS_IOERR);
 	return;
@@ -1892,13 +1895,9 @@ static void bch2_read_endio(struct bio *bio)
 	if (!rbio->split)
 		rbio->bio.bi_end_io = rbio->end_io;
 
-	/*
-	 * XXX: rbio->pos is not what we want here when reading from indirect
-	 * extents
-	 */
 	if (bch2_dev_inum_io_err_on(bio->bi_status, ca,
-				    rbio->pos.inode,
-				    rbio->pos.offset,
+				    rbio->read_pos.inode,
+				    rbio->read_pos.offset,
 				    "data read error: %s",
 			       bch2_blk_status_to_str(bio->bi_status))) {
 		bch2_rbio_error(rbio, READ_RETRY_AVOID, bio->bi_status);
@@ -1963,7 +1962,8 @@ err:
 }
 
 int __bch2_read_extent(struct btree_trans *trans, struct bch_read_bio *orig,
-		       struct bvec_iter iter, struct bkey_s_c k,
+		       struct bvec_iter iter, struct bpos read_pos,
+		       enum btree_id data_btree, struct bkey_s_c k,
 		       unsigned offset_into_extent,
 		       struct bch_io_failures *failed, unsigned flags)
 {
@@ -1973,7 +1973,7 @@ int __bch2_read_extent(struct btree_trans *trans, struct bch_read_bio *orig,
 	struct bch_dev *ca;
 	struct promote_op *promote = NULL;
 	bool bounce = false, read_full = false, narrow_crcs = false;
-	struct bpos pos = bkey_start_pos(k.k);
+	struct bpos data_pos = bkey_start_pos(k.k);
 	int pick_ret;
 
 	if (bkey_extent_is_inline_data(k.k)) {
@@ -2049,7 +2049,7 @@ int __bch2_read_extent(struct btree_trans *trans, struct bch_read_bio *orig,
 			 pick.crc.offset ||
 			 offset_into_extent));
 
-		pos.offset += offset_into_extent;
+		data_pos.offset += offset_into_extent;
 		pick.ptr.offset += pick.crc.offset +
 			offset_into_extent;
 		offset_into_extent		= 0;
@@ -2123,7 +2123,9 @@ get_bio:
 	/* XXX: only initialize this if needed */
 	rbio->devs_have		= bch2_bkey_devs(k);
 	rbio->pick		= pick;
-	rbio->pos		= pos;
+	rbio->read_pos		= read_pos;
+	rbio->data_btree	= data_btree;
+	rbio->data_pos		= data_pos;
 	rbio->version		= k.k->version;
 	rbio->promote		= promote;
 	INIT_WORK(&rbio->work, NULL);
@@ -2249,6 +2251,7 @@ retry:
 				   BTREE_ITER_SLOTS);
 	while (1) {
 		unsigned bytes, sectors, offset_into_extent;
+		enum btree_id data_btree = BTREE_ID_extents;
 
 		bch2_btree_iter_set_pos(iter,
 				POS(inode, bvec_iter.bi_sector));
@@ -2264,7 +2267,7 @@ retry:
 
 		bch2_bkey_buf_reassemble(&sk, c, k);
 
-		ret = bch2_read_indirect_extent(&trans,
+		ret = bch2_read_indirect_extent(&trans, &data_btree,
 					&offset_into_extent, &sk);
 		if (ret)
 			goto err;
@@ -2289,7 +2292,8 @@ retry:
 		if (bvec_iter.bi_size == bytes)
 			flags |= BCH_READ_LAST_FRAGMENT;
 
-		ret = __bch2_read_extent(&trans, rbio, bvec_iter, k,
+		ret = __bch2_read_extent(&trans, rbio, bvec_iter, iter->pos,
+					 data_btree, k,
 					 offset_into_extent, failed, flags);
 		switch (ret) {
 		case READ_RETRY:

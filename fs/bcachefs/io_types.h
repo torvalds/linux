@@ -58,8 +58,18 @@ struct bch_read_bio {
 	struct bch_devs_list	devs_have;
 
 	struct extent_ptr_decoded pick;
-	/* start pos of data we read (may not be pos of data we want) */
-	struct bpos		pos;
+
+	/*
+	 * pos we read from - different from data_pos for indirect extents:
+	 */
+	struct bpos		read_pos;
+
+	/*
+	 * start pos of data we read (may not be pos of data we want) - for
+	 * promote, narrow extents paths:
+	 */
+	enum btree_id		data_btree;
+	struct bpos		data_pos;
 	struct bversion		version;
 
 	struct promote_op	*promote;
