@@ -313,13 +313,10 @@ static char *translate_scan(struct adapter *padapter,
 	/* Add quality statistics */
 	iwe.cmd = IWEVQUAL;
 	iwe.u.qual.updated = IW_QUAL_QUAL_UPDATED | IW_QUAL_LEVEL_UPDATED
-	#if defined(CONFIG_SIGNAL_DISPLAY_DBM) && defined(CONFIG_BACKGROUND_NOISE_MONITOR)
+	#ifdef CONFIG_BACKGROUND_NOISE_MONITOR
 		| IW_QUAL_NOISE_UPDATED
 	#else
 		| IW_QUAL_NOISE_INVALID
-	#endif
-	#ifdef CONFIG_SIGNAL_DISPLAY_DBM
-		| IW_QUAL_DBM
 	#endif
 	;
 
@@ -333,9 +330,6 @@ static char *translate_scan(struct adapter *padapter,
 	}
 
 
-	#ifdef CONFIG_SIGNAL_DISPLAY_DBM
-	iwe.u.qual.level = (u8)translate_percentage_to_dbm(ss);/* dbm */
-	#else
 	#ifdef CONFIG_SKIP_SIGNAL_SCALE_MAPPING
 	{
 		/* Do signal scale mapping when using percentage as the unit of signal strength, since the scale mapping is skipped in odm */
@@ -347,11 +341,10 @@ static char *translate_scan(struct adapter *padapter,
 	#else
 	iwe.u.qual.level = (u8)ss;/*  */
 	#endif
-	#endif
 
 	iwe.u.qual.qual = (u8)sq;   /*  signal quality */
 
-	#if defined(CONFIG_SIGNAL_DISPLAY_DBM) && defined(CONFIG_BACKGROUND_NOISE_MONITOR)
+	#ifdef CONFIG_BACKGROUND_NOISE_MONITOR
 	{
 		s16 tmp_noise = 0;
 		rtw_hal_get_odm_var(padapter, HAL_ODM_NOISE_MONITOR, &(pnetwork->network.Configuration.DSConfig), &(tmp_noise));
@@ -4732,9 +4725,6 @@ static struct iw_statistics *rtw_get_wireless_stats(struct net_device *dev)
 		piwstats->qual.noise = 0;
 		/* DBG_871X("No link  level:%d, qual:%d, noise:%d\n", tmp_level, tmp_qual, tmp_noise); */
 	} else {
-		#ifdef CONFIG_SIGNAL_DISPLAY_DBM
-		tmp_level = translate_percentage_to_dbm(padapter->recvpriv.signal_strength);
-		#else
 		#ifdef CONFIG_SKIP_SIGNAL_SCALE_MAPPING
 		{
 			/* Do signal scale mapping when using percentage as the unit of signal strength, since the scale mapping is skipped in odm */
@@ -4746,10 +4736,9 @@ static struct iw_statistics *rtw_get_wireless_stats(struct net_device *dev)
 		#else
 		tmp_level = padapter->recvpriv.signal_strength;
 		#endif
-		#endif
 
 		tmp_qual = padapter->recvpriv.signal_qual;
-#if defined(CONFIG_SIGNAL_DISPLAY_DBM) && defined(CONFIG_BACKGROUND_NOISE_MONITOR)
+#ifdef CONFIG_BACKGROUND_NOISE_MONITOR
 		if (rtw_linked_check(padapter)) {
 			struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 			struct noise_info info;
@@ -4775,10 +4764,6 @@ static struct iw_statistics *rtw_get_wireless_stats(struct net_device *dev)
 		piwstats->qual.noise = tmp_noise;
 	}
 	piwstats->qual.updated = IW_QUAL_ALL_UPDATED ;/* IW_QUAL_DBM; */
-
-	#ifdef CONFIG_SIGNAL_DISPLAY_DBM
-	piwstats->qual.updated = piwstats->qual.updated | IW_QUAL_DBM;
-	#endif
 
 	return &padapter->iwstats;
 }

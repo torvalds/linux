@@ -1262,7 +1262,7 @@ void GetHalODMVar(
 )
 {
 	switch (eVariable) {
-#if defined(CONFIG_SIGNAL_DISPLAY_DBM) && defined(CONFIG_BACKGROUND_NOISE_MONITOR)
+#ifdef CONFIG_BACKGROUND_NOISE_MONITOR
 	case HAL_ODM_NOISE_MONITOR:
 		{
 			struct hal_com_data	*pHalData = GET_HAL_DATA(Adapter);
@@ -1313,7 +1313,7 @@ void SetHalODMVar(
 	case HAL_ODM_WIFI_DISPLAY_STATE:
 			ODM_CmnInfoUpdate(podmpriv, ODM_CMNINFO_WIFI_DISPLAY, bSet);
 		break;
-	#if defined(CONFIG_SIGNAL_DISPLAY_DBM) && defined(CONFIG_BACKGROUND_NOISE_MONITOR)
+	#ifdef CONFIG_BACKGROUND_NOISE_MONITOR
 	case HAL_ODM_NOISE_MONITOR:
 		{
 			struct noise_info *pinfo = pValue1;
