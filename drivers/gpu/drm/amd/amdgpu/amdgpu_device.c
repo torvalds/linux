@@ -466,49 +466,6 @@ void amdgpu_mm_wreg_mmio_rlc(struct amdgpu_device *adev,
 }
 
 /**
- * amdgpu_io_rreg - read an IO register
- *
- * @adev: amdgpu_device pointer
- * @reg: dword aligned register offset
- *
- * Returns the 32 bit value from the offset specified.
- */
-u32 amdgpu_io_rreg(struct amdgpu_device *adev, u32 reg)
-{
-	if (adev->in_pci_err_recovery)
-		return 0;
-
-	if ((reg * 4) < adev->rio_mem_size)
-		return ioread32(adev->rio_mem + (reg * 4));
-	else {
-		iowrite32((reg * 4), adev->rio_mem + (mmMM_INDEX * 4));
-		return ioread32(adev->rio_mem + (mmMM_DATA * 4));
-	}
-}
-
-/**
- * amdgpu_io_wreg - write to an IO register
- *
- * @adev: amdgpu_device pointer
- * @reg: dword aligned register offset
- * @v: 32 bit value to write to the register
- *
- * Writes the value specified to the offset specified.
- */
-void amdgpu_io_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
-{
-	if (adev->in_pci_err_recovery)
-		return;
-
-	if ((reg * 4) < adev->rio_mem_size)
-		iowrite32(v, adev->rio_mem + (reg * 4));
-	else {
-		iowrite32((reg * 4), adev->rio_mem + (mmMM_INDEX * 4));
-		iowrite32(v, adev->rio_mem + (mmMM_DATA * 4));
-	}
-}
-
-/**
  * amdgpu_mm_rdoorbell - read a doorbell dword
  *
  * @adev: amdgpu_device pointer
@@ -3356,17 +3313,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	DRM_INFO("register mmio base: 0x%08X\n", (uint32_t)adev->rmmio_base);
 	DRM_INFO("register mmio size: %u\n", (unsigned)adev->rmmio_size);
 
-	/* io port mapping */
-	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-		if (pci_resource_flags(adev->pdev, i) & IORESOURCE_IO) {
-			adev->rio_mem_size = pci_resource_len(adev->pdev, i);
-			adev->rio_mem = pci_iomap(adev->pdev, i, adev->rio_mem_size);
-			break;
-		}
-	}
-	if (adev->rio_mem == NULL)
-		DRM_INFO("PCI I/O BAR is not found.\n");
-
 	/* enable PCIE atomic ops */
 	r = pci_enable_atomic_ops_to_root(adev->pdev,
 					  PCI_EXP_DEVCAP2_ATOMIC_COMP32 |
@@ -3698,9 +3644,6 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 		vga_switcheroo_fini_domain_pm_ops(adev->dev);
 	if ((adev->pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA)
 		vga_client_register(adev->pdev, NULL, NULL, NULL);
-	if (adev->rio_mem)
-		pci_iounmap(adev->pdev, adev->rio_mem);
-	adev->rio_mem = NULL;
 	iounmap(adev->rmmio);
 	adev->rmmio = NULL;
 	amdgpu_device_doorbell_fini(adev);
