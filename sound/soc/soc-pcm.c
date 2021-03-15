@@ -852,6 +852,10 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 
 out:
 	mutex_unlock(&rtd->card->pcm_mutex);
+
+	if (ret < 0)
+		dev_err(rtd->dev, "ASoC: %s() failed (%d)\n", __func__, ret);
+
 	return ret;
 }
 
@@ -2234,11 +2238,8 @@ int dpcm_be_dai_prepare(struct snd_soc_pcm_runtime *fe, int stream)
 			be->dai_link->name);
 
 		ret = soc_pcm_prepare(be_substream);
-		if (ret < 0) {
-			dev_err(be->dev, "ASoC: backend prepare failed %d\n",
-				ret);
+		if (ret < 0)
 			break;
-		}
 
 		be->dpcm[stream].state = SND_SOC_DPCM_STATE_PREPARE;
 	}
@@ -2270,11 +2271,8 @@ static int dpcm_fe_dai_prepare(struct snd_pcm_substream *substream)
 
 	/* call prepare on the frontend */
 	ret = soc_pcm_prepare(substream);
-	if (ret < 0) {
-		dev_err(fe->dev,"ASoC: prepare FE %s failed\n",
-			fe->dai_link->name);
+	if (ret < 0)
 		goto out;
-	}
 
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_PREPARE;
 
