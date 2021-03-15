@@ -36,6 +36,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/prctl.h>
 
 #include <linux/bitops.h>
 #include <linux/hash.h>
@@ -1404,6 +1405,13 @@ int evlist__prepare_workload(struct evlist *evlist, struct target *target, const
 		close(child_ready_pipe[0]);
 		close(go_pipe[1]);
 		fcntl(go_pipe[0], F_SETFD, FD_CLOEXEC);
+
+		/*
+		 * Change the name of this process not to confuse --exclude-perf users
+		 * that sees 'perf' in the window up to the execvp() and thinks that
+		 * perf samples are not being excluded.
+		 */
+		prctl(PR_SET_NAME, "perf-exec");
 
 		/*
 		 * Tell the parent we're ready to go
