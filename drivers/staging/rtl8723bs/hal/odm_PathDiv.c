@@ -9,7 +9,7 @@
 
 void odm_PathDiversityInit(void *pDM_VOID)
 {
-	struct DM_ODM_T * pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
 
 	if (!(pDM_Odm->SupportAbility & ODM_BB_PATH_DIV))
 		ODM_RT_TRACE(
@@ -22,7 +22,7 @@ void odm_PathDiversityInit(void *pDM_VOID)
 
 void odm_PathDiversity(void *pDM_VOID)
 {
-	struct DM_ODM_T * pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
 
 	if (!(pDM_Odm->SupportAbility & ODM_BB_PATH_DIV))
 		ODM_RT_TRACE(
