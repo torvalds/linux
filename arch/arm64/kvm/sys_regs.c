@@ -2784,6 +2784,8 @@ struct __ftr_reg_copy_entry {
 	struct arm64_ftr_reg	*dst;
 } hyp_ftr_regs[] __initdata = {
 	CPU_FTR_REG_HYP_COPY(SYS_CTR_EL0, arm64_ftr_reg_ctrel0),
+	CPU_FTR_REG_HYP_COPY(SYS_ID_AA64MMFR0_EL1, arm64_ftr_reg_id_aa64mmfr0_el1),
+	CPU_FTR_REG_HYP_COPY(SYS_ID_AA64MMFR1_EL1, arm64_ftr_reg_id_aa64mmfr1_el1),
 };
 
 void __init setup_kvm_el2_caps(void)

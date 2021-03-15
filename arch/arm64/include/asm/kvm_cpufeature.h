@@ -15,3 +15,5 @@
 #endif
 
 KVM_HYP_CPU_FTR_REG(arm64_ftr_reg_ctrel0);
+KVM_HYP_CPU_FTR_REG(arm64_ftr_reg_id_aa64mmfr0_el1);
+KVM_HYP_CPU_FTR_REG(arm64_ftr_reg_id_aa64mmfr1_el1);
