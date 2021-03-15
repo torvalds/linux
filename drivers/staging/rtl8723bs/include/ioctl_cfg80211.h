@@ -106,7 +106,7 @@ void rtw_cfg80211_indicate_scan_done(struct adapter *adapter, bool aborted);
 void rtw_cfg80211_indicate_sta_assoc(struct adapter *padapter, u8 *pmgmt_frame, uint frame_len);
 void rtw_cfg80211_indicate_sta_disassoc(struct adapter *padapter, unsigned char *da, unsigned short reason);
 
-void rtw_cfg80211_rx_action(struct adapter *adapter, u8 *frame, uint frame_len, const char*msg);
+void rtw_cfg80211_rx_action(struct adapter *adapter, u8 *frame, uint frame_len, const char *msg);
 
 bool rtw_cfg80211_pwr_mgmt(struct adapter *adapter);
 
