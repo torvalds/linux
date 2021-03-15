@@ -1368,10 +1368,10 @@ extern  u32 TxScalingTable_Jaguar[TXSCALE_TABLE_SIZE];
 /* Remove BB power saving by Yuchen */
 
 #define dm_CheckTXPowerTracking ODM_TXPowerTrackingCheck
-void ODM_TXPowerTrackingCheck(struct DM_ODM_T * pDM_Odm);
+void ODM_TXPowerTrackingCheck(struct DM_ODM_T *pDM_Odm);
 
 bool ODM_RAStateCheck(
-	struct DM_ODM_T * pDM_Odm,
+	struct DM_ODM_T *pDM_Odm,
 	s32	RSSI,
 	bool bForceUpdate,
 	u8 *pRATRState
@@ -1379,13 +1379,13 @@ bool ODM_RAStateCheck(
 
 #define dm_SWAW_RSSI_Check	ODM_SwAntDivChkPerPktRssi
 void ODM_SwAntDivChkPerPktRssi(
-	struct DM_ODM_T * pDM_Odm,
+	struct DM_ODM_T *pDM_Odm,
 	u8 StationID,
 	struct odm_phy_info *pPhyInfo
 );
 
 u32 ODM_Get_Rate_Bitmap(
-	struct DM_ODM_T * pDM_Odm,
+	struct DM_ODM_T *pDM_Odm,
 	u32 macid,
 	u32 ra_mask,
 	u8 rssi_level
@@ -1395,38 +1395,38 @@ u32 ODM_Get_Rate_Bitmap(
 BEAMFORMING_CAP Beamforming_GetEntryBeamCapByMacId(PMGNT_INFO pMgntInfo, u8 MacId);
 #endif
 
-void odm_TXPowerTrackingInit(struct DM_ODM_T * pDM_Odm);
+void odm_TXPowerTrackingInit(struct DM_ODM_T *pDM_Odm);
 
-void ODM_DMInit(struct DM_ODM_T * pDM_Odm);
+void ODM_DMInit(struct DM_ODM_T *pDM_Odm);
 
-void ODM_DMWatchdog(struct DM_ODM_T * pDM_Odm); /*  For common use in the future */
+void ODM_DMWatchdog(struct DM_ODM_T *pDM_Odm); /*  For common use in the future */
 
-void ODM_CmnInfoInit(struct DM_ODM_T * pDM_Odm, enum ODM_CMNINFO_E CmnInfo, u32 Value);
+void ODM_CmnInfoInit(struct DM_ODM_T *pDM_Odm, enum ODM_CMNINFO_E CmnInfo, u32 Value);
 
-void ODM_CmnInfoHook(struct DM_ODM_T * pDM_Odm, enum ODM_CMNINFO_E CmnInfo, void *pValue);
+void ODM_CmnInfoHook(struct DM_ODM_T *pDM_Odm, enum ODM_CMNINFO_E CmnInfo, void *pValue);
 
 void ODM_CmnInfoPtrArrayHook(
-	struct DM_ODM_T * pDM_Odm,
+	struct DM_ODM_T *pDM_Odm,
 	enum ODM_CMNINFO_E CmnInfo,
 	u16 Index,
 	void *pValue
 );
 
-void ODM_CmnInfoUpdate(struct DM_ODM_T * pDM_Odm, u32 CmnInfo, u64 Value);
+void ODM_CmnInfoUpdate(struct DM_ODM_T *pDM_Odm, u32 CmnInfo, u64 Value);
 
-void ODM_InitAllTimers(struct DM_ODM_T * pDM_Odm);
+void ODM_InitAllTimers(struct DM_ODM_T *pDM_Odm);
 
-void ODM_CancelAllTimers(struct DM_ODM_T * pDM_Odm);
+void ODM_CancelAllTimers(struct DM_ODM_T *pDM_Odm);
 
-void ODM_ReleaseAllTimers(struct DM_ODM_T * pDM_Odm);
+void ODM_ReleaseAllTimers(struct DM_ODM_T *pDM_Odm);
 
 void ODM_AntselStatistics_88C(
-	struct DM_ODM_T * pDM_Odm,
+	struct DM_ODM_T *pDM_Odm,
 	u8 MacId,
 	u32 PWDBAll,
 	bool isCCKrate
 );
 
-void ODM_DynamicARFBSelect(struct DM_ODM_T * pDM_Odm, u8 rate, bool Collision_State);
+void ODM_DynamicARFBSelect(struct DM_ODM_T *pDM_Odm, u8 rate, bool Collision_State);
 
 #endif
