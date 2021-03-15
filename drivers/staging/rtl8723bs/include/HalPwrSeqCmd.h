@@ -113,7 +113,7 @@ struct WLAN_PWR_CFG {
 /* 	Prototype of protected function. */
 /*  */
 u8 HalPwrSeqCmdParsing(
-	struct adapter *	padapter,
+	struct adapter *padapter,
 	u8 		CutVersion,
 	u8 		FabVersion,
 	u8 		InterfaceType,
