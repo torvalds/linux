@@ -296,6 +296,13 @@ static u32 vp_vdpa_get_vq_align(struct vdpa_device *vdpa)
 	return PAGE_SIZE;
 }
 
+static size_t vp_vdpa_get_config_size(struct vdpa_device *vdpa)
+{
+	struct virtio_pci_modern_device *mdev = vdpa_to_mdev(vdpa);
+
+	return mdev->device_len;
+}
+
 static void vp_vdpa_get_config(struct vdpa_device *vdpa,
 			       unsigned int offset,
 			       void *buf, unsigned int len)
@@ -369,6 +376,7 @@ static const struct vdpa_config_ops vp_vdpa_ops = {
 	.get_device_id	= vp_vdpa_get_device_id,
 	.get_vendor_id	= vp_vdpa_get_vendor_id,
 	.get_vq_align	= vp_vdpa_get_vq_align,
+	.get_config_size = vp_vdpa_get_config_size,
 	.get_config	= vp_vdpa_get_config,
 	.set_config	= vp_vdpa_set_config,
 	.set_config_cb  = vp_vdpa_set_config_cb,
