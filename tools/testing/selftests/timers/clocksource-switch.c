@@ -3,7 +3,7 @@
  *		(C) Copyright IBM 2012
  *		Licensed under the GPLv2
  *
- *  NOTE: This is a meta-test which quickly changes the clocksourc and
+ *  NOTE: This is a meta-test which quickly changes the clocksource and
  *  then uses other tests to detect problems. Thus this test requires
  *  that the inconsistency-check and nanosleep tests be present in the
  *  same directory it is run from.
