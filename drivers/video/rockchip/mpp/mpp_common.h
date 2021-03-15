@@ -286,6 +286,7 @@ struct mpp_dev {
 
 	atomic_t reset_request;
 	atomic_t task_count;
+	atomic_t task_index;
 	/* task for work queue */
 	struct workqueue_struct *workq;
 	/* current task in running */
@@ -371,6 +372,7 @@ struct mpp_task {
 	struct timeval start;
 	/* hardware info for current task */
 	struct mpp_hw_info *hw_info;
+	u32 task_index;
 	u32 *reg;
 };
 

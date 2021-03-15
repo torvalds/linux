@@ -373,6 +373,7 @@ static int mpp_process_task(struct mpp_session *session,
 	}
 	kref_init(&task->ref);
 	atomic_set(&task->abort_request, 0);
+	task->task_index = atomic_fetch_inc(&mpp->task_index);
 	INIT_DELAYED_WORK(&task->timeout_work, mpp_task_timeout_work);
 
 	if (mpp->hw_ops->get_freq)
@@ -677,13 +678,14 @@ static int mpp_wait_result(struct mpp_session *session,
 		}
 	} else {
 		atomic_inc(&task->abort_request);
-		mpp_err("timeout, pid %d session %p count %d cur_task %p.\n",
+		mpp_err("timeout, pid %d session %p count %d cur_task %p index %d.\n",
 			session->pid, session,
-			atomic_read(&session->task_count), task);
+			atomic_read(&session->task_count), task,
+			task->task_index);
 		/* if twice and return timeout, otherwise, re-wait */
 		if (atomic_read(&task->abort_request) > 1) {
-			mpp_err("session %p, task %p abort wait twice!\n",
-				session, task);
+			mpp_err("session %p, task %p index %d abort wait twice!\n",
+				session, task, task->task_index);
 			ret = -ETIMEDOUT;
 		} else {
 			return mpp_wait_result(session, msgs);
@@ -1647,6 +1649,7 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 
 	atomic_set(&mpp->reset_request, 0);
 	atomic_set(&mpp->task_count, 0);
+	atomic_set(&mpp->task_index, 0);
 
 	device_init_wakeup(dev, true);
 	/* power domain autosuspend delay 2s */
