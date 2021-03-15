@@ -792,8 +792,10 @@ dynamic:
 err:
 	mutex_unlock(&rtd->card->pcm_mutex);
 pm_err:
-	if (ret < 0)
+	if (ret < 0) {
 		soc_pcm_clean(substream, 1);
+		dev_err(rtd->dev, "%s() failed (%d)", __func__, ret);
+	}
 
 	return ret;
 }
@@ -1504,7 +1506,6 @@ int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 		be_substream->runtime = be->dpcm[stream].runtime;
 		err = soc_pcm_open(be_substream);
 		if (err < 0) {
-			dev_err(be->dev, "ASoC: BE open failed %d\n", err);
 			be->dpcm[stream].users--;
 			if (be->dpcm[stream].users < 0)
 				dev_err(be->dev, "ASoC: no users %s at unwind %d\n",
@@ -1744,10 +1745,8 @@ static int dpcm_fe_dai_startup(struct snd_pcm_substream *fe_substream)
 
 	/* start the DAI frontend */
 	ret = soc_pcm_open(fe_substream);
-	if (ret < 0) {
-		dev_err(fe->dev,"ASoC: failed to start FE %d\n", ret);
+	if (ret < 0)
 		goto unwind;
-	}
 
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_OPEN;
 
