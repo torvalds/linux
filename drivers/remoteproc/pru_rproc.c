@@ -603,7 +603,7 @@ pru_rproc_load_elf_segments(struct rproc *rproc, const struct firmware *fw)
 			break;
 		}
 
-		if (pru->data->is_k3 && is_iram) {
+		if (pru->data->is_k3) {
 			ret = pru_rproc_memcpy(ptr, elf_data + phdr->p_offset,
 					       filesz);
 			if (ret) {
