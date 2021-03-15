@@ -2325,7 +2325,10 @@ static int dpcm_run_update_shutdown(struct snd_soc_pcm_runtime *fe, int stream)
 	/* run the stream event for each BE */
 	dpcm_dapm_stream_event(fe, stream, SND_SOC_DAPM_STREAM_NOP);
 
-	return 0;
+	if (err < 0)
+		dev_err(fe->dev, "ASoC: %s() failed (%d)\n", __func__, err);
+
+	return err;
 }
 
 static int dpcm_run_update_startup(struct snd_soc_pcm_runtime *fe, int stream)
@@ -2365,7 +2368,6 @@ static int dpcm_run_update_startup(struct snd_soc_pcm_runtime *fe, int stream)
 	/* keep going if FE state is > hw_params */
 	if (fe->dpcm[stream].state == SND_SOC_DPCM_STATE_HW_PARAMS)
 		return 0;
-
 
 	ret = dpcm_be_dai_prepare(fe, stream);
 	if (ret < 0)
@@ -2421,6 +2423,9 @@ disconnect:
 	}
 	spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
 
+	if (ret < 0)
+		dev_err(fe->dev, "ASoC: %s() failed (%d)\n", __func__, ret);
+
 	return ret;
 }
 
@@ -2429,7 +2434,6 @@ static int soc_dpcm_fe_runtime_update(struct snd_soc_pcm_runtime *fe, int new)
 	struct snd_soc_dapm_widget_list *list;
 	int stream;
 	int count, paths;
-	int ret;
 
 	if (!fe->dai_link->dynamic)
 		return 0;
@@ -2469,11 +2473,9 @@ static int soc_dpcm_fe_runtime_update(struct snd_soc_pcm_runtime *fe, int new)
 		if (count) {
 			dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_BE);
 			if (new)
-				ret = dpcm_run_update_startup(fe, stream);
+				dpcm_run_update_startup(fe, stream);
 			else
-				ret = dpcm_run_update_shutdown(fe, stream);
-			if (ret < 0)
-				dev_err(fe->dev, "ASoC: failed to shutdown some BEs\n");
+				dpcm_run_update_shutdown(fe, stream);
 			dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
 
 			dpcm_clear_pending_state(fe, stream);
