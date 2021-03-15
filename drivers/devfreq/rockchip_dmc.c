@@ -180,6 +180,18 @@ static struct pm_qos_request pm_qos;
 
 static DECLARE_RWSEM(rockchip_dmcfreq_sem);
 
+static inline unsigned long is_dualview(unsigned long status)
+{
+	return (status & SYS_STATUS_LCDC0) && (status & SYS_STATUS_LCDC1);
+}
+
+static inline unsigned long is_isp(unsigned long status)
+{
+	return (status & SYS_STATUS_ISP) ||
+	       (status & SYS_STATUS_CIF0) ||
+	       (status & SYS_STATUS_CIF1);
+}
+
 void rockchip_dmcfreq_lock(void)
 {
 	down_read(&rockchip_dmcfreq_sem);
@@ -1952,6 +1964,7 @@ static int rockchip_get_system_status_rate(struct device_node *np,
 {
 	const struct property *prop;
 	unsigned int status = 0, freq = 0;
+	unsigned long temp_rate = 0;
 	int count, i;
 
 	prop = of_find_property(np, porp_name, NULL);
@@ -2008,7 +2021,11 @@ static int rockchip_get_system_status_rate(struct device_node *np,
 			dmcfreq->boost_rate = freq * 1000;
 			break;
 		case SYS_STATUS_ISP:
-			dmcfreq->isp_rate = freq * 1000;
+		case SYS_STATUS_CIF0:
+		case SYS_STATUS_CIF1:
+			temp_rate = freq * 1000;
+			if (dmcfreq->isp_rate < temp_rate)
+				dmcfreq->isp_rate = temp_rate;
 			break;
 		case SYS_STATUS_LOW_POWER:
 			dmcfreq->low_power_rate = freq * 1000;
@@ -2047,20 +2064,17 @@ static int rockchip_dmcfreq_system_status_notifier(struct notifier_block *nb,
 	unsigned int refresh = false;
 	bool is_fixed = false;
 
-	if (dmcfreq->dualview_rate && dmcfreq->isp_rate &&
-	    (status & SYS_STATUS_ISP) &&
-	    (status & SYS_STATUS_LCDC0) &&
-	    (status & SYS_STATUS_LCDC1))
+	if (dmcfreq->dualview_rate && is_dualview(status) &&
+	    dmcfreq->isp_rate && is_isp(status))
 		return NOTIFY_OK;
 
-	if (dmcfreq->dualview_rate && (status & SYS_STATUS_LCDC0) &&
-	    (status & SYS_STATUS_LCDC1)) {
+	if (dmcfreq->dualview_rate && is_dualview(status)) {
 		target_rate = dmcfreq->dualview_rate;
 		is_fixed = true;
 		goto next;
 	}
 
-	if (dmcfreq->isp_rate && (status & SYS_STATUS_ISP)) {
+	if (dmcfreq->isp_rate && is_isp(status)) {
 		target_rate = dmcfreq->isp_rate;
 		is_fixed = true;
 		goto next;
