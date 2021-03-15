@@ -85,4 +85,11 @@ config CLK_RK3399
 	default y
 	help
 	  Build the driver for RK3399 Clock Driver.
+
+config CLK_RK3568
+	tristate "Rockchip RK3568 clock controller support"
+	depends on ARM64 || COMPILE_TEST
+	default y
+	help
+	  Build the driver for RK3568 Clock Driver.
 endif
