@@ -213,11 +213,6 @@ enum opt_type {
 	  OPT_BOOL(),							\
 	  BCH_SB_PRJQUOTA,		false,				\
 	  NULL,		"Enable project quotas")			\
-	x(reflink,			u8,				\
-	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,				\
-	  OPT_BOOL(),							\
-	  BCH_SB_REFLINK,		true,				\
-	  NULL,		"Enable reflink support")			\
 	x(degraded,			u8,				\
 	  OPT_MOUNT,							\
 	  OPT_BOOL(),							\

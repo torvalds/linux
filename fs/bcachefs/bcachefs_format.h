@@ -1313,7 +1313,7 @@ LE64_BITMASK(BCH_SB_PRJQUOTA,		struct bch_sb, flags[0], 59, 60);
 
 LE64_BITMASK(BCH_SB_HAS_ERRORS,		struct bch_sb, flags[0], 60, 61);
 
-LE64_BITMASK(BCH_SB_REFLINK,		struct bch_sb, flags[0], 61, 62);
+/* bit 61 was reflink option */
 LE64_BITMASK(BCH_SB_BIG_ENDIAN,		struct bch_sb, flags[0], 62, 63);
 
 /* 61-64 unused */
