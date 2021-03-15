@@ -1946,6 +1946,8 @@ struct hl_mmu_funcs {
  * @aggregated_cs_counters: aggregated cs counters among all contexts
  * @mmu_priv: device-specific MMU data.
  * @mmu_func: device-related MMU functions.
+ * @legacy_pll_map: map holding map between dynamic (common) PLL indexes and
+ *                  static (asic specific) PLL indexes.
  * @dram_used_mem: current DRAM memory consumption.
  * @timeout_jiffies: device CS timeout value.
  * @max_power: the max power of the device, as configured by the sysadmin. This
@@ -2069,6 +2071,8 @@ struct hl_device {
 
 	struct hl_mmu_priv		mmu_priv;
 	struct hl_mmu_funcs		mmu_func[MMU_NUM_PGT_LOCATIONS];
+
+	enum pll_index			*legacy_pll_map;
 
 	atomic64_t			dram_used_mem;
 	u64				timeout_jiffies;
@@ -2383,7 +2387,9 @@ int hl_fw_cpucp_pci_counters_get(struct hl_device *hdev,
 		struct hl_info_pci_counters *counters);
 int hl_fw_cpucp_total_energy_get(struct hl_device *hdev,
 			u64 *total_energy);
-int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, u16 pll_index,
+int get_used_pll_index(struct hl_device *hdev, enum pll_index input_pll_index,
+						enum pll_index *pll_index);
+int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, enum pll_index pll_index,
 		u16 *pll_freq_arr);
 int hl_fw_cpucp_power_get(struct hl_device *hdev, u64 *power);
 int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
@@ -2404,8 +2410,10 @@ int hl_pci_set_outbound_region(struct hl_device *hdev,
 int hl_pci_init(struct hl_device *hdev);
 void hl_pci_fini(struct hl_device *hdev);
 
-long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr);
-void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq);
+long hl_get_frequency(struct hl_device *hdev, enum pll_index pll_index,
+								bool curr);
+void hl_set_frequency(struct hl_device *hdev, enum pll_index pll_index,
+								u64 freq);
 int hl_get_temperature(struct hl_device *hdev,
 		       int sensor_index, u32 attr, long *value);
 int hl_set_temperature(struct hl_device *hdev,

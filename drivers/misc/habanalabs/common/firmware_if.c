@@ -539,18 +539,63 @@ int hl_fw_cpucp_total_energy_get(struct hl_device *hdev, u64 *total_energy)
 	return rc;
 }
 
-int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, u16 pll_index,
+int get_used_pll_index(struct hl_device *hdev, enum pll_index input_pll_index,
+						enum pll_index *pll_index)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u8 pll_byte, pll_bit_off;
+	bool dynamic_pll;
+
+	if (input_pll_index >= PLL_MAX) {
+		dev_err(hdev->dev, "PLL index %d is out of range\n",
+							input_pll_index);
+		return -EINVAL;
+	}
+
+	dynamic_pll = prop->fw_security_status_valid &&
+		(prop->fw_app_security_map & CPU_BOOT_DEV_STS0_DYN_PLL_EN);
+
+	if (!dynamic_pll) {
+		/*
+		 * in case we are working with legacy FW (each asic has unique
+		 * PLL numbering) extract the legacy numbering
+		 */
+		*pll_index = hdev->legacy_pll_map[input_pll_index];
+		return 0;
+	}
+
+	/* PLL map is a u8 array */
+	pll_byte = prop->cpucp_info.pll_map[input_pll_index >> 3];
+	pll_bit_off = input_pll_index & 0x7;
+
+	if (!(pll_byte & BIT(pll_bit_off))) {
+		dev_err(hdev->dev, "PLL index %d is not supported\n",
+							input_pll_index);
+		return -EINVAL;
+	}
+
+	*pll_index = input_pll_index;
+
+	return 0;
+}
+
+int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, enum pll_index pll_index,
 		u16 *pll_freq_arr)
 {
 	struct cpucp_packet pkt;
+	enum pll_index used_pll_idx;
 	u64 result;
 	int rc;
+
+	rc = get_used_pll_index(hdev, pll_index, &used_pll_idx);
+	if (rc)
+		return rc;
 
 	memset(&pkt, 0, sizeof(pkt));
 
 	pkt.ctl = cpu_to_le32(CPUCP_PACKET_PLL_INFO_GET <<
 				CPUCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.pll_type = __cpu_to_le16(pll_index);
+	pkt.pll_type = __cpu_to_le16((u16)used_pll_idx);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 			HL_CPUCP_INFO_TIMEOUT_USEC, &result);

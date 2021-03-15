@@ -28,6 +28,9 @@
 #define CPUCP_PKT_HBM_ECC_INFO_HBM_CH_SHIFT		6
 #define CPUCP_PKT_HBM_ECC_INFO_HBM_CH_MASK		0x000007C0
 
+#define PLL_MAP_MAX_BITS	128
+#define PLL_MAP_LEN		(PLL_MAP_MAX_BITS / 8)
+
 /*
  * info of the pkt queue pointers in the first async occurrence
  */
@@ -473,6 +476,42 @@ enum cpucp_pll_type_attributes {
 	cpucp_pll_pci,
 };
 
+/*
+ * PLL enumeration table used for all ASICs and future SW versions.
+ * For future ASIC-LKD compatibility, we can only add new enumerations.
+ * at the end of the table.
+ * Changing the order of entries or removing entries is not allowed.
+ */
+enum pll_index {
+	CPU_PLL = 0,
+	PCI_PLL = 1,
+	NIC_PLL = 2,
+	DMA_PLL = 3,
+	MESH_PLL = 4,
+	MME_PLL = 5,
+	TPC_PLL = 6,
+	IF_PLL = 7,
+	SRAM_PLL = 8,
+	NS_DCORE_PLL = 9,
+	MESH_DCORE_PLL = 10,
+	HBM_PLL = 11,
+	TPC_DCORE_PLL = 12,
+	VIDEO_DCORE_PLL = 13,
+	SRAM_DCORE_PLL = 14,
+	NIC_PHY_DCORE_PLL = 15,
+	MSS_DCORE_PLL = 16,
+	DMA_DCORE_PLL = 17,
+	SIF_PLL = 18,
+	DDR_PLL = 19,
+	VID_PLL = 20,
+	BANK_PLL = 21,
+	MMU_PLL = 22,
+	IC_PLL = 23,
+	MC_PLL = 24,
+	EMMC_PLL = 25,
+	PLL_MAX
+};
+
 /* Event Queue Packets */
 
 struct eq_generic_event {
@@ -547,6 +586,7 @@ struct cpucp_security_info {
  * @dram_size: available DRAM size.
  * @card_name: card name that will be displayed in HWMON subsystem on the host
  * @sec_info: security information
+ * @pll_map: Bit map of supported PLLs for current ASIC version.
  */
 struct cpucp_info {
 	struct cpucp_sensor sensors[CPUCP_MAX_SENSORS];
@@ -568,6 +608,7 @@ struct cpucp_info {
 	__u8 pad[7];
 	struct cpucp_security_info sec_info;
 	__le32 reserved6;
+	__u8 pll_map[PLL_MAP_LEN];
 };
 
 struct cpucp_mac_addr {

@@ -179,6 +179,11 @@
  *					configured and is ready for use.
  *					Initialized in: ppboot
  *
+ * CPU_BOOT_DEV_STS0_DYN_PLL_EN		Dynamic PLL configuration is enabled.
+ *					FW sends to host a bitmap of supported
+ *					PLLs.
+ *					Initialized in: linux
+ *
  * CPU_BOOT_DEV_STS0_ENABLED		Device status register enabled.
  *					This is a main indication that the
  *					running FW populates the device status
@@ -206,6 +211,7 @@
 #define CPU_BOOT_DEV_STS0_PKT_PI_ACK_EN			(1 << 15)
 #define CPU_BOOT_DEV_STS0_FW_LD_COM_EN			(1 << 16)
 #define CPU_BOOT_DEV_STS0_FW_IATU_CONF_EN		(1 << 17)
+#define CPU_BOOT_DEV_STS0_DYN_PLL_EN			(1 << 19)
 #define CPU_BOOT_DEV_STS0_ENABLED			(1 << 31)
 
 enum cpu_boot_status {

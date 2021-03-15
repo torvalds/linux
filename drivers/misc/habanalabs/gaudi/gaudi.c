@@ -105,6 +105,36 @@
 
 #define GAUDI_PLL_MAX 10
 
+/*
+ * this enum kept here for compatibility with old FW (in which each asic has
+ * unique PLL numbering
+ */
+enum gaudi_pll_index {
+	GAUDI_CPU_PLL = 0,
+	GAUDI_PCI_PLL,
+	GAUDI_SRAM_PLL,
+	GAUDI_HBM_PLL,
+	GAUDI_NIC_PLL,
+	GAUDI_DMA_PLL,
+	GAUDI_MESH_PLL,
+	GAUDI_MME_PLL,
+	GAUDI_TPC_PLL,
+	GAUDI_IF_PLL,
+};
+
+static enum pll_index gaudi_pll_map[PLL_MAX] = {
+	[CPU_PLL] = GAUDI_CPU_PLL,
+	[PCI_PLL] = GAUDI_PCI_PLL,
+	[SRAM_PLL] = GAUDI_SRAM_PLL,
+	[HBM_PLL] = GAUDI_HBM_PLL,
+	[NIC_PLL] = GAUDI_NIC_PLL,
+	[DMA_PLL] = GAUDI_DMA_PLL,
+	[MESH_PLL] = GAUDI_MESH_PLL,
+	[MME_PLL] = GAUDI_MME_PLL,
+	[TPC_PLL] = GAUDI_TPC_PLL,
+	[IF_PLL] = GAUDI_IF_PLL,
+};
+
 static const char gaudi_irq_name[GAUDI_MSI_ENTRIES][GAUDI_MAX_STRING_LEN] = {
 		"gaudi cq 0_0", "gaudi cq 0_1", "gaudi cq 0_2", "gaudi cq 0_3",
 		"gaudi cq 1_0", "gaudi cq 1_1", "gaudi cq 1_2", "gaudi cq 1_3",
@@ -1587,6 +1617,9 @@ static int gaudi_sw_init(struct hl_device *hdev)
 	gaudi->max_freq_value = GAUDI_MAX_CLK_FREQ;
 
 	hdev->asic_specific = gaudi;
+
+	/* store legacy PLL map */
+	hdev->legacy_pll_map = gaudi_pll_map;
 
 	/* Create DMA pool for small allocations */
 	hdev->dma_pool = dma_pool_create(dev_name(hdev->dev),
