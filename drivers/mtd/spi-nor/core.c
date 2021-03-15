@@ -2914,7 +2914,7 @@ static void spi_nor_info_init_params(struct spi_nor *nor)
 	struct device_node *np = spi_nor_get_flash_node(nor);
 	u8 i, erase_mask;
 
-	/* Initialize legacy flash parameters and settings. */
+	/* Initialize default flash parameters and settings. */
 	params->quad_enable = spi_nor_sr2_bit1_quad_enable;
 	params->set_4byte_addr_mode = spansion_set_4byte_addr_mode;
 	params->setup = spi_nor_default_setup;
