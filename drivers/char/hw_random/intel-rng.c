@@ -25,13 +25,13 @@
  */
 
 #include <linux/hw_random.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/stop_machine.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <asm/io.h>
 
 
 #define PFX	KBUILD_MODNAME ": "
