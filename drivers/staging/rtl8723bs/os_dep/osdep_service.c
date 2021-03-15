@@ -47,7 +47,7 @@ inline struct sk_buff *_rtw_skb_copy(const struct sk_buff *skb)
 	return skb_copy(skb, in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 }
 
-inline int _rtw_netif_rx(struct net_device * ndev, struct sk_buff *skb)
+inline int _rtw_netif_rx(struct net_device *ndev, struct sk_buff *skb)
 {
 	skb->dev = ndev;
 	return netif_rx(skb);
