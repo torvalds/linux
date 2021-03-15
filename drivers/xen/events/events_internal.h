@@ -21,7 +21,6 @@ struct evtchn_ops {
 	void (*clear_pending)(evtchn_port_t port);
 	void (*set_pending)(evtchn_port_t port);
 	bool (*is_pending)(evtchn_port_t port);
-	bool (*test_and_set_mask)(evtchn_port_t port);
 	void (*mask)(evtchn_port_t port);
 	void (*unmask)(evtchn_port_t port);
 
@@ -82,11 +81,6 @@ static inline void set_evtchn(evtchn_port_t port)
 static inline bool test_evtchn(evtchn_port_t port)
 {
 	return evtchn_ops->is_pending(port);
-}
-
-static inline bool test_and_set_mask(evtchn_port_t port)
-{
-	return evtchn_ops->test_and_set_mask(port);
 }
 
 static inline void mask_evtchn(evtchn_port_t port)
