@@ -388,7 +388,7 @@ int exfat_clear_volume_dirty(struct super_block *sb);
 #define exfat_get_next_cluster(sb, pclu) exfat_ent_get(sb, *(pclu), pclu)
 
 int exfat_alloc_cluster(struct inode *inode, unsigned int num_alloc,
-		struct exfat_chain *p_chain);
+		struct exfat_chain *p_chain, bool sync_bmap);
 int exfat_free_cluster(struct inode *inode, struct exfat_chain *p_chain);
 int exfat_ent_get(struct super_block *sb, unsigned int loc,
 		unsigned int *content);
@@ -407,7 +407,7 @@ int exfat_count_num_clusters(struct super_block *sb,
 /* balloc.c */
 int exfat_load_bitmap(struct super_block *sb);
 void exfat_free_bitmap(struct exfat_sb_info *sbi);
-int exfat_set_bitmap(struct inode *inode, unsigned int clu);
+int exfat_set_bitmap(struct inode *inode, unsigned int clu, bool sync);
 void exfat_clear_bitmap(struct inode *inode, unsigned int clu);
 unsigned int exfat_find_free_bitmap(struct super_block *sb, unsigned int clu);
 int exfat_count_used_clusters(struct super_block *sb, unsigned int *ret_count);
