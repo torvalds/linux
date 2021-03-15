@@ -5,7 +5,7 @@
  * Author: Rijo Thomas <Rijo-john.Thomas@amd.com>
  * Author: Devaraj Rangasamy <Devaraj.Rangasamy@amd.com>
  *
- * Copyright 2019 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019,2021 Advanced Micro Devices, Inc.
  */
 
 #include <linux/types.h>
@@ -309,14 +309,14 @@ static int tee_wait_cmd_completion(struct psp_tee_device *tee,
 				   struct tee_ring_cmd *resp,
 				   unsigned int timeout)
 {
-	/* ~5ms sleep per loop => nloop = timeout * 200 */
-	int nloop = timeout * 200;
+	/* ~1ms sleep per loop => nloop = timeout * 1000 */
+	int nloop = timeout * 1000;
 
 	while (--nloop) {
 		if (resp->cmd_state == TEE_CMD_STATE_COMPLETED)
 			return 0;
 
-		usleep_range(5000, 5100);
+		usleep_range(1000, 1100);
 	}
 
 	dev_err(tee->dev, "tee: command 0x%x timed out, disabling PSP\n",
