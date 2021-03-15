@@ -460,8 +460,8 @@ struct io_uring_task {
 	/* submission side */
 	struct xarray		xa;
 	struct wait_queue_head	wait;
-	void			*last;
-	void			*io_wq;
+	const struct io_ring_ctx *last;
+	struct io_wq		*io_wq;
 	struct percpu_counter	inflight;
 	atomic_t		in_idle;
 	bool			sqpoll;
