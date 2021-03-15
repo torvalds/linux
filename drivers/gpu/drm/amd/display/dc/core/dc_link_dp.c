@@ -284,7 +284,7 @@ static uint8_t dc_dp_initialize_scrambling_data_symbols(
 
 static inline bool is_repeater(struct dc_link *link, uint32_t offset)
 {
-	return (link->lttpr_non_transparent_mode && offset != 0);
+	return (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) && (offset != 0);
 }
 
 static void dpcd_set_lt_pattern_and_lane_settings(
@@ -1072,7 +1072,7 @@ static enum link_training_result perform_clock_recovery_sequence(
 		/* 3. wait receiver to lock-on*/
 		wait_time_microsec = lt_settings->cr_pattern_time;
 
-		if (link->lttpr_non_transparent_mode)
+		if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
 			wait_time_microsec = TRAINING_AUX_RD_INTERVAL;
 
 		wait_for_training_aux_rd_interval(
@@ -1326,7 +1326,17 @@ static uint8_t convert_to_count(uint8_t lttpr_repeater_count)
 	return 0; // invalid value
 }
 
-static void configure_lttpr_mode(struct dc_link *link)
+static void configure_lttpr_mode_transparent(struct dc_link *link)
+{
+	uint8_t repeater_mode = DP_PHY_REPEATER_MODE_TRANSPARENT;
+
+	core_link_write_dpcd(link,
+			DP_PHY_REPEATER_MODE,
+			(uint8_t *)&repeater_mode,
+			sizeof(repeater_mode));
+}
+
+static void configure_lttpr_mode_non_transparent(struct dc_link *link)
 {
 	/* aux timeout is already set to extended */
 	/* RESET/SET lttpr mode to enable non transparent mode */
@@ -1346,7 +1356,7 @@ static void configure_lttpr_mode(struct dc_link *link)
 		link->dpcd_caps.lttpr_caps.mode = repeater_mode;
 	}
 
-	if (link->lttpr_non_transparent_mode) {
+	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) {
 
 		DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Non Transparent Mode\n", __func__);
 
@@ -1562,8 +1572,10 @@ enum link_training_result dc_link_dp_perform_link_training(
 			&lt_settings);
 
 	/* Configure lttpr mode */
-	if (link->lttpr_non_transparent_mode)
-		configure_lttpr_mode(link);
+	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
+		configure_lttpr_mode_non_transparent(link);
+	else if (link->lttpr_mode == LTTPR_MODE_TRANSPARENT)
+		configure_lttpr_mode_transparent(link);
 
 	if (link->ctx->dc->work_arounds.lt_early_cr_pattern)
 		start_clock_recovery_pattern_early(link, &lt_settings, DPRX);
@@ -1578,7 +1590,7 @@ enum link_training_result dc_link_dp_perform_link_training(
 
 	dp_set_fec_ready(link, fec_enable);
 
-	if (link->lttpr_non_transparent_mode) {
+	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) {
 
 		/* 2. perform link training (set link training done
 		 *  to false is done as well)
@@ -1899,7 +1911,7 @@ static struct dc_link_settings get_max_link_cap(struct dc_link *link)
 	 * account for lttpr repeaters cap
 	 * notes: repeaters do not snoop in the DPRX Capabilities addresses (3.6.3).
 	 */
-	if (link->lttpr_non_transparent_mode) {
+	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) {
 		if (link->dpcd_caps.lttpr_caps.max_lane_count < max_link_cap.lane_count)
 			max_link_cap.lane_count = link->dpcd_caps.lttpr_caps.max_lane_count;
 
@@ -2057,7 +2069,7 @@ bool dp_verify_link_cap(
 	max_link_cap = get_max_link_cap(link);
 
 	/* Grant extended timeout request */
-	if (link->lttpr_non_transparent_mode && link->dpcd_caps.lttpr_caps.max_ext_timeout > 0) {
+	if ((link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) && (link->dpcd_caps.lttpr_caps.max_ext_timeout > 0)) {
 		uint8_t grant = link->dpcd_caps.lttpr_caps.max_ext_timeout & 0x80;
 
 		core_link_write_dpcd(link, DP_PHY_REPEATER_EXTENDED_WAIT_TIMEOUT, &grant, sizeof(grant));
@@ -3529,7 +3541,8 @@ static bool retrieve_link_cap(struct dc_link *link)
 	}
 
 	/* decide lttpr non transparent mode */
-	link->lttpr_non_transparent_mode = is_lttpr_present;
+	/*This is a temporary placeholder for LTTPR logic. More comprehensive logic will be added in a future change*/
+	link->lttpr_mode = is_lttpr_present ? LTTPR_MODE_NON_TRANSPARENT : LTTPR_MODE_NON_LTTPR;
 
 	if (!is_lttpr_present)
 		dc_link_aux_try_to_configure_timeout(link->ddc, LINK_AUX_DEFAULT_TIMEOUT_PERIOD);

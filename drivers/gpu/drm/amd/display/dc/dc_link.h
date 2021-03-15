@@ -35,6 +35,13 @@ enum dc_link_fec_state {
 	dc_link_fec_ready,
 	dc_link_fec_enabled
 };
+
+enum lttpr_mode {
+	LTTPR_MODE_NON_LTTPR,
+	LTTPR_MODE_TRANSPARENT,
+	LTTPR_MODE_NON_TRANSPARENT,
+};
+
 struct dc_link_status {
 	bool link_active;
 	struct dpcd_caps *dpcd_caps;
@@ -100,7 +107,7 @@ struct dc_link {
 	bool link_state_valid;
 	bool aux_access_disabled;
 	bool sync_lt_in_progress;
-	bool lttpr_non_transparent_mode;
+	enum lttpr_mode lttpr_mode;
 	bool is_internal_display;
 
 	/* TODO: Rename. Flag an endpoint as having a programmable mapping to a

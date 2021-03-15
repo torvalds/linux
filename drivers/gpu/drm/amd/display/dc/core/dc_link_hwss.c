@@ -302,7 +302,7 @@ void dp_set_hw_lane_settings(
 {
 	struct link_encoder *encoder = link->link_enc;
 
-	if (link->lttpr_non_transparent_mode && !is_immediate_downstream(link, offset))
+	if ((link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) && !is_immediate_downstream(link, offset))
 		return;
 
 	/* call Encoder to set lane settings */
