@@ -974,7 +974,6 @@ void sd_int_dpc(struct adapter *adapter)
 
 	if (hal->sdio_hisr & SDIO_HISR_TXBCNERR)
 		DBG_8192C("%s: SDIO_HISR_TXBCNERR\n", __func__);
-#ifndef CONFIG_C2H_PACKET_EN
 	if (hal->sdio_hisr & SDIO_HISR_C2HCMD) {
 		struct c2h_evt_hdr_88xx *c2h_evt;
 
@@ -997,7 +996,6 @@ void sd_int_dpc(struct adapter *adapter)
 			_set_workitem(&adapter->evtpriv.c2h_wk);
 		}
 	}
-#endif
 
 	if (hal->sdio_hisr & SDIO_HISR_RXFOVW)
 		DBG_8192C("%s: Rx Overflow\n", __func__);
