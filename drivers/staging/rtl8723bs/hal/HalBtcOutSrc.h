@@ -532,26 +532,26 @@ struct BTC_COEXIST {
 
 extern struct BTC_COEXIST GLBtCoexist;
 
-void EXhalbtcoutsrc_PowerOnSetting(struct BTC_COEXIST * pBtCoexist);
-void EXhalbtcoutsrc_InitHwConfig(struct BTC_COEXIST * pBtCoexist, u8 bWifiOnly);
-void EXhalbtcoutsrc_InitCoexDm(struct BTC_COEXIST * pBtCoexist);
-void EXhalbtcoutsrc_IpsNotify(struct BTC_COEXIST * pBtCoexist, u8 type);
-void EXhalbtcoutsrc_LpsNotify(struct BTC_COEXIST * pBtCoexist, u8 type);
-void EXhalbtcoutsrc_ScanNotify(struct BTC_COEXIST * pBtCoexist, u8 type);
-void EXhalbtcoutsrc_ConnectNotify(struct BTC_COEXIST * pBtCoexist, u8 action);
+void EXhalbtcoutsrc_PowerOnSetting(struct BTC_COEXIST *pBtCoexist);
+void EXhalbtcoutsrc_InitHwConfig(struct BTC_COEXIST *pBtCoexist, u8 bWifiOnly);
+void EXhalbtcoutsrc_InitCoexDm(struct BTC_COEXIST *pBtCoexist);
+void EXhalbtcoutsrc_IpsNotify(struct BTC_COEXIST *pBtCoexist, u8 type);
+void EXhalbtcoutsrc_LpsNotify(struct BTC_COEXIST *pBtCoexist, u8 type);
+void EXhalbtcoutsrc_ScanNotify(struct BTC_COEXIST *pBtCoexist, u8 type);
+void EXhalbtcoutsrc_ConnectNotify(struct BTC_COEXIST *pBtCoexist, u8 action);
 void EXhalbtcoutsrc_MediaStatusNotify(
-	struct BTC_COEXIST * pBtCoexist, enum RT_MEDIA_STATUS mediaStatus
+	struct BTC_COEXIST *pBtCoexist, enum RT_MEDIA_STATUS mediaStatus
 );
-void EXhalbtcoutsrc_SpecialPacketNotify(struct BTC_COEXIST * pBtCoexist, u8 pktType);
+void EXhalbtcoutsrc_SpecialPacketNotify(struct BTC_COEXIST *pBtCoexist, u8 pktType);
 void EXhalbtcoutsrc_BtInfoNotify(
-	struct BTC_COEXIST * pBtCoexist, u8 *tmpBuf, u8 length
+	struct BTC_COEXIST *pBtCoexist, u8 *tmpBuf, u8 length
 );
-void EXhalbtcoutsrc_HaltNotify(struct BTC_COEXIST * pBtCoexist);
-void EXhalbtcoutsrc_PnpNotify(struct BTC_COEXIST * pBtCoexist, u8 pnpState);
-void EXhalbtcoutsrc_Periodical(struct BTC_COEXIST * pBtCoexist);
+void EXhalbtcoutsrc_HaltNotify(struct BTC_COEXIST *pBtCoexist);
+void EXhalbtcoutsrc_PnpNotify(struct BTC_COEXIST *pBtCoexist, u8 pnpState);
+void EXhalbtcoutsrc_Periodical(struct BTC_COEXIST *pBtCoexist);
 void EXhalbtcoutsrc_SetChipType(u8 chipType);
 void EXhalbtcoutsrc_SetAntNum(u8 type, u8 antNum);
 void EXhalbtcoutsrc_SetSingleAntPath(u8 singleAntPath);
-void EXhalbtcoutsrc_DisplayBtCoexInfo(struct BTC_COEXIST * pBtCoexist);
+void EXhalbtcoutsrc_DisplayBtCoexInfo(struct BTC_COEXIST *pBtCoexist);
 
 #endif
