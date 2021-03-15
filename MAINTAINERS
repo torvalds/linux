@@ -7385,14 +7385,6 @@ F:	Documentation/hwmon/gsc-hwmon.rst
 F:	drivers/hwmon/gsc-hwmon.c
 F:	include/linux/platform_data/gsc_hwmon.h
 
-GASKET DRIVER FRAMEWORK
-M:	Rob Springer <rspringer@google.com>
-M:	Todd Poynor <toddpoynor@google.com>
-M:	Ben Chan <benchan@chromium.org>
-M:	Richard Yeh <rcy@google.com>
-S:	Maintained
-F:	drivers/staging/gasket/
-
 GCC PLUGINS
 M:	Kees Cook <keescook@chromium.org>
 L:	linux-hardening@vger.kernel.org
