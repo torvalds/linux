@@ -53,20 +53,6 @@ u8 _InitPowerOn_8723BS(struct adapter *padapter)
 
 
 	/*  all of these MUST be configured before power on */
-#ifdef CONFIG_EXT_CLK
-	/*  Use external crystal(XTAL) */
-	value8 = rtw_read8(padapter, REG_PAD_CTRL1_8723B + 2);
-	value8 |=  BIT(7);
-	rtw_write8(padapter, REG_PAD_CTRL1_8723B + 2, value8);
-
-	/*  CLK_REQ High active or Low Active */
-	/*  Request GPIO polarity: */
-	/*  0: low active */
-	/*  1: high active */
-	value8 = rtw_read8(padapter, REG_MULTI_FUNC_CTRL + 1);
-	value8 |= BIT(5);
-	rtw_write8(padapter, REG_MULTI_FUNC_CTRL + 1, value8);
-#endif /*  CONFIG_EXT_CLK */
 
 	/*  only cmd52 can be used before power on(card enable) */
 	ret = CardEnable(padapter);
