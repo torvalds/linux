@@ -132,10 +132,8 @@ u8 hal_com_config_channel_plan(
 
 		hw_chnlPlan = hw_channel_plan & (~EEPROM_CHANNEL_PLAN_BY_HW_MASK);
 		if (rtw_is_channel_plan_valid(hw_chnlPlan)) {
-#ifndef CONFIG_SW_CHANNEL_PLAN
 			if (hw_channel_plan & EEPROM_CHANNEL_PLAN_BY_HW_MASK)
 				pHalData->bDisableSWChannelPlan = true;
-#endif /*  !CONFIG_SW_CHANNEL_PLAN */
 
 			chnlPlan = hw_chnlPlan;
 		}
