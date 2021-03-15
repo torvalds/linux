@@ -1475,15 +1475,16 @@ void dpcm_be_dai_stop(struct snd_soc_pcm_runtime *fe, int stream,
 
 int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 {
+	struct snd_soc_pcm_runtime *be;
 	struct snd_soc_dpcm *dpcm;
 	int err, count = 0;
 
 	/* only startup BE DAIs that are either sinks or sources to this FE DAI */
 	for_each_dpcm_be(fe, stream, dpcm) {
+		struct snd_pcm_substream *be_substream;
 
-		struct snd_soc_pcm_runtime *be = dpcm->be;
-		struct snd_pcm_substream *be_substream =
-			snd_soc_dpcm_get_substream(be, stream);
+		be = dpcm->be;
+		be_substream = snd_soc_dpcm_get_substream(be, stream);
 
 		if (!be_substream) {
 			dev_err(be->dev, "ASoC: no backend %s stream\n",
@@ -1534,6 +1535,9 @@ int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 
 unwind:
 	dpcm_be_dai_startup_rollback(fe, stream, dpcm);
+
+	dev_err(fe->dev, "ASoC: %s() failed at %s (%d)\n",
+		__func__, be->dai_link->name, err);
 
 	return err;
 }
@@ -1749,10 +1753,8 @@ static int dpcm_fe_dai_startup(struct snd_pcm_substream *fe_substream)
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_FE);
 
 	ret = dpcm_be_dai_startup(fe, stream);
-	if (ret < 0) {
-		dev_err(fe->dev,"ASoC: failed to start some BEs %d\n", ret);
+	if (ret < 0)
 		goto be_err;
-	}
 
 	dev_dbg(fe->dev, "ASoC: open FE %s\n", fe->dai_link->name);
 
@@ -1776,6 +1778,10 @@ unwind:
 		dpcm_be_dai_startup_unwind(fe, stream);
 be_err:
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
+
+	if (ret < 0)
+		dev_err(fe->dev, "%s() failed (%d)\n", __func__, ret);
+
 	return ret;
 }
 
