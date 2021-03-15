@@ -3,10 +3,10 @@
 /* Copyright (c) 2020 Sartura Ltd. */
 
 #include <linux/delay.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_mdio.h>
 #include <linux/phy.h>
