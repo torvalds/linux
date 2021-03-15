@@ -3355,19 +3355,22 @@ static void vop2_crtc_regs_dump(struct drm_crtc *crtc, struct seq_file *s)
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
 	struct drm_crtc_state *cstate = crtc->state;
-	uint32_t addr[] = {
-		RK3568_REG_CFG_DONE,
-		RK3568_OVL_CTRL,
-		RK3568_VP0_DSP_CTRL,
-		RK3568_VP1_DSP_CTRL,
-		RK3568_VP2_DSP_CTRL,
-		RK3568_CLUSTER0_WIN0_CTRL0,
-		RK3568_CLUSTER1_WIN0_CTRL0,
-		RK3568_ESMART0_CTRL0,
-		RK3568_ESMART1_CTRL0,
-		RK3568_SMART0_CTRL0,
-		RK3568_SMART1_CTRL0,
-		RK3568_HDR_LUT_CTRL,
+	const struct reg {
+		uint32_t offset;
+		const char *name;
+	} regs[] = {
+		{ RK3568_REG_CFG_DONE, "SYS" },
+		{ RK3568_OVL_CTRL, "OVL" },
+		{ RK3568_VP0_DSP_CTRL, "VP0" },
+		{ RK3568_VP1_DSP_CTRL, "VP1" },
+		{ RK3568_VP2_DSP_CTRL, "VP2" },
+		{ RK3568_CLUSTER0_WIN0_CTRL0, "Cluster0" },
+		{ RK3568_CLUSTER1_WIN0_CTRL0, "Cluster1" },
+		{ RK3568_ESMART0_CTRL0, "Esmart0" },
+		{ RK3568_ESMART1_CTRL0, "Esmart1" },
+		{ RK3568_SMART0_CTRL0, "Smart0" },
+		{ RK3568_SMART1_CTRL0, "Smart1" },
+		{ RK3568_HDR_LUT_CTRL, "HDR" },
 	};
 	uint32_t buf[68];
 	unsigned int len = ARRAY_SIZE(buf);
@@ -3377,14 +3380,14 @@ static void vop2_crtc_regs_dump(struct drm_crtc *crtc, struct seq_file *s)
 	if (!cstate->active)
 		return;
 
-	n = sizeof(addr) >> 2;
+	n = ARRAY_SIZE(regs);
 
 	for (i = 0; i < n; i++) {
-		base = addr[i];
-		pr_info("0x%08x:\n", base);
+		base = regs[i].offset;
+		pr_info("%s:\n", regs[i].name);
 		for (j = 0; j < len; j++)
 			buf[j] = vop2_readl(vop2, base + (4 * j));
-		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 16, 4, buf,
+		print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 4, buf,
 			       len << 2, 0);
 	}
 }
