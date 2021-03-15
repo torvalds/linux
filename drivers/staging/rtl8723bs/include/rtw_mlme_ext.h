@@ -304,13 +304,13 @@ enum SCAN_STATE {
 
 struct mlme_handler {
 	unsigned int   num;
-	char* str;
+	char *str;
 	unsigned int (*func)(struct adapter *padapter, union recv_frame *precv_frame);
 };
 
 struct action_handler {
 	unsigned int   num;
-	char* str;
+	char *str;
 	unsigned int (*func)(struct adapter *padapter, union recv_frame *precv_frame);
 };
 
@@ -589,21 +589,21 @@ int is_IBSS_empty(struct adapter *padapter);
 
 unsigned char check_assoc_AP(u8 *pframe, uint len);
 
-int WMM_param_handler(struct adapter *padapter, struct ndis_80211_var_ie *	pIE);
+int WMM_param_handler(struct adapter *padapter, struct ndis_80211_var_ie *pIE);
 void WMMOnAssocRsp(struct adapter *padapter);
 
-void HT_caps_handler(struct adapter *padapter, struct ndis_80211_var_ie * pIE);
-void HT_info_handler(struct adapter *padapter, struct ndis_80211_var_ie * pIE);
+void HT_caps_handler(struct adapter *padapter, struct ndis_80211_var_ie *pIE);
+void HT_info_handler(struct adapter *padapter, struct ndis_80211_var_ie *pIE);
 void HTOnAssocRsp(struct adapter *padapter);
 
-void ERP_IE_handler(struct adapter *padapter, struct ndis_80211_var_ie * pIE);
+void ERP_IE_handler(struct adapter *padapter, struct ndis_80211_var_ie *pIE);
 void VCS_update(struct adapter *padapter, struct sta_info *psta);
 void update_ldpc_stbc_cap(struct sta_info *psta);
 
 void update_beacon_info(struct adapter *padapter, u8 *pframe, uint len, struct sta_info *psta);
 int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len);
 void update_IOT_info(struct adapter *padapter);
-void update_capinfo(struct adapter * Adapter, u16 updateCap);
+void update_capinfo(struct adapter *Adapter, u16 updateCap);
 void update_wireless_mode(struct adapter *padapter);
 void update_sta_basic_rate(struct sta_info *psta, u8 wireless_mode);
 int update_sta_support_rate(struct adapter *padapter, u8 *pvar_ie, uint var_ie_len, int cam_idx);
@@ -630,8 +630,8 @@ extern u8 rtw_search_max_mac_id(struct adapter *padapter);
 void report_join_res(struct adapter *padapter, int res);
 void report_survey_event(struct adapter *padapter, union recv_frame *precv_frame);
 void report_surveydone_event(struct adapter *padapter);
-void report_del_sta_event(struct adapter *padapter, unsigned char* MacAddr, unsigned short reason);
-void report_add_sta_event(struct adapter *padapter, unsigned char* MacAddr, int cam_idx);
+void report_del_sta_event(struct adapter *padapter, unsigned char *MacAddr, unsigned short reason);
+void report_add_sta_event(struct adapter *padapter, unsigned char *MacAddr, int cam_idx);
 void report_wmm_edca_update(struct adapter *padapter);
 
 u8 chk_bmc_sleepq_cmd(struct adapter *padapter);
