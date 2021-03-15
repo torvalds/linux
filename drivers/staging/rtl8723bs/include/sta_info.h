@@ -182,11 +182,6 @@ struct sta_info {
 
 	u8 keep_alive_trycnt;
 
-#ifdef CONFIG_AUTO_AP_MODE
-	u8 isrc; /* this device is rc */
-	u16 pid; /*  pairing id */
-#endif
-
 	u8 *passoc_req;
 	u32 assoc_req_len;
 

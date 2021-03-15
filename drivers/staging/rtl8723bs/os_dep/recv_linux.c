@@ -190,39 +190,6 @@ void rtw_handle_tkip_mic_err(struct adapter *padapter, u8 bgroup)
 	wrqu.data.length = sizeof(ev);
 }
 
-#ifdef CONFIG_AUTO_AP_MODE
-static void rtw_os_ksocket_send(struct adapter *padapter, union recv_frame *precv_frame)
-{
-	struct sk_buff *skb = precv_frame->u.hdr.pkt;
-	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
-	struct sta_info *psta = precv_frame->u.hdr.psta;
-
-	DBG_871X("eth rx: got eth_type = 0x%x\n", pattrib->eth_type);
-
-	if (psta && psta->isrc && psta->pid > 0) {
-		u16 rx_pid;
-
-		rx_pid = *(u16 *)(skb->data+ETH_HLEN);
-
-		DBG_871X("eth rx(pid = 0x%x): sta(%pM) pid = 0x%x\n",
-			rx_pid, MAC_ARG(psta->hwaddr), psta->pid);
-
-		if (rx_pid == psta->pid) {
-			int i;
-			u16 len = *(u16 *)(skb->data+ETH_HLEN+2);
-			DBG_871X("eth, RC: len = 0x%x\n", len);
-
-			for (i = 0; i < len; i++)
-				DBG_871X("0x%x\n", *(skb->data+ETH_HLEN+4+i));
-
-			DBG_871X("eth, RC-end\n");
-		}
-
-	}
-
-}
-#endif /* CONFIG_AUTO_AP_MODE */
-
 int rtw_recv_indicatepkt(struct adapter *padapter, union recv_frame *precv_frame)
 {
 	struct recv_priv *precvpriv;
@@ -250,14 +217,6 @@ int rtw_recv_indicatepkt(struct adapter *padapter, union recv_frame *precv_frame
 	skb->len = precv_frame->u.hdr.len;
 
 	RT_TRACE(_module_recv_osdep_c_, _drv_info_, ("\n skb->head =%p skb->data =%p skb->tail =%p skb->end =%p skb->len =%d\n", skb->head, skb->data, skb_tail_pointer(skb), skb_end_pointer(skb), skb->len));
-
-#ifdef CONFIG_AUTO_AP_MODE
-	if (0x8899 == pattrib->eth_type) {
-		rtw_os_ksocket_send(padapter, precv_frame);
-
-		/* goto _recv_indicatepkt_drop; */
-	}
-#endif /* CONFIG_AUTO_AP_MODE */
 
 	rtw_os_recv_indicate_pkt(padapter, skb, pattrib);
 

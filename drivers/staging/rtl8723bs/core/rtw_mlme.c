@@ -1478,8 +1478,6 @@ void rtw_stassoc_event_callback(struct adapter *adapter, u8 *pbuf)
 
 			rtw_sta_media_status_rpt(adapter, psta, 1);
 
-#ifndef CONFIG_AUTO_AP_MODE
-
 			ap_sta_info_defer_update(adapter, psta);
 
 			/* report to upper layer */
@@ -1503,7 +1501,6 @@ void rtw_stassoc_event_callback(struct adapter *adapter, u8 *pbuf)
 
 				kfree(passoc_req);
 			}
-#endif /* CONFIG_AUTO_AP_MODE */
 		}
 		return;
 	}

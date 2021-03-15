@@ -270,10 +270,6 @@ void expire_timeout_chk(struct adapter *padapter)
 	while (phead != plist) {
 		psta = container_of(plist, struct sta_info, asoc_list);
 		plist = get_next(plist);
-#ifdef CONFIG_AUTO_AP_MODE
-		if (psta->isrc)
-			continue;
-#endif
 		if (chk_sta_is_alive(psta) || !psta->expire_to) {
 			psta->expire_to = pstapriv->expire_to;
 			psta->keep_alive_trycnt = 0;

@@ -467,11 +467,6 @@ static void update_attrib_phy_info(struct adapter *padapter, struct pkt_attrib *
 		pattrib->ampdu_spacing = psta->htpriv.rx_ampdu_min_spacing;
 
 	pattrib->retry_ctrl = false;
-
-#ifdef CONFIG_AUTO_AP_MODE
-	if (psta->isrc && psta->pid > 0)
-		pattrib->pctrl = true;
-#endif
 }
 
 static s32 update_attrib_sec_info(struct adapter *padapter, struct pkt_attrib *pattrib, struct sta_info *psta)

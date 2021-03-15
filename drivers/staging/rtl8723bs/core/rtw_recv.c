@@ -1600,38 +1600,6 @@ signed int wlanhdr_to_ethhdr(union recv_frame *precvframe)
 	eth_type = ntohs(be_tmp); /* pattrib->ether_type */
 	pattrib->eth_type = eth_type;
 
-#ifdef CONFIG_AUTO_AP_MODE
-	if (0x8899 == pattrib->eth_type) {
-		struct sta_info *psta = precvframe->u.hdr.psta;
-
-		DBG_871X("wlan rx: got eth_type = 0x%x\n", pattrib->eth_type);
-
-		if (psta && psta->isrc && psta->pid > 0) {
-			u16 rx_pid;
-
-			rx_pid = *(u16 *)(ptr+rmv_len+2);
-
-			DBG_871X("wlan rx(pid = 0x%x): sta(%pM) pid = 0x%x\n",
-				rx_pid, MAC_ARG(psta->hwaddr), psta->pid);
-
-			if (rx_pid == psta->pid) {
-				int i;
-				u16 len = *(u16 *)(ptr+rmv_len+4);
-				/* u16 ctrl_type = *(u16*)(ptr+rmv_len+6); */
-
-				/* DBG_871X("RC: len = 0x%x, ctrl_type = 0x%x\n", len, ctrl_type); */
-				DBG_871X("RC: len = 0x%x\n", len);
-
-				for (i = 0; i < len ; i++)
-					DBG_871X("0x%x\n", *(ptr+rmv_len+6+i));
-					/* DBG_871X("0x%x\n", *(ptr+rmv_len+8+i)); */
-
-				DBG_871X("RC-end\n");
-			}
-		}
-	}
-#endif /* CONFIG_AUTO_AP_MODE */
-
 	if ((check_fwstate(pmlmepriv, WIFI_MP_STATE) == true)) {
 		ptr += rmv_len;
 		*ptr = 0x87;
