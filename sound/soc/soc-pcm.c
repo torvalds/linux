@@ -1001,8 +1001,10 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 out:
 	mutex_unlock(&rtd->card->pcm_mutex);
 
-	if (ret < 0)
+	if (ret < 0) {
 		soc_pcm_hw_clean(substream, 1);
+		dev_err(rtd->dev, "ASoC: %s() failed (%d)\n", __func__, ret);
+	}
 
 	return ret;
 }
@@ -1905,11 +1907,8 @@ int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int stream)
 			be->dai_link->name);
 
 		ret = soc_pcm_hw_params(be_substream, &dpcm->hw_params);
-		if (ret < 0) {
-			dev_err(dpcm->be->dev,
-				"ASoC: hw_params BE failed %d\n", ret);
+		if (ret < 0)
 			goto unwind;
-		}
 
 		be->dpcm[stream].state = SND_SOC_DPCM_STATE_HW_PARAMS;
 	}
@@ -1964,10 +1963,9 @@ static int dpcm_fe_dai_hw_params(struct snd_pcm_substream *substream,
 
 	/* call hw_params on the frontend */
 	ret = soc_pcm_hw_params(substream, params);
-	if (ret < 0) {
-		dev_err(fe->dev,"ASoC: hw_params FE failed %d\n", ret);
+	if (ret < 0)
 		dpcm_be_dai_hw_free(fe, stream);
-	 } else
+	else
 		fe->dpcm[stream].state = SND_SOC_DPCM_STATE_HW_PARAMS;
 
 out:
