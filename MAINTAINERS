@@ -261,8 +261,8 @@ ABI/API
 L:	linux-api@vger.kernel.org
 F:	include/linux/syscalls.h
 F:	kernel/sys_ni.c
-F:	include/uapi/
-F:	arch/*/include/uapi/
+X:	include/uapi/
+X:	arch/*/include/uapi/
 
 ABIT UGURU 1,2 HARDWARE MONITOR DRIVER
 M:	Hans de Goede <hdegoede@redhat.com>
@@ -5835,7 +5835,7 @@ M:	David Airlie <airlied@linux.ie>
 M:	Daniel Vetter <daniel@ffwll.ch>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
-B:	https://bugs.freedesktop.org/
+B:	https://gitlab.freedesktop.org/drm
 C:	irc://chat.freenode.net/dri-devel
 T:	git git://anongit.freedesktop.org/drm/drm
 F:	Documentation/devicetree/bindings/display/
@@ -10716,7 +10716,8 @@ F:	drivers/net/ethernet/marvell/mvpp2/
 
 MARVELL MWIFIEX WIRELESS DRIVER
 M:	Amitkumar Karwar <amitkarwar@gmail.com>
-M:	Ganapathi Bhat <ganapathi.bhat@nxp.com>
+M:	Ganapathi Bhat <ganapathi017@gmail.com>
+M:	Sharvari Harisangam <sharvari.harisangam@nxp.com>
 M:	Xinming Hu <huxinming820@gmail.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
@@ -19165,7 +19166,7 @@ S:	Maintained
 F:	drivers/infiniband/hw/vmw_pvrdma/
 
 VMware PVSCSI driver
-M:	Jim Gill <jgill@vmware.com>
+M:	Vishal Bhakta <vbhakta@vmware.com>
 M:	VMware PV-Drivers <pv-drivers@vmware.com>
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
