@@ -165,6 +165,21 @@ static int zonefs_writepages(struct address_space *mapping,
 	return iomap_writepages(mapping, wbc, &wpc, &zonefs_writeback_ops);
 }
 
+static int zonefs_swap_activate(struct swap_info_struct *sis,
+				struct file *swap_file, sector_t *span)
+{
+	struct inode *inode = file_inode(swap_file);
+	struct zonefs_inode_info *zi = ZONEFS_I(inode);
+
+	if (zi->i_ztype != ZONEFS_ZTYPE_CNV) {
+		zonefs_err(inode->i_sb,
+			   "swap file: not a conventional zone file\n");
+		return -EINVAL;
+	}
+
+	return iomap_swapfile_activate(sis, swap_file, span, &zonefs_iomap_ops);
+}
+
 static const struct address_space_operations zonefs_file_aops = {
 	.readpage		= zonefs_readpage,
 	.readahead		= zonefs_readahead,
@@ -177,6 +192,7 @@ static const struct address_space_operations zonefs_file_aops = {
 	.is_partially_uptodate	= iomap_is_partially_uptodate,
 	.error_remove_page	= generic_error_remove_page,
 	.direct_IO		= noop_direct_IO,
+	.swap_activate		= zonefs_swap_activate,
 };
 
 static void zonefs_update_stats(struct inode *inode, loff_t new_isize)
