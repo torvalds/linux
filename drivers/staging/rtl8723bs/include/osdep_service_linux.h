@@ -120,6 +120,6 @@ static inline struct adapter *rtw_netdev_priv(struct net_device *netdev)
 }
 
 struct net_device *rtw_alloc_etherdev_with_old_priv(int sizeof_priv, void *old_priv);
-extern struct net_device * rtw_alloc_etherdev(int sizeof_priv);
+extern struct net_device *rtw_alloc_etherdev(int sizeof_priv);
 
 #endif
