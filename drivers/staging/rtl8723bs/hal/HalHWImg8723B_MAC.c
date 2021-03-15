@@ -9,7 +9,7 @@
 #include "odm_precomp.h"
 
 static bool CheckPositive(
-	struct DM_ODM_T * pDM_Odm, const u32 Condition1, const u32 Condition2
+	struct DM_ODM_T *pDM_Odm, const u32 Condition1, const u32 Condition2
 )
 {
 	u8 _BoardType =
@@ -111,7 +111,7 @@ static bool CheckPositive(
 }
 
 static bool CheckNegative(
-	struct DM_ODM_T * pDM_Odm, const u32 Condition1, const u32 Condition2
+	struct DM_ODM_T *pDM_Odm, const u32 Condition1, const u32 Condition2
 )
 {
 	return true;
@@ -228,7 +228,7 @@ static u32 Array_MP_8723B_MAC_REG[] = {
 
 };
 
-void ODM_ReadAndConfig_MP_8723B_MAC_REG(struct DM_ODM_T * pDM_Odm)
+void ODM_ReadAndConfig_MP_8723B_MAC_REG(struct DM_ODM_T *pDM_Odm)
 {
 	u32 i = 0;
 	u32 ArrayLen = ARRAY_SIZE(Array_MP_8723B_MAC_REG);
