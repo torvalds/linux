@@ -320,9 +320,6 @@ int main(void)
 	STACK_PT_REGS_OFFSET(GPR11, gpr[11]);
 	STACK_PT_REGS_OFFSET(GPR12, gpr[12]);
 	STACK_PT_REGS_OFFSET(GPR13, gpr[13]);
-#ifndef CONFIG_PPC64
-	STACK_PT_REGS_OFFSET(GPR14, gpr[14]);
-#endif /* CONFIG_PPC64 */
 	/*
 	 * Note: these symbols include _ because they overlap with special
 	 * register names
