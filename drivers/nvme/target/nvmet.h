@@ -27,6 +27,7 @@
 #define NVMET_ERROR_LOG_SLOTS		128
 #define NVMET_NO_ERROR_LOC		((u16)-1)
 #define NVMET_DEFAULT_CTRL_MODEL	"Linux"
+#define NVMET_MN_MAX_SIZE		40
 
 /*
  * Supported optional AENs:
