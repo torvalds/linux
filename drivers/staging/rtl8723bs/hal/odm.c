@@ -282,13 +282,13 @@ u32 TxScalingTable_Jaguar[TXSCALE_TABLE_SIZE] = {
 /*  Local Function predefine. */
 
 /* START------------COMMON INFO RELATED--------------- */
-void odm_CommonInfoSelfInit(struct DM_ODM_T * pDM_Odm);
+void odm_CommonInfoSelfInit(struct DM_ODM_T *pDM_Odm);
 
-void odm_CommonInfoSelfUpdate(struct DM_ODM_T * pDM_Odm);
+void odm_CommonInfoSelfUpdate(struct DM_ODM_T *pDM_Odm);
 
-void odm_CmnInfoInit_Debug(struct DM_ODM_T * pDM_Odm);
+void odm_CmnInfoInit_Debug(struct DM_ODM_T *pDM_Odm);
 
-void odm_BasicDbgMessage(struct DM_ODM_T * pDM_Odm);
+void odm_BasicDbgMessage(struct DM_ODM_T *pDM_Odm);
 
 /* END------------COMMON INFO RELATED--------------- */
 
@@ -302,17 +302,17 @@ void odm_BasicDbgMessage(struct DM_ODM_T * pDM_Odm);
 /* Remove BB power Saving by YuChen */
 /* END---------BB POWER SAVE----------------------- */
 
-void odm_RefreshRateAdaptiveMaskCE(struct DM_ODM_T * pDM_Odm);
+void odm_RefreshRateAdaptiveMaskCE(struct DM_ODM_T *pDM_Odm);
 
 /* Remove by YuChen */
 
-void odm_RSSIMonitorInit(struct DM_ODM_T * pDM_Odm);
+void odm_RSSIMonitorInit(struct DM_ODM_T *pDM_Odm);
 
-void odm_RSSIMonitorCheckCE(struct DM_ODM_T * pDM_Odm);
+void odm_RSSIMonitorCheckCE(struct DM_ODM_T *pDM_Odm);
 
-void odm_RSSIMonitorCheck(struct DM_ODM_T * pDM_Odm);
+void odm_RSSIMonitorCheck(struct DM_ODM_T *pDM_Odm);
 
-void odm_SwAntDetectInit(struct DM_ODM_T * pDM_Odm);
+void odm_SwAntDetectInit(struct DM_ODM_T *pDM_Odm);
 
 void odm_SwAntDivChkAntSwitchCallback(void *FunctionContext);
 
@@ -320,14 +320,14 @@ void odm_SwAntDivChkAntSwitchCallback(void *FunctionContext);
 
 void odm_GlobalAdapterCheck(void);
 
-void odm_RefreshRateAdaptiveMask(struct DM_ODM_T * pDM_Odm);
+void odm_RefreshRateAdaptiveMask(struct DM_ODM_T *pDM_Odm);
 
-void ODM_TXPowerTrackingCheck(struct DM_ODM_T * pDM_Odm);
+void ODM_TXPowerTrackingCheck(struct DM_ODM_T *pDM_Odm);
 
-void odm_RateAdaptiveMaskInit(struct DM_ODM_T * pDM_Odm);
+void odm_RateAdaptiveMaskInit(struct DM_ODM_T *pDM_Odm);
 
 
-void odm_TXPowerTrackingInit(struct DM_ODM_T * pDM_Odm);
+void odm_TXPowerTrackingInit(struct DM_ODM_T *pDM_Odm);
 
 /* Remove Edca by Yu Chen */
 
@@ -335,10 +335,10 @@ void odm_TXPowerTrackingInit(struct DM_ODM_T * pDM_Odm);
 #define RxDefaultAnt1		0x65a9
 #define RxDefaultAnt2		0x569a
 
-void odm_InitHybridAntDiv(struct DM_ODM_T * pDM_Odm);
+void odm_InitHybridAntDiv(struct DM_ODM_T *pDM_Odm);
 
 bool odm_StaDefAntSel(
-	struct DM_ODM_T * pDM_Odm,
+	struct DM_ODM_T *pDM_Odm,
 	u32 OFDM_Ant1_Cnt,
 	u32 OFDM_Ant2_Cnt,
 	u32 CCK_Ant1_Cnt,
@@ -346,11 +346,11 @@ bool odm_StaDefAntSel(
 	u8 *pDefAnt
 );
 
-void odm_SetRxIdleAnt(struct DM_ODM_T * pDM_Odm, u8 Ant, bool bDualPath);
+void odm_SetRxIdleAnt(struct DM_ODM_T *pDM_Odm, u8 Ant, bool bDualPath);
 
 
 
-void odm_HwAntDiv(struct DM_ODM_T * pDM_Odm);
+void odm_HwAntDiv(struct DM_ODM_T *pDM_Odm);
 
 
 /*  */
@@ -360,7 +360,7 @@ void odm_HwAntDiv(struct DM_ODM_T * pDM_Odm);
 /*  */
 /*  2011/09/21 MH Add to describe different team necessary resource allocate?? */
 /*  */
-void ODM_DMInit(struct DM_ODM_T * pDM_Odm)
+void ODM_DMInit(struct DM_ODM_T *pDM_Odm)
 {
 
 	odm_CommonInfoSelfInit(pDM_Odm);
@@ -390,7 +390,7 @@ void ODM_DMInit(struct DM_ODM_T * pDM_Odm)
 /*  You can not add any dummy function here, be care, you can only use DM structure */
 /*  to perform any new ODM_DM. */
 /*  */
-void ODM_DMWatchdog(struct DM_ODM_T * pDM_Odm)
+void ODM_DMWatchdog(struct DM_ODM_T *pDM_Odm)
 {
 	odm_CommonInfoSelfUpdate(pDM_Odm);
 	odm_BasicDbgMessage(pDM_Odm);
@@ -417,7 +417,7 @@ void ODM_DMWatchdog(struct DM_ODM_T * pDM_Odm)
 		odm_DIG(pDM_Odm);
 
 	{
-		struct DIG_T * pDM_DigTable = &pDM_Odm->DM_DigTable;
+		struct DIG_T *pDM_DigTable = &pDM_Odm->DM_DigTable;
 
 		odm_Adaptivity(pDM_Odm, pDM_DigTable->CurIGValue);
 	}
@@ -445,7 +445,7 @@ void ODM_DMWatchdog(struct DM_ODM_T * pDM_Odm)
 /*  */
 /*  Init /.. Fixed HW value. Only init time. */
 /*  */
-void ODM_CmnInfoInit(struct DM_ODM_T * pDM_Odm, enum ODM_CMNINFO_E CmnInfo, u32 Value)
+void ODM_CmnInfoInit(struct DM_ODM_T *pDM_Odm, enum ODM_CMNINFO_E CmnInfo, u32 Value)
 {
 	/*  */
 	/*  This section is used for init value */
@@ -557,7 +557,7 @@ void ODM_CmnInfoInit(struct DM_ODM_T * pDM_Odm, enum ODM_CMNINFO_E CmnInfo, u32 
 }
 
 
-void ODM_CmnInfoHook(struct DM_ODM_T * pDM_Odm, enum ODM_CMNINFO_E CmnInfo, void *pValue)
+void ODM_CmnInfoHook(struct DM_ODM_T *pDM_Odm, enum ODM_CMNINFO_E CmnInfo, void *pValue)
 {
 	/*  */
 	/*  Hook call by reference pointer. */
@@ -686,7 +686,7 @@ void ODM_CmnInfoHook(struct DM_ODM_T * pDM_Odm, enum ODM_CMNINFO_E CmnInfo, void
 
 
 void ODM_CmnInfoPtrArrayHook(
-	struct DM_ODM_T * pDM_Odm,
+	struct DM_ODM_T *pDM_Odm,
 	enum ODM_CMNINFO_E CmnInfo,
 	u16 Index,
 	void *pValue
@@ -714,7 +714,7 @@ void ODM_CmnInfoPtrArrayHook(
 /*  */
 /*  Update Band/CHannel/.. The values are dynamic but non-per-packet. */
 /*  */
-void ODM_CmnInfoUpdate(struct DM_ODM_T * pDM_Odm, u32 CmnInfo, u64 Value)
+void ODM_CmnInfoUpdate(struct DM_ODM_T *pDM_Odm, u32 CmnInfo, u64 Value)
 {
 	/*  */
 	/*  This init variable may be changed in run time. */
@@ -828,7 +828,7 @@ void ODM_CmnInfoUpdate(struct DM_ODM_T * pDM_Odm, u32 CmnInfo, u64 Value)
 
 }
 
-void odm_CommonInfoSelfInit(struct DM_ODM_T * pDM_Odm)
+void odm_CommonInfoSelfInit(struct DM_ODM_T *pDM_Odm)
 {
 	pDM_Odm->bCckHighPower = (bool) PHY_QueryBBReg(pDM_Odm->Adapter, ODM_REG(CCK_RPT_FORMAT, pDM_Odm), ODM_BIT(CCK_RPT_FORMAT, pDM_Odm));
 	pDM_Odm->RFPathRxEnable = (u8) PHY_QueryBBReg(pDM_Odm->Adapter, ODM_REG(BB_RX_PATH, pDM_Odm), ODM_BIT(BB_RX_PATH, pDM_Odm));
@@ -838,7 +838,7 @@ void odm_CommonInfoSelfInit(struct DM_ODM_T * pDM_Odm)
 	pDM_Odm->TxRate = 0xFF;
 }
 
-void odm_CommonInfoSelfUpdate(struct DM_ODM_T * pDM_Odm)
+void odm_CommonInfoSelfUpdate(struct DM_ODM_T *pDM_Odm)
 {
 	u8 EntryCnt = 0;
 	u8 i;
@@ -864,7 +864,7 @@ void odm_CommonInfoSelfUpdate(struct DM_ODM_T * pDM_Odm)
 		pDM_Odm->bOneEntryOnly = false;
 }
 
-void odm_CmnInfoInit_Debug(struct DM_ODM_T * pDM_Odm)
+void odm_CmnInfoInit_Debug(struct DM_ODM_T *pDM_Odm)
 {
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_CmnInfoInit_Debug ==>\n"));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("SupportPlatform =%d\n", pDM_Odm->SupportPlatform));
@@ -885,7 +885,7 @@ void odm_CmnInfoInit_Debug(struct DM_ODM_T * pDM_Odm)
 
 }
 
-void odm_BasicDbgMessage(struct DM_ODM_T * pDM_Odm)
+void odm_BasicDbgMessage(struct DM_ODM_T *pDM_Odm)
 {
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_BasicDbgMsg ==>\n"));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("bLinked = %d, RSSI_Min = %d,\n",
@@ -932,9 +932,9 @@ void odm_BasicDbgMessage(struct DM_ODM_T * pDM_Odm)
 /* 3 Rate Adaptive */
 /* 3 ============================================================ */
 
-void odm_RateAdaptiveMaskInit(struct DM_ODM_T * pDM_Odm)
+void odm_RateAdaptiveMaskInit(struct DM_ODM_T *pDM_Odm)
 {
-	struct ODM_RATE_ADAPTIVE * pOdmRA = &pDM_Odm->RateAdaptive;
+	struct ODM_RATE_ADAPTIVE *pOdmRA = &pDM_Odm->RateAdaptive;
 
 	pOdmRA->Type = DM_Type_ByDriver;
 	if (pOdmRA->Type == DM_Type_ByDriver)
@@ -950,7 +950,7 @@ void odm_RateAdaptiveMaskInit(struct DM_ODM_T * pDM_Odm)
 }
 
 u32 ODM_Get_Rate_Bitmap(
-	struct DM_ODM_T * pDM_Odm,
+	struct DM_ODM_T *pDM_Odm,
 	u32 macid,
 	u32 ra_mask,
 	u8 rssi_level
@@ -1080,7 +1080,7 @@ u32 ODM_Get_Rate_Bitmap(
 *
 * --------------------------------------------------------------------------
 */
-void odm_RefreshRateAdaptiveMask(struct DM_ODM_T * pDM_Odm)
+void odm_RefreshRateAdaptiveMask(struct DM_ODM_T *pDM_Odm)
 {
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_TRACE, ("odm_RefreshRateAdaptiveMask()---------->\n"));
@@ -1091,7 +1091,7 @@ void odm_RefreshRateAdaptiveMask(struct DM_ODM_T * pDM_Odm)
 	odm_RefreshRateAdaptiveMaskCE(pDM_Odm);
 }
 
-void odm_RefreshRateAdaptiveMaskCE(struct DM_ODM_T * pDM_Odm)
+void odm_RefreshRateAdaptiveMaskCE(struct DM_ODM_T *pDM_Odm)
 {
 	u8 i;
 	struct adapter *padapter =  pDM_Odm->Adapter;
@@ -1128,13 +1128,13 @@ void odm_RefreshRateAdaptiveMaskCE(struct DM_ODM_T * pDM_Odm)
 /*  Return Value: bool */
 /*  - true: RATRState is changed. */
 bool ODM_RAStateCheck(
-	struct DM_ODM_T * pDM_Odm,
+	struct DM_ODM_T *pDM_Odm,
 	s32 RSSI,
 	bool bForceUpdate,
 	u8 *pRATRState
 )
 {
-	struct ODM_RATE_ADAPTIVE * pRA = &pDM_Odm->RateAdaptive;
+	struct ODM_RATE_ADAPTIVE *pRA = &pDM_Odm->RateAdaptive;
 	const u8 GoUpGap = 5;
 	u8 HighRSSIThreshForRA = pRA->HighRSSIThresh;
 	u8 LowRSSIThreshForRA = pRA->LowRSSIThresh;
@@ -1193,15 +1193,15 @@ bool ODM_RAStateCheck(
 /* 3 RSSI Monitor */
 /* 3 ============================================================ */
 
-void odm_RSSIMonitorInit(struct DM_ODM_T * pDM_Odm)
+void odm_RSSIMonitorInit(struct DM_ODM_T *pDM_Odm)
 {
-	struct RA_T * pRA_Table = &pDM_Odm->DM_RA_Table;
+	struct RA_T *pRA_Table = &pDM_Odm->DM_RA_Table;
 
 	pRA_Table->firstconnect = false;
 
 }
 
-void odm_RSSIMonitorCheck(struct DM_ODM_T * pDM_Odm)
+void odm_RSSIMonitorCheck(struct DM_ODM_T *pDM_Odm)
 {
 	if (!(pDM_Odm->SupportAbility & ODM_BB_RSSI_MONITOR))
 		return;
@@ -1214,7 +1214,7 @@ static void FindMinimumRSSI(struct adapter *padapter)
 {
 	struct hal_com_data	*pHalData = GET_HAL_DATA(padapter);
 	struct dm_priv *pdmpriv = &pHalData->dmpriv;
-	struct DM_ODM_T * pDM_Odm = &(pHalData->odmpriv);
+	struct DM_ODM_T *pDM_Odm = &pHalData->odmpriv;
 
 	/* 1 1.Determine the minimum RSSI */
 
@@ -1231,7 +1231,7 @@ static void FindMinimumRSSI(struct adapter *padapter)
 	/* ODM_RT_TRACE(pDM_Odm, COMP_DIG, DBG_LOUD, ("MinUndecoratedPWDBForDM =%d\n", pHalData->MinUndecoratedPWDBForDM)); */
 }
 
-void odm_RSSIMonitorCheckCE(struct DM_ODM_T * pDM_Odm)
+void odm_RSSIMonitorCheckCE(struct DM_ODM_T *pDM_Odm)
 {
 	struct adapter *Adapter = pDM_Odm->Adapter;
 	struct hal_com_data	*pHalData = GET_HAL_DATA(Adapter);
@@ -1240,7 +1240,7 @@ void odm_RSSIMonitorCheckCE(struct DM_ODM_T * pDM_Odm)
 	int tmpEntryMaxPWDB = 0, tmpEntryMinPWDB = 0xff;
 	u8 sta_cnt = 0;
 	u32 PWDB_rssi[NUM_STA] = {0};/* 0~15]:MACID, [16~31]:PWDB_rssi */
-	struct RA_T * pRA_Table = &pDM_Odm->DM_RA_Table;
+	struct RA_T *pRA_Table = &pDM_Odm->DM_RA_Table;
 
 	if (pDM_Odm->bLinked != true)
 		return;
@@ -1303,7 +1303,7 @@ void odm_RSSIMonitorCheckCE(struct DM_ODM_T * pDM_Odm)
 /* 3 Tx Power Tracking */
 /* 3 ============================================================ */
 
-static u8 getSwingIndex(struct DM_ODM_T * pDM_Odm)
+static u8 getSwingIndex(struct DM_ODM_T *pDM_Odm)
 {
 	struct adapter *Adapter = pDM_Odm->Adapter;
 	u8 i = 0;
@@ -1327,7 +1327,7 @@ static u8 getSwingIndex(struct DM_ODM_T * pDM_Odm)
 	return i;
 }
 
-void odm_TXPowerTrackingInit(struct DM_ODM_T * pDM_Odm)
+void odm_TXPowerTrackingInit(struct DM_ODM_T *pDM_Odm)
 {
 	u8 defaultSwingIndex = getSwingIndex(pDM_Odm);
 	u8 p = 0;
@@ -1371,7 +1371,7 @@ void odm_TXPowerTrackingInit(struct DM_ODM_T * pDM_Odm)
 
 }
 
-void ODM_TXPowerTrackingCheck(struct DM_ODM_T * pDM_Odm)
+void ODM_TXPowerTrackingCheck(struct DM_ODM_T *pDM_Odm)
 {
 	struct adapter *Adapter = pDM_Odm->Adapter;
 
@@ -1395,9 +1395,9 @@ void ODM_TXPowerTrackingCheck(struct DM_ODM_T * pDM_Odm)
 /* 3 ============================================================ */
 /* 3 SW Antenna Diversity */
 /* 3 ============================================================ */
-void odm_SwAntDetectInit(struct DM_ODM_T * pDM_Odm)
+void odm_SwAntDetectInit(struct DM_ODM_T *pDM_Odm)
 {
-	struct SWAT_T * pDM_SWAT_Table = &pDM_Odm->DM_SWAT_Table;
+	struct SWAT_T *pDM_SWAT_Table = &pDM_Odm->DM_SWAT_Table;
 
 	pDM_SWAT_Table->SWAS_NoLink_BK_Reg92c = rtw_read32(pDM_Odm->Adapter, rDPDT_control);
 	pDM_SWAT_Table->PreAntenna = MAIN_ANT;
