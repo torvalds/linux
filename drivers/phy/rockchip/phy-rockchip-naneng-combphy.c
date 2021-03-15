@@ -505,7 +505,7 @@ static int rk3568_combphy_cfg(struct rockchip_combphy_priv *priv)
 
 	switch (rate) {
 	case 24000000:
-		if (priv->mode == PHY_TYPE_USB3) {
+		if (priv->mode == PHY_TYPE_USB3 || priv->mode == PHY_TYPE_SATA) {
 			/* Set ssc_cnt[9:0]=0101111101 & 31.5KHz */
 			val = readl(priv->mmio + (0x0e << 2));
 			val &= ~GENMASK(7, 6);
@@ -540,7 +540,12 @@ static int rk3568_combphy_cfg(struct rockchip_combphy_priv *priv)
 
 			writel(0x32, priv->mmio + (0x11 << 2));
 			writel(0xf0, priv->mmio + (0xa << 2));
-
+		} else if (priv->mode == PHY_TYPE_SATA) {
+			/* downward spread spectrum +500ppm */
+			val = readl(priv->mmio + (0x1f << 2));
+			val &= ~GENMASK(7, 4);
+			val |= 0x50;
+			writel(val, priv->mmio + (0x1f << 2));
 		}
 		break;
 	default:
