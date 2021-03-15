@@ -1706,7 +1706,7 @@ static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
 		/* Symmetry only applies if we've got an active stream. */
 		err = soc_pcm_apply_symmetry(fe_substream, fe_cpu_dai);
 		if (err < 0)
-			return err;
+			goto error;
 	}
 
 	/* apply symmetry for BE */
@@ -1731,11 +1731,14 @@ static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
 		for_each_rtd_dais(rtd, i, dai) {
 			err = soc_pcm_apply_symmetry(fe_substream, dai);
 			if (err < 0)
-				return err;
+				goto error;
 		}
 	}
+error:
+	if (err < 0)
+		dev_err(fe->dev, "ASoC: %s failed (%d)\n", __func__, err);
 
-	return 0;
+	return err;
 }
 
 static int dpcm_fe_dai_startup(struct snd_pcm_substream *fe_substream)
@@ -1767,9 +1770,6 @@ static int dpcm_fe_dai_startup(struct snd_pcm_substream *fe_substream)
 	dpcm_runtime_setup_be_rate(fe_substream);
 
 	ret = dpcm_apply_symmetry(fe_substream, stream);
-	if (ret < 0)
-		dev_err(fe->dev, "ASoC: failed to apply dpcm symmetry %d\n",
-			ret);
 
 unwind:
 	if (ret < 0)
