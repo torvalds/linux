@@ -742,6 +742,48 @@ static bool rb_time_cmpxchg(rb_time_t *t, u64 expect, u64 set)
 }
 #endif
 
+/*
+ * Enable this to make sure that the event passed to
+ * ring_buffer_event_time_stamp() is not committed and also
+ * is on the buffer that it passed in.
+ */
+//#define RB_VERIFY_EVENT
+#ifdef RB_VERIFY_EVENT
+static struct list_head *rb_list_head(struct list_head *list);
+static void verify_event(struct ring_buffer_per_cpu *cpu_buffer,
+			 void *event)
+{
+	struct buffer_page *page = cpu_buffer->commit_page;
+	struct buffer_page *tail_page = READ_ONCE(cpu_buffer->tail_page);
+	struct list_head *next;
+	long commit, write;
+	unsigned long addr = (unsigned long)event;
+	bool done = false;
+	int stop = 0;
+
+	/* Make sure the event exists and is not committed yet */
+	do {
+		if (page == tail_page || WARN_ON_ONCE(stop++ > 100))
+			done = true;
+		commit = local_read(&page->page->commit);
+		write = local_read(&page->write);
+		if (addr >= (unsigned long)&page->page->data[commit] &&
+		    addr < (unsigned long)&page->page->data[write])
+			return;
+
+		next = rb_list_head(page->list.next);
+		page = list_entry(next, struct buffer_page, list);
+	} while (!done);
+	WARN_ON_ONCE(1);
+}
+#else
+static inline void verify_event(struct ring_buffer_per_cpu *cpu_buffer,
+			 void *event)
+{
+}
+#endif
+
+
 static inline u64 rb_time_stamp(struct trace_buffer *buffer);
 
 /**
@@ -772,13 +814,19 @@ u64 ring_buffer_event_time_stamp(struct trace_buffer *buffer,
 	if (event->type_len == RINGBUF_TYPE_TIME_STAMP)
 		return rb_event_time_stamp(event);
 
+	nest = local_read(&cpu_buffer->committing);
+	verify_event(cpu_buffer, event);
+	if (WARN_ON_ONCE(!nest))
+		goto fail;
+
 	/* Read the current saved nesting level time stamp */
-	nest = local_read(&cpu_buffer->committing) - 1;
-	if (likely(nest < MAX_NEST))
+	if (likely(--nest < MAX_NEST))
 		return cpu_buffer->event_stamp[nest];
 
-	WARN_ON_ONCE(1);
+	/* Shouldn't happen, warn if it does */
+	WARN_ONCE(1, "nest (%d) greater than max", nest);
 
+ fail:
 	/* Can only fail on 32 bit */
 	if (!rb_time_read(&cpu_buffer->write_stamp, &ts))
 		/* Screw it, just read the current time */
@@ -2750,7 +2798,7 @@ rb_update_event(struct ring_buffer_per_cpu *cpu_buffer,
 	u64 delta = info->delta;
 	unsigned int nest = local_read(&cpu_buffer->committing) - 1;
 
-	if (nest < MAX_NEST)
+	if (!WARN_ON_ONCE(nest >= MAX_NEST))
 		cpu_buffer->event_stamp[nest] = info->ts;
 
 	/*
