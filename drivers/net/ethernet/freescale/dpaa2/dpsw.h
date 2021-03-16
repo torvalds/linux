@@ -14,17 +14,10 @@
 
 struct fsl_mc_io;
 
-/**
- * DPSW general definitions
- */
+/* DPSW general definitions */
 
-/**
- * Maximum number of traffic class priorities
- */
 #define DPSW_MAX_PRIORITIES	8
-/**
- * Maximum number of interfaces
- */
+
 #define DPSW_MAX_IF		64
 
 int dpsw_open(struct fsl_mc_io *mc_io,
@@ -36,30 +29,20 @@ int dpsw_close(struct fsl_mc_io *mc_io,
 	       u32 cmd_flags,
 	       u16 token);
 
-/**
- * DPSW options
- */
+/* DPSW options */
 
 /**
- * Disable flooding
+ * DPSW_OPT_FLOODING_DIS - Flooding was disabled at device create
  */
 #define DPSW_OPT_FLOODING_DIS		0x0000000000000001ULL
 /**
- * Disable Multicast
+ * DPSW_OPT_MULTICAST_DIS - Multicast was disabled at device create
  */
 #define DPSW_OPT_MULTICAST_DIS		0x0000000000000004ULL
 /**
- * Support control interface
+ * DPSW_OPT_CTRL_IF_DIS - Control interface support is disabled
  */
 #define DPSW_OPT_CTRL_IF_DIS		0x0000000000000010ULL
-/**
- * Disable flooding metering
- */
-#define DPSW_OPT_FLOODING_METERING_DIS  0x0000000000000020ULL
-/**
- * Enable metering
- */
-#define DPSW_OPT_METERING_EN            0x0000000000000040ULL
 
 /**
  * enum dpsw_component_type - component type of a bridge
@@ -116,15 +99,13 @@ int dpsw_reset(struct fsl_mc_io *mc_io,
 	       u32 cmd_flags,
 	       u16 token);
 
-/**
- * DPSW IRQ Index and Events
- */
+/* DPSW IRQ Index and Events */
 
 #define DPSW_IRQ_INDEX_IF		0x0000
 #define DPSW_IRQ_INDEX_L2SW		0x0001
 
 /**
- * IRQ event - Indicates that the link state changed
+ * DPSW_IRQ_EVENT_LINK_CHANGED - Indicates that the link state changed
  */
 #define DPSW_IRQ_EVENT_LINK_CHANGED	0x0001
 
@@ -229,9 +210,6 @@ enum dpsw_queue_type {
 	DPSW_QUEUE_RX_ERR,
 };
 
-/**
- * Maximum number of DPBP
- */
 #define DPSW_MAX_DPBP     8
 
 /**
@@ -293,21 +271,9 @@ enum dpsw_action {
 	DPSW_ACTION_REDIRECT = 1
 };
 
-/**
- * Enable auto-negotiation
- */
 #define DPSW_LINK_OPT_AUTONEG		0x0000000000000001ULL
-/**
- * Enable half-duplex mode
- */
 #define DPSW_LINK_OPT_HALF_DUPLEX	0x0000000000000002ULL
-/**
- * Enable pause frames
- */
 #define DPSW_LINK_OPT_PAUSE		0x0000000000000004ULL
-/**
- * Enable a-symmetric pause frames
- */
 #define DPSW_LINK_OPT_ASYM_PAUSE	0x0000000000000008ULL
 
 /**
@@ -376,10 +342,11 @@ int dpsw_if_get_tci(struct fsl_mc_io *mc_io,
 
 /**
  * enum dpsw_stp_state - Spanning Tree Protocol (STP) states
- * @DPSW_STP_STATE_BLOCKING: Blocking state
+ * @DPSW_STP_STATE_DISABLED: Disabled state
  * @DPSW_STP_STATE_LISTENING: Listening state
  * @DPSW_STP_STATE_LEARNING: Learning state
  * @DPSW_STP_STATE_FORWARDING: Forwarding state
+ * @DPSW_STP_STATE_BLOCKING: Blocking state
  *
  */
 enum dpsw_stp_state {
@@ -524,6 +491,10 @@ int dpsw_vlan_add(struct fsl_mc_io *mc_io,
  *		list for this VLAN
  * @if_id: The set of interfaces that are
  *		assigned to the egress list for this VLAN
+ * @options: Options map for this command (DPSW_VLAN_ADD_IF_OPT_FDB_ID)
+ * @fdb_id: FDB id to be used by this VLAN on these specific interfaces
+ *		(taken into account only if the DPSW_VLAN_ADD_IF_OPT_FDB_ID is
+ *		specified in the options field)
  */
 struct dpsw_vlan_if_cfg {
 	u16 num_ifs;

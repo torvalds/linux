@@ -1319,7 +1319,7 @@ int dpsw_get_api_version(struct fsl_mc_io *mc_io,
 }
 
 /**
- * dpsw_if_get_port_mac_addr()
+ * dpsw_if_get_port_mac_addr() - Retrieve MAC address associated to the physical port
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPSW object
