@@ -276,8 +276,8 @@ void __exit scmi_##name##_unregister(void)			\
 
 const struct scmi_protocol *scmi_protocol_get(int protocol_id);
 
-int scmi_protocol_acquire(struct scmi_handle *handle, u8 protocol_id);
-void scmi_protocol_release(struct scmi_handle *handle, u8 protocol_id);
+int scmi_protocol_acquire(const struct scmi_handle *handle, u8 protocol_id);
+void scmi_protocol_release(const struct scmi_handle *handle, u8 protocol_id);
 
 /* SCMI Transport */
 /**
