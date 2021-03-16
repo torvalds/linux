@@ -582,11 +582,9 @@ int scmi_notify(const struct scmi_handle *handle, u8 proto_id, u8 evt_id,
 	struct scmi_event_header eh;
 	struct scmi_notify_instance *ni;
 
-	/* Ensure notify_priv is updated */
-	smp_rmb();
-	if (!handle->notify_priv)
+	ni = scmi_notification_instance_data_get(handle);
+	if (!ni)
 		return 0;
-	ni = handle->notify_priv;
 
 	r_evt = SCMI_GET_REVT(ni, proto_id, evt_id);
 	if (!r_evt)
@@ -762,11 +760,9 @@ int scmi_register_protocol_events(const struct scmi_handle *handle, u8 proto_id,
 	    (!ee->num_sources && !ee->ops->get_num_sources))
 		return -EINVAL;
 
-	/* Ensure notify_priv is updated */
-	smp_rmb();
-	if (!handle->notify_priv)
+	ni = scmi_notification_instance_data_get(handle);
+	if (!ni)
 		return -ENOMEM;
-	ni = handle->notify_priv;
 
 	/* num_sources cannot be <= 0 */
 	if (ee->num_sources) {
@@ -846,12 +842,10 @@ void scmi_deregister_protocol_events(const struct scmi_handle *handle,
 	struct scmi_notify_instance *ni;
 	struct scmi_registered_events_desc *pd;
 
-	/* Ensure notify_priv is updated */
-	smp_rmb();
-	if (!handle->notify_priv)
+	ni = scmi_notification_instance_data_get(handle);
+	if (!ni)
 		return;
 
-	ni = handle->notify_priv;
 	pd = ni->registered_protocols[proto_id];
 	if (!pd)
 		return;
@@ -1354,11 +1348,9 @@ static int scmi_register_notifier(const struct scmi_handle *handle,
 	struct scmi_event_handler *hndl;
 	struct scmi_notify_instance *ni;
 
-	/* Ensure notify_priv is updated */
-	smp_rmb();
-	if (!handle->notify_priv)
+	ni = scmi_notification_instance_data_get(handle);
+	if (!ni)
 		return -ENODEV;
-	ni = handle->notify_priv;
 
 	evt_key = MAKE_HASH_KEY(proto_id, evt_id,
 				src_id ? *src_id : SRC_ID_MASK);
@@ -1402,11 +1394,9 @@ static int scmi_unregister_notifier(const struct scmi_handle *handle,
 	struct scmi_event_handler *hndl;
 	struct scmi_notify_instance *ni;
 
-	/* Ensure notify_priv is updated */
-	smp_rmb();
-	if (!handle->notify_priv)
+	ni = scmi_notification_instance_data_get(handle);
+	if (!ni)
 		return -ENODEV;
-	ni = handle->notify_priv;
 
 	evt_key = MAKE_HASH_KEY(proto_id, evt_id,
 				src_id ? *src_id : SRC_ID_MASK);
@@ -1681,8 +1671,8 @@ int scmi_notification_init(struct scmi_handle *handle)
 
 	INIT_WORK(&ni->init_work, scmi_protocols_late_init);
 
+	scmi_notification_instance_data_set(handle, ni);
 	handle->notify_ops = &notify_ops;
-	handle->notify_priv = ni;
 	/* Ensure handle is up to date */
 	smp_wmb();
 
@@ -1694,7 +1684,7 @@ int scmi_notification_init(struct scmi_handle *handle)
 
 err:
 	dev_warn(handle->dev, "Initialization Failed.\n");
-	devres_release_group(handle->dev, NULL);
+	devres_release_group(handle->dev, gid);
 	return -ENOMEM;
 }
 
@@ -1706,15 +1696,10 @@ void scmi_notification_exit(struct scmi_handle *handle)
 {
 	struct scmi_notify_instance *ni;
 
-	/* Ensure notify_priv is updated */
-	smp_rmb();
-	if (!handle->notify_priv)
+	ni = scmi_notification_instance_data_get(handle);
+	if (!ni)
 		return;
-	ni = handle->notify_priv;
-
-	handle->notify_priv = NULL;
-	/* Ensure handle is up to date */
-	smp_wmb();
+	scmi_notification_instance_data_set(handle, NULL);
 
 	/* Destroy while letting pending work complete */
 	destroy_workqueue(ni->notify_wq);

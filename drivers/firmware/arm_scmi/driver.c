@@ -113,6 +113,7 @@ struct scmi_protocol_instance {
  * @protocols_mtx: A mutex to protect protocols instances initialization.
  * @protocols_imp: List of protocols implemented, currently maximum of
  *	MAX_PROTOCOLS_IMP elements allocated by the base protocol
+ * @notify_priv: Pointer to private data structure specific to notifications.
  * @node: List head
  * @users: Number of users of this instance
  */
@@ -129,6 +130,7 @@ struct scmi_info {
 	/* Ensure mutual exclusive access to protocols instance array */
 	struct mutex protocols_mtx;
 	u8 *protocols_imp;
+	void *notify_priv;
 	struct list_head node;
 	int users;
 };
@@ -168,6 +170,25 @@ static inline void scmi_dump_header_dbg(struct device *dev,
 {
 	dev_dbg(dev, "Message ID: %x Sequence ID: %x Protocol: %x\n",
 		hdr->id, hdr->seq, hdr->protocol_id);
+}
+
+void scmi_notification_instance_data_set(const struct scmi_handle *handle,
+					 void *priv)
+{
+	struct scmi_info *info = handle_to_scmi_info(handle);
+
+	info->notify_priv = priv;
+	/* Ensure updated protocol private date are visible */
+	smp_wmb();
+}
+
+void *scmi_notification_instance_data_get(const struct scmi_handle *handle)
+{
+	struct scmi_info *info = handle_to_scmi_info(handle);
+
+	/* Ensure protocols_private_data has been updated */
+	smp_rmb();
+	return info->notify_priv;
 }
 
 /**
