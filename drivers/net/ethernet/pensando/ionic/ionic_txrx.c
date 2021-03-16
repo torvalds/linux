@@ -654,35 +654,19 @@ static void ionic_tx_clean(struct ionic_queue *q,
 			   struct ionic_cq_info *cq_info,
 			   void *cb_arg)
 {
-	struct ionic_txq_sg_desc *sg_desc = desc_info->sg_desc;
 	struct ionic_buf_info *buf_info = desc_info->bufs;
-	struct ionic_txq_sg_elem *elem = sg_desc->elems;
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
-	struct ionic_txq_desc *desc = desc_info->desc;
 	struct device *dev = q->dev;
-	u8 opcode, flags, nsge;
 	u16 queue_index;
 	unsigned int i;
-	u64 addr;
 
-	decode_txq_desc_cmd(le64_to_cpu(desc->cmd),
-			    &opcode, &flags, &nsge, &addr);
-
-	if (opcode != IONIC_TXQ_DESC_OPCODE_TSO) {
-		dma_unmap_single(dev, (dma_addr_t)addr,
-				 le16_to_cpu(desc->len), DMA_TO_DEVICE);
-		for (i = 0; i < nsge; i++, elem++)
-			dma_unmap_page(dev, (dma_addr_t)le64_to_cpu(elem->addr),
-				       le16_to_cpu(elem->len), DMA_TO_DEVICE);
-	} else {
-		if (flags & IONIC_TXQ_DESC_FLAG_TSO_EOT) {
-			dma_unmap_single(dev, (dma_addr_t)buf_info->dma_addr,
-					 buf_info->len, DMA_TO_DEVICE);
-			buf_info++;
-			for (i = 1; i < desc_info->nbufs; i++, buf_info++)
-				dma_unmap_page(dev, (dma_addr_t)buf_info->dma_addr,
-					       buf_info->len, DMA_TO_DEVICE);
-		}
+	if (desc_info->nbufs) {
+		dma_unmap_single(dev, (dma_addr_t)buf_info->dma_addr,
+				 buf_info->len, DMA_TO_DEVICE);
+		buf_info++;
+		for (i = 1; i < desc_info->nbufs; i++, buf_info++)
+			dma_unmap_page(dev, (dma_addr_t)buf_info->dma_addr,
+				       buf_info->len, DMA_TO_DEVICE);
 	}
 
 	if (cb_arg) {
