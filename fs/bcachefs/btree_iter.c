@@ -1992,7 +1992,7 @@ static void btree_trans_iter_alloc_fail(struct btree_trans *trans)
 	char buf[100];
 
 	trans_for_each_iter(trans, iter)
-		printk(KERN_ERR "iter: btree %s pos %s%s%s%s %ps\n",
+		printk(KERN_ERR "iter: btree %s pos %s%s%s%s %pS\n",
 		       bch2_btree_ids[iter->btree_id],
 		       (bch2_bpos_to_text(&PBUF(buf), iter->pos), buf),
 		       btree_iter_live(trans, iter) ? " live" : "",

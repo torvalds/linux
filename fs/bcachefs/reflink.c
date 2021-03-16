@@ -157,8 +157,10 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 	bch2_trans_update(trans, reflink_iter, r_v, 0);
 
 	r_p = bch2_trans_kmalloc(trans, sizeof(*r_p));
-	if (IS_ERR(r_p))
-		return PTR_ERR(r_p);
+	if (IS_ERR(r_p)) {
+		ret = PTR_ERR(r_p);
+		goto err;
+	}
 
 	orig->k.type = KEY_TYPE_reflink_p;
 	r_p = bkey_i_to_reflink_p(orig);
