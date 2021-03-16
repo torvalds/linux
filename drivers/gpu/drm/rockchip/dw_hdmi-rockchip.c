@@ -554,7 +554,10 @@ static const struct drm_encoder_funcs dw_hdmi_rockchip_encoder_funcs = {
 static void dw_hdmi_rockchip_encoder_disable(struct drm_encoder *encoder)
 {
 	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
+	struct drm_crtc *crtc = encoder->crtc;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
 
+	s->output_if &= ~VOP_OUTPUT_IF_HDMI0;
 	/*
 	 * when plug out hdmi it will be switch cvbs and then phy bus width
 	 * must be set as 8
