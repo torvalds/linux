@@ -61,7 +61,8 @@ enum ring_buffer_type {
 
 unsigned ring_buffer_event_length(struct ring_buffer_event *event);
 void *ring_buffer_event_data(struct ring_buffer_event *event);
-u64 ring_buffer_event_time_stamp(struct ring_buffer_event *event);
+u64 ring_buffer_event_time_stamp(struct trace_buffer *buffer,
+				 struct ring_buffer_event *event);
 
 /*
  * ring_buffer_discard_commit will remove an event that has not
