@@ -2,7 +2,7 @@
 /*
  * System Control and Management Interface (SCMI) Clock Protocol
  *
- * Copyright (C) 2018 ARM Ltd.
+ * Copyright (C) 2018-2021 ARM Ltd.
  */
 
 #include <linux/sort.h>
@@ -366,4 +366,10 @@ static int scmi_clock_protocol_init(struct scmi_handle *handle)
 	return 0;
 }
 
-DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(SCMI_PROTOCOL_CLOCK, clock)
+static const struct scmi_protocol scmi_clock = {
+	.id = SCMI_PROTOCOL_CLOCK,
+	.init = &scmi_clock_protocol_init,
+	.ops = &clk_ops,
+};
+
+DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(clock, scmi_clock)

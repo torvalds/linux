@@ -2,7 +2,7 @@
 /*
  * System Control and Management Interface (SCMI) Performance Protocol
  *
- * Copyright (C) 2018 ARM Ltd.
+ * Copyright (C) 2018-2021 ARM Ltd.
  */
 
 #define pr_fmt(fmt) "SCMI Notifications PERF - " fmt
@@ -900,4 +900,10 @@ static int scmi_perf_protocol_init(struct scmi_handle *handle)
 	return 0;
 }
 
-DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(SCMI_PROTOCOL_PERF, perf)
+static const struct scmi_protocol scmi_perf = {
+	.id = SCMI_PROTOCOL_PERF,
+	.init = &scmi_perf_protocol_init,
+	.ops = &perf_ops,
+};
+
+DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(perf, scmi_perf)

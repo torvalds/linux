@@ -11,11 +11,12 @@
  * various power domain DVFS including the core/cluster, certain system
  * clocks configuration, thermal sensors and many others.
  *
- * Copyright (C) 2018 ARM Ltd.
+ * Copyright (C) 2018-2021 ARM Ltd.
  */
 
 #include <linux/bitmap.h>
 #include <linux/export.h>
+#include <linux/idr.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/ktime.h>
@@ -23,6 +24,7 @@
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/processor.h>
+#include <linux/refcount.h>
 #include <linux/slab.h>
 
 #include "common.h"
@@ -69,6 +71,21 @@ struct scmi_xfers_info {
 };
 
 /**
+ * struct scmi_protocol_instance  - Describe an initialized protocol instance.
+ * @proto: A reference to the protocol descriptor.
+ * @gid: A reference for per-protocol devres management.
+ * @users: A refcount to track effective users of this protocol.
+ *
+ * Each protocol is initialized independently once for each SCMI platform in
+ * which is defined by DT and implemented by the SCMI server fw.
+ */
+struct scmi_protocol_instance {
+	const struct scmi_protocol	*proto;
+	void				*gid;
+	refcount_t			users;
+};
+
+/**
  * struct scmi_info - Structure representing a SCMI instance
  *
  * @dev: Device pointer
@@ -80,6 +97,10 @@ struct scmi_xfers_info {
  * @rx_minfo: Universal Receive Message management info
  * @tx_idr: IDR object to map protocol id to Tx channel info pointer
  * @rx_idr: IDR object to map protocol id to Rx channel info pointer
+ * @protocols: IDR for protocols' instance descriptors initialized for
+ *	       this SCMI instance: populated on protocol's first attempted
+ *	       usage.
+ * @protocols_mtx: A mutex to protect protocols instances initialization.
  * @protocols_imp: List of protocols implemented, currently maximum of
  *	MAX_PROTOCOLS_IMP elements allocated by the base protocol
  * @node: List head
@@ -94,6 +115,9 @@ struct scmi_info {
 	struct scmi_xfers_info rx_minfo;
 	struct idr tx_idr;
 	struct idr rx_idr;
+	struct idr protocols;
+	/* Ensure mutual exclusive access to protocols instance array */
+	struct mutex protocols_mtx;
 	u8 *protocols_imp;
 	struct list_head node;
 	int users;
@@ -519,6 +543,150 @@ int scmi_version_get(const struct scmi_handle *handle, u8 protocol,
 	return ret;
 }
 
+/**
+ * scmi_alloc_init_protocol_instance  - Allocate and initialize a protocol
+ * instance descriptor.
+ * @info: The reference to the related SCMI instance.
+ * @proto: The protocol descriptor.
+ *
+ * Allocate a new protocol instance descriptor, using the provided @proto
+ * description, against the specified SCMI instance @info, and initialize it;
+ * all resources management is handled via a dedicated per-protocol devres
+ * group.
+ *
+ * Context: Assumes to be called with @protocols_mtx already acquired.
+ * Return: A reference to a freshly allocated and initialized protocol instance
+ *	   or ERR_PTR on failure.
+ */
+static struct scmi_protocol_instance *
+scmi_alloc_init_protocol_instance(struct scmi_info *info,
+				  const struct scmi_protocol *proto)
+{
+	int ret = -ENOMEM;
+	void *gid;
+	struct scmi_protocol_instance *pi;
+	struct scmi_handle *handle = &info->handle;
+
+	/* Protocol specific devres group */
+	gid = devres_open_group(handle->dev, NULL, GFP_KERNEL);
+	if (!gid)
+		goto out;
+
+	pi = devm_kzalloc(handle->dev, sizeof(*pi), GFP_KERNEL);
+	if (!pi)
+		goto clean;
+
+	pi->gid = gid;
+	pi->proto = proto;
+	refcount_set(&pi->users, 1);
+	/* proto->init is assured NON NULL by scmi_protocol_register */
+	ret = pi->proto->instance_init(handle);
+	if (ret)
+		goto clean;
+
+	ret = idr_alloc(&info->protocols, pi, proto->id, proto->id + 1,
+			GFP_KERNEL);
+	if (ret != proto->id)
+		goto clean;
+
+	devres_close_group(handle->dev, pi->gid);
+	dev_dbg(handle->dev, "Initialized protocol: 0x%X\n", pi->proto->id);
+
+	return pi;
+
+clean:
+	devres_release_group(handle->dev, gid);
+out:
+	return ERR_PTR(ret);
+}
+
+/**
+ * scmi_get_protocol_instance  - Protocol initialization helper.
+ * @handle: A reference to the SCMI platform instance.
+ * @protocol_id: The protocol being requested.
+ *
+ * In case the required protocol has never been requested before for this
+ * instance, allocate and initialize all the needed structures while handling
+ * resource allocation with a dedicated per-protocol devres subgroup.
+ *
+ * Return: A reference to an initialized protocol instance or error on failure.
+ */
+static struct scmi_protocol_instance * __must_check
+scmi_get_protocol_instance(struct scmi_handle *handle, u8 protocol_id)
+{
+	struct scmi_protocol_instance *pi;
+	struct scmi_info *info = handle_to_scmi_info(handle);
+
+	mutex_lock(&info->protocols_mtx);
+	pi = idr_find(&info->protocols, protocol_id);
+
+	if (pi) {
+		refcount_inc(&pi->users);
+	} else {
+		const struct scmi_protocol *proto;
+
+		/* Fails if protocol not registered on bus */
+		proto = scmi_protocol_get(protocol_id);
+		if (proto)
+			pi = scmi_alloc_init_protocol_instance(info, proto);
+		else
+			pi = ERR_PTR(-ENODEV);
+	}
+	mutex_unlock(&info->protocols_mtx);
+
+	return pi;
+}
+
+/**
+ * scmi_protocol_acquire  - Protocol acquire
+ * @handle: A reference to the SCMI platform instance.
+ * @protocol_id: The protocol being requested.
+ *
+ * Register a new user for the requested protocol on the specified SCMI
+ * platform instance, possibly triggering its initialization on first user.
+ *
+ * Return: 0 if protocol was acquired successfully.
+ */
+int scmi_protocol_acquire(struct scmi_handle *handle, u8 protocol_id)
+{
+	return PTR_ERR_OR_ZERO(scmi_get_protocol_instance(handle, protocol_id));
+}
+
+/**
+ * scmi_protocol_release  - Protocol de-initialization helper.
+ * @handle: A reference to the SCMI platform instance.
+ * @protocol_id: The protocol being requested.
+ *
+ * Remove one user for the specified protocol and triggers de-initialization
+ * and resources de-allocation once the last user has gone.
+ */
+void scmi_protocol_release(struct scmi_handle *handle, u8 protocol_id)
+{
+	struct scmi_info *info = handle_to_scmi_info(handle);
+	struct scmi_protocol_instance *pi;
+
+	mutex_lock(&info->protocols_mtx);
+	pi = idr_find(&info->protocols, protocol_id);
+	if (WARN_ON(!pi))
+		goto out;
+
+	if (refcount_dec_and_test(&pi->users)) {
+		void *gid = pi->gid;
+
+		if (pi->proto->instance_deinit)
+			pi->proto->instance_deinit(handle);
+
+		idr_remove(&info->protocols, protocol_id);
+
+		devres_release_group(handle->dev, gid);
+		dev_dbg(handle->dev, "De-Initialized protocol: 0x%X\n",
+			protocol_id);
+	}
+
+out:
+	mutex_unlock(&info->protocols_mtx);
+}
+
 void scmi_setup_protocol_implemented(const struct scmi_handle *handle,
 				     u8 *prot_imp)
 {
@@ -786,6 +954,8 @@ static int scmi_probe(struct platform_device *pdev)
 	info->dev = dev;
 	info->desc = desc;
 	INIT_LIST_HEAD(&info->node);
+	idr_init(&info->protocols);
+	mutex_init(&info->protocols_mtx);
 
 	platform_set_drvdata(pdev, info);
 	idr_init(&info->tx_idr);
@@ -859,6 +1029,10 @@ static int scmi_remove(struct platform_device *pdev)
 		return ret;
 
 	scmi_notification_exit(&info->handle);
+
+	mutex_lock(&info->protocols_mtx);
+	idr_destroy(&info->protocols);
+	mutex_unlock(&info->protocols_mtx);
 
 	/* Safe to free channels since no more users */
 	ret = idr_for_each(idr, info->desc->ops->chan_free, idr);
@@ -942,6 +1116,8 @@ static int __init scmi_driver_init(void)
 {
 	scmi_bus_init();
 
+	scmi_base_register();
+
 	scmi_clock_register();
 	scmi_perf_register();
 	scmi_power_register();
@@ -956,7 +1132,7 @@ subsys_initcall(scmi_driver_init);
 
 static void __exit scmi_driver_exit(void)
 {
-	scmi_bus_exit();
+	scmi_base_unregister();
 
 	scmi_clock_unregister();
 	scmi_perf_unregister();
@@ -965,6 +1141,8 @@ static void __exit scmi_driver_exit(void)
 	scmi_sensors_unregister();
 	scmi_voltage_unregister();
 	scmi_system_unregister();
+
+	scmi_bus_exit();
 
 	platform_driver_unregister(&scmi_driver);
 }

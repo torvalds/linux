@@ -2,7 +2,7 @@
 /*
  * System Control and Management Interface (SCMI) Message Protocol bus layer
  *
- * Copyright (C) 2018 ARM Ltd.
+ * Copyright (C) 2018-2021 ARM Ltd.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -51,13 +51,29 @@ static int scmi_dev_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
+const struct scmi_protocol *scmi_protocol_get(int protocol_id)
+{
+	const struct scmi_protocol *proto;
+
+	proto = idr_find(&scmi_protocols, protocol_id);
+	if (!proto) {
+		pr_warn("SCMI Protocol 0x%x not found!\n", protocol_id);
+		return NULL;
+	}
+
+	pr_debug("Found SCMI Protocol 0x%x\n", protocol_id);
+
+	return proto;
+}
+
 static int scmi_protocol_init(int protocol_id, struct scmi_handle *handle)
 {
-	scmi_prot_init_fn_t fn = idr_find(&scmi_protocols, protocol_id);
+	const struct scmi_protocol *proto;
 
-	if (unlikely(!fn))
+	proto = scmi_protocol_get(protocol_id);
+	if (!proto)
 		return -EINVAL;
-	return fn(handle);
+	return proto->init(handle);
 }
 
 static int scmi_protocol_dummy_init(struct scmi_handle *handle)
@@ -194,26 +210,45 @@ void scmi_set_handle(struct scmi_device *scmi_dev)
 	scmi_dev->handle = scmi_handle_get(&scmi_dev->dev);
 }
 
-int scmi_protocol_register(int protocol_id, scmi_prot_init_fn_t fn)
+int scmi_protocol_register(const struct scmi_protocol *proto)
 {
 	int ret;
 
-	spin_lock(&protocol_lock);
-	ret = idr_alloc(&scmi_protocols, fn, protocol_id, protocol_id + 1,
-			GFP_ATOMIC);
-	spin_unlock(&protocol_lock);
-	if (ret != protocol_id)
-		pr_err("unable to allocate SCMI idr slot, err %d\n", ret);
+	if (!proto) {
+		pr_err("invalid protocol\n");
+		return -EINVAL;
+	}
 
-	return ret;
+	if (!proto->init && !proto->instance_init) {
+		pr_err("missing init for protocol 0x%x\n", proto->id);
+		return -EINVAL;
+	}
+
+	spin_lock(&protocol_lock);
+	ret = idr_alloc(&scmi_protocols, (void *)proto,
+			proto->id, proto->id + 1, GFP_ATOMIC);
+	spin_unlock(&protocol_lock);
+	if (ret != proto->id) {
+		pr_err("unable to allocate SCMI idr slot for 0x%x - err %d\n",
+		       proto->id, ret);
+		return ret;
+	}
+
+	pr_debug("Registered SCMI Protocol 0x%x\n", proto->id);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(scmi_protocol_register);
 
-void scmi_protocol_unregister(int protocol_id)
+void scmi_protocol_unregister(const struct scmi_protocol *proto)
 {
 	spin_lock(&protocol_lock);
-	idr_remove(&scmi_protocols, protocol_id);
+	idr_remove(&scmi_protocols, proto->id);
 	spin_unlock(&protocol_lock);
+
+	pr_debug("Unregistered SCMI Protocol 0x%x\n", proto->id);
+
+	return;
 }
 EXPORT_SYMBOL_GPL(scmi_protocol_unregister);
 

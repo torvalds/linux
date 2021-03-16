@@ -4,7 +4,7 @@
  * driver common header file containing some definitions, structures
  * and function prototypes used in all the different SCMI protocols.
  *
- * Copyright (C) 2018 ARM Ltd.
+ * Copyright (C) 2018-2021 ARM Ltd.
  */
 #ifndef _SCMI_COMMON_H
 #define _SCMI_COMMON_H
@@ -157,6 +157,24 @@ void scmi_setup_protocol_implemented(const struct scmi_handle *handle,
 				     u8 *prot_imp);
 
 int scmi_base_protocol_init(struct scmi_handle *h);
+typedef int (*scmi_prot_init_fn_t)(struct scmi_handle *);
+
+/**
+ * struct scmi_protocol  - Protocol descriptor
+ * @id: Protocol ID.
+ * @init: Mandatory protocol initialization function.
+ * @instance_init: Optional protocol instance initialization function.
+ * @instance_deinit: Optional protocol de-initialization function.
+ * @ops: Optional reference to the operations provided by the protocol and
+ *	 exposed in scmi_protocol.h.
+ */
+struct scmi_protocol {
+	const u8				id;
+	const scmi_prot_init_fn_t		init;
+	const scmi_prot_init_fn_t		instance_init;
+	const scmi_prot_init_fn_t		instance_deinit;
+	const void				*ops;
+};
 
 int __init scmi_bus_init(void);
 void __exit scmi_bus_exit(void);
@@ -164,6 +182,7 @@ void __exit scmi_bus_exit(void);
 #define DECLARE_SCMI_REGISTER_UNREGISTER(func)		\
 	int __init scmi_##func##_register(void);	\
 	void __exit scmi_##func##_unregister(void)
+DECLARE_SCMI_REGISTER_UNREGISTER(base);
 DECLARE_SCMI_REGISTER_UNREGISTER(clock);
 DECLARE_SCMI_REGISTER_UNREGISTER(perf);
 DECLARE_SCMI_REGISTER_UNREGISTER(power);
@@ -172,16 +191,23 @@ DECLARE_SCMI_REGISTER_UNREGISTER(sensors);
 DECLARE_SCMI_REGISTER_UNREGISTER(voltage);
 DECLARE_SCMI_REGISTER_UNREGISTER(system);
 
-#define DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(id, name) \
-int __init scmi_##name##_register(void) \
-{ \
-	return scmi_protocol_register((id), &scmi_##name##_protocol_init); \
-} \
-\
-void __exit scmi_##name##_unregister(void) \
-{ \
-	scmi_protocol_unregister((id)); \
+#define DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(name, proto)	\
+static const struct scmi_protocol *__this_proto = &(proto);	\
+								\
+int __init scmi_##name##_register(void)				\
+{								\
+	return scmi_protocol_register(__this_proto);		\
+}								\
+								\
+void __exit scmi_##name##_unregister(void)			\
+{								\
+	scmi_protocol_unregister(__this_proto);			\
 }
+
+const struct scmi_protocol *scmi_protocol_get(int protocol_id);
+
+int scmi_protocol_acquire(struct scmi_handle *handle, u8 protocol_id);
+void scmi_protocol_release(struct scmi_handle *handle, u8 protocol_id);
 
 /* SCMI Transport */
 /**

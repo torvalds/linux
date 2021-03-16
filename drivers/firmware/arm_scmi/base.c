@@ -2,7 +2,7 @@
 /*
  * System Control and Management Interface (SCMI) Base Protocol
  *
- * Copyright (C) 2018 ARM Ltd.
+ * Copyright (C) 2018-2021 ARM Ltd.
  */
 
 #define pr_fmt(fmt) "SCMI Notifications BASE - " fmt
@@ -365,3 +365,11 @@ int scmi_base_protocol_init(struct scmi_handle *h)
 
 	return 0;
 }
+
+static const struct scmi_protocol scmi_base = {
+	.id = SCMI_PROTOCOL_BASE,
+	.init = &scmi_base_protocol_init,
+	.ops = NULL,
+};
+
+DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(base, scmi_base)

@@ -2,7 +2,7 @@
 /*
  * System Control and Management Interface (SCMI) System Power Protocol
  *
- * Copyright (C) 2020 ARM Ltd.
+ * Copyright (C) 2020-2021 ARM Ltd.
  */
 
 #define pr_fmt(fmt) "SCMI Notifications SYSTEM - " fmt
@@ -128,4 +128,10 @@ static int scmi_system_protocol_init(struct scmi_handle *handle)
 	return 0;
 }
 
-DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(SCMI_PROTOCOL_SYSTEM, system)
+static const struct scmi_protocol scmi_system = {
+	.id = SCMI_PROTOCOL_SYSTEM,
+	.init = &scmi_system_protocol_init,
+	.ops = NULL,
+};
+
+DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(system, scmi_system)
