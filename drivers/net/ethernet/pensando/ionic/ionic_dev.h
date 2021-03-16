@@ -179,7 +179,10 @@ struct ionic_buf_info {
 	struct page *page;
 	dma_addr_t dma_addr;
 	u32 page_offset;
+	u32 len;
 };
+
+#define IONIC_MAX_FRAGS			(1 + IONIC_TX_MAX_SG_ELEMS_V1)
 
 struct ionic_desc_info {
 	union {
@@ -194,7 +197,7 @@ struct ionic_desc_info {
 		struct ionic_rxq_sg_desc *rxq_sgl_desc;
 	};
 	unsigned int nbufs;
-	struct ionic_buf_info bufs[IONIC_RX_MAX_SG_ELEMS + 1];
+	struct ionic_buf_info bufs[IONIC_MAX_FRAGS];
 	ionic_desc_cb cb;
 	void *cb_arg;
 };
