@@ -2808,9 +2808,26 @@ static void dp_test_send_link_test_pattern(struct dc_link *link)
 	enum dp_test_pattern test_pattern;
 	enum dp_test_pattern_color_space test_pattern_color_space =
 			DP_TEST_PATTERN_COLOR_SPACE_UNDEFINED;
+	enum dc_color_depth requestColorDepth = COLOR_DEPTH_UNDEFINED;
+	struct pipe_ctx *pipes = link->dc->current_state->res_ctx.pipe_ctx;
+	struct pipe_ctx *pipe_ctx = NULL;
+	int i;
 
 	memset(&dpcd_test_pattern, 0, sizeof(dpcd_test_pattern));
 	memset(&dpcd_test_params, 0, sizeof(dpcd_test_params));
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (pipes[i].stream == NULL)
+			continue;
+
+		if (pipes[i].stream->link == link && !pipes[i].top_pipe && !pipes[i].prev_odm_pipe) {
+			pipe_ctx = &pipes[i];
+			break;
+		}
+	}
+
+	if (pipe_ctx == NULL)
+		return;
 
 	/* get link test pattern and pattern parameters */
 	core_link_read_dpcd(
@@ -2848,6 +2865,29 @@ static void dp_test_send_link_test_pattern(struct dc_link *link)
 		test_pattern_color_space = dpcd_test_params.bits.YCBCR_COEFS ?
 				DP_TEST_PATTERN_COLOR_SPACE_YCBCR709 :
 				DP_TEST_PATTERN_COLOR_SPACE_YCBCR601;
+
+	switch (dpcd_test_params.bits.BPC) {
+	case 0: // 6 bits
+		requestColorDepth = COLOR_DEPTH_666;
+		break;
+	case 1: // 8 bits
+		requestColorDepth = COLOR_DEPTH_888;
+		break;
+	case 2: // 10 bits
+		requestColorDepth = COLOR_DEPTH_101010;
+		break;
+	case 3: // 12 bits
+		requestColorDepth = COLOR_DEPTH_121212;
+		break;
+	default:
+		break;
+	}
+
+	if (requestColorDepth != COLOR_DEPTH_UNDEFINED
+			&& pipe_ctx->stream->timing.display_color_depth != requestColorDepth) {
+		pipe_ctx->stream->timing.display_color_depth = requestColorDepth;
+		dp_update_dsc_config(pipe_ctx);
+	}
 
 	dc_link_dp_set_test_pattern(
 			link,
