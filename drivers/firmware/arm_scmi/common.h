@@ -19,6 +19,8 @@
 
 #include <asm/unaligned.h>
 
+#include "notify.h"
+
 #define PROTOCOL_REV_MINOR_MASK	GENMASK(15, 0)
 #define PROTOCOL_REV_MAJOR_MASK	GENMASK(31, 16)
 #define PROTOCOL_REV_MAJOR(x)	(u16)(FIELD_GET(PROTOCOL_REV_MAJOR_MASK, (x)))
@@ -179,6 +181,11 @@ struct scmi_protocol_handle {
 	void *(*get_priv)(const struct scmi_protocol_handle *ph);
 };
 
+const struct scmi_protocol_handle *
+scmi_map_protocol_handle(const struct scmi_handle *handle, u8 prot_id);
+
+struct scmi_handle *scmi_map_scmi_handle(const struct scmi_protocol_handle *ph);
+
 /**
  * struct scmi_xfer_ops  - References to the core SCMI xfer operations.
  * @version_get: Get this version protocol.
@@ -217,6 +224,7 @@ void scmi_setup_protocol_implemented(const struct scmi_handle *handle,
 
 int scmi_base_protocol_init(struct scmi_handle *h);
 typedef int (*scmi_prot_init_fn_t)(struct scmi_handle *);
+typedef int (*scmi_prot_init_ph_fn_t)(const struct scmi_protocol_handle *);
 
 /**
  * struct scmi_protocol  - Protocol descriptor
@@ -231,8 +239,8 @@ typedef int (*scmi_prot_init_fn_t)(struct scmi_handle *);
 struct scmi_protocol {
 	const u8				id;
 	const scmi_prot_init_fn_t		init;
-	const scmi_prot_init_fn_t		instance_init;
-	const scmi_prot_init_fn_t		instance_deinit;
+	const scmi_prot_init_ph_fn_t		instance_init;
+	const scmi_prot_init_ph_fn_t		instance_deinit;
 	const void				*ops;
 	const struct scmi_protocol_events	*events;
 };

@@ -349,17 +349,52 @@ void scmi_rx_callback(struct scmi_chan_info *cinfo, u32 msg_hdr)
 	}
 }
 
-/**
- * scmi_xfer_put() - Release a transmit message
- *
- * @handle: Pointer to SCMI entity handle
- * @xfer: message that was reserved by scmi_xfer_get
- */
-void scmi_xfer_put(const struct scmi_handle *handle, struct scmi_xfer *xfer)
+/* Transient code wrapper to ease API migration */
+const struct scmi_protocol_handle *
+scmi_map_protocol_handle(const struct scmi_handle *handle, u8 prot_id)
 {
 	struct scmi_info *info = handle_to_scmi_info(handle);
+	const struct scmi_protocol_instance *pi;
+
+	mutex_lock(&info->protocols_mtx);
+	pi = idr_find(&info->protocols, prot_id);
+	mutex_unlock(&info->protocols_mtx);
+
+	return pi ? &pi->ph : NULL;
+}
+
+/* Transient code wrapper to ease API migration */
+struct scmi_handle *scmi_map_scmi_handle(const struct scmi_protocol_handle *ph)
+{
+	const struct scmi_protocol_instance *pi = ph_to_pi(ph);
+
+	return (struct scmi_handle *)pi->handle;
+}
+
+/**
+ * xfer_put() - Release a transmit message
+ *
+ * @ph: Pointer to SCMI protocol handle
+ * @xfer: message that was reserved by scmi_xfer_get
+ */
+static void xfer_put(const struct scmi_protocol_handle *ph,
+		     struct scmi_xfer *xfer)
+{
+	const struct scmi_protocol_instance *pi = ph_to_pi(ph);
+	struct scmi_info *info = handle_to_scmi_info(pi->handle);
 
 	__scmi_xfer_put(&info->tx_minfo, xfer);
+}
+
+void scmi_xfer_put(const struct scmi_handle *h, struct scmi_xfer *xfer)
+{
+	const struct scmi_protocol_handle *ph;
+
+	ph = scmi_map_protocol_handle(h, xfer->hdr.protocol_id);
+	if (!ph)
+		return;
+
+	return xfer_put(ph, xfer);
 }
 
 #define SCMI_MAX_POLL_TO_NS	(100 * NSEC_PER_USEC)
@@ -374,22 +409,31 @@ static bool scmi_xfer_done_no_timeout(struct scmi_chan_info *cinfo,
 }
 
 /**
- * scmi_do_xfer() - Do one transfer
+ * do_xfer() - Do one transfer
  *
- * @handle: Pointer to SCMI entity handle
+ * @ph: Pointer to SCMI protocol handle
  * @xfer: Transfer to initiate and wait for response
  *
  * Return: -ETIMEDOUT in case of no response, if transmit error,
  *	return corresponding error, else if all goes well,
  *	return 0.
  */
-int scmi_do_xfer(const struct scmi_handle *handle, struct scmi_xfer *xfer)
+static int do_xfer(const struct scmi_protocol_handle *ph,
+		   struct scmi_xfer *xfer)
 {
 	int ret;
 	int timeout;
-	struct scmi_info *info = handle_to_scmi_info(handle);
+	const struct scmi_protocol_instance *pi = ph_to_pi(ph);
+	struct scmi_info *info = handle_to_scmi_info(pi->handle);
 	struct device *dev = info->dev;
 	struct scmi_chan_info *cinfo;
+
+	/*
+	 * Re-instate protocol id here from protocol handle so that cannot be
+	 * overridden by mistake (or malice) by the protocol code mangling with
+	 * the scmi_xfer structure.
+	 */
+	xfer->hdr.protocol_id = pi->proto->id;
 
 	cinfo = idr_find(&info->tx_idr, xfer->hdr.protocol_id);
 	if (unlikely(!cinfo))
@@ -436,35 +480,62 @@ int scmi_do_xfer(const struct scmi_handle *handle, struct scmi_xfer *xfer)
 	return ret;
 }
 
+int scmi_do_xfer(const struct scmi_handle *h, struct scmi_xfer *xfer)
+{
+	const struct scmi_protocol_handle *ph;
+
+	ph = scmi_map_protocol_handle(h, xfer->hdr.protocol_id);
+	if (!ph)
+		return -EINVAL;
+
+	return do_xfer(ph, xfer);
+}
+
+static void reset_rx_to_maxsz(const struct scmi_protocol_handle *ph,
+			      struct scmi_xfer *xfer)
+{
+	const struct scmi_protocol_instance *pi = ph_to_pi(ph);
+	struct scmi_info *info = handle_to_scmi_info(pi->handle);
+
+	xfer->rx.len = info->desc->max_msg_size;
+}
+
 void scmi_reset_rx_to_maxsz(const struct scmi_handle *handle,
 			    struct scmi_xfer *xfer)
 {
-	struct scmi_info *info = handle_to_scmi_info(handle);
+	const struct scmi_protocol_handle *ph;
 
-	xfer->rx.len = info->desc->max_msg_size;
+	ph = scmi_map_protocol_handle(handle, xfer->hdr.protocol_id);
+	if (!ph)
+		return;
+
+	return reset_rx_to_maxsz(ph, xfer);
 }
 
 #define SCMI_MAX_RESPONSE_TIMEOUT	(2 * MSEC_PER_SEC)
 
 /**
- * scmi_do_xfer_with_response() - Do one transfer and wait until the delayed
+ * do_xfer_with_response() - Do one transfer and wait until the delayed
  *	response is received
  *
- * @handle: Pointer to SCMI entity handle
+ * @ph: Pointer to SCMI protocol handle
  * @xfer: Transfer to initiate and wait for response
  *
  * Return: -ETIMEDOUT in case of no delayed response, if transmit error,
  *	return corresponding error, else if all goes well, return 0.
  */
-int scmi_do_xfer_with_response(const struct scmi_handle *handle,
-			       struct scmi_xfer *xfer)
+static int do_xfer_with_response(const struct scmi_protocol_handle *ph,
+				 struct scmi_xfer *xfer)
 {
 	int ret, timeout = msecs_to_jiffies(SCMI_MAX_RESPONSE_TIMEOUT);
+	const struct scmi_protocol_instance *pi = ph_to_pi(ph);
 	DECLARE_COMPLETION_ONSTACK(async_response);
+
+	xfer->hdr.protocol_id = pi->proto->id;
 
 	xfer->async_done = &async_response;
 
-	ret = scmi_do_xfer(handle, xfer);
+	ret = do_xfer(ph, xfer);
 	if (!ret && !wait_for_completion_timeout(xfer->async_done, timeout))
 		ret = -ETIMEDOUT;
 
@@ -472,12 +543,23 @@ int scmi_do_xfer_with_response(const struct scmi_handle *handle,
 	return ret;
 }
 
+int scmi_do_xfer_with_response(const struct scmi_handle *h,
+			       struct scmi_xfer *xfer)
+{
+	const struct scmi_protocol_handle *ph;
+
+	ph = scmi_map_protocol_handle(h, xfer->hdr.protocol_id);
+	if (!ph)
+		return -EINVAL;
+
+	return do_xfer_with_response(ph, xfer);
+}
+
 /**
- * scmi_xfer_get_init() - Allocate and initialise one message for transmit
+ * xfer_get_init() - Allocate and initialise one message for transmit
  *
- * @handle: Pointer to SCMI entity handle
+ * @ph: Pointer to SCMI protocol handle
  * @msg_id: Message identifier
- * @prot_id: Protocol identifier for the message
  * @tx_size: transmit message size
  * @rx_size: receive message size
  * @p: pointer to the allocated and initialised message
@@ -488,12 +570,14 @@ int scmi_do_xfer_with_response(const struct scmi_handle *handle,
  * Return: 0 if all went fine with @p pointing to message, else
  *	corresponding error.
  */
-int scmi_xfer_get_init(const struct scmi_handle *handle, u8 msg_id, u8 prot_id,
-		       size_t tx_size, size_t rx_size, struct scmi_xfer **p)
+static int xfer_get_init(const struct scmi_protocol_handle *ph,
+			 u8 msg_id, size_t tx_size, size_t rx_size,
+			 struct scmi_xfer **p)
 {
 	int ret;
 	struct scmi_xfer *xfer;
-	struct scmi_info *info = handle_to_scmi_info(handle);
+	const struct scmi_protocol_instance *pi = ph_to_pi(ph);
+	struct scmi_info *info = handle_to_scmi_info(pi->handle);
 	struct scmi_xfers_info *minfo = &info->tx_minfo;
 	struct device *dev = info->dev;
 
@@ -502,7 +586,7 @@ int scmi_xfer_get_init(const struct scmi_handle *handle, u8 msg_id, u8 prot_id,
 	    tx_size > info->desc->max_msg_size)
 		return -ERANGE;
 
-	xfer = scmi_xfer_get(handle, minfo);
+	xfer = scmi_xfer_get(pi->handle, minfo);
 	if (IS_ERR(xfer)) {
 		ret = PTR_ERR(xfer);
 		dev_err(dev, "failed to get free message slot(%d)\n", ret);
@@ -512,7 +596,7 @@ int scmi_xfer_get_init(const struct scmi_handle *handle, u8 msg_id, u8 prot_id,
 	xfer->tx.len = tx_size;
 	xfer->rx.len = rx_size ? : info->desc->max_msg_size;
 	xfer->hdr.id = msg_id;
-	xfer->hdr.protocol_id = prot_id;
+	xfer->hdr.protocol_id = pi->proto->id;
 	xfer->hdr.poll_completion = false;
 
 	*p = xfer;
@@ -520,37 +604,57 @@ int scmi_xfer_get_init(const struct scmi_handle *handle, u8 msg_id, u8 prot_id,
 	return 0;
 }
 
+int scmi_xfer_get_init(const struct scmi_handle *h, u8 msg_id, u8 prot_id,
+		       size_t tx_size, size_t rx_size, struct scmi_xfer **p)
+{
+	const struct scmi_protocol_handle *ph;
+
+	ph = scmi_map_protocol_handle(h, prot_id);
+	if (!ph)
+		return -EINVAL;
+
+	return xfer_get_init(ph, msg_id, tx_size, rx_size, p);
+}
+
 /**
- * scmi_version_get() - command to get the revision of the SCMI entity
+ * version_get() - command to get the revision of the SCMI entity
  *
- * @handle: Pointer to SCMI entity handle
- * @protocol: Protocol identifier for the message
+ * @ph: Pointer to SCMI protocol handle
  * @version: Holds returned version of protocol.
  *
  * Updates the SCMI information in the internal data structure.
  *
  * Return: 0 if all went fine, else return appropriate error.
  */
-int scmi_version_get(const struct scmi_handle *handle, u8 protocol,
-		     u32 *version)
+static int version_get(const struct scmi_protocol_handle *ph, u32 *version)
 {
 	int ret;
 	__le32 *rev_info;
 	struct scmi_xfer *t;
 
-	ret = scmi_xfer_get_init(handle, PROTOCOL_VERSION, protocol, 0,
-				 sizeof(*version), &t);
+	ret = xfer_get_init(ph, PROTOCOL_VERSION, 0, sizeof(*version), &t);
 	if (ret)
 		return ret;
 
-	ret = scmi_do_xfer(handle, t);
+	ret = do_xfer(ph, t);
 	if (!ret) {
 		rev_info = t->rx.buf;
 		*version = le32_to_cpu(*rev_info);
 	}
 
-	scmi_xfer_put(handle, t);
+	xfer_put(ph, t);
 	return ret;
+}
+
+int scmi_version_get(const struct scmi_handle *h, u8 protocol, u32 *version)
+{
+	const struct scmi_protocol_handle *ph;
+
+	ph = scmi_map_protocol_handle(h, protocol);
+	if (!ph)
+		return -EINVAL;
+
+	return version_get(ph, version);
 }
 
 /**
@@ -584,6 +688,15 @@ static void *scmi_get_protocol_priv(const struct scmi_protocol_handle *ph)
 
 	return pi->priv;
 }
+
+static const struct scmi_xfer_ops xfer_ops = {
+	.version_get = version_get,
+	.xfer_get_init = xfer_get_init,
+	.reset_rx_to_maxsz = reset_rx_to_maxsz,
+	.do_xfer = do_xfer,
+	.do_xfer_with_response = do_xfer_with_response,
+	.xfer_put = xfer_put,
+};
 
 /**
  * scmi_alloc_init_protocol_instance  - Allocate and initialize a protocol
@@ -622,11 +735,12 @@ scmi_alloc_init_protocol_instance(struct scmi_info *info,
 	pi->proto = proto;
 	pi->handle = handle;
 	pi->ph.dev = handle->dev;
+	pi->ph.xops = &xfer_ops;
 	pi->ph.set_priv = scmi_set_protocol_priv;
 	pi->ph.get_priv = scmi_get_protocol_priv;
 	refcount_set(&pi->users, 1);
 	/* proto->init is assured NON NULL by scmi_protocol_register */
-	ret = pi->proto->instance_init(handle);
+	ret = pi->proto->instance_init(&pi->ph);
 	if (ret)
 		goto clean;
 
@@ -737,7 +851,7 @@ void scmi_protocol_release(struct scmi_handle *handle, u8 protocol_id)
 			scmi_deregister_protocol_events(handle, protocol_id);
 
 		if (pi->proto->instance_deinit)
-			pi->proto->instance_deinit(handle);
+			pi->proto->instance_deinit(&pi->ph);
 
 		idr_remove(&info->protocols, protocol_id);
 
