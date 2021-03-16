@@ -500,15 +500,6 @@ DEFINE_EVENT(dev_pm_qos_request, dev_pm_qos_remove_request,
 
 	TP_ARGS(name, type, new_value)
 );
-
-DECLARE_TRACE(sugov_util_update_tp,
-	TP_PROTO(unsigned int cpu, unsigned long util, unsigned long max_cap, unsigned int flags),
-	TP_ARGS(cpu, util, max_cap, flags));
-
-DECLARE_TRACE(sugov_next_freq_tp,
-	TP_PROTO(unsigned int cpu, unsigned long util, unsigned long max, unsigned int freq),
-	TP_ARGS(cpu, util, max, freq));
-
 #endif /* _TRACE_POWER_H */
 
 /* This part must be outside protection */

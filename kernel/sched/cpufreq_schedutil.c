@@ -171,8 +171,6 @@ static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 	else
 		freq = map_util_freq(util, freq, max);
 
-	trace_sugov_next_freq_tp(policy->cpu, util, max, freq);
-
 	if (freq == sg_policy->cached_raw_freq && !sg_policy->need_freq_update)
 		return sg_policy->next_freq;
 
@@ -464,9 +462,6 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 
 	util = sugov_get_util(sg_cpu);
 	max = sg_cpu->max;
-
-	trace_sugov_util_update_tp(sg_cpu->cpu, util, max, flags);
-
 	util = sugov_iowait_apply(sg_cpu, time, util, max);
 	next_f = get_next_freq(sg_policy, util, max);
 	/*
@@ -523,7 +518,6 @@ sugov_update_shared(struct update_util_data *hook, u64 time, unsigned int flags)
 {
 	struct sugov_cpu *sg_cpu = container_of(hook, struct sugov_cpu, update_util);
 	struct sugov_policy *sg_policy = sg_cpu->sg_policy;
-	unsigned long util = sugov_get_util(sg_cpu);
 	unsigned int next_f;
 
 	raw_spin_lock(&sg_policy->update_lock);
@@ -532,8 +526,6 @@ sugov_update_shared(struct update_util_data *hook, u64 time, unsigned int flags)
 	sg_cpu->last_update = time;
 
 	ignore_dl_rate_limit(sg_cpu, sg_policy);
-
-	trace_sugov_util_update_tp(sg_cpu->cpu, util, sg_cpu->max, flags);
 
 	if (sugov_should_update_freq(sg_policy, time)) {
 		next_f = sugov_next_freq_shared(sg_cpu, time);
