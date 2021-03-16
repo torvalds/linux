@@ -88,7 +88,6 @@ save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_regs);
 
-#ifdef CONFIG_HAVE_RELIABLE_STACKTRACE
 /*
  * This function returns an error if it detects any unreliable features of the
  * stack.  Otherwise it guarantees that the stack trace is reliable.
@@ -220,7 +219,6 @@ int save_stack_trace_tsk_reliable(struct task_struct *tsk,
 
 	return ret;
 }
-#endif /* CONFIG_HAVE_RELIABLE_STACKTRACE */
 
 #if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_NMI_IPI)
 static void handle_backtrace_ipi(struct pt_regs *regs)
