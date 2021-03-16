@@ -91,6 +91,7 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
+#include "common.h"
 #include "notify.h"
 
 #define SCMI_MAX_PROTO		256
@@ -368,7 +369,7 @@ static struct scmi_event_handler *
 scmi_get_active_handler(struct scmi_notify_instance *ni, u32 evt_key);
 static void scmi_put_active_handler(struct scmi_notify_instance *ni,
 				    struct scmi_event_handler *hndl);
-static void scmi_put_handler_unlocked(struct scmi_notify_instance *ni,
+static bool scmi_put_handler_unlocked(struct scmi_notify_instance *ni,
 				      struct scmi_event_handler *hndl);
 
 /**
@@ -900,9 +901,21 @@ static inline int scmi_bind_event_handler(struct scmi_notify_instance *ni,
 	if (!r_evt)
 		return -EINVAL;
 
-	/* Remove from pending and insert into registered */
+	/*
+	 * Remove from pending and insert into registered while getting hold
+	 * of protocol instance.
+	 */
 	hash_del(&hndl->hash);
+	/*
+	 * Acquire protocols only for NON pending handlers, so as NOT to trigger
+	 * protocol initialization when a notifier is registered against a still
+	 * not registered protocol, since it would make little sense to force init
+	 * protocols for which still no SCMI driver user exists: they wouldn't
+	 * emit any event anyway till some SCMI driver starts using it.
+	 */
+	scmi_protocol_acquire(ni->handle, KEY_XTRACT_PROTO_ID(hndl->key));
 	hndl->r_evt = r_evt;
+
 	mutex_lock(&r_evt->proto->registered_mtx);
 	hash_add(r_evt->proto->registered_events_handlers,
 		 &hndl->hash, hndl->key);
@@ -1193,41 +1206,65 @@ static int scmi_disable_events(struct scmi_event_handler *hndl)
  * * unregister and free the handler itself
  *
  * Context: Assumes all the proper locking has been managed by the caller.
+ *
+ * Return: True if handler was freed (users dropped to zero)
  */
-static void scmi_put_handler_unlocked(struct scmi_notify_instance *ni,
+static bool scmi_put_handler_unlocked(struct scmi_notify_instance *ni,
 				      struct scmi_event_handler *hndl)
 {
+	bool freed = false;
+
 	if (refcount_dec_and_test(&hndl->users)) {
 		if (!IS_HNDL_PENDING(hndl))
 			scmi_disable_events(hndl);
 		scmi_free_event_handler(hndl);
+		freed = true;
 	}
+
+	return freed;
 }
 
 static void scmi_put_handler(struct scmi_notify_instance *ni,
 			     struct scmi_event_handler *hndl)
 {
+	bool freed;
+	u8 protocol_id;
 	struct scmi_registered_event *r_evt = hndl->r_evt;
 
 	mutex_lock(&ni->pending_mtx);
-	if (r_evt)
+	if (r_evt) {
+		protocol_id = r_evt->proto->id;
 		mutex_lock(&r_evt->proto->registered_mtx);
+	}
 
-	scmi_put_handler_unlocked(ni, hndl);
+	freed = scmi_put_handler_unlocked(ni, hndl);
 
-	if (r_evt)
+	if (r_evt) {
 		mutex_unlock(&r_evt->proto->registered_mtx);
+		/*
+		 * Only registered handler acquired protocol; must be here
+		 * released only AFTER unlocking registered_mtx, since
+		 * releasing a protocol can trigger its de-initialization
+		 * (ie. including r_evt and registered_mtx)
+		 */
+		if (freed)
+			scmi_protocol_release(ni->handle, protocol_id);
+	}
 	mutex_unlock(&ni->pending_mtx);
 }
 
 static void scmi_put_active_handler(struct scmi_notify_instance *ni,
 				    struct scmi_event_handler *hndl)
 {
+	bool freed;
 	struct scmi_registered_event *r_evt = hndl->r_evt;
+	u8 protocol_id = r_evt->proto->id;
 
 	mutex_lock(&r_evt->proto->registered_mtx);
-	scmi_put_handler_unlocked(ni, hndl);
+	freed = scmi_put_handler_unlocked(ni, hndl);
 	mutex_unlock(&r_evt->proto->registered_mtx);
+	if (freed)
+		scmi_protocol_release(ni->handle, protocol_id);
 }
 
 /**
