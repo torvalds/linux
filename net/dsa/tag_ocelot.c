@@ -83,7 +83,6 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 	struct dsa_port *dp;
 	u8 *extraction;
 	u16 vlan_tpid;
-	u64 cpuq;
 
 	/* Revert skb->data by the amount consumed by the DSA master,
 	 * so it points to the beginning of the frame.
@@ -113,7 +112,6 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 	ocelot_xfh_get_qos_class(extraction, &qos_class);
 	ocelot_xfh_get_tag_type(extraction, &tag_type);
 	ocelot_xfh_get_vlan_tci(extraction, &vlan_tci);
-	ocelot_xfh_get_cpuq(extraction, &cpuq);
 
 	skb->dev = dsa_master_find_slave(netdev, 0, src_port);
 	if (!skb->dev)
@@ -127,12 +125,6 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 
 	skb->offload_fwd_mark = 1;
 	skb->priority = qos_class;
-
-#if IS_ENABLED(CONFIG_BRIDGE_MRP)
-	if (eth_hdr(skb)->h_proto == cpu_to_be16(ETH_P_MRP) &&
-	    cpuq & BIT(OCELOT_MRP_CPUQ))
-		skb->offload_fwd_mark = 0;
-#endif
 
 	/* Ocelot switches copy frames unmodified to the CPU. However, it is
 	 * possible for the user to request a VLAN modification through
