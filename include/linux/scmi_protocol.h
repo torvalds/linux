@@ -548,8 +548,8 @@ struct scmi_voltage_proto_ops {
  *				  the requested event
  * @devm_event_notifier_unregister: Managed unregistration of a notifier_block
  *				    for the requested event
- * @register_event_notifier: Register a notifier_block for the requested event
- * @unregister_event_notifier: Unregister a notifier_block for the requested
+ * @event_notifier_register: Register a notifier_block for the requested event
+ * @event_notifier_unregister: Unregister a notifier_block for the requested
  *			       event
  *
  * A user can register/unregister its own notifier_block against the wanted
@@ -590,11 +590,11 @@ struct scmi_notify_ops {
 					      u8 proto_id, u8 evt_id,
 					      const u32 *src_id,
 					      struct notifier_block *nb);
-	int (*register_event_notifier)(const struct scmi_handle *handle,
+	int (*event_notifier_register)(const struct scmi_handle *handle,
 				       u8 proto_id, u8 evt_id,
 				       const u32 *src_id,
 				       struct notifier_block *nb);
-	int (*unregister_event_notifier)(const struct scmi_handle *handle,
+	int (*event_notifier_unregister)(const struct scmi_handle *handle,
 					 u8 proto_id, u8 evt_id,
 					 const u32 *src_id,
 					 struct notifier_block *nb);
