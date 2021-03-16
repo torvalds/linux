@@ -28,6 +28,9 @@ void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
 {
 	unsigned long sp;
 
+	if (regs && !consume_entry(cookie, regs->nip))
+		return;
+
 	if (regs)
 		sp = regs->gpr[1];
 	else if (task == current)
