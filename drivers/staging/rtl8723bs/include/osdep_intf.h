@@ -35,12 +35,6 @@ The protection mechanism is through the pending queue.
 	struct mutex ioctl_mutex;
 };
 
-
-#ifdef CONFIG_R871X_TEST
-int rtw_start_pseudo_adhoc(struct adapter *padapter);
-int rtw_stop_pseudo_adhoc(struct adapter *padapter);
-#endif
-
 struct dvobj_priv *devobj_init(void);
 void devobj_deinit(struct dvobj_priv *pdvobj);
 
