@@ -464,7 +464,7 @@ struct scmi_sensor_ops {
 };
 
 /**
- * struct scmi_reset_ops - represents the various operations provided
+ * struct scmi_reset_proto_ops - represents the various operations provided
  *	by SCMI Reset Protocol
  *
  * @num_domains_get: get the count of reset domains provided by SCMI
@@ -474,6 +474,15 @@ struct scmi_sensor_ops {
  * @assert: explicitly assert reset signal of the specified reset domain
  * @deassert: explicitly deassert reset signal of the specified reset domain
  */
+struct scmi_reset_proto_ops {
+	int (*num_domains_get)(const struct scmi_protocol_handle *ph);
+	char *(*name_get)(const struct scmi_protocol_handle *ph, u32 domain);
+	int (*latency_get)(const struct scmi_protocol_handle *ph, u32 domain);
+	int (*reset)(const struct scmi_protocol_handle *ph, u32 domain);
+	int (*assert)(const struct scmi_protocol_handle *ph, u32 domain);
+	int (*deassert)(const struct scmi_protocol_handle *ph, u32 domain);
+};
+
 struct scmi_reset_ops {
 	int (*num_domains_get)(const struct scmi_handle *handle);
 	char *(*name_get)(const struct scmi_handle *handle, u32 domain);
@@ -614,8 +623,6 @@ struct scmi_notify_ops {
  * @notify_ops: pointer to set of notifications related operations
  * @sensor_priv: pointer to private data structure specific to sensors
  *	protocol(for internal use only)
- * @reset_priv: pointer to private data structure specific to reset
- *	protocol(for internal use only)
  * @voltage_priv: pointer to private data structure specific to voltage
  *	protocol(for internal use only)
  * @notify_priv: pointer to private data structure specific to notifications
@@ -636,7 +643,6 @@ struct scmi_handle {
 	const struct scmi_notify_ops *notify_ops;
 	/* for protocol internal use */
 	void *sensor_priv;
-	void *reset_priv;
 	void *voltage_priv;
 	void *notify_priv;
 	void *system_priv;

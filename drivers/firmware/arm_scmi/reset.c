@@ -64,46 +64,45 @@ struct scmi_reset_info {
 	struct reset_dom_info *dom_info;
 };
 
-static int scmi_reset_attributes_get(const struct scmi_handle *handle,
+static int scmi_reset_attributes_get(const struct scmi_protocol_handle *ph,
 				     struct scmi_reset_info *pi)
 {
 	int ret;
 	struct scmi_xfer *t;
 	u32 attr;
 
-	ret = scmi_xfer_get_init(handle, PROTOCOL_ATTRIBUTES,
-				 SCMI_PROTOCOL_RESET, 0, sizeof(attr), &t);
+	ret = ph->xops->xfer_get_init(ph, PROTOCOL_ATTRIBUTES,
+				      0, sizeof(attr), &t);
 	if (ret)
 		return ret;
 
-	ret = scmi_do_xfer(handle, t);
+	ret = ph->xops->do_xfer(ph, t);
 	if (!ret) {
 		attr = get_unaligned_le32(t->rx.buf);
 		pi->num_domains = attr & NUM_RESET_DOMAIN_MASK;
 	}
 
-	scmi_xfer_put(handle, t);
+	ph->xops->xfer_put(ph, t);
 	return ret;
 }
 
 static int
-scmi_reset_domain_attributes_get(const struct scmi_handle *handle, u32 domain,
-				 struct reset_dom_info *dom_info)
+scmi_reset_domain_attributes_get(const struct scmi_protocol_handle *ph,
+				 u32 domain, struct reset_dom_info *dom_info)
 {
 	int ret;
 	struct scmi_xfer *t;
 	struct scmi_msg_resp_reset_domain_attributes *attr;
 
-	ret = scmi_xfer_get_init(handle, RESET_DOMAIN_ATTRIBUTES,
-				 SCMI_PROTOCOL_RESET, sizeof(domain),
-				 sizeof(*attr), &t);
+	ret = ph->xops->xfer_get_init(ph, RESET_DOMAIN_ATTRIBUTES,
+				      sizeof(domain), sizeof(*attr), &t);
 	if (ret)
 		return ret;
 
 	put_unaligned_le32(domain, t->tx.buf);
 	attr = t->rx.buf;
 
-	ret = scmi_do_xfer(handle, t);
+	ret = ph->xops->do_xfer(ph, t);
 	if (!ret) {
 		u32 attributes = le32_to_cpu(attr->attributes);
 
@@ -115,47 +114,75 @@ scmi_reset_domain_attributes_get(const struct scmi_handle *handle, u32 domain,
 		strlcpy(dom_info->name, attr->name, SCMI_MAX_STR_SIZE);
 	}
 
-	scmi_xfer_put(handle, t);
+	ph->xops->xfer_put(ph, t);
 	return ret;
 }
 
-static int scmi_reset_num_domains_get(const struct scmi_handle *handle)
+static int scmi_reset_num_domains_get(const struct scmi_protocol_handle *ph)
 {
-	struct scmi_reset_info *pi = handle->reset_priv;
+	struct scmi_reset_info *pi = ph->get_priv(ph);
 
 	return pi->num_domains;
 }
 
-static char *scmi_reset_name_get(const struct scmi_handle *handle, u32 domain)
+static int __scmi_reset_num_domains_get(const struct scmi_handle *handle)
 {
-	struct scmi_reset_info *pi = handle->reset_priv;
+	const struct scmi_protocol_handle *ph =
+		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_RESET);
+
+	return scmi_reset_num_domains_get(ph);
+}
+
+static char *scmi_reset_name_get(const struct scmi_protocol_handle *ph,
+				 u32 domain)
+{
+	struct scmi_reset_info *pi = ph->get_priv(ph);
+
 	struct reset_dom_info *dom = pi->dom_info + domain;
 
 	return dom->name;
 }
 
-static int scmi_reset_latency_get(const struct scmi_handle *handle, u32 domain)
+static char *__scmi_reset_name_get(const struct scmi_handle *handle,
+				   u32 domain)
 {
-	struct scmi_reset_info *pi = handle->reset_priv;
+	const struct scmi_protocol_handle *ph =
+		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_RESET);
+
+	return scmi_reset_name_get(ph, domain);
+}
+
+static int scmi_reset_latency_get(const struct scmi_protocol_handle *ph,
+				  u32 domain)
+{
+	struct scmi_reset_info *pi = ph->get_priv(ph);
 	struct reset_dom_info *dom = pi->dom_info + domain;
 
 	return dom->latency_us;
 }
 
-static int scmi_domain_reset(const struct scmi_handle *handle, u32 domain,
+static int __scmi_reset_latency_get(const struct scmi_handle *handle,
+				    u32 domain)
+{
+	const struct scmi_protocol_handle *ph =
+		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_RESET);
+
+	return scmi_reset_latency_get(ph, domain);
+}
+
+static int scmi_domain_reset(const struct scmi_protocol_handle *ph, u32 domain,
 			     u32 flags, u32 state)
 {
 	int ret;
 	struct scmi_xfer *t;
 	struct scmi_msg_reset_domain_reset *dom;
-	struct scmi_reset_info *pi = handle->reset_priv;
+	struct scmi_reset_info *pi = ph->get_priv(ph);
 	struct reset_dom_info *rdom = pi->dom_info + domain;
 
 	if (rdom->async_reset)
 		flags |= ASYNCHRONOUS_RESET;
 
-	ret = scmi_xfer_get_init(handle, RESET, SCMI_PROTOCOL_RESET,
-				 sizeof(*dom), 0, &t);
+	ret = ph->xops->xfer_get_init(ph, RESET, sizeof(*dom), 0, &t);
 	if (ret)
 		return ret;
 
@@ -165,34 +192,71 @@ static int scmi_domain_reset(const struct scmi_handle *handle, u32 domain,
 	dom->reset_state = cpu_to_le32(state);
 
 	if (rdom->async_reset)
-		ret = scmi_do_xfer_with_response(handle, t);
+		ret = ph->xops->do_xfer_with_response(ph, t);
 	else
-		ret = scmi_do_xfer(handle, t);
+		ret = ph->xops->do_xfer(ph, t);
 
-	scmi_xfer_put(handle, t);
+	ph->xops->xfer_put(ph, t);
 	return ret;
 }
 
-static int scmi_reset_domain_reset(const struct scmi_handle *handle, u32 domain)
+static int scmi_reset_domain_reset(const struct scmi_protocol_handle *ph,
+				   u32 domain)
 {
-	return scmi_domain_reset(handle, domain, AUTONOMOUS_RESET,
+	return scmi_domain_reset(ph, domain, AUTONOMOUS_RESET,
+				 ARCH_COLD_RESET);
+}
+
+static int __scmi_reset_domain_reset(const struct scmi_handle *handle,
+				     u32 domain)
+{
+	const struct scmi_protocol_handle *ph =
+		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_RESET);
+
+	return scmi_reset_domain_reset(ph, domain);
+}
+
+static int
+scmi_reset_domain_assert(const struct scmi_protocol_handle *ph, u32 domain)
+{
+	return scmi_domain_reset(ph, domain, EXPLICIT_RESET_ASSERT,
 				 ARCH_COLD_RESET);
 }
 
 static int
-scmi_reset_domain_assert(const struct scmi_handle *handle, u32 domain)
+__scmi_reset_domain_assert(const struct scmi_handle *handle, u32 domain)
 {
-	return scmi_domain_reset(handle, domain, EXPLICIT_RESET_ASSERT,
-				 ARCH_COLD_RESET);
+	const struct scmi_protocol_handle *ph =
+		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_RESET);
+
+	return scmi_reset_domain_assert(ph, domain);
 }
 
 static int
-scmi_reset_domain_deassert(const struct scmi_handle *handle, u32 domain)
+scmi_reset_domain_deassert(const struct scmi_protocol_handle *ph, u32 domain)
 {
-	return scmi_domain_reset(handle, domain, 0, ARCH_COLD_RESET);
+	return scmi_domain_reset(ph, domain, 0, ARCH_COLD_RESET);
+}
+
+static int
+__scmi_reset_domain_deassert(const struct scmi_handle *handle, u32 domain)
+{
+	const struct scmi_protocol_handle *ph =
+		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_RESET);
+
+	return scmi_reset_domain_deassert(ph, domain);
 }
 
 static const struct scmi_reset_ops reset_ops = {
+	.num_domains_get = __scmi_reset_num_domains_get,
+	.name_get = __scmi_reset_name_get,
+	.latency_get = __scmi_reset_latency_get,
+	.reset = __scmi_reset_domain_reset,
+	.assert = __scmi_reset_domain_assert,
+	.deassert = __scmi_reset_domain_deassert,
+};
+
+static const struct scmi_reset_proto_ops reset_proto_ops = {
 	.num_domains_get = scmi_reset_num_domains_get,
 	.name_get = scmi_reset_name_get,
 	.latency_get = scmi_reset_latency_get,
@@ -201,16 +265,15 @@ static const struct scmi_reset_ops reset_ops = {
 	.deassert = scmi_reset_domain_deassert,
 };
 
-static int scmi_reset_notify(const struct scmi_handle *handle, u32 domain_id,
-			     bool enable)
+static int scmi_reset_notify(const struct scmi_protocol_handle *ph,
+			     u32 domain_id, bool enable)
 {
 	int ret;
 	u32 evt_cntl = enable ? RESET_TP_NOTIFY_ALL : 0;
 	struct scmi_xfer *t;
 	struct scmi_msg_reset_notify *cfg;
 
-	ret = scmi_xfer_get_init(handle, RESET_NOTIFY,
-				 SCMI_PROTOCOL_RESET, sizeof(*cfg), 0, &t);
+	ret = ph->xops->xfer_get_init(ph, RESET_NOTIFY, sizeof(*cfg), 0, &t);
 	if (ret)
 		return ret;
 
@@ -218,18 +281,18 @@ static int scmi_reset_notify(const struct scmi_handle *handle, u32 domain_id,
 	cfg->id = cpu_to_le32(domain_id);
 	cfg->event_control = cpu_to_le32(evt_cntl);
 
-	ret = scmi_do_xfer(handle, t);
+	ret = ph->xops->do_xfer(ph, t);
 
-	scmi_xfer_put(handle, t);
+	ph->xops->xfer_put(ph, t);
 	return ret;
 }
 
-static int scmi_reset_set_notify_enabled(const void *handle,
+static int scmi_reset_set_notify_enabled(const void *ph,
 					 u8 evt_id, u32 src_id, bool enable)
 {
 	int ret;
 
-	ret = scmi_reset_notify(handle, src_id, enable);
+	ret = scmi_reset_notify(ph, src_id, enable);
 	if (ret)
 		pr_debug("FAIL_ENABLED - evt[%X] dom[%d] - ret:%d\n",
 			 evt_id, src_id, ret);
@@ -237,7 +300,7 @@ static int scmi_reset_set_notify_enabled(const void *handle,
 	return ret;
 }
 
-static void *scmi_reset_fill_custom_report(const void *handle,
+static void *scmi_reset_fill_custom_report(const void *ph,
 					   u8 evt_id, ktime_t timestamp,
 					   const void *payld, size_t payld_sz,
 					   void *report, u32 *src_id)
@@ -257,10 +320,10 @@ static void *scmi_reset_fill_custom_report(const void *handle,
 	return r;
 }
 
-static int scmi_reset_get_num_sources(const void *handle)
+static int scmi_reset_get_num_sources(const void *ph)
 {
 	struct scmi_reset_info *pinfo =
-		((const struct scmi_handle *)(handle))->reset_priv;
+		((const struct scmi_protocol_handle *)ph)->get_priv(ph);
 
 	if (!pinfo)
 		return -EINVAL;
@@ -289,24 +352,25 @@ static const struct scmi_protocol_events reset_protocol_events = {
 	.num_events = ARRAY_SIZE(reset_events),
 };
 
-static int scmi_reset_protocol_init(struct scmi_handle *handle)
+static int scmi_reset_protocol_init(const struct scmi_protocol_handle *ph)
 {
 	int domain;
 	u32 version;
 	struct scmi_reset_info *pinfo;
+	struct scmi_handle *handle;
 
-	scmi_version_get(handle, SCMI_PROTOCOL_RESET, &version);
+	ph->xops->version_get(ph, &version);
 
-	dev_dbg(handle->dev, "Reset Version %d.%d\n",
+	dev_dbg(ph->dev, "Reset Version %d.%d\n",
 		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
 
-	pinfo = devm_kzalloc(handle->dev, sizeof(*pinfo), GFP_KERNEL);
+	pinfo = devm_kzalloc(ph->dev, sizeof(*pinfo), GFP_KERNEL);
 	if (!pinfo)
 		return -ENOMEM;
 
-	scmi_reset_attributes_get(handle, pinfo);
+	scmi_reset_attributes_get(ph, pinfo);
 
-	pinfo->dom_info = devm_kcalloc(handle->dev, pinfo->num_domains,
+	pinfo->dom_info = devm_kcalloc(ph->dev, pinfo->num_domains,
 				       sizeof(*pinfo->dom_info), GFP_KERNEL);
 	if (!pinfo->dom_info)
 		return -ENOMEM;
@@ -314,20 +378,22 @@ static int scmi_reset_protocol_init(struct scmi_handle *handle)
 	for (domain = 0; domain < pinfo->num_domains; domain++) {
 		struct reset_dom_info *dom = pinfo->dom_info + domain;
 
-		scmi_reset_domain_attributes_get(handle, domain, dom);
+		scmi_reset_domain_attributes_get(ph, domain, dom);
 	}
 
 	pinfo->version = version;
-	handle->reset_ops = &reset_ops;
-	handle->reset_priv = pinfo;
 
-	return 0;
+	/* Transient code for legacy ops interface */
+	handle = scmi_map_scmi_handle(ph);
+	handle->reset_ops = &reset_ops;
+
+	return ph->set_priv(ph, pinfo);
 }
 
 static const struct scmi_protocol scmi_reset = {
 	.id = SCMI_PROTOCOL_RESET,
-	.init = &scmi_reset_protocol_init,
-	.ops = &reset_ops,
+	.instance_init = &scmi_reset_protocol_init,
+	.ops = &reset_proto_ops,
 	.events = &reset_protocol_events,
 };
 
