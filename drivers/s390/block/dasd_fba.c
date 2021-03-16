@@ -64,6 +64,7 @@ static struct ccw_driver dasd_fba_driver = {
 	.driver = {
 		.name	= "dasd-fba",
 		.owner	= THIS_MODULE,
+		.dev_groups = dasd_dev_groups,
 	},
 	.ids         = dasd_fba_ids,
 	.probe       = dasd_generic_probe,
