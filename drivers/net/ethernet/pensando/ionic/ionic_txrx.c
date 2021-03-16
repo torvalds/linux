@@ -605,11 +605,13 @@ static dma_addr_t ionic_tx_map_frag(struct ionic_queue *q,
 	return dma_addr;
 }
 
-static int ionic_tx_map_tso(struct ionic_queue *q, struct sk_buff *skb,
-			    struct ionic_buf_info *buf_info)
+static int ionic_tx_map_skb(struct ionic_queue *q, struct sk_buff *skb,
+			    struct ionic_desc_info *desc_info)
 {
+	struct ionic_buf_info *buf_info = desc_info->bufs;
 	struct device *dev = q->dev;
 	dma_addr_t dma_addr;
+	unsigned int nfrags;
 	skb_frag_t *frag;
 	int frag_idx;
 
@@ -620,14 +622,18 @@ static int ionic_tx_map_tso(struct ionic_queue *q, struct sk_buff *skb,
 	buf_info->len = skb_headlen(skb);
 	buf_info++;
 
-	for (frag_idx = 0; frag_idx < skb_shinfo(skb)->nr_frags; frag_idx++, buf_info++) {
-		frag = &skb_shinfo(skb)->frags[frag_idx];
+	frag = skb_shinfo(skb)->frags;
+	nfrags = skb_shinfo(skb)->nr_frags;
+	for (frag_idx = 0; frag_idx < nfrags; frag_idx++, frag++) {
 		dma_addr = ionic_tx_map_frag(q, frag, 0, skb_frag_size(frag));
 		if (dma_mapping_error(dev, dma_addr))
 			goto dma_fail;
 		buf_info->dma_addr = dma_addr;
 		buf_info->len = skb_frag_size(frag);
+		buf_info++;
 	}
+
+	desc_info->nbufs = 1 + nfrags;
 
 	return 0;
 
@@ -814,40 +820,29 @@ static void ionic_tx_tso_post(struct ionic_queue *q, struct ionic_txq_desc *desc
 	desc->hdr_len = cpu_to_le16(hdrlen);
 	desc->mss = cpu_to_le16(mss);
 
-	if (done) {
+	if (start) {
 		skb_tx_timestamp(skb);
 		netdev_tx_sent_queue(q_to_ndq(q), skb->len);
-		ionic_txq_post(q, !netdev_xmit_more(), ionic_tx_clean, skb);
+		ionic_txq_post(q, false, ionic_tx_clean, skb);
 	} else {
-		ionic_txq_post(q, false, ionic_tx_clean, NULL);
+		ionic_txq_post(q, done, NULL, NULL);
 	}
-}
-
-static struct ionic_txq_desc *ionic_tx_tso_next(struct ionic_queue *q,
-						struct ionic_txq_sg_elem **elem)
-{
-	struct ionic_txq_sg_desc *sg_desc = q->info[q->head_idx].txq_sg_desc;
-	struct ionic_txq_desc *desc = q->info[q->head_idx].txq_desc;
-
-	*elem = sg_desc->elems;
-	return desc;
 }
 
 static int ionic_tx_tso(struct ionic_queue *q, struct sk_buff *skb)
 {
-	struct ionic_buf_info buf_info[IONIC_MAX_FRAGS] = {{0}};
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
+	struct ionic_desc_info *desc_info;
+	struct ionic_buf_info *buf_info;
 	struct ionic_txq_sg_elem *elem;
 	struct ionic_txq_desc *desc;
 	unsigned int chunk_len;
 	unsigned int frag_rem;
-	unsigned int frag_idx;
 	unsigned int tso_rem;
 	unsigned int seg_rem;
 	dma_addr_t desc_addr;
 	dma_addr_t frag_addr;
 	unsigned int hdrlen;
-	unsigned int nfrags;
 	unsigned int len;
 	unsigned int mss;
 	bool start, done;
@@ -859,12 +854,14 @@ static int ionic_tx_tso(struct ionic_queue *q, struct sk_buff *skb)
 	bool encap;
 	int err;
 
-	if (unlikely(ionic_tx_map_tso(q, skb, buf_info)))
+	desc_info = &q->info[q->head_idx];
+	buf_info = desc_info->bufs;
+
+	if (unlikely(ionic_tx_map_skb(q, skb, desc_info)))
 		return -EIO;
 
 	len = skb->len;
 	mss = skb_shinfo(skb)->gso_size;
-	nfrags = skb_shinfo(skb)->nr_frags;
 	outer_csum = (skb_shinfo(skb)->gso_type & SKB_GSO_GRE_CSUM) ||
 		     (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_TUNNEL_CSUM);
 	has_vlan = !!skb_vlan_tag_present(skb);
@@ -892,7 +889,6 @@ static int ionic_tx_tso(struct ionic_queue *q, struct sk_buff *skb)
 	tso_rem = len;
 	seg_rem = min(tso_rem, hdrlen + mss);
 
-	frag_idx = 0;
 	frag_addr = 0;
 	frag_rem = 0;
 
@@ -904,19 +900,20 @@ static int ionic_tx_tso(struct ionic_queue *q, struct sk_buff *skb)
 		desc_addr = 0;
 		desc_len = 0;
 		desc_nsge = 0;
-		/* loop until a full tcp segment can be created */
+		/* use fragments until we have enough to post a single descriptor */
 		while (seg_rem > 0) {
-			/* if the fragment is exhausted get the next one */
+			/* if the fragment is exhausted then move to the next one */
 			if (frag_rem == 0) {
 				/* grab the next fragment */
-				frag_addr = buf_info[frag_idx].dma_addr;
-				frag_rem = buf_info[frag_idx].len;
-				frag_idx++;
+				frag_addr = buf_info->dma_addr;
+				frag_rem = buf_info->len;
+				buf_info++;
 			}
 			chunk_len = min(frag_rem, seg_rem);
 			if (!desc) {
 				/* fill main descriptor */
-				desc = ionic_tx_tso_next(q, &elem);
+				desc = desc_info->txq_desc;
+				elem = desc_info->txq_sg_desc->elems;
 				desc_addr = frag_addr;
 				desc_len = chunk_len;
 			} else {
@@ -933,16 +930,15 @@ static int ionic_tx_tso(struct ionic_queue *q, struct sk_buff *skb)
 		}
 		seg_rem = min(tso_rem, mss);
 		done = (tso_rem == 0);
-		if (done) {
-			memcpy(&q->info[q->head_idx].bufs, buf_info, sizeof(buf_info));
-			q->info[q->head_idx].nbufs = nfrags + 1;
-		}
 		/* post descriptor */
 		ionic_tx_tso_post(q, desc, skb,
 				  desc_addr, desc_nsge, desc_len,
 				  hdrlen, mss, outer_csum, vlan_tci, has_vlan,
 				  start, done);
 		start = false;
+		/* Buffer information is stored with the first tso descriptor */
+		desc_info = &q->info[q->head_idx];
+		desc_info->nbufs = 0;
 	}
 
 	stats->pkts += DIV_ROUND_UP(len - hdrlen, mss);
@@ -953,12 +949,12 @@ static int ionic_tx_tso(struct ionic_queue *q, struct sk_buff *skb)
 	return 0;
 }
 
-static int ionic_tx_calc_csum(struct ionic_queue *q, struct sk_buff *skb)
+static int ionic_tx_calc_csum(struct ionic_queue *q, struct sk_buff *skb,
+			      struct ionic_desc_info *desc_info)
 {
-	struct ionic_txq_desc *desc = q->info[q->head_idx].txq_desc;
+	struct ionic_txq_desc *desc = desc_info->txq_desc;
+	struct ionic_buf_info *buf_info = desc_info->bufs;
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
-	struct device *dev = q->dev;
-	dma_addr_t dma_addr;
 	bool has_vlan;
 	u8 flags = 0;
 	bool encap;
@@ -967,23 +963,22 @@ static int ionic_tx_calc_csum(struct ionic_queue *q, struct sk_buff *skb)
 	has_vlan = !!skb_vlan_tag_present(skb);
 	encap = skb->encapsulation;
 
-	dma_addr = ionic_tx_map_single(q, skb->data, skb_headlen(skb));
-	if (dma_mapping_error(dev, dma_addr))
-		return -ENOMEM;
-
 	flags |= has_vlan ? IONIC_TXQ_DESC_FLAG_VLAN : 0;
 	flags |= encap ? IONIC_TXQ_DESC_FLAG_ENCAP : 0;
 
 	cmd = encode_txq_desc_cmd(IONIC_TXQ_DESC_OPCODE_CSUM_PARTIAL,
-				  flags, skb_shinfo(skb)->nr_frags, dma_addr);
+				  flags, skb_shinfo(skb)->nr_frags,
+				  buf_info->dma_addr);
 	desc->cmd = cpu_to_le64(cmd);
-	desc->len = cpu_to_le16(skb_headlen(skb));
-	desc->csum_start = cpu_to_le16(skb_checksum_start_offset(skb));
-	desc->csum_offset = cpu_to_le16(skb->csum_offset);
+	desc->len = cpu_to_le16(buf_info->len);
 	if (has_vlan) {
 		desc->vlan_tci = cpu_to_le16(skb_vlan_tag_get(skb));
 		stats->vlan_inserted++;
+	} else {
+		desc->vlan_tci = 0;
 	}
+	desc->csum_start = cpu_to_le16(skb_checksum_start_offset(skb));
+	desc->csum_offset = cpu_to_le16(skb->csum_offset);
 
 	if (skb_csum_is_sctp(skb))
 		stats->crc32_csum++;
@@ -993,12 +988,12 @@ static int ionic_tx_calc_csum(struct ionic_queue *q, struct sk_buff *skb)
 	return 0;
 }
 
-static int ionic_tx_calc_no_csum(struct ionic_queue *q, struct sk_buff *skb)
+static int ionic_tx_calc_no_csum(struct ionic_queue *q, struct sk_buff *skb,
+				 struct ionic_desc_info *desc_info)
 {
-	struct ionic_txq_desc *desc = q->info[q->head_idx].txq_desc;
+	struct ionic_txq_desc *desc = desc_info->txq_desc;
+	struct ionic_buf_info *buf_info = desc_info->bufs;
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
-	struct device *dev = q->dev;
-	dma_addr_t dma_addr;
 	bool has_vlan;
 	u8 flags = 0;
 	bool encap;
@@ -1007,67 +1002,66 @@ static int ionic_tx_calc_no_csum(struct ionic_queue *q, struct sk_buff *skb)
 	has_vlan = !!skb_vlan_tag_present(skb);
 	encap = skb->encapsulation;
 
-	dma_addr = ionic_tx_map_single(q, skb->data, skb_headlen(skb));
-	if (dma_mapping_error(dev, dma_addr))
-		return -ENOMEM;
-
 	flags |= has_vlan ? IONIC_TXQ_DESC_FLAG_VLAN : 0;
 	flags |= encap ? IONIC_TXQ_DESC_FLAG_ENCAP : 0;
 
 	cmd = encode_txq_desc_cmd(IONIC_TXQ_DESC_OPCODE_CSUM_NONE,
-				  flags, skb_shinfo(skb)->nr_frags, dma_addr);
+				  flags, skb_shinfo(skb)->nr_frags,
+				  buf_info->dma_addr);
 	desc->cmd = cpu_to_le64(cmd);
-	desc->len = cpu_to_le16(skb_headlen(skb));
+	desc->len = cpu_to_le16(buf_info->len);
 	if (has_vlan) {
 		desc->vlan_tci = cpu_to_le16(skb_vlan_tag_get(skb));
 		stats->vlan_inserted++;
+	} else {
+		desc->vlan_tci = 0;
 	}
+	desc->csum_start = 0;
+	desc->csum_offset = 0;
 
 	stats->csum_none++;
 
 	return 0;
 }
 
-static int ionic_tx_skb_frags(struct ionic_queue *q, struct sk_buff *skb)
+static int ionic_tx_skb_frags(struct ionic_queue *q, struct sk_buff *skb,
+			      struct ionic_desc_info *desc_info)
 {
-	struct ionic_txq_sg_desc *sg_desc = q->info[q->head_idx].txq_sg_desc;
-	unsigned int len_left = skb->len - skb_headlen(skb);
+	struct ionic_txq_sg_desc *sg_desc = desc_info->txq_sg_desc;
+	struct ionic_buf_info *buf_info = &desc_info->bufs[1];
 	struct ionic_txq_sg_elem *elem = sg_desc->elems;
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
-	struct device *dev = q->dev;
-	dma_addr_t dma_addr;
-	skb_frag_t *frag;
-	u16 len;
+	unsigned int i;
 
-	for (frag = skb_shinfo(skb)->frags; len_left; frag++, elem++) {
-		len = skb_frag_size(frag);
-		elem->len = cpu_to_le16(len);
-		dma_addr = ionic_tx_map_frag(q, frag, 0, len);
-		if (dma_mapping_error(dev, dma_addr))
-			return -ENOMEM;
-		elem->addr = cpu_to_le64(dma_addr);
-		len_left -= len;
-		stats->frags++;
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++, buf_info++, elem++) {
+		elem->addr = cpu_to_le64(buf_info->dma_addr);
+		elem->len = cpu_to_le16(buf_info->len);
 	}
+
+	stats->frags += skb_shinfo(skb)->nr_frags;
 
 	return 0;
 }
 
 static int ionic_tx(struct ionic_queue *q, struct sk_buff *skb)
 {
+	struct ionic_desc_info *desc_info = &q->info[q->head_idx];
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
 	int err;
 
+	if (unlikely(ionic_tx_map_skb(q, skb, desc_info)))
+		return -EIO;
+
 	/* set up the initial descriptor */
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		err = ionic_tx_calc_csum(q, skb);
+		err = ionic_tx_calc_csum(q, skb, desc_info);
 	else
-		err = ionic_tx_calc_no_csum(q, skb);
+		err = ionic_tx_calc_no_csum(q, skb, desc_info);
 	if (err)
 		return err;
 
 	/* add frags */
-	err = ionic_tx_skb_frags(q, skb);
+	err = ionic_tx_skb_frags(q, skb, desc_info);
 	if (err)
 		return err;
 
