@@ -3864,6 +3864,7 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 		retval = ext4_mark_inode_dirty(handle, whiteout);
 		if (unlikely(retval))
 			goto end_rename;
+
 	}
 	if (!new.bh) {
 		retval = ext4_add_entry(handle, new.dentry, old.inode);
@@ -3937,6 +3938,8 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 			ext4_fc_track_unlink(handle, new.dentry);
 		__ext4_fc_track_link(handle, old.inode, new.dentry);
 		__ext4_fc_track_unlink(handle, old.inode, old.dentry);
+		if (whiteout)
+			__ext4_fc_track_create(handle, whiteout, old.dentry);
 	}
 
 	if (new.inode) {
