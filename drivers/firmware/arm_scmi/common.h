@@ -309,6 +309,11 @@ struct scmi_transport_ops {
 	bool (*poll_done)(struct scmi_chan_info *cinfo, struct scmi_xfer *xfer);
 };
 
+int scmi_protocol_device_request(const struct scmi_device_id *id_table);
+void scmi_protocol_device_unrequest(const struct scmi_device_id *id_table);
+struct scmi_device *scmi_child_dev_find(struct device *parent,
+					int prot_id, const char *name);
+
 /**
  * struct scmi_desc - Description of SoC integration
  *

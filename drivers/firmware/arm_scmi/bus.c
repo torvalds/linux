@@ -51,6 +51,31 @@ static int scmi_dev_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
+static int scmi_match_by_id_table(struct device *dev, void *data)
+{
+	struct scmi_device *sdev = to_scmi_dev(dev);
+	struct scmi_device_id *id_table = data;
+
+	return sdev->protocol_id == id_table->protocol_id &&
+		!strcmp(sdev->name, id_table->name);
+}
+
+struct scmi_device *scmi_child_dev_find(struct device *parent,
+					int prot_id, const char *name)
+{
+	struct scmi_device_id id_table;
+	struct device *dev;
+
+	id_table.protocol_id = prot_id;
+	id_table.name = name;
+
+	dev = device_find_child(parent, &id_table, scmi_match_by_id_table);
+	if (!dev)
+		return NULL;
+
+	return to_scmi_dev(dev);
+}
+
 const struct scmi_protocol *scmi_protocol_get(int protocol_id)
 {
 	const struct scmi_protocol *proto;
@@ -114,6 +139,10 @@ int scmi_driver_register(struct scmi_driver *driver, struct module *owner,
 {
 	int retval;
 
+	retval = scmi_protocol_device_request(driver->id_table);
+	if (retval)
+		return retval;
+
 	driver->driver.bus = &scmi_bus_type;
 	driver->driver.name = driver->name;
 	driver->driver.owner = owner;
@@ -130,6 +159,7 @@ EXPORT_SYMBOL_GPL(scmi_driver_register);
 void scmi_driver_unregister(struct scmi_driver *driver)
 {
 	driver_unregister(&driver->driver);
+	scmi_protocol_device_unrequest(driver->id_table);
 }
 EXPORT_SYMBOL_GPL(scmi_driver_unregister);
 
