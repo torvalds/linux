@@ -937,12 +937,6 @@ storage_fault_common:
 	ld	r14,PACA_EXGEN+EX_R14(r13)
 	ld	r15,PACA_EXGEN+EX_R15(r13)
 	bl	do_page_fault
-	cmpdi	r3,0
-	bne-	1f
-	b	interrupt_return
-	mr	r4,r3
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	__bad_page_fault
 	b	interrupt_return
 
 /*
