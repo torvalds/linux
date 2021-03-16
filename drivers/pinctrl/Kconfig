@@ -209,6 +209,7 @@ config PINCTRL_OXNAS
 
 config PINCTRL_ROCKCHIP
 	tristate "Rockchip gpio and pinctrl driver"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	depends on OF
 	select GPIOLIB
 	select PINMUX
