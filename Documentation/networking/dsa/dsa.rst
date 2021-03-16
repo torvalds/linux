@@ -382,14 +382,6 @@ DSA data structures are defined in ``include/net/dsa.h`` as well as
 Design limitations
 ==================
 
-Limits on the number of devices and ports
------------------------------------------
-
-DSA currently limits the number of maximum switches within a tree to 4
-(``DSA_MAX_SWITCHES``), and the number of ports per switch to 12 (``DSA_MAX_PORTS``).
-These limits could be extended to support larger configurations would this need
-arise.
-
 Lack of CPU/DSA network devices
 -------------------------------
 
@@ -719,7 +711,6 @@ two subsystems and get the best of both worlds.
 Other hanging fruits
 --------------------
 
-- making the number of ports fully dynamic and not dependent on ``DSA_MAX_PORTS``
 - allowing more than one CPU/management interface:
   http://comments.gmane.org/gmane.linux.network/365657
 - porting more drivers from other vendors:
