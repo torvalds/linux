@@ -196,9 +196,6 @@ struct registry_priv {
 	u8 RFE_Type;
 	u8  check_fw_ps;
 
-#ifdef CONFIG_MULTI_VIR_IFACES
-	u8 ext_iface_num;/* primary/secondary iface is excluded */
-#endif
 	u8 qos_opt_enable;
 
 	u8 hiq_filter;
