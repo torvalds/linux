@@ -85,7 +85,7 @@ struct scmi_clk_ops {
 };
 
 /**
- * struct scmi_perf_ops - represents the various operations provided
+ * struct scmi_perf_proto_ops - represents the various operations provided
  *	by SCMI Performance Protocol
  *
  * @limits_set: sets limits on the performance level of a domain
@@ -102,6 +102,31 @@ struct scmi_clk_ops {
  * @est_power_get: gets the estimated power cost for a given performance domain
  *	at a given frequency
  */
+struct scmi_perf_proto_ops {
+	int (*limits_set)(const struct scmi_protocol_handle *ph, u32 domain,
+			  u32 max_perf, u32 min_perf);
+	int (*limits_get)(const struct scmi_protocol_handle *ph, u32 domain,
+			  u32 *max_perf, u32 *min_perf);
+	int (*level_set)(const struct scmi_protocol_handle *ph, u32 domain,
+			 u32 level, bool poll);
+	int (*level_get)(const struct scmi_protocol_handle *ph, u32 domain,
+			 u32 *level, bool poll);
+	int (*device_domain_id)(struct device *dev);
+	int (*transition_latency_get)(const struct scmi_protocol_handle *ph,
+				      struct device *dev);
+	int (*device_opps_add)(const struct scmi_protocol_handle *ph,
+			       struct device *dev);
+	int (*freq_set)(const struct scmi_protocol_handle *ph, u32 domain,
+			unsigned long rate, bool poll);
+	int (*freq_get)(const struct scmi_protocol_handle *ph, u32 domain,
+			unsigned long *rate, bool poll);
+	int (*est_power_get)(const struct scmi_protocol_handle *ph, u32 domain,
+			     unsigned long *rate, unsigned long *power);
+	bool (*fast_switch_possible)(const struct scmi_protocol_handle *ph,
+				     struct device *dev);
+	bool (*power_scale_mw_get)(const struct scmi_protocol_handle *ph);
+};
+
 struct scmi_perf_ops {
 	int (*limits_set)(const struct scmi_handle *handle, u32 domain,
 			  u32 max_perf, u32 min_perf);
@@ -615,8 +640,6 @@ struct scmi_notify_ops {
  *		       operations and a dedicated protocol handler
  * @devm_protocol_put: devres managed method to release a protocol
  * @notify_ops: pointer to set of notifications related operations
- * @perf_priv: pointer to private data structure specific to performance
- *	protocol(for internal use only)
  * @clk_priv: pointer to private data structure specific to clock
  *	protocol(for internal use only)
  * @power_priv: pointer to private data structure specific to power
@@ -647,7 +670,6 @@ struct scmi_handle {
 
 	const struct scmi_notify_ops *notify_ops;
 	/* for protocol internal use */
-	void *perf_priv;
 	void *clk_priv;
 	void *power_priv;
 	void *sensor_priv;
