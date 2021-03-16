@@ -114,6 +114,7 @@ mlxsw_sp_mall_port_sample_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	rcu_assign_pointer(mlxsw_sp_port->sample, &mall_entry->sample);
 
 	err = mlxsw_sp->mall_ops->sample_add(mlxsw_sp, mlxsw_sp_port,
+					     mall_entry->ingress,
 					     mall_entry->sample.rate, extack);
 	if (err)
 		goto err_port_sample_set;
@@ -253,19 +254,9 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp *mlxsw_sp,
 		mall_entry->mirror.to_dev = act->dev;
 	} else if (act->id == FLOW_ACTION_SAMPLE &&
 		   protocol == htons(ETH_P_ALL)) {
-		if (!mall_entry->ingress) {
-			NL_SET_ERR_MSG(f->common.extack, "Sample is not supported on egress");
-			err = -EOPNOTSUPP;
-			goto errout;
-		}
 		if (flower_prio_valid &&
 		    mall_entry->priority >= flower_min_prio) {
 			NL_SET_ERR_MSG(f->common.extack, "Failed to add behind existing flower rules");
-			err = -EOPNOTSUPP;
-			goto errout;
-		}
-		if (act->sample.rate > MLXSW_REG_MPSC_RATE_MAX) {
-			NL_SET_ERR_MSG(f->common.extack, "Sample rate not supported");
 			err = -EOPNOTSUPP;
 			goto errout;
 		}
@@ -375,8 +366,19 @@ int mlxsw_sp_mall_prio_get(struct mlxsw_sp_flow_block *block, u32 chain_index,
 
 static int mlxsw_sp1_mall_sample_add(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_port *mlxsw_sp_port,
-				     u32 rate, struct netlink_ext_ack *extack)
+				     bool ingress, u32 rate,
+				     struct netlink_ext_ack *extack)
 {
+	if (!ingress) {
+		NL_SET_ERR_MSG(extack, "Sampling is not supported on egress");
+		return -EOPNOTSUPP;
+	}
+
+	if (rate > MLXSW_REG_MPSC_RATE_MAX) {
+		NL_SET_ERR_MSG(extack, "Unsupported sampling rate");
+		return -EOPNOTSUPP;
+	}
+
 	return mlxsw_sp_mall_port_sample_set(mlxsw_sp_port, true, rate);
 }
 
@@ -393,7 +395,8 @@ const struct mlxsw_sp_mall_ops mlxsw_sp1_mall_ops = {
 
 static int mlxsw_sp2_mall_sample_add(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_port *mlxsw_sp_port,
-				     u32 rate, struct netlink_ext_ack *extack)
+				     bool ingress, u32 rate,
+				     struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_span_trigger_parms trigger_parms = {};
 	struct mlxsw_sp_span_agent_parms agent_parms = {
@@ -402,6 +405,11 @@ static int mlxsw_sp2_mall_sample_add(struct mlxsw_sp *mlxsw_sp,
 	};
 	struct mlxsw_sp_port_sample *sample;
 	int err;
+
+	if (!ingress) {
+		NL_SET_ERR_MSG(extack, "Sampling is not supported on egress");
+		return -EOPNOTSUPP;
+	}
 
 	sample = rtnl_dereference(mlxsw_sp_port->sample);
 

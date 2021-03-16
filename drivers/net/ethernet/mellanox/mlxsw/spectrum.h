@@ -1035,8 +1035,8 @@ extern const struct mlxsw_afk_ops mlxsw_sp2_afk_ops;
 /* spectrum_matchall.c */
 struct mlxsw_sp_mall_ops {
 	int (*sample_add)(struct mlxsw_sp *mlxsw_sp,
-			  struct mlxsw_sp_port *mlxsw_sp_port, u32 rate,
-			  struct netlink_ext_ack *extack);
+			  struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
+			  u32 rate, struct netlink_ext_ack *extack);
 	void (*sample_del)(struct mlxsw_sp *mlxsw_sp,
 			   struct mlxsw_sp_port *mlxsw_sp_port);
 };
