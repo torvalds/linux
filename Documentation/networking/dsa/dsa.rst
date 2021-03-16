@@ -172,23 +172,34 @@ Graphical representation
 Summarized, this is basically how DSA looks like from a network device
 perspective::
 
-
-                |---------------------------
-                | CPU network device (eth0)|
-                ----------------------------
-                | <tag added by switch     |
-                |                          |
-                |                          |
-                |        tag added by CPU> |
-        |--------------------------------------------|
-        |            Switch driver                   |
-        |--------------------------------------------|
-                  ||        ||         ||
-              |-------|  |-------|  |-------|
-              | sw0p0 |  | sw0p1 |  | sw0p2 |
-              |-------|  |-------|  |-------|
-
-
+                Unaware application
+              opens and binds socket
+                       |  ^
+                       |  |
+           +-----------v--|--------------------+
+           |+------+ +------+ +------+ +------+|
+           || swp0 | | swp1 | | swp2 | | swp3 ||
+           |+------+-+------+-+------+-+------+|
+           |          DSA switch driver        |
+           +-----------------------------------+
+                         |        ^
+            Tag added by |        | Tag consumed by
+           switch driver |        | switch driver
+                         v        |
+           +-----------------------------------+
+           | Unmodified host interface driver  | Software
+   --------+-----------------------------------+------------
+           |       Host interface (eth0)       | Hardware
+           +-----------------------------------+
+                         |        ^
+         Tag consumed by |        | Tag added by
+         switch hardware |        | switch hardware
+                         v        |
+           +-----------------------------------+
+           |               Switch              |
+           |+------+ +------+ +------+ +------+|
+           || swp0 | | swp1 | | swp2 | | swp3 ||
+           ++------+-+------+-+------+-+------++
 
 Slave MDIO bus
 --------------
