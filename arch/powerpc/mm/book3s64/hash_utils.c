@@ -1545,10 +1545,10 @@ DEFINE_INTERRUPT_HANDLER_RET(__do_hash_fault)
 	if (user_mode(regs) || (region_id == USER_REGION_ID))
 		access &= ~_PAGE_PRIVILEGED;
 
-	if (regs->trap == 0x400)
+	if (TRAP(regs) == 0x400)
 		access |= _PAGE_EXEC;
 
-	err = hash_page_mm(mm, ea, access, regs->trap, flags);
+	err = hash_page_mm(mm, ea, access, TRAP(regs), flags);
 	if (unlikely(err < 0)) {
 		// failed to instert a hash PTE due to an hypervisor error
 		if (user_mode(regs)) {
