@@ -265,6 +265,7 @@ static dma_addr_t __vmw_piter_sg_addr(struct vmw_piter *viter)
  *
  * @viter: Pointer to the iterator to initialize
  * @vsgt: Pointer to a struct vmw_sg_table to initialize from
+ * @p_offset: Pointer offset used to update current array position
  *
  * Note that we're following the convention of __sg_page_iter_start, so that
  * the iterator doesn't point to a valid page after initialization; it has
@@ -482,7 +483,7 @@ const struct vmw_sg_table *vmw_bo_sg_table(struct ttm_buffer_object *bo)
 }
 
 
-static int vmw_ttm_bind(struct ttm_bo_device *bdev,
+static int vmw_ttm_bind(struct ttm_device *bdev,
 			struct ttm_tt *ttm, struct ttm_resource *bo_mem)
 {
 	struct vmw_ttm_tt *vmw_be =
@@ -526,7 +527,7 @@ static int vmw_ttm_bind(struct ttm_bo_device *bdev,
 	return ret;
 }
 
-static void vmw_ttm_unbind(struct ttm_bo_device *bdev,
+static void vmw_ttm_unbind(struct ttm_device *bdev,
 			   struct ttm_tt *ttm)
 {
 	struct vmw_ttm_tt *vmw_be =
@@ -552,7 +553,7 @@ static void vmw_ttm_unbind(struct ttm_bo_device *bdev,
 }
 
 
-static void vmw_ttm_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
+static void vmw_ttm_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
 	struct vmw_ttm_tt *vmw_be =
 		container_of(ttm, struct vmw_ttm_tt, dma_ttm);
@@ -572,21 +573,42 @@ static void vmw_ttm_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 }
 
 
-static int vmw_ttm_populate(struct ttm_bo_device *bdev,
+static int vmw_ttm_populate(struct ttm_device *bdev,
 			    struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
+	unsigned int i;
+	int ret;
+
 	/* TODO: maybe completely drop this ? */
 	if (ttm_tt_is_populated(ttm))
 		return 0;
 
-	return ttm_pool_alloc(&bdev->pool, ttm, ctx);
+	ret = ttm_pool_alloc(&bdev->pool, ttm, ctx);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < ttm->num_pages; ++i) {
+		ret = ttm_mem_global_alloc_page(&ttm_mem_glob, ttm->pages[i],
+						PAGE_SIZE, ctx);
+		if (ret)
+			goto error;
+	}
+	return 0;
+
+error:
+	while (i--)
+		ttm_mem_global_free_page(&ttm_mem_glob, ttm->pages[i],
+					 PAGE_SIZE);
+	ttm_pool_free(&bdev->pool, ttm);
+	return ret;
 }
 
-static void vmw_ttm_unpopulate(struct ttm_bo_device *bdev,
+static void vmw_ttm_unpopulate(struct ttm_device *bdev,
 			       struct ttm_tt *ttm)
 {
 	struct vmw_ttm_tt *vmw_tt = container_of(ttm, struct vmw_ttm_tt,
 						 dma_ttm);
+	unsigned int i;
 
 	if (vmw_tt->mob) {
 		vmw_mob_destroy(vmw_tt->mob);
@@ -594,6 +616,11 @@ static void vmw_ttm_unpopulate(struct ttm_bo_device *bdev,
 	}
 
 	vmw_ttm_unmap_dma(vmw_tt);
+
+	for (i = 0; i < ttm->num_pages; ++i)
+		ttm_mem_global_free_page(&ttm_mem_glob, ttm->pages[i],
+					 PAGE_SIZE);
+
 	ttm_pool_free(&bdev->pool, ttm);
 }
 
@@ -639,7 +666,7 @@ static int vmw_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 	return vmw_user_bo_verify_access(bo, tfile);
 }
 
-static int vmw_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resource *mem)
+static int vmw_ttm_io_mem_reserve(struct ttm_device *bdev, struct ttm_resource *mem)
 {
 	struct vmw_private *dev_priv = container_of(bdev, struct vmw_private, bdev);
 
@@ -664,6 +691,7 @@ static int vmw_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resourc
  * vmw_move_notify - TTM move_notify_callback
  *
  * @bo: The TTM buffer object about to move.
+ * @evict: Unused
  * @mem: The struct ttm_resource indicating to what memory
  *       region the move is taking place.
  *
@@ -742,7 +770,7 @@ vmw_delete_mem_notify(struct ttm_buffer_object *bo)
 	vmw_move_notify(bo, false, NULL);
 }
 
-struct ttm_bo_driver vmw_bo_driver = {
+struct ttm_device_funcs vmw_bo_driver = {
 	.ttm_tt_create = &vmw_ttm_tt_create,
 	.ttm_tt_populate = &vmw_ttm_populate,
 	.ttm_tt_unpopulate = &vmw_ttm_unpopulate,

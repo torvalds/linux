@@ -393,7 +393,7 @@ static void tilcdc_crtc_set_mode(struct drm_crtc *crtc)
 			return;
 		}
 	}
-	reg |= info->fdd < 12;
+	reg |= info->fdd << 12;
 	tilcdc_write(dev, LCDC_RASTER_CTRL_REG, reg);
 
 	if (info->invert_pxl_clk)
@@ -514,6 +514,15 @@ static void tilcdc_crtc_off(struct drm_crtc *crtc, bool shutdown)
 			__func__);
 
 	drm_crtc_vblank_off(crtc);
+
+	spin_lock_irq(&crtc->dev->event_lock);
+
+	if (crtc->state->event) {
+		drm_crtc_send_vblank_event(crtc, crtc->state->event);
+		crtc->state->event = NULL;
+	}
+
+	spin_unlock_irq(&crtc->dev->event_lock);
 
 	tilcdc_crtc_disable_irqs(dev);
 
@@ -904,13 +913,12 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 	tilcdc_clear_irqstatus(dev, stat);
 
 	if (stat & LCDC_END_OF_FRAME0) {
-		unsigned long flags;
 		bool skip_event = false;
 		ktime_t now;
 
 		now = ktime_get();
 
-		spin_lock_irqsave(&tilcdc_crtc->irq_lock, flags);
+		spin_lock(&tilcdc_crtc->irq_lock);
 
 		tilcdc_crtc->last_vblank = now;
 
@@ -920,21 +928,21 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 			skip_event = true;
 		}
 
-		spin_unlock_irqrestore(&tilcdc_crtc->irq_lock, flags);
+		spin_unlock(&tilcdc_crtc->irq_lock);
 
 		drm_crtc_handle_vblank(crtc);
 
 		if (!skip_event) {
 			struct drm_pending_vblank_event *event;
 
-			spin_lock_irqsave(&dev->event_lock, flags);
+			spin_lock(&dev->event_lock);
 
 			event = tilcdc_crtc->event;
 			tilcdc_crtc->event = NULL;
 			if (event)
 				drm_crtc_send_vblank_event(crtc, event);
 
-			spin_unlock_irqrestore(&dev->event_lock, flags);
+			spin_unlock(&dev->event_lock);
 		}
 
 		if (tilcdc_crtc->frame_intact)

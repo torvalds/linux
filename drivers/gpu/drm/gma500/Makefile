@@ -4,9 +4,7 @@
 #
 
 gma500_gfx-y += \
-	  accel_2d.o \
 	  backlight.o \
-	  blitter.o \
 	  cdv_device.o \
 	  cdv_intel_crt.o \
 	  cdv_intel_display.o \
@@ -23,6 +21,12 @@ gma500_gfx-y += \
 	  intel_i2c.o \
 	  mid_bios.o \
 	  mmu.o \
+	  oaktrail_device.o \
+	  oaktrail_crtc.o \
+	  oaktrail_hdmi.o \
+	  oaktrail_hdmi_i2c.o \
+	  oaktrail_lvds.o \
+	  oaktrail_lvds_i2c.o \
 	  power.o \
 	  psb_device.o \
 	  psb_drv.o \
@@ -33,13 +37,6 @@ gma500_gfx-y += \
 	  psb_lid.o \
 	  psb_irq.o
 
-gma500_gfx-$(CONFIG_ACPI) +=  opregion.o \
-
-gma500_gfx-$(CONFIG_DRM_GMA600) += oaktrail_device.o \
-	  oaktrail_crtc.o \
-	  oaktrail_lvds.o \
-	  oaktrail_lvds_i2c.o \
-	  oaktrail_hdmi.o \
-	  oaktrail_hdmi_i2c.o
+gma500_gfx-$(CONFIG_ACPI) +=  opregion.o
 
 obj-$(CONFIG_DRM_GMA500) += gma500_gfx.o

@@ -38,12 +38,17 @@
 #include <drm/drm_cache.h>
 #include <drm/ttm/ttm_bo_driver.h>
 
+#include "ttm_module.h"
+
+static struct shrinker mm_shrinker;
+static atomic_long_t swapable_pages;
+
 /*
  * Allocates a ttm structure for the given BO.
  */
 int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 {
-	struct ttm_bo_device *bdev = bo->bdev;
+	struct ttm_device *bdev = bo->bdev;
 	uint32_t page_flags = 0;
 
 	dma_resv_assert_held(bo->base.resv);
@@ -66,7 +71,7 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 		return -EINVAL;
 	}
 
-	bo->ttm = bdev->driver->ttm_tt_create(bo, page_flags);
+	bo->ttm = bdev->funcs->ttm_tt_create(bo, page_flags);
 	if (unlikely(bo->ttm == NULL))
 		return -ENOMEM;
 
@@ -108,7 +113,7 @@ static int ttm_sg_tt_alloc_page_directory(struct ttm_tt *ttm)
 	return 0;
 }
 
-void ttm_tt_destroy_common(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
+void ttm_tt_destroy_common(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
 	ttm_tt_unpopulate(bdev, ttm);
 
@@ -119,9 +124,9 @@ void ttm_tt_destroy_common(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 }
 EXPORT_SYMBOL(ttm_tt_destroy_common);
 
-void ttm_tt_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
+void ttm_tt_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
-	bdev->driver->ttm_tt_destroy(bdev, ttm);
+	bdev->funcs->ttm_tt_destroy(bdev, ttm);
 }
 
 static void ttm_tt_init_fields(struct ttm_tt *ttm,
@@ -223,32 +228,41 @@ out_err:
 	return ret;
 }
 
-int ttm_tt_swapout(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
+/**
+ * ttm_tt_swapout - swap out tt object
+ *
+ * @bdev: TTM device structure.
+ * @ttm: The struct ttm_tt.
+ * @gfp_flags: Flags to use for memory allocation.
+ *
+ * Swapout a TT object to a shmem_file, return number of pages swapped out or
+ * negative error code.
+ */
+int ttm_tt_swapout(struct ttm_device *bdev, struct ttm_tt *ttm,
+		   gfp_t gfp_flags)
 {
+	loff_t size = (loff_t)ttm->num_pages << PAGE_SHIFT;
 	struct address_space *swap_space;
 	struct file *swap_storage;
 	struct page *from_page;
 	struct page *to_page;
-	gfp_t gfp_mask;
 	int i, ret;
 
-	swap_storage = shmem_file_setup("ttm swap",
-					ttm->num_pages << PAGE_SHIFT,
-					0);
+	swap_storage = shmem_file_setup("ttm swap", size, 0);
 	if (IS_ERR(swap_storage)) {
 		pr_err("Failed allocating swap storage\n");
 		return PTR_ERR(swap_storage);
 	}
 
 	swap_space = swap_storage->f_mapping;
-	gfp_mask = mapping_gfp_mask(swap_space);
+	gfp_flags &= mapping_gfp_mask(swap_space);
 
 	for (i = 0; i < ttm->num_pages; ++i) {
 		from_page = ttm->pages[i];
 		if (unlikely(from_page == NULL))
 			continue;
 
-		to_page = shmem_read_mapping_page_gfp(swap_space, i, gfp_mask);
+		to_page = shmem_read_mapping_page_gfp(swap_space, i, gfp_flags);
 		if (IS_ERR(to_page)) {
 			ret = PTR_ERR(to_page);
 			goto out_err;
@@ -263,7 +277,7 @@ int ttm_tt_swapout(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 	ttm->swap_storage = swap_storage;
 	ttm->page_flags |= TTM_PAGE_FLAG_SWAPPED;
 
-	return 0;
+	return ttm->num_pages;
 
 out_err:
 	fput(swap_storage);
@@ -271,7 +285,7 @@ out_err:
 	return ret;
 }
 
-static void ttm_tt_add_mapping(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
+static void ttm_tt_add_mapping(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
 	pgoff_t i;
 
@@ -280,9 +294,11 @@ static void ttm_tt_add_mapping(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 
 	for (i = 0; i < ttm->num_pages; ++i)
 		ttm->pages[i]->mapping = bdev->dev_mapping;
+
+	atomic_long_add(ttm->num_pages, &swapable_pages);
 }
 
-int ttm_tt_populate(struct ttm_bo_device *bdev,
+int ttm_tt_populate(struct ttm_device *bdev,
 		    struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
 	int ret;
@@ -293,8 +309,8 @@ int ttm_tt_populate(struct ttm_bo_device *bdev,
 	if (ttm_tt_is_populated(ttm))
 		return 0;
 
-	if (bdev->driver->ttm_tt_populate)
-		ret = bdev->driver->ttm_tt_populate(bdev, ttm, ctx);
+	if (bdev->funcs->ttm_tt_populate)
+		ret = bdev->funcs->ttm_tt_populate(bdev, ttm, ctx);
 	else
 		ret = ttm_pool_alloc(&bdev->pool, ttm, ctx);
 	if (ret)
@@ -326,18 +342,91 @@ static void ttm_tt_clear_mapping(struct ttm_tt *ttm)
 		(*page)->mapping = NULL;
 		(*page++)->index = 0;
 	}
+
+	atomic_long_sub(ttm->num_pages, &swapable_pages);
 }
 
-void ttm_tt_unpopulate(struct ttm_bo_device *bdev,
+void ttm_tt_unpopulate(struct ttm_device *bdev,
 		       struct ttm_tt *ttm)
 {
 	if (!ttm_tt_is_populated(ttm))
 		return;
 
 	ttm_tt_clear_mapping(ttm);
-	if (bdev->driver->ttm_tt_unpopulate)
-		bdev->driver->ttm_tt_unpopulate(bdev, ttm);
+	if (bdev->funcs->ttm_tt_unpopulate)
+		bdev->funcs->ttm_tt_unpopulate(bdev, ttm);
 	else
 		ttm_pool_free(&bdev->pool, ttm);
 	ttm->page_flags &= ~TTM_PAGE_FLAG_PRIV_POPULATED;
+}
+
+/* As long as pages are available make sure to release at least one */
+static unsigned long ttm_tt_shrinker_scan(struct shrinker *shrink,
+					  struct shrink_control *sc)
+{
+	struct ttm_operation_ctx ctx = {
+		.no_wait_gpu = false
+	};
+	int ret;
+
+	ret = ttm_bo_swapout(&ctx, GFP_NOFS);
+	return ret < 0 ? SHRINK_EMPTY : ret;
+}
+
+/* Return the number of pages available or SHRINK_EMPTY if we have none */
+static unsigned long ttm_tt_shrinker_count(struct shrinker *shrink,
+					   struct shrink_control *sc)
+{
+	unsigned long num_pages;
+
+	num_pages = atomic_long_read(&swapable_pages);
+	return num_pages ? num_pages : SHRINK_EMPTY;
+}
+
+#ifdef CONFIG_DEBUG_FS
+
+/* Test the shrinker functions and dump the result */
+static int ttm_tt_debugfs_shrink_show(struct seq_file *m, void *data)
+{
+	struct shrink_control sc = { .gfp_mask = GFP_KERNEL };
+
+	fs_reclaim_acquire(GFP_KERNEL);
+	seq_printf(m, "%lu/%lu\n", ttm_tt_shrinker_count(&mm_shrinker, &sc),
+		   ttm_tt_shrinker_scan(&mm_shrinker, &sc));
+	fs_reclaim_release(GFP_KERNEL);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(ttm_tt_debugfs_shrink);
+
+#endif
+
+
+
+/**
+ * ttm_tt_mgr_init - register with the MM shrinker
+ *
+ * Register with the MM shrinker for swapping out BOs.
+ */
+int ttm_tt_mgr_init(void)
+{
+#ifdef CONFIG_DEBUG_FS
+	debugfs_create_file("tt_shrink", 0400, ttm_debugfs_root, NULL,
+			    &ttm_tt_debugfs_shrink_fops);
+#endif
+
+	mm_shrinker.count_objects = ttm_tt_shrinker_count;
+	mm_shrinker.scan_objects = ttm_tt_shrinker_scan;
+	mm_shrinker.seeks = 1;
+	return register_shrinker(&mm_shrinker);
+}
+
+/**
+ * ttm_tt_mgr_fini - unregister our MM shrinker
+ *
+ * Unregisters the MM shrinker.
+ */
+void ttm_tt_mgr_fini(void)
+{
+	unregister_shrinker(&mm_shrinker);
 }

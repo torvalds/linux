@@ -30,6 +30,7 @@
 #include <linux/types.h>
 #include <drm/ttm/ttm_caching.h>
 
+struct ttm_bo_device;
 struct ttm_tt;
 struct ttm_resource;
 struct ttm_buffer_object;
@@ -118,14 +119,14 @@ void ttm_tt_fini(struct ttm_tt *ttm);
  *
  * Unbind, unpopulate and destroy common struct ttm_tt.
  */
-void ttm_tt_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
+void ttm_tt_destroy(struct ttm_device *bdev, struct ttm_tt *ttm);
 
 /**
  * ttm_tt_destroy_common:
  *
  * Called from driver to destroy common path.
  */
-void ttm_tt_destroy_common(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
+void ttm_tt_destroy_common(struct ttm_device *bdev, struct ttm_tt *ttm);
 
 /**
  * ttm_tt_swapin:
@@ -135,7 +136,8 @@ void ttm_tt_destroy_common(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
  * Swap in a previously swap out ttm_tt.
  */
 int ttm_tt_swapin(struct ttm_tt *ttm);
-int ttm_tt_swapout(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
+int ttm_tt_swapout(struct ttm_device *bdev, struct ttm_tt *ttm,
+		   gfp_t gfp_flags);
 
 /**
  * ttm_tt_populate - allocate pages for a ttm
@@ -144,7 +146,7 @@ int ttm_tt_swapout(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
  *
  * Calls the driver method to allocate pages for a ttm
  */
-int ttm_tt_populate(struct ttm_bo_device *bdev, struct ttm_tt *ttm, struct ttm_operation_ctx *ctx);
+int ttm_tt_populate(struct ttm_device *bdev, struct ttm_tt *ttm, struct ttm_operation_ctx *ctx);
 
 /**
  * ttm_tt_unpopulate - free pages from a ttm
@@ -153,7 +155,10 @@ int ttm_tt_populate(struct ttm_bo_device *bdev, struct ttm_tt *ttm, struct ttm_o
  *
  * Calls the driver method to free all pages from a ttm
  */
-void ttm_tt_unpopulate(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
+void ttm_tt_unpopulate(struct ttm_device *bdev, struct ttm_tt *ttm);
+
+int ttm_tt_mgr_init(void);
+void ttm_tt_mgr_fini(void);
 
 #if IS_ENABLED(CONFIG_AGP)
 #include <linux/agp_backend.h>

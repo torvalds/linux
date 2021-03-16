@@ -229,12 +229,14 @@ static const struct drm_crtc_helper_funcs hdlcd_crtc_helper_funcs = {
 };
 
 static int hdlcd_plane_atomic_check(struct drm_plane *plane,
-				    struct drm_plane_state *state)
+				    struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
 	int i;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
-	u32 src_h = state->src_h >> 16;
+	u32 src_h = new_plane_state->src_h >> 16;
 
 	/* only the HDLCD_REG_FB_LINE_COUNT register has a limit */
 	if (src_h >= HDLCD_MAX_YRES) {
@@ -242,23 +244,27 @@ static int hdlcd_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
-	for_each_new_crtc_in_state(state->state, crtc, crtc_state, i) {
+	for_each_new_crtc_in_state(state, crtc, crtc_state,
+				   i) {
 		/* we cannot disable the plane while the CRTC is active */
-		if (!state->fb && crtc_state->active)
+		if (!new_plane_state->fb && crtc_state->active)
 			return -EINVAL;
-		return drm_atomic_helper_check_plane_state(state, crtc_state,
-						DRM_PLANE_HELPER_NO_SCALING,
-						DRM_PLANE_HELPER_NO_SCALING,
-						false, true);
+		return drm_atomic_helper_check_plane_state(new_plane_state,
+							   crtc_state,
+							   DRM_PLANE_HELPER_NO_SCALING,
+							   DRM_PLANE_HELPER_NO_SCALING,
+							   false, true);
 	}
 
 	return 0;
 }
 
 static void hdlcd_plane_atomic_update(struct drm_plane *plane,
-				      struct drm_plane_state *state)
+				      struct drm_atomic_state *state)
 {
-	struct drm_framebuffer *fb = plane->state->fb;
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
+	struct drm_framebuffer *fb = new_plane_state->fb;
 	struct hdlcd_drm_private *hdlcd;
 	u32 dest_h;
 	dma_addr_t scanout_start;
@@ -266,8 +272,8 @@ static void hdlcd_plane_atomic_update(struct drm_plane *plane,
 	if (!fb)
 		return;
 
-	dest_h = drm_rect_height(&plane->state->dst);
-	scanout_start = drm_fb_cma_get_gem_addr(fb, plane->state, 0);
+	dest_h = drm_rect_height(&new_plane_state->dst);
+	scanout_start = drm_fb_cma_get_gem_addr(fb, new_plane_state, 0);
 
 	hdlcd = plane->dev->dev_private;
 	hdlcd_write(hdlcd, HDLCD_REG_FB_LINE_LENGTH, fb->pitches[0]);

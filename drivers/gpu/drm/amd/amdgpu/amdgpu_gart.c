@@ -71,7 +71,7 @@
  */
 static int amdgpu_gart_dummy_page_init(struct amdgpu_device *adev)
 {
-	struct page *dummy_page = ttm_bo_glob.dummy_read_page;
+	struct page *dummy_page = ttm_glob.dummy_read_page;
 
 	if (adev->dummy_page_addr)
 		return 0;

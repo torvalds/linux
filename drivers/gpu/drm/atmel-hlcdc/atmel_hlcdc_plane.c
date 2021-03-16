@@ -593,22 +593,23 @@ atmel_hlcdc_plane_update_disc_area(struct atmel_hlcdc_plane *plane,
 }
 
 static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
-					  struct drm_plane_state *s)
+					  struct drm_atomic_state *state)
 {
+	struct drm_plane_state *s = drm_atomic_get_new_plane_state(state, p);
 	struct atmel_hlcdc_plane *plane = drm_plane_to_atmel_hlcdc_plane(p);
-	struct atmel_hlcdc_plane_state *state =
+	struct atmel_hlcdc_plane_state *hstate =
 				drm_plane_state_to_atmel_hlcdc_plane_state(s);
 	const struct atmel_hlcdc_layer_desc *desc = plane->layer.desc;
-	struct drm_framebuffer *fb = state->base.fb;
+	struct drm_framebuffer *fb = hstate->base.fb;
 	const struct drm_display_mode *mode;
 	struct drm_crtc_state *crtc_state;
 	int ret;
 	int i;
 
-	if (!state->base.crtc || WARN_ON(!fb))
+	if (!hstate->base.crtc || WARN_ON(!fb))
 		return 0;
 
-	crtc_state = drm_atomic_get_existing_crtc_state(s->state, s->crtc);
+	crtc_state = drm_atomic_get_existing_crtc_state(state, s->crtc);
 	mode = &crtc_state->adjusted_mode;
 
 	ret = drm_atomic_helper_check_plane_state(s, crtc_state,
@@ -617,101 +618,101 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 	if (ret || !s->visible)
 		return ret;
 
-	state->src_x = s->src.x1;
-	state->src_y = s->src.y1;
-	state->src_w = drm_rect_width(&s->src);
-	state->src_h = drm_rect_height(&s->src);
-	state->crtc_x = s->dst.x1;
-	state->crtc_y = s->dst.y1;
-	state->crtc_w = drm_rect_width(&s->dst);
-	state->crtc_h = drm_rect_height(&s->dst);
+	hstate->src_x = s->src.x1;
+	hstate->src_y = s->src.y1;
+	hstate->src_w = drm_rect_width(&s->src);
+	hstate->src_h = drm_rect_height(&s->src);
+	hstate->crtc_x = s->dst.x1;
+	hstate->crtc_y = s->dst.y1;
+	hstate->crtc_w = drm_rect_width(&s->dst);
+	hstate->crtc_h = drm_rect_height(&s->dst);
 
-	if ((state->src_x | state->src_y | state->src_w | state->src_h) &
+	if ((hstate->src_x | hstate->src_y | hstate->src_w | hstate->src_h) &
 	    SUBPIXEL_MASK)
 		return -EINVAL;
 
-	state->src_x >>= 16;
-	state->src_y >>= 16;
-	state->src_w >>= 16;
-	state->src_h >>= 16;
+	hstate->src_x >>= 16;
+	hstate->src_y >>= 16;
+	hstate->src_w >>= 16;
+	hstate->src_h >>= 16;
 
-	state->nplanes = fb->format->num_planes;
-	if (state->nplanes > ATMEL_HLCDC_LAYER_MAX_PLANES)
+	hstate->nplanes = fb->format->num_planes;
+	if (hstate->nplanes > ATMEL_HLCDC_LAYER_MAX_PLANES)
 		return -EINVAL;
 
-	for (i = 0; i < state->nplanes; i++) {
+	for (i = 0; i < hstate->nplanes; i++) {
 		unsigned int offset = 0;
 		int xdiv = i ? fb->format->hsub : 1;
 		int ydiv = i ? fb->format->vsub : 1;
 
-		state->bpp[i] = fb->format->cpp[i];
-		if (!state->bpp[i])
+		hstate->bpp[i] = fb->format->cpp[i];
+		if (!hstate->bpp[i])
 			return -EINVAL;
 
-		switch (state->base.rotation & DRM_MODE_ROTATE_MASK) {
+		switch (hstate->base.rotation & DRM_MODE_ROTATE_MASK) {
 		case DRM_MODE_ROTATE_90:
-			offset = (state->src_y / ydiv) *
+			offset = (hstate->src_y / ydiv) *
 				 fb->pitches[i];
-			offset += ((state->src_x + state->src_w - 1) /
-				   xdiv) * state->bpp[i];
-			state->xstride[i] = -(((state->src_h - 1) / ydiv) *
+			offset += ((hstate->src_x + hstate->src_w - 1) /
+				   xdiv) * hstate->bpp[i];
+			hstate->xstride[i] = -(((hstate->src_h - 1) / ydiv) *
 					    fb->pitches[i]) -
-					  (2 * state->bpp[i]);
-			state->pstride[i] = fb->pitches[i] - state->bpp[i];
+					  (2 * hstate->bpp[i]);
+			hstate->pstride[i] = fb->pitches[i] - hstate->bpp[i];
 			break;
 		case DRM_MODE_ROTATE_180:
-			offset = ((state->src_y + state->src_h - 1) /
+			offset = ((hstate->src_y + hstate->src_h - 1) /
 				  ydiv) * fb->pitches[i];
-			offset += ((state->src_x + state->src_w - 1) /
-				   xdiv) * state->bpp[i];
-			state->xstride[i] = ((((state->src_w - 1) / xdiv) - 1) *
-					   state->bpp[i]) - fb->pitches[i];
-			state->pstride[i] = -2 * state->bpp[i];
+			offset += ((hstate->src_x + hstate->src_w - 1) /
+				   xdiv) * hstate->bpp[i];
+			hstate->xstride[i] = ((((hstate->src_w - 1) / xdiv) - 1) *
+					   hstate->bpp[i]) - fb->pitches[i];
+			hstate->pstride[i] = -2 * hstate->bpp[i];
 			break;
 		case DRM_MODE_ROTATE_270:
-			offset = ((state->src_y + state->src_h - 1) /
+			offset = ((hstate->src_y + hstate->src_h - 1) /
 				  ydiv) * fb->pitches[i];
-			offset += (state->src_x / xdiv) * state->bpp[i];
-			state->xstride[i] = ((state->src_h - 1) / ydiv) *
+			offset += (hstate->src_x / xdiv) * hstate->bpp[i];
+			hstate->xstride[i] = ((hstate->src_h - 1) / ydiv) *
 					  fb->pitches[i];
-			state->pstride[i] = -fb->pitches[i] - state->bpp[i];
+			hstate->pstride[i] = -fb->pitches[i] - hstate->bpp[i];
 			break;
 		case DRM_MODE_ROTATE_0:
 		default:
-			offset = (state->src_y / ydiv) * fb->pitches[i];
-			offset += (state->src_x / xdiv) * state->bpp[i];
-			state->xstride[i] = fb->pitches[i] -
-					  ((state->src_w / xdiv) *
-					   state->bpp[i]);
-			state->pstride[i] = 0;
+			offset = (hstate->src_y / ydiv) * fb->pitches[i];
+			offset += (hstate->src_x / xdiv) * hstate->bpp[i];
+			hstate->xstride[i] = fb->pitches[i] -
+					  ((hstate->src_w / xdiv) *
+					   hstate->bpp[i]);
+			hstate->pstride[i] = 0;
 			break;
 		}
 
-		state->offsets[i] = offset + fb->offsets[i];
+		hstate->offsets[i] = offset + fb->offsets[i];
 	}
 
 	/*
 	 * Swap width and size in case of 90 or 270 degrees rotation
 	 */
-	if (drm_rotation_90_or_270(state->base.rotation)) {
-		swap(state->src_w, state->src_h);
+	if (drm_rotation_90_or_270(hstate->base.rotation)) {
+		swap(hstate->src_w, hstate->src_h);
 	}
 
 	if (!desc->layout.size &&
-	    (mode->hdisplay != state->crtc_w ||
-	     mode->vdisplay != state->crtc_h))
+	    (mode->hdisplay != hstate->crtc_w ||
+	     mode->vdisplay != hstate->crtc_h))
 		return -EINVAL;
 
-	if ((state->crtc_h != state->src_h || state->crtc_w != state->src_w) &&
+	if ((hstate->crtc_h != hstate->src_h || hstate->crtc_w != hstate->src_w) &&
 	    (!desc->layout.memsize ||
-	     state->base.fb->format->has_alpha))
+	     hstate->base.fb->format->has_alpha))
 		return -EINVAL;
 
 	return 0;
 }
 
 static void atmel_hlcdc_plane_atomic_disable(struct drm_plane *p,
-					     struct drm_plane_state *old_state)
+					     struct drm_atomic_state *state)
 {
 	struct atmel_hlcdc_plane *plane = drm_plane_to_atmel_hlcdc_plane(p);
 
@@ -730,27 +731,29 @@ static void atmel_hlcdc_plane_atomic_disable(struct drm_plane *p,
 }
 
 static void atmel_hlcdc_plane_atomic_update(struct drm_plane *p,
-					    struct drm_plane_state *old_s)
+					    struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_s = drm_atomic_get_new_plane_state(state,
+								       p);
 	struct atmel_hlcdc_plane *plane = drm_plane_to_atmel_hlcdc_plane(p);
-	struct atmel_hlcdc_plane_state *state =
-			drm_plane_state_to_atmel_hlcdc_plane_state(p->state);
+	struct atmel_hlcdc_plane_state *hstate =
+			drm_plane_state_to_atmel_hlcdc_plane_state(new_s);
 	u32 sr;
 
-	if (!p->state->crtc || !p->state->fb)
+	if (!new_s->crtc || !new_s->fb)
 		return;
 
-	if (!state->base.visible) {
-		atmel_hlcdc_plane_atomic_disable(p, old_s);
+	if (!hstate->base.visible) {
+		atmel_hlcdc_plane_atomic_disable(p, state);
 		return;
 	}
 
-	atmel_hlcdc_plane_update_pos_and_size(plane, state);
-	atmel_hlcdc_plane_update_general_settings(plane, state);
-	atmel_hlcdc_plane_update_format(plane, state);
-	atmel_hlcdc_plane_update_clut(plane, state);
-	atmel_hlcdc_plane_update_buffers(plane, state);
-	atmel_hlcdc_plane_update_disc_area(plane, state);
+	atmel_hlcdc_plane_update_pos_and_size(plane, hstate);
+	atmel_hlcdc_plane_update_general_settings(plane, hstate);
+	atmel_hlcdc_plane_update_format(plane, hstate);
+	atmel_hlcdc_plane_update_clut(plane, hstate);
+	atmel_hlcdc_plane_update_buffers(plane, hstate);
+	atmel_hlcdc_plane_update_disc_area(plane, hstate);
 
 	/* Enable the overrun interrupts. */
 	atmel_hlcdc_layer_write_reg(&plane->layer, ATMEL_HLCDC_LAYER_IER,

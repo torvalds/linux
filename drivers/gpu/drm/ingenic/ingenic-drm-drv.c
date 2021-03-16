@@ -28,6 +28,7 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_irq.h>
 #include <drm/drm_managed.h>
@@ -359,21 +360,26 @@ static void ingenic_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static int ingenic_drm_plane_atomic_check(struct drm_plane *plane,
-					  struct drm_plane_state *state)
+					  struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state,
+										 plane);
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
 	struct ingenic_drm *priv = drm_device_get_priv(plane->dev);
 	struct drm_crtc_state *crtc_state;
-	struct drm_crtc *crtc = state->crtc ?: plane->state->crtc;
+	struct drm_crtc *crtc = new_plane_state->crtc ?: old_plane_state->crtc;
 	int ret;
 
 	if (!crtc)
 		return 0;
 
-	crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
+	crtc_state = drm_atomic_get_existing_crtc_state(state,
+							crtc);
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  priv->soc_info->has_osd,
@@ -386,9 +392,9 @@ static int ingenic_drm_plane_atomic_check(struct drm_plane *plane,
 	 * Note that state->src_* are in 16.16 fixed-point format.
 	 */
 	if (!priv->soc_info->has_osd &&
-	    (state->src_x != 0 ||
-	     (state->src_w >> 16) != state->crtc_w ||
-	     (state->src_h >> 16) != state->crtc_h))
+	    (new_plane_state->src_x != 0 ||
+	     (new_plane_state->src_w >> 16) != new_plane_state->crtc_w ||
+	     (new_plane_state->src_h >> 16) != new_plane_state->crtc_h))
 		return -EINVAL;
 
 	/*
@@ -396,12 +402,12 @@ static int ingenic_drm_plane_atomic_check(struct drm_plane *plane,
 	 * its position, size or depth.
 	 */
 	if (priv->soc_info->has_osd &&
-	    (!plane->state->fb || !state->fb ||
-	     plane->state->crtc_x != state->crtc_x ||
-	     plane->state->crtc_y != state->crtc_y ||
-	     plane->state->crtc_w != state->crtc_w ||
-	     plane->state->crtc_h != state->crtc_h ||
-	     plane->state->fb->format->format != state->fb->format->format))
+	    (!old_plane_state->fb || !new_plane_state->fb ||
+	     old_plane_state->crtc_x != new_plane_state->crtc_x ||
+	     old_plane_state->crtc_y != new_plane_state->crtc_y ||
+	     old_plane_state->crtc_w != new_plane_state->crtc_w ||
+	     old_plane_state->crtc_h != new_plane_state->crtc_h ||
+	     old_plane_state->fb->format->format != new_plane_state->fb->format->format))
 		crtc_state->mode_changed = true;
 
 	return 0;
@@ -438,7 +444,7 @@ void ingenic_drm_plane_disable(struct device *dev, struct drm_plane *plane)
 }
 
 static void ingenic_drm_plane_atomic_disable(struct drm_plane *plane,
-					     struct drm_plane_state *old_state)
+					     struct drm_atomic_state *state)
 {
 	struct ingenic_drm *priv = drm_device_get_priv(plane->dev);
 
@@ -536,23 +542,24 @@ static void ingenic_drm_update_palette(struct ingenic_drm *priv,
 }
 
 static void ingenic_drm_plane_atomic_update(struct drm_plane *plane,
-					    struct drm_plane_state *oldstate)
+					    struct drm_atomic_state *state)
 {
 	struct ingenic_drm *priv = drm_device_get_priv(plane->dev);
-	struct drm_plane_state *state = plane->state;
+	struct drm_plane_state *newstate = drm_atomic_get_new_plane_state(state,
+									  plane);
 	struct drm_crtc_state *crtc_state;
 	struct ingenic_dma_hwdesc *hwdesc;
 	unsigned int width, height, cpp, offset;
 	dma_addr_t addr;
 	u32 fourcc;
 
-	if (state && state->fb) {
-		crtc_state = state->crtc->state;
+	if (newstate && newstate->fb) {
+		crtc_state = newstate->crtc->state;
 
-		addr = drm_fb_cma_get_gem_addr(state->fb, state, 0);
-		width = state->src_w >> 16;
-		height = state->src_h >> 16;
-		cpp = state->fb->format->cpp[0];
+		addr = drm_fb_cma_get_gem_addr(newstate->fb, newstate, 0);
+		width = newstate->src_w >> 16;
+		height = newstate->src_h >> 16;
+		cpp = newstate->fb->format->cpp[0];
 
 		if (priv->soc_info->has_osd && plane->type == DRM_PLANE_TYPE_OVERLAY)
 			hwdesc = &priv->dma_hwdescs->hwdesc_f0;
@@ -563,7 +570,7 @@ static void ingenic_drm_plane_atomic_update(struct drm_plane *plane,
 		hwdesc->cmd = JZ_LCD_CMD_EOF_IRQ | (width * height * cpp / 4);
 
 		if (drm_atomic_crtc_needs_modeset(crtc_state)) {
-			fourcc = state->fb->format->format;
+			fourcc = newstate->fb->format->format;
 
 			ingenic_drm_plane_config(priv->dev, plane, fourcc);
 
@@ -780,7 +787,7 @@ static const struct drm_plane_helper_funcs ingenic_drm_plane_helper_funcs = {
 	.atomic_update		= ingenic_drm_plane_atomic_update,
 	.atomic_check		= ingenic_drm_plane_atomic_check,
 	.atomic_disable		= ingenic_drm_plane_atomic_disable,
-	.prepare_fb		= drm_gem_fb_prepare_fb,
+	.prepare_fb		= drm_gem_plane_helper_prepare_fb,
 };
 
 static const struct drm_crtc_helper_funcs ingenic_drm_crtc_helper_funcs = {

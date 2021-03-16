@@ -28,7 +28,6 @@
 
 #define pr_fmt(fmt) "[TTM] " fmt
 
-#include <drm/ttm/ttm_memory.h>
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
@@ -36,9 +35,11 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
-#include <drm/ttm/ttm_pool.h>
 
-#include "ttm_module.h"
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+
+#include "ttm_memory.h"
 
 #define TTM_MEMORY_ALLOC_RETRIES 4
 
@@ -276,9 +277,9 @@ static void ttm_shrink(struct ttm_mem_global *glob, bool from_wq,
 
 	while (ttm_zones_above_swap_target(glob, from_wq, extra)) {
 		spin_unlock(&glob->lock);
-		ret = ttm_bo_swapout(ctx);
+		ret = ttm_bo_swapout(ctx, GFP_KERNEL);
 		spin_lock(&glob->lock);
-		if (unlikely(ret != 0))
+		if (unlikely(ret < 0))
 			break;
 	}
 
@@ -413,7 +414,7 @@ static int ttm_mem_init_dma32_zone(struct ttm_mem_global *glob,
 }
 #endif
 
-int ttm_mem_global_init(struct ttm_mem_global *glob)
+int ttm_mem_global_init(struct ttm_mem_global *glob, struct device *dev)
 {
 	struct sysinfo si;
 	int ret;
@@ -423,8 +424,9 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 	spin_lock_init(&glob->lock);
 	glob->swap_queue = create_singlethread_workqueue("ttm_swap");
 	INIT_WORK(&glob->work, ttm_shrink_work);
-	ret = kobject_init_and_add(
-		&glob->kobj, &ttm_mem_glob_kobj_type, ttm_get_kobj(), "memory_accounting");
+
+	ret = kobject_init_and_add(&glob->kobj, &ttm_mem_glob_kobj_type,
+				   &dev->kobj, "memory_accounting");
 	if (unlikely(ret != 0)) {
 		kobject_put(&glob->kobj);
 		return ret;
@@ -452,7 +454,6 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 		pr_info("Zone %7s: Available graphics memory: %llu KiB\n",
 			zone->name, (unsigned long long)zone->max_mem >> 10);
 	}
-	ttm_pool_mgr_init(glob->zone_kernel->max_mem/(2*PAGE_SIZE));
 	return 0;
 out_no_zone:
 	ttm_mem_global_release(glob);
@@ -463,9 +464,6 @@ void ttm_mem_global_release(struct ttm_mem_global *glob)
 {
 	struct ttm_mem_zone *zone;
 	unsigned int i;
-
-	/* let the page allocator first stop the shrink work. */
-	ttm_pool_mgr_fini();
 
 	flush_workqueue(glob->swap_queue);
 	destroy_workqueue(glob->swap_queue);

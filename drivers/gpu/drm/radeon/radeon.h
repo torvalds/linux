@@ -451,7 +451,7 @@ struct radeon_surface_reg {
  * TTM.
  */
 struct radeon_mman {
-	struct ttm_bo_device		bdev;
+	struct ttm_device		bdev;
 	bool				initialized;
 
 #if defined(CONFIG_DEBUG_FS)
@@ -2824,7 +2824,7 @@ extern int radeon_ttm_tt_set_userptr(struct radeon_device *rdev,
 				     uint32_t flags);
 extern bool radeon_ttm_tt_has_userptr(struct radeon_device *rdev, struct ttm_tt *ttm);
 extern bool radeon_ttm_tt_is_readonly(struct radeon_device *rdev, struct ttm_tt *ttm);
-bool radeon_ttm_tt_is_bound(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
+bool radeon_ttm_tt_is_bound(struct ttm_device *bdev, struct ttm_tt *ttm);
 extern void radeon_vram_location(struct radeon_device *rdev, struct radeon_mc *mc, u64 base);
 extern void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 extern int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon);
@@ -2834,7 +2834,7 @@ extern void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size
 extern void radeon_program_register_sequence(struct radeon_device *rdev,
 					     const u32 *registers,
 					     const u32 array_size);
-struct radeon_device *radeon_get_rdev(struct ttm_bo_device *bdev);
+struct radeon_device *radeon_get_rdev(struct ttm_device *bdev);
 
 /* KMS */
 

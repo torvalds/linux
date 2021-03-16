@@ -276,8 +276,8 @@ bool komeda_fb_is_layer_supported(struct komeda_fb *kfb, u32 layer_type,
 	supported = komeda_format_mod_supported(&mdev->fmt_tbl, layer_type,
 						fourcc, modifier, rot);
 	if (!supported)
-		DRM_DEBUG_ATOMIC("Layer TYPE: %d doesn't support fb FMT: %s.\n",
-			layer_type, komeda_get_format_name(fourcc, modifier));
+		DRM_DEBUG_ATOMIC("Layer TYPE: %d doesn't support fb FMT: %p4cc with modifier: 0x%llx.\n",
+				 layer_type, &fourcc, modifier);
 
 	return supported;
 }

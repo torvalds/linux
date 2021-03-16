@@ -151,11 +151,8 @@ malidp_mw_encoder_atomic_check(struct drm_encoder *encoder,
 		malidp_hw_get_format_id(&malidp->dev->hw->map, SE_MEMWRITE,
 					fb->format->format, !!fb->modifier);
 	if (mw_state->format == MALIDP_INVALID_FORMAT_ID) {
-		struct drm_format_name_buf format_name;
-
-		DRM_DEBUG_KMS("Invalid pixel format %s\n",
-			      drm_get_format_name(fb->format->format,
-						  &format_name));
+		DRM_DEBUG_KMS("Invalid pixel format %p4cc\n",
+			      &fb->format->format);
 		return -EINVAL;
 	}
 

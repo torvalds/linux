@@ -990,7 +990,7 @@ struct drm_format_modifier {
 };
 
 /**
- * struct drm_mode_create_blob - Create New block property
+ * struct drm_mode_create_blob - Create New blob property
  *
  * Create a new 'blob' data property, copying length bytes from data pointer,
  * and returning new blob ID.
