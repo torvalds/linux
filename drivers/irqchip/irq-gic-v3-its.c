@@ -154,6 +154,7 @@ struct its_device {
 	struct its_node		*its;
 	struct event_lpi_map	event_map;
 	void			*itt;
+	u32			itt_sz;
 	u32			nr_ites;
 	u32			device_id;
 	bool			shared;
@@ -2328,7 +2329,7 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 	gfp_flags = GFP_KERNEL;
 	if (of_machine_is_compatible("rockchip,rk3568") || of_machine_is_compatible("rockchip,rk3566"))
 		gfp_flags |= GFP_DMA32;
-	itt = kzalloc(sz, gfp_flags);
+	itt = (void *)__get_free_pages(gfp_flags, get_order(sz));
 	if (alloc_lpis) {
 		lpi_map = its_lpi_alloc(nvecs, &lpi_base, &nr_lpis);
 		if (lpi_map)
@@ -2342,7 +2343,7 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 
 	if (!dev || !itt ||  !col_map || (!lpi_map && alloc_lpis)) {
 		kfree(dev);
-		kfree(itt);
+		free_pages((unsigned long)itt, get_order(sz));
 		kfree(lpi_map);
 		kfree(col_map);
 		return NULL;
@@ -2352,6 +2353,7 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 
 	dev->its = its;
 	dev->itt = itt;
+	dev->itt_sz = sz;
 	dev->nr_ites = nr_ites;
 	dev->event_map.lpi_map = lpi_map;
 	dev->event_map.col_map = col_map;
@@ -2378,7 +2380,7 @@ static void its_free_device(struct its_device *its_dev)
 	raw_spin_lock_irqsave(&its_dev->its->lock, flags);
 	list_del(&its_dev->entry);
 	raw_spin_unlock_irqrestore(&its_dev->its->lock, flags);
-	kfree(its_dev->itt);
+	free_pages((unsigned long)its_dev->itt, get_order(its_dev->itt_sz));
 	kfree(its_dev);
 }
 
