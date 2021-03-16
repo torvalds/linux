@@ -1432,6 +1432,57 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 	return sizeof(struct gpu_metrics_v1_1);
 }
 
+int aldebaran_mode2_reset(struct smu_context *smu)
+{
+	u32 smu_version;
+	int ret = 0, index;
+	struct amdgpu_device *adev = smu->adev;
+	int timeout = 10;
+
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
+
+	index = smu_cmn_to_asic_specific_index(smu, CMN2ASIC_MAPPING_MSG,
+						SMU_MSG_GfxDeviceDriverReset);
+
+	mutex_lock(&smu->message_lock);
+	if (smu_version >= 0x00441400) {
+		ret = smu_cmn_send_msg_without_waiting(smu, (uint16_t)index, SMU_RESET_MODE_2);
+		/* This is similar to FLR, wait till max FLR timeout */
+		msleep(100);
+		dev_dbg(smu->adev->dev, "restore config space...\n");
+		/* Restore the config space saved during init */
+		amdgpu_device_load_pci_state(adev->pdev);
+
+		dev_dbg(smu->adev->dev, "wait for reset ack\n");
+		while (ret == -ETIME && timeout)  {
+			ret = smu_cmn_wait_for_response(smu);
+			/* Wait a bit more time for getting ACK */
+			if (ret == -ETIME) {
+				--timeout;
+				usleep_range(500, 1000);
+				continue;
+			}
+
+			if (ret != 1) {
+				dev_err(adev->dev, "failed to send mode2 message \tparam: 0x%08x response %#x\n",
+						SMU_RESET_MODE_2, ret);
+				goto out;
+			}
+		}
+
+	} else {
+		dev_err(adev->dev, "smu fw 0x%x does not support MSG_GfxDeviceDriverReset MSG\n",
+				smu_version);
+	}
+
+	if (ret == 1)
+		ret = 0;
+out:
+	mutex_unlock(&smu->message_lock);
+
+	return ret;
+}
+
 static bool aldebaran_is_mode1_reset_supported(struct smu_context *smu)
 {
 #if 0
@@ -1530,8 +1581,8 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.mode1_reset_is_support = aldebaran_is_mode1_reset_supported,
 	.mode2_reset_is_support = aldebaran_is_mode2_reset_supported,
 	.mode1_reset = smu_v13_0_mode1_reset,
-	.mode2_reset = smu_v13_0_mode2_reset,
 	.set_mp1_state = aldebaran_set_mp1_state,
+	.mode2_reset = aldebaran_mode2_reset,
 };
 
 void aldebaran_set_ppt_funcs(struct smu_context *smu)
