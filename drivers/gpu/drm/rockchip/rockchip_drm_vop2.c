@@ -521,6 +521,7 @@ struct vop2 {
 	 * @active_vp_mask: Bitmask of active video ports;
 	 */
 	uint8_t active_vp_mask;
+	uint16_t port_mux_cfg;
 
 	uint32_t *regsbak;
 	void __iomem *regs;
@@ -854,6 +855,27 @@ static void vop2_wait_for_fs_by_raw_status(struct vop2_video_port *vp)
 	if (ret)
 		DRM_DEV_ERROR(vop2->dev, "wait vp%d raw fs statu timeout\n", vp->id);
 
+}
+
+static uint16_t vop2_read_port_mux(struct vop2 *vop2)
+{
+	return vop2_readl(vop2, RK3568_OVL_PORT_SEL) & 0xffff;
+}
+
+static void vop2_wait_for_port_mux_done(struct vop2 *vop2)
+{
+	uint16_t port_mux_cfg;
+	int ret;
+
+	/*
+	 * Spin until the previous port_mux figuration
+	 * is done.
+	 */
+	ret = readx_poll_timeout_atomic(vop2_read_port_mux, vop2, port_mux_cfg,
+					port_mux_cfg == vop2->port_mux_cfg, 0, 20 * 1000);
+	if (ret)
+		DRM_DEV_ERROR(vop2->dev, "wait port_mux done timeout: 0x%x--0x%x\n",
+			      port_mux_cfg, vop2->port_mux_cfg);
 }
 
 static int32_t vop2_pending_done_bits(struct vop2_video_port *vp)
@@ -2293,7 +2315,8 @@ static void vop2_layer_map_initial(struct vop2 *vop2, uint32_t current_vp_id)
 	uint32_t used_layers = 0;
 	uint32_t layer_map, sel;
 	uint32_t win_map, vp_id;
-	uint32_t port_mux;
+	uint16_t port_mux_cfg = 0;
+	uint16_t port_mux;
 	uint32_t active_vp_mask = 0;
 	uint32_t standby;
 	uint32_t shift;
@@ -2357,8 +2380,14 @@ static void vop2_layer_map_initial(struct vop2 *vop2, uint32_t current_vp_id)
 			port_mux = 8;
 		else
 			port_mux = used_layers - 1;
-		VOP_MODULE_SET(vop2, vp, port_mux, port_mux);
+		port_mux_cfg |= port_mux << (vp->id * 4);
 	}
+
+	/* the last VP is fixed */
+	if (vop2->data->nr_vps >= 1)
+		port_mux_cfg |= 7 << (4 * (vop2->data->nr_vps - 1));
+	vop2->port_mux_cfg = port_mux_cfg;
+	VOP_CTRL_SET(vop2, ovl_port_mux_cfg, port_mux_cfg);
 
 	for (i = 0; i < vop2->data->nr_layers; i++) {
 		sel = (layer_map >> (4 * i)) & 0xf;
@@ -4570,13 +4599,12 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 	const struct vop2_zpos *zpos;
 	struct vop2_win *win;
 	struct vop2_layer *layer;
-	u8 used_layers = 0;
+	u16 port_mux_cfg = 0;
 	u8 port_mux;
+	u8 used_layers = 0;
 	u8 layer_id, win_phys_id;
 	int i;
 
-	VOP_CTRL_SET(vop2, ovl_cfg_done_port, port_id);
-	VOP_CTRL_SET(vop2, ovl_port_mux_cfg_done_imd, 0);
 	for (i = 0; i < vop2_data->nr_vps - 1; i++) {
 		prev_vp = &vop2->vps[i];
 		used_layers += hweight32(prev_vp->win_mask);
@@ -4597,12 +4625,21 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 		else
 			port_mux = used_layers - 1;
 
+		port_mux_cfg |= port_mux << (prev_vp->id * 4);
+
 		if (port_mux > vop2_data->nr_mixers)
 			prev_vp->bg_ovl_dly = 0;
 		else
 			prev_vp->bg_ovl_dly = (vop2_data->nr_mixers - port_mux) << 1;
-		VOP_MODULE_SET(vop2, prev_vp, port_mux, port_mux);
 	}
+
+	port_mux_cfg |= 7 << (4 * (vop2->data->nr_vps - 1));
+
+	vop2_wait_for_port_mux_done(vop2);
+	vop2->port_mux_cfg = port_mux_cfg;
+	VOP_CTRL_SET(vop2, ovl_port_mux_cfg, port_mux_cfg);
+	VOP_CTRL_SET(vop2, ovl_cfg_done_port, port_id);
+	VOP_CTRL_SET(vop2, ovl_port_mux_cfg_done_imd, 0);
 
 	/*
 	 * Win and layer must map one by one, if a win is selected
