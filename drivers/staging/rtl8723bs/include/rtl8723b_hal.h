@@ -98,10 +98,6 @@ struct rt_firmware_hdr {
 /* ARP Rsp:1, RWC:1, GTK Info:1, GTK RSP:2, GTK EXT MEM:2, PNO: 6 */
 #define WOWLAN_PAGE_NUM_8723B 0x00
 
-#ifdef CONFIG_AP_WOWLAN
-#define AP_WOWLAN_PAGE_NUM_8723B 0x02
-#endif
-
 #define TX_TOTAL_PAGE_NUMBER_8723B     \
 	(0xFF - BCNQ_PAGE_NUM_8723B  - \
 		BCNQ1_PAGE_NUM_8723B - \

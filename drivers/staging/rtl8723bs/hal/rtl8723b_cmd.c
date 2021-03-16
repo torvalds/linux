@@ -312,119 +312,6 @@ static void ConstructNullFunctionData(
 	*pLength = pktlen;
 }
 
-#ifdef CONFIG_AP_WOWLAN
-static void ConstructProbeRsp(struct adapter *padapter, u8 *pframe, u32 *pLength, u8 *StaAddr, bool bHideSSID)
-{
-	struct ieee80211_hdr *pwlanhdr;
-	u16 *fctrl;
-	u8 *mac, *bssid;
-	u32 pktlen;
-	struct mlme_ext_priv *pmlmeext = &(padapter->mlmeextpriv);
-	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
-	struct wlan_bssid_ex *cur_network = &(pmlmeinfo->network);
-	u8 *pwps_ie;
-	uint wps_ielen;
-	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-
-	/* DBG_871X("%s\n", __func__); */
-
-	pwlanhdr = (struct ieee80211_hdr *)pframe;
-
-	mac = myid(&(padapter->eeprompriv));
-	bssid = cur_network->MacAddress;
-
-	fctrl = &(pwlanhdr->frame_control);
-	*(fctrl) = 0;
-	memcpy(pwlanhdr->addr1, StaAddr, ETH_ALEN);
-	memcpy(pwlanhdr->addr2, mac, ETH_ALEN);
-	memcpy(pwlanhdr->addr3, bssid, ETH_ALEN);
-
-	DBG_871X("%s FW Mac Addr:%pM\n", __func__, MAC_ARG(mac));
-	DBG_871X("%s FW IP Addr:%pI4\n", __func__, IP_ARG(StaAddr));
-
-	SetSeqNum(pwlanhdr, 0);
-	SetFrameSubType(fctrl, WIFI_PROBERSP);
-
-	pktlen = sizeof(struct ieee80211_hdr_3addr);
-	pframe += pktlen;
-
-	if (cur_network->IELength > MAX_IE_SZ)
-		return;
-
-	pwps_ie = rtw_get_wps_ie(cur_network->IEs+_FIXED_IE_LENGTH_,
-			cur_network->IELength-_FIXED_IE_LENGTH_, NULL, &wps_ielen);
-
-	/* inerset & update wps_probe_resp_ie */
-	if (pmlmepriv->wps_probe_resp_ie && pwps_ie && (wps_ielen > 0)) {
-		uint wps_offset, remainder_ielen;
-		u8 *premainder_ie;
-
-		wps_offset = (uint)(pwps_ie - cur_network->IEs);
-
-		premainder_ie = pwps_ie + wps_ielen;
-
-		remainder_ielen = cur_network->IELength - wps_offset - wps_ielen;
-
-		memcpy(pframe, cur_network->IEs, wps_offset);
-		pframe += wps_offset;
-		pktlen += wps_offset;
-
-		wps_ielen = (uint)pmlmepriv->wps_probe_resp_ie[1];/* to get ie data len */
-		if ((wps_offset+wps_ielen+2) <= MAX_IE_SZ) {
-			memcpy(pframe, pmlmepriv->wps_probe_resp_ie, wps_ielen+2);
-			pframe += wps_ielen+2;
-			pktlen += wps_ielen+2;
-		}
-
-		if ((wps_offset+wps_ielen+2+remainder_ielen) <= MAX_IE_SZ) {
-			memcpy(pframe, premainder_ie, remainder_ielen);
-			pframe += remainder_ielen;
-			pktlen += remainder_ielen;
-		}
-	} else {
-		memcpy(pframe, cur_network->IEs, cur_network->IELength);
-		pframe += cur_network->IELength;
-		pktlen += cur_network->IELength;
-	}
-
-	/* retrieve SSID IE from cur_network->Ssid */
-	{
-		u8 *ssid_ie;
-		signed int ssid_ielen;
-		signed int ssid_ielen_diff;
-		u8 buf[MAX_IE_SZ];
-		u8 *ies = pframe + sizeof(struct ieee80211_hdr_3addr);
-
-		ssid_ie = rtw_get_ie(ies+_FIXED_IE_LENGTH_, WLAN_EID_SSID, &ssid_ielen,
-					(pframe-ies)-_FIXED_IE_LENGTH_);
-
-		ssid_ielen_diff = cur_network->Ssid.SsidLength - ssid_ielen;
-
-		if (ssid_ie &&	cur_network->Ssid.SsidLength) {
-			uint remainder_ielen;
-			u8 *remainder_ie;
-			remainder_ie = ssid_ie+2;
-			remainder_ielen = (pframe-remainder_ie);
-
-			if (remainder_ielen > MAX_IE_SZ) {
-				DBG_871X_LEVEL(_drv_warning_, FUNC_ADPT_FMT" remainder_ielen > MAX_IE_SZ\n", FUNC_ADPT_ARG(padapter));
-				remainder_ielen = MAX_IE_SZ;
-			}
-
-			memcpy(buf, remainder_ie, remainder_ielen);
-			memcpy(remainder_ie+ssid_ielen_diff, buf, remainder_ielen);
-			*(ssid_ie+1) = cur_network->Ssid.SsidLength;
-			memcpy(ssid_ie+2, cur_network->Ssid.Ssid, cur_network->Ssid.SsidLength);
-			pframe += ssid_ielen_diff;
-			pktlen += ssid_ielen_diff;
-		}
-	}
-
-	*pLength = pktlen;
-
-}
-#endif /*  CONFIG_AP_WOWLAN */
-
 /*
  * To check if reserved page content is destroyed by beacon because beacon
  * is too large.
@@ -456,42 +343,6 @@ static void rtl8723b_set_FwRsvdPage_cmd(struct adapter *padapter, struct rsvdpag
 static void rtl8723b_set_FwAoacRsvdPage_cmd(struct adapter *padapter, struct rsvdpage_loc *rsvdpageloc)
 {
 }
-
-#ifdef CONFIG_AP_WOWLAN
-static void rtl8723b_set_ap_wow_rsvdpage_cmd(
-	struct adapter *padapter, struct RSVDPAGE_LOC *rsvdpageloc
-)
-{
-	u8 header;
-	u8 rsvdparm[H2C_AOAC_RSVDPAGE_LOC_LEN] = {0};
-
-	header = rtw_read8(padapter, REG_BCNQ_BDNY);
-
-	DBG_871X("%s: beacon: %d, probeRsp: %d, header:0x%02x\n", __func__,
-			rsvdpageloc->LocApOffloadBCN,
-			rsvdpageloc->LocProbeRsp,
-			header);
-
-	SET_H2CCMD_AP_WOWLAN_RSVDPAGE_LOC_BCN(rsvdparm,
-			rsvdpageloc->LocApOffloadBCN + header);
-
-	FillH2CCmd8723B(padapter, H2C_8723B_BCN_RSVDPAGE,
-			H2C_BCN_RSVDPAGE_LEN, rsvdparm);
-
-	msleep(10);
-
-	memset(&rsvdparm, 0, sizeof(rsvdparm));
-
-	SET_H2CCMD_AP_WOWLAN_RSVDPAGE_LOC_ProbeRsp(
-			rsvdparm,
-			rsvdpageloc->LocProbeRsp + header);
-
-	FillH2CCmd8723B(padapter, H2C_8723B_PROBERSP_RSVDPAGE,
-			H2C_PROBERSP_RSVDPAGE_LEN, rsvdparm);
-
-	msleep(10);
-}
-#endif /* CONFIG_AP_WOWLAN */
 
 void rtl8723b_set_FwMediaStatusRpt_cmd(struct adapter *padapter, u8 mstatus, u8 macid)
 {
@@ -698,64 +549,6 @@ void rtl8723b_set_FwPwrModeInIPS_cmd(struct adapter *padapter, u8 cmd_param)
 	FillH2CCmd8723B(padapter, H2C_8723B_FWLPS_IN_IPS_, 1, &cmd_param);
 }
 
-#ifdef CONFIG_AP_WOWLAN
-static void rtl8723b_set_FwAPWoWlanCtrl_Cmd(struct adapter *padapter, u8 bFuncEn)
-{
-	u8 u1H2CAPWoWlanCtrlParm[H2C_WOWLAN_LEN] = {0};
-	u8 gpionum = 0, gpio_dur = 0;
-	u8 gpio_high_active = 1; /* 0: low active, 1: high active */
-	u8 gpio_pulse = bFuncEn;
-
-	DBG_871X("%s(): bFuncEn =%d\n", __func__, bFuncEn);
-
-	if (bFuncEn)
-		gpio_dur = 16;
-	else
-		gpio_dur = 0;
-
-	SET_H2CCMD_AP_WOW_GPIO_CTRL_INDEX(u1H2CAPWoWlanCtrlParm,
-			gpionum);
-	SET_H2CCMD_AP_WOW_GPIO_CTRL_PLUS(u1H2CAPWoWlanCtrlParm,
-			gpio_pulse);
-	SET_H2CCMD_AP_WOW_GPIO_CTRL_HIGH_ACTIVE(u1H2CAPWoWlanCtrlParm,
-			gpio_high_active);
-	SET_H2CCMD_AP_WOW_GPIO_CTRL_EN(u1H2CAPWoWlanCtrlParm,
-			bFuncEn);
-	SET_H2CCMD_AP_WOW_GPIO_CTRL_DURATION(u1H2CAPWoWlanCtrlParm,
-			gpio_dur);
-
-	FillH2CCmd8723B(padapter, H2C_8723B_AP_WOW_GPIO_CTRL,
-			H2C_AP_WOW_GPIO_CTRL_LEN, u1H2CAPWoWlanCtrlParm);
-}
-
-static void rtl8723b_set_Fw_AP_Offload_Cmd(struct adapter *padapter, u8 bFuncEn)
-{
-	u8 u1H2CAPOffloadCtrlParm[H2C_WOWLAN_LEN] = {0};
-
-	DBG_871X("%s(): bFuncEn =%d\n", __func__, bFuncEn);
-
-	SET_H2CCMD_AP_WOWLAN_EN(u1H2CAPOffloadCtrlParm, bFuncEn);
-
-	FillH2CCmd8723B(padapter, H2C_8723B_AP_OFFLOAD,
-			H2C_AP_OFFLOAD_LEN, u1H2CAPOffloadCtrlParm);
-}
-
-void rtl8723b_set_ap_wowlan_cmd(struct adapter *padapter, u8 enable)
-{
-	DBG_871X_LEVEL(_drv_always_, "+%s()+: enable =%d\n", __func__, enable);
-	if (enable) {
-		rtl8723b_set_FwJoinBssRpt_cmd(padapter, RT_MEDIA_CONNECT);
-		issue_beacon(padapter, 0);
-	}
-
-	rtl8723b_set_FwAPWoWlanCtrl_Cmd(padapter, enable);
-	msleep(10);
-	rtl8723b_set_Fw_AP_Offload_Cmd(padapter, enable);
-	msleep(10);
-	DBG_871X_LEVEL(_drv_always_, "-%s()-\n", __func__);
-}
-#endif /* CONFIG_AP_WOWLAN */
-
 /*
  * Description: Fill the reserved packets that FW will use to RSVD page.
  * Now we just send 4 types packet to rsvd page.
@@ -928,134 +721,9 @@ error:
 	rtw_free_xmitframe(pxmitpriv, pcmdframe);
 }
 
-#ifdef CONFIG_AP_WOWLAN
-/*
- * Description: Fill the reserved packets that FW will use to RSVD page.
- * Now we just send 2 types packet to rsvd page. (1)Beacon, (2)ProbeRsp.
- *
- * Input: bDLFinished
- *
- * false: At the first time we will send all the packets as a large packet to
- * Hw, so we need to set the packet length to total length.
- *
- * true: At the second time, we should send the first packet (default:beacon)
- * to Hw again and set the length in descriptor to the real beacon length.
- */
-/* 2009.10.15 by tynli. */
-static void rtl8723b_set_AP_FwRsvdPagePkt(
-	struct adapter *padapter, bool bDLFinished
-)
-{
-	struct hal_com_data *pHalData;
-	struct xmit_frame *pcmdframe;
-	struct pkt_attrib *pattrib;
-	struct xmit_priv *pxmitpriv;
-	struct mlme_ext_priv *pmlmeext;
-	struct mlme_ext_info *pmlmeinfo;
-	struct pwrctrl_priv *pwrctl;
-	u32 BeaconLength = 0, ProbeRspLength = 0;
-	u8 *ReservedPagePacket;
-	u8 TxDescLen = TXDESC_SIZE, TxDescOffset = TXDESC_OFFSET;
-	u8 TotalPageNum = 0, CurtPktPageNum = 0, RsvdPageNum = 0;
-	u8 currentip[4];
-	u16 BufIndex, PageSize = 128;
-	u32 TotalPacketLen = 0, MaxRsvdPageBufSize = 0;
-	struct RSVDPAGE_LOC RsvdPageLoc;
-
-	/* DBG_871X("%s---->\n", __func__); */
-	DBG_8192C("+" FUNC_ADPT_FMT ": iface_type =%d\n",
-		FUNC_ADPT_ARG(padapter), get_iface_type(padapter));
-
-	pHalData = GET_HAL_DATA(padapter);
-	pxmitpriv = &padapter->xmitpriv;
-	pmlmeext = &padapter->mlmeextpriv;
-	pmlmeinfo = &pmlmeext->mlmext_info;
-	pwrctl = adapter_to_pwrctl(padapter);
-
-	RsvdPageNum = BCNQ_PAGE_NUM_8723B + AP_WOWLAN_PAGE_NUM_8723B;
-	MaxRsvdPageBufSize = RsvdPageNum*PageSize;
-
-	pcmdframe = rtw_alloc_cmdxmitframe(pxmitpriv);
-	if (!pcmdframe) {
-		DBG_871X("%s: alloc ReservedPagePacket fail!\n", __func__);
-		return;
-	}
-
-	ReservedPagePacket = pcmdframe->buf_addr;
-	memset(&RsvdPageLoc, 0, sizeof(struct RSVDPAGE_LOC));
-
-	/* 3 (1) beacon */
-	BufIndex = TxDescOffset;
-	ConstructBeacon(padapter, &ReservedPagePacket[BufIndex], &BeaconLength);
-
-	/*  When we count the first page size, we need to reserve description size for the RSVD */
-	/*  packet, it will be filled in front of the packet in TXPKTBUF. */
-	CurtPktPageNum = (u8)PageNum_128(TxDescLen + BeaconLength);
-	/* If we don't add 1 more page, the WOWLAN function has a problem. Baron thinks it's a bug of firmware */
-	if (CurtPktPageNum == 1)
-		CurtPktPageNum += 1;
-	TotalPageNum += CurtPktPageNum;
-
-	BufIndex += (CurtPktPageNum*PageSize);
-
-	/* 2 (4) probe response */
-	RsvdPageLoc.LocProbeRsp = TotalPageNum;
-
-	rtw_get_current_ip_address(padapter, currentip);
-
-	ConstructProbeRsp(
-		padapter,
-		&ReservedPagePacket[BufIndex],
-		&ProbeRspLength,
-		currentip,
-		false);
-	rtl8723b_fill_fake_txdesc(padapter,
-			&ReservedPagePacket[BufIndex-TxDescLen],
-			ProbeRspLength,
-			false, false, false);
-
-	DBG_871X("%s(): HW_VAR_SET_TX_CMD: PROBE RSP %p %d\n",
-		__func__, &ReservedPagePacket[BufIndex-TxDescLen],
-		(ProbeRspLength+TxDescLen));
-
-	CurtPktPageNum = (u8)PageNum_128(TxDescLen + ProbeRspLength);
-
-	TotalPageNum += CurtPktPageNum;
-
-	BufIndex += (CurtPktPageNum*PageSize);
-
-	TotalPacketLen = BufIndex + ProbeRspLength;
-
-	if (TotalPacketLen > MaxRsvdPageBufSize) {
-		DBG_871X("%s(): ERROR: The rsvd page size is not enough \
-				!!TotalPacketLen %d, MaxRsvdPageBufSize %d\n",
-				__func__, TotalPacketLen, MaxRsvdPageBufSize);
-		goto error;
-	} else {
-		/*  update attribute */
-		pattrib = &pcmdframe->attrib;
-		update_mgntframe_attrib(padapter, pattrib);
-		pattrib->qsel = 0x10;
-		pattrib->pktlen = TotalPacketLen - TxDescOffset;
-		pattrib->last_txcmdsz = TotalPacketLen - TxDescOffset;
-		dump_mgntframe_and_wait(padapter, pcmdframe, 100);
-	}
-
-	DBG_871X("%s: Set RSVD page location to Fw , TotalPacketLen(%d), TotalPageNum(%d)\n", __func__, TotalPacketLen, TotalPageNum);
-	rtl8723b_set_ap_wow_rsvdpage_cmd(padapter, &RsvdPageLoc);
-
-	return;
-error:
-	rtw_free_xmitframe(pxmitpriv, pcmdframe);
-}
-#endif /* CONFIG_AP_WOWLAN */
-
 void rtl8723b_download_rsvd_page(struct adapter *padapter, u8 mstatus)
 {
 	struct hal_com_data	*pHalData = GET_HAL_DATA(padapter);
-#ifdef CONFIG_AP_WOWLAN
-	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
-#endif
 	struct mlme_ext_priv *pmlmeext = &(padapter->mlmeextpriv);
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 	bool bcn_valid = false;
@@ -1102,15 +770,8 @@ void rtl8723b_download_rsvd_page(struct adapter *padapter, u8 mstatus)
 		DLBcnCount = 0;
 		poll = 0;
 		do {
-#ifdef CONFIG_AP_WOWLAN
-			if (pwrpriv->wowlan_ap_mode)
-				rtl8723b_set_AP_FwRsvdPagePkt(padapter, 0);
-			else
-				rtl8723b_set_FwRsvdPagePkt(padapter, 0);
-#else
 			/*  download rsvd page. */
 			rtl8723b_set_FwRsvdPagePkt(padapter, 0);
-#endif
 			DLBcnCount++;
 			do {
 				yield();

@@ -1280,16 +1280,6 @@ static void SetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)
 {
 	u8 val8;
 
-#ifdef CONFIG_AP_WOWLAN
-	struct wowlan_ioctl_param *poidparam;
-	struct pwrctrl_priv *pwrctl = adapter_to_pwrctl(padapter);
-	int res;
-	u32 tmp;
-	u16 len = 0;
-	u8 trycnt = 100;
-	u32 himr = 0;
-#endif
-
 	switch (variable) {
 	case HW_VAR_SET_RPWM:
 		/*  rpwm value only use BIT0(clock bit) , BIT6(Ack bit), and BIT7(Toggle bit) */
@@ -1314,101 +1304,6 @@ static void SetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)
 		val8 = *val;
 		break;
 
-#ifdef CONFIG_AP_WOWLAN
-	case HW_VAR_AP_WOWLAN:
-	{
-		poidparam = (struct wowlan_ioctl_param *)val;
-		switch (poidparam->subcode) {
-		case WOWLAN_AP_ENABLE:
-			DBG_871X("%s, WOWLAN_AP_ENABLE\n", __func__);
-			/*  1. Download WOWLAN FW */
-			DBG_871X_LEVEL(_drv_always_, "Re-download WoWlan FW!\n");
-			SetFwRelatedForWoWLAN8723b(padapter, true);
-
-			/*  2. RX DMA stop */
-			DBG_871X_LEVEL(_drv_always_, "Pause DMA\n");
-			rtw_write32(padapter, REG_RXPKT_NUM,
-				(rtw_read32(padapter, REG_RXPKT_NUM) | RW_RELEASE_EN));
-			do {
-				if ((rtw_read32(padapter, REG_RXPKT_NUM) & RXDMA_IDLE)) {
-					DBG_871X_LEVEL(_drv_always_, "RX_DMA_IDLE is true\n");
-					break;
-				} else {
-					/*  If RX_DMA is not idle, receive one pkt from DMA */
-					res = sdio_local_read(padapter, SDIO_REG_RX0_REQ_LEN, 4, (u8 *)&tmp);
-					len = le16_to_cpu(tmp);
-
-					DBG_871X_LEVEL(_drv_always_, "RX len:%d\n", len);
-					if (len > 0)
-						res = RecvOnePkt(padapter, len);
-					else
-						DBG_871X_LEVEL(_drv_always_, "read length fail %d\n", len);
-
-					DBG_871X_LEVEL(_drv_always_, "RecvOnePkt Result: %d\n", res);
-				}
-			} while (trycnt--);
-
-			if (trycnt == 0)
-				DBG_871X_LEVEL(_drv_always_, "Stop RX DMA failed......\n");
-
-			/*  3. Clear IMR and ISR */
-			DBG_871X_LEVEL(_drv_always_, "Clear IMR and ISR\n");
-			tmp = 0;
-			sdio_local_write(padapter, SDIO_REG_HIMR_ON, 4, (u8 *)&tmp);
-			sdio_local_write(padapter, SDIO_REG_HIMR, 4, (u8 *)&tmp);
-			sdio_local_read(padapter, SDIO_REG_HISR, 4, (u8 *)&tmp);
-			sdio_local_write(padapter, SDIO_REG_HISR, 4, (u8 *)&tmp);
-
-			/*  4. Enable CPWM2 only */
-			DBG_871X_LEVEL(_drv_always_, "Enable only CPWM2\n");
-			sdio_local_read(padapter, SDIO_REG_HIMR, 4, (u8 *)&tmp);
-			DBG_871X("DisableInterruptButCpwm28723BSdio(): Read SDIO_REG_HIMR: 0x%08x\n", tmp);
-
-			himr = cpu_to_le32(SDIO_HIMR_DISABLED) | SDIO_HIMR_CPWM2_MSK;
-			sdio_local_write(padapter, SDIO_REG_HIMR, 4, (u8 *)&himr);
-
-			sdio_local_read(padapter, SDIO_REG_HIMR, 4, (u8 *)&tmp);
-			DBG_871X("DisableInterruptButCpwm28723BSdio(): Read again SDIO_REG_HIMR: 0x%08x\n", tmp);
-
-			/*  5. Set Enable WOWLAN H2C command. */
-			DBG_871X_LEVEL(_drv_always_, "Set Enable AP WOWLan cmd\n");
-			rtl8723b_set_ap_wowlan_cmd(padapter, 1);
-			/*  6. add some delay for H2C cmd ready */
-			msleep(10);
-
-			rtw_write8(padapter, REG_WOWLAN_WAKE_REASON, 0);
-			break;
-		case WOWLAN_AP_DISABLE:
-			DBG_871X("%s, WOWLAN_AP_DISABLE\n", __func__);
-			/*  1. Read wakeup reason */
-			pwrctl->wowlan_wake_reason =
-				rtw_read8(padapter, REG_WOWLAN_WAKE_REASON);
-
-			DBG_871X_LEVEL(_drv_always_, "wakeup_reason: 0x%02x\n",
-					pwrctl->wowlan_wake_reason);
-
-			/*  2.  Set Disable WOWLAN H2C command. */
-			DBG_871X_LEVEL(_drv_always_, "Set Disable WOWLan cmd\n");
-			rtl8723b_set_ap_wowlan_cmd(padapter, 0);
-			/*  6. add some delay for H2C cmd ready */
-			msleep(2);
-
-			DBG_871X_LEVEL(_drv_always_, "Release RXDMA\n");
-
-			rtw_write32(padapter, REG_RXPKT_NUM,
-				(rtw_read32(padapter, REG_RXPKT_NUM) & (~RW_RELEASE_EN)));
-
-			SetFwRelatedForWoWLAN8723b(padapter, false);
-
-		rtl8723b_set_FwJoinBssRpt_cmd(padapter, RT_MEDIA_CONNECT);
-		issue_beacon(padapter, 0);
-		break;
-		default:
-			break;
-	}
-}
-	break;
-#endif /* CONFIG_AP_WOWLAN */
 	case HW_VAR_DM_IN_LPS:
 		rtl8723b_hal_dm_in_lps(padapter);
 		break;

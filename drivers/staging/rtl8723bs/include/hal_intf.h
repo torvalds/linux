@@ -85,9 +85,6 @@ enum hw_variables {
 	HW_VAR_APFM_ON_MAC, /* Auto FSM to Turn On, include clock, isolation, power control for MAC only */
 	/*  The valid upper nav range for the HW updating, if the true value is larger than the upper range, the HW won't update it. */
 	/*  Unit in microsecond. 0 means disable this function. */
-#ifdef CONFIG_AP_WOWLAN
-	HW_VAR_AP_WOWLAN,
-#endif
 	HW_VAR_SYS_CLKR,
 	HW_VAR_NAV_UPPER,
 	HW_VAR_C2H_HANDLE,

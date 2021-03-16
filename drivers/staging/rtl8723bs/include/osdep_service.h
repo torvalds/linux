@@ -136,14 +136,7 @@ static inline int rtw_bug_check(void *parg1, void *parg2, void *parg3, void *par
 #define MAC_ARG(x) (x)
 #endif
 
-
-#ifdef CONFIG_AP_WOWLAN
-extern void rtw_softap_lock_suspend(void);
-extern void rtw_softap_unlock_suspend(void);
-#endif
-
-extern void rtw_free_netdev(struct net_device *netdev);
-
+extern void rtw_free_netdev(struct net_device * netdev);
 
 /* Macros for handling unaligned memory accesses */
 

@@ -4621,10 +4621,6 @@ static const struct iw_priv_args rtw_private_args[] = {
 		SIOCIWFIRSTPRIV + 0x1D,
 		IW_PRIV_TYPE_CHAR | 40, IW_PRIV_TYPE_CHAR | 0x7FF, "test"
 	},
-
-#ifdef CONFIG_AP_WOWLAN
-		{ MP_AP_WOW_ENABLE, IW_PRIV_TYPE_CHAR | 1024, 0, "ap_wow_mode" }, /* set */
-#endif
 };
 
 static iw_handler rtw_private_handler[] = {

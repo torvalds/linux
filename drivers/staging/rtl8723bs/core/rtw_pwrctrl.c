@@ -350,17 +350,8 @@ static u8 PS_RDY_CHECK(struct adapter *padapter)
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 
-#ifdef CONFIG_AP_WOWLAN
-	if (pwrpriv->bInSuspend && pwrpriv->wowlan_mode)
-		return true;
-	else if (pwrpriv->bInSuspend && pwrpriv->wowlan_ap_mode)
-		return true;
-	else if (pwrpriv->bInSuspend)
-		return false;
-#else
 	if (pwrpriv->bInSuspend)
 		return false;
-#endif
 
 	curr_time = jiffies;
 
@@ -391,9 +382,6 @@ static u8 PS_RDY_CHECK(struct adapter *padapter)
 void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_ant_mode, const char *msg)
 {
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
-#ifdef CONFIG_AP_WOWLAN
-	struct debug_priv *pdbgpriv = &padapter->dvobj->drv_dbg;
-#endif
 
 	RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
 			 ("%s: PowerMode =%d Smart_PS =%d\n",
@@ -422,29 +410,6 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 			pwrpriv->pwr_mode = ps_mode;
 			rtw_set_rpwm(padapter, PS_STATE_S4);
 
-#ifdef CONFIG_AP_WOWLAN
-			if (pwrpriv->wowlan_mode || pwrpriv->wowlan_ap_mode) {
-				unsigned long start_time;
-				u32 delay_ms;
-				u8 val8;
-				delay_ms = 20;
-				start_time = jiffies;
-				do {
-					rtw_hal_get_hwreg(padapter, HW_VAR_SYS_CLKR, &val8);
-					if (!(val8 & BIT(4))) { /* 0x08 bit4 = 1 --> in 32k, bit4 = 0 --> leave 32k */
-						pwrpriv->cpwm = PS_STATE_S4;
-						break;
-					}
-					if (jiffies_to_msecs(jiffies - start_time) > delay_ms) {
-						DBG_871X("%s: Wait for FW 32K leave more than %u ms!!!\n",
-								__func__, delay_ms);
-						pdbgpriv->dbg_wow_leave_ps_fail_cnt++;
-						break;
-					}
-					msleep(1);
-				} while (1);
-			}
-#endif
 			rtw_hal_set_hwreg(padapter, HW_VAR_H2C_FW_PWRMODE, (u8 *)(&ps_mode));
 			pwrpriv->bFwCurrentInPSMode = false;
 

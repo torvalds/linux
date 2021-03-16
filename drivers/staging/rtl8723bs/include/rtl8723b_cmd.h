@@ -177,12 +177,6 @@ void rtl8723b_download_BTCoex_AP_mode_rsvd_page(struct adapter *padapter);
 
 void CheckFwRsvdPageContent(struct adapter *padapter);
 
-#ifdef CONFIG_AP_WOWLAN
-void rtl8723b_set_wowlan_cmd(struct adapter *padapter, u8 enable);
-void rtl8723b_set_ap_wowlan_cmd(struct adapter *padapter, u8 enable);
-void SetFwRelatedForWoWLAN8723b(struct adapter *padapter, u8 bHostIsGoingtoSleep);
-#endif
-
 void rtl8723b_set_FwPwrModeInIPS_cmd(struct adapter *padapter, u8 cmd_param);
 
 s32 FillH2CCmd8723B(struct adapter *padapter, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer);

@@ -527,39 +527,6 @@ void rtl8723b_InitializeFirmwareVars(struct adapter *padapter)
 /* pHalData->H2CStopInsertQueue = false; */
 }
 
-#ifdef CONFIG_AP_WOWLAN
-/*  */
-
-/*  */
-/*  Description: Prepare some information to Fw for WoWLAN. */
-/* (1) Download wowlan Fw. */
-/* (2) Download RSVD page packets. */
-/* (3) Enable AP offload if needed. */
-/*  */
-/*  2011.04.12 by tynli. */
-/*  */
-void SetFwRelatedForWoWLAN8723b(
-	struct adapter *padapter, u8 bHostIsGoingtoSleep
-)
-{
-	int	status = _FAIL;
-	/*  */
-	/*  1. Before WoWLAN we need to re-download WoWLAN Fw. */
-	/*  */
-	status = rtl8723b_FirmwareDownload(padapter, bHostIsGoingtoSleep);
-	if (status != _SUCCESS) {
-		DBG_871X("SetFwRelatedForWoWLAN8723b(): Re-Download Firmware failed!!\n");
-		return;
-	} else {
-		DBG_871X("SetFwRelatedForWoWLAN8723b(): Re-Download Firmware Success !!\n");
-	}
-	/*  */
-	/*  2. Re-Init the variables about Fw related setting. */
-	/*  */
-	rtl8723b_InitializeFirmwareVars(padapter);
-}
-#endif /* CONFIG_AP_WOWLAN */
-
 static void rtl8723b_free_hal_data(struct adapter *padapter)
 {
 }

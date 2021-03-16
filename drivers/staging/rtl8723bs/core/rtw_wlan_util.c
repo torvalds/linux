@@ -10,10 +10,6 @@
 #include <rtw_debug.h>
 #include <hal_com_h2c.h>
 
-#ifdef CONFIG_AP_WOWLAN
-#include <linux/inetdevice.h>
-#endif
-
 static unsigned char ARTHEROS_OUI1[] = {0x00, 0x03, 0x7f};
 static unsigned char ARTHEROS_OUI2[] = {0x00, 0x13, 0x74};
 
@@ -2111,32 +2107,5 @@ int rtw_config_gpio(struct net_device *netdev, int gpio_num, bool isOutput)
 	return 0;
 }
 EXPORT_SYMBOL(rtw_config_gpio);
-#endif
-
-#ifdef CONFIG_AP_WOWLAN
-void rtw_get_current_ip_address(struct adapter *padapter, u8 *pcurrentip)
-{
-	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
-	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
-	struct in_device *my_ip_ptr = padapter->pnetdev->ip_ptr;
-	u8 ipaddress[4];
-
-	if ((pmlmeinfo->state & WIFI_FW_LINKING_STATE) ||
-			pmlmeinfo->state & WIFI_FW_AP_STATE) {
-		if (my_ip_ptr) {
-			struct in_ifaddr *my_ifa_list = my_ip_ptr->ifa_list;
-
-			if (my_ifa_list) {
-				ipaddress[0] = my_ifa_list->ifa_address & 0xFF;
-				ipaddress[1] = (my_ifa_list->ifa_address >> 8) & 0xFF;
-				ipaddress[2] = (my_ifa_list->ifa_address >> 16) & 0xFF;
-				ipaddress[3] = my_ifa_list->ifa_address >> 24;
-				DBG_871X("%s: %d.%d.%d.%d ==========\n", __func__,
-						ipaddress[0], ipaddress[1], ipaddress[2], ipaddress[3]);
-				memcpy(pcurrentip, ipaddress, 4);
-			}
-		}
-	}
-}
 #endif
 
