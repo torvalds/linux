@@ -3063,46 +3063,6 @@ static int rtw_dbg_port(struct net_device *dev,
 					{
 						break;
 					}
-#ifdef CONFIG_GPIO_API
-		            case 0x25: /* Get GPIO register */
-		                    {
-			                    /*
-			                    * dbg 0x7f250000 [gpio_num], Get gpio value, gpio_num:0~7
-			                    */
-
-			                    int value;
-			                    DBG_871X("Read GPIO Value  extra_arg = %d\n", extra_arg);
-			                    value = rtw_get_gpio(dev, extra_arg);
-			                    DBG_871X("Read GPIO Value = %d\n", value);
-			                    break;
-		                    }
-		            case 0x26: /* Set GPIO direction */
-		                    {
-
-			                    /* dbg 0x7f26000x [y], Set gpio direction,
-			                    * x: gpio_num, 4~7  y: indicate direction, 0~1
-			                    */
-
-			                    int value;
-			                    DBG_871X("Set GPIO Direction! arg = %d , extra_arg =%d\n", arg, extra_arg);
-			                    value = rtw_config_gpio(dev, arg, extra_arg);
-			                    DBG_871X("Set GPIO Direction %s\n", (value == -1) ? "Fail!!!" : "Success");
-			                    break;
-					}
-				case 0x27: /* Set GPIO output direction value */
-					{
-						/*
-						* dbg 0x7f27000x [y], Set gpio output direction value,
-						* x: gpio_num, 4~7  y: indicate direction, 0~1
-						*/
-
-						int value;
-						DBG_871X("Set GPIO Value! arg = %d , extra_arg =%d\n", arg, extra_arg);
-						value = rtw_set_gpio_output_value(dev, arg, extra_arg);
-						DBG_871X("Set GPIO Value %s\n", (value == -1) ? "Fail!!!" : "Success");
-						break;
-					}
-#endif
 				case 0xaa:
 					{
 						if ((extra_arg & 0x7F) > 0x3F)

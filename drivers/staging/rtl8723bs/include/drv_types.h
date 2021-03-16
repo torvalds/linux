@@ -528,12 +528,6 @@ static inline void RTW_ENABLE_FUNC(struct adapter *padapter, int func_bit)
 			 (padapter)->bSurpriseRemoved || \
 			 RTW_IS_FUNC_DISABLED((padapter), DF_TX_BIT))
 
-#ifdef CONFIG_GPIO_API
-int rtw_get_gpio(struct net_device *netdev, int gpio_num);
-int rtw_set_gpio_output_value(struct net_device *netdev, int gpio_num, bool isHigh);
-int rtw_config_gpio(struct net_device *netdev, int gpio_num, bool isOutput);
-#endif
-
 static inline u8 *myid(struct eeprom_priv *peepriv)
 {
 	return peepriv->mac_addr;
