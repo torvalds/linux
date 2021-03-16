@@ -23,6 +23,9 @@ properties:
     maxItems: 1
   interrupts:
     maxItems: 1
+
+  spi-max-frequency: true
+
   compatible:
     items:
       - enum:
