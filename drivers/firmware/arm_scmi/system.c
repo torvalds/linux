@@ -32,40 +32,40 @@ struct scmi_system_info {
 	u32 version;
 };
 
-static int scmi_system_request_notify(const struct scmi_handle *handle,
+static int scmi_system_request_notify(const struct scmi_protocol_handle *ph,
 				      bool enable)
 {
 	int ret;
 	struct scmi_xfer *t;
 	struct scmi_system_power_state_notify *notify;
 
-	ret = scmi_xfer_get_init(handle, SYSTEM_POWER_STATE_NOTIFY,
-				 SCMI_PROTOCOL_SYSTEM, sizeof(*notify), 0, &t);
+	ret = ph->xops->xfer_get_init(ph, SYSTEM_POWER_STATE_NOTIFY,
+				      sizeof(*notify), 0, &t);
 	if (ret)
 		return ret;
 
 	notify = t->tx.buf;
 	notify->notify_enable = enable ? cpu_to_le32(BIT(0)) : 0;
 
-	ret = scmi_do_xfer(handle, t);
+	ret = ph->xops->do_xfer(ph, t);
 
-	scmi_xfer_put(handle, t);
+	ph->xops->xfer_put(ph, t);
 	return ret;
 }
 
-static int scmi_system_set_notify_enabled(const void *handle,
+static int scmi_system_set_notify_enabled(const void *ph,
 					  u8 evt_id, u32 src_id, bool enable)
 {
 	int ret;
 
-	ret = scmi_system_request_notify(handle, enable);
+	ret = scmi_system_request_notify(ph, enable);
 	if (ret)
 		pr_debug("FAIL_ENABLE - evt[%X] - ret:%d\n", evt_id, ret);
 
 	return ret;
 }
 
-static void *scmi_system_fill_custom_report(const void *handle,
+static void *scmi_system_fill_custom_report(const void *ph,
 					    u8 evt_id, ktime_t timestamp,
 					    const void *payld, size_t payld_sz,
 					    void *report, u32 *src_id)
@@ -109,29 +109,27 @@ static const struct scmi_protocol_events system_protocol_events = {
 	.num_sources = SCMI_SYSTEM_NUM_SOURCES,
 };
 
-static int scmi_system_protocol_init(struct scmi_handle *handle)
+static int scmi_system_protocol_init(const struct scmi_protocol_handle *ph)
 {
 	u32 version;
 	struct scmi_system_info *pinfo;
 
-	scmi_version_get(handle, SCMI_PROTOCOL_SYSTEM, &version);
+	ph->xops->version_get(ph, &version);
 
-	dev_dbg(handle->dev, "System Power Version %d.%d\n",
+	dev_dbg(ph->dev, "System Power Version %d.%d\n",
 		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
 
-	pinfo = devm_kzalloc(handle->dev, sizeof(*pinfo), GFP_KERNEL);
+	pinfo = devm_kzalloc(ph->dev, sizeof(*pinfo), GFP_KERNEL);
 	if (!pinfo)
 		return -ENOMEM;
 
 	pinfo->version = version;
-	handle->system_priv = pinfo;
-
-	return 0;
+	return ph->set_priv(ph, pinfo);
 }
 
 static const struct scmi_protocol scmi_system = {
 	.id = SCMI_PROTOCOL_SYSTEM,
-	.init = &scmi_system_protocol_init,
+	.instance_init = &scmi_system_protocol_init,
 	.ops = NULL,
 	.events = &system_protocol_events,
 };

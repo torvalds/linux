@@ -629,7 +629,6 @@ struct scmi_handle {
 	/* for protocol internal use */
 	void *voltage_priv;
 	void *notify_priv;
-	void *system_priv;
 };
 
 enum scmi_std_protocol {
