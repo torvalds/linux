@@ -195,6 +195,11 @@ struct smu_user_dpm_profile {
 	uint32_t clk_dependency;
 };
 
+enum smu_event_type {
+
+	SMU_EVENT_RESET_COMPLETE = 0,
+};
+
 #define SMU_TABLE_INIT(tables, table_id, s, a, d)	\
 	do {						\
 		tables[table_id].size = s;		\
@@ -337,7 +342,6 @@ struct smu_power_context {
 	uint32_t power_context_size;
 	struct smu_power_gate power_gate;
 };
-
 
 #define SMU_FEATURE_MAX	(64)
 struct smu_feature
@@ -1167,6 +1171,12 @@ struct pptable_funcs {
 	 * @set_light_sbr:  Set light sbr mode for the SMU.
 	 */
 	int (*set_light_sbr)(struct smu_context *smu, bool enable);
+
+	/**
+	 * @wait_for_event:  Wait for events from SMU.
+	 */
+	int (*wait_for_event)(struct smu_context *smu,
+			      enum smu_event_type event, uint64_t event_arg);
 };
 
 typedef enum {
@@ -1282,6 +1292,9 @@ int smu_get_status_gfxoff(struct amdgpu_device *adev, uint32_t *value);
 int smu_gfx_state_change_set(struct smu_context *smu, uint32_t state);
 
 int smu_set_light_sbr(struct smu_context *smu, bool enable);
+
+int smu_wait_for_event(struct amdgpu_device *adev, enum smu_event_type event,
+		       uint64_t event_arg);
 
 #endif
 #endif

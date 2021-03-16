@@ -2982,3 +2982,18 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.display_disable_memory_clock_switch = smu_display_disable_memory_clock_switch,
 	.get_max_sustainable_clocks_by_dc    = smu_get_max_sustainable_clocks_by_dc,
 };
+
+int smu_wait_for_event(struct amdgpu_device *adev, enum smu_event_type event,
+		       uint64_t event_arg)
+{
+	int ret = -EINVAL;
+	struct smu_context *smu = &adev->smu;
+
+	if (smu->ppt_funcs->wait_for_event) {
+		mutex_lock(&smu->mutex);
+		ret = smu->ppt_funcs->wait_for_event(smu, event, event_arg);
+		mutex_unlock(&smu->mutex);
+	}
+
+	return ret;
+}
