@@ -773,16 +773,18 @@ int dpsw_vlan_add_if(struct fsl_mc_io *mc_io,
 		     u16 vlan_id,
 		     const struct dpsw_vlan_if_cfg *cfg)
 {
+	struct dpsw_cmd_vlan_add_if *cmd_params;
 	struct fsl_mc_command cmd = { 0 };
-	struct dpsw_cmd_vlan_manage_if *cmd_params;
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPSW_CMDID_VLAN_ADD_IF,
 					  cmd_flags,
 					  token);
-	cmd_params = (struct dpsw_cmd_vlan_manage_if *)cmd.params;
+	cmd_params = (struct dpsw_cmd_vlan_add_if *)cmd.params;
 	cmd_params->vlan_id = cpu_to_le16(vlan_id);
-	build_if_id_bitmap(cmd_params->if_id, cfg->if_id, cfg->num_ifs);
+	cmd_params->options = cpu_to_le16(cfg->options);
+	cmd_params->fdb_id = cpu_to_le16(cfg->fdb_id);
+	build_if_id_bitmap(&cmd_params->if_id, cfg->if_id, cfg->num_ifs);
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
@@ -820,7 +822,7 @@ int dpsw_vlan_add_if_untagged(struct fsl_mc_io *mc_io,
 					  token);
 	cmd_params = (struct dpsw_cmd_vlan_manage_if *)cmd.params;
 	cmd_params->vlan_id = cpu_to_le16(vlan_id);
-	build_if_id_bitmap(cmd_params->if_id, cfg->if_id, cfg->num_ifs);
+	build_if_id_bitmap(&cmd_params->if_id, cfg->if_id, cfg->num_ifs);
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
@@ -854,7 +856,7 @@ int dpsw_vlan_remove_if(struct fsl_mc_io *mc_io,
 					  token);
 	cmd_params = (struct dpsw_cmd_vlan_manage_if *)cmd.params;
 	cmd_params->vlan_id = cpu_to_le16(vlan_id);
-	build_if_id_bitmap(cmd_params->if_id, cfg->if_id, cfg->num_ifs);
+	build_if_id_bitmap(&cmd_params->if_id, cfg->if_id, cfg->num_ifs);
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
@@ -890,7 +892,7 @@ int dpsw_vlan_remove_if_untagged(struct fsl_mc_io *mc_io,
 					  token);
 	cmd_params = (struct dpsw_cmd_vlan_manage_if *)cmd.params;
 	cmd_params->vlan_id = cpu_to_le16(vlan_id);
-	build_if_id_bitmap(cmd_params->if_id, cfg->if_id, cfg->num_ifs);
+	build_if_id_bitmap(&cmd_params->if_id, cfg->if_id, cfg->num_ifs);
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
@@ -1140,7 +1142,7 @@ int dpsw_fdb_add_multicast(struct fsl_mc_io *mc_io,
 	cmd_params->fdb_id = cpu_to_le16(fdb_id);
 	cmd_params->num_ifs = cpu_to_le16(cfg->num_ifs);
 	dpsw_set_field(cmd_params->type, ENTRY_TYPE, cfg->type);
-	build_if_id_bitmap(cmd_params->if_id, cfg->if_id, cfg->num_ifs);
+	build_if_id_bitmap(&cmd_params->if_id, cfg->if_id, cfg->num_ifs);
 	for (i = 0; i < 6; i++)
 		cmd_params->mac_addr[i] = cfg->mac_addr[5 - i];
 
@@ -1182,7 +1184,7 @@ int dpsw_fdb_remove_multicast(struct fsl_mc_io *mc_io,
 	cmd_params->fdb_id = cpu_to_le16(fdb_id);
 	cmd_params->num_ifs = cpu_to_le16(cfg->num_ifs);
 	dpsw_set_field(cmd_params->type, ENTRY_TYPE, cfg->type);
-	build_if_id_bitmap(cmd_params->if_id, cfg->if_id, cfg->num_ifs);
+	build_if_id_bitmap(&cmd_params->if_id, cfg->if_id, cfg->num_ifs);
 	for (i = 0; i < 6; i++)
 		cmd_params->mac_addr[i] = cfg->mac_addr[5 - i];
 

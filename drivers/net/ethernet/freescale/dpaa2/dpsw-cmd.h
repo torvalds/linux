@@ -340,7 +340,7 @@ struct dpsw_cmd_vlan_manage_if {
 	__le16 vlan_id;
 	__le32 pad1;
 	/* cmd word 1-4 */
-	__le64 if_id[4];
+	__le64 if_id;
 };
 
 struct dpsw_cmd_vlan_remove {
@@ -386,7 +386,7 @@ struct dpsw_cmd_fdb_multicast_op {
 	u8 mac_addr[6];
 	__le16 pad2;
 	/* cmd word 2-5 */
-	__le64 if_id[4];
+	__le64 if_id;
 };
 
 struct dpsw_cmd_fdb_dump {
