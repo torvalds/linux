@@ -240,11 +240,14 @@ static int sun8i_ce_cipher_prepare(struct crypto_engine *engine, void *async_req
 
 theend_sgs:
 	if (areq->src == areq->dst) {
-		dma_unmap_sg(ce->dev, areq->src, nr_sgs, DMA_BIDIRECTIONAL);
+		dma_unmap_sg(ce->dev, areq->src, sg_nents(areq->src),
+			     DMA_BIDIRECTIONAL);
 	} else {
 		if (nr_sgs > 0)
-			dma_unmap_sg(ce->dev, areq->src, nr_sgs, DMA_TO_DEVICE);
-		dma_unmap_sg(ce->dev, areq->dst, nr_sgd, DMA_FROM_DEVICE);
+			dma_unmap_sg(ce->dev, areq->src, sg_nents(areq->src),
+				     DMA_TO_DEVICE);
+		dma_unmap_sg(ce->dev, areq->dst, sg_nents(areq->dst),
+			     DMA_FROM_DEVICE);
 	}
 
 theend_iv:

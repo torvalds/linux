@@ -232,10 +232,13 @@ sgd_next:
 
 theend_sgs:
 	if (areq->src == areq->dst) {
-		dma_unmap_sg(ss->dev, areq->src, nr_sgs, DMA_BIDIRECTIONAL);
+		dma_unmap_sg(ss->dev, areq->src, sg_nents(areq->src),
+			     DMA_BIDIRECTIONAL);
 	} else {
-		dma_unmap_sg(ss->dev, areq->src, nr_sgs, DMA_TO_DEVICE);
-		dma_unmap_sg(ss->dev, areq->dst, nr_sgd, DMA_FROM_DEVICE);
+		dma_unmap_sg(ss->dev, areq->src, sg_nents(areq->src),
+			     DMA_TO_DEVICE);
+		dma_unmap_sg(ss->dev, areq->dst, sg_nents(areq->dst),
+			     DMA_FROM_DEVICE);
 	}
 
 theend_iv:
