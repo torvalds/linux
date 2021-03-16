@@ -1390,6 +1390,11 @@ bool amdgpu_device_load_pci_state(struct pci_dev *pdev);
 
 bool amdgpu_device_skip_hw_access(struct amdgpu_device *adev);
 
+int amdgpu_device_set_cg_state(struct amdgpu_device *adev,
+			       enum amd_clockgating_state state);
+int amdgpu_device_set_pg_state(struct amdgpu_device *adev,
+			       enum amd_powergating_state state);
+
 #include "amdgpu_object.h"
 
 static inline bool amdgpu_is_tmz(struct amdgpu_device *adev)
