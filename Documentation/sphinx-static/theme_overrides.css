@@ -135,3 +135,15 @@ div[class^="highlight"] pre {
         color: inherit;
     }
 }
+
+/* scrollable code blocks in slides */
+div[class^="highlight"] pre {
+    font-size: 45%;
+    max-height: 500px;
+    overflow-y: scroll;
+}
+
+/* disable scroll in docs */
+.rst-content .highlight > pre {
+    max-height: none;
+}
