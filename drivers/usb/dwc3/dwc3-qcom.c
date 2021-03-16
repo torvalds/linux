@@ -235,7 +235,7 @@ static int dwc3_qcom_interconnect_disable(struct dwc3_qcom *qcom)
 
 /**
  * dwc3_qcom_interconnect_init() - Get interconnect path handles
- * and set bandwidhth.
+ * and set bandwidth.
  * @qcom:			Pointer to the concerned usb core.
  *
  */
