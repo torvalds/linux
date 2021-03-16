@@ -51,14 +51,14 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs, struct interrup
 		kuap_save_and_lock(regs);
 	}
 #endif
-	/*
-	 * Book3E reconciles irq soft mask in asm
-	 */
-#ifdef CONFIG_PPC_BOOK3S_64
+
+#ifdef CONFIG_PPC64
 	if (irq_soft_mask_set_return(IRQS_ALL_DISABLED) == IRQS_ENABLED)
 		trace_hardirqs_off();
 	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
+#endif
 
+#ifdef CONFIG_PPC_BOOK3S_64
 	if (user_mode(regs)) {
 		CT_WARN_ON(ct_state() != CONTEXT_USER);
 		user_exit_irqoff();
