@@ -1013,7 +1013,7 @@ static void event_mall_stutter(struct work_struct *work)
 
 	if (vblank_work->enable)
 		dm->active_vblank_irq_count++;
-	else
+	else if(dm->active_vblank_irq_count)
 		dm->active_vblank_irq_count--;
 
 	dc_allow_idle_optimizations(dm->dc, dm->active_vblank_irq_count == 0);
@@ -8678,9 +8678,14 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		dm_enable_per_frame_crtc_master_sync(dc_state);
 		mutex_lock(&dm->dc_lock);
 		WARN_ON(!dc_commit_state(dm->dc, dc_state));
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+               /* Allow idle optimization when vblank count is 0 for display off */
+               if (dm->active_vblank_irq_count == 0)
+                   dc_allow_idle_optimizations(dm->dc,true);
+#endif
 		mutex_unlock(&dm->dc_lock);
 	}
-
+			   
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
