@@ -196,6 +196,7 @@ struct ionic_desc_info {
 		struct ionic_txq_sg_desc *txq_sg_desc;
 		struct ionic_rxq_sg_desc *rxq_sgl_desc;
 	};
+	unsigned int bytes;
 	unsigned int nbufs;
 	struct ionic_buf_info bufs[IONIC_MAX_FRAGS];
 	ionic_desc_cb cb;

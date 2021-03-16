@@ -671,7 +671,6 @@ static void ionic_tx_clean(struct ionic_queue *q,
 
 	if (cb_arg) {
 		struct sk_buff *skb = cb_arg;
-		u32 len = skb->len;
 
 		queue_index = skb_get_queue_mapping(skb);
 		if (unlikely(__netif_subqueue_stopped(q->lif->netdev,
@@ -679,9 +678,11 @@ static void ionic_tx_clean(struct ionic_queue *q,
 			netif_wake_subqueue(q->lif->netdev, queue_index);
 			q->wake++;
 		}
-		dev_kfree_skb_any(skb);
+
+		desc_info->bytes = skb->len;
 		stats->clean++;
-		netdev_tx_completed_queue(q_to_ndq(q), 1, len);
+
+		dev_consume_skb_any(skb);
 	}
 }
 
@@ -690,6 +691,8 @@ static bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
 	struct ionic_txq_comp *comp = cq_info->txcq;
 	struct ionic_queue *q = cq->bound_q;
 	struct ionic_desc_info *desc_info;
+	int bytes = 0;
+	int pkts = 0;
 	u16 index;
 
 	if (!color_match(comp->color, cq->done_color))
@@ -700,12 +703,20 @@ static bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
 	 */
 	do {
 		desc_info = &q->info[q->tail_idx];
+		desc_info->bytes = 0;
 		index = q->tail_idx;
 		q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
 		ionic_tx_clean(q, desc_info, cq_info, desc_info->cb_arg);
+		if (desc_info->cb_arg) {
+			pkts++;
+			bytes += desc_info->bytes;
+		}
 		desc_info->cb = NULL;
 		desc_info->cb_arg = NULL;
 	} while (index != le16_to_cpu(comp->comp_index));
+
+	if (pkts && bytes)
+		netdev_tx_completed_queue(q_to_ndq(q), pkts, bytes);
 
 	return true;
 }
@@ -725,15 +736,25 @@ void ionic_tx_flush(struct ionic_cq *cq)
 void ionic_tx_empty(struct ionic_queue *q)
 {
 	struct ionic_desc_info *desc_info;
+	int bytes = 0;
+	int pkts = 0;
 
 	/* walk the not completed tx entries, if any */
 	while (q->head_idx != q->tail_idx) {
 		desc_info = &q->info[q->tail_idx];
+		desc_info->bytes = 0;
 		q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
 		ionic_tx_clean(q, desc_info, NULL, desc_info->cb_arg);
+		if (desc_info->cb_arg) {
+			pkts++;
+			bytes += desc_info->bytes;
+		}
 		desc_info->cb = NULL;
 		desc_info->cb_arg = NULL;
 	}
+
+	if (pkts && bytes)
+		netdev_tx_completed_queue(q_to_ndq(q), pkts, bytes);
 }
 
 static int ionic_tx_tcp_inner_pseudo_csum(struct sk_buff *skb)
