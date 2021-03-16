@@ -1337,10 +1337,9 @@ static int gsi_irq_init(struct gsi *gsi, struct platform_device *pdev)
 	int ret;
 
 	ret = platform_get_irq_byname(pdev, "gsi");
-	if (ret <= 0) {
-		dev_err(dev, "DT error %d getting \"gsi\" IRQ property\n", ret);
+	if (ret <= 0)
 		return ret ? : -EINVAL;
-	}
+
 	irq = ret;
 
 	ret = request_irq(irq, gsi_isr, 0, "gsi", gsi);
