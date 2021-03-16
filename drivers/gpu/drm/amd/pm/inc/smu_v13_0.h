@@ -268,5 +268,8 @@ int smu_v13_0_get_current_pcie_link_speed(struct smu_context *smu);
 int smu_v13_0_gfx_ulv_control(struct smu_context *smu,
 			      bool enablement);
 
+int smu_v13_0_wait_for_event(struct smu_context *smu, enum smu_event_type event,
+			     uint64_t event_arg);
+
 #endif
 #endif

@@ -1374,6 +1374,33 @@ int smu_v13_0_mode1_reset(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v13_0_wait_for_reset_complete(struct smu_context *smu,
+					     uint64_t event_arg)
+{
+	int ret = 0;
+
+	dev_dbg(smu->adev->dev, "waiting for smu reset complete\n");
+	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GfxDriverResetRecovery, NULL);
+
+	return ret;
+}
+
+int smu_v13_0_wait_for_event(struct smu_context *smu, enum smu_event_type event,
+			     uint64_t event_arg)
+{
+	int ret = -EINVAL;
+
+	switch (event) {
+	case SMU_EVENT_RESET_COMPLETE:
+		ret = smu_v13_0_wait_for_reset_complete(smu, event_arg);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 int smu_v13_0_mode2_reset(struct smu_context *smu)
 {
 	int ret;

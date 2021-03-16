@@ -126,7 +126,8 @@ static const struct cmn2asic_msg_mapping aldebaran_message_map[SMU_MSG_MAX_COUNT
 	MSG_MAP(SetExecuteDMATest,		     PPSMC_MSG_SetExecuteDMATest,		0),
 	MSG_MAP(EnableDeterminism,		     PPSMC_MSG_EnableDeterminism,		0),
 	MSG_MAP(DisableDeterminism,		     PPSMC_MSG_DisableDeterminism,		0),
-	MSG_MAP(SetUclkDpmMode,				 PPSMC_MSG_SetUclkDpmMode,		0),
+	MSG_MAP(SetUclkDpmMode,			     PPSMC_MSG_SetUclkDpmMode,			0),
+	MSG_MAP(GfxDriverResetRecovery,		     PPSMC_MSG_GfxDriverResetRecovery,		0),
 };
 
 static const struct cmn2asic_mapping aldebaran_clk_map[SMU_CLK_COUNT] = {
@@ -1583,6 +1584,7 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.mode1_reset = smu_v13_0_mode1_reset,
 	.set_mp1_state = aldebaran_set_mp1_state,
 	.mode2_reset = aldebaran_mode2_reset,
+	.wait_for_event = smu_v13_0_wait_for_event,
 };
 
 void aldebaran_set_ppt_funcs(struct smu_context *smu)
