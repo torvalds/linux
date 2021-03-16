@@ -47,6 +47,7 @@
 
 #include "amdgpu_ras.h"
 #include "amdgpu_xgmi.h"
+#include "amdgpu_reset.h"
 
 /*
  * KMS wrapper.
@@ -1349,7 +1350,9 @@ static void amdgpu_drv_delayed_reset_work_handler(struct work_struct *work)
 	struct list_head device_list;
 	struct amdgpu_device *adev;
 	int i, r;
-	bool need_full_reset = true;
+	struct amdgpu_reset_context reset_context;
+
+	memset(&reset_context, 0, sizeof(reset_context));
 
 	mutex_lock(&mgpu_info.mutex);
 	if (mgpu_info.pending_reset == true) {
@@ -1359,9 +1362,14 @@ static void amdgpu_drv_delayed_reset_work_handler(struct work_struct *work)
 	mgpu_info.pending_reset = true;
 	mutex_unlock(&mgpu_info.mutex);
 
+	/* Use a common context, just need to make sure full reset is done */
+	reset_context.method = AMD_RESET_METHOD_NONE;
+	set_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
+
 	for (i = 0; i < mgpu_info.num_dgpu; i++) {
 		adev = mgpu_info.gpu_ins[i].adev;
-		r = amdgpu_device_pre_asic_reset(adev, NULL, &need_full_reset);
+		reset_context.reset_req_dev = adev;
+		r = amdgpu_device_pre_asic_reset(adev, &reset_context);
 		if (r) {
 			dev_err(adev->dev, "GPU pre asic reset failed with err, %d for drm dev, %s ",
 				r, adev_to_drm(adev)->unique);
@@ -1388,7 +1396,10 @@ static void amdgpu_drv_delayed_reset_work_handler(struct work_struct *work)
 	list_for_each_entry(adev, &device_list, reset_list)
 		amdgpu_unregister_gpu_instance(adev);
 
-	r = amdgpu_do_asic_reset(NULL, &device_list, &need_full_reset, true);
+	/* Use a common context, just need to make sure full reset is done */
+	set_bit(AMDGPU_SKIP_HW_RESET, &reset_context.flags);
+	r = amdgpu_do_asic_reset(&device_list, &reset_context);
+
 	if (r) {
 		DRM_ERROR("reinit gpus failure");
 		return;
