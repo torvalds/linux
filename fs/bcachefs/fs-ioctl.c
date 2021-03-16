@@ -192,7 +192,7 @@ static int bch2_ioc_reinherit_attrs(struct bch_fs *c,
 	char *kname = NULL;
 	struct qstr qstr;
 	int ret = 0;
-	u64 inum;
+	subvol_inum inum = { .subvol = 1 };
 
 	kname = kmalloc(BCH_NAME_MAX + 1, GFP_KERNEL);
 	if (!kname)
@@ -206,9 +206,9 @@ static int bch2_ioc_reinherit_attrs(struct bch_fs *c,
 	qstr.name	= kname;
 
 	ret = -ENOENT;
-	inum = bch2_dirent_lookup(c, src->v.i_ino, &hash,
+	inum.inum = bch2_dirent_lookup(c, src->v.i_ino, &hash,
 				  &qstr);
-	if (!inum)
+	if (!inum.inum)
 		goto err1;
 
 	vinode = bch2_vfs_inode_get(c, inum);

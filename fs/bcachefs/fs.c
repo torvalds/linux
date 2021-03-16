@@ -37,7 +37,7 @@
 
 static struct kmem_cache *bch2_inode_cache;
 
-static void bch2_vfs_inode_init(struct bch_fs *,
+static void bch2_vfs_inode_init(struct bch_fs *, subvol_inum,
 				struct bch_inode_info *,
 				struct bch_inode_unpacked *);
 
@@ -209,38 +209,66 @@ int bch2_fs_quota_transfer(struct bch_fs *c,
 	return ret;
 }
 
-struct inode *bch2_vfs_inode_get(struct bch_fs *c, u64 inum)
+static int bch2_iget5_test(struct inode *vinode, void *p)
+{
+	struct bch_inode_info *inode = to_bch_ei(vinode);
+	subvol_inum *inum = p;
+
+	return inode->ei_subvol == inum->subvol &&
+		inode->ei_inode.bi_inum == inum->inum;
+}
+
+static int bch2_iget5_set(struct inode *vinode, void *p)
+{
+	struct bch_inode_info *inode = to_bch_ei(vinode);
+	subvol_inum *inum = p;
+
+	inode->v.i_ino		= inum->inum;
+	inode->ei_subvol	= inum->subvol;
+	inode->ei_inode.bi_inum	= inum->inum;
+	return 0;
+}
+
+static unsigned bch2_inode_hash(subvol_inum inum)
+{
+	return jhash_3words(inum.subvol, inum.inum >> 32, inum.inum, JHASH_INITVAL);
+}
+
+struct inode *bch2_vfs_inode_get(struct bch_fs *c, subvol_inum inum)
 {
 	struct bch_inode_unpacked inode_u;
 	struct bch_inode_info *inode;
 	int ret;
 
-	inode = to_bch_ei(iget_locked(c->vfs_sb, inum));
+	/*
+	 * debug assert, to be removed when we start creating
+	 * subvolumes/snapshots:
+	 */
+	BUG_ON(inum.subvol != BCACHEFS_ROOT_SUBVOL);
+
+	inode = to_bch_ei(iget5_locked(c->vfs_sb,
+				       bch2_inode_hash(inum),
+				       bch2_iget5_test,
+				       bch2_iget5_set,
+				       &inum));
 	if (unlikely(!inode))
 		return ERR_PTR(-ENOMEM);
 	if (!(inode->v.i_state & I_NEW))
 		return &inode->v;
 
-	ret = bch2_inode_find_by_inum(c, inum, &inode_u);
+	ret = bch2_inode_find_by_inum(c, inum.inum, &inode_u);
 	if (ret) {
 		iget_failed(&inode->v);
 		return ERR_PTR(ret);
 	}
 
-	bch2_vfs_inode_init(c, inode, &inode_u);
+	bch2_vfs_inode_init(c, inum, inode, &inode_u);
 
-	inode->ei_journal_seq = bch2_inode_journal_seq(&c->journal, inum);
+	inode->ei_journal_seq = bch2_inode_journal_seq(&c->journal, inum.inum);
 
 	unlock_new_inode(&inode->v);
 
 	return &inode->v;
-}
-
-static int inum_test(struct inode *inode, void *p)
-{
-	unsigned long *ino = p;
-
-	return *ino == inode->i_ino;
 }
 
 static struct bch_inode_info *
@@ -254,6 +282,7 @@ __bch2_create(struct mnt_idmap *idmap,
 	struct bch_inode_info *inode, *old;
 	struct bch_inode_unpacked inode_u;
 	struct posix_acl *default_acl = NULL, *acl = NULL;
+	subvol_inum inum;
 	u64 journal_seq = 0;
 	int ret;
 
@@ -310,7 +339,10 @@ err_before_quota:
 		mutex_unlock(&dir->ei_update_lock);
 	}
 
-	bch2_vfs_inode_init(c, inode, &inode_u);
+	inum.subvol = inode_u.bi_subvol ?: dir->ei_subvol;
+	inum.inum = inode_u.bi_inum;
+
+	bch2_vfs_inode_init(c, inum, inode, &inode_u);
 	journal_seq_copy(c, inode, journal_seq);
 
 	set_cached_acl(&inode->v, ACL_TYPE_ACCESS, acl);
@@ -323,8 +355,12 @@ err_before_quota:
 	 */
 
 	inode->v.i_state |= I_CREATING;
-	old = to_bch_ei(inode_insert5(&inode->v, inode->v.i_ino,
-				      inum_test, NULL, &inode->v.i_ino));
+
+	old = to_bch_ei(inode_insert5(&inode->v,
+				      bch2_inode_hash(inum),
+				      bch2_iget5_test,
+				      bch2_iget5_set,
+				      &inum));
 	BUG_ON(!old);
 
 	if (unlikely(old != inode)) {
@@ -370,12 +406,12 @@ static struct dentry *bch2_lookup(struct inode *vdir, struct dentry *dentry,
 	struct bch_inode_info *dir = to_bch_ei(vdir);
 	struct bch_hash_info hash = bch2_hash_info_init(c, &dir->ei_inode);
 	struct inode *vinode = NULL;
-	u64 inum;
+	subvol_inum inum = { .subvol = 1 };
 
-	inum = bch2_dirent_lookup(c, dir->v.i_ino, &hash,
+	inum.inum = bch2_dirent_lookup(c, dir->v.i_ino, &hash,
 				  &dentry->d_name);
 
-	if (inum)
+	if (inum.inum)
 		vinode = bch2_vfs_inode_get(c, inum);
 
 	return d_splice_alias(vinode, dentry);
@@ -1098,6 +1134,7 @@ static const struct address_space_operations bch_address_space_operations = {
 	.error_remove_page = generic_error_remove_page,
 };
 
+#if 0
 static struct inode *bch2_nfs_get_inode(struct super_block *sb,
 		u64 ino, u32 generation)
 {
@@ -1131,14 +1168,15 @@ static struct dentry *bch2_fh_to_parent(struct super_block *sb, struct fid *fid,
 	return generic_fh_to_parent(sb, fid, fh_len, fh_type,
 				    bch2_nfs_get_inode);
 }
+#endif
 
 static const struct export_operations bch_export_ops = {
-	.fh_to_dentry	= bch2_fh_to_dentry,
-	.fh_to_parent	= bch2_fh_to_parent,
+	//.fh_to_dentry	= bch2_fh_to_dentry,
+	//.fh_to_parent	= bch2_fh_to_parent,
 	//.get_parent	= bch2_get_parent,
 };
 
-static void bch2_vfs_inode_init(struct bch_fs *c,
+static void bch2_vfs_inode_init(struct bch_fs *c, subvol_inum inum,
 				struct bch_inode_info *inode,
 				struct bch_inode_unpacked *bi)
 {
@@ -1154,6 +1192,7 @@ static void bch2_vfs_inode_init(struct bch_fs *c,
 	inode->ei_journal_seq	= 0;
 	inode->ei_quota_reserved = 0;
 	inode->ei_qid		= bch_qid(bi);
+	inode->ei_subvol	= inum.subvol;
 
 	inode->v.i_mapping->a_ops = &bch_address_space_operations;
 
@@ -1595,7 +1634,7 @@ got_sb:
 		sb->s_flags	|= SB_POSIXACL;
 #endif
 
-	vinode = bch2_vfs_inode_get(c, BCACHEFS_ROOT_INO);
+	vinode = bch2_vfs_inode_get(c, BCACHEFS_ROOT_SUBVOL_INUM);
 	if (IS_ERR(vinode)) {
 		bch_err(c, "error mounting: error getting root inode %i",
 			(int) PTR_ERR(vinode));
