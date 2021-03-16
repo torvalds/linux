@@ -54,13 +54,6 @@ static struct ccw_device_id dasd_fba_ids[] = {
 
 MODULE_DEVICE_TABLE(ccw, dasd_fba_ids);
 
-static struct ccw_driver dasd_fba_driver; /* see below */
-static int
-dasd_fba_probe(struct ccw_device *cdev)
-{
-	return dasd_generic_probe(cdev);
-}
-
 static int
 dasd_fba_set_online(struct ccw_device *cdev)
 {
@@ -73,7 +66,7 @@ static struct ccw_driver dasd_fba_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.ids         = dasd_fba_ids,
-	.probe       = dasd_fba_probe,
+	.probe       = dasd_generic_probe,
 	.remove      = dasd_generic_remove,
 	.set_offline = dasd_generic_set_offline,
 	.set_online  = dasd_fba_set_online,
