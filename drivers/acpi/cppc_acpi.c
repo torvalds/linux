@@ -33,7 +33,6 @@
 
 #define pr_fmt(fmt)	"ACPI CPPC: " fmt
 
-#include <linux/cpufreq.h>
 #include <linux/delay.h>
 #include <linux/iopoll.h>
 #include <linux/ktime.h>
