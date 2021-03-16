@@ -724,6 +724,39 @@ Bridge VLAN filtering
   function that the driver has to call for each MAC address known to be behind
   the given port. A switchdev object is used to carry the VID and MDB info.
 
+Link aggregation
+----------------
+
+Link aggregation is implemented in the Linux networking stack by the bonding
+and team drivers, which are modeled as virtual, stackable network interfaces.
+DSA is capable of offloading a link aggregation group (LAG) to hardware that
+supports the feature, and supports bridging between physical ports and LAGs,
+as well as between LAGs. A bonding/team interface which holds multiple physical
+ports constitutes a logical port, although DSA has no explicit concept of a
+logical port at the moment. Due to this, events where a LAG joins/leaves a
+bridge are treated as if all individual physical ports that are members of that
+LAG join/leave the bridge. Switchdev port attributes (VLAN filtering, STP
+state, etc) and objects (VLANs, MDB entries) offloaded to a LAG as bridge port
+are treated similarly: DSA offloads the same switchdev object / port attribute
+on all members of the LAG. Static bridge FDB entries on a LAG are not yet
+supported, since the DSA driver API does not have the concept of a logical port
+ID.
+
+- ``port_lag_join``: function invoked when a given switch port is added to a
+  LAG. The driver may return ``-EOPNOTSUPP``, and in this case, DSA will fall
+  back to a software implementation where all traffic from this port is sent to
+  the CPU.
+- ``port_lag_leave``: function invoked when a given switch port leaves a LAG
+  and returns to operation as a standalone port.
+- ``port_lag_change``: function invoked when the link state of any member of
+  the LAG changes, and the hashing function needs rebalancing to only make use
+  of the subset of physical LAG member ports that are up.
+
+Drivers that benefit from having an ID associated with each offloaded LAG
+can optionally populate ``ds->num_lag_ids`` from the ``dsa_switch_ops::setup``
+method. The LAG ID associated with a bonding/team interface can then be
+retrieved by a DSA switch driver using the ``dsa_lag_id`` function.
+
 TODO
 ====
 
