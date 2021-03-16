@@ -1235,7 +1235,8 @@ config MFD_SC27XX_PMIC
 
 config ABX500_CORE
 	bool "ST-Ericsson ABX500 Mixed Signal Circuit register functions"
-	default y if ARCH_U8500 || COMPILE_TEST
+	depends on ARCH_U8500 || COMPILE_TEST
+	default y if ARCH_U8500
 	help
 	  Say yes here if you have the ABX500 Mixed Signal IC family
 	  chips. This core driver expose register access functions.
