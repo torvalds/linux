@@ -127,31 +127,6 @@ struct scmi_perf_proto_ops {
 	bool (*power_scale_mw_get)(const struct scmi_protocol_handle *ph);
 };
 
-struct scmi_perf_ops {
-	int (*limits_set)(const struct scmi_handle *handle, u32 domain,
-			  u32 max_perf, u32 min_perf);
-	int (*limits_get)(const struct scmi_handle *handle, u32 domain,
-			  u32 *max_perf, u32 *min_perf);
-	int (*level_set)(const struct scmi_handle *handle, u32 domain,
-			 u32 level, bool poll);
-	int (*level_get)(const struct scmi_handle *handle, u32 domain,
-			 u32 *level, bool poll);
-	int (*device_domain_id)(struct device *dev);
-	int (*transition_latency_get)(const struct scmi_handle *handle,
-				      struct device *dev);
-	int (*device_opps_add)(const struct scmi_handle *handle,
-			       struct device *dev);
-	int (*freq_set)(const struct scmi_handle *handle, u32 domain,
-			unsigned long rate, bool poll);
-	int (*freq_get)(const struct scmi_handle *handle, u32 domain,
-			unsigned long *rate, bool poll);
-	int (*est_power_get)(const struct scmi_handle *handle, u32 domain,
-			     unsigned long *rate, unsigned long *power);
-	bool (*fast_switch_possible)(const struct scmi_handle *handle,
-				     struct device *dev);
-	bool (*power_scale_mw_get)(const struct scmi_handle *handle);
-};
-
 /**
  * struct scmi_power_ops - represents the various operations provided
  *	by SCMI Power Protocol
@@ -631,7 +606,6 @@ struct scmi_notify_ops {
  * @dev: pointer to the SCMI device
  * @version: pointer to the structure containing SCMI version information
  * @power_ops: pointer to set of power protocol operations
- * @perf_ops: pointer to set of performance protocol operations
  * @clk_ops: pointer to set of clock protocol operations
  * @sensor_ops: pointer to set of sensor protocol operations
  * @reset_ops: pointer to set of reset protocol operations
@@ -656,7 +630,6 @@ struct scmi_notify_ops {
 struct scmi_handle {
 	struct device *dev;
 	struct scmi_revision_info *version;
-	const struct scmi_perf_ops *perf_ops;
 	const struct scmi_clk_ops *clk_ops;
 	const struct scmi_power_ops *power_ops;
 	const struct scmi_sensor_ops *sensor_ops;

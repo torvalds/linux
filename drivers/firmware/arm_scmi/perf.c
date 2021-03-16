@@ -391,15 +391,6 @@ static int scmi_perf_limits_set(const struct scmi_protocol_handle *ph,
 	return scmi_perf_mb_limits_set(ph, domain, max_perf, min_perf);
 }
 
-static int __scmi_perf_limits_set(const struct scmi_handle *handle,
-				  u32 domain, u32 max_perf, u32 min_perf)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_PERF);
-
-	return scmi_perf_limits_set(ph, domain, max_perf, min_perf);
-}
-
 static int scmi_perf_mb_limits_get(const struct scmi_protocol_handle *ph,
 				   u32 domain, u32 *max_perf, u32 *min_perf)
 {
@@ -441,15 +432,6 @@ static int scmi_perf_limits_get(const struct scmi_protocol_handle *ph,
 	return scmi_perf_mb_limits_get(ph, domain, max_perf, min_perf);
 }
 
-static int __scmi_perf_limits_get(const struct scmi_handle *handle,
-				  u32 domain, u32 *max_perf, u32 *min_perf)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_PERF);
-
-	return scmi_perf_limits_get(ph, domain, max_perf, min_perf);
-}
-
 static int scmi_perf_mb_level_set(const struct scmi_protocol_handle *ph,
 				  u32 domain, u32 level, bool poll)
 {
@@ -487,15 +469,6 @@ static int scmi_perf_level_set(const struct scmi_protocol_handle *ph,
 	return scmi_perf_mb_level_set(ph, domain, level, poll);
 }
 
-static int __scmi_perf_level_set(const struct scmi_handle *handle,
-				 u32 domain, u32 level, bool poll)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_PERF);
-
-	return scmi_perf_level_set(ph, domain, level, poll);
-}
-
 static int scmi_perf_mb_level_get(const struct scmi_protocol_handle *ph,
 				  u32 domain, u32 *level, bool poll)
 {
@@ -530,15 +503,6 @@ static int scmi_perf_level_get(const struct scmi_protocol_handle *ph,
 	}
 
 	return scmi_perf_mb_level_get(ph, domain, level, poll);
-}
-
-static int __scmi_perf_level_get(const struct scmi_handle *handle,
-				 u32 domain, u32 *level, bool poll)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_PERF);
-
-	return scmi_perf_level_get(ph, domain, level, poll);
 }
 
 static int scmi_perf_level_limits_notify(const struct scmi_protocol_handle *ph,
@@ -704,15 +668,6 @@ static int scmi_dvfs_device_opps_add(const struct scmi_protocol_handle *ph,
 	return 0;
 }
 
-static int __scmi_dvfs_device_opps_add(const struct scmi_handle *handle,
-				       struct device *dev)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_PERF);
-
-	return scmi_dvfs_device_opps_add(ph, dev);
-}
-
 static int
 scmi_dvfs_transition_latency_get(const struct scmi_protocol_handle *ph,
 				 struct device *dev)
@@ -729,16 +684,6 @@ scmi_dvfs_transition_latency_get(const struct scmi_protocol_handle *ph,
 	return dom->opp[dom->opp_count - 1].trans_latency_us * 1000;
 }
 
-static int
-__scmi_dvfs_transition_latency_get(const struct scmi_handle *handle,
-				   struct device *dev)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_PERF);
-
-	return scmi_dvfs_transition_latency_get(ph, dev);
-}
-
 static int scmi_dvfs_freq_set(const struct scmi_protocol_handle *ph, u32 domain,
 			      unsigned long freq, bool poll)
 {
@@ -746,15 +691,6 @@ static int scmi_dvfs_freq_set(const struct scmi_protocol_handle *ph, u32 domain,
 	struct perf_dom_info *dom = pi->dom_info + domain;
 
 	return scmi_perf_level_set(ph, domain, freq / dom->mult_factor, poll);
-}
-
-static int __scmi_dvfs_freq_set(const struct scmi_handle *handle,
-				u32 domain, unsigned long freq, bool poll)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_PERF);
-
-	return scmi_dvfs_freq_set(ph, domain, freq, poll);
 }
 
 static int scmi_dvfs_freq_get(const struct scmi_protocol_handle *ph, u32 domain,
@@ -770,15 +706,6 @@ static int scmi_dvfs_freq_get(const struct scmi_protocol_handle *ph, u32 domain,
 		*freq = level * dom->mult_factor;
 
 	return ret;
-}
-
-static int __scmi_dvfs_freq_get(const struct scmi_handle *handle, u32 domain,
-				unsigned long *freq, bool poll)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_PERF);
-
-	return scmi_dvfs_freq_get(ph, domain, freq, poll);
 }
 
 static int scmi_dvfs_est_power_get(const struct scmi_protocol_handle *ph,
@@ -809,16 +736,6 @@ static int scmi_dvfs_est_power_get(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
-static int __scmi_dvfs_est_power_get(const struct scmi_handle *handle,
-				     u32 domain, unsigned long *freq,
-				     unsigned long *power)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_PERF);
-
-	return scmi_dvfs_est_power_get(ph, domain, freq, power);
-}
-
 static bool scmi_fast_switch_possible(const struct scmi_protocol_handle *ph,
 				      struct device *dev)
 {
@@ -830,44 +747,12 @@ static bool scmi_fast_switch_possible(const struct scmi_protocol_handle *ph,
 	return dom->fc_info && dom->fc_info->level_set_addr;
 }
 
-static bool __scmi_fast_switch_possible(const struct scmi_handle *handle,
-					struct device *dev)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_PERF);
-
-	return scmi_fast_switch_possible(ph, dev);
-}
-
 static bool scmi_power_scale_mw_get(const struct scmi_protocol_handle *ph)
 {
 	struct scmi_perf_info *pi = ph->get_priv(ph);
 
 	return pi->power_scale_mw;
 }
-
-static bool __scmi_power_scale_mw_get(const struct scmi_handle *handle)
-{
-	const struct scmi_protocol_handle *ph =
-			scmi_map_protocol_handle(handle, SCMI_PROTOCOL_PERF);
-
-	return scmi_power_scale_mw_get(ph);
-}
-
-static const struct scmi_perf_ops perf_ops = {
-	.limits_set = __scmi_perf_limits_set,
-	.limits_get = __scmi_perf_limits_get,
-	.level_set = __scmi_perf_level_set,
-	.level_get = __scmi_perf_level_get,
-	.device_domain_id = scmi_dev_domain_id,
-	.transition_latency_get = __scmi_dvfs_transition_latency_get,
-	.device_opps_add = __scmi_dvfs_device_opps_add,
-	.freq_set = __scmi_dvfs_freq_set,
-	.freq_get = __scmi_dvfs_freq_get,
-	.est_power_get = __scmi_dvfs_est_power_get,
-	.fast_switch_possible = __scmi_fast_switch_possible,
-	.power_scale_mw_get = __scmi_power_scale_mw_get,
-};
 
 static const struct scmi_perf_proto_ops perf_proto_ops = {
 	.limits_set = scmi_perf_limits_set,
@@ -991,7 +876,6 @@ static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 	int domain;
 	u32 version;
 	struct scmi_perf_info *pinfo;
-	struct scmi_handle *handle;
 
 	ph->xops->version_get(ph, &version);
 
@@ -1020,10 +904,6 @@ static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 	}
 
 	pinfo->version = version;
-
-	/* Transient code for legacy ops interface */
-	handle = scmi_map_scmi_handle(ph);
-	handle->perf_ops = &perf_ops;
 
 	return ph->set_priv(ph, pinfo);
 }
