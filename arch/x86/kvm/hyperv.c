@@ -1077,6 +1077,21 @@ static bool compute_tsc_page_parameters(struct pvclock_vcpu_time_info *hv_clock,
 	return true;
 }
 
+/*
+ * Don't touch TSC page values if the guest has opted for TSC emulation after
+ * migration. KVM doesn't fully support reenlightenment notifications and TSC
+ * access emulation and Hyper-V is known to expect the values in TSC page to
+ * stay constant before TSC access emulation is disabled from guest side
+ * (HV_X64_MSR_TSC_EMULATION_STATUS). KVM userspace is expected to preserve TSC
+ * frequency and guest visible TSC value across migration (and prevent it when
+ * TSC scaling is unsupported).
+ */
+static inline bool tsc_page_update_unsafe(struct kvm_hv *hv)
+{
+	return (hv->hv_tsc_page_status != HV_TSC_PAGE_GUEST_CHANGED) &&
+		hv->hv_tsc_emulation_control;
+}
+
 void kvm_hv_setup_tsc_page(struct kvm *kvm,
 			   struct pvclock_vcpu_time_info *hv_clock)
 {
@@ -1103,6 +1118,14 @@ void kvm_hv_setup_tsc_page(struct kvm *kvm,
 	if (unlikely(kvm_read_guest(kvm, gfn_to_gpa(gfn),
 				    &tsc_seq, sizeof(tsc_seq))))
 		goto out_err;
+
+	if (tsc_seq && tsc_page_update_unsafe(hv)) {
+		if (kvm_read_guest(kvm, gfn_to_gpa(gfn), &hv->tsc_ref, sizeof(hv->tsc_ref)))
+			goto out_err;
+
+		hv->hv_tsc_page_status = HV_TSC_PAGE_SET;
+		goto out_unlock;
+	}
 
 	/*
 	 * While we're computing and writing the parameters, force the
@@ -1151,7 +1174,8 @@ void kvm_hv_invalidate_tsc_page(struct kvm *kvm)
 	u64 gfn;
 
 	if (hv->hv_tsc_page_status == HV_TSC_PAGE_BROKEN ||
-	    hv->hv_tsc_page_status == HV_TSC_PAGE_UNSET)
+	    hv->hv_tsc_page_status == HV_TSC_PAGE_UNSET ||
+	    tsc_page_update_unsafe(hv))
 		return;
 
 	mutex_lock(&hv->hv_lock);
