@@ -78,7 +78,6 @@ patternProperties:
           also known as absolute calibration.
 
       qcom,hw-settle-time-us:
-        $ref: /schemas/types.yaml#/definitions/uint32
         description: Time between AMUX getting configured and the ADC starting conversion.
         enum: [15, 100, 200, 300, 400, 500, 600, 700, 1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000]
 
