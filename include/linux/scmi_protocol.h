@@ -431,7 +431,7 @@ enum scmi_sensor_class {
 };
 
 /**
- * struct scmi_sensor_ops - represents the various operations provided
+ * struct scmi_sensor_proto_ops - represents the various operations provided
  *	by SCMI Sensor Protocol
  *
  * @count_get: get the count of sensors provided by SCMI
@@ -446,6 +446,23 @@ enum scmi_sensor_class {
  * @config_get: Get sensor current configuration
  * @config_set: Set sensor current configuration
  */
+struct scmi_sensor_proto_ops {
+	int (*count_get)(const struct scmi_protocol_handle *ph);
+	const struct scmi_sensor_info *(*info_get)
+		(const struct scmi_protocol_handle *ph, u32 sensor_id);
+	int (*trip_point_config)(const struct scmi_protocol_handle *ph,
+				 u32 sensor_id, u8 trip_id, u64 trip_value);
+	int (*reading_get)(const struct scmi_protocol_handle *ph, u32 sensor_id,
+			   u64 *value);
+	int (*reading_get_timestamped)(const struct scmi_protocol_handle *ph,
+				       u32 sensor_id, u8 count,
+				       struct scmi_sensor_reading *readings);
+	int (*config_get)(const struct scmi_protocol_handle *ph,
+			  u32 sensor_id, u32 *sensor_config);
+	int (*config_set)(const struct scmi_protocol_handle *ph,
+			  u32 sensor_id, u32 sensor_config);
+};
+
 struct scmi_sensor_ops {
 	int (*count_get)(const struct scmi_handle *handle);
 	const struct scmi_sensor_info *(*info_get)
@@ -611,8 +628,6 @@ struct scmi_notify_ops {
  *		       operations and a dedicated protocol handler
  * @devm_protocol_put: devres managed method to release a protocol
  * @notify_ops: pointer to set of notifications related operations
- * @sensor_priv: pointer to private data structure specific to sensors
- *	protocol(for internal use only)
  * @voltage_priv: pointer to private data structure specific to voltage
  *	protocol(for internal use only)
  * @notify_priv: pointer to private data structure specific to notifications
@@ -631,7 +646,6 @@ struct scmi_handle {
 
 	const struct scmi_notify_ops *notify_ops;
 	/* for protocol internal use */
-	void *sensor_priv;
 	void *voltage_priv;
 	void *notify_priv;
 	void *system_priv;
