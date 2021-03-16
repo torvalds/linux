@@ -186,18 +186,11 @@ static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)
 	((struct pt_regs *)((unsigned long)task_stack_page(current) + THREAD_SIZE) - 1)
 
 #ifdef __powerpc64__
-#ifdef CONFIG_PPC_BOOK3S
 #define TRAP_FLAGS_MASK		0x10
 #define TRAP(regs)		((regs)->trap & ~TRAP_FLAGS_MASK)
 #define FULL_REGS(regs)		true
 #define SET_FULL_REGS(regs)	do { } while (0)
-#else
-#define TRAP_FLAGS_MASK		0x11
-#define TRAP(regs)		((regs)->trap & ~TRAP_FLAGS_MASK)
-#define FULL_REGS(regs)		(((regs)->trap & 1) == 0)
-#define SET_FULL_REGS(regs)	((regs)->trap &= ~1)
-#endif
-#define CHECK_FULL_REGS(regs)	BUG_ON(!FULL_REGS(regs))
+#define CHECK_FULL_REGS(regs)	do { } while (0)
 #define NV_REG_POISON		0xdeadbeefdeadbeefUL
 #else
 /*

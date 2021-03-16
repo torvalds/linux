@@ -417,14 +417,15 @@ exc_##n##_common:							    \
 	std	r6,_LINK(r1);						    \
 	std	r7,_CTR(r1);						    \
 	std	r8,_XER(r1);						    \
-	li	r3,(n)+1;		/* indicate partial regs in trap */ \
+	li	r3,(n);			/* regs.trap vector */		    \
 	std	r9,0(r1);		/* store stack frame back link */   \
 	std	r10,_CCR(r1);		/* store orig CR in stackframe */   \
 	std	r9,GPR1(r1);		/* store stack frame back link */   \
 	std	r11,SOFTE(r1);		/* and save it to stackframe */     \
 	std	r12,STACK_FRAME_OVERHEAD-16(r1); /* mark the frame */	    \
 	std	r3,_TRAP(r1);		/* set trap number		*/  \
-	std	r0,RESULT(r1);		/* clear regs->result */
+	std	r0,RESULT(r1);		/* clear regs->result */	    \
+	SAVE_NVGPRS(r1);
 
 #define EXCEPTION_COMMON(n) \
 	EXCEPTION_COMMON_LVL(n, SPRN_SPRG_GEN_SCRATCH, PACA_EXGEN)
@@ -561,7 +562,6 @@ __end_interrupts:
 	CRIT_EXCEPTION_PROLOG(0x100, BOOKE_INTERRUPT_CRITICAL,
 			      PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON_CRIT(0x100)
-	bl	save_nvgprs
 	bl	special_reg_save
 	CHECK_NAPPING();
 	addi	r3,r1,STACK_FRAME_OVERHEAD
@@ -573,7 +573,6 @@ __end_interrupts:
 	MC_EXCEPTION_PROLOG(0x000, BOOKE_INTERRUPT_MACHINE_CHECK,
 			    PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON_MC(0x000)
-	bl	save_nvgprs
 	bl	special_reg_save
 	CHECK_NAPPING();
 	addi	r3,r1,STACK_FRAME_OVERHEAD
@@ -623,7 +622,6 @@ __end_interrupts:
 	std	r14,_DSISR(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	ld	r14,PACA_EXGEN+EX_R14(r13)
-	bl	save_nvgprs
 	bl	program_check_exception
 	b	ret_from_except
 
@@ -639,7 +637,6 @@ __end_interrupts:
 	bl	load_up_fpu
 	b	fast_exception_return
 1:	INTS_DISABLE
-	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	kernel_fp_unavailable_exception
 	b	ret_from_except
@@ -661,7 +658,6 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif
 	INTS_DISABLE
-	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	altivec_unavailable_exception
 	b	ret_from_except
@@ -673,7 +669,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 				PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON(0x220)
 	INTS_DISABLE
-	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 #ifdef CONFIG_ALTIVEC
 BEGIN_FTR_SECTION
@@ -698,7 +693,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	CRIT_EXCEPTION_PROLOG(0x9f0, BOOKE_INTERRUPT_WATCHDOG,
 			      PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON_CRIT(0x9f0)
-	bl	save_nvgprs
 	bl	special_reg_save
 	CHECK_NAPPING();
 	addi	r3,r1,STACK_FRAME_OVERHEAD
@@ -723,7 +717,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 				PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON(0xf20)
 	INTS_DISABLE
-	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	unknown_exception
 	b	ret_from_except
@@ -792,7 +785,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	ld	r14,PACA_EXCRIT+EX_R14(r13)
 	ld	r15,PACA_EXCRIT+EX_R15(r13)
-	bl	save_nvgprs
 	bl	DebugException
 	b	ret_from_except
 
@@ -864,7 +856,6 @@ kernel_dbg_exc:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	ld	r14,PACA_EXDBG+EX_R14(r13)
 	ld	r15,PACA_EXDBG+EX_R15(r13)
-	bl	save_nvgprs
 	bl	DebugException
 	b	ret_from_except
 
@@ -887,7 +878,6 @@ kernel_dbg_exc:
 	CRIT_EXCEPTION_PROLOG(0x2a0, BOOKE_INTERRUPT_DOORBELL_CRITICAL,
 			      PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON_CRIT(0x2a0)
-	bl	save_nvgprs
 	bl	special_reg_save
 	CHECK_NAPPING();
 	addi	r3,r1,STACK_FRAME_OVERHEAD
@@ -903,7 +893,6 @@ kernel_dbg_exc:
 			        PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON(0x2c0)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	save_nvgprs
 	INTS_RESTORE_HARD
 	bl	unknown_exception
 	b	ret_from_except
@@ -913,7 +902,6 @@ kernel_dbg_exc:
 	CRIT_EXCEPTION_PROLOG(0x2e0, BOOKE_INTERRUPT_GUEST_DBELL_CRIT,
 			      PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON_CRIT(0x2e0)
-	bl	save_nvgprs
 	bl	special_reg_save
 	CHECK_NAPPING();
 	addi	r3,r1,STACK_FRAME_OVERHEAD
@@ -926,7 +914,6 @@ kernel_dbg_exc:
 			        PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON(0x310)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	save_nvgprs
 	INTS_RESTORE_HARD
 	bl	unknown_exception
 	b	ret_from_except
@@ -937,7 +924,6 @@ kernel_dbg_exc:
 			        PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON(0x320)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	save_nvgprs
 	INTS_RESTORE_HARD
 	bl	unknown_exception
 	b	ret_from_except
@@ -948,7 +934,6 @@ kernel_dbg_exc:
 			        PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON(0x340)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	save_nvgprs
 	INTS_RESTORE_HARD
 	bl	unknown_exception
 	b	ret_from_except
@@ -1014,7 +999,6 @@ storage_fault_common:
 	cmpdi	r3,0
 	bne-	1f
 	b	ret_from_except_lite
-1:	bl	save_nvgprs
 	mr	r4,r3
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	__bad_page_fault
@@ -1030,16 +1014,12 @@ alignment_more:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	ld	r14,PACA_EXGEN+EX_R14(r13)
 	ld	r15,PACA_EXGEN+EX_R15(r13)
-	bl	save_nvgprs
 	INTS_RESTORE_HARD
 	bl	alignment_exception
 	b	ret_from_except
 
 	.align	7
 _GLOBAL(ret_from_except)
-	ld	r11,_TRAP(r1)
-	andi.	r0,r11,1
-	bne	ret_from_except_lite
 	REST_NVGPRS(r1)
 
 _GLOBAL(ret_from_except_lite)
@@ -1080,7 +1060,6 @@ _GLOBAL(ret_from_except_lite)
 	SCHEDULE_USER
 	b	ret_from_except_lite
 2:
-	bl	save_nvgprs
 	/*
 	 * Use a non volatile GPR to save and restore our thread_info flags
 	 * across the call to restore_interrupts.
