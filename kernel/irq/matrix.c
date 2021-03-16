@@ -356,7 +356,7 @@ void irq_matrix_reserve(struct irq_matrix *m)
  * irq_matrix_remove_reserved - Remove interrupt reservation
  * @m:		Matrix pointer
  *
- * This is merily a book keeping call. It decrements the number of globally
+ * This is merely a book keeping call. It decrements the number of globally
  * reserved interrupt bits. This is used to undo irq_matrix_reserve() when the
  * interrupt was never in use and a real vector allocated, which undid the
  * reservation.

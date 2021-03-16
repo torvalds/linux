@@ -84,7 +84,7 @@ void irq_timings_disable(void)
  * 2. Log interval
  *
  * We saw the irq timings allow to compute the interval of the
- * occurrences for a specific interrupt. We can reasonibly assume the
+ * occurrences for a specific interrupt. We can reasonably assume the
  * longer is the interval, the higher is the error for the next event
  * and we can consider storing those interval values into an array
  * where each slot in the array correspond to an interval at the power
@@ -416,7 +416,7 @@ static u64 __irq_timings_next_event(struct irqt_stat *irqs, int irq, u64 now)
 	 * Copy the content of the circular buffer into another buffer
 	 * in order to linearize the buffer instead of dealing with
 	 * wrapping indexes and shifted array which will be prone to
-	 * error and extremelly difficult to debug.
+	 * error and extremely difficult to debug.
 	 */
 	for (i = 0; i < count; i++) {
 		int index = (start + i) & IRQ_TIMINGS_MASK;
@@ -514,7 +514,7 @@ static inline void irq_timings_store(int irq, struct irqt_stat *irqs, u64 ts)
  *      If more than the array size interrupts happened during the
  *      last busy/idle cycle, the index wrapped up and we have to
  *      begin with the next element in the array which is the last one
- *      in the sequence, otherwise it is a the index 0.
+ *      in the sequence, otherwise it is at the index 0.
  *
  * - have an indication of the interrupts activity on this CPU
  *   (eg. irq/sec)
