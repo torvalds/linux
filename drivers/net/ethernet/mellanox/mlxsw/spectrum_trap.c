@@ -51,6 +51,8 @@ enum {
 enum {
 	/* Packet was mirrored from ingress. */
 	MLXSW_SP_MIRROR_REASON_INGRESS = 1,
+	/* Packet was mirrored from policy engine. */
+	MLXSW_SP_MIRROR_REASON_POLICY_ENGINE = 2,
 	/* Packet was early dropped. */
 	MLXSW_SP_MIRROR_REASON_INGRESS_WRED = 9,
 	/* Packet was mirrored from egress. */
@@ -325,6 +327,42 @@ static void mlxsw_sp_rx_sample_tx_listener(struct sk_buff *skb, u8 local_port,
 
 	trigger.type = MLXSW_SP_SAMPLE_TRIGGER_TYPE_EGRESS;
 	trigger.local_port = mlxsw_sp_port_tx->local_port;
+	params = mlxsw_sp_sample_trigger_params_lookup(mlxsw_sp, &trigger);
+	if (!params)
+		goto out;
+
+	/* The psample module expects skb->data to point to the start of the
+	 * Ethernet header.
+	 */
+	skb_push(skb, ETH_HLEN);
+	mlxsw_sp_psample_md_init(mlxsw_sp, &md, skb,
+				 mlxsw_sp_port->dev->ifindex, params->truncate,
+				 params->trunc_size);
+	psample_sample_packet(params->psample_group, skb, params->rate, &md);
+out:
+	consume_skb(skb);
+}
+
+static void mlxsw_sp_rx_sample_acl_listener(struct sk_buff *skb, u8 local_port,
+					    void *trap_ctx)
+{
+	struct mlxsw_sp *mlxsw_sp = devlink_trap_ctx_priv(trap_ctx);
+	struct mlxsw_sp_sample_trigger trigger = {
+		.type = MLXSW_SP_SAMPLE_TRIGGER_TYPE_POLICY_ENGINE,
+	};
+	struct mlxsw_sp_sample_params *params;
+	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct psample_metadata md = {};
+	int err;
+
+	err = __mlxsw_sp_rx_no_mark_listener(skb, local_port, trap_ctx);
+	if (err)
+		return;
+
+	mlxsw_sp_port = mlxsw_sp->ports[local_port];
+	if (!mlxsw_sp_port)
+		goto out;
+
 	params = mlxsw_sp_sample_trigger_params_lookup(mlxsw_sp, &trigger);
 	if (!params)
 		goto out;
@@ -1898,6 +1936,9 @@ mlxsw_sp2_trap_items_arr[] = {
 			MLXSW_RXL_MIRROR(mlxsw_sp_rx_sample_tx_listener, 1,
 					 SP_PKT_SAMPLE,
 					 MLXSW_SP_MIRROR_REASON_EGRESS),
+			MLXSW_RXL_MIRROR(mlxsw_sp_rx_sample_acl_listener, 1,
+					 SP_PKT_SAMPLE,
+					 MLXSW_SP_MIRROR_REASON_POLICY_ENGINE),
 		},
 	},
 };

@@ -239,11 +239,12 @@ struct mlxsw_sp_port_pcpu_stats {
 enum mlxsw_sp_sample_trigger_type {
 	MLXSW_SP_SAMPLE_TRIGGER_TYPE_INGRESS,
 	MLXSW_SP_SAMPLE_TRIGGER_TYPE_EGRESS,
+	MLXSW_SP_SAMPLE_TRIGGER_TYPE_POLICY_ENGINE,
 };
 
 struct mlxsw_sp_sample_trigger {
 	enum mlxsw_sp_sample_trigger_type type;
-	u8 local_port;
+	u8 local_port; /* Reserved when trigger type is not ingress / egress. */
 };
 
 struct mlxsw_sp_sample_params {
@@ -946,6 +947,12 @@ int mlxsw_sp_acl_rulei_act_count(struct mlxsw_sp *mlxsw_sp,
 int mlxsw_sp_acl_rulei_act_fid_set(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_acl_rule_info *rulei,
 				   u16 fid, struct netlink_ext_ack *extack);
+int mlxsw_sp_acl_rulei_act_sample(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_acl_rule_info *rulei,
+				  struct mlxsw_sp_flow_block *block,
+				  struct psample_group *psample_group, u32 rate,
+				  u32 trunc_size, bool truncate,
+				  struct netlink_ext_ack *extack);
 
 struct mlxsw_sp_acl_rule;
 
