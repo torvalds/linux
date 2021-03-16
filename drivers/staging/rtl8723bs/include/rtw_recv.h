@@ -317,13 +317,8 @@ struct recv_buf {
 */
 struct recv_frame_hdr {
 	struct list_head	list;
-#ifndef CONFIG_BSD_RX_USE_MBUF
 	struct sk_buff	 *pkt;
 	struct sk_buff	 *pkt_newalloc;
-#else /*  CONFIG_BSD_RX_USE_MBUF */
-	struct sk_buff	*pkt;
-	struct sk_buff *pkt_newalloc;
-#endif /*  CONFIG_BSD_RX_USE_MBUF */
 
 	struct adapter  *adapter;
 
