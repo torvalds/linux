@@ -16,6 +16,7 @@ Required properties:
 	"mediatek,mt8183-wdt": for MT8183
 	"mediatek,mt8516-wdt", "mediatek,mt6589-wdt": for MT8516
 	"mediatek,mt8192-wdt": for MT8192
+	"mediatek,mt8195-wdt", "mediatek,mt6589-wdt": for MT8195
 
 - reg : Specifies base physical address and size of the registers.
 
