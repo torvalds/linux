@@ -5342,13 +5342,13 @@ static int retrieve_ptr_limit(const struct bpf_reg_state *ptr_reg,
 		 */
 		off = ptr_reg->off + ptr_reg->var_off.value;
 		if (mask_to_left)
-			*ptr_limit = MAX_BPF_STACK + off;
+			*ptr_limit = MAX_BPF_STACK + off + 1;
 		else
 			*ptr_limit = -off;
 		return 0;
 	case PTR_TO_MAP_VALUE:
 		if (mask_to_left) {
-			*ptr_limit = ptr_reg->umax_value + ptr_reg->off;
+			*ptr_limit = ptr_reg->umax_value + ptr_reg->off + 1;
 		} else {
 			off = ptr_reg->smin_value + ptr_reg->off;
 			*ptr_limit = ptr_reg->map_ptr->value_size - off;
