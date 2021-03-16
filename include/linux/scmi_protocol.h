@@ -515,7 +515,7 @@ struct scmi_voltage_info {
 };
 
 /**
- * struct scmi_voltage_ops - represents the various operations provided
+ * struct scmi_voltage_proto_ops - represents the various operations provided
  * by SCMI Voltage Protocol
  *
  * @num_domains_get: get the count of voltage domains provided by SCMI
@@ -525,14 +525,28 @@ struct scmi_voltage_info {
  * @level_set: set the voltage level for the specified domain
  * @level_get: get the voltage level of the specified domain
  */
+struct scmi_voltage_proto_ops {
+	int (*num_domains_get)(const struct scmi_protocol_handle *ph);
+	const struct scmi_voltage_info __must_check *(*info_get)
+		(const struct scmi_protocol_handle *ph, u32 domain_id);
+	int (*config_set)(const struct scmi_protocol_handle *ph, u32 domain_id,
+			  u32 config);
+#define	SCMI_VOLTAGE_ARCH_STATE_OFF		0x0
+#define	SCMI_VOLTAGE_ARCH_STATE_ON		0x7
+	int (*config_get)(const struct scmi_protocol_handle *ph, u32 domain_id,
+			  u32 *config);
+	int (*level_set)(const struct scmi_protocol_handle *ph, u32 domain_id,
+			 u32 flags, s32 volt_uV);
+	int (*level_get)(const struct scmi_protocol_handle *ph, u32 domain_id,
+			 s32 *volt_uV);
+};
+
 struct scmi_voltage_ops {
 	int (*num_domains_get)(const struct scmi_handle *handle);
 	const struct scmi_voltage_info __must_check *(*info_get)
 		(const struct scmi_handle *handle, u32 domain_id);
 	int (*config_set)(const struct scmi_handle *handle, u32 domain_id,
 			  u32 config);
-#define	SCMI_VOLTAGE_ARCH_STATE_OFF		0x0
-#define	SCMI_VOLTAGE_ARCH_STATE_ON		0x7
 	int (*config_get)(const struct scmi_handle *handle, u32 domain_id,
 			  u32 *config);
 	int (*level_set)(const struct scmi_handle *handle, u32 domain_id,
@@ -610,8 +624,6 @@ struct scmi_notify_ops {
  *		       operations and a dedicated protocol handler
  * @devm_protocol_put: devres managed method to release a protocol
  * @notify_ops: pointer to set of notifications related operations
- * @voltage_priv: pointer to private data structure specific to voltage
- *	protocol(for internal use only)
  * @notify_priv: pointer to private data structure specific to notifications
  *	(for internal use only)
  */
@@ -626,8 +638,6 @@ struct scmi_handle {
 	void (*devm_protocol_put)(struct scmi_device *sdev, u8 proto);
 
 	const struct scmi_notify_ops *notify_ops;
-	/* for protocol internal use */
-	void *voltage_priv;
 	void *notify_priv;
 };
 
