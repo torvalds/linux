@@ -463,23 +463,6 @@ struct scmi_sensor_proto_ops {
 			  u32 sensor_id, u32 sensor_config);
 };
 
-struct scmi_sensor_ops {
-	int (*count_get)(const struct scmi_handle *handle);
-	const struct scmi_sensor_info *(*info_get)
-		(const struct scmi_handle *handle, u32 sensor_id);
-	int (*trip_point_config)(const struct scmi_handle *handle,
-				 u32 sensor_id, u8 trip_id, u64 trip_value);
-	int (*reading_get)(const struct scmi_handle *handle, u32 sensor_id,
-			   u64 *value);
-	int (*reading_get_timestamped)(const struct scmi_handle *handle,
-				       u32 sensor_id, u8 count,
-				       struct scmi_sensor_reading *readings);
-	int (*config_get)(const struct scmi_handle *handle,
-			  u32 sensor_id, u32 *sensor_config);
-	int (*config_set)(const struct scmi_handle *handle,
-			  u32 sensor_id, u32 sensor_config);
-};
-
 /**
  * struct scmi_reset_proto_ops - represents the various operations provided
  *	by SCMI Reset Protocol
@@ -622,7 +605,6 @@ struct scmi_notify_ops {
  *
  * @dev: pointer to the SCMI device
  * @version: pointer to the structure containing SCMI version information
- * @sensor_ops: pointer to set of sensor protocol operations
  * @voltage_ops: pointer to set of voltage protocol operations
  * @devm_protocol_get: devres managed method to acquire a protocol and get specific
  *		       operations and a dedicated protocol handler
@@ -636,7 +618,6 @@ struct scmi_notify_ops {
 struct scmi_handle {
 	struct device *dev;
 	struct scmi_revision_info *version;
-	const struct scmi_sensor_ops *sensor_ops;
 	const struct scmi_voltage_ops *voltage_ops;
 
 	const void __must_check *
