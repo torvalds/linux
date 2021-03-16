@@ -67,9 +67,6 @@ int	rtw_init_mlme_priv(struct adapter *padapter)
 	pmlmepriv->roam_flags = 0
 		| RTW_ROAM_ON_EXPIRED
 		| RTW_ROAM_ON_RESUME
-		#ifdef CONFIG_LAYER2_ROAMING_ACTIVE /* FIXME */
-		| RTW_ROAM_ACTIVE
-		#endif
 		;
 
 	pmlmepriv->roam_scanr_exp_ms = RTW_ROAM_SCAN_RESULT_EXP_MS;
