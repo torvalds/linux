@@ -6972,6 +6972,14 @@ static int tracing_time_stamp_mode_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
+u64 tracing_event_time_stamp(struct trace_buffer *buffer, struct ring_buffer_event *rbe)
+{
+	if (rbe == this_cpu_read(trace_buffered_event))
+		return ring_buffer_time_stamp(buffer, smp_processor_id());
+
+	return ring_buffer_event_time_stamp(buffer, rbe);
+}
+
 /*
  * Set or disable using the per CPU trace_buffer_event when possible.
  */
