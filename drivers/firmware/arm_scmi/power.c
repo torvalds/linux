@@ -146,15 +146,6 @@ static int scmi_power_state_set(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
-static int __scmi_power_state_set(const struct scmi_handle *handle,
-				  u32 domain, u32 state)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_POWER);
-
-	return scmi_power_state_set(ph, domain, state);
-}
-
 static int scmi_power_state_get(const struct scmi_protocol_handle *ph,
 				u32 domain, u32 *state)
 {
@@ -175,28 +166,11 @@ static int scmi_power_state_get(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
-static int __scmi_power_state_get(const struct scmi_handle *handle,
-				  u32 domain, u32 *state)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_POWER);
-
-	return scmi_power_state_get(ph, domain, state);
-}
-
 static int scmi_power_num_domains_get(const struct scmi_protocol_handle *ph)
 {
 	struct scmi_power_info *pi = ph->get_priv(ph);
 
 	return pi->num_domains;
-}
-
-static int __scmi_power_num_domains_get(const struct scmi_handle *handle)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_POWER);
-
-	return scmi_power_num_domains_get(ph);
 }
 
 static char *scmi_power_name_get(const struct scmi_protocol_handle *ph,
@@ -207,22 +181,6 @@ static char *scmi_power_name_get(const struct scmi_protocol_handle *ph,
 
 	return dom->name;
 }
-
-static char *__scmi_power_name_get(const struct scmi_handle *handle,
-				   u32 domain)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_POWER);
-
-	return scmi_power_name_get(ph, domain);
-}
-
-static const struct scmi_power_ops power_ops = {
-	.num_domains_get = __scmi_power_num_domains_get,
-	.name_get = __scmi_power_name_get,
-	.state_set = __scmi_power_state_set,
-	.state_get = __scmi_power_state_get,
-};
 
 static const struct scmi_power_proto_ops power_proto_ops = {
 	.num_domains_get = scmi_power_num_domains_get,
@@ -324,7 +282,6 @@ static int scmi_power_protocol_init(const struct scmi_protocol_handle *ph)
 	int domain;
 	u32 version;
 	struct scmi_power_info *pinfo;
-	struct scmi_handle *handle;
 
 	ph->xops->version_get(ph, &version);
 
@@ -349,10 +306,6 @@ static int scmi_power_protocol_init(const struct scmi_protocol_handle *ph)
 	}
 
 	pinfo->version = version;
-
-	/* Transient code for legacy ops interface */
-	handle = scmi_map_scmi_handle(ph);
-	handle->power_ops = &power_ops;
 
 	return ph->set_priv(ph, pinfo);
 }

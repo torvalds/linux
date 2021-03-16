@@ -152,15 +152,6 @@ struct scmi_power_proto_ops {
 			 u32 *state);
 };
 
-struct scmi_power_ops {
-	int (*num_domains_get)(const struct scmi_handle *handle);
-	char *(*name_get)(const struct scmi_handle *handle, u32 domain);
-	int (*state_set)(const struct scmi_handle *handle, u32 domain,
-			 u32 state);
-	int (*state_get)(const struct scmi_handle *handle, u32 domain,
-			 u32 *state);
-};
-
 /**
  * scmi_sensor_reading  - represent a timestamped read
  *
@@ -614,7 +605,6 @@ struct scmi_notify_ops {
  *
  * @dev: pointer to the SCMI device
  * @version: pointer to the structure containing SCMI version information
- * @power_ops: pointer to set of power protocol operations
  * @clk_ops: pointer to set of clock protocol operations
  * @sensor_ops: pointer to set of sensor protocol operations
  * @reset_ops: pointer to set of reset protocol operations
@@ -638,7 +628,6 @@ struct scmi_handle {
 	struct device *dev;
 	struct scmi_revision_info *version;
 	const struct scmi_clk_ops *clk_ops;
-	const struct scmi_power_ops *power_ops;
 	const struct scmi_sensor_ops *sensor_ops;
 	const struct scmi_reset_ops *reset_ops;
 	const struct scmi_voltage_ops *voltage_ops;
