@@ -144,6 +144,10 @@ struct bch_inode_unpacked;
 
 #ifndef NO_BCACHEFS_FS
 
+struct bch_inode_info *
+__bch2_create(struct mnt_idmap *, struct bch_inode_info *,
+	      struct dentry *, umode_t, dev_t, unsigned);
+
 int bch2_fs_quota_transfer(struct bch_fs *,
 			   struct bch_inode_info *,
 			   struct bch_qid,

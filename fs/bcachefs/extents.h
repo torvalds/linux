@@ -567,7 +567,6 @@ unsigned bch2_bkey_nr_ptrs_allocated(struct bkey_s_c);
 unsigned bch2_bkey_nr_ptrs_fully_allocated(struct bkey_s_c);
 bool bch2_bkey_is_incompressible(struct bkey_s_c);
 unsigned bch2_bkey_sectors_compressed(struct bkey_s_c);
-bool bch2_check_range_allocated(struct bch_fs *, struct bpos, u64, unsigned, bool);
 
 unsigned bch2_bkey_replicas(struct bch_fs *, struct bkey_s_c);
 unsigned bch2_bkey_durability(struct bch_fs *, struct bkey_s_c);

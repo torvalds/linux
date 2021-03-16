@@ -858,7 +858,10 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 	d = bkey_s_c_to_dirent(k);
 	d_inum = le64_to_cpu(d.v->d_inum);
 
-	ret = bch2_dirent_read_target(trans, d, &d_inum);
+	ret = __bch2_dirent_read_target(&trans, d,
+					&target_subvol,
+					&target_snapshot,
+					&target_inum);
 	if (ret && ret != -ENOENT)
 		return ret;
 

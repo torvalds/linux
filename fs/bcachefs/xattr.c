@@ -128,7 +128,7 @@ static int bch2_xattr_get_trans(struct btree_trans *trans, struct bch_inode_info
 	int ret;
 
 	ret = bch2_hash_lookup(trans, &iter, bch2_xattr_hash_desc, &hash,
-			       inode->v.i_ino,
+			       inode_inum(inode),
 			       &X_SEARCH(type, name, strlen(name)),
 			       0);
 	if (ret)
@@ -160,7 +160,7 @@ int bch2_xattr_get(struct bch_fs *c, struct bch_inode_info *inode,
 		bch2_xattr_get_trans(&trans, inode, name, buffer, size, type));
 }
 
-int bch2_xattr_set(struct btree_trans *trans, u64 inum,
+int bch2_xattr_set(struct btree_trans *trans, subvol_inum inum,
 		   const struct bch_hash_info *hash_info,
 		   const char *name, const void *value, size_t size,
 		   int type, int flags)
@@ -282,13 +282,21 @@ ssize_t bch2_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct xattr_buf buf = { .buf = buffer, .len = buffer_size };
-	u64 inum = dentry->d_inode->i_ino;
+	u64 offset = 0, inum = inode->ei_inode.bi_inum;
+	u32 snapshot;
 	int ret;
 
 	bch2_trans_init(&trans, c, 0, 0);
+retry:
+	bch2_trans_begin(&trans);
+	iter = (struct btree_iter) { NULL };
+
+	ret = bch2_subvolume_get_snapshot(&trans, inode->ei_subvol, &snapshot);
+	if (ret)
+		goto err;
 
 	for_each_btree_key(&trans, iter, BTREE_ID_xattrs,
-			   POS(inum, 0), 0, k, ret) {
+			   SPOS(inum, offset, snapshot), 0, k, ret) {
 		BUG_ON(k.k->p.inode < inum);
 
 		if (k.k->p.inode > inum)
@@ -301,7 +309,12 @@ ssize_t bch2_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 		if (ret)
 			break;
 	}
+
+	offset = iter.pos.offset;
 	bch2_trans_iter_exit(&trans, &iter);
+err:
+	if (ret == -EINTR)
+		goto retry;
 
 	ret = bch2_trans_exit(&trans) ?: ret;
 
@@ -340,7 +353,7 @@ static int bch2_xattr_set_handler(const struct xattr_handler *handler,
 	struct bch_hash_info hash = bch2_hash_info_init(c, &inode->ei_inode);
 
 	return bch2_trans_do(c, NULL, &inode->ei_journal_seq, 0,
-			bch2_xattr_set(&trans, inode->v.i_ino, &hash,
+			bch2_xattr_set(&trans, inode_inum(inode), &hash,
 				       name, value, size,
 				       handler->flags, flags));
 }

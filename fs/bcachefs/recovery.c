@@ -1480,11 +1480,12 @@ int bch2_fs_initialize(struct bch_fs *c)
 
 	err = "error creating lost+found";
 	ret = bch2_trans_do(c, NULL, NULL, 0,
-		bch2_create_trans(&trans, BCACHEFS_ROOT_INO,
+		bch2_create_trans(&trans,
+				  BCACHEFS_ROOT_SUBVOL_INUM,
 				  &root_inode, &lostfound_inode,
 				  &lostfound,
 				  0, 0, S_IFDIR|0700, 0,
-				  NULL, NULL));
+				  NULL, NULL, 0));
 	if (ret) {
 		bch_err(c, "error creating lost+found");
 		goto err;

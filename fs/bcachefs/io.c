@@ -325,7 +325,10 @@ int bch2_extent_update(struct btree_trans *trans,
 		struct bch_inode_unpacked inode_u;
 
 		ret = bch2_inode_peek(trans, &inode_iter, &inode_u,
-				k->k.p.inode, BTREE_ITER_INTENT);
+				      (subvol_inum) {
+				      .subvol = BCACHEFS_ROOT_SUBVOL,
+				      .inum = k->k.p.inode,
+				      }, BTREE_ITER_INTENT);
 		if (ret)
 			return ret;
 

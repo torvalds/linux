@@ -611,38 +611,6 @@ bool bch2_bkey_is_incompressible(struct bkey_s_c k)
 	return false;
 }
 
-bool bch2_check_range_allocated(struct bch_fs *c, struct bpos pos, u64 size,
-				unsigned nr_replicas, bool compressed)
-{
-	struct btree_trans trans;
-	struct btree_iter iter;
-	struct bpos end = pos;
-	struct bkey_s_c k;
-	bool ret = true;
-	int err;
-
-	end.offset += size;
-
-	bch2_trans_init(&trans, c, 0, 0);
-
-	for_each_btree_key(&trans, iter, BTREE_ID_extents, pos,
-			   BTREE_ITER_SLOTS, k, err) {
-		if (bkey_cmp(bkey_start_pos(k.k), end) >= 0)
-			break;
-
-		if (nr_replicas > bch2_bkey_replicas(c, k) ||
-		    (!compressed && bch2_bkey_sectors_compressed(k))) {
-			ret = false;
-			break;
-		}
-	}
-	bch2_trans_iter_exit(&trans, &iter);
-
-	bch2_trans_exit(&trans);
-
-	return ret;
-}
-
 unsigned bch2_bkey_replicas(struct bch_fs *c, struct bkey_s_c k)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);

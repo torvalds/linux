@@ -1790,6 +1790,49 @@ ssize_t bch2_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 
 /* O_DIRECT writes */
 
+static bool bch2_check_range_allocated(struct bch_fs *c, subvol_inum inum,
+				       u64 offset, u64 size,
+				       unsigned nr_replicas, bool compressed)
+{
+	struct btree_trans trans;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	u64 end = offset + size;
+	u32 snapshot;
+	bool ret = true;
+	int err;
+
+	bch2_trans_init(&trans, c, 0, 0);
+retry:
+	bch2_trans_begin(&trans);
+
+	err = bch2_subvolume_get_snapshot(&trans, inum.subvol, &snapshot);
+	if (err)
+		goto err;
+
+	for_each_btree_key(&trans, iter, BTREE_ID_extents,
+			   SPOS(inum.inum, offset, snapshot),
+			   BTREE_ITER_SLOTS, k, err) {
+		if (bkey_cmp(bkey_start_pos(k.k), POS(inum.inum, end)) >= 0)
+			break;
+
+		if (nr_replicas > bch2_bkey_replicas(c, k) ||
+		    (!compressed && bch2_bkey_sectors_compressed(k))) {
+			ret = false;
+			break;
+		}
+	}
+
+	offset = iter.pos.offset;
+	bch2_trans_iter_exit(&trans, &iter);
+err:
+	if (err == -EINTR)
+		goto retry;
+	bch2_trans_exit(&trans);
+
+	return err ? false : ret;
+}
+
 /*
  * We're going to return -EIOCBQUEUED, but we haven't finished consuming the
  * iov_iter yet, so we need to stash a copy of the iovec: it might be on the
@@ -1911,8 +1954,8 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 		ret = bch2_disk_reservation_get(c, &dio->op.res, bio_sectors(bio),
 						dio->op.opts.data_replicas, 0);
 		if (unlikely(ret) &&
-		    !bch2_check_range_allocated(c, dio->op.pos,
-				bio_sectors(bio),
+		    !bch2_check_range_allocated(c, inode_inum(inode),
+				dio->op.pos.offset, bio_sectors(bio),
 				dio->op.opts.data_replicas,
 				dio->op.opts.compression != 0))
 			goto err;
@@ -2141,9 +2184,9 @@ out:
 
 /* truncate: */
 
-static inline int range_has_data(struct bch_fs *c,
-				  struct bpos start,
-				  struct bpos end)
+static inline int range_has_data(struct bch_fs *c, u32 subvol,
+				 struct bpos start,
+				 struct bpos end)
 {
 	struct btree_trans trans;
 	struct btree_iter iter;
@@ -2151,6 +2194,12 @@ static inline int range_has_data(struct bch_fs *c,
 	int ret = 0;
 
 	bch2_trans_init(&trans, c, 0, 0);
+retry:
+	bch2_trans_begin(&trans);
+
+	ret = bch2_subvolume_get_snapshot(&trans, subvol, &start.snapshot);
+	if (ret)
+		goto err;
 
 	for_each_btree_key(&trans, iter, BTREE_ID_extents, start, 0, k, ret) {
 		if (bkey_cmp(bkey_start_pos(k.k), end) >= 0)
@@ -2161,7 +2210,11 @@ static inline int range_has_data(struct bch_fs *c,
 			break;
 		}
 	}
+	start = iter.pos;
 	bch2_trans_iter_exit(&trans, &iter);
+err:
+	if (ret == -EINTR)
+		goto retry;
 
 	return bch2_trans_exit(&trans) ?: ret;
 }
@@ -2193,7 +2246,7 @@ static int __bch2_truncate_page(struct bch_inode_info *inode,
 		 * XXX: we're doing two index lookups when we end up reading the
 		 * page
 		 */
-		ret = range_has_data(c,
+		ret = range_has_data(c, inode->ei_subvol,
 				POS(inode->v.i_ino, index << PAGE_SECTOR_SHIFT),
 				POS(inode->v.i_ino, (index + 1) << PAGE_SECTOR_SHIFT));
 		if (ret <= 0)
@@ -2327,7 +2380,7 @@ int bch2_truncate(struct mnt_idmap *idmap,
 	inode_dio_wait(&inode->v);
 	bch2_pagecache_block_get(&inode->ei_pagecache_lock);
 
-	ret = bch2_inode_find_by_inum(c, inode->v.i_ino, &inode_u);
+	ret = bch2_inode_find_by_inum(c, inode_inum(inode), &inode_u);
 	if (ret)
 		goto err;
 
@@ -2551,6 +2604,18 @@ static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 		struct bpos move_pos = POS(inode->v.i_ino, offset >> 9);
 		struct bpos atomic_end;
 		unsigned trigger_flags = 0;
+		u32 snapshot;
+
+		bch2_trans_begin(&trans);
+
+		ret = bch2_subvolume_get_snapshot(&trans,
+					inode->ei_subvol, &snapshot);
+		if (ret)
+			continue;
+
+		bch2_btree_iter_set_snapshot(&src, snapshot);
+		bch2_btree_iter_set_snapshot(&dst, snapshot);
+		bch2_btree_iter_set_snapshot(&del, snapshot);
 
 		bch2_trans_begin(&trans);
 
@@ -2671,8 +2736,16 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 		struct bkey_i_reservation reservation;
 		struct bkey_s_c k;
 		unsigned sectors;
+		u32 snapshot;
 
 		bch2_trans_begin(&trans);
+
+		ret = bch2_subvolume_get_snapshot(&trans,
+					inode->ei_subvol, &snapshot);
+		if (ret)
+			goto bkey_err;
+
+		bch2_btree_iter_set_snapshot(&iter, snapshot);
 
 		k = bch2_btree_iter_peek_slot(&iter);
 		if ((ret = bkey_err(k)))
@@ -2918,8 +2991,8 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 	mark_range_unallocated(src, pos_src, pos_src + aligned_len);
 
 	ret = bch2_remap_range(c,
-			       POS(dst->v.i_ino, pos_dst >> 9),
-			       POS(src->v.i_ino, pos_src >> 9),
+			       inode_inum(dst), pos_dst >> 9,
+			       inode_inum(src), pos_src >> 9,
 			       aligned_len >> 9,
 			       &dst->ei_journal_seq,
 			       pos_dst + len, &i_sectors_delta);
@@ -3012,7 +3085,9 @@ static loff_t bch2_seek_data(struct file *file, u64 offset)
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
+	subvol_inum inum = inode_inum(inode);
 	u64 isize, next_data = MAX_LFS_FILESIZE;
+	u32 snapshot;
 	int ret;
 
 	isize = i_size_read(&inode->v);
@@ -3020,9 +3095,15 @@ static loff_t bch2_seek_data(struct file *file, u64 offset)
 		return -ENXIO;
 
 	bch2_trans_init(&trans, c, 0, 0);
+retry:
+	bch2_trans_begin(&trans);
+
+	ret = bch2_subvolume_get_snapshot(&trans, inum.subvol, &snapshot);
+	if (ret)
+		goto err;
 
 	for_each_btree_key(&trans, iter, BTREE_ID_extents,
-			   POS(inode->v.i_ino, offset >> 9), 0, k, ret) {
+			   SPOS(inode->v.i_ino, offset >> 9, snapshot), 0, k, ret) {
 		if (k.k->p.inode != inode->v.i_ino) {
 			break;
 		} else if (bkey_extent_is_data(k.k)) {
@@ -3032,6 +3113,9 @@ static loff_t bch2_seek_data(struct file *file, u64 offset)
 			break;
 	}
 	bch2_trans_iter_exit(&trans, &iter);
+err:
+	if (ret == -EINTR)
+		goto retry;
 
 	ret = bch2_trans_exit(&trans) ?: ret;
 	if (ret)
@@ -3108,7 +3192,9 @@ static loff_t bch2_seek_hole(struct file *file, u64 offset)
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
+	subvol_inum inum = inode_inum(inode);
 	u64 isize, next_hole = MAX_LFS_FILESIZE;
+	u32 snapshot;
 	int ret;
 
 	isize = i_size_read(&inode->v);
@@ -3116,9 +3202,15 @@ static loff_t bch2_seek_hole(struct file *file, u64 offset)
 		return -ENXIO;
 
 	bch2_trans_init(&trans, c, 0, 0);
+retry:
+	bch2_trans_begin(&trans);
+
+	ret = bch2_subvolume_get_snapshot(&trans, inum.subvol, &snapshot);
+	if (ret)
+		goto err;
 
 	for_each_btree_key(&trans, iter, BTREE_ID_extents,
-			   POS(inode->v.i_ino, offset >> 9),
+			   SPOS(inode->v.i_ino, offset >> 9, snapshot),
 			   BTREE_ITER_SLOTS, k, ret) {
 		if (k.k->p.inode != inode->v.i_ino) {
 			next_hole = bch2_seek_pagecache_hole(&inode->v,
@@ -3136,6 +3228,9 @@ static loff_t bch2_seek_hole(struct file *file, u64 offset)
 		}
 	}
 	bch2_trans_iter_exit(&trans, &iter);
+err:
+	if (ret == -EINTR)
+		goto retry;
 
 	ret = bch2_trans_exit(&trans) ?: ret;
 	if (ret)
