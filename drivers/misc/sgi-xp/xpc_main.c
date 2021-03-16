@@ -207,7 +207,7 @@ xpc_start_hb_beater(void)
 {
 	xpc_arch_ops.heartbeat_init();
 	timer_setup(&xpc_hb_timer, xpc_hb_beater, 0);
-	xpc_hb_beater(0);
+	xpc_hb_beater(NULL);
 }
 
 static void
