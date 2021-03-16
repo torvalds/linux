@@ -1629,6 +1629,7 @@ int tcf_classify_ingress(struct sk_buff *skb,
 			return TC_ACT_SHOT;
 		ext->chain = last_executed_chain;
 		ext->mru = qdisc_skb_cb(skb)->mru;
+		ext->post_ct = qdisc_skb_cb(skb)->post_ct;
 	}
 
 	return ret;
