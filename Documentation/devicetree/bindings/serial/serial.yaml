@@ -134,7 +134,7 @@ examples:
             interrupts = <1>;
 
             bluetooth {
-                    compatible = "brcm,bcm43341-bt";
+                    compatible = "brcm,bcm4330-bt";
                     interrupt-parent = <&gpio>;
                     interrupts = <10>;
             };

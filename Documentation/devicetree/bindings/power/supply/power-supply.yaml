@@ -18,25 +18,3 @@ properties:
 
 additionalProperties: true
 
-examples:
-  - |
-    power {
-      #address-cells = <1>;
-      #size-cells = <0>;
-
-      usb_charger:charger@e {
-        compatible = "some,usb-charger";
-        reg = <0xe>;
-      };
-
-      ac_charger:charger@c {
-        compatible = "some,ac-charger";
-        reg = <0xc>;
-      };
-
-      battery:battery@b {
-        compatible = "some,battery";
-        reg = <0xb>;
-        power-supplies = <&usb_charger>, <&ac_charger>;
-      };
-    };
