@@ -416,6 +416,7 @@ DSA currently leverages the following subsystems:
 - MDIO/PHY library: ``drivers/net/phy/phy.c``, ``mdio_bus.c``
 - Switchdev:``net/switchdev/*``
 - Device Tree for various of_* functions
+- Devlink: ``net/core/devlink.c``
 
 MDIO/PHY library
 ----------------
@@ -454,6 +455,36 @@ DSA directly utilizes SWITCHDEV when interfacing with the bridge layer, and
 more specifically with its VLAN filtering portion when configuring VLANs on top
 of per-port slave network devices. As of today, the only SWITCHDEV objects
 supported by DSA are the FDB and VLAN objects.
+
+Devlink
+-------
+
+DSA registers one devlink device per physical switch in the fabric.
+For each devlink device, every physical port (i.e. user ports, CPU ports, DSA
+links or unused ports) is exposed as a devlink port.
+
+DSA drivers can make use of the following devlink features:
+- Regions: debugging feature which allows user space to dump driver-defined
+  areas of hardware information in a low-level, binary format. Both global
+  regions as well as per-port regions are supported. It is possible to export
+  devlink regions even for pieces of data that are already exposed in some way
+  to the standard iproute2 user space programs (ip-link, bridge), like address
+  tables and VLAN tables. For example, this might be useful if the tables
+  contain additional hardware-specific details which are not visible through
+  the iproute2 abstraction, or it might be useful to inspect these tables on
+  the non-user ports too, which are invisible to iproute2 because no network
+  interface is registered for them.
+- Params: a feature which enables user to configure certain low-level tunable
+  knobs pertaining to the device. Drivers may implement applicable generic
+  devlink params, or may add new device-specific devlink params.
+- Resources: a monitoring feature which enables users to see the degree of
+  utilization of certain hardware tables in the device, such as FDB, VLAN, etc.
+- Shared buffers: a QoS feature for adjusting and partitioning memory and frame
+  reservations per port and per traffic class, in the ingress and egress
+  directions, such that low-priority bulk traffic does not impede the
+  processing of high-priority critical traffic.
+
+For more details, consult ``Documentation/networking/devlink/``.
 
 Device Tree
 -----------
