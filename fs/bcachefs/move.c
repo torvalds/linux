@@ -508,6 +508,32 @@ err:
 	return ret;
 }
 
+static int lookup_inode(struct btree_trans *trans, struct bpos pos,
+			struct bch_inode_unpacked *inode)
+{
+	struct btree_iter *iter;
+	struct bkey_s_c k;
+	int ret;
+
+	iter = bch2_trans_get_iter(trans, BTREE_ID_inodes, pos,
+				   BTREE_ITER_ALL_SNAPSHOTS);
+	k = bch2_btree_iter_peek(iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	ret = k.k->type == KEY_TYPE_inode ? 0 : -EIO;
+	if (ret)
+		goto err;
+
+	ret = bch2_inode_unpack(bkey_s_c_to_inode(k), inode);
+	if (ret)
+		goto err;
+err:
+	bch2_trans_iter_put(trans, iter);
+	return ret;
+}
+
 static int __bch2_move_data(struct bch_fs *c,
 		struct moving_context *ctxt,
 		struct bch_ratelimit *rate,
@@ -565,7 +591,7 @@ static int __bch2_move_data(struct bch_fs *c,
 				try_to_freeze();
 			}
 		} while (delay);
-peek:
+
 		k = bch2_btree_iter_peek(iter);
 
 		stats->pos = iter->pos;
@@ -585,14 +611,18 @@ peek:
 		    cur_inum != k.k->p.inode) {
 			struct bch_inode_unpacked inode;
 
-			/* don't hold btree locks while looking up inode: */
-			bch2_trans_unlock(&trans);
-
 			io_opts = bch2_opts_to_inode_opts(c->opts);
-			if (!bch2_inode_find_by_inum(c, k.k->p.inode, &inode))
+
+			ret = lookup_inode(&trans,
+					SPOS(0, k.k->p.inode, k.k->p.snapshot),
+					&inode);
+			if (ret == -EINTR)
+				continue;
+
+			if (!ret)
 				bch2_io_opts_apply(&io_opts, bch2_inode_opts_get(&inode));
+
 			cur_inum = k.k->p.inode;
-			goto peek;
 		}
 
 		switch ((data_cmd = pred(c, arg, k, &io_opts, &data_opts))) {
