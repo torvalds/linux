@@ -881,7 +881,7 @@ static int camss_register_entities(struct camss *camss)
 
 		for (i = 0; i < camss->ispif->line_num; i++)
 			for (k = 0; k < camss->vfe_num; k++)
-				for (j = 0; j < ARRAY_SIZE(camss->vfe[k].line); j++) {
+				for (j = 0; j < camss->vfe[k].line_num; j++) {
 					struct v4l2_subdev *ispif = &camss->ispif->line[i].subdev;
 					struct v4l2_subdev *vfe = &camss->vfe[k].line[j].subdev;
 
@@ -902,7 +902,7 @@ static int camss_register_entities(struct camss *camss)
 	} else {
 		for (i = 0; i < camss->csid_num; i++)
 			for (k = 0; k < camss->vfe_num; k++)
-				for (j = 0; j < ARRAY_SIZE(camss->vfe[k].line); j++) {
+				for (j = 0; j < camss->vfe[k].line_num; j++) {
 					struct v4l2_subdev *csid = &camss->csid[i].subdev;
 					struct v4l2_subdev *vfe = &camss->vfe[k].line[j].subdev;
 
