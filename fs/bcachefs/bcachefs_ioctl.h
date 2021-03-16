@@ -78,6 +78,9 @@ struct bch_ioctl_incremental {
 #define BCH_IOCTL_DISK_RESIZE	_IOW(0xbc,	14,  struct bch_ioctl_disk_resize)
 #define BCH_IOCTL_DISK_RESIZE_JOURNAL _IOW(0xbc,15,  struct bch_ioctl_disk_resize_journal)
 
+#define BCH_IOCTL_SUBVOLUME_CREATE _IOW(0xbc,	16,  struct bch_ioctl_subvolume)
+#define BCH_IOCTL_SUBVOLUME_DESTROY _IOW(0xbc,	17,  struct bch_ioctl_subvolume)
+
 /* ioctl below act on a particular file, not the filesystem as a whole: */
 
 #define BCHFS_IOC_REINHERIT_ATTRS	_IOR(0xbc, 64, const char __user *)
@@ -348,5 +351,17 @@ struct bch_ioctl_disk_resize_journal {
 	__u64			dev;
 	__u64			nbuckets;
 };
+
+struct bch_ioctl_subvolume {
+	__u32			flags;
+	__u32			dirfd;
+	__u16			mode;
+	__u16			pad[3];
+	__u64			dst_ptr;
+	__u64			src_ptr;
+};
+
+#define BCH_SUBVOL_SNAPSHOT_CREATE	(1U << 0)
+#define BCH_SUBVOL_SNAPSHOT_RO		(1U << 1)
 
 #endif /* _BCACHEFS_IOCTL_H */

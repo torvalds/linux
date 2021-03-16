@@ -164,6 +164,11 @@ btree_key_cache_create(struct btree_key_cache *c,
 		was_new = false;
 	}
 
+	if (btree_id == BTREE_ID_subvolumes)
+		six_lock_pcpu_alloc(&ck->c.lock);
+	else
+		six_lock_pcpu_free(&ck->c.lock);
+
 	ck->c.level		= 0;
 	ck->c.btree_id		= btree_id;
 	ck->key.btree_id	= btree_id;

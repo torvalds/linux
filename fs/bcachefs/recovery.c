@@ -20,6 +20,7 @@
 #include "quota.h"
 #include "recovery.h"
 #include "replicas.h"
+#include "subvolume.h"
 #include "super-io.h"
 
 #include <linux/sort.h>
@@ -961,6 +962,81 @@ fsck_err:
 	return ret;
 }
 
+static int bch2_fs_initialize_subvolumes(struct bch_fs *c)
+{
+	struct bkey_i_snapshot	root_snapshot;
+	struct bkey_i_subvolume root_volume;
+	int ret;
+
+	bkey_snapshot_init(&root_snapshot.k_i);
+	root_snapshot.k.p.offset = U32_MAX;
+	root_snapshot.v.flags	= 0;
+	root_snapshot.v.parent	= 0;
+	root_snapshot.v.subvol	= BCACHEFS_ROOT_SUBVOL;
+	root_snapshot.v.pad	= 0;
+	SET_BCH_SNAPSHOT_SUBVOL(&root_snapshot.v, true);
+
+	ret = bch2_btree_insert(c, BTREE_ID_snapshots,
+				&root_snapshot.k_i,
+				NULL, NULL, 0);
+	if (ret)
+		return ret;
+
+
+	bkey_subvolume_init(&root_volume.k_i);
+	root_volume.k.p.offset = BCACHEFS_ROOT_SUBVOL;
+	root_volume.v.flags	= 0;
+	root_volume.v.snapshot	= cpu_to_le32(U32_MAX);
+	root_volume.v.inode	= cpu_to_le64(BCACHEFS_ROOT_INO);
+
+	ret = bch2_btree_insert(c, BTREE_ID_subvolumes,
+				&root_volume.k_i,
+				NULL, NULL, 0);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int bch2_fs_upgrade_for_subvolumes(struct btree_trans *trans)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	struct bch_inode_unpacked inode;
+	struct bkey_inode_buf *packed;
+	int ret;
+
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_inodes,
+			     POS(0, BCACHEFS_ROOT_INO), 0);
+	k = bch2_btree_iter_peek_slot(&iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	if (k.k->type != KEY_TYPE_inode) {
+		bch_err(c, "root inode not found");
+		ret = -ENOENT;
+		goto err;
+	}
+
+	ret = bch2_inode_unpack(bkey_s_c_to_inode(k), &inode);
+	BUG_ON(ret);
+
+	inode.bi_subvol = BCACHEFS_ROOT_SUBVOL;
+
+	packed = bch2_trans_kmalloc(trans, sizeof(*packed));
+	ret = PTR_ERR_OR_ZERO(packed);
+	if (ret)
+		goto err;
+
+	bch2_inode_pack(c, packed, &inode);
+	ret = bch2_trans_update(trans, &iter, &packed->inode.k_i, 0);
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
 int bch2_fs_recovery(struct bch_fs *c)
 {
 	const char *err = "cannot allocate memory";
@@ -1017,11 +1093,12 @@ int bch2_fs_recovery(struct bch_fs *c)
 		c->opts.version_upgrade	= true;
 		c->opts.fsck		= true;
 		c->opts.fix_errors	= FSCK_OPT_YES;
-	}
-
-	if (c->sb.version < bcachefs_metadata_version_btree_ptr_sectors_written) {
+	} else if (c->sb.version < bcachefs_metadata_version_btree_ptr_sectors_written) {
 		bch_info(c, "version prior to btree_ptr_sectors_written, upgrade required");
 		c->opts.version_upgrade	= true;
+	} else if (c->sb.version < bcachefs_metadata_version_snapshot) {
+		bch_info(c, "filesystem version is prior to snapshot field - upgrading");
+		c->opts.version_upgrade = true;
 	}
 
 	ret = bch2_blacklist_table_initialize(c);
@@ -1190,6 +1267,29 @@ use_clean:
 		bch_verbose(c, "alloc write done");
 	}
 
+	if (c->sb.version < bcachefs_metadata_version_snapshot) {
+		err = "error creating root snapshot node";
+		ret = bch2_fs_initialize_subvolumes(c);
+		if (ret)
+			goto err;
+	}
+
+	bch_verbose(c, "reading snapshots table");
+	err = "error reading snapshots table";
+	ret = bch2_fs_snapshots_start(c);
+	if (ret)
+		goto err;
+	bch_verbose(c, "reading snapshots done");
+
+	if (c->sb.version < bcachefs_metadata_version_snapshot) {
+		/* set bi_subvol on root inode */
+		err = "error upgrade root inode for subvolumes";
+		ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_LAZY_RW,
+				    bch2_fs_upgrade_for_subvolumes(&trans));
+		if (ret)
+			goto err;
+	}
+
 	if (c->opts.fsck) {
 		bch_info(c, "starting fsck");
 		err = "error in fsck";
@@ -1350,9 +1450,22 @@ int bch2_fs_initialize(struct bch_fs *c)
 		}
 	}
 
+	err = "error creating root snapshot node";
+	ret = bch2_fs_initialize_subvolumes(c);
+	if (ret)
+		goto err;
+
+	bch_verbose(c, "reading snapshots table");
+	err = "error reading snapshots table";
+	ret = bch2_fs_snapshots_start(c);
+	if (ret)
+		goto err;
+	bch_verbose(c, "reading snapshots done");
+
 	bch2_inode_init(c, &root_inode, 0, 0,
 			S_IFDIR|S_IRWXU|S_IRUGO|S_IXUGO, 0, NULL);
-	root_inode.bi_inum = BCACHEFS_ROOT_INO;
+	root_inode.bi_inum	= BCACHEFS_ROOT_INO;
+	root_inode.bi_subvol	= BCACHEFS_ROOT_SUBVOL;
 	bch2_inode_pack(c, &packed_inode, &root_inode);
 	packed_inode.inode.k.p.snapshot = U32_MAX;
 

@@ -11,6 +11,7 @@
 #include "inode.h"
 #include "quota.h"
 #include "reflink.h"
+#include "subvolume.h"
 #include "xattr.h"
 
 const char * const bch2_bkey_types[] = {
@@ -126,6 +127,10 @@ static unsigned bch2_key_types_allowed[] = {
 	[BKEY_TYPE_reflink] =
 		(1U << KEY_TYPE_reflink_v)|
 		(1U << KEY_TYPE_indirect_inline_data),
+	[BKEY_TYPE_subvolumes] =
+		(1U << KEY_TYPE_subvolume),
+	[BKEY_TYPE_snapshots] =
+		(1U << KEY_TYPE_snapshot),
 	[BKEY_TYPE_btree] =
 		(1U << KEY_TYPE_btree_ptr)|
 		(1U << KEY_TYPE_btree_ptr_v2),

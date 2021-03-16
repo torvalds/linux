@@ -8,6 +8,7 @@
 #include "extents.h"
 #include "inode.h"
 #include "str_hash.h"
+#include "subvolume.h"
 #include "varint.h"
 
 #include <linux/random.h>
@@ -340,8 +341,8 @@ int bch2_inode_write(struct btree_trans *trans,
 
 const char *bch2_inode_invalid(const struct bch_fs *c, struct bkey_s_c k)
 {
-		struct bkey_s_c_inode inode = bkey_s_c_to_inode(k);
-		struct bch_inode_unpacked unpacked;
+	struct bkey_s_c_inode inode = bkey_s_c_to_inode(k);
+	struct bch_inode_unpacked unpacked;
 
 	if (k.k->p.inode)
 		return "nonzero k.p.inode";
@@ -367,6 +368,9 @@ const char *bch2_inode_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	if ((unpacked.bi_flags & BCH_INODE_UNLINKED) &&
 	    unpacked.bi_nlink != 0)
 		return "flagged as unlinked but bi_nlink != 0";
+
+	if (unpacked.bi_subvol && !S_ISDIR(unpacked.bi_mode))
+		return "subvolume root but not a directory";
 
 	return NULL;
 }
@@ -634,6 +638,13 @@ retry:
 	}
 
 	bch2_inode_unpack(bkey_s_c_to_inode(k), &inode_u);
+
+	/* Subvolume root? */
+	if (inode_u.bi_subvol) {
+		ret = bch2_subvolume_delete(&trans, inode_u.bi_subvol, -1);
+		if (ret)
+			goto err;
+	}
 
 	bkey_inode_generation_init(&delete.k_i);
 	delete.k.p = iter.pos;

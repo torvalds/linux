@@ -16,6 +16,7 @@
 #include "movinggc.h"
 #include "reflink.h"
 #include "replicas.h"
+#include "subvolume.h"
 #include "trace.h"
 
 #include <linux/preempt.h>
@@ -1204,6 +1205,8 @@ static int bch2_mark_key_locked(struct bch_fs *c,
 		return bch2_mark_reservation(c, old, new, journal_seq, flags);
 	case KEY_TYPE_reflink_p:
 		return bch2_mark_reflink_p(c, old, new, journal_seq, flags);
+	case KEY_TYPE_snapshot:
+		return bch2_mark_snapshot(c, old, new, journal_seq, flags);
 	default:
 		return 0;
 	}

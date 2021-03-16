@@ -9,6 +9,7 @@
 #include "fsck.h"
 #include "inode.h"
 #include "keylist.h"
+#include "subvolume.h"
 #include "super.h"
 #include "xattr.h"
 
@@ -1410,7 +1411,8 @@ int bch2_fsck_full(struct bch_fs *c)
 {
 	struct bch_inode_unpacked root_inode;
 
-	return  check_inodes(c, true) ?:
+	return  bch2_fs_snapshots_check(c) ?:
+		check_inodes(c, true) ?:
 		check_extents(c) ?:
 		check_dirents(c) ?:
 		check_xattrs(c) ?:

@@ -99,7 +99,8 @@ const char *bch2_dirent_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	if (memchr(d.v->d_name, '/', len))
 		return "invalid name";
 
-	if (le64_to_cpu(d.v->d_inum) == d.k->p.inode)
+	if (d.v->d_type != DT_SUBVOL &&
+	    le64_to_cpu(d.v->d_inum) == d.k->p.inode)
 		return "dirent points to own directory";
 
 	return NULL;
@@ -113,7 +114,7 @@ void bch2_dirent_to_text(struct printbuf *out, struct bch_fs *c,
 	bch_scnmemcpy(out, d.v->d_name,
 		      bch2_dirent_name_bytes(d));
 	pr_buf(out, " -> %llu type %s", d.v->d_inum,
-	       d.v->d_type < DT_MAX
+	       d.v->d_type < BCH_DT_MAX
 	       ? bch2_d_types[d.v->d_type]
 	       : "(bad d_type)");
 }

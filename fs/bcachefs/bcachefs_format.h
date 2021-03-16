@@ -346,7 +346,9 @@ static inline void bkey_init(struct bkey *k)
 	x(inline_data,		17)			\
 	x(btree_ptr_v2,		18)			\
 	x(indirect_inline_data,	19)			\
-	x(alloc_v2,		20)
+	x(alloc_v2,		20)			\
+	x(subvolume,		21)			\
+	x(snapshot,		22)
 
 enum bch_bkey_type {
 #define x(name, nr) KEY_TYPE_##name	= nr,
@@ -690,6 +692,10 @@ struct bch_inode_generation {
 	__le32			pad;
 } __attribute__((packed, aligned(8)));
 
+/*
+ * bi_subvol and bi_parent_subvol are only set for subvolume roots:
+ */
+
 #define BCH_INODE_FIELDS()			\
 	x(bi_atime,			96)	\
 	x(bi_ctime,			96)	\
@@ -713,7 +719,9 @@ struct bch_inode_generation {
 	x(bi_erasure_code,		16)	\
 	x(bi_fields_set,		16)	\
 	x(bi_dir,			64)	\
-	x(bi_dir_offset,		64)
+	x(bi_dir_offset,		64)	\
+	x(bi_subvol,			32)	\
+	x(bi_parent_subvol,		32)
 
 /* subset of BCH_INODE_FIELDS */
 #define BCH_INODE_OPTS()			\
@@ -795,6 +803,9 @@ struct bch_dirent {
 
 	__u8			d_name[];
 } __attribute__((packed, aligned(8)));
+
+#define DT_SUBVOL	16
+#define BCH_DT_MAX	17
 
 #define BCH_NAME_MAX	(U8_MAX * sizeof(u64) -				\
 			 sizeof(struct bkey) -				\
@@ -931,6 +942,42 @@ struct bch_inline_data {
 	struct bch_val		v;
 	u8			data[0];
 };
+
+/* Subvolumes: */
+
+#define SUBVOL_POS_MIN		POS(0, 1)
+#define SUBVOL_POS_MAX		POS(0, S32_MAX)
+#define BCACHEFS_ROOT_SUBVOL	1
+
+struct bch_subvolume {
+	struct bch_val		v;
+	__le32			flags;
+	__le32			snapshot;
+	__le64			inode;
+};
+
+LE32_BITMASK(BCH_SUBVOLUME_RO,		struct bch_subvolume, flags,  0,  1)
+/*
+ * We need to know whether a subvolume is a snapshot so we can know whether we
+ * can delete it (or whether it should just be rm -rf'd)
+ */
+LE32_BITMASK(BCH_SUBVOLUME_SNAP,	struct bch_subvolume, flags,  1,  2)
+
+/* Snapshots */
+
+struct bch_snapshot {
+	struct bch_val		v;
+	__le32			flags;
+	__le32			parent;
+	__le32			children[2];
+	__le32			subvol;
+	__le32			pad;
+};
+
+LE32_BITMASK(BCH_SNAPSHOT_DELETED,	struct bch_snapshot, flags,  0,  1)
+
+/* True if a subvolume points to this snapshot node: */
+LE32_BITMASK(BCH_SNAPSHOT_SUBVOL,	struct bch_snapshot, flags,  1,  2)
 
 /* Optional/variable size superblock sections: */
 
@@ -1702,7 +1749,9 @@ LE32_BITMASK(JSET_NO_FLUSH,	struct jset, flags, 5, 6);
 	x(alloc,	4)			\
 	x(quotas,	5)			\
 	x(stripes,	6)			\
-	x(reflink,	7)
+	x(reflink,	7)			\
+	x(subvolumes,	8)			\
+	x(snapshots,	9)
 
 enum btree_id {
 #define x(kwd, val) BTREE_ID_##kwd = val,

@@ -50,6 +50,7 @@ bcachefs-y		:=	\
 	replicas.o		\
 	siphash.o		\
 	six.o			\
+	subvolume.o		\
 	super.o			\
 	super-io.o		\
 	sysfs.o			\

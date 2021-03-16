@@ -15,6 +15,7 @@
 #include "journal.h"
 #include "journal_reclaim.h"
 #include "keylist.h"
+#include "subvolume.h"
 #include "replicas.h"
 #include "trace.h"
 
@@ -245,6 +246,11 @@ static inline void btree_insert_entry_checks(struct btree_trans *trans,
 	BUG_ON(i->cached	!= i->path->cached);
 	BUG_ON(i->level		!= i->path->level);
 	BUG_ON(i->btree_id	!= i->path->btree_id);
+	EBUG_ON(!i->level &&
+		!(i->flags & BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) &&
+		test_bit(JOURNAL_REPLAY_DONE, &trans->c->journal.flags) &&
+		i->k->k.p.snapshot &&
+		bch2_snapshot_internal_node(trans->c, i->k->k.p.snapshot));
 }
 
 static noinline int

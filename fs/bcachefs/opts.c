@@ -63,7 +63,7 @@ const char * const bch2_member_states[] = {
 
 #undef x
 
-const char * const bch2_d_types[DT_MAX] = {
+const char * const bch2_d_types[BCH_DT_MAX] = {
 	[DT_UNKNOWN]	= "unknown",
 	[DT_FIFO]	= "fifo",
 	[DT_CHR]	= "chr",
@@ -73,6 +73,7 @@ const char * const bch2_d_types[DT_MAX] = {
 	[DT_LNK]	= "lnk",
 	[DT_SOCK]	= "sock",
 	[DT_WHT]	= "whiteout",
+	[DT_SUBVOL]	= "subvol",
 };
 
 void bch2_opts_apply(struct bch_opts *dst, struct bch_opts src)
