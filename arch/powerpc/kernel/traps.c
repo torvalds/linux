@@ -1078,6 +1078,16 @@ DEFINE_INTERRUPT_HANDLER_ASYNC(unknown_async_exception)
 	_exception(SIGTRAP, regs, TRAP_UNK, 0);
 }
 
+DEFINE_INTERRUPT_HANDLER_NMI(unknown_nmi_exception)
+{
+	printk("Bad trap at PC: %lx, SR: %lx, vector=%lx\n",
+	       regs->nip, regs->msr, regs->trap);
+
+	_exception(SIGTRAP, regs, TRAP_UNK, 0);
+
+	return 0;
+}
+
 DEFINE_INTERRUPT_HANDLER(instruction_breakpoint_exception)
 {
 	if (notify_die(DIE_IABR_MATCH, "iabr_match", regs, 5,
@@ -2181,10 +2191,11 @@ void __attribute__ ((weak)) WatchdogHandler(struct pt_regs *regs)
 	return;
 }
 
-DEFINE_INTERRUPT_HANDLER(WatchdogException) /* XXX NMI? async? */
+DEFINE_INTERRUPT_HANDLER_NMI(WatchdogException)
 {
 	printk (KERN_EMERG "PowerPC Book-E Watchdog Exception\n");
 	WatchdogHandler(regs);
+	return 0;
 }
 #endif
 

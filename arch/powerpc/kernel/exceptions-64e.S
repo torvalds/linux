@@ -63,9 +63,6 @@
 	ld	reg, (SPECIAL_EXC_##name * 8 + SPECIAL_EXC_FRAME_OFFS)(r1)
 
 special_reg_save:
-	lbz	r9,PACAIRQHAPPENED(r13)
-	RECONCILE_IRQ_STATE(r3,r4)
-
 	/*
 	 * We only need (or have stack space) to save this stuff if
 	 * we interrupted the kernel.
@@ -119,15 +116,11 @@ BEGIN_FTR_SECTION
 	mtspr	SPRN_MAS5,r10
 	mtspr	SPRN_MAS8,r10
 END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
-	SPECIAL_EXC_STORE(r9,IRQHAPPENED)
-
 	mfspr	r10,SPRN_DEAR
 	SPECIAL_EXC_STORE(r10,DEAR)
 	mfspr	r10,SPRN_ESR
 	SPECIAL_EXC_STORE(r10,ESR)
 
-	lbz	r10,PACAIRQSOFTMASK(r13)
-	SPECIAL_EXC_STORE(r10,SOFTE)
 	ld	r10,_NIP(r1)
 	SPECIAL_EXC_STORE(r10,CSRR0)
 	ld	r10,_MSR(r1)
@@ -193,27 +186,6 @@ BEGIN_FTR_SECTION
 	SPECIAL_EXC_LOAD(r10,MAS8)
 	mtspr	SPRN_MAS8,r10
 END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
-
-	lbz	r6,PACAIRQSOFTMASK(r13)
-	ld	r5,SOFTE(r1)
-
-	/* Interrupts had better not already be enabled... */
-	tweqi	r6,IRQS_ENABLED
-
-	andi.	r6,r5,IRQS_DISABLED
-	bne	1f
-
-	TRACE_ENABLE_INTS
-	stb	r5,PACAIRQSOFTMASK(r13)
-1:
-	/*
-	 * Restore PACAIRQHAPPENED rather than setting it based on
-	 * the return MSR[EE], since we could have interrupted
-	 * interrupt replay or other inconsistent transitory
-	 * states that must remain that way.
-	 */
-	SPECIAL_EXC_LOAD(r10,IRQHAPPENED)
-	stb	r10,PACAIRQHAPPENED(r13)
 
 	SPECIAL_EXC_LOAD(r10,DEAR)
 	mtspr	SPRN_DEAR,r10
@@ -566,7 +538,7 @@ __end_interrupts:
 	bl	special_reg_save
 	CHECK_NAPPING();
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	unknown_exception
+	bl	unknown_nmi_exception
 	b	ret_from_crit_except
 
 /* Machine Check Interrupt */
@@ -702,7 +674,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #ifdef CONFIG_BOOKE_WDT
 	bl	WatchdogException
 #else
-	bl	unknown_exception
+	bl	unknown_nmi_exception
 #endif
 	b	ret_from_crit_except
 
@@ -886,7 +858,7 @@ kernel_dbg_exc:
 	bl	special_reg_save
 	CHECK_NAPPING();
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	unknown_exception
+	bl	unknown_nmi_exception
 	b	ret_from_crit_except
 
 /*
@@ -910,7 +882,7 @@ kernel_dbg_exc:
 	bl	special_reg_save
 	CHECK_NAPPING();
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	unknown_exception
+	bl	unknown_nmi_exception
 	b	ret_from_crit_except
 
 /* Hypervisor call */
