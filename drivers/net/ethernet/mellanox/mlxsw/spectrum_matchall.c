@@ -105,13 +105,19 @@ mlxsw_sp_mall_port_sample_add(struct mlxsw_sp_port *mlxsw_sp_port,
 			      struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_sample_trigger trigger;
 	int err;
 
-	if (rtnl_dereference(mlxsw_sp_port->sample)) {
-		NL_SET_ERR_MSG(extack, "Sampling already active on port");
-		return -EEXIST;
-	}
-	rcu_assign_pointer(mlxsw_sp_port->sample, &mall_entry->sample);
+	if (mall_entry->ingress)
+		trigger.type = MLXSW_SP_SAMPLE_TRIGGER_TYPE_INGRESS;
+	else
+		trigger.type = MLXSW_SP_SAMPLE_TRIGGER_TYPE_EGRESS;
+	trigger.local_port = mlxsw_sp_port->local_port;
+	err = mlxsw_sp_sample_trigger_params_set(mlxsw_sp, &trigger,
+						 &mall_entry->sample.params,
+						 extack);
+	if (err)
+		return err;
 
 	err = mlxsw_sp->mall_ops->sample_add(mlxsw_sp, mlxsw_sp_port,
 					     mall_entry, extack);
@@ -120,7 +126,7 @@ mlxsw_sp_mall_port_sample_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	return 0;
 
 err_port_sample_set:
-	RCU_INIT_POINTER(mlxsw_sp_port->sample, NULL);
+	mlxsw_sp_sample_trigger_params_unset(mlxsw_sp, &trigger);
 	return err;
 }
 
@@ -129,12 +135,16 @@ mlxsw_sp_mall_port_sample_del(struct mlxsw_sp_port *mlxsw_sp_port,
 			      struct mlxsw_sp_mall_entry *mall_entry)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_sample_trigger trigger;
 
-	if (!mlxsw_sp_port->sample)
-		return;
+	if (mall_entry->ingress)
+		trigger.type = MLXSW_SP_SAMPLE_TRIGGER_TYPE_INGRESS;
+	else
+		trigger.type = MLXSW_SP_SAMPLE_TRIGGER_TYPE_EGRESS;
+	trigger.local_port = mlxsw_sp_port->local_port;
 
 	mlxsw_sp->mall_ops->sample_del(mlxsw_sp, mlxsw_sp_port, mall_entry);
-	RCU_INIT_POINTER(mlxsw_sp_port->sample, NULL);
+	mlxsw_sp_sample_trigger_params_unset(mlxsw_sp, &trigger);
 }
 
 static int
@@ -261,10 +271,10 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp *mlxsw_sp,
 			goto errout;
 		}
 		mall_entry->type = MLXSW_SP_MALL_ACTION_TYPE_SAMPLE;
-		mall_entry->sample.psample_group = act->sample.psample_group;
-		mall_entry->sample.truncate = act->sample.truncate;
-		mall_entry->sample.trunc_size = act->sample.trunc_size;
-		mall_entry->sample.rate = act->sample.rate;
+		mall_entry->sample.params.psample_group = act->sample.psample_group;
+		mall_entry->sample.params.truncate = act->sample.truncate;
+		mall_entry->sample.params.trunc_size = act->sample.trunc_size;
+		mall_entry->sample.params.rate = act->sample.rate;
 	} else {
 		err = -EOPNOTSUPP;
 		goto errout;
@@ -369,7 +379,7 @@ static int mlxsw_sp1_mall_sample_add(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_mall_entry *mall_entry,
 				     struct netlink_ext_ack *extack)
 {
-	u32 rate = mall_entry->sample.rate;
+	u32 rate = mall_entry->sample.params.rate;
 
 	if (!mall_entry->ingress) {
 		NL_SET_ERR_MSG(extack, "Sampling is not supported on egress");
@@ -406,8 +416,7 @@ static int mlxsw_sp2_mall_sample_add(struct mlxsw_sp *mlxsw_sp,
 		.to_dev = NULL,	/* Mirror to CPU. */
 		.session_id = MLXSW_SP_SPAN_SESSION_ID_SAMPLING,
 	};
-	struct mlxsw_sp_port_sample *sample;
-	u32 rate = mall_entry->sample.rate;
+	u32 rate = mall_entry->sample.params.rate;
 	int err;
 
 	if (!mall_entry->ingress) {
@@ -415,9 +424,8 @@ static int mlxsw_sp2_mall_sample_add(struct mlxsw_sp *mlxsw_sp,
 		return -EOPNOTSUPP;
 	}
 
-	sample = rtnl_dereference(mlxsw_sp_port->sample);
-
-	err = mlxsw_sp_span_agent_get(mlxsw_sp, &sample->span_id, &agent_parms);
+	err = mlxsw_sp_span_agent_get(mlxsw_sp, &mall_entry->sample.span_id,
+				      &agent_parms);
 	if (err) {
 		NL_SET_ERR_MSG(extack, "Failed to get SPAN agent");
 		return err;
@@ -429,7 +437,7 @@ static int mlxsw_sp2_mall_sample_add(struct mlxsw_sp *mlxsw_sp,
 		goto err_analyzed_port_get;
 	}
 
-	trigger_parms.span_id = sample->span_id;
+	trigger_parms.span_id = mall_entry->sample.span_id;
 	trigger_parms.probability_rate = rate;
 	err = mlxsw_sp_span_agent_bind(mlxsw_sp, MLXSW_SP_SPAN_TRIGGER_INGRESS,
 				       mlxsw_sp_port, &trigger_parms);
@@ -443,7 +451,7 @@ static int mlxsw_sp2_mall_sample_add(struct mlxsw_sp *mlxsw_sp,
 err_agent_bind:
 	mlxsw_sp_span_analyzed_port_put(mlxsw_sp_port, true);
 err_analyzed_port_get:
-	mlxsw_sp_span_agent_put(mlxsw_sp, sample->span_id);
+	mlxsw_sp_span_agent_put(mlxsw_sp, mall_entry->sample.span_id);
 	return err;
 }
 
@@ -452,15 +460,12 @@ static void mlxsw_sp2_mall_sample_del(struct mlxsw_sp *mlxsw_sp,
 				      struct mlxsw_sp_mall_entry *mall_entry)
 {
 	struct mlxsw_sp_span_trigger_parms trigger_parms = {};
-	struct mlxsw_sp_port_sample *sample;
 
-	sample = rtnl_dereference(mlxsw_sp_port->sample);
-
-	trigger_parms.span_id = sample->span_id;
+	trigger_parms.span_id = mall_entry->sample.span_id;
 	mlxsw_sp_span_agent_unbind(mlxsw_sp, MLXSW_SP_SPAN_TRIGGER_INGRESS,
 				   mlxsw_sp_port, &trigger_parms);
 	mlxsw_sp_span_analyzed_port_put(mlxsw_sp_port, true);
-	mlxsw_sp_span_agent_put(mlxsw_sp, sample->span_id);
+	mlxsw_sp_span_agent_put(mlxsw_sp, mall_entry->sample.span_id);
 }
 
 const struct mlxsw_sp_mall_ops mlxsw_sp2_mall_ops = {
