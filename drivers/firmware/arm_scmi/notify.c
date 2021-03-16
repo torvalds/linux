@@ -178,7 +178,7 @@
 #define REVT_NOTIFY_SET_STATUS(revt, eid, sid, state)		\
 ({								\
 	typeof(revt) r = revt;					\
-	r->proto->ops->set_notify_enabled(r->proto->ni->handle,	\
+	r->proto->ops->set_notify_enabled(r->proto->ph,		\
 					(eid), (sid), (state));	\
 })
 
@@ -191,7 +191,7 @@
 #define REVT_FILL_REPORT(revt, ...)				\
 ({								\
 	typeof(revt) r = revt;					\
-	r->proto->ops->fill_custom_report(r->proto->ni->handle,	\
+	r->proto->ops->fill_custom_report(r->proto->ph,		\
 					  __VA_ARGS__);		\
 })
 
@@ -279,6 +279,7 @@ struct scmi_registered_event;
  *		       events' descriptors, whose fixed-size is determined at
  *		       compile time.
  * @registered_mtx: A mutex to protect @registered_events_handlers
+ * @ph: SCMI protocol handle reference
  * @registered_events_handlers: An hashtable containing all events' handlers
  *				descriptors registered for this protocol
  *
@@ -303,6 +304,7 @@ struct scmi_registered_events_desc {
 	struct scmi_registered_event	**registered_events;
 	/* mutex to protect registered_events_handlers */
 	struct mutex			registered_mtx;
+	const struct scmi_protocol_handle	*ph;
 	DECLARE_HASHTABLE(registered_events_handlers, SCMI_REGISTERED_HASH_SZ);
 };
 
@@ -735,6 +737,7 @@ scmi_allocate_registered_events_desc(struct scmi_notify_instance *ni,
  * @handle: The handle identifying the platform instance against which the
  *	    protocol's events are registered
  * @proto_id: Protocol ID
+ * @ph: SCMI protocol handle.
  * @ee: A structure describing the events supported by this protocol.
  *
  * Used by SCMI Protocols initialization code to register with the notification
@@ -745,6 +748,7 @@ scmi_allocate_registered_events_desc(struct scmi_notify_instance *ni,
  * Return: 0 on Success
  */
 int scmi_register_protocol_events(const struct scmi_handle *handle, u8 proto_id,
+				  const struct scmi_protocol_handle *ph,
 				  const struct scmi_protocol_events *ee)
 {
 	int i;
@@ -754,7 +758,7 @@ int scmi_register_protocol_events(const struct scmi_handle *handle, u8 proto_id,
 	struct scmi_notify_instance *ni;
 	const struct scmi_event *evt;
 
-	if (!ee || !ee->ops || !ee->evts ||
+	if (!ee || !ee->ops || !ee->evts || !ph ||
 	    (!ee->num_sources && !ee->ops->get_num_sources))
 		return -EINVAL;
 
@@ -768,7 +772,7 @@ int scmi_register_protocol_events(const struct scmi_handle *handle, u8 proto_id,
 	if (ee->num_sources) {
 		num_sources = ee->num_sources;
 	} else {
-		int nsrc = ee->ops->get_num_sources(handle);
+		int nsrc = ee->ops->get_num_sources(ph);
 
 		if (nsrc <= 0)
 			return -EINVAL;
@@ -786,6 +790,7 @@ int scmi_register_protocol_events(const struct scmi_handle *handle, u8 proto_id,
 	if (IS_ERR(pd))
 		return PTR_ERR(pd);
 
+	pd->ph = ph;
 	for (i = 0; i < ee->num_events; i++, evt++) {
 		struct scmi_registered_event *r_evt;
 

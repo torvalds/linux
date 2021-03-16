@@ -641,6 +641,7 @@ scmi_alloc_init_protocol_instance(struct scmi_info *info,
 	 */
 	if (pi->proto->events) {
 		ret = scmi_register_protocol_events(handle, pi->proto->id,
+						    &pi->ph,
 						    pi->proto->events);
 		if (ret)
 			dev_warn(handle->dev,

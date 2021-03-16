@@ -772,7 +772,7 @@ static const struct scmi_perf_ops perf_ops = {
 	.power_scale_mw_get = scmi_power_scale_mw_get,
 };
 
-static int scmi_perf_set_notify_enabled(const struct scmi_handle *handle,
+static int scmi_perf_set_notify_enabled(const void *handle,
 					u8 evt_id, u32 src_id, bool enable)
 {
 	int ret, cmd_id;
@@ -789,7 +789,7 @@ static int scmi_perf_set_notify_enabled(const struct scmi_handle *handle,
 	return ret;
 }
 
-static void *scmi_perf_fill_custom_report(const struct scmi_handle *handle,
+static void *scmi_perf_fill_custom_report(const void *handle,
 					  u8 evt_id, ktime_t timestamp,
 					  const void *payld, size_t payld_sz,
 					  void *report, u32 *src_id)
@@ -837,9 +837,10 @@ static void *scmi_perf_fill_custom_report(const struct scmi_handle *handle,
 	return rep;
 }
 
-static int scmi_perf_get_num_sources(const struct scmi_handle *handle)
+static int scmi_perf_get_num_sources(const void *handle)
 {
-	struct scmi_perf_info *pi = handle->perf_priv;
+	struct scmi_perf_info *pi =
+		((const struct scmi_handle *)(handle))->perf_priv;
 
 	if (!pi)
 		return -EINVAL;
