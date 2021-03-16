@@ -9,9 +9,7 @@
 #include "dpsw.h"
 #include "dpsw-cmd.h"
 
-static void build_if_id_bitmap(__le64 *bmap,
-			       const u16 *id,
-			       const u16 num_ifs)
+static void build_if_id_bitmap(__le64 *bmap, const u16 *id, const u16 num_ifs)
 {
 	int i;
 
@@ -38,10 +36,7 @@ static void build_if_id_bitmap(__le64 *bmap,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpsw_open(struct fsl_mc_io *mc_io,
-	      u32 cmd_flags,
-	      int dpsw_id,
-	      u16 *token)
+int dpsw_open(struct fsl_mc_io *mc_io, u32 cmd_flags, int dpsw_id, u16 *token)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpsw_cmd_open *cmd_params;
@@ -76,9 +71,7 @@ int dpsw_open(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpsw_close(struct fsl_mc_io *mc_io,
-	       u32 cmd_flags,
-	       u16 token)
+int dpsw_close(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token)
 {
 	struct fsl_mc_command cmd = { 0 };
 
@@ -99,9 +92,7 @@ int dpsw_close(struct fsl_mc_io *mc_io,
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
-int dpsw_enable(struct fsl_mc_io *mc_io,
-		u32 cmd_flags,
-		u16 token)
+int dpsw_enable(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token)
 {
 	struct fsl_mc_command cmd = { 0 };
 
@@ -122,9 +113,7 @@ int dpsw_enable(struct fsl_mc_io *mc_io,
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
-int dpsw_disable(struct fsl_mc_io *mc_io,
-		 u32 cmd_flags,
-		 u16 token)
+int dpsw_disable(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token)
 {
 	struct fsl_mc_command cmd = { 0 };
 
@@ -145,9 +134,7 @@ int dpsw_disable(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpsw_reset(struct fsl_mc_io *mc_io,
-	       u32 cmd_flags,
-	       u16 token)
+int dpsw_reset(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token)
 {
 	struct fsl_mc_command cmd = { 0 };
 
@@ -175,11 +162,8 @@ int dpsw_reset(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpsw_set_irq_enable(struct fsl_mc_io *mc_io,
-			u32 cmd_flags,
-			u16 token,
-			u8 irq_index,
-			u8 en)
+int dpsw_set_irq_enable(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			u8 irq_index, u8 en)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpsw_cmd_set_irq_enable *cmd_params;
@@ -212,11 +196,8 @@ int dpsw_set_irq_enable(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpsw_set_irq_mask(struct fsl_mc_io *mc_io,
-		      u32 cmd_flags,
-		      u16 token,
-		      u8 irq_index,
-		      u32 mask)
+int dpsw_set_irq_mask(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+		      u8 irq_index, u32 mask)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpsw_cmd_set_irq_mask *cmd_params;
@@ -245,11 +226,8 @@ int dpsw_set_irq_mask(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpsw_get_irq_status(struct fsl_mc_io *mc_io,
-			u32 cmd_flags,
-			u16 token,
-			u8 irq_index,
-			u32 *status)
+int dpsw_get_irq_status(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			u8 irq_index, u32 *status)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpsw_cmd_get_irq_status *cmd_params;
@@ -288,11 +266,8 @@ int dpsw_get_irq_status(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpsw_clear_irq_status(struct fsl_mc_io *mc_io,
-			  u32 cmd_flags,
-			  u16 token,
-			  u8 irq_index,
-			  u32 status)
+int dpsw_clear_irq_status(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			  u8 irq_index, u32 status)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpsw_cmd_clear_irq_status *cmd_params;
@@ -318,9 +293,7 @@ int dpsw_clear_irq_status(struct fsl_mc_io *mc_io,
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
-int dpsw_get_attributes(struct fsl_mc_io *mc_io,
-			u32 cmd_flags,
-			u16 token,
+int dpsw_get_attributes(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 			struct dpsw_attr *attr)
 {
 	struct fsl_mc_command cmd = { 0 };
@@ -367,10 +340,7 @@ int dpsw_get_attributes(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpsw_if_set_link_cfg(struct fsl_mc_io *mc_io,
-			 u32 cmd_flags,
-			 u16 token,
-			 u16 if_id,
+int dpsw_if_set_link_cfg(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token, u16 if_id,
 			 struct dpsw_link_cfg *cfg)
 {
 	struct fsl_mc_command cmd = { 0 };
@@ -399,11 +369,8 @@ int dpsw_if_set_link_cfg(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpsw_if_get_link_state(struct fsl_mc_io *mc_io,
-			   u32 cmd_flags,
-			   u16 token,
-			   u16 if_id,
-			   struct dpsw_link_state *state)
+int dpsw_if_get_link_state(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			   u16 if_id, struct dpsw_link_state *state)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpsw_cmd_if_get_link_state *cmd_params;
@@ -441,10 +408,7 @@ int dpsw_if_get_link_state(struct fsl_mc_io *mc_io,
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
-int dpsw_if_set_tci(struct fsl_mc_io *mc_io,
-		    u32 cmd_flags,
-		    u16 token,
-		    u16 if_id,
+int dpsw_if_set_tci(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token, u16 if_id,
 		    const struct dpsw_tci_cfg *cfg)
 {
 	struct fsl_mc_command cmd = { 0 };
@@ -476,10 +440,7 @@ int dpsw_if_set_tci(struct fsl_mc_io *mc_io,
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
-int dpsw_if_get_tci(struct fsl_mc_io *mc_io,
-		    u32 cmd_flags,
-		    u16 token,
-		    u16 if_id,
+int dpsw_if_get_tci(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token, u16 if_id,
 		    struct dpsw_tci_cfg *cfg)
 {
 	struct fsl_mc_command cmd = { 0 };
@@ -521,10 +482,7 @@ int dpsw_if_get_tci(struct fsl_mc_io *mc_io,
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
-int dpsw_if_set_stp(struct fsl_mc_io *mc_io,
-		    u32 cmd_flags,
-		    u16 token,
-		    u16 if_id,
+int dpsw_if_set_stp(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token, u16 if_id,
 		    const struct dpsw_stp_cfg *cfg)
 {
 	struct fsl_mc_command cmd = { 0 };
@@ -554,12 +512,8 @@ int dpsw_if_set_stp(struct fsl_mc_io *mc_io,
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
-int dpsw_if_get_counter(struct fsl_mc_io *mc_io,
-			u32 cmd_flags,
-			u16 token,
-			u16 if_id,
-			enum dpsw_counter type,
-			u64 *counter)
+int dpsw_if_get_counter(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			u16 if_id, enum dpsw_counter type, u64 *counter)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpsw_cmd_if_get_counter *cmd_params;
@@ -595,10 +549,7 @@ int dpsw_if_get_counter(struct fsl_mc_io *mc_io,
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
-int dpsw_if_enable(struct fsl_mc_io *mc_io,
-		   u32 cmd_flags,
-		   u16 token,
-		   u16 if_id)
+int dpsw_if_enable(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token, u16 if_id)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpsw_cmd_if *cmd_params;
@@ -623,10 +574,7 @@ int dpsw_if_enable(struct fsl_mc_io *mc_io,
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
-int dpsw_if_disable(struct fsl_mc_io *mc_io,
-		    u32 cmd_flags,
-		    u16 token,
-		    u16 if_id)
+int dpsw_if_disable(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token, u16 if_id)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpsw_cmd_if *cmd_params;
@@ -693,11 +641,8 @@ int dpsw_if_get_attributes(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
-int dpsw_if_set_max_frame_length(struct fsl_mc_io *mc_io,
-				 u32 cmd_flags,
-				 u16 token,
-				 u16 if_id,
-				 u16 frame_length)
+int dpsw_if_set_max_frame_length(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+				 u16 if_id, u16 frame_length)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpsw_cmd_if_set_max_frame_length *cmd_params;
@@ -731,11 +676,8 @@ int dpsw_if_set_max_frame_length(struct fsl_mc_io *mc_io,
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
-int dpsw_vlan_add(struct fsl_mc_io *mc_io,
-		  u32 cmd_flags,
-		  u16 token,
-		  u16 vlan_id,
-		  const struct dpsw_vlan_cfg *cfg)
+int dpsw_vlan_add(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+		  u16 vlan_id, const struct dpsw_vlan_cfg *cfg)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpsw_vlan_add *cmd_params;
@@ -767,11 +709,8 @@ int dpsw_vlan_add(struct fsl_mc_io *mc_io,
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
-int dpsw_vlan_add_if(struct fsl_mc_io *mc_io,
-		     u32 cmd_flags,
-		     u16 token,
-		     u16 vlan_id,
-		     const struct dpsw_vlan_if_cfg *cfg)
+int dpsw_vlan_add_if(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+		     u16 vlan_id, const struct dpsw_vlan_if_cfg *cfg)
 {
 	struct dpsw_cmd_vlan_add_if *cmd_params;
 	struct fsl_mc_command cmd = { 0 };
@@ -807,11 +746,8 @@ int dpsw_vlan_add_if(struct fsl_mc_io *mc_io,
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
-int dpsw_vlan_add_if_untagged(struct fsl_mc_io *mc_io,
-			      u32 cmd_flags,
-			      u16 token,
-			      u16 vlan_id,
-			      const struct dpsw_vlan_if_cfg *cfg)
+int dpsw_vlan_add_if_untagged(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			      u16 vlan_id, const struct dpsw_vlan_if_cfg *cfg)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpsw_cmd_vlan_manage_if *cmd_params;
@@ -841,11 +777,8 @@ int dpsw_vlan_add_if_untagged(struct fsl_mc_io *mc_io,
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
-int dpsw_vlan_remove_if(struct fsl_mc_io *mc_io,
-			u32 cmd_flags,
-			u16 token,
-			u16 vlan_id,
-			const struct dpsw_vlan_if_cfg *cfg)
+int dpsw_vlan_remove_if(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			u16 vlan_id, const struct dpsw_vlan_if_cfg *cfg)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpsw_cmd_vlan_manage_if *cmd_params;
@@ -877,11 +810,8 @@ int dpsw_vlan_remove_if(struct fsl_mc_io *mc_io,
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
-int dpsw_vlan_remove_if_untagged(struct fsl_mc_io *mc_io,
-				 u32 cmd_flags,
-				 u16 token,
-				 u16 vlan_id,
-				 const struct dpsw_vlan_if_cfg *cfg)
+int dpsw_vlan_remove_if_untagged(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+				 u16 vlan_id, const struct dpsw_vlan_if_cfg *cfg)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpsw_cmd_vlan_manage_if *cmd_params;
@@ -907,9 +837,7 @@ int dpsw_vlan_remove_if_untagged(struct fsl_mc_io *mc_io,
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
-int dpsw_vlan_remove(struct fsl_mc_io *mc_io,
-		     u32 cmd_flags,
-		     u16 token,
+int dpsw_vlan_remove(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 		     u16 vlan_id)
 {
 	struct fsl_mc_command cmd = { 0 };
@@ -996,11 +924,8 @@ int dpsw_fdb_remove(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token, u16 fdb_i
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
-int dpsw_fdb_add_unicast(struct fsl_mc_io *mc_io,
-			 u32 cmd_flags,
-			 u16 token,
-			 u16 fdb_id,
-			 const struct dpsw_fdb_unicast_cfg *cfg)
+int dpsw_fdb_add_unicast(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			 u16 fdb_id, const struct dpsw_fdb_unicast_cfg *cfg)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpsw_cmd_fdb_unicast_op *cmd_params;
@@ -1039,13 +964,8 @@ int dpsw_fdb_add_unicast(struct fsl_mc_io *mc_io,
  * The struct fdb_dump_entry array must be parsed until the end of memory
  * area or until an entry with mac_addr set to zero is found.
  */
-int dpsw_fdb_dump(struct fsl_mc_io *mc_io,
-		  u32 cmd_flags,
-		  u16 token,
-		  u16 fdb_id,
-		  u64 iova_addr,
-		  u32 iova_size,
-		  u16 *num_entries)
+int dpsw_fdb_dump(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token, u16 fdb_id,
+		  u64 iova_addr, u32 iova_size, u16 *num_entries)
 {
 	struct dpsw_cmd_fdb_dump *cmd_params;
 	struct dpsw_rsp_fdb_dump *rsp_params;
@@ -1082,11 +1002,8 @@ int dpsw_fdb_dump(struct fsl_mc_io *mc_io,
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
-int dpsw_fdb_remove_unicast(struct fsl_mc_io *mc_io,
-			    u32 cmd_flags,
-			    u16 token,
-			    u16 fdb_id,
-			    const struct dpsw_fdb_unicast_cfg *cfg)
+int dpsw_fdb_remove_unicast(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			    u16 fdb_id, const struct dpsw_fdb_unicast_cfg *cfg)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpsw_cmd_fdb_unicast_op *cmd_params;
@@ -1124,11 +1041,8 @@ int dpsw_fdb_remove_unicast(struct fsl_mc_io *mc_io,
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
-int dpsw_fdb_add_multicast(struct fsl_mc_io *mc_io,
-			   u32 cmd_flags,
-			   u16 token,
-			   u16 fdb_id,
-			   const struct dpsw_fdb_multicast_cfg *cfg)
+int dpsw_fdb_add_multicast(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			   u16 fdb_id, const struct dpsw_fdb_multicast_cfg *cfg)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpsw_cmd_fdb_multicast_op *cmd_params;
@@ -1166,11 +1080,8 @@ int dpsw_fdb_add_multicast(struct fsl_mc_io *mc_io,
  *
  * Return:	Completion status. '0' on Success; Error code otherwise.
  */
-int dpsw_fdb_remove_multicast(struct fsl_mc_io *mc_io,
-			      u32 cmd_flags,
-			      u16 token,
-			      u16 fdb_id,
-			      const struct dpsw_fdb_multicast_cfg *cfg)
+int dpsw_fdb_remove_multicast(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			      u16 fdb_id, const struct dpsw_fdb_multicast_cfg *cfg)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpsw_cmd_fdb_multicast_op *cmd_params;
@@ -1296,10 +1207,8 @@ int dpsw_ctrl_if_set_queue(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
  *
  * Return:  '0' on Success; Error code otherwise.
  */
-int dpsw_get_api_version(struct fsl_mc_io *mc_io,
-			 u32 cmd_flags,
-			 u16 *major_ver,
-			 u16 *minor_ver)
+int dpsw_get_api_version(struct fsl_mc_io *mc_io, u32 cmd_flags,
+			 u16 *major_ver, u16 *minor_ver)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpsw_rsp_get_api_version *rsp_params;
