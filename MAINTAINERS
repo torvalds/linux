@@ -16888,8 +16888,10 @@ F:	tools/spi/
 
 SPIDERNET NETWORK DRIVER for CELL
 M:	Ishizaki Kou <kou.ishizaki@toshiba.co.jp>
+M:	Geoff Levand <geoff@infradead.org>
 L:	netdev@vger.kernel.org
-S:	Supported
+L:	linuxppc-dev@lists.ozlabs.org
+S:	Maintained
 F:	Documentation/networking/device_drivers/ethernet/toshiba/spider_net.rst
 F:	drivers/net/ethernet/toshiba/spider_net*
 
