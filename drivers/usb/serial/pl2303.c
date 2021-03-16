@@ -188,6 +188,7 @@ struct pl2303_type_data {
 	unsigned long quirks;
 	unsigned int no_autoxonxoff:1;
 	unsigned int no_divisors:1;
+	unsigned int alt_divisors:1;
 };
 
 struct pl2303_serial_private {
@@ -217,10 +218,12 @@ static const struct pl2303_type_data pl2303_type_data[TYPE_COUNT] = {
 	[TYPE_TA] = {
 		.name			= "TA",
 		.max_baud_rate		= 6000000,
+		.alt_divisors		= true,
 	},
 	[TYPE_TB] = {
 		.name			= "TB",
 		.max_baud_rate		= 12000000,
+		.alt_divisors		= true,
 	},
 	[TYPE_HXD] = {
 		.name			= "HXD",
@@ -618,6 +621,45 @@ static speed_t pl2303_encode_baud_rate_divisor(unsigned char buf[4],
 	return baud;
 }
 
+static speed_t pl2303_encode_baud_rate_divisor_alt(unsigned char buf[4],
+								speed_t baud)
+{
+	unsigned int baseline, mantissa, exponent;
+
+	/*
+	 * Apparently, for the TA version the formula is:
+	 *   baudrate = 12M * 32 / (mantissa * 2^exponent)
+	 * where
+	 *   mantissa = buf[10:0]
+	 *   exponent = buf[15:13 16]
+	 */
+	baseline = 12000000 * 32;
+	mantissa = baseline / baud;
+	if (mantissa == 0)
+		mantissa = 1;   /* Avoid dividing by zero if baud > 32*12M. */
+	exponent = 0;
+	while (mantissa >= 2048) {
+		if (exponent < 15) {
+			mantissa >>= 1; /* divide by 2 */
+			exponent++;
+		} else {
+			/* Exponent is maxed. Trim mantissa and leave. */
+			mantissa = 2047;
+			break;
+		}
+	}
+
+	buf[3] = 0x80;
+	buf[2] = exponent & 0x01;
+	buf[1] = (exponent & ~0x01) << 4 | mantissa >> 8;
+	buf[0] = mantissa & 0xff;
+
+	/* Calculate and return the exact baud rate. */
+	baud = (baseline / mantissa) >> exponent;
+
+	return baud;
+}
+
 static void pl2303_encode_baud_rate(struct tty_struct *tty,
 					struct usb_serial_port *port,
 					u8 buf[4])
@@ -645,6 +687,8 @@ static void pl2303_encode_baud_rate(struct tty_struct *tty,
 
 	if (baud == baud_sup)
 		baud = pl2303_encode_baud_rate_direct(buf, baud);
+	else if (spriv->type->alt_divisors)
+		baud = pl2303_encode_baud_rate_divisor_alt(buf, baud);
 	else
 		baud = pl2303_encode_baud_rate_divisor(buf, baud);
 
