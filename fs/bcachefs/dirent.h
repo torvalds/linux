@@ -37,6 +37,17 @@ int bch2_dirent_delete_at(struct btree_trans *,
 			  const struct bch_hash_info *,
 			  struct btree_iter *);
 
+int __bch2_dirent_read_target(struct btree_trans *, struct bkey_s_c_dirent,
+			      u32 *, u32 *, u64 *, bool);
+
+int bch2_dirent_read_target(struct btree_trans *,
+			    struct bkey_s_c_dirent, u64 *);
+
+static inline unsigned vfs_d_type(unsigned type)
+{
+	return type == DT_SUBVOL ? DT_DIR : type;
+}
+
 enum bch_rename_mode {
 	BCH_RENAME,
 	BCH_RENAME_OVERWRITE,
@@ -52,7 +63,8 @@ int bch2_dirent_rename(struct btree_trans *,
 
 int __bch2_dirent_lookup_trans(struct btree_trans *, struct btree_iter *, u64,
 			   const struct bch_hash_info *,
-			   const struct qstr *, unsigned);
+			   const struct qstr *, u64 *,
+			   unsigned);
 u64 bch2_dirent_lookup(struct bch_fs *, u64, const struct bch_hash_info *,
 		       const struct qstr *);
 
