@@ -632,7 +632,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	addi	r1,r1,SWITCH_FRAME_SIZE
 	blr
 
-#ifdef CONFIG_PPC_BOOK3S
 	/*
 	 * If MSR EE/RI was never enabled, IRQs not reconciled, NVGPRs not
 	 * touched, no exit work created, then this can be used.
@@ -644,6 +643,7 @@ _ASM_NOKPROBE_SYMBOL(fast_interrupt_return)
 	kuap_check_amr r3, r4
 	ld	r5,_MSR(r1)
 	andi.	r0,r5,MSR_PR
+#ifdef CONFIG_PPC_BOOK3S
 	bne	.Lfast_user_interrupt_return_amr
 	kuap_kernel_restore r3, r4
 	andi.	r0,r5,MSR_RI
@@ -652,6 +652,10 @@ _ASM_NOKPROBE_SYMBOL(fast_interrupt_return)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	unrecoverable_exception
 	b	. /* should not get here */
+#else
+	bne	.Lfast_user_interrupt_return
+	b	.Lfast_kernel_interrupt_return
+#endif
 
 	.balign IFETCH_ALIGN_BYTES
 	.globl interrupt_return
@@ -665,8 +669,10 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return)
 	cmpdi	r3,0
 	bne-	.Lrestore_nvgprs
 
+#ifdef CONFIG_PPC_BOOK3S
 .Lfast_user_interrupt_return_amr:
 	kuap_user_restore r3, r4
+#endif
 .Lfast_user_interrupt_return:
 	ld	r11,_NIP(r1)
 	ld	r12,_MSR(r1)
@@ -775,7 +781,6 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 
 	RFI_TO_KERNEL
 	b	.	/* prevent speculative execution */
-#endif /* CONFIG_PPC_BOOK3S */
 
 #ifdef CONFIG_PPC_RTAS
 /*

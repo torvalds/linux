@@ -235,6 +235,10 @@ static notrace void booke_load_dbcr0(void)
 #endif
 }
 
+/* temporary hack for context tracking, removed in later patch */
+#include <linux/sched/debug.h>
+asmlinkage __visible void __sched schedule_user(void);
+
 /*
  * This should be called after a syscall returns, with r3 the return value
  * from the syscall. If this function returns non-zero, the system call
@@ -292,7 +296,11 @@ again:
 	while (unlikely(ti_flags & (_TIF_USER_WORK_MASK & ~_TIF_RESTORE_TM))) {
 		local_irq_enable();
 		if (ti_flags & _TIF_NEED_RESCHED) {
+#ifdef CONFIG_PPC_BOOK3E_64
+			schedule_user();
+#else
 			schedule();
+#endif
 		} else {
 			/*
 			 * SIGPENDING must restore signal handler function
@@ -349,18 +357,13 @@ again:
 
 	account_cpu_user_exit();
 
-#ifndef CONFIG_PPC_BOOK3E_64 /* BOOK3E not using this */
-	/*
-	 * We do this at the end so that we do context switch with KERNEL AMR
-	 */
+	/* Restore user access locks last */
 	kuap_user_restore(regs);
-#endif
 	kuep_unlock();
 
 	return ret;
 }
 
-#ifndef CONFIG_PPC_BOOK3E_64 /* BOOK3E not yet using this */
 notrace unsigned long interrupt_exit_user_prepare(struct pt_regs *regs, unsigned long msr)
 {
 	unsigned long ti_flags;
@@ -372,7 +375,9 @@ notrace unsigned long interrupt_exit_user_prepare(struct pt_regs *regs, unsigned
 	BUG_ON(!(regs->msr & MSR_PR));
 	BUG_ON(!FULL_REGS(regs));
 	BUG_ON(arch_irq_disabled_regs(regs));
+#ifdef CONFIG_PPC_BOOK3S_64
 	CT_WARN_ON(ct_state() == CONTEXT_USER);
+#endif
 
 	/*
 	 * We don't need to restore AMR on the way back to userspace for KUAP.
@@ -387,7 +392,11 @@ again:
 	while (unlikely(ti_flags & (_TIF_USER_WORK_MASK & ~_TIF_RESTORE_TM))) {
 		local_irq_enable(); /* returning to user: may enable */
 		if (ti_flags & _TIF_NEED_RESCHED) {
+#ifdef CONFIG_PPC_BOOK3E_64
+			schedule_user();
+#else
 			schedule();
+#endif
 		} else {
 			if (ti_flags & _TIF_SIGPENDING)
 				ret |= _TIF_RESTOREALL;
@@ -432,10 +441,9 @@ again:
 
 	account_cpu_user_exit();
 
-	/*
-	 * We do this at the end so that we do context switch with KERNEL AMR
-	 */
+	/* Restore user access locks last */
 	kuap_user_restore(regs);
+
 	return ret;
 }
 
@@ -456,7 +464,7 @@ notrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs, unsign
 	 * CT_WARN_ON comes here via program_check_exception,
 	 * so avoid recursion.
 	 */
-	if (TRAP(regs) != 0x700)
+	if (IS_ENABLED(CONFIG_BOOKS) && TRAP(regs) != 0x700)
 		CT_WARN_ON(ct_state() == CONTEXT_USER);
 
 	kuap = kuap_get_and_assert_locked();
@@ -497,12 +505,11 @@ again:
 #endif
 
 	/*
-	 * Don't want to mfspr(SPRN_AMR) here, because this comes after mtmsr,
-	 * which would cause Read-After-Write stalls. Hence, we take the AMR
-	 * value from the check above.
+	 * 64s does not want to mfspr(SPRN_AMR) here, because this comes after
+	 * mtmsr, which would cause Read-After-Write stalls. Hence, take the
+	 * AMR value from the check above.
 	 */
 	kuap_kernel_restore(regs, kuap);
 
 	return ret;
 }
-#endif
