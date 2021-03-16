@@ -452,14 +452,8 @@ SWITCHDEV
 
 DSA directly utilizes SWITCHDEV when interfacing with the bridge layer, and
 more specifically with its VLAN filtering portion when configuring VLANs on top
-of per-port slave network devices. Since DSA primarily deals with
-MDIO-connected switches, although not exclusively, SWITCHDEV's
-prepare/abort/commit phases are often simplified into a prepare phase which
-checks whether the operation is supported by the DSA switch driver, and a commit
-phase which applies the changes.
-
-As of today, the only SWITCHDEV objects supported by DSA are the FDB and VLAN
-objects.
+of per-port slave network devices. As of today, the only SWITCHDEV objects
+supported by DSA are the FDB and VLAN objects.
 
 Device Tree
 -----------
@@ -638,14 +632,10 @@ Bridge VLAN filtering
   accept any 802.1Q frames irrespective of their VLAN ID, and untagged frames are
   allowed.
 
-- ``port_vlan_prepare``: bridge layer function invoked when the bridge prepares the
-  configuration of a VLAN on the given port. If the operation is not supported
-  by the hardware, this function should return ``-EOPNOTSUPP`` to inform the bridge
-  code to fallback to a software implementation. No hardware setup must be done
-  in this function. See port_vlan_add for this and details.
-
 - ``port_vlan_add``: bridge layer function invoked when a VLAN is configured
-  (tagged or untagged) for the given switch port
+  (tagged or untagged) for the given switch port. If the operation is not
+  supported by the hardware, this function should return ``-EOPNOTSUPP`` to
+  inform the bridge code to fallback to a software implementation.
 
 - ``port_vlan_del``: bridge layer function invoked when a VLAN is removed from the
   given switch port
@@ -673,14 +663,10 @@ Bridge VLAN filtering
   function that the driver has to call for each MAC address known to be behind
   the given port. A switchdev object is used to carry the VID and FDB info.
 
-- ``port_mdb_prepare``: bridge layer function invoked when the bridge prepares the
-  installation of a multicast database entry. If the operation is not supported,
-  this function should return ``-EOPNOTSUPP`` to inform the bridge code to fallback
-  to a software implementation. No hardware setup must be done in this function.
-  See ``port_fdb_add`` for this and details.
-
 - ``port_mdb_add``: bridge layer function invoked when the bridge wants to install
-  a multicast database entry, the switch hardware should be programmed with the
+  a multicast database entry. If the operation is not supported, this function
+  should return ``-EOPNOTSUPP`` to inform the bridge code to fallback to a
+  software implementation. The switch hardware should be programmed with the
   specified address in the specified VLAN ID in the forwarding database
   associated with this VLAN ID.
 
