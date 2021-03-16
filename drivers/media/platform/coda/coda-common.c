@@ -3317,7 +3317,7 @@ static struct platform_driver coda_driver = {
 	.remove	= coda_remove,
 	.driver	= {
 		.name	= CODA_NAME,
-		.of_match_table = of_match_ptr(coda_dt_ids),
+		.of_match_table = coda_dt_ids,
 		.pm	= &coda_pm_ops,
 	},
 };
