@@ -689,11 +689,10 @@ static int verify_epilogue_crcs(struct ceph_connection *con, u32 front_crc,
 }
 
 static int setup_crypto(struct ceph_connection *con,
-			u8 *session_key, int session_key_len,
-			u8 *con_secret, int con_secret_len)
+			const u8 *session_key, int session_key_len,
+			const u8 *con_secret, int con_secret_len)
 {
 	unsigned int noio_flag;
-	void *p;
 	int ret;
 
 	dout("%s con %p con_mode %d session_key_len %d con_secret_len %d\n",
@@ -751,15 +750,14 @@ static int setup_crypto(struct ceph_connection *con,
 		return ret;
 	}
 
-	p = con_secret;
-	WARN_ON((unsigned long)p & crypto_aead_alignmask(con->v2.gcm_tfm));
-	ret = crypto_aead_setkey(con->v2.gcm_tfm, p, CEPH_GCM_KEY_LEN);
+	WARN_ON((unsigned long)con_secret &
+		crypto_aead_alignmask(con->v2.gcm_tfm));
+	ret = crypto_aead_setkey(con->v2.gcm_tfm, con_secret, CEPH_GCM_KEY_LEN);
 	if (ret) {
 		pr_err("failed to set gcm key: %d\n", ret);
 		return ret;
 	}
 
-	p += CEPH_GCM_KEY_LEN;
 	WARN_ON(crypto_aead_ivsize(con->v2.gcm_tfm) != CEPH_GCM_IV_LEN);
 	ret = crypto_aead_setauthsize(con->v2.gcm_tfm, CEPH_GCM_TAG_LEN);
 	if (ret) {
@@ -777,8 +775,11 @@ static int setup_crypto(struct ceph_connection *con,
 	aead_request_set_callback(con->v2.gcm_req, CRYPTO_TFM_REQ_MAY_BACKLOG,
 				  crypto_req_done, &con->v2.gcm_wait);
 
-	memcpy(&con->v2.in_gcm_nonce, p, CEPH_GCM_IV_LEN);
-	memcpy(&con->v2.out_gcm_nonce, p + CEPH_GCM_IV_LEN, CEPH_GCM_IV_LEN);
+	memcpy(&con->v2.in_gcm_nonce, con_secret + CEPH_GCM_KEY_LEN,
+	       CEPH_GCM_IV_LEN);
+	memcpy(&con->v2.out_gcm_nonce,
+	       con_secret + CEPH_GCM_KEY_LEN + CEPH_GCM_IV_LEN,
+	       CEPH_GCM_IV_LEN);
 	return 0;  /* auth_x, secure mode */
 }
 
@@ -800,7 +801,7 @@ static int hmac_sha256(struct ceph_connection *con, const struct kvec *kvecs,
 	desc->tfm = con->v2.hmac_tfm;
 	ret = crypto_shash_init(desc);
 	if (ret)
-		return ret;
+		goto out;
 
 	for (i = 0; i < kvec_cnt; i++) {
 		WARN_ON((unsigned long)kvecs[i].iov_base &
@@ -808,15 +809,14 @@ static int hmac_sha256(struct ceph_connection *con, const struct kvec *kvecs,
 		ret = crypto_shash_update(desc, kvecs[i].iov_base,
 					  kvecs[i].iov_len);
 		if (ret)
-			return ret;
+			goto out;
 	}
 
 	ret = crypto_shash_final(desc, hmac);
-	if (ret)
-		return ret;
 
+out:
 	shash_desc_zero(desc);
-	return 0;  /* auth_x, both plain and secure modes */
+	return ret;  /* auth_x, both plain and secure modes */
 }
 
 static void gcm_inc_nonce(struct ceph_gcm_nonce *nonce)
@@ -2072,27 +2072,32 @@ static int process_auth_done(struct ceph_connection *con, void *p, void *end)
 	if (con->state != CEPH_CON_S_V2_AUTH) {
 		dout("%s con %p state changed to %d\n", __func__, con,
 		     con->state);
-		return -EAGAIN;
+		ret = -EAGAIN;
+		goto out;
 	}
 
 	dout("%s con %p handle_auth_done ret %d\n", __func__, con, ret);
 	if (ret)
-		return ret;
+		goto out;
 
 	ret = setup_crypto(con, session_key, session_key_len, con_secret,
 			   con_secret_len);
 	if (ret)
-		return ret;
+		goto out;
 
 	reset_out_kvecs(con);
 	ret = prepare_auth_signature(con);
 	if (ret) {
 		pr_err("prepare_auth_signature failed: %d\n", ret);
-		return ret;
+		goto out;
 	}
 
 	con->state = CEPH_CON_S_V2_AUTH_SIGNATURE;
-	return 0;
+
+out:
+	memzero_explicit(session_key_buf, sizeof(session_key_buf));
+	memzero_explicit(con_secret_buf, sizeof(con_secret_buf));
+	return ret;
 
 bad:
 	pr_err("failed to decode auth_done\n");
@@ -3436,6 +3441,8 @@ void ceph_con_v2_reset_protocol(struct ceph_connection *con)
 	}
 
 	con->v2.con_mode = CEPH_CON_MODE_UNKNOWN;
+	memzero_explicit(&con->v2.in_gcm_nonce, CEPH_GCM_IV_LEN);
+	memzero_explicit(&con->v2.out_gcm_nonce, CEPH_GCM_IV_LEN);
 
 	if (con->v2.hmac_tfm) {
 		crypto_free_shash(con->v2.hmac_tfm);

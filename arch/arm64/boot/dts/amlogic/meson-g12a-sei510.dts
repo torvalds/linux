@@ -181,7 +181,7 @@
 
 	sound {
 		compatible = "amlogic,axg-sound-card";
-		model = "G12A-SEI510";
+		model = "SEI510";
 		audio-aux-devs = <&tdmout_a>, <&tdmout_b>,
 				 <&tdmin_a>, <&tdmin_b>;
 		audio-routing = "TDMOUT_A IN 0", "FRDDR_A OUT 0",

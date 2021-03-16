@@ -19,6 +19,7 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include "bmg160.h"
 
 #define BMG160_IRQ_NAME		"bmg160_event"
@@ -92,6 +93,7 @@
 
 struct bmg160_data {
 	struct regmap *regmap;
+	struct regulator_bulk_data regulators[2];
 	struct iio_trigger *dready_trig;
 	struct iio_trigger *motion_trig;
 	struct iio_mount_matrix orientation;
@@ -1061,6 +1063,13 @@ static const char *bmg160_match_acpi_device(struct device *dev)
 	return dev_name(dev);
 }
 
+static void bmg160_disable_regulators(void *d)
+{
+	struct bmg160_data *data = d;
+
+	regulator_bulk_disable(ARRAY_SIZE(data->regulators), data->regulators);
+}
+
 int bmg160_core_probe(struct device *dev, struct regmap *regmap, int irq,
 		      const char *name)
 {
@@ -1076,6 +1085,22 @@ int bmg160_core_probe(struct device *dev, struct regmap *regmap, int irq,
 	dev_set_drvdata(dev, indio_dev);
 	data->irq = irq;
 	data->regmap = regmap;
+
+	data->regulators[0].supply = "vdd";
+	data->regulators[1].supply = "vddio";
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(data->regulators),
+				      data->regulators);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to get regulators\n");
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(data->regulators),
+				    data->regulators);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(dev, bmg160_disable_regulators, data);
+	if (ret)
+		return ret;
 
 	ret = iio_read_mount_matrix(dev, "mount-matrix",
 				&data->orientation);

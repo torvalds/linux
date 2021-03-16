@@ -31,6 +31,7 @@ static u32 initial_allocation_mask __ro_after_init;
 u64 default_amr __ro_after_init  = ~0x0UL;
 u64 default_iamr __ro_after_init = 0x5555555555555555UL;
 u64 default_uamor __ro_after_init;
+EXPORT_SYMBOL(default_amr);
 /*
  * Key used to implement PROT_EXEC mmap. Denies READ/WRITE
  * We pick key 2 because 0 is special key and 1 is reserved as per ISA.

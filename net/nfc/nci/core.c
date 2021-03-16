@@ -508,7 +508,7 @@ static int nci_open_device(struct nci_dev *ndev)
 		};
 		unsigned long opt = 0;
 
-		if (!(ndev->nci_ver & NCI_VER_2_MASK))
+		if (ndev->nci_ver & NCI_VER_2_MASK)
 			opt = (unsigned long)&nci_init_v2_cmd;
 
 		rc = __nci_request(ndev, nci_init_req, opt,
@@ -579,10 +579,10 @@ static int nci_close_device(struct nci_dev *ndev)
 
 	clear_bit(NCI_INIT, &ndev->flags);
 
-	del_timer_sync(&ndev->cmd_timer);
-
 	/* Flush cmd wq */
 	flush_workqueue(ndev->cmd_wq);
+
+	del_timer_sync(&ndev->cmd_timer);
 
 	/* Clear flags */
 	ndev->flags = 0;

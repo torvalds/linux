@@ -77,7 +77,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		green {
+		led {
 			label = "bananapi:green:usr";
 			gpios = <&pio 7 24 GPIO_ACTIVE_HIGH>;
 		};

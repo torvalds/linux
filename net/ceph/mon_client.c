@@ -1433,7 +1433,7 @@ static int mon_handle_auth_bad_method(struct ceph_connection *con,
 /*
  * handle incoming message
  */
-static void dispatch(struct ceph_connection *con, struct ceph_msg *msg)
+static void mon_dispatch(struct ceph_connection *con, struct ceph_msg *msg)
 {
 	struct ceph_mon_client *monc = con->private;
 	int type = le16_to_cpu(msg->hdr.type);
@@ -1565,21 +1565,21 @@ static void mon_fault(struct ceph_connection *con)
  * will come from the messenger workqueue, which is drained prior to
  * mon_client destruction.
  */
-static struct ceph_connection *con_get(struct ceph_connection *con)
+static struct ceph_connection *mon_get_con(struct ceph_connection *con)
 {
 	return con;
 }
 
-static void con_put(struct ceph_connection *con)
+static void mon_put_con(struct ceph_connection *con)
 {
 }
 
 static const struct ceph_connection_operations mon_con_ops = {
-	.get = con_get,
-	.put = con_put,
-	.dispatch = dispatch,
-	.fault = mon_fault,
+	.get = mon_get_con,
+	.put = mon_put_con,
 	.alloc_msg = mon_alloc_msg,
+	.dispatch = mon_dispatch,
+	.fault = mon_fault,
 	.get_auth_request = mon_get_auth_request,
 	.handle_auth_reply_more = mon_handle_auth_reply_more,
 	.handle_auth_done = mon_handle_auth_done,

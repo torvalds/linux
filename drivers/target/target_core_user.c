@@ -562,8 +562,6 @@ tcmu_get_block_page(struct tcmu_dev *udev, uint32_t dbi)
 
 static inline void tcmu_free_cmd(struct tcmu_cmd *tcmu_cmd)
 {
-	if (tcmu_cmd->se_cmd)
-		tcmu_cmd->se_cmd->priv = NULL;
 	kfree(tcmu_cmd->dbi);
 	kmem_cache_free(tcmu_cmd_cache, tcmu_cmd);
 }
@@ -1174,11 +1172,12 @@ tcmu_queue_cmd(struct se_cmd *se_cmd)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
 	mutex_lock(&udev->cmdr_lock);
-	se_cmd->priv = tcmu_cmd;
 	if (!(se_cmd->transport_state & CMD_T_ABORTED))
 		ret = queue_cmd_ring(tcmu_cmd, &scsi_ret);
 	if (ret < 0)
 		tcmu_free_cmd(tcmu_cmd);
+	else
+		se_cmd->priv = tcmu_cmd;
 	mutex_unlock(&udev->cmdr_lock);
 	return scsi_ret;
 }
@@ -1241,6 +1240,7 @@ tcmu_tmr_notify(struct se_device *se_dev, enum tcm_tmreq_table tmf,
 
 		list_del_init(&cmd->queue_entry);
 		tcmu_free_cmd(cmd);
+		se_cmd->priv = NULL;
 		target_complete_cmd(se_cmd, SAM_STAT_TASK_ABORTED);
 		unqueued = true;
 	}
@@ -1332,6 +1332,7 @@ static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *
 	}
 
 done:
+	se_cmd->priv = NULL;
 	if (read_len_valid) {
 		pr_debug("read_len = %d\n", read_len);
 		target_complete_cmd_with_length(cmd->se_cmd,
@@ -1478,6 +1479,7 @@ static void tcmu_check_expired_queue_cmd(struct tcmu_cmd *cmd)
 	se_cmd = cmd->se_cmd;
 	tcmu_free_cmd(cmd);
 
+	se_cmd->priv = NULL;
 	target_complete_cmd(se_cmd, SAM_STAT_TASK_SET_FULL);
 }
 
@@ -1564,189 +1566,6 @@ static struct se_device *tcmu_alloc_device(struct se_hba *hba, const char *name)
 	return &udev->se_dev;
 }
 
-static void run_qfull_queue(struct tcmu_dev *udev, bool fail)
-{
-	struct tcmu_cmd *tcmu_cmd, *tmp_cmd;
-	LIST_HEAD(cmds);
-	sense_reason_t scsi_ret;
-	int ret;
-
-	if (list_empty(&udev->qfull_queue))
-		return;
-
-	pr_debug("running %s's cmdr queue forcefail %d\n", udev->name, fail);
-
-	list_splice_init(&udev->qfull_queue, &cmds);
-
-	list_for_each_entry_safe(tcmu_cmd, tmp_cmd, &cmds, queue_entry) {
-		list_del_init(&tcmu_cmd->queue_entry);
-
-		pr_debug("removing cmd %p on dev %s from queue\n",
-			 tcmu_cmd, udev->name);
-
-		if (fail) {
-			/*
-			 * We were not able to even start the command, so
-			 * fail with busy to allow a retry in case runner
-			 * was only temporarily down. If the device is being
-			 * removed then LIO core will do the right thing and
-			 * fail the retry.
-			 */
-			target_complete_cmd(tcmu_cmd->se_cmd, SAM_STAT_BUSY);
-			tcmu_free_cmd(tcmu_cmd);
-			continue;
-		}
-
-		ret = queue_cmd_ring(tcmu_cmd, &scsi_ret);
-		if (ret < 0) {
-			pr_debug("cmd %p on dev %s failed with %u\n",
-				 tcmu_cmd, udev->name, scsi_ret);
-			/*
-			 * Ignore scsi_ret for now. target_complete_cmd
-			 * drops it.
-			 */
-			target_complete_cmd(tcmu_cmd->se_cmd,
-					    SAM_STAT_CHECK_CONDITION);
-			tcmu_free_cmd(tcmu_cmd);
-		} else if (ret > 0) {
-			pr_debug("ran out of space during cmdr queue run\n");
-			/*
-			 * cmd was requeued, so just put all cmds back in
-			 * the queue
-			 */
-			list_splice_tail(&cmds, &udev->qfull_queue);
-			break;
-		}
-	}
-
-	tcmu_set_next_deadline(&udev->qfull_queue, &udev->qfull_timer);
-}
-
-static int tcmu_irqcontrol(struct uio_info *info, s32 irq_on)
-{
-	struct tcmu_dev *udev = container_of(info, struct tcmu_dev, uio_info);
-
-	mutex_lock(&udev->cmdr_lock);
-	if (tcmu_handle_completions(udev))
-		run_qfull_queue(udev, false);
-	mutex_unlock(&udev->cmdr_lock);
-
-	return 0;
-}
-
-/*
- * mmap code from uio.c. Copied here because we want to hook mmap()
- * and this stuff must come along.
- */
-static int tcmu_find_mem_index(struct vm_area_struct *vma)
-{
-	struct tcmu_dev *udev = vma->vm_private_data;
-	struct uio_info *info = &udev->uio_info;
-
-	if (vma->vm_pgoff < MAX_UIO_MAPS) {
-		if (info->mem[vma->vm_pgoff].size == 0)
-			return -1;
-		return (int)vma->vm_pgoff;
-	}
-	return -1;
-}
-
-static struct page *tcmu_try_get_block_page(struct tcmu_dev *udev, uint32_t dbi)
-{
-	struct page *page;
-
-	mutex_lock(&udev->cmdr_lock);
-	page = tcmu_get_block_page(udev, dbi);
-	if (likely(page)) {
-		mutex_unlock(&udev->cmdr_lock);
-		return page;
-	}
-
-	/*
-	 * Userspace messed up and passed in a address not in the
-	 * data iov passed to it.
-	 */
-	pr_err("Invalid addr to data block mapping  (dbi %u) on device %s\n",
-	       dbi, udev->name);
-	page = NULL;
-	mutex_unlock(&udev->cmdr_lock);
-
-	return page;
-}
-
-static vm_fault_t tcmu_vma_fault(struct vm_fault *vmf)
-{
-	struct tcmu_dev *udev = vmf->vma->vm_private_data;
-	struct uio_info *info = &udev->uio_info;
-	struct page *page;
-	unsigned long offset;
-	void *addr;
-
-	int mi = tcmu_find_mem_index(vmf->vma);
-	if (mi < 0)
-		return VM_FAULT_SIGBUS;
-
-	/*
-	 * We need to subtract mi because userspace uses offset = N*PAGE_SIZE
-	 * to use mem[N].
-	 */
-	offset = (vmf->pgoff - mi) << PAGE_SHIFT;
-
-	if (offset < udev->data_off) {
-		/* For the vmalloc()ed cmd area pages */
-		addr = (void *)(unsigned long)info->mem[mi].addr + offset;
-		page = vmalloc_to_page(addr);
-	} else {
-		uint32_t dbi;
-
-		/* For the dynamically growing data area pages */
-		dbi = (offset - udev->data_off) / DATA_BLOCK_SIZE;
-		page = tcmu_try_get_block_page(udev, dbi);
-		if (!page)
-			return VM_FAULT_SIGBUS;
-	}
-
-	get_page(page);
-	vmf->page = page;
-	return 0;
-}
-
-static const struct vm_operations_struct tcmu_vm_ops = {
-	.fault = tcmu_vma_fault,
-};
-
-static int tcmu_mmap(struct uio_info *info, struct vm_area_struct *vma)
-{
-	struct tcmu_dev *udev = container_of(info, struct tcmu_dev, uio_info);
-
-	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
-	vma->vm_ops = &tcmu_vm_ops;
-
-	vma->vm_private_data = udev;
-
-	/* Ensure the mmap is exactly the right size */
-	if (vma_pages(vma) != (udev->ring_size >> PAGE_SHIFT))
-		return -EINVAL;
-
-	return 0;
-}
-
-static int tcmu_open(struct uio_info *info, struct inode *inode)
-{
-	struct tcmu_dev *udev = container_of(info, struct tcmu_dev, uio_info);
-
-	/* O_EXCL not supported for char devs, so fake it? */
-	if (test_and_set_bit(TCMU_DEV_BIT_OPEN, &udev->flags))
-		return -EBUSY;
-
-	udev->inode = inode;
-	kref_get(&udev->kref);
-
-	pr_debug("open\n");
-
-	return 0;
-}
-
 static void tcmu_dev_call_rcu(struct rcu_head *p)
 {
 	struct se_device *dev = container_of(p, struct se_device, rcu_head);
@@ -1824,7 +1643,216 @@ static void tcmu_dev_kref_release(struct kref *kref)
 	bitmap_free(udev->data_bitmap);
 	mutex_unlock(&udev->cmdr_lock);
 
+	pr_debug("dev_kref_release\n");
+
 	call_rcu(&dev->rcu_head, tcmu_dev_call_rcu);
+}
+
+static void run_qfull_queue(struct tcmu_dev *udev, bool fail)
+{
+	struct tcmu_cmd *tcmu_cmd, *tmp_cmd;
+	LIST_HEAD(cmds);
+	sense_reason_t scsi_ret;
+	int ret;
+
+	if (list_empty(&udev->qfull_queue))
+		return;
+
+	pr_debug("running %s's cmdr queue forcefail %d\n", udev->name, fail);
+
+	list_splice_init(&udev->qfull_queue, &cmds);
+
+	list_for_each_entry_safe(tcmu_cmd, tmp_cmd, &cmds, queue_entry) {
+		list_del_init(&tcmu_cmd->queue_entry);
+
+		pr_debug("removing cmd %p on dev %s from queue\n",
+			 tcmu_cmd, udev->name);
+
+		if (fail) {
+			/*
+			 * We were not able to even start the command, so
+			 * fail with busy to allow a retry in case runner
+			 * was only temporarily down. If the device is being
+			 * removed then LIO core will do the right thing and
+			 * fail the retry.
+			 */
+			tcmu_cmd->se_cmd->priv = NULL;
+			target_complete_cmd(tcmu_cmd->se_cmd, SAM_STAT_BUSY);
+			tcmu_free_cmd(tcmu_cmd);
+			continue;
+		}
+
+		ret = queue_cmd_ring(tcmu_cmd, &scsi_ret);
+		if (ret < 0) {
+			pr_debug("cmd %p on dev %s failed with %u\n",
+				 tcmu_cmd, udev->name, scsi_ret);
+			/*
+			 * Ignore scsi_ret for now. target_complete_cmd
+			 * drops it.
+			 */
+			tcmu_cmd->se_cmd->priv = NULL;
+			target_complete_cmd(tcmu_cmd->se_cmd,
+					    SAM_STAT_CHECK_CONDITION);
+			tcmu_free_cmd(tcmu_cmd);
+		} else if (ret > 0) {
+			pr_debug("ran out of space during cmdr queue run\n");
+			/*
+			 * cmd was requeued, so just put all cmds back in
+			 * the queue
+			 */
+			list_splice_tail(&cmds, &udev->qfull_queue);
+			break;
+		}
+	}
+
+	tcmu_set_next_deadline(&udev->qfull_queue, &udev->qfull_timer);
+}
+
+static int tcmu_irqcontrol(struct uio_info *info, s32 irq_on)
+{
+	struct tcmu_dev *udev = container_of(info, struct tcmu_dev, uio_info);
+
+	mutex_lock(&udev->cmdr_lock);
+	if (tcmu_handle_completions(udev))
+		run_qfull_queue(udev, false);
+	mutex_unlock(&udev->cmdr_lock);
+
+	return 0;
+}
+
+/*
+ * mmap code from uio.c. Copied here because we want to hook mmap()
+ * and this stuff must come along.
+ */
+static int tcmu_find_mem_index(struct vm_area_struct *vma)
+{
+	struct tcmu_dev *udev = vma->vm_private_data;
+	struct uio_info *info = &udev->uio_info;
+
+	if (vma->vm_pgoff < MAX_UIO_MAPS) {
+		if (info->mem[vma->vm_pgoff].size == 0)
+			return -1;
+		return (int)vma->vm_pgoff;
+	}
+	return -1;
+}
+
+static struct page *tcmu_try_get_block_page(struct tcmu_dev *udev, uint32_t dbi)
+{
+	struct page *page;
+
+	mutex_lock(&udev->cmdr_lock);
+	page = tcmu_get_block_page(udev, dbi);
+	if (likely(page)) {
+		mutex_unlock(&udev->cmdr_lock);
+		return page;
+	}
+
+	/*
+	 * Userspace messed up and passed in a address not in the
+	 * data iov passed to it.
+	 */
+	pr_err("Invalid addr to data block mapping  (dbi %u) on device %s\n",
+	       dbi, udev->name);
+	page = NULL;
+	mutex_unlock(&udev->cmdr_lock);
+
+	return page;
+}
+
+static void tcmu_vma_open(struct vm_area_struct *vma)
+{
+	struct tcmu_dev *udev = vma->vm_private_data;
+
+	pr_debug("vma_open\n");
+
+	kref_get(&udev->kref);
+}
+
+static void tcmu_vma_close(struct vm_area_struct *vma)
+{
+	struct tcmu_dev *udev = vma->vm_private_data;
+
+	pr_debug("vma_close\n");
+
+	/* release ref from tcmu_vma_open */
+	kref_put(&udev->kref, tcmu_dev_kref_release);
+}
+
+static vm_fault_t tcmu_vma_fault(struct vm_fault *vmf)
+{
+	struct tcmu_dev *udev = vmf->vma->vm_private_data;
+	struct uio_info *info = &udev->uio_info;
+	struct page *page;
+	unsigned long offset;
+	void *addr;
+
+	int mi = tcmu_find_mem_index(vmf->vma);
+	if (mi < 0)
+		return VM_FAULT_SIGBUS;
+
+	/*
+	 * We need to subtract mi because userspace uses offset = N*PAGE_SIZE
+	 * to use mem[N].
+	 */
+	offset = (vmf->pgoff - mi) << PAGE_SHIFT;
+
+	if (offset < udev->data_off) {
+		/* For the vmalloc()ed cmd area pages */
+		addr = (void *)(unsigned long)info->mem[mi].addr + offset;
+		page = vmalloc_to_page(addr);
+	} else {
+		uint32_t dbi;
+
+		/* For the dynamically growing data area pages */
+		dbi = (offset - udev->data_off) / DATA_BLOCK_SIZE;
+		page = tcmu_try_get_block_page(udev, dbi);
+		if (!page)
+			return VM_FAULT_SIGBUS;
+	}
+
+	get_page(page);
+	vmf->page = page;
+	return 0;
+}
+
+static const struct vm_operations_struct tcmu_vm_ops = {
+	.open = tcmu_vma_open,
+	.close = tcmu_vma_close,
+	.fault = tcmu_vma_fault,
+};
+
+static int tcmu_mmap(struct uio_info *info, struct vm_area_struct *vma)
+{
+	struct tcmu_dev *udev = container_of(info, struct tcmu_dev, uio_info);
+
+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+	vma->vm_ops = &tcmu_vm_ops;
+
+	vma->vm_private_data = udev;
+
+	/* Ensure the mmap is exactly the right size */
+	if (vma_pages(vma) != (udev->ring_size >> PAGE_SHIFT))
+		return -EINVAL;
+
+	tcmu_vma_open(vma);
+
+	return 0;
+}
+
+static int tcmu_open(struct uio_info *info, struct inode *inode)
+{
+	struct tcmu_dev *udev = container_of(info, struct tcmu_dev, uio_info);
+
+	/* O_EXCL not supported for char devs, so fake it? */
+	if (test_and_set_bit(TCMU_DEV_BIT_OPEN, &udev->flags))
+		return -EBUSY;
+
+	udev->inode = inode;
+
+	pr_debug("open\n");
+
+	return 0;
 }
 
 static int tcmu_release(struct uio_info *info, struct inode *inode)
@@ -1834,8 +1862,7 @@ static int tcmu_release(struct uio_info *info, struct inode *inode)
 	clear_bit(TCMU_DEV_BIT_OPEN, &udev->flags);
 
 	pr_debug("close\n");
-	/* release ref from open */
-	kref_put(&udev->kref, tcmu_dev_kref_release);
+
 	return 0;
 }
 
@@ -2212,6 +2239,7 @@ static void tcmu_reset_ring(struct tcmu_dev *udev, u8 err_level)
 		if (!test_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags)) {
 			WARN_ON(!cmd->se_cmd);
 			list_del_init(&cmd->queue_entry);
+			cmd->se_cmd->priv = NULL;
 			if (err_level == 1) {
 				/*
 				 * Userspace was not able to start the

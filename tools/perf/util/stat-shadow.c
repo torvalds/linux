@@ -8,6 +8,7 @@
 #include "evlist.h"
 #include "expr.h"
 #include "metricgroup.h"
+#include "cgroup.h"
 #include <linux/zalloc.h>
 
 /*
@@ -28,6 +29,7 @@ struct saved_value {
 	enum stat_type type;
 	int ctx;
 	int cpu;
+	struct cgroup *cgrp;
 	struct runtime_stat *stat;
 	struct stats stats;
 	u64 metric_total;
@@ -56,6 +58,9 @@ static int saved_value_cmp(struct rb_node *rb_node, const void *entry)
 
 	if (a->ctx != b->ctx)
 		return a->ctx - b->ctx;
+
+	if (a->cgrp != b->cgrp)
+		return (char *)a->cgrp < (char *)b->cgrp ? -1 : +1;
 
 	if (a->evsel == NULL && b->evsel == NULL) {
 		if (a->stat == b->stat)
@@ -100,7 +105,8 @@ static struct saved_value *saved_value_lookup(struct evsel *evsel,
 					      bool create,
 					      enum stat_type type,
 					      int ctx,
-					      struct runtime_stat *st)
+					      struct runtime_stat *st,
+					      struct cgroup *cgrp)
 {
 	struct rblist *rblist;
 	struct rb_node *nd;
@@ -110,9 +116,14 @@ static struct saved_value *saved_value_lookup(struct evsel *evsel,
 		.type = type,
 		.ctx = ctx,
 		.stat = st,
+		.cgrp = cgrp,
 	};
 
 	rblist = &st->value_list;
+
+	/* don't use context info for clock events */
+	if (type == STAT_NSECS)
+		dm.ctx = 0;
 
 	nd = rblist__find(rblist, &dm);
 	if (nd)
@@ -191,12 +202,18 @@ void perf_stat__reset_shadow_per_stat(struct runtime_stat *st)
 	reset_stat(st);
 }
 
+struct runtime_stat_data {
+	int ctx;
+	struct cgroup *cgrp;
+};
+
 static void update_runtime_stat(struct runtime_stat *st,
 				enum stat_type type,
-				int ctx, int cpu, u64 count)
+				int cpu, u64 count,
+				struct runtime_stat_data *rsd)
 {
-	struct saved_value *v = saved_value_lookup(NULL, cpu, true,
-						   type, ctx, st);
+	struct saved_value *v = saved_value_lookup(NULL, cpu, true, type,
+						   rsd->ctx, st, rsd->cgrp);
 
 	if (v)
 		update_stats(&v->stats, count);
@@ -210,82 +227,98 @@ static void update_runtime_stat(struct runtime_stat *st,
 void perf_stat__update_shadow_stats(struct evsel *counter, u64 count,
 				    int cpu, struct runtime_stat *st)
 {
-	int ctx = evsel_context(counter);
 	u64 count_ns = count;
 	struct saved_value *v;
+	struct runtime_stat_data rsd = {
+		.ctx = evsel_context(counter),
+		.cgrp = counter->cgrp,
+	};
 
 	count *= counter->scale;
 
 	if (evsel__is_clock(counter))
-		update_runtime_stat(st, STAT_NSECS, 0, cpu, count_ns);
+		update_runtime_stat(st, STAT_NSECS, cpu, count_ns, &rsd);
 	else if (evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
-		update_runtime_stat(st, STAT_CYCLES, ctx, cpu, count);
+		update_runtime_stat(st, STAT_CYCLES, cpu, count, &rsd);
 	else if (perf_stat_evsel__is(counter, CYCLES_IN_TX))
-		update_runtime_stat(st, STAT_CYCLES_IN_TX, ctx, cpu, count);
+		update_runtime_stat(st, STAT_CYCLES_IN_TX, cpu, count, &rsd);
 	else if (perf_stat_evsel__is(counter, TRANSACTION_START))
-		update_runtime_stat(st, STAT_TRANSACTION, ctx, cpu, count);
+		update_runtime_stat(st, STAT_TRANSACTION, cpu, count, &rsd);
 	else if (perf_stat_evsel__is(counter, ELISION_START))
-		update_runtime_stat(st, STAT_ELISION, ctx, cpu, count);
+		update_runtime_stat(st, STAT_ELISION, cpu, count, &rsd);
 	else if (perf_stat_evsel__is(counter, TOPDOWN_TOTAL_SLOTS))
 		update_runtime_stat(st, STAT_TOPDOWN_TOTAL_SLOTS,
-				    ctx, cpu, count);
+				    cpu, count, &rsd);
 	else if (perf_stat_evsel__is(counter, TOPDOWN_SLOTS_ISSUED))
 		update_runtime_stat(st, STAT_TOPDOWN_SLOTS_ISSUED,
-				    ctx, cpu, count);
+				    cpu, count, &rsd);
 	else if (perf_stat_evsel__is(counter, TOPDOWN_SLOTS_RETIRED))
 		update_runtime_stat(st, STAT_TOPDOWN_SLOTS_RETIRED,
-				    ctx, cpu, count);
+				    cpu, count, &rsd);
 	else if (perf_stat_evsel__is(counter, TOPDOWN_FETCH_BUBBLES))
 		update_runtime_stat(st, STAT_TOPDOWN_FETCH_BUBBLES,
-				    ctx, cpu, count);
+				    cpu, count, &rsd);
 	else if (perf_stat_evsel__is(counter, TOPDOWN_RECOVERY_BUBBLES))
 		update_runtime_stat(st, STAT_TOPDOWN_RECOVERY_BUBBLES,
-				    ctx, cpu, count);
+				    cpu, count, &rsd);
 	else if (perf_stat_evsel__is(counter, TOPDOWN_RETIRING))
 		update_runtime_stat(st, STAT_TOPDOWN_RETIRING,
-				    ctx, cpu, count);
+				    cpu, count, &rsd);
 	else if (perf_stat_evsel__is(counter, TOPDOWN_BAD_SPEC))
 		update_runtime_stat(st, STAT_TOPDOWN_BAD_SPEC,
-				    ctx, cpu, count);
+				    cpu, count, &rsd);
 	else if (perf_stat_evsel__is(counter, TOPDOWN_FE_BOUND))
 		update_runtime_stat(st, STAT_TOPDOWN_FE_BOUND,
-				    ctx, cpu, count);
+				    cpu, count, &rsd);
 	else if (perf_stat_evsel__is(counter, TOPDOWN_BE_BOUND))
 		update_runtime_stat(st, STAT_TOPDOWN_BE_BOUND,
-				    ctx, cpu, count);
+				    cpu, count, &rsd);
+	else if (perf_stat_evsel__is(counter, TOPDOWN_HEAVY_OPS))
+		update_runtime_stat(st, STAT_TOPDOWN_HEAVY_OPS,
+				    cpu, count, &rsd);
+	else if (perf_stat_evsel__is(counter, TOPDOWN_BR_MISPREDICT))
+		update_runtime_stat(st, STAT_TOPDOWN_BR_MISPREDICT,
+				    cpu, count, &rsd);
+	else if (perf_stat_evsel__is(counter, TOPDOWN_FETCH_LAT))
+		update_runtime_stat(st, STAT_TOPDOWN_FETCH_LAT,
+				    cpu, count, &rsd);
+	else if (perf_stat_evsel__is(counter, TOPDOWN_MEM_BOUND))
+		update_runtime_stat(st, STAT_TOPDOWN_MEM_BOUND,
+				    cpu, count, &rsd);
 	else if (evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_FRONTEND))
 		update_runtime_stat(st, STAT_STALLED_CYCLES_FRONT,
-				    ctx, cpu, count);
+				    cpu, count, &rsd);
 	else if (evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_BACKEND))
 		update_runtime_stat(st, STAT_STALLED_CYCLES_BACK,
-				    ctx, cpu, count);
+				    cpu, count, &rsd);
 	else if (evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
-		update_runtime_stat(st, STAT_BRANCHES, ctx, cpu, count);
+		update_runtime_stat(st, STAT_BRANCHES, cpu, count, &rsd);
 	else if (evsel__match(counter, HARDWARE, HW_CACHE_REFERENCES))
-		update_runtime_stat(st, STAT_CACHEREFS, ctx, cpu, count);
+		update_runtime_stat(st, STAT_CACHEREFS, cpu, count, &rsd);
 	else if (evsel__match(counter, HW_CACHE, HW_CACHE_L1D))
-		update_runtime_stat(st, STAT_L1_DCACHE, ctx, cpu, count);
+		update_runtime_stat(st, STAT_L1_DCACHE, cpu, count, &rsd);
 	else if (evsel__match(counter, HW_CACHE, HW_CACHE_L1I))
-		update_runtime_stat(st, STAT_L1_ICACHE, ctx, cpu, count);
+		update_runtime_stat(st, STAT_L1_ICACHE, cpu, count, &rsd);
 	else if (evsel__match(counter, HW_CACHE, HW_CACHE_LL))
-		update_runtime_stat(st, STAT_LL_CACHE, ctx, cpu, count);
+		update_runtime_stat(st, STAT_LL_CACHE, cpu, count, &rsd);
 	else if (evsel__match(counter, HW_CACHE, HW_CACHE_DTLB))
-		update_runtime_stat(st, STAT_DTLB_CACHE, ctx, cpu, count);
+		update_runtime_stat(st, STAT_DTLB_CACHE, cpu, count, &rsd);
 	else if (evsel__match(counter, HW_CACHE, HW_CACHE_ITLB))
-		update_runtime_stat(st, STAT_ITLB_CACHE, ctx, cpu, count);
+		update_runtime_stat(st, STAT_ITLB_CACHE, cpu, count, &rsd);
 	else if (perf_stat_evsel__is(counter, SMI_NUM))
-		update_runtime_stat(st, STAT_SMI_NUM, ctx, cpu, count);
+		update_runtime_stat(st, STAT_SMI_NUM, cpu, count, &rsd);
 	else if (perf_stat_evsel__is(counter, APERF))
-		update_runtime_stat(st, STAT_APERF, ctx, cpu, count);
+		update_runtime_stat(st, STAT_APERF, cpu, count, &rsd);
 
 	if (counter->collect_stat) {
-		v = saved_value_lookup(counter, cpu, true, STAT_NONE, 0, st);
+		v = saved_value_lookup(counter, cpu, true, STAT_NONE, 0, st,
+				       rsd.cgrp);
 		update_stats(&v->stats, count);
 		if (counter->metric_leader)
 			v->metric_total += count;
 	} else if (counter->metric_leader) {
 		v = saved_value_lookup(counter->metric_leader,
-				       cpu, true, STAT_NONE, 0, st);
+				       cpu, true, STAT_NONE, 0, st, rsd.cgrp);
 		v->metric_total += count;
 		v->metric_other++;
 	}
@@ -422,11 +455,12 @@ void perf_stat__collect_metric_expr(struct evlist *evsel_list)
 }
 
 static double runtime_stat_avg(struct runtime_stat *st,
-			       enum stat_type type, int ctx, int cpu)
+			       enum stat_type type, int cpu,
+			       struct runtime_stat_data *rsd)
 {
 	struct saved_value *v;
 
-	v = saved_value_lookup(NULL, cpu, false, type, ctx, st);
+	v = saved_value_lookup(NULL, cpu, false, type, rsd->ctx, st, rsd->cgrp);
 	if (!v)
 		return 0.0;
 
@@ -434,11 +468,12 @@ static double runtime_stat_avg(struct runtime_stat *st,
 }
 
 static double runtime_stat_n(struct runtime_stat *st,
-			     enum stat_type type, int ctx, int cpu)
+			     enum stat_type type, int cpu,
+			     struct runtime_stat_data *rsd)
 {
 	struct saved_value *v;
 
-	v = saved_value_lookup(NULL, cpu, false, type, ctx, st);
+	v = saved_value_lookup(NULL, cpu, false, type, rsd->ctx, st, rsd->cgrp);
 	if (!v)
 		return 0.0;
 
@@ -446,16 +481,15 @@ static double runtime_stat_n(struct runtime_stat *st,
 }
 
 static void print_stalled_cycles_frontend(struct perf_stat_config *config,
-					  int cpu,
-					  struct evsel *evsel, double avg,
+					  int cpu, double avg,
 					  struct perf_stat_output_ctx *out,
-					  struct runtime_stat *st)
+					  struct runtime_stat *st,
+					  struct runtime_stat_data *rsd)
 {
 	double total, ratio = 0.0;
 	const char *color;
-	int ctx = evsel_context(evsel);
 
-	total = runtime_stat_avg(st, STAT_CYCLES, ctx, cpu);
+	total = runtime_stat_avg(st, STAT_CYCLES, cpu, rsd);
 
 	if (total)
 		ratio = avg / total * 100.0;
@@ -470,16 +504,15 @@ static void print_stalled_cycles_frontend(struct perf_stat_config *config,
 }
 
 static void print_stalled_cycles_backend(struct perf_stat_config *config,
-					 int cpu,
-					 struct evsel *evsel, double avg,
+					 int cpu, double avg,
 					 struct perf_stat_output_ctx *out,
-					 struct runtime_stat *st)
+					 struct runtime_stat *st,
+					 struct runtime_stat_data *rsd)
 {
 	double total, ratio = 0.0;
 	const char *color;
-	int ctx = evsel_context(evsel);
 
-	total = runtime_stat_avg(st, STAT_CYCLES, ctx, cpu);
+	total = runtime_stat_avg(st, STAT_CYCLES, cpu, rsd);
 
 	if (total)
 		ratio = avg / total * 100.0;
@@ -490,17 +523,15 @@ static void print_stalled_cycles_backend(struct perf_stat_config *config,
 }
 
 static void print_branch_misses(struct perf_stat_config *config,
-				int cpu,
-				struct evsel *evsel,
-				double avg,
+				int cpu, double avg,
 				struct perf_stat_output_ctx *out,
-				struct runtime_stat *st)
+				struct runtime_stat *st,
+				struct runtime_stat_data *rsd)
 {
 	double total, ratio = 0.0;
 	const char *color;
-	int ctx = evsel_context(evsel);
 
-	total = runtime_stat_avg(st, STAT_BRANCHES, ctx, cpu);
+	total = runtime_stat_avg(st, STAT_BRANCHES, cpu, rsd);
 
 	if (total)
 		ratio = avg / total * 100.0;
@@ -511,18 +542,15 @@ static void print_branch_misses(struct perf_stat_config *config,
 }
 
 static void print_l1_dcache_misses(struct perf_stat_config *config,
-				   int cpu,
-				   struct evsel *evsel,
-				   double avg,
+				   int cpu, double avg,
 				   struct perf_stat_output_ctx *out,
-				   struct runtime_stat *st)
-
+				   struct runtime_stat *st,
+				   struct runtime_stat_data *rsd)
 {
 	double total, ratio = 0.0;
 	const char *color;
-	int ctx = evsel_context(evsel);
 
-	total = runtime_stat_avg(st, STAT_L1_DCACHE, ctx, cpu);
+	total = runtime_stat_avg(st, STAT_L1_DCACHE, cpu, rsd);
 
 	if (total)
 		ratio = avg / total * 100.0;
@@ -533,18 +561,15 @@ static void print_l1_dcache_misses(struct perf_stat_config *config,
 }
 
 static void print_l1_icache_misses(struct perf_stat_config *config,
-				   int cpu,
-				   struct evsel *evsel,
-				   double avg,
+				   int cpu, double avg,
 				   struct perf_stat_output_ctx *out,
-				   struct runtime_stat *st)
-
+				   struct runtime_stat *st,
+				   struct runtime_stat_data *rsd)
 {
 	double total, ratio = 0.0;
 	const char *color;
-	int ctx = evsel_context(evsel);
 
-	total = runtime_stat_avg(st, STAT_L1_ICACHE, ctx, cpu);
+	total = runtime_stat_avg(st, STAT_L1_ICACHE, cpu, rsd);
 
 	if (total)
 		ratio = avg / total * 100.0;
@@ -554,17 +579,15 @@ static void print_l1_icache_misses(struct perf_stat_config *config,
 }
 
 static void print_dtlb_cache_misses(struct perf_stat_config *config,
-				    int cpu,
-				    struct evsel *evsel,
-				    double avg,
+				    int cpu, double avg,
 				    struct perf_stat_output_ctx *out,
-				    struct runtime_stat *st)
+				    struct runtime_stat *st,
+				    struct runtime_stat_data *rsd)
 {
 	double total, ratio = 0.0;
 	const char *color;
-	int ctx = evsel_context(evsel);
 
-	total = runtime_stat_avg(st, STAT_DTLB_CACHE, ctx, cpu);
+	total = runtime_stat_avg(st, STAT_DTLB_CACHE, cpu, rsd);
 
 	if (total)
 		ratio = avg / total * 100.0;
@@ -574,17 +597,15 @@ static void print_dtlb_cache_misses(struct perf_stat_config *config,
 }
 
 static void print_itlb_cache_misses(struct perf_stat_config *config,
-				    int cpu,
-				    struct evsel *evsel,
-				    double avg,
+				    int cpu, double avg,
 				    struct perf_stat_output_ctx *out,
-				    struct runtime_stat *st)
+				    struct runtime_stat *st,
+				    struct runtime_stat_data *rsd)
 {
 	double total, ratio = 0.0;
 	const char *color;
-	int ctx = evsel_context(evsel);
 
-	total = runtime_stat_avg(st, STAT_ITLB_CACHE, ctx, cpu);
+	total = runtime_stat_avg(st, STAT_ITLB_CACHE, cpu, rsd);
 
 	if (total)
 		ratio = avg / total * 100.0;
@@ -594,17 +615,15 @@ static void print_itlb_cache_misses(struct perf_stat_config *config,
 }
 
 static void print_ll_cache_misses(struct perf_stat_config *config,
-				  int cpu,
-				  struct evsel *evsel,
-				  double avg,
+				  int cpu, double avg,
 				  struct perf_stat_output_ctx *out,
-				  struct runtime_stat *st)
+				  struct runtime_stat *st,
+				  struct runtime_stat_data *rsd)
 {
 	double total, ratio = 0.0;
 	const char *color;
-	int ctx = evsel_context(evsel);
 
-	total = runtime_stat_avg(st, STAT_LL_CACHE, ctx, cpu);
+	total = runtime_stat_avg(st, STAT_LL_CACHE, cpu, rsd);
 
 	if (total)
 		ratio = avg / total * 100.0;
@@ -662,56 +681,61 @@ static double sanitize_val(double x)
 	return x;
 }
 
-static double td_total_slots(int ctx, int cpu, struct runtime_stat *st)
+static double td_total_slots(int cpu, struct runtime_stat *st,
+			     struct runtime_stat_data *rsd)
 {
-	return runtime_stat_avg(st, STAT_TOPDOWN_TOTAL_SLOTS, ctx, cpu);
+	return runtime_stat_avg(st, STAT_TOPDOWN_TOTAL_SLOTS, cpu, rsd);
 }
 
-static double td_bad_spec(int ctx, int cpu, struct runtime_stat *st)
+static double td_bad_spec(int cpu, struct runtime_stat *st,
+			  struct runtime_stat_data *rsd)
 {
 	double bad_spec = 0;
 	double total_slots;
 	double total;
 
-	total = runtime_stat_avg(st, STAT_TOPDOWN_SLOTS_ISSUED, ctx, cpu) -
-		runtime_stat_avg(st, STAT_TOPDOWN_SLOTS_RETIRED, ctx, cpu) +
-		runtime_stat_avg(st, STAT_TOPDOWN_RECOVERY_BUBBLES, ctx, cpu);
+	total = runtime_stat_avg(st, STAT_TOPDOWN_SLOTS_ISSUED, cpu, rsd) -
+		runtime_stat_avg(st, STAT_TOPDOWN_SLOTS_RETIRED, cpu, rsd) +
+		runtime_stat_avg(st, STAT_TOPDOWN_RECOVERY_BUBBLES, cpu, rsd);
 
-	total_slots = td_total_slots(ctx, cpu, st);
+	total_slots = td_total_slots(cpu, st, rsd);
 	if (total_slots)
 		bad_spec = total / total_slots;
 	return sanitize_val(bad_spec);
 }
 
-static double td_retiring(int ctx, int cpu, struct runtime_stat *st)
+static double td_retiring(int cpu, struct runtime_stat *st,
+			  struct runtime_stat_data *rsd)
 {
 	double retiring = 0;
-	double total_slots = td_total_slots(ctx, cpu, st);
+	double total_slots = td_total_slots(cpu, st, rsd);
 	double ret_slots = runtime_stat_avg(st, STAT_TOPDOWN_SLOTS_RETIRED,
-					    ctx, cpu);
+					    cpu, rsd);
 
 	if (total_slots)
 		retiring = ret_slots / total_slots;
 	return retiring;
 }
 
-static double td_fe_bound(int ctx, int cpu, struct runtime_stat *st)
+static double td_fe_bound(int cpu, struct runtime_stat *st,
+			  struct runtime_stat_data *rsd)
 {
 	double fe_bound = 0;
-	double total_slots = td_total_slots(ctx, cpu, st);
+	double total_slots = td_total_slots(cpu, st, rsd);
 	double fetch_bub = runtime_stat_avg(st, STAT_TOPDOWN_FETCH_BUBBLES,
-					    ctx, cpu);
+					    cpu, rsd);
 
 	if (total_slots)
 		fe_bound = fetch_bub / total_slots;
 	return fe_bound;
 }
 
-static double td_be_bound(int ctx, int cpu, struct runtime_stat *st)
+static double td_be_bound(int cpu, struct runtime_stat *st,
+			  struct runtime_stat_data *rsd)
 {
-	double sum = (td_fe_bound(ctx, cpu, st) +
-		      td_bad_spec(ctx, cpu, st) +
-		      td_retiring(ctx, cpu, st));
+	double sum = (td_fe_bound(cpu, st, rsd) +
+		      td_bad_spec(cpu, st, rsd) +
+		      td_retiring(cpu, st, rsd));
 	if (sum == 0)
 		return 0;
 	return sanitize_val(1.0 - sum);
@@ -722,15 +746,15 @@ static double td_be_bound(int ctx, int cpu, struct runtime_stat *st)
  * the ratios we need to recreate the sum.
  */
 
-static double td_metric_ratio(int ctx, int cpu,
-			      enum stat_type type,
-			      struct runtime_stat *stat)
+static double td_metric_ratio(int cpu, enum stat_type type,
+			      struct runtime_stat *stat,
+			      struct runtime_stat_data *rsd)
 {
-	double sum = runtime_stat_avg(stat, STAT_TOPDOWN_RETIRING, ctx, cpu) +
-		runtime_stat_avg(stat, STAT_TOPDOWN_FE_BOUND, ctx, cpu) +
-		runtime_stat_avg(stat, STAT_TOPDOWN_BE_BOUND, ctx, cpu) +
-		runtime_stat_avg(stat, STAT_TOPDOWN_BAD_SPEC, ctx, cpu);
-	double d = runtime_stat_avg(stat, type, ctx, cpu);
+	double sum = runtime_stat_avg(stat, STAT_TOPDOWN_RETIRING, cpu, rsd) +
+		runtime_stat_avg(stat, STAT_TOPDOWN_FE_BOUND, cpu, rsd) +
+		runtime_stat_avg(stat, STAT_TOPDOWN_BE_BOUND, cpu, rsd) +
+		runtime_stat_avg(stat, STAT_TOPDOWN_BAD_SPEC, cpu, rsd);
+	double d = runtime_stat_avg(stat, type, cpu, rsd);
 
 	if (sum)
 		return d / sum;
@@ -742,34 +766,33 @@ static double td_metric_ratio(int ctx, int cpu,
  * We allow two missing.
  */
 
-static bool full_td(int ctx, int cpu,
-		    struct runtime_stat *stat)
+static bool full_td(int cpu, struct runtime_stat *stat,
+		    struct runtime_stat_data *rsd)
 {
 	int c = 0;
 
-	if (runtime_stat_avg(stat, STAT_TOPDOWN_RETIRING, ctx, cpu) > 0)
+	if (runtime_stat_avg(stat, STAT_TOPDOWN_RETIRING, cpu, rsd) > 0)
 		c++;
-	if (runtime_stat_avg(stat, STAT_TOPDOWN_BE_BOUND, ctx, cpu) > 0)
+	if (runtime_stat_avg(stat, STAT_TOPDOWN_BE_BOUND, cpu, rsd) > 0)
 		c++;
-	if (runtime_stat_avg(stat, STAT_TOPDOWN_FE_BOUND, ctx, cpu) > 0)
+	if (runtime_stat_avg(stat, STAT_TOPDOWN_FE_BOUND, cpu, rsd) > 0)
 		c++;
-	if (runtime_stat_avg(stat, STAT_TOPDOWN_BAD_SPEC, ctx, cpu) > 0)
+	if (runtime_stat_avg(stat, STAT_TOPDOWN_BAD_SPEC, cpu, rsd) > 0)
 		c++;
 	return c >= 2;
 }
 
-static void print_smi_cost(struct perf_stat_config *config,
-			   int cpu, struct evsel *evsel,
+static void print_smi_cost(struct perf_stat_config *config, int cpu,
 			   struct perf_stat_output_ctx *out,
-			   struct runtime_stat *st)
+			   struct runtime_stat *st,
+			   struct runtime_stat_data *rsd)
 {
 	double smi_num, aperf, cycles, cost = 0.0;
-	int ctx = evsel_context(evsel);
 	const char *color = NULL;
 
-	smi_num = runtime_stat_avg(st, STAT_SMI_NUM, ctx, cpu);
-	aperf = runtime_stat_avg(st, STAT_APERF, ctx, cpu);
-	cycles = runtime_stat_avg(st, STAT_CYCLES, ctx, cpu);
+	smi_num = runtime_stat_avg(st, STAT_SMI_NUM, cpu, rsd);
+	aperf = runtime_stat_avg(st, STAT_APERF, cpu, rsd);
+	cycles = runtime_stat_avg(st, STAT_CYCLES, cpu, rsd);
 
 	if ((cycles == 0) || (aperf == 0))
 		return;
@@ -804,7 +827,8 @@ static int prepare_metric(struct evsel **metric_events,
 			scale = 1e-9;
 		} else {
 			v = saved_value_lookup(metric_events[i], cpu, false,
-					       STAT_NONE, 0, st);
+					       STAT_NONE, 0, st,
+					       metric_events[i]->cgrp);
 			if (!v)
 				break;
 			stats = &v->stats;
@@ -930,12 +954,15 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 	print_metric_t print_metric = out->print_metric;
 	double total, ratio = 0.0, total2;
 	const char *color = NULL;
-	int ctx = evsel_context(evsel);
+	struct runtime_stat_data rsd = {
+		.ctx = evsel_context(evsel),
+		.cgrp = evsel->cgrp,
+	};
 	struct metric_event *me;
 	int num = 1;
 
 	if (evsel__match(evsel, HARDWARE, HW_INSTRUCTIONS)) {
-		total = runtime_stat_avg(st, STAT_CYCLES, ctx, cpu);
+		total = runtime_stat_avg(st, STAT_CYCLES, cpu, &rsd);
 
 		if (total) {
 			ratio = avg / total;
@@ -945,12 +972,11 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 			print_metric(config, ctxp, NULL, NULL, "insn per cycle", 0);
 		}
 
-		total = runtime_stat_avg(st, STAT_STALLED_CYCLES_FRONT,
-					 ctx, cpu);
+		total = runtime_stat_avg(st, STAT_STALLED_CYCLES_FRONT, cpu, &rsd);
 
 		total = max(total, runtime_stat_avg(st,
 						    STAT_STALLED_CYCLES_BACK,
-						    ctx, cpu));
+						    cpu, &rsd));
 
 		if (total && avg) {
 			out->new_line(config, ctxp);
@@ -960,8 +986,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 					ratio);
 		}
 	} else if (evsel__match(evsel, HARDWARE, HW_BRANCH_MISSES)) {
-		if (runtime_stat_n(st, STAT_BRANCHES, ctx, cpu) != 0)
-			print_branch_misses(config, cpu, evsel, avg, out, st);
+		if (runtime_stat_n(st, STAT_BRANCHES, cpu, &rsd) != 0)
+			print_branch_misses(config, cpu, avg, out, st, &rsd);
 		else
 			print_metric(config, ctxp, NULL, NULL, "of all branches", 0);
 	} else if (
@@ -970,8 +996,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					 ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))) {
 
-		if (runtime_stat_n(st, STAT_L1_DCACHE, ctx, cpu) != 0)
-			print_l1_dcache_misses(config, cpu, evsel, avg, out, st);
+		if (runtime_stat_n(st, STAT_L1_DCACHE, cpu, &rsd) != 0)
+			print_l1_dcache_misses(config, cpu, avg, out, st, &rsd);
 		else
 			print_metric(config, ctxp, NULL, NULL, "of all L1-dcache accesses", 0);
 	} else if (
@@ -980,8 +1006,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					 ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))) {
 
-		if (runtime_stat_n(st, STAT_L1_ICACHE, ctx, cpu) != 0)
-			print_l1_icache_misses(config, cpu, evsel, avg, out, st);
+		if (runtime_stat_n(st, STAT_L1_ICACHE, cpu, &rsd) != 0)
+			print_l1_icache_misses(config, cpu, avg, out, st, &rsd);
 		else
 			print_metric(config, ctxp, NULL, NULL, "of all L1-icache accesses", 0);
 	} else if (
@@ -990,8 +1016,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					 ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))) {
 
-		if (runtime_stat_n(st, STAT_DTLB_CACHE, ctx, cpu) != 0)
-			print_dtlb_cache_misses(config, cpu, evsel, avg, out, st);
+		if (runtime_stat_n(st, STAT_DTLB_CACHE, cpu, &rsd) != 0)
+			print_dtlb_cache_misses(config, cpu, avg, out, st, &rsd);
 		else
 			print_metric(config, ctxp, NULL, NULL, "of all dTLB cache accesses", 0);
 	} else if (
@@ -1000,8 +1026,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					 ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))) {
 
-		if (runtime_stat_n(st, STAT_ITLB_CACHE, ctx, cpu) != 0)
-			print_itlb_cache_misses(config, cpu, evsel, avg, out, st);
+		if (runtime_stat_n(st, STAT_ITLB_CACHE, cpu, &rsd) != 0)
+			print_itlb_cache_misses(config, cpu, avg, out, st, &rsd);
 		else
 			print_metric(config, ctxp, NULL, NULL, "of all iTLB cache accesses", 0);
 	} else if (
@@ -1010,27 +1036,27 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					 ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))) {
 
-		if (runtime_stat_n(st, STAT_LL_CACHE, ctx, cpu) != 0)
-			print_ll_cache_misses(config, cpu, evsel, avg, out, st);
+		if (runtime_stat_n(st, STAT_LL_CACHE, cpu, &rsd) != 0)
+			print_ll_cache_misses(config, cpu, avg, out, st, &rsd);
 		else
 			print_metric(config, ctxp, NULL, NULL, "of all LL-cache accesses", 0);
 	} else if (evsel__match(evsel, HARDWARE, HW_CACHE_MISSES)) {
-		total = runtime_stat_avg(st, STAT_CACHEREFS, ctx, cpu);
+		total = runtime_stat_avg(st, STAT_CACHEREFS, cpu, &rsd);
 
 		if (total)
 			ratio = avg * 100 / total;
 
-		if (runtime_stat_n(st, STAT_CACHEREFS, ctx, cpu) != 0)
+		if (runtime_stat_n(st, STAT_CACHEREFS, cpu, &rsd) != 0)
 			print_metric(config, ctxp, NULL, "%8.3f %%",
 				     "of all cache refs", ratio);
 		else
 			print_metric(config, ctxp, NULL, NULL, "of all cache refs", 0);
 	} else if (evsel__match(evsel, HARDWARE, HW_STALLED_CYCLES_FRONTEND)) {
-		print_stalled_cycles_frontend(config, cpu, evsel, avg, out, st);
+		print_stalled_cycles_frontend(config, cpu, avg, out, st, &rsd);
 	} else if (evsel__match(evsel, HARDWARE, HW_STALLED_CYCLES_BACKEND)) {
-		print_stalled_cycles_backend(config, cpu, evsel, avg, out, st);
+		print_stalled_cycles_backend(config, cpu, avg, out, st, &rsd);
 	} else if (evsel__match(evsel, HARDWARE, HW_CPU_CYCLES)) {
-		total = runtime_stat_avg(st, STAT_NSECS, 0, cpu);
+		total = runtime_stat_avg(st, STAT_NSECS, cpu, &rsd);
 
 		if (total) {
 			ratio = avg / total;
@@ -1039,7 +1065,7 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 			print_metric(config, ctxp, NULL, NULL, "Ghz", 0);
 		}
 	} else if (perf_stat_evsel__is(evsel, CYCLES_IN_TX)) {
-		total = runtime_stat_avg(st, STAT_CYCLES, ctx, cpu);
+		total = runtime_stat_avg(st, STAT_CYCLES, cpu, &rsd);
 
 		if (total)
 			print_metric(config, ctxp, NULL,
@@ -1049,8 +1075,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 			print_metric(config, ctxp, NULL, NULL, "transactional cycles",
 				     0);
 	} else if (perf_stat_evsel__is(evsel, CYCLES_IN_TX_CP)) {
-		total = runtime_stat_avg(st, STAT_CYCLES, ctx, cpu);
-		total2 = runtime_stat_avg(st, STAT_CYCLES_IN_TX, ctx, cpu);
+		total = runtime_stat_avg(st, STAT_CYCLES, cpu, &rsd);
+		total2 = runtime_stat_avg(st, STAT_CYCLES_IN_TX, cpu, &rsd);
 
 		if (total2 < avg)
 			total2 = avg;
@@ -1060,21 +1086,19 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 		else
 			print_metric(config, ctxp, NULL, NULL, "aborted cycles", 0);
 	} else if (perf_stat_evsel__is(evsel, TRANSACTION_START)) {
-		total = runtime_stat_avg(st, STAT_CYCLES_IN_TX,
-					 ctx, cpu);
+		total = runtime_stat_avg(st, STAT_CYCLES_IN_TX, cpu, &rsd);
 
 		if (avg)
 			ratio = total / avg;
 
-		if (runtime_stat_n(st, STAT_CYCLES_IN_TX, ctx, cpu) != 0)
+		if (runtime_stat_n(st, STAT_CYCLES_IN_TX, cpu, &rsd) != 0)
 			print_metric(config, ctxp, NULL, "%8.0f",
 				     "cycles / transaction", ratio);
 		else
 			print_metric(config, ctxp, NULL, NULL, "cycles / transaction",
 				      0);
 	} else if (perf_stat_evsel__is(evsel, ELISION_START)) {
-		total = runtime_stat_avg(st, STAT_CYCLES_IN_TX,
-					 ctx, cpu);
+		total = runtime_stat_avg(st, STAT_CYCLES_IN_TX, cpu, &rsd);
 
 		if (avg)
 			ratio = total / avg;
@@ -1087,28 +1111,28 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 		else
 			print_metric(config, ctxp, NULL, NULL, "CPUs utilized", 0);
 	} else if (perf_stat_evsel__is(evsel, TOPDOWN_FETCH_BUBBLES)) {
-		double fe_bound = td_fe_bound(ctx, cpu, st);
+		double fe_bound = td_fe_bound(cpu, st, &rsd);
 
 		if (fe_bound > 0.2)
 			color = PERF_COLOR_RED;
 		print_metric(config, ctxp, color, "%8.1f%%", "frontend bound",
 				fe_bound * 100.);
 	} else if (perf_stat_evsel__is(evsel, TOPDOWN_SLOTS_RETIRED)) {
-		double retiring = td_retiring(ctx, cpu, st);
+		double retiring = td_retiring(cpu, st, &rsd);
 
 		if (retiring > 0.7)
 			color = PERF_COLOR_GREEN;
 		print_metric(config, ctxp, color, "%8.1f%%", "retiring",
 				retiring * 100.);
 	} else if (perf_stat_evsel__is(evsel, TOPDOWN_RECOVERY_BUBBLES)) {
-		double bad_spec = td_bad_spec(ctx, cpu, st);
+		double bad_spec = td_bad_spec(cpu, st, &rsd);
 
 		if (bad_spec > 0.1)
 			color = PERF_COLOR_RED;
 		print_metric(config, ctxp, color, "%8.1f%%", "bad speculation",
 				bad_spec * 100.);
 	} else if (perf_stat_evsel__is(evsel, TOPDOWN_SLOTS_ISSUED)) {
-		double be_bound = td_be_bound(ctx, cpu, st);
+		double be_bound = td_be_bound(cpu, st, &rsd);
 		const char *name = "backend bound";
 		static int have_recovery_bubbles = -1;
 
@@ -1121,55 +1145,135 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 
 		if (be_bound > 0.2)
 			color = PERF_COLOR_RED;
-		if (td_total_slots(ctx, cpu, st) > 0)
+		if (td_total_slots(cpu, st, &rsd) > 0)
 			print_metric(config, ctxp, color, "%8.1f%%", name,
 					be_bound * 100.);
 		else
 			print_metric(config, ctxp, NULL, NULL, name, 0);
 	} else if (perf_stat_evsel__is(evsel, TOPDOWN_RETIRING) &&
-			full_td(ctx, cpu, st)) {
-		double retiring = td_metric_ratio(ctx, cpu,
-						  STAT_TOPDOWN_RETIRING, st);
-
+		   full_td(cpu, st, &rsd)) {
+		double retiring = td_metric_ratio(cpu,
+						  STAT_TOPDOWN_RETIRING, st,
+						  &rsd);
 		if (retiring > 0.7)
 			color = PERF_COLOR_GREEN;
 		print_metric(config, ctxp, color, "%8.1f%%", "retiring",
 				retiring * 100.);
 	} else if (perf_stat_evsel__is(evsel, TOPDOWN_FE_BOUND) &&
-			full_td(ctx, cpu, st)) {
-		double fe_bound = td_metric_ratio(ctx, cpu,
-						  STAT_TOPDOWN_FE_BOUND, st);
-
+		   full_td(cpu, st, &rsd)) {
+		double fe_bound = td_metric_ratio(cpu,
+						  STAT_TOPDOWN_FE_BOUND, st,
+						  &rsd);
 		if (fe_bound > 0.2)
 			color = PERF_COLOR_RED;
 		print_metric(config, ctxp, color, "%8.1f%%", "frontend bound",
 				fe_bound * 100.);
 	} else if (perf_stat_evsel__is(evsel, TOPDOWN_BE_BOUND) &&
-			full_td(ctx, cpu, st)) {
-		double be_bound = td_metric_ratio(ctx, cpu,
-						  STAT_TOPDOWN_BE_BOUND, st);
-
+		   full_td(cpu, st, &rsd)) {
+		double be_bound = td_metric_ratio(cpu,
+						  STAT_TOPDOWN_BE_BOUND, st,
+						  &rsd);
 		if (be_bound > 0.2)
 			color = PERF_COLOR_RED;
 		print_metric(config, ctxp, color, "%8.1f%%", "backend bound",
 				be_bound * 100.);
 	} else if (perf_stat_evsel__is(evsel, TOPDOWN_BAD_SPEC) &&
-			full_td(ctx, cpu, st)) {
-		double bad_spec = td_metric_ratio(ctx, cpu,
-						  STAT_TOPDOWN_BAD_SPEC, st);
-
+		   full_td(cpu, st, &rsd)) {
+		double bad_spec = td_metric_ratio(cpu,
+						  STAT_TOPDOWN_BAD_SPEC, st,
+						  &rsd);
 		if (bad_spec > 0.1)
 			color = PERF_COLOR_RED;
 		print_metric(config, ctxp, color, "%8.1f%%", "bad speculation",
 				bad_spec * 100.);
+	} else if (perf_stat_evsel__is(evsel, TOPDOWN_HEAVY_OPS) &&
+			full_td(cpu, st, &rsd) && (config->topdown_level > 1)) {
+		double retiring = td_metric_ratio(cpu,
+						  STAT_TOPDOWN_RETIRING, st,
+						  &rsd);
+		double heavy_ops = td_metric_ratio(cpu,
+						   STAT_TOPDOWN_HEAVY_OPS, st,
+						   &rsd);
+		double light_ops = retiring - heavy_ops;
+
+		if (retiring > 0.7 && heavy_ops > 0.1)
+			color = PERF_COLOR_GREEN;
+		print_metric(config, ctxp, color, "%8.1f%%", "heavy operations",
+				heavy_ops * 100.);
+		if (retiring > 0.7 && light_ops > 0.6)
+			color = PERF_COLOR_GREEN;
+		else
+			color = NULL;
+		print_metric(config, ctxp, color, "%8.1f%%", "light operations",
+				light_ops * 100.);
+	} else if (perf_stat_evsel__is(evsel, TOPDOWN_BR_MISPREDICT) &&
+			full_td(cpu, st, &rsd) && (config->topdown_level > 1)) {
+		double bad_spec = td_metric_ratio(cpu,
+						  STAT_TOPDOWN_BAD_SPEC, st,
+						  &rsd);
+		double br_mis = td_metric_ratio(cpu,
+						STAT_TOPDOWN_BR_MISPREDICT, st,
+						&rsd);
+		double m_clears = bad_spec - br_mis;
+
+		if (bad_spec > 0.1 && br_mis > 0.05)
+			color = PERF_COLOR_RED;
+		print_metric(config, ctxp, color, "%8.1f%%", "branch mispredict",
+				br_mis * 100.);
+		if (bad_spec > 0.1 && m_clears > 0.05)
+			color = PERF_COLOR_RED;
+		else
+			color = NULL;
+		print_metric(config, ctxp, color, "%8.1f%%", "machine clears",
+				m_clears * 100.);
+	} else if (perf_stat_evsel__is(evsel, TOPDOWN_FETCH_LAT) &&
+			full_td(cpu, st, &rsd) && (config->topdown_level > 1)) {
+		double fe_bound = td_metric_ratio(cpu,
+						  STAT_TOPDOWN_FE_BOUND, st,
+						  &rsd);
+		double fetch_lat = td_metric_ratio(cpu,
+						   STAT_TOPDOWN_FETCH_LAT, st,
+						   &rsd);
+		double fetch_bw = fe_bound - fetch_lat;
+
+		if (fe_bound > 0.2 && fetch_lat > 0.15)
+			color = PERF_COLOR_RED;
+		print_metric(config, ctxp, color, "%8.1f%%", "fetch latency",
+				fetch_lat * 100.);
+		if (fe_bound > 0.2 && fetch_bw > 0.1)
+			color = PERF_COLOR_RED;
+		else
+			color = NULL;
+		print_metric(config, ctxp, color, "%8.1f%%", "fetch bandwidth",
+				fetch_bw * 100.);
+	} else if (perf_stat_evsel__is(evsel, TOPDOWN_MEM_BOUND) &&
+			full_td(cpu, st, &rsd) && (config->topdown_level > 1)) {
+		double be_bound = td_metric_ratio(cpu,
+						  STAT_TOPDOWN_BE_BOUND, st,
+						  &rsd);
+		double mem_bound = td_metric_ratio(cpu,
+						   STAT_TOPDOWN_MEM_BOUND, st,
+						   &rsd);
+		double core_bound = be_bound - mem_bound;
+
+		if (be_bound > 0.2 && mem_bound > 0.2)
+			color = PERF_COLOR_RED;
+		print_metric(config, ctxp, color, "%8.1f%%", "memory bound",
+				mem_bound * 100.);
+		if (be_bound > 0.2 && core_bound > 0.1)
+			color = PERF_COLOR_RED;
+		else
+			color = NULL;
+		print_metric(config, ctxp, color, "%8.1f%%", "Core bound",
+				core_bound * 100.);
 	} else if (evsel->metric_expr) {
 		generic_metric(config, evsel->metric_expr, evsel->metric_events, NULL,
 				evsel->name, evsel->metric_name, NULL, 1, cpu, out, st);
-	} else if (runtime_stat_n(st, STAT_NSECS, 0, cpu) != 0) {
+	} else if (runtime_stat_n(st, STAT_NSECS, cpu, &rsd) != 0) {
 		char unit = 'M';
 		char unit_buf[10];
 
-		total = runtime_stat_avg(st, STAT_NSECS, 0, cpu);
+		total = runtime_stat_avg(st, STAT_NSECS, cpu, &rsd);
 
 		if (total)
 			ratio = 1000.0 * avg / total;
@@ -1180,7 +1284,7 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 		snprintf(unit_buf, sizeof(unit_buf), "%c/sec", unit);
 		print_metric(config, ctxp, NULL, "%8.3f", unit_buf, ratio);
 	} else if (perf_stat_evsel__is(evsel, SMI_NUM)) {
-		print_smi_cost(config, cpu, evsel, out, st);
+		print_smi_cost(config, cpu, out, st, &rsd);
 	} else {
 		num = 0;
 	}

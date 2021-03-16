@@ -95,7 +95,7 @@ Linux通过``/proc/stat``和``/proc/uptime``导出各种信息，用户空间工
 参考
 ---
 
-- http://lkml.org/lkml/2007/2/12/6
+- https://lore.kernel.org/r/loom.20070212T063225-663@post.gmane.org
 - Documentation/filesystems/proc.rst (1.8)
 
 

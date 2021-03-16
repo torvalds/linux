@@ -161,6 +161,53 @@ static struct regmap_config regmap_conf = {
 	.reg_stride = 4,
 };
 
+static int pruss_cfg_of_init(struct device *dev, struct pruss *pruss)
+{
+	struct device_node *np = dev_of_node(dev);
+	struct device_node *child;
+	struct resource res;
+	int ret;
+
+	child = of_get_child_by_name(np, "cfg");
+	if (!child) {
+		dev_err(dev, "%pOF is missing its 'cfg' node\n", child);
+		return -ENODEV;
+	}
+
+	if (of_address_to_resource(child, 0, &res)) {
+		ret = -ENOMEM;
+		goto node_put;
+	}
+
+	pruss->cfg_base = devm_ioremap(dev, res.start, resource_size(&res));
+	if (!pruss->cfg_base) {
+		ret = -ENOMEM;
+		goto node_put;
+	}
+
+	regmap_conf.name = kasprintf(GFP_KERNEL, "%pOFn@%llx", child,
+				     (u64)res.start);
+	regmap_conf.max_register = resource_size(&res) - 4;
+
+	pruss->cfg_regmap = devm_regmap_init_mmio(dev, pruss->cfg_base,
+						  &regmap_conf);
+	kfree(regmap_conf.name);
+	if (IS_ERR(pruss->cfg_regmap)) {
+		dev_err(dev, "regmap_init_mmio failed for cfg, ret = %ld\n",
+			PTR_ERR(pruss->cfg_regmap));
+		ret = PTR_ERR(pruss->cfg_regmap);
+		goto node_put;
+	}
+
+	ret = pruss_clk_init(pruss, child);
+	if (ret)
+		dev_err(dev, "pruss_clk_init failed, ret = %d\n", ret);
+
+node_put:
+	of_node_put(child);
+	return ret;
+}
+
 static int pruss_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -239,56 +286,18 @@ static int pruss_probe(struct platform_device *pdev)
 		goto rpm_disable;
 	}
 
-	child = of_get_child_by_name(np, "cfg");
-	if (!child) {
-		dev_err(dev, "%pOF is missing its 'cfg' node\n", child);
-		ret = -ENODEV;
+	ret = pruss_cfg_of_init(dev, pruss);
+	if (ret < 0)
 		goto rpm_put;
-	}
-
-	if (of_address_to_resource(child, 0, &res)) {
-		ret = -ENOMEM;
-		goto node_put;
-	}
-
-	pruss->cfg_base = devm_ioremap(dev, res.start, resource_size(&res));
-	if (!pruss->cfg_base) {
-		ret = -ENOMEM;
-		goto node_put;
-	}
-
-	regmap_conf.name = kasprintf(GFP_KERNEL, "%pOFn@%llx", child,
-				     (u64)res.start);
-	regmap_conf.max_register = resource_size(&res) - 4;
-
-	pruss->cfg_regmap = devm_regmap_init_mmio(dev, pruss->cfg_base,
-						  &regmap_conf);
-	kfree(regmap_conf.name);
-	if (IS_ERR(pruss->cfg_regmap)) {
-		dev_err(dev, "regmap_init_mmio failed for cfg, ret = %ld\n",
-			PTR_ERR(pruss->cfg_regmap));
-		ret = PTR_ERR(pruss->cfg_regmap);
-		goto node_put;
-	}
-
-	ret = pruss_clk_init(pruss, child);
-	if (ret) {
-		dev_err(dev, "failed to setup coreclk-mux\n");
-		goto node_put;
-	}
 
 	ret = devm_of_platform_populate(dev);
 	if (ret) {
 		dev_err(dev, "failed to register child devices\n");
-		goto node_put;
+		goto rpm_put;
 	}
-
-	of_node_put(child);
 
 	return 0;
 
-node_put:
-	of_node_put(child);
 rpm_put:
 	pm_runtime_put_sync(dev);
 rpm_disable:

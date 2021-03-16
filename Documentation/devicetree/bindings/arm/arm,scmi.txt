@@ -31,6 +31,14 @@ Optional properties:
 
 - mbox-names: shall be "tx" or "rx" depending on mboxes entries.
 
+- interrupts : when using smc or hvc transports, this optional
+	 property indicates that msg completion by the platform is indicated
+	 by an interrupt rather than by the return of the smc call. This
+	 should not be used except when the platform requires such behavior.
+
+- interrupt-names : if "interrupts" is present, interrupt-names must also
+	 be present and have the value "a2p".
+
 See Documentation/devicetree/bindings/mailbox/mailbox.txt for more details
 about the generic mailbox controller and client driver bindings.
 

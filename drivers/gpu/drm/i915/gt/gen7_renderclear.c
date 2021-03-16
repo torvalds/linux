@@ -7,8 +7,6 @@
 #include "i915_drv.h"
 #include "intel_gpu_commands.h"
 
-#define MAX_URB_ENTRIES 64
-#define STATE_SIZE (4 * 1024)
 #define GT3_INLINE_DATA_DELAYS 0x1E00
 #define batch_advance(Y, CS) GEM_BUG_ON((Y)->end != (CS))
 
@@ -34,38 +32,59 @@ struct batch_chunk {
 };
 
 struct batch_vals {
-	u32 max_primitives;
-	u32 max_urb_entries;
-	u32 cmd_size;
-	u32 state_size;
+	u32 max_threads;
 	u32 state_start;
-	u32 batch_size;
+	u32 surface_start;
 	u32 surface_height;
 	u32 surface_width;
-	u32 scratch_size;
-	u32 max_size;
+	u32 size;
 };
+
+static int num_primitives(const struct batch_vals *bv)
+{
+	/*
+	 * We need to saturate the GPU with work in order to dispatch
+	 * a shader on every HW thread, and clear the thread-local registers.
+	 * In short, we have to dispatch work faster than the shaders can
+	 * run in order to fill the EU and occupy each HW thread.
+	 */
+	return bv->max_threads;
+}
 
 static void
 batch_get_defaults(struct drm_i915_private *i915, struct batch_vals *bv)
 {
 	if (IS_HASWELL(i915)) {
-		bv->max_primitives = 280;
-		bv->max_urb_entries = MAX_URB_ENTRIES;
+		switch (INTEL_INFO(i915)->gt) {
+		default:
+		case 1:
+			bv->max_threads = 70;
+			break;
+		case 2:
+			bv->max_threads = 140;
+			break;
+		case 3:
+			bv->max_threads = 280;
+			break;
+		}
 		bv->surface_height = 16 * 16;
 		bv->surface_width = 32 * 2 * 16;
 	} else {
-		bv->max_primitives = 128;
-		bv->max_urb_entries = MAX_URB_ENTRIES / 2;
+		switch (INTEL_INFO(i915)->gt) {
+		default:
+		case 1: /* including vlv */
+			bv->max_threads = 36;
+			break;
+		case 2:
+			bv->max_threads = 128;
+			break;
+		}
 		bv->surface_height = 16 * 8;
 		bv->surface_width = 32 * 16;
 	}
-	bv->cmd_size = bv->max_primitives * 4096;
-	bv->state_size = STATE_SIZE;
-	bv->state_start = bv->cmd_size;
-	bv->batch_size = bv->cmd_size + bv->state_size;
-	bv->scratch_size = bv->surface_height * bv->surface_width;
-	bv->max_size = bv->batch_size + bv->scratch_size;
+	bv->state_start = round_up(SZ_1K + num_primitives(bv) * 64, SZ_4K);
+	bv->surface_start = bv->state_start + SZ_4K;
+	bv->size = bv->surface_start + bv->surface_height * bv->surface_width;
 }
 
 static void batch_init(struct batch_chunk *bc,
@@ -155,7 +174,8 @@ static u32
 gen7_fill_binding_table(struct batch_chunk *state,
 			const struct batch_vals *bv)
 {
-	u32 surface_start = gen7_fill_surface_state(state, bv->batch_size, bv);
+	u32 surface_start =
+		gen7_fill_surface_state(state, bv->surface_start, bv);
 	u32 *cs = batch_alloc_items(state, 32, 8);
 	u32 offset = batch_offset(state, cs);
 
@@ -214,13 +234,13 @@ static void
 gen7_emit_state_base_address(struct batch_chunk *batch,
 			     u32 surface_state_base)
 {
-	u32 *cs = batch_alloc_items(batch, 0, 12);
+	u32 *cs = batch_alloc_items(batch, 0, 10);
 
-	*cs++ = STATE_BASE_ADDRESS | (12 - 2);
+	*cs++ = STATE_BASE_ADDRESS | (10 - 2);
 	/* general */
 	*cs++ = batch_addr(batch) | BASE_ADDRESS_MODIFY;
 	/* surface */
-	*cs++ = batch_addr(batch) | surface_state_base | BASE_ADDRESS_MODIFY;
+	*cs++ = (batch_addr(batch) + surface_state_base) | BASE_ADDRESS_MODIFY;
 	/* dynamic */
 	*cs++ = batch_addr(batch) | BASE_ADDRESS_MODIFY;
 	/* indirect */
@@ -233,8 +253,6 @@ gen7_emit_state_base_address(struct batch_chunk *batch,
 	*cs++ = BASE_ADDRESS_MODIFY;
 	*cs++ = 0;
 	*cs++ = BASE_ADDRESS_MODIFY;
-	*cs++ = 0;
-	*cs++ = 0;
 	batch_advance(batch, cs);
 }
 
@@ -244,8 +262,7 @@ gen7_emit_vfe_state(struct batch_chunk *batch,
 		    u32 urb_size, u32 curbe_size,
 		    u32 mode)
 {
-	u32 urb_entries = bv->max_urb_entries;
-	u32 threads = bv->max_primitives - 1;
+	u32 threads = bv->max_threads - 1;
 	u32 *cs = batch_alloc_items(batch, 32, 8);
 
 	*cs++ = MEDIA_VFE_STATE | (8 - 2);
@@ -254,7 +271,7 @@ gen7_emit_vfe_state(struct batch_chunk *batch,
 	*cs++ = 0;
 
 	/* number of threads & urb entries for GPGPU vs Media Mode */
-	*cs++ = threads << 16 | urb_entries << 8 | mode << 2;
+	*cs++ = threads << 16 | 1 << 8 | mode << 2;
 
 	*cs++ = 0;
 
@@ -293,17 +310,12 @@ gen7_emit_media_object(struct batch_chunk *batch,
 {
 	unsigned int x_offset = (media_object_index % 16) * 64;
 	unsigned int y_offset = (media_object_index / 16) * 16;
-	unsigned int inline_data_size;
-	unsigned int media_batch_size;
-	unsigned int i;
+	unsigned int pkt = 6 + 3;
 	u32 *cs;
 
-	inline_data_size = 112 * 8;
-	media_batch_size = inline_data_size + 6;
+	cs = batch_alloc_items(batch, 8, pkt);
 
-	cs = batch_alloc_items(batch, 8, media_batch_size);
-
-	*cs++ = MEDIA_OBJECT | (media_batch_size - 2);
+	*cs++ = MEDIA_OBJECT | (pkt - 2);
 
 	/* interface descriptor offset */
 	*cs++ = 0;
@@ -317,25 +329,46 @@ gen7_emit_media_object(struct batch_chunk *batch,
 	*cs++ = 0;
 
 	/* inline */
-	*cs++ = (y_offset << 16) | (x_offset);
+	*cs++ = y_offset << 16 | x_offset;
 	*cs++ = 0;
 	*cs++ = GT3_INLINE_DATA_DELAYS;
-	for (i = 3; i < inline_data_size; i++)
-		*cs++ = 0;
 
 	batch_advance(batch, cs);
 }
 
 static void gen7_emit_pipeline_flush(struct batch_chunk *batch)
 {
-	u32 *cs = batch_alloc_items(batch, 0, 5);
+	u32 *cs = batch_alloc_items(batch, 0, 4);
+
+	*cs++ = GFX_OP_PIPE_CONTROL(4);
+	*cs++ = PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH |
+		PIPE_CONTROL_DEPTH_CACHE_FLUSH |
+		PIPE_CONTROL_DC_FLUSH_ENABLE |
+		PIPE_CONTROL_CS_STALL;
+	*cs++ = 0;
+	*cs++ = 0;
+
+	batch_advance(batch, cs);
+}
+
+static void gen7_emit_pipeline_invalidate(struct batch_chunk *batch)
+{
+	u32 *cs = batch_alloc_items(batch, 0, 10);
+
+	/* ivb: Stall before STATE_CACHE_INVALIDATE */
+	*cs++ = GFX_OP_PIPE_CONTROL(5);
+	*cs++ = PIPE_CONTROL_STALL_AT_SCOREBOARD |
+		PIPE_CONTROL_CS_STALL;
+	*cs++ = 0;
+	*cs++ = 0;
+	*cs++ = 0;
 
 	*cs++ = GFX_OP_PIPE_CONTROL(5);
-	*cs++ = PIPE_CONTROL_STATE_CACHE_INVALIDATE |
-		PIPE_CONTROL_GLOBAL_GTT_IVB;
+	*cs++ = PIPE_CONTROL_STATE_CACHE_INVALIDATE;
 	*cs++ = 0;
 	*cs++ = 0;
 	*cs++ = 0;
+
 	batch_advance(batch, cs);
 }
 
@@ -344,34 +377,48 @@ static void emit_batch(struct i915_vma * const vma,
 		       const struct batch_vals *bv)
 {
 	struct drm_i915_private *i915 = vma->vm->i915;
-	unsigned int desc_count = 64;
-	const u32 urb_size = 112;
+	const unsigned int desc_count = 1;
+	const unsigned int urb_size = 1;
 	struct batch_chunk cmds, state;
-	u32 interface_descriptor;
+	u32 descriptors;
 	unsigned int i;
 
-	batch_init(&cmds, vma, start, 0, bv->cmd_size);
-	batch_init(&state, vma, start, bv->state_start, bv->state_size);
+	batch_init(&cmds, vma, start, 0, bv->state_start);
+	batch_init(&state, vma, start, bv->state_start, SZ_4K);
 
-	interface_descriptor =
-		gen7_fill_interface_descriptor(&state, bv,
-					       IS_HASWELL(i915) ?
-					       &cb_kernel_hsw :
-					       &cb_kernel_ivb,
-					       desc_count);
+	descriptors = gen7_fill_interface_descriptor(&state, bv,
+						     IS_HASWELL(i915) ?
+						     &cb_kernel_hsw :
+						     &cb_kernel_ivb,
+						     desc_count);
+
+	/* Reset inherited context registers */
 	gen7_emit_pipeline_flush(&cmds);
+	gen7_emit_pipeline_invalidate(&cmds);
+	batch_add(&cmds, MI_LOAD_REGISTER_IMM(2));
+	batch_add(&cmds, i915_mmio_reg_offset(CACHE_MODE_0_GEN7));
+	batch_add(&cmds, 0xffff0000);
+	batch_add(&cmds, i915_mmio_reg_offset(CACHE_MODE_1));
+	batch_add(&cmds, 0xffff0000 | PIXEL_SUBSPAN_COLLECT_OPT_DISABLE);
+	gen7_emit_pipeline_invalidate(&cmds);
+	gen7_emit_pipeline_flush(&cmds);
+
+	/* Switch to the media pipeline and our base address */
+	gen7_emit_pipeline_invalidate(&cmds);
 	batch_add(&cmds, PIPELINE_SELECT | PIPELINE_SELECT_MEDIA);
 	batch_add(&cmds, MI_NOOP);
-	gen7_emit_state_base_address(&cmds, interface_descriptor);
+	gen7_emit_pipeline_invalidate(&cmds);
+
 	gen7_emit_pipeline_flush(&cmds);
+	gen7_emit_state_base_address(&cmds, descriptors);
+	gen7_emit_pipeline_invalidate(&cmds);
 
+	/* Set the clear-residual kernel state */
 	gen7_emit_vfe_state(&cmds, bv, urb_size - 1, 0, 0);
+	gen7_emit_interface_descriptor_load(&cmds, descriptors, desc_count);
 
-	gen7_emit_interface_descriptor_load(&cmds,
-					    interface_descriptor,
-					    desc_count);
-
-	for (i = 0; i < bv->max_primitives; i++)
+	/* Execute the kernel on all HW threads */
+	for (i = 0; i < num_primitives(bv); i++)
 		gen7_emit_media_object(&cmds, i);
 
 	batch_add(&cmds, MI_BATCH_BUFFER_END);
@@ -385,15 +432,15 @@ int gen7_setup_clear_gpr_bb(struct intel_engine_cs * const engine,
 
 	batch_get_defaults(engine->i915, &bv);
 	if (!vma)
-		return bv.max_size;
+		return bv.size;
 
-	GEM_BUG_ON(vma->obj->base.size < bv.max_size);
+	GEM_BUG_ON(vma->obj->base.size < bv.size);
 
 	batch = i915_gem_object_pin_map(vma->obj, I915_MAP_WC);
 	if (IS_ERR(batch))
 		return PTR_ERR(batch);
 
-	emit_batch(vma, memset(batch, 0, bv.max_size), &bv);
+	emit_batch(vma, memset(batch, 0, bv.size), &bv);
 
 	i915_gem_object_flush_map(vma->obj);
 	__i915_gem_object_release_map(vma->obj);

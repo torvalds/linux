@@ -97,6 +97,7 @@ struct dpu_hw_scaler3_de_cfg {
  * @ cir_lut:      pointer to circular filter LUT
  * @ sep_lut:      pointer to separable filter LUT
  * @ de: detail enhancer configuration
+ * @ dir_weight:   Directional weight
  */
 struct dpu_hw_scaler3_cfg {
 	u32 enable;
@@ -137,6 +138,8 @@ struct dpu_hw_scaler3_cfg {
 	 * Detail enhancer settings
 	 */
 	struct dpu_hw_scaler3_de_cfg de;
+
+	u32 dir_weight;
 };
 
 /**

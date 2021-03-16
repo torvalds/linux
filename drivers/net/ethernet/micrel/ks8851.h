@@ -358,6 +358,7 @@ union ks8851_tx_hdr {
  * @vdd_reg:	Optional regulator supplying the chip
  * @vdd_io: Optional digital power supply for IO
  * @gpio: Optional reset_n gpio
+ * @mii_bus: Pointer to MII bus structure
  * @lock: Bus access lock callback
  * @unlock: Bus access unlock callback
  * @rdreg16: 16bit register read callback
@@ -403,6 +404,7 @@ struct ks8851_net {
 	struct regulator	*vdd_reg;
 	struct regulator	*vdd_io;
 	int			gpio;
+	struct mii_bus		*mii_bus;
 
 	void			(*lock)(struct ks8851_net *ks,
 					unsigned long *flags);

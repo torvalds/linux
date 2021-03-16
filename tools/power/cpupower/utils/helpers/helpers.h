@@ -64,12 +64,15 @@ enum cpupower_cpu_vendor {X86_VENDOR_UNKNOWN = 0, X86_VENDOR_INTEL,
 
 #define CPUPOWER_CAP_INV_TSC		0x00000001
 #define CPUPOWER_CAP_APERF		0x00000002
-#define CPUPOWER_CAP_AMD_CBP		0x00000004
+#define CPUPOWER_CAP_AMD_CPB		0x00000004
 #define CPUPOWER_CAP_PERF_BIAS		0x00000008
 #define CPUPOWER_CAP_HAS_TURBO_RATIO	0x00000010
 #define CPUPOWER_CAP_IS_SNB		0x00000020
 #define CPUPOWER_CAP_INTEL_IDA		0x00000040
 #define CPUPOWER_CAP_AMD_RDPRU		0x00000080
+#define CPUPOWER_CAP_AMD_HW_PSTATE	0x00000100
+#define CPUPOWER_CAP_AMD_PSTATEDEF	0x00000200
+#define CPUPOWER_CAP_AMD_CPB_MSR	0x00000400
 
 #define CPUPOWER_AMD_CPBDIS		0x02000000
 
@@ -125,8 +128,8 @@ extern struct pci_dev *pci_slot_func_init(struct pci_access **pacc,
 
 /* AMD HW pstate decoding **************************/
 
-extern int decode_pstates(unsigned int cpu, unsigned int cpu_family,
-			  int boost_states, unsigned long *pstates, int *no);
+extern int decode_pstates(unsigned int cpu, int boost_states,
+			  unsigned long *pstates, int *no);
 
 /* AMD HW pstate decoding **************************/
 
@@ -143,9 +146,8 @@ unsigned int cpuid_edx(unsigned int op);
 /* cpuid and cpuinfo helpers  **************************/
 /* X86 ONLY ********************************************/
 #else
-static inline int decode_pstates(unsigned int cpu, unsigned int cpu_family,
-				 int boost_states, unsigned long *pstates,
-				 int *no)
+static inline int decode_pstates(unsigned int cpu, int boost_states,
+				 unsigned long *pstates, int *no)
 { return -1; };
 
 static inline int read_msr(int cpu, unsigned int idx, unsigned long long *val)

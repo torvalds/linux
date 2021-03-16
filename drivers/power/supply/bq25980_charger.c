@@ -1285,7 +1285,7 @@ static int bq25980_probe(struct i2c_client *client,
 static const struct i2c_device_id bq25980_i2c_ids[] = {
 	{ "bq25980", BQ25980 },
 	{ "bq25975", BQ25975 },
-	{ "bq25975", BQ25975 },
+	{ "bq25960", BQ25960 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, bq25980_i2c_ids);

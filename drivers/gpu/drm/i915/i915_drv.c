@@ -58,12 +58,14 @@
 #include "display/intel_hotplug.h"
 #include "display/intel_overlay.h"
 #include "display/intel_pipe_crc.h"
+#include "display/intel_pps.h"
 #include "display/intel_sprite.h"
 #include "display/intel_vga.h"
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
 #include "gem/i915_gem_mman.h"
+#include "gem/i915_gem_pm.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_rc6.h"
@@ -410,6 +412,7 @@ static int i915_driver_mmio_probe(struct drm_i915_private *dev_priv)
 
 	/* Try to make sure MCHBAR is enabled before poking at it */
 	intel_setup_mchbar(dev_priv);
+	intel_device_info_runtime_init(dev_priv);
 
 	ret = intel_gt_init_mmio(&dev_priv->gt);
 	if (ret)
@@ -516,8 +519,6 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	if (i915_inject_probe_failure(dev_priv))
 		return -ENODEV;
 
-	intel_device_info_runtime_init(dev_priv);
-
 	if (HAS_PPGTT(dev_priv)) {
 		if (intel_vgpu_active(dev_priv) &&
 		    !intel_vgpu_has_full_ppgtt(dev_priv)) {
@@ -609,13 +610,14 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 		goto err_msi;
 
 	intel_opregion_setup(dev_priv);
-	/*
-	 * Fill the dram structure to get the system raw bandwidth and
-	 * dram info. This will be used for memory latency calculation.
-	 */
-	intel_dram_detect(dev_priv);
 
 	intel_pcode_init(dev_priv);
+
+	/*
+	 * Fill the dram structure to get the system dram info. This will be
+	 * used for memory latency calculation.
+	 */
+	intel_dram_detect(dev_priv);
 
 	intel_bw_init_hw(dev_priv);
 
@@ -1046,6 +1048,8 @@ static void intel_shutdown_encoders(struct drm_i915_private *dev_priv)
 
 void i915_driver_shutdown(struct drm_i915_private *i915)
 {
+	disable_rpm_wakeref_asserts(&i915->runtime_pm);
+
 	i915_gem_suspend(i915);
 
 	drm_kms_helper_poll_disable(&i915->drm);
@@ -1059,6 +1063,8 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 
 	intel_suspend_encoders(i915);
 	intel_shutdown_encoders(i915);
+
+	enable_rpm_wakeref_asserts(&i915->runtime_pm);
 }
 
 static bool suspend_to_idle(struct drm_i915_private *dev_priv)

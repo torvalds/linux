@@ -81,9 +81,8 @@ properties:
 if:
   properties:
     compatible:
-      items:
-        enum:
-          - renesas,usb2-phy-r7s9210
+      contains:
+        const: renesas,usb2-phy-r7s9210
 then:
   required:
     - clock-names

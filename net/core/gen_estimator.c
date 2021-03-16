@@ -80,11 +80,11 @@ static void est_timer(struct timer_list *t)
 	u64 rate, brate;
 
 	est_fetch_counters(est, &b);
-	brate = (b.bytes - est->last_bytes) << (10 - est->ewma_log - est->intvl_log);
-	brate -= (est->avbps >> est->ewma_log);
+	brate = (b.bytes - est->last_bytes) << (10 - est->intvl_log);
+	brate = (brate >> est->ewma_log) - (est->avbps >> est->ewma_log);
 
-	rate = (b.packets - est->last_packets) << (10 - est->ewma_log - est->intvl_log);
-	rate -= (est->avpps >> est->ewma_log);
+	rate = (b.packets - est->last_packets) << (10 - est->intvl_log);
+	rate = (rate >> est->ewma_log) - (est->avpps >> est->ewma_log);
 
 	write_seqcount_begin(&est->seq);
 	est->avbps += brate;
@@ -141,6 +141,9 @@ int gen_new_estimator(struct gnet_stats_basic_packed *bstats,
 	 *  1 : 2 sec,    2 : 4 sec,    3 : 8 sec
 	 */
 	if (parm->interval < -2 || parm->interval > 3)
+		return -EINVAL;
+
+	if (parm->ewma_log == 0 || parm->ewma_log >= 31)
 		return -EINVAL;
 
 	est = kzalloc(sizeof(*est), GFP_KERNEL);

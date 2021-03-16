@@ -43,6 +43,7 @@ u32 mlx5_fpga_ipsec_device_caps(struct mlx5_core_dev *mdev);
 const struct mlx5_flow_cmds *
 mlx5_fs_cmd_get_default_ipsec_fpga_cmds(enum fs_flow_table_type type);
 void mlx5_fpga_ipsec_build_fs_cmds(void);
+bool mlx5_fpga_is_ipsec_device(struct mlx5_core_dev *mdev);
 #else
 static inline
 const struct mlx5_accel_ipsec_ops *mlx5_fpga_ipsec_ops(struct mlx5_core_dev *mdev)
@@ -55,6 +56,7 @@ mlx5_fs_cmd_get_default_ipsec_fpga_cmds(enum fs_flow_table_type type)
 }
 
 static inline void mlx5_fpga_ipsec_build_fs_cmds(void) {};
+static inline bool mlx5_fpga_is_ipsec_device(struct mlx5_core_dev *mdev) { return false; }
 
 #endif /* CONFIG_MLX5_FPGA_IPSEC */
 #endif	/* __MLX5_FPGA_IPSEC_H__ */

@@ -38,19 +38,6 @@ config HWMON_DEBUG_CHIP
 
 comment "Native drivers"
 
-config SENSORS_AB8500
-	tristate "AB8500 thermal monitoring"
-	depends on AB8500_GPADC && AB8500_BM && (IIO = y)
-	default n
-	help
-	  If you say yes here you get support for the thermal sensor part
-	  of the AB8500 chip. The driver includes thermal management for
-	  AB8500 die and two GPADC channels. The GPADC channel are preferably
-	  used to access sensors outside the AB8500 chip.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called abx500-temp.
-
 config SENSORS_ABITUGURU
 	tristate "Abit uGuru (rev 1 & 2)"
 	depends on X86 && DMI
@@ -256,6 +243,16 @@ config SENSORS_ADT7475
 
 	  This driver can also be built as a module. If so, the module
 	  will be called adt7475.
+
+config SENSORS_AHT10
+	tristate "Aosong AHT10"
+	depends on I2C
+	help
+	  If you say yes here, you get support for the Aosong AHT10
+	  temperature and humidity sensors
+
+	  This driver can also be built as a module. If so, the module
+	  will be called aht10.
 
 config SENSORS_AS370
 	tristate "Synaptics AS370 SoC hardware monitoring driver"
@@ -1135,6 +1132,17 @@ config SENSORS_TC654
 
 	  This driver can also be built as a module. If so, the module
 	  will be called tc654.
+
+config SENSORS_TPS23861
+	tristate "Texas Instruments TPS23861 PoE PSE"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for Texas Instruments
+	  TPS23861 802.3at PoE PSE chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called tps23861.
 
 config SENSORS_MENF21BMC_HWMON
 	tristate "MEN 14F021P00 BMC Hardware Monitoring"

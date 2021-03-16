@@ -1,0 +1,47 @@
+What:		/sys/bus/dfl/devices/dfl_dev.X/fec_mode
+Date:		Oct 2020
+KernelVersion:	5.12
+Contact:	Xu Yilun <yilun.xu@intel.com>
+Description:	Read-only. Returns the FEC mode of the 25G links of the
+		ethernet retimers configured by Nios firmware. "rs" for Reed
+		Solomon FEC, "kr" for Fire Code FEC, "no" for NO FEC.
+		"not supported" if the FEC mode setting is not supported, this
+		happens when the Nios firmware version major < 3, or no link is
+		configured to 25G.
+		Format: string
+
+What:		/sys/bus/dfl/devices/dfl_dev.X/retimer_A_mode
+Date:		Oct 2020
+KernelVersion:	5.12
+Contact:	Xu Yilun <yilun.xu@intel.com>
+Description:	Read-only. Returns the enumeration value of the working mode of
+		the retimer A configured by the Nios firmware. The value is
+		read out from shared registers filled by the Nios firmware. Now
+		the values could be:
+
+		- "0": Reset
+		- "1": 4x10G
+		- "2": 4x25G
+		- "3": 2x25G
+		- "4": 2x25G+2x10G
+		- "5": 1x25G
+
+		If the Nios firmware is updated in future to support more
+		retimer modes, more enumeration value is expected.
+		Format: 0x%x
+
+What:		/sys/bus/dfl/devices/dfl_dev.X/retimer_B_mode
+Date:		Oct 2020
+KernelVersion:	5.12
+Contact:	Xu Yilun <yilun.xu@intel.com>
+Description:	Read-only. Returns the enumeration value of the working mode of
+		the retimer B configured by the Nios firmware. The value format
+		is the same as retimer_A_mode.
+
+What:		/sys/bus/dfl/devices/dfl_dev.X/nios_fw_version
+Date:		Oct 2020
+KernelVersion:	5.12
+Contact:	Xu Yilun <yilun.xu@intel.com>
+Description:	Read-only. Returns the version of the Nios firmware in the
+		FPGA. Its format is "major.minor.patch".
+		Format: %x.%x.%x

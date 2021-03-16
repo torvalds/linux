@@ -68,6 +68,7 @@ patternProperties:
 
     properties:
       reg:
+        maxItems: 1
         description: |
           ADC channel number.
           See include/dt-bindings/iio/qcom,spmi-vadc.h

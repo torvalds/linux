@@ -165,6 +165,7 @@ int idxd_register_dma_device(struct idxd_device *idxd)
 	INIT_LIST_HEAD(&dma->channels);
 	dma->dev = &idxd->pdev->dev;
 
+	dma_cap_set(DMA_PRIVATE, dma->cap_mask);
 	dma_cap_set(DMA_COMPLETION_NO_ORDER, dma->cap_mask);
 	dma->device_release = idxd_dma_release;
 
@@ -205,5 +206,8 @@ int idxd_register_dma_channel(struct idxd_wq *wq)
 
 void idxd_unregister_dma_channel(struct idxd_wq *wq)
 {
-	dma_async_device_channel_unregister(&wq->idxd->dma_dev, &wq->dma_chan);
+	struct dma_chan *chan = &wq->dma_chan;
+
+	dma_async_device_channel_unregister(&wq->idxd->dma_dev, chan);
+	list_del(&chan->device_node);
 }

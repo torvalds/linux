@@ -97,7 +97,7 @@ void acpi_scan_table_handler(u32 event, void *table, void *context);
 extern struct list_head acpi_bus_id_list;
 
 struct acpi_device_bus_id {
-	char bus_id[15];
+	const char *bus_id;
 	unsigned int instance_no;
 	struct list_head node;
 };

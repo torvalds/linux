@@ -23,6 +23,7 @@
 enum pce_status {
 	PCE_STATUS_NONE = 0,
 	PCE_STATUS_ACQUIRED,
+	PCE_STATUS_PREPARED,
 	PCE_STATUS_ENABLED,
 	PCE_STATUS_ERROR,
 };
@@ -32,7 +33,111 @@ struct pm_clock_entry {
 	char *con_id;
 	struct clk *clk;
 	enum pce_status status;
+	bool enabled_when_prepared;
 };
+
+/**
+ * pm_clk_list_lock - ensure exclusive access for modifying the PM clock
+ *		      entry list.
+ * @psd: pm_subsys_data instance corresponding to the PM clock entry list
+ *	 and clk_op_might_sleep count to be modified.
+ *
+ * Get exclusive access before modifying the PM clock entry list and the
+ * clock_op_might_sleep count to guard against concurrent modifications.
+ * This also protects against a concurrent clock_op_might_sleep and PM clock
+ * entry list usage in pm_clk_suspend()/pm_clk_resume() that may or may not
+ * happen in atomic context, hence both the mutex and the spinlock must be
+ * taken here.
+ */
+static void pm_clk_list_lock(struct pm_subsys_data *psd)
+	__acquires(&psd->lock)
+{
+	mutex_lock(&psd->clock_mutex);
+	spin_lock_irq(&psd->lock);
+}
+
+/**
+ * pm_clk_list_unlock - counterpart to pm_clk_list_lock().
+ * @psd: the same pm_subsys_data instance previously passed to
+ *	 pm_clk_list_lock().
+ */
+static void pm_clk_list_unlock(struct pm_subsys_data *psd)
+	__releases(&psd->lock)
+{
+	spin_unlock_irq(&psd->lock);
+	mutex_unlock(&psd->clock_mutex);
+}
+
+/**
+ * pm_clk_op_lock - ensure exclusive access for performing clock operations.
+ * @psd: pm_subsys_data instance corresponding to the PM clock entry list
+ *	 and clk_op_might_sleep count being used.
+ * @flags: stored irq flags.
+ * @fn: string for the caller function's name.
+ *
+ * This is used by pm_clk_suspend() and pm_clk_resume() to guard
+ * against concurrent modifications to the clock entry list and the
+ * clock_op_might_sleep count. If clock_op_might_sleep is != 0 then
+ * only the mutex can be locked and those functions can only be used in
+ * non atomic context. If clock_op_might_sleep == 0 then these functions
+ * may be used in any context and only the spinlock can be locked.
+ * Returns -EINVAL if called in atomic context when clock ops might sleep.
+ */
+static int pm_clk_op_lock(struct pm_subsys_data *psd, unsigned long *flags,
+			  const char *fn)
+	/* sparse annotations don't work here as exit state isn't static */
+{
+	bool atomic_context = in_atomic() || irqs_disabled();
+
+try_again:
+	spin_lock_irqsave(&psd->lock, *flags);
+	if (!psd->clock_op_might_sleep) {
+		/* the __release is there to work around sparse limitations */
+		__release(&psd->lock);
+		return 0;
+	}
+
+	/* bail out if in atomic context */
+	if (atomic_context) {
+		pr_err("%s: atomic context with clock_ops_might_sleep = %d",
+		       fn, psd->clock_op_might_sleep);
+		spin_unlock_irqrestore(&psd->lock, *flags);
+		might_sleep();
+		return -EPERM;
+	}
+
+	/* we must switch to the mutex */
+	spin_unlock_irqrestore(&psd->lock, *flags);
+	mutex_lock(&psd->clock_mutex);
+
+	/*
+	 * There was a possibility for psd->clock_op_might_sleep
+	 * to become 0 above. Keep the mutex only if not the case.
+	 */
+	if (likely(psd->clock_op_might_sleep))
+		return 0;
+
+	mutex_unlock(&psd->clock_mutex);
+	goto try_again;
+}
+
+/**
+ * pm_clk_op_unlock - counterpart to pm_clk_op_lock().
+ * @psd: the same pm_subsys_data instance previously passed to
+ *	 pm_clk_op_lock().
+ * @flags: irq flags provided by pm_clk_op_lock().
+ */
+static void pm_clk_op_unlock(struct pm_subsys_data *psd, unsigned long *flags)
+	/* sparse annotations don't work here as entry state isn't static */
+{
+	if (psd->clock_op_might_sleep) {
+		mutex_unlock(&psd->clock_mutex);
+	} else {
+		/* the __acquire is there to work around sparse limitations */
+		__acquire(&psd->lock);
+		spin_unlock_irqrestore(&psd->lock, *flags);
+	}
+}
 
 /**
  * pm_clk_enable - Enable a clock, reporting any errors
@@ -43,14 +148,21 @@ static inline void __pm_clk_enable(struct device *dev, struct pm_clock_entry *ce
 {
 	int ret;
 
-	if (ce->status < PCE_STATUS_ERROR) {
+	switch (ce->status) {
+	case PCE_STATUS_ACQUIRED:
+		ret = clk_prepare_enable(ce->clk);
+		break;
+	case PCE_STATUS_PREPARED:
 		ret = clk_enable(ce->clk);
-		if (!ret)
-			ce->status = PCE_STATUS_ENABLED;
-		else
-			dev_err(dev, "%s: failed to enable clk %p, error %d\n",
-				__func__, ce->clk, ret);
+		break;
+	default:
+		return;
 	}
+	if (!ret)
+		ce->status = PCE_STATUS_ENABLED;
+	else
+		dev_err(dev, "%s: failed to enable clk %p, error %d\n",
+			__func__, ce->clk, ret);
 }
 
 /**
@@ -64,17 +176,20 @@ static void pm_clk_acquire(struct device *dev, struct pm_clock_entry *ce)
 		ce->clk = clk_get(dev, ce->con_id);
 	if (IS_ERR(ce->clk)) {
 		ce->status = PCE_STATUS_ERROR;
+		return;
+	} else if (clk_is_enabled_when_prepared(ce->clk)) {
+		/* we defer preparing the clock in that case */
+		ce->status = PCE_STATUS_ACQUIRED;
+		ce->enabled_when_prepared = true;
+	} else if (clk_prepare(ce->clk)) {
+		ce->status = PCE_STATUS_ERROR;
+		dev_err(dev, "clk_prepare() failed\n");
+		return;
 	} else {
-		if (clk_prepare(ce->clk)) {
-			ce->status = PCE_STATUS_ERROR;
-			dev_err(dev, "clk_prepare() failed\n");
-		} else {
-			ce->status = PCE_STATUS_ACQUIRED;
-			dev_dbg(dev,
-				"Clock %pC con_id %s managed by runtime PM.\n",
-				ce->clk, ce->con_id);
-		}
+		ce->status = PCE_STATUS_PREPARED;
 	}
+	dev_dbg(dev, "Clock %pC con_id %s managed by runtime PM.\n",
+		ce->clk, ce->con_id);
 }
 
 static int __pm_clk_add(struct device *dev, const char *con_id,
@@ -106,9 +221,11 @@ static int __pm_clk_add(struct device *dev, const char *con_id,
 
 	pm_clk_acquire(dev, ce);
 
-	spin_lock_irq(&psd->lock);
+	pm_clk_list_lock(psd);
 	list_add_tail(&ce->node, &psd->clock_list);
-	spin_unlock_irq(&psd->lock);
+	if (ce->enabled_when_prepared)
+		psd->clock_op_might_sleep++;
+	pm_clk_list_unlock(psd);
 	return 0;
 }
 
@@ -239,14 +356,20 @@ static void __pm_clk_remove(struct pm_clock_entry *ce)
 	if (!ce)
 		return;
 
-	if (ce->status < PCE_STATUS_ERROR) {
-		if (ce->status == PCE_STATUS_ENABLED)
-			clk_disable(ce->clk);
-
-		if (ce->status >= PCE_STATUS_ACQUIRED) {
-			clk_unprepare(ce->clk);
+	switch (ce->status) {
+	case PCE_STATUS_ENABLED:
+		clk_disable(ce->clk);
+		fallthrough;
+	case PCE_STATUS_PREPARED:
+		clk_unprepare(ce->clk);
+		fallthrough;
+	case PCE_STATUS_ACQUIRED:
+	case PCE_STATUS_ERROR:
+		if (!IS_ERR(ce->clk))
 			clk_put(ce->clk);
-		}
+		break;
+	default:
+		break;
 	}
 
 	kfree(ce->con_id);
@@ -269,7 +392,7 @@ void pm_clk_remove(struct device *dev, const char *con_id)
 	if (!psd)
 		return;
 
-	spin_lock_irq(&psd->lock);
+	pm_clk_list_lock(psd);
 
 	list_for_each_entry(ce, &psd->clock_list, node) {
 		if (!con_id && !ce->con_id)
@@ -280,12 +403,14 @@ void pm_clk_remove(struct device *dev, const char *con_id)
 			goto remove;
 	}
 
-	spin_unlock_irq(&psd->lock);
+	pm_clk_list_unlock(psd);
 	return;
 
  remove:
 	list_del(&ce->node);
-	spin_unlock_irq(&psd->lock);
+	if (ce->enabled_when_prepared)
+		psd->clock_op_might_sleep--;
+	pm_clk_list_unlock(psd);
 
 	__pm_clk_remove(ce);
 }
@@ -307,19 +432,21 @@ void pm_clk_remove_clk(struct device *dev, struct clk *clk)
 	if (!psd || !clk)
 		return;
 
-	spin_lock_irq(&psd->lock);
+	pm_clk_list_lock(psd);
 
 	list_for_each_entry(ce, &psd->clock_list, node) {
 		if (clk == ce->clk)
 			goto remove;
 	}
 
-	spin_unlock_irq(&psd->lock);
+	pm_clk_list_unlock(psd);
 	return;
 
  remove:
 	list_del(&ce->node);
-	spin_unlock_irq(&psd->lock);
+	if (ce->enabled_when_prepared)
+		psd->clock_op_might_sleep--;
+	pm_clk_list_unlock(psd);
 
 	__pm_clk_remove(ce);
 }
@@ -330,13 +457,16 @@ EXPORT_SYMBOL_GPL(pm_clk_remove_clk);
  * @dev: Device to initialize the list of PM clocks for.
  *
  * Initialize the lock and clock_list members of the device's pm_subsys_data
- * object.
+ * object, set the count of clocks that might sleep to 0.
  */
 void pm_clk_init(struct device *dev)
 {
 	struct pm_subsys_data *psd = dev_to_psd(dev);
-	if (psd)
+	if (psd) {
 		INIT_LIST_HEAD(&psd->clock_list);
+		mutex_init(&psd->clock_mutex);
+		psd->clock_op_might_sleep = 0;
+	}
 }
 EXPORT_SYMBOL_GPL(pm_clk_init);
 
@@ -372,12 +502,13 @@ void pm_clk_destroy(struct device *dev)
 
 	INIT_LIST_HEAD(&list);
 
-	spin_lock_irq(&psd->lock);
+	pm_clk_list_lock(psd);
 
 	list_for_each_entry_safe_reverse(ce, c, &psd->clock_list, node)
 		list_move(&ce->node, &list);
+	psd->clock_op_might_sleep = 0;
 
-	spin_unlock_irq(&psd->lock);
+	pm_clk_list_unlock(psd);
 
 	dev_pm_put_subsys_data(dev);
 
@@ -397,23 +528,30 @@ int pm_clk_suspend(struct device *dev)
 	struct pm_subsys_data *psd = dev_to_psd(dev);
 	struct pm_clock_entry *ce;
 	unsigned long flags;
+	int ret;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
 	if (!psd)
 		return 0;
 
-	spin_lock_irqsave(&psd->lock, flags);
+	ret = pm_clk_op_lock(psd, &flags, __func__);
+	if (ret)
+		return ret;
 
 	list_for_each_entry_reverse(ce, &psd->clock_list, node) {
-		if (ce->status < PCE_STATUS_ERROR) {
-			if (ce->status == PCE_STATUS_ENABLED)
+		if (ce->status == PCE_STATUS_ENABLED) {
+			if (ce->enabled_when_prepared) {
+				clk_disable_unprepare(ce->clk);
+				ce->status = PCE_STATUS_ACQUIRED;
+			} else {
 				clk_disable(ce->clk);
-			ce->status = PCE_STATUS_ACQUIRED;
+				ce->status = PCE_STATUS_PREPARED;
+			}
 		}
 	}
 
-	spin_unlock_irqrestore(&psd->lock, flags);
+	pm_clk_op_unlock(psd, &flags);
 
 	return 0;
 }
@@ -428,18 +566,21 @@ int pm_clk_resume(struct device *dev)
 	struct pm_subsys_data *psd = dev_to_psd(dev);
 	struct pm_clock_entry *ce;
 	unsigned long flags;
+	int ret;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
 	if (!psd)
 		return 0;
 
-	spin_lock_irqsave(&psd->lock, flags);
+	ret = pm_clk_op_lock(psd, &flags, __func__);
+	if (ret)
+		return ret;
 
 	list_for_each_entry(ce, &psd->clock_list, node)
 		__pm_clk_enable(dev, ce);
 
-	spin_unlock_irqrestore(&psd->lock, flags);
+	pm_clk_op_unlock(psd, &flags);
 
 	return 0;
 }

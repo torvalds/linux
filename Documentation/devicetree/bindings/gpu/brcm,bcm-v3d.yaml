@@ -1,0 +1,75 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpu/brcm,bcm-v3d.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom V3D GPU Bindings
+
+maintainers:
+  - Eric Anholt <eric@anholt.net>
+  - Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
+
+properties:
+  $nodename:
+    pattern: '^gpu@[a-f0-9]+$'
+
+  compatible:
+    enum:
+      - brcm,7268-v3d
+      - brcm,7278-v3d
+
+  reg:
+    items:
+      - description: hub register (required)
+      - description: core0 register (required)
+      - description: GCA cache controller register (if GCA controller present)
+      - description: bridge register (if no external reset controller)
+    minItems: 2
+
+  reg-names:
+    items:
+      - const: hub
+      - const: core0
+      - enum: [ bridge, gca ]
+      - enum: [ bridge, gca ]
+    minItems: 2
+    maxItems: 4
+
+  interrupts:
+    items:
+      - description: hub interrupt (required)
+      - description: core interrupts (if it doesn't share the hub's interrupt)
+    minItems: 1
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    gpu@f1200000 {
+      compatible = "brcm,7268-v3d";
+      reg = <0xf1200000 0x4000>,
+            <0xf1208000 0x4000>,
+            <0xf1204000 0x100>,
+            <0xf1204100 0x100>;
+      reg-names = "hub", "core0", "bridge", "gca";
+      interrupts = <0 78 4>,
+                   <0 77 4>;
+    };
+
+...

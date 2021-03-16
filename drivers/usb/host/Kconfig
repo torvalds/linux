@@ -269,10 +269,14 @@ config USB_EHCI_HCD_AT91
 config USB_EHCI_TEGRA
 	tristate "NVIDIA Tegra HCD support"
 	depends on ARCH_TEGRA
-	select USB_EHCI_ROOT_HUB_TT
-	select USB_TEGRA_PHY
+	select USB_CHIPIDEA
+	select USB_CHIPIDEA_HOST
+	select USB_CHIPIDEA_TEGRA
 	help
-	  This driver enables support for the internal USB Host Controllers
+	  This option is deprecated now and the driver was removed, use
+	  USB_CHIPIDEA_TEGRA instead.
+
+	  Enable support for the internal USB Host Controllers
 	  found in NVIDIA Tegra SoCs. The controllers are EHCI compliant.
 
 config USB_EHCI_HCD_PPC_OF

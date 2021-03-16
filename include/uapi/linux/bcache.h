@@ -213,7 +213,7 @@ struct cache_sb_disk {
 		__le16		keys;
 	};
 	__le64			d[SB_JOURNAL_BUCKETS];	/* journal buckets */
-	__le16			bucket_size_hi;
+	__le16			obso_bucket_size_hi;	/* obsoleted */
 };
 
 /*

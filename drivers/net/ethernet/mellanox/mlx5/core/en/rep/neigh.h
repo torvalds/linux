@@ -16,7 +16,8 @@ struct mlx5e_neigh_hash_entry *
 mlx5e_rep_neigh_entry_lookup(struct mlx5e_priv *priv,
 			     struct mlx5e_neigh *m_neigh);
 int mlx5e_rep_neigh_entry_create(struct mlx5e_priv *priv,
-				 struct mlx5e_encap_entry *e,
+				 struct mlx5e_neigh *m_neigh,
+				 struct net_device *neigh_dev,
 				 struct mlx5e_neigh_hash_entry **nhe);
 void mlx5e_rep_neigh_entry_release(struct mlx5e_neigh_hash_entry *nhe);
 

@@ -613,7 +613,6 @@ SYM_FUNC_END(aesbs_decrypt8)
 	st1		{\o7\().16b}, [x19], #16
 
 	cbz		x23, 1f
-	cond_yield_neon
 	b		99b
 
 1:	frame_pop
@@ -715,7 +714,6 @@ SYM_FUNC_START(aesbs_cbc_decrypt)
 1:	st1		{v24.16b}, [x24]		// store IV
 
 	cbz		x23, 2f
-	cond_yield_neon
 	b		99b
 
 2:	frame_pop
@@ -801,7 +799,7 @@ SYM_FUNC_END(__xts_crypt8)
 	mov		x23, x4
 	mov		x24, x5
 
-0:	movi		v30.2s, #0x1
+	movi		v30.2s, #0x1
 	movi		v25.2s, #0x87
 	uzp1		v30.4s, v30.4s, v25.4s
 	ld1		{v25.16b}, [x24]
@@ -846,7 +844,6 @@ SYM_FUNC_END(__xts_crypt8)
 	cbz		x23, 1f
 	st1		{v25.16b}, [x24]
 
-	cond_yield_neon	0b
 	b		99b
 
 1:	st1		{v25.16b}, [x24]
@@ -889,7 +886,7 @@ SYM_FUNC_START(aesbs_ctr_encrypt)
 	cset		x26, ne
 	add		x23, x23, x26		// do one extra block if final
 
-98:	ldp		x7, x8, [x24]
+	ldp		x7, x8, [x24]
 	ld1		{v0.16b}, [x24]
 CPU_LE(	rev		x7, x7		)
 CPU_LE(	rev		x8, x8		)
@@ -967,7 +964,6 @@ CPU_LE(	rev		x8, x8		)
 	st1		{v0.16b}, [x24]
 	cbz		x23, .Lctr_done
 
-	cond_yield_neon	98b
 	b		99b
 
 .Lctr_done:

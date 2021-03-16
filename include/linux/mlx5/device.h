@@ -359,6 +359,10 @@ enum mlx5_event {
 	MLX5_EVENT_TYPE_MAX                = 0x100,
 };
 
+enum mlx5_driver_event {
+	MLX5_DRIVER_EVENT_TYPE_TRAP = 0,
+};
+
 enum {
 	MLX5_TRACER_SUBTYPE_OWNERSHIP_CHANGE = 0x0,
 	MLX5_TRACER_SUBTYPE_TRACES_AVAILABLE = 0x1,
@@ -578,7 +582,10 @@ struct mlx5_init_seg {
 	__be32			internal_timer_l;
 	__be32			rsvd3[2];
 	__be32			health_counter;
-	__be32			rsvd4[1019];
+	__be32			rsvd4[11];
+	__be32			real_time_h;
+	__be32			real_time_l;
+	__be32			rsvd5[1006];
 	__be64			ieee1588_clk;
 	__be32			ieee1588_clk_type;
 	__be32			clr_intx;
@@ -897,6 +904,11 @@ static inline u64 get_cqe_ts(struct mlx5_cqe64 *cqe)
 	lo = be32_to_cpu(cqe->timestamp_l);
 
 	return (u64)lo | ((u64)hi << 32);
+}
+
+static inline u16 get_cqe_flow_tag(struct mlx5_cqe64 *cqe)
+{
+	return be32_to_cpu(cqe->sop_drop_qpn) & 0xFFF;
 }
 
 #define MLX5_MPWQE_LOG_NUM_STRIDES_BASE	(9)

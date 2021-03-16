@@ -49,7 +49,6 @@ properties:
     description:
       This property controls the Accumulation Dead band which allows to set the
       level of current below which no accumulation takes place.
-    $ref: /schemas/types.yaml#/definitions/uint32
     maximum: 255
     default: 0
 

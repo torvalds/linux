@@ -30,8 +30,8 @@ struct nvkm_fault_data {
 	u8 reason;
 };
 
-int gp100_fault_new(struct nvkm_device *, int, struct nvkm_fault **);
-int gp10b_fault_new(struct nvkm_device *, int, struct nvkm_fault **);
-int gv100_fault_new(struct nvkm_device *, int, struct nvkm_fault **);
-int tu102_fault_new(struct nvkm_device *, int, struct nvkm_fault **);
+int gp100_fault_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fault **);
+int gp10b_fault_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fault **);
+int gv100_fault_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fault **);
+int tu102_fault_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fault **);
 #endif

@@ -178,15 +178,13 @@ static int ark3116_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
-static int ark3116_port_remove(struct usb_serial_port *port)
+static void ark3116_port_remove(struct usb_serial_port *port)
 {
 	struct ark3116_private *priv = usb_get_serial_port_data(port);
 
 	/* device is closed, so URBs and DMA should be down */
 	mutex_destroy(&priv->hw_lock);
 	kfree(priv);
-
-	return 0;
 }
 
 static void ark3116_set_termios(struct tty_struct *tty,
@@ -719,9 +717,10 @@ MODULE_DESCRIPTION(DRIVER_DESC);
  * hardware bug or something.
  *
  * According to a patch provided here
- * (http://lkml.org/lkml/2009/7/26/56), the ARK3116 can also be used
- * as an IrDA dongle. Since I do not have such a thing, I could not
- * investigate that aspect. However, I can speculate ;-).
+ * https://lore.kernel.org/lkml/200907261419.50702.linux@rainbow-software.org
+ * the ARK3116 can also be used as an IrDA dongle. Since I do not have
+ * such a thing, I could not investigate that aspect. However, I can
+ * speculate ;-).
  *
  * - IrDA encodes data differently than RS232. Most likely, one of
  *   the bits in registers 9..E enables the IR ENDEC (encoder/decoder).

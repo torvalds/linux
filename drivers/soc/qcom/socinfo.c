@@ -15,6 +15,8 @@
 #include <linux/sys_soc.h>
 #include <linux/types.h>
 
+#include <asm/unaligned.h>
+
 /*
  * SoC version type with major number in the upper 16 bits and minor
  * number in the lower 16 bits.
@@ -83,6 +85,11 @@ static const char *const pmic_models[] = {
 	[23] = "PM8038",
 	[24] = "PM8922",
 	[25] = "PM8917",
+	[30] = "PM8150",
+	[31] = "PM8150L",
+	[32] = "PM8150B",
+	[33] = "PMK8002",
+	[36] = "PM8009",
 };
 #endif /* CONFIG_DEBUG_FS */
 
@@ -217,23 +224,39 @@ static const struct soc_id soc_id[] = {
 	{ 250, "MSM8616" },
 	{ 251, "MSM8992" },
 	{ 253, "APQ8094" },
+	{ 290, "MDM9607" },
 	{ 291, "APQ8096" },
+	{ 292, "MSM8998" },
 	{ 293, "MSM8953" },
+	{ 296, "MDM8207" },
+	{ 297, "MDM9207" },
+	{ 298, "MDM9307" },
+	{ 299, "MDM9628" },
 	{ 304, "APQ8053" },
 	{ 305, "MSM8996SG" },
 	{ 310, "MSM8996AU" },
 	{ 311, "APQ8096AU" },
 	{ 312, "APQ8096SG" },
+	{ 317, "SDM660" },
 	{ 318, "SDM630" },
+	{ 319, "APQ8098" },
 	{ 321, "SDM845" },
+	{ 322, "MDM9206" },
+	{ 324, "SDA660" },
+	{ 325, "SDM658" },
+	{ 326, "SDA658" },
+	{ 327, "SDA630" },
 	{ 338, "SDM450" },
 	{ 341, "SDA845" },
+	{ 345, "SDM636" },
+	{ 346, "SDA636" },
 	{ 349, "SDM632" },
 	{ 350, "SDA632" },
 	{ 351, "SDA450" },
 	{ 356, "SM8250" },
 	{ 402, "IPQ6018" },
 	{ 425, "SC7180" },
+	{ 455, "QRB5165" },
 };
 
 static const char *socinfo_machine(struct device *dev, unsigned int id)
@@ -264,7 +287,7 @@ static const struct file_operations qcom_ ##name## _ops = {		\
 }
 
 #define DEBUGFS_ADD(info, name)						\
-	debugfs_create_file(__stringify(name), 0400,			\
+	debugfs_create_file(__stringify(name), 0444,			\
 			    qcom_socinfo->dbg_root,			\
 			    info, &qcom_ ##name## _ops)
 
@@ -286,10 +309,36 @@ static int qcom_show_pmic_model(struct seq_file *seq, void *p)
 	if (model < 0)
 		return -EINVAL;
 
-	if (model <= ARRAY_SIZE(pmic_models) && pmic_models[model])
+	if (model < ARRAY_SIZE(pmic_models) && pmic_models[model])
 		seq_printf(seq, "%s\n", pmic_models[model]);
 	else
 		seq_printf(seq, "unknown (%d)\n", model);
+
+	return 0;
+}
+
+static int qcom_show_pmic_model_array(struct seq_file *seq, void *p)
+{
+	struct socinfo *socinfo = seq->private;
+	unsigned int num_pmics = le32_to_cpu(socinfo->num_pmics);
+	unsigned int pmic_array_offset = le32_to_cpu(socinfo->pmic_array_offset);
+	int i;
+	void *ptr = socinfo;
+
+	ptr += pmic_array_offset;
+
+	/* No need for bounds checking, it happened at socinfo_debugfs_init */
+	for (i = 0; i < num_pmics; i++) {
+		unsigned int model = SOCINFO_MINOR(get_unaligned_le32(ptr + 2 * i * sizeof(u32)));
+		unsigned int die_rev = get_unaligned_le32(ptr + (2 * i + 1) * sizeof(u32));
+
+		if (model < ARRAY_SIZE(pmic_models) && pmic_models[model])
+			seq_printf(seq, "%s %u.%u\n", pmic_models[model],
+				   SOCINFO_MAJOR(die_rev),
+				   SOCINFO_MINOR(die_rev));
+		else
+			seq_printf(seq, "unknown (%d)\n", model);
+	}
 
 	return 0;
 }
@@ -316,6 +365,7 @@ static int qcom_show_chip_id(struct seq_file *seq, void *p)
 
 QCOM_OPEN(build_id, qcom_show_build_id);
 QCOM_OPEN(pmic_model, qcom_show_pmic_model);
+QCOM_OPEN(pmic_model_array, qcom_show_pmic_model_array);
 QCOM_OPEN(pmic_die_rev, qcom_show_pmic_die_revision);
 QCOM_OPEN(chip_id, qcom_show_chip_id);
 
@@ -344,25 +394,27 @@ DEFINE_IMAGE_OPS(variant);
 DEFINE_IMAGE_OPS(oem);
 
 static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
-				 struct socinfo *info)
+				 struct socinfo *info, size_t info_size)
 {
 	struct smem_image_version *versions;
 	struct dentry *dentry;
 	size_t size;
 	int i;
+	unsigned int num_pmics;
+	unsigned int pmic_array_offset;
 
 	qcom_socinfo->dbg_root = debugfs_create_dir("qcom_socinfo", NULL);
 
 	qcom_socinfo->info.fmt = __le32_to_cpu(info->fmt);
 
-	debugfs_create_x32("info_fmt", 0400, qcom_socinfo->dbg_root,
+	debugfs_create_x32("info_fmt", 0444, qcom_socinfo->dbg_root,
 			   &qcom_socinfo->info.fmt);
 
 	switch (qcom_socinfo->info.fmt) {
 	case SOCINFO_VERSION(0, 15):
 		qcom_socinfo->info.nmodem_supported = __le32_to_cpu(info->nmodem_supported);
 
-		debugfs_create_u32("nmodem_supported", 0400, qcom_socinfo->dbg_root,
+		debugfs_create_u32("nmodem_supported", 0444, qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.nmodem_supported);
 		fallthrough;
 	case SOCINFO_VERSION(0, 14):
@@ -371,19 +423,19 @@ static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
 		qcom_socinfo->info.num_defective_parts = __le32_to_cpu(info->num_defective_parts);
 		qcom_socinfo->info.ndefective_parts_array_offset = __le32_to_cpu(info->ndefective_parts_array_offset);
 
-		debugfs_create_u32("num_clusters", 0400, qcom_socinfo->dbg_root,
+		debugfs_create_u32("num_clusters", 0444, qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.num_clusters);
-		debugfs_create_u32("ncluster_array_offset", 0400, qcom_socinfo->dbg_root,
+		debugfs_create_u32("ncluster_array_offset", 0444, qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.ncluster_array_offset);
-		debugfs_create_u32("num_defective_parts", 0400, qcom_socinfo->dbg_root,
+		debugfs_create_u32("num_defective_parts", 0444, qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.num_defective_parts);
-		debugfs_create_u32("ndefective_parts_array_offset", 0400, qcom_socinfo->dbg_root,
+		debugfs_create_u32("ndefective_parts_array_offset", 0444, qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.ndefective_parts_array_offset);
 		fallthrough;
 	case SOCINFO_VERSION(0, 13):
 		qcom_socinfo->info.nproduct_id = __le32_to_cpu(info->nproduct_id);
 
-		debugfs_create_u32("nproduct_id", 0400, qcom_socinfo->dbg_root,
+		debugfs_create_u32("nproduct_id", 0444, qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.nproduct_id);
 		DEBUGFS_ADD(info, chip_id);
 		fallthrough;
@@ -395,21 +447,26 @@ static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
 		qcom_socinfo->info.raw_device_num =
 			__le32_to_cpu(info->raw_device_num);
 
-		debugfs_create_x32("chip_family", 0400, qcom_socinfo->dbg_root,
+		debugfs_create_x32("chip_family", 0444, qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.chip_family);
-		debugfs_create_x32("raw_device_family", 0400,
+		debugfs_create_x32("raw_device_family", 0444,
 				   qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.raw_device_family);
-		debugfs_create_x32("raw_device_number", 0400,
+		debugfs_create_x32("raw_device_number", 0444,
 				   qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.raw_device_num);
 		fallthrough;
 	case SOCINFO_VERSION(0, 11):
+		num_pmics = le32_to_cpu(info->num_pmics);
+		pmic_array_offset = le32_to_cpu(info->pmic_array_offset);
+		if (pmic_array_offset + 2 * num_pmics * sizeof(u32) <= info_size)
+			DEBUGFS_ADD(info, pmic_model_array);
+		fallthrough;
 	case SOCINFO_VERSION(0, 10):
 	case SOCINFO_VERSION(0, 9):
 		qcom_socinfo->info.foundry_id = __le32_to_cpu(info->foundry_id);
 
-		debugfs_create_u32("foundry_id", 0400, qcom_socinfo->dbg_root,
+		debugfs_create_u32("foundry_id", 0444, qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.foundry_id);
 		fallthrough;
 	case SOCINFO_VERSION(0, 8):
@@ -421,7 +478,7 @@ static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
 		qcom_socinfo->info.hw_plat_subtype =
 			__le32_to_cpu(info->hw_plat_subtype);
 
-		debugfs_create_u32("hardware_platform_subtype", 0400,
+		debugfs_create_u32("hardware_platform_subtype", 0444,
 				   qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.hw_plat_subtype);
 		fallthrough;
@@ -429,28 +486,28 @@ static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
 		qcom_socinfo->info.accessory_chip =
 			__le32_to_cpu(info->accessory_chip);
 
-		debugfs_create_u32("accessory_chip", 0400,
+		debugfs_create_u32("accessory_chip", 0444,
 				   qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.accessory_chip);
 		fallthrough;
 	case SOCINFO_VERSION(0, 4):
 		qcom_socinfo->info.plat_ver = __le32_to_cpu(info->plat_ver);
 
-		debugfs_create_u32("platform_version", 0400,
+		debugfs_create_u32("platform_version", 0444,
 				   qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.plat_ver);
 		fallthrough;
 	case SOCINFO_VERSION(0, 3):
 		qcom_socinfo->info.hw_plat = __le32_to_cpu(info->hw_plat);
 
-		debugfs_create_u32("hardware_platform", 0400,
+		debugfs_create_u32("hardware_platform", 0444,
 				   qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.hw_plat);
 		fallthrough;
 	case SOCINFO_VERSION(0, 2):
 		qcom_socinfo->info.raw_ver  = __le32_to_cpu(info->raw_ver);
 
-		debugfs_create_u32("raw_version", 0400, qcom_socinfo->dbg_root,
+		debugfs_create_u32("raw_version", 0444, qcom_socinfo->dbg_root,
 				   &qcom_socinfo->info.raw_ver);
 		fallthrough;
 	case SOCINFO_VERSION(0, 1):
@@ -467,11 +524,11 @@ static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
 
 		dentry = debugfs_create_dir(socinfo_image_names[i],
 					    qcom_socinfo->dbg_root);
-		debugfs_create_file("name", 0400, dentry, &versions[i],
+		debugfs_create_file("name", 0444, dentry, &versions[i],
 				    &qcom_image_name_ops);
-		debugfs_create_file("variant", 0400, dentry, &versions[i],
+		debugfs_create_file("variant", 0444, dentry, &versions[i],
 				    &qcom_image_variant_ops);
-		debugfs_create_file("oem", 0400, dentry, &versions[i],
+		debugfs_create_file("oem", 0444, dentry, &versions[i],
 				    &qcom_image_oem_ops);
 	}
 }
@@ -482,7 +539,7 @@ static void socinfo_debugfs_exit(struct qcom_socinfo *qcom_socinfo)
 }
 #else
 static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
-				 struct socinfo *info)
+				 struct socinfo *info, size_t info_size)
 {
 }
 static void socinfo_debugfs_exit(struct qcom_socinfo *qcom_socinfo) {  }
@@ -522,7 +579,7 @@ static int qcom_socinfo_probe(struct platform_device *pdev)
 	if (IS_ERR(qs->soc_dev))
 		return PTR_ERR(qs->soc_dev);
 
-	socinfo_debugfs_init(qs, info);
+	socinfo_debugfs_init(qs, info, item_size);
 
 	/* Feed the soc specific unique data into entropy pool */
 	add_device_randomness(info, item_size);

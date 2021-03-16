@@ -73,9 +73,10 @@ void __patch_exception(int exc, unsigned long addr);
 #endif
 
 #define OP_RT_RA_MASK	0xffff0000UL
-#define LIS_R2		0x3c020000UL
-#define ADDIS_R2_R12	0x3c4c0000UL
-#define ADDI_R2_R2	0x38420000UL
+#define LIS_R2		(PPC_INST_ADDIS | __PPC_RT(R2))
+#define ADDIS_R2_R12	(PPC_INST_ADDIS | __PPC_RT(R2) | __PPC_RA(R12))
+#define ADDI_R2_R2	(PPC_INST_ADDI  | __PPC_RT(R2) | __PPC_RA(R2))
+
 
 static inline unsigned long ppc_function_entry(void *func)
 {

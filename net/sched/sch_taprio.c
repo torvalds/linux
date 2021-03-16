@@ -241,7 +241,7 @@ static struct sched_entry *find_entry_to_transmit(struct sk_buff *skb,
 				/* Here, we are just trying to find out the
 				 * first available interval in the next cycle.
 				 */
-				entry_available = 1;
+				entry_available = true;
 				entry_found = entry;
 				*interval_start = ktime_add_ns(curr_intv_start, cycle);
 				*interval_end = ktime_add_ns(curr_intv_end, cycle);
@@ -372,7 +372,7 @@ static long get_packet_txtime(struct sk_buff *skb, struct Qdisc *sch)
 	packet_transmit_time = length_to_duration(q, len);
 
 	do {
-		sched_changed = 0;
+		sched_changed = false;
 
 		entry = find_entry_to_transmit(skb, sch, sched, admin,
 					       minimum_time,
@@ -390,7 +390,7 @@ static long get_packet_txtime(struct sk_buff *skb, struct Qdisc *sch)
 		if (admin && admin != sched &&
 		    ktime_after(txtime, admin->base_time)) {
 			sched = admin;
-			sched_changed = 1;
+			sched_changed = true;
 			continue;
 		}
 
@@ -1605,8 +1605,9 @@ static void taprio_reset(struct Qdisc *sch)
 
 	hrtimer_cancel(&q->advance_timer);
 	if (q->qdiscs) {
-		for (i = 0; i < dev->num_tx_queues && q->qdiscs[i]; i++)
-			qdisc_reset(q->qdiscs[i]);
+		for (i = 0; i < dev->num_tx_queues; i++)
+			if (q->qdiscs[i])
+				qdisc_reset(q->qdiscs[i]);
 	}
 	sch->qstats.backlog = 0;
 	sch->q.qlen = 0;
@@ -1626,7 +1627,7 @@ static void taprio_destroy(struct Qdisc *sch)
 	taprio_disable_offload(dev, q, NULL);
 
 	if (q->qdiscs) {
-		for (i = 0; i < dev->num_tx_queues && q->qdiscs[i]; i++)
+		for (i = 0; i < dev->num_tx_queues; i++)
 			qdisc_put(q->qdiscs[i]);
 
 		kfree(q->qdiscs);

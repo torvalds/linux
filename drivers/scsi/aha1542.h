@@ -78,23 +78,28 @@ static inline void any2scsi(u8 *p, u32 v)
 #define MAX_CDB 12
 #define MAX_SENSE 14
 
-struct ccb {		/* Command Control Block 5.3 */
-	u8 op;		/* Command Control Block Operation Code */
-	u8 idlun;	/* op=0,2:Target Id, op=1:Initiator Id */
-			/* Outbound data transfer, length is checked*/
-			/* Inbound data transfer, length is checked */
-			/* Logical Unit Number */
+/* Command Control Block (CCB), 5.3 */
+struct ccb {
+	u8 op;		/* Command Control Block Operation Code: */
+			/* 0x00: SCSI Initiator CCB, 0x01: SCSI Target CCB, */
+			/* 0x02: SCSI Initiator CCB with Scatter/Gather, */
+			/* 0x81: SCSI Bus Device Reset CCB */
+	u8 idlun;	/* Address and Direction Control: */
+			/* Bits 7-5: op=0, 2: Target ID, op=1: Initiator ID */
+			/* Bit	4: Outbound data transfer, length is checked */
+			/* Bit	3:  Inbound data transfer, length is checked */
+			/* Bits 2-0: Logical Unit Number */
 	u8 cdblen;	/* SCSI Command Length */
-	u8 rsalen;	/* Request Sense Allocation Length/Disable */
-	u8 datalen[3];	/* Data Length (msb, .., lsb) */
-	u8 dataptr[3];	/* Data Pointer */
-	u8 linkptr[3];	/* Link Pointer */
+	u8 rsalen;	/* Request Sense Allocation Length/Disable Auto Sense */
+	u8 datalen[3];	/* Data Length  (MSB, ..., LSB) */
+	u8 dataptr[3];	/* Data Pointer (MSB, ..., LSB) */
+	u8 linkptr[3];	/* Link Pointer (MSB, ..., LSB) */
 	u8 commlinkid;	/* Command Linking Identifier */
-	u8 hastat;	/* Host Adapter Status (HASTAT) */
-	u8 tarstat;	/* Target Device Status */
+	u8 hastat;	/* Host  Adapter Status (HASTAT) */
+	u8 tarstat;	/* Target Device Status (TARSTAT) */
 	u8 reserved[2];
-	u8 cdb[MAX_CDB+MAX_SENSE];	/* SCSI Command Descriptor Block */
-					/* REQUEST SENSE */
+	u8 cdb[MAX_CDB + MAX_SENSE];	/* SCSI Command Descriptor Block */
+					/* followed by the Auto Sense data */
 };
 
 #define AHA1542_REGION_SIZE 4

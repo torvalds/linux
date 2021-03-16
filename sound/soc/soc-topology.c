@@ -447,7 +447,7 @@ static void remove_dai(struct snd_soc_component *comp,
 {
 	struct snd_soc_dai_driver *dai_drv =
 		container_of(dobj, struct snd_soc_dai_driver, dobj);
-	struct snd_soc_dai *dai;
+	struct snd_soc_dai *dai, *_dai;
 
 	if (pass != SOC_TPLG_PASS_PCM_DAI)
 		return;
@@ -455,9 +455,9 @@ static void remove_dai(struct snd_soc_component *comp,
 	if (dobj->ops && dobj->ops->dai_unload)
 		dobj->ops->dai_unload(comp, dobj);
 
-	for_each_component_dais(comp, dai)
+	for_each_component_dais_safe(comp, dai, _dai)
 		if (dai->driver == dai_drv)
-			dai->driver = NULL;
+			snd_soc_unregister_dai(dai);
 
 	list_del(&dobj->list);
 }
@@ -902,7 +902,7 @@ static int soc_tplg_denum_create_values(struct soc_tplg *tplg, struct soc_enum *
 		return -EINVAL;
 
 	se->dobj.control.dvalues = devm_kcalloc(tplg->dev, le32_to_cpu(ec->items),
-					   sizeof(u32),
+					   sizeof(*se->dobj.control.dvalues),
 					   GFP_KERNEL);
 	if (!se->dobj.control.dvalues)
 		return -ENOMEM;
@@ -1672,7 +1672,7 @@ static void set_dai_flags(struct snd_soc_dai_driver *dai_drv,
 			  unsigned int flag_mask, unsigned int flags)
 {
 	if (flag_mask & SND_SOC_TPLG_DAI_FLGBIT_SYMMETRIC_RATES)
-		dai_drv->symmetric_rates =
+		dai_drv->symmetric_rate =
 			flags & SND_SOC_TPLG_DAI_FLGBIT_SYMMETRIC_RATES ? 1 : 0;
 
 	if (flag_mask & SND_SOC_TPLG_DAI_FLGBIT_SYMMETRIC_CHANNELS)
@@ -1681,7 +1681,7 @@ static void set_dai_flags(struct snd_soc_dai_driver *dai_drv,
 			1 : 0;
 
 	if (flag_mask & SND_SOC_TPLG_DAI_FLGBIT_SYMMETRIC_SAMPLEBITS)
-		dai_drv->symmetric_samplebits =
+		dai_drv->symmetric_sample_bits =
 			flags & SND_SOC_TPLG_DAI_FLGBIT_SYMMETRIC_SAMPLEBITS ?
 			1 : 0;
 }
@@ -1742,7 +1742,7 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	list_add(&dai_drv->dobj.list, &tplg->comp->dobj_list);
 
 	/* register the DAI to the component */
-	dai = devm_snd_soc_register_dai(tplg->dev, tplg->comp, dai_drv, false);
+	dai = snd_soc_register_dai(tplg->comp, dai_drv, false);
 	if (!dai)
 		return -ENOMEM;
 
@@ -1750,6 +1750,7 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	ret = snd_soc_dapm_new_dai_widgets(dapm, dai);
 	if (ret != 0) {
 		dev_err(dai->dev, "Failed to create DAI widgets %d\n", ret);
+		snd_soc_unregister_dai(dai);
 		return ret;
 	}
 
@@ -1763,7 +1764,7 @@ static void set_link_flags(struct snd_soc_dai_link *link,
 		unsigned int flag_mask, unsigned int flags)
 {
 	if (flag_mask & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_RATES)
-		link->symmetric_rates =
+		link->symmetric_rate =
 			flags & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_RATES ? 1 : 0;
 
 	if (flag_mask & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_CHANNELS)
@@ -1772,7 +1773,7 @@ static void set_link_flags(struct snd_soc_dai_link *link,
 			1 : 0;
 
 	if (flag_mask & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_SAMPLEBITS)
-		link->symmetric_samplebits =
+		link->symmetric_sample_bits =
 			flags & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_SAMPLEBITS ?
 			1 : 0;
 
@@ -2659,8 +2660,14 @@ int snd_soc_tplg_component_load(struct snd_soc_component *comp,
 	struct soc_tplg tplg;
 	int ret;
 
-	/* component needs to exist to keep and reference data while parsing */
-	if (!comp)
+	/*
+	 * check if we have sane parameters:
+	 * comp - needs to exist to keep and reference data while parsing
+	 * comp->dev - used for resource management and prints
+	 * comp->card - used for setting card related parameters
+	 * fw - we need it, as it is the very thing we parse
+	 */
+	if (!comp || !comp->dev || !comp->card || !fw)
 		return -EINVAL;
 
 	/* setup parsing context */
@@ -2668,11 +2675,13 @@ int snd_soc_tplg_component_load(struct snd_soc_component *comp,
 	tplg.fw = fw;
 	tplg.dev = comp->dev;
 	tplg.comp = comp;
-	tplg.ops = ops;
-	tplg.io_ops = ops->io_ops;
-	tplg.io_ops_count = ops->io_ops_count;
-	tplg.bytes_ext_ops = ops->bytes_ext_ops;
-	tplg.bytes_ext_ops_count = ops->bytes_ext_ops_count;
+	if (ops) {
+		tplg.ops = ops;
+		tplg.io_ops = ops->io_ops;
+		tplg.io_ops_count = ops->io_ops_count;
+		tplg.bytes_ext_ops = ops->bytes_ext_ops;
+		tplg.bytes_ext_ops_count = ops->bytes_ext_ops_count;
+	}
 
 	ret = soc_tplg_load(&tplg);
 	/* free the created components if fail to load topology */

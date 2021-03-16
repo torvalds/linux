@@ -1114,4 +1114,13 @@ int dpni_get_single_step_cfg(struct fsl_mc_io *mc_io,
 			     u16 token,
 			     struct dpni_single_step_cfg *ptp_cfg);
 
+int dpni_enable_vlan_filter(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			    u32 en);
+
+int dpni_add_vlan_id(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+		     u16 vlan_id, u8 flags, u8 tc_id, u8 flow_id);
+
+int dpni_remove_vlan_id(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			u16 vlan_id);
+
 #endif /* __FSL_DPNI_H */

@@ -8,10 +8,7 @@ C MP+pooncerelease+poacquireonce
  * pattern.
  *)
 
-{
-	int buf;
-	int flag;
-}
+{}
 
 P0(int *buf, int *flag) // Producer
 {

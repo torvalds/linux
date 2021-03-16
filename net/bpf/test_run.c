@@ -272,7 +272,8 @@ int bpf_prog_test_run_raw_tp(struct bpf_prog *prog,
 	    kattr->test.repeat)
 		return -EINVAL;
 
-	if (ctx_size_in < prog->aux->max_ctx_offset)
+	if (ctx_size_in < prog->aux->max_ctx_offset ||
+	    ctx_size_in > MAX_BPF_FUNC_ARGS * sizeof(u64))
 		return -EINVAL;
 
 	if ((kattr->test.flags & BPF_F_TEST_RUN_ON_CPU) == 0 && cpu != 0)
@@ -636,14 +637,11 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	xdp.data_hard_start = data;
-	xdp.data = data + headroom;
-	xdp.data_meta = xdp.data;
-	xdp.data_end = xdp.data + size;
-	xdp.frame_sz = headroom + max_data_sz + tailroom;
-
 	rxqueue = __netif_get_rx_queue(current->nsproxy->net_ns->loopback_dev, 0);
-	xdp.rxq = &rxqueue->xdp_rxq;
+	xdp_init_buff(&xdp, headroom + max_data_sz + tailroom,
+		      &rxqueue->xdp_rxq);
+	xdp_prepare_buff(&xdp, data, headroom, size, true);
+
 	bpf_prog_change_xdp(NULL, prog);
 	ret = bpf_test_run(prog, &xdp, repeat, &retval, &duration, true);
 	if (ret)

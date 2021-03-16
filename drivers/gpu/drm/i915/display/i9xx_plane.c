@@ -256,6 +256,33 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 		offset = 0;
 
 	/*
+	 * When using an X-tiled surface the plane starts to
+	 * misbehave if the x offset + width exceeds the stride.
+	 * hsw/bdw: underrun galore
+	 * ilk/snb/ivb: wrap to the next tile row mid scanout
+	 * i965/g4x: so far appear immune to this
+	 * vlv/chv: TODO check
+	 *
+	 * Linear surfaces seem to work just fine, even on hsw/bdw
+	 * despite them not using the linear offset anymore.
+	 */
+	if (INTEL_GEN(dev_priv) >= 4 && fb->modifier == I915_FORMAT_MOD_X_TILED) {
+		u32 alignment = intel_surf_alignment(fb, 0);
+		int cpp = fb->format->cpp[0];
+
+		while ((src_x + src_w) * cpp > plane_state->color_plane[0].stride) {
+			if (offset == 0) {
+				drm_dbg_kms(&dev_priv->drm,
+					    "Unable to find suitable display surface offset due to X-tiling\n");
+				return -EINVAL;
+			}
+
+			offset = intel_plane_adjust_aligned_offset(&src_x, &src_y, plane_state, 0,
+								   offset, offset - alignment);
+		}
+	}
+
+	/*
 	 * Put the final coordinates back so that the src
 	 * coordinate checks will see the right values.
 	 */
@@ -274,6 +301,13 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 		} else if (rotation & DRM_MODE_REFLECT_X) {
 			src_x += src_w - 1;
 		}
+	}
+
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
+		drm_WARN_ON(&dev_priv->drm, src_x > 8191 || src_y > 4095);
+	} else if (INTEL_GEN(dev_priv) >= 4 &&
+		   fb->modifier == I915_FORMAT_MOD_X_TILED) {
+		drm_WARN_ON(&dev_priv->drm, src_x > 4095 || src_y > 4095);
 	}
 
 	plane_state->color_plane[0].offset = offset;
@@ -488,6 +522,129 @@ static void i9xx_disable_plane(struct intel_plane *plane,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
+static void
+g4x_primary_async_flip(struct intel_plane *plane,
+		       const struct intel_crtc_state *crtc_state,
+		       const struct intel_plane_state *plane_state,
+		       bool async_flip)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	u32 dspcntr = plane_state->ctl | i9xx_plane_ctl_crtc(crtc_state);
+	u32 dspaddr_offset = plane_state->color_plane[0].offset;
+	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
+	unsigned long irqflags;
+
+	if (async_flip)
+		dspcntr |= DISPPLANE_ASYNC_FLIP;
+
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+	intel_de_write_fw(dev_priv, DSPCNTR(i9xx_plane), dspcntr);
+	intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane),
+			  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+}
+
+static void
+vlv_primary_async_flip(struct intel_plane *plane,
+		       const struct intel_crtc_state *crtc_state,
+		       const struct intel_plane_state *plane_state,
+		       bool async_flip)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	u32 dspaddr_offset = plane_state->color_plane[0].offset;
+	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+	intel_de_write_fw(dev_priv, DSPADDR_VLV(i9xx_plane),
+			  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+}
+
+static void
+bdw_primary_enable_flip_done(struct intel_plane *plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
+
+	spin_lock_irq(&i915->irq_lock);
+	bdw_enable_pipe_irq(i915, pipe, GEN8_PIPE_PRIMARY_FLIP_DONE);
+	spin_unlock_irq(&i915->irq_lock);
+}
+
+static void
+bdw_primary_disable_flip_done(struct intel_plane *plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
+
+	spin_lock_irq(&i915->irq_lock);
+	bdw_disable_pipe_irq(i915, pipe, GEN8_PIPE_PRIMARY_FLIP_DONE);
+	spin_unlock_irq(&i915->irq_lock);
+}
+
+static void
+ivb_primary_enable_flip_done(struct intel_plane *plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+
+	spin_lock_irq(&i915->irq_lock);
+	ilk_enable_display_irq(i915, DE_PLANE_FLIP_DONE_IVB(plane->i9xx_plane));
+	spin_unlock_irq(&i915->irq_lock);
+}
+
+static void
+ivb_primary_disable_flip_done(struct intel_plane *plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+
+	spin_lock_irq(&i915->irq_lock);
+	ilk_disable_display_irq(i915, DE_PLANE_FLIP_DONE_IVB(plane->i9xx_plane));
+	spin_unlock_irq(&i915->irq_lock);
+}
+
+static void
+ilk_primary_enable_flip_done(struct intel_plane *plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+
+	spin_lock_irq(&i915->irq_lock);
+	ilk_enable_display_irq(i915, DE_PLANE_FLIP_DONE(plane->i9xx_plane));
+	spin_unlock_irq(&i915->irq_lock);
+}
+
+static void
+ilk_primary_disable_flip_done(struct intel_plane *plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+
+	spin_lock_irq(&i915->irq_lock);
+	ilk_disable_display_irq(i915, DE_PLANE_FLIP_DONE(plane->i9xx_plane));
+	spin_unlock_irq(&i915->irq_lock);
+}
+
+static void
+vlv_primary_enable_flip_done(struct intel_plane *plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
+
+	spin_lock_irq(&i915->irq_lock);
+	i915_enable_pipestat(i915, pipe, PLANE_FLIP_DONE_INT_STATUS_VLV);
+	spin_unlock_irq(&i915->irq_lock);
+}
+
+static void
+vlv_primary_disable_flip_done(struct intel_plane *plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
+
+	spin_lock_irq(&i915->irq_lock);
+	i915_disable_pipestat(i915, pipe, PLANE_FLIP_DONE_INT_STATUS_VLV);
+	spin_unlock_irq(&i915->irq_lock);
+}
+
 static bool i9xx_plane_get_hw_state(struct intel_plane *plane,
 				    enum pipe *pipe)
 {
@@ -523,21 +680,56 @@ static bool i9xx_plane_get_hw_state(struct intel_plane *plane,
 	return ret;
 }
 
+static unsigned int
+hsw_primary_max_stride(struct intel_plane *plane,
+		       u32 pixel_format, u64 modifier,
+		       unsigned int rotation)
+{
+	const struct drm_format_info *info = drm_format_info(pixel_format);
+	int cpp = info->cpp[0];
+
+	/* Limit to 8k pixels to guarantee OFFSET.x doesn't get too big. */
+	return min(8192 * cpp, 32 * 1024);
+}
+
+static unsigned int
+ilk_primary_max_stride(struct intel_plane *plane,
+		       u32 pixel_format, u64 modifier,
+		       unsigned int rotation)
+{
+	const struct drm_format_info *info = drm_format_info(pixel_format);
+	int cpp = info->cpp[0];
+
+	/* Limit to 4k pixels to guarantee TILEOFF.x doesn't get too big. */
+	if (modifier == I915_FORMAT_MOD_X_TILED)
+		return min(4096 * cpp, 32 * 1024);
+	else
+		return 32 * 1024;
+}
+
 unsigned int
+i965_plane_max_stride(struct intel_plane *plane,
+		      u32 pixel_format, u64 modifier,
+		      unsigned int rotation)
+{
+	const struct drm_format_info *info = drm_format_info(pixel_format);
+	int cpp = info->cpp[0];
+
+	/* Limit to 4k pixels to guarantee TILEOFF.x doesn't get too big. */
+	if (modifier == I915_FORMAT_MOD_X_TILED)
+		return min(4096 * cpp, 16 * 1024);
+	else
+		return 32 * 1024;
+}
+
+static unsigned int
 i9xx_plane_max_stride(struct intel_plane *plane,
 		      u32 pixel_format, u64 modifier,
 		      unsigned int rotation)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 
-	if (!HAS_GMCH(dev_priv)) {
-		return 32*1024;
-	} else if (INTEL_GEN(dev_priv) >= 4) {
-		if (modifier == I915_FORMAT_MOD_X_TILED)
-			return 16*1024;
-		else
-			return 32*1024;
-	} else if (INTEL_GEN(dev_priv) >= 3) {
+	if (INTEL_GEN(dev_priv) >= 3) {
 		if (modifier == I915_FORMAT_MOD_X_TILED)
 			return 8*1024;
 		else
@@ -649,11 +841,41 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	else
 		plane->min_cdclk = i9xx_plane_min_cdclk;
 
-	plane->max_stride = i9xx_plane_max_stride;
+	if (HAS_GMCH(dev_priv)) {
+		if (INTEL_GEN(dev_priv) >= 4)
+			plane->max_stride = i965_plane_max_stride;
+		else
+			plane->max_stride = i9xx_plane_max_stride;
+	} else {
+		if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
+			plane->max_stride = hsw_primary_max_stride;
+		else
+			plane->max_stride = ilk_primary_max_stride;
+	}
+
 	plane->update_plane = i9xx_update_plane;
 	plane->disable_plane = i9xx_disable_plane;
 	plane->get_hw_state = i9xx_plane_get_hw_state;
 	plane->check_plane = i9xx_plane_check;
+
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+		plane->async_flip = vlv_primary_async_flip;
+		plane->enable_flip_done = vlv_primary_enable_flip_done;
+		plane->disable_flip_done = vlv_primary_disable_flip_done;
+	} else if (IS_BROADWELL(dev_priv)) {
+		plane->need_async_flip_disable_wa = true;
+		plane->async_flip = g4x_primary_async_flip;
+		plane->enable_flip_done = bdw_primary_enable_flip_done;
+		plane->disable_flip_done = bdw_primary_disable_flip_done;
+	} else if (INTEL_GEN(dev_priv) >= 7) {
+		plane->async_flip = g4x_primary_async_flip;
+		plane->enable_flip_done = ivb_primary_enable_flip_done;
+		plane->disable_flip_done = ivb_primary_disable_flip_done;
+	} else if (INTEL_GEN(dev_priv) >= 5) {
+		plane->async_flip = g4x_primary_async_flip;
+		plane->enable_flip_done = ilk_primary_enable_flip_done;
+		plane->disable_flip_done = ilk_primary_disable_flip_done;
+	}
 
 	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
 		ret = drm_universal_plane_init(&dev_priv->drm, &plane->base,

@@ -83,13 +83,21 @@ EXPORT_SYMBOL(get_option);
  *	get_options - Parse a string into a list of integers
  *	@str: String to be parsed
  *	@nints: size of integer array
- *	@ints: integer array
+ *	@ints: integer array (must have room for at least one element)
  *
  *	This function parses a string containing a comma-separated
  *	list of integers, a hyphen-separated range of _positive_ integers,
  *	or a combination of both.  The parse halts when the array is
  *	full, or when no more numbers can be retrieved from the
  *	string.
+ *
+ *	When @nints is 0, the function just validates the given @str and
+ *	returns the amount of parseable integers as described below.
+ *
+ *	Returns:
+ *
+ *	The first element is filled by the number of collected integers
+ *	in the range. The rest is what was parsed from the @str.
  *
  *	Return value is the character in the string which caused
  *	the parse to end (typically a null terminator, if @str is
@@ -98,15 +106,20 @@ EXPORT_SYMBOL(get_option);
 
 char *get_options(const char *str, int nints, int *ints)
 {
+	bool validate = (nints == 0);
 	int res, i = 1;
 
-	while (i < nints) {
-		res = get_option((char **)&str, ints + i);
+	while (i < nints || validate) {
+		int *pint = validate ? ints : ints + i;
+
+		res = get_option((char **)&str, pint);
 		if (res == 0)
 			break;
 		if (res == 3) {
+			int n = validate ? 0 : nints - i;
 			int range_nums;
-			range_nums = get_range((char **)&str, ints + i, nints - i);
+
+			range_nums = get_range((char **)&str, pint, n);
 			if (range_nums < 0)
 				break;
 			/*
@@ -215,7 +228,6 @@ char *next_arg(char *args, char **param, char **val)
 {
 	unsigned int i, equals = 0;
 	int in_quote = 0, quoted = 0;
-	char *next;
 
 	if (*args == '"') {
 		args++;
@@ -253,10 +265,10 @@ char *next_arg(char *args, char **param, char **val)
 
 	if (args[i]) {
 		args[i] = '\0';
-		next = args + i + 1;
+		args += i + 1;
 	} else
-		next = args + i;
+		args += i;
 
 	/* Chew up trailing spaces. */
-	return skip_spaces(next);
+	return skip_spaces(args);
 }

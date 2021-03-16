@@ -285,7 +285,7 @@ static int tsl2583_get_lux(struct iio_dev *indio_dev)
 	lux64 = lux64 * chip->als_settings.als_gain_trim;
 	lux64 >>= 13;
 	lux = lux64;
-	lux = (lux + 500) / 1000;
+	lux = DIV_ROUND_CLOSEST(lux, 1000);
 
 	if (lux > TSL2583_LUX_CALC_OVER_FLOW) { /* check for overflow */
 return_max:
@@ -361,12 +361,12 @@ static int tsl2583_set_als_time(struct tsl2583_chip *chip)
 	u8 val;
 
 	/* determine als integration register */
-	als_count = (chip->als_settings.als_time * 100 + 135) / 270;
+	als_count = DIV_ROUND_CLOSEST(chip->als_settings.als_time * 100, 270);
 	if (!als_count)
 		als_count = 1; /* ensure at least one cycle */
 
 	/* convert back to time (encompasses overrides) */
-	als_time = (als_count * 27 + 5) / 10;
+	als_time = DIV_ROUND_CLOSEST(als_count * 27, 10);
 
 	val = 256 - als_count;
 	ret = i2c_smbus_write_byte_data(chip->client,
@@ -380,7 +380,7 @@ static int tsl2583_set_als_time(struct tsl2583_chip *chip)
 
 	/* set chip struct re scaling and saturation */
 	chip->als_saturation = als_count * 922; /* 90% of full scale */
-	chip->als_time_scale = (als_time + 25) / 50;
+	chip->als_time_scale = DIV_ROUND_CLOSEST(als_time, 50);
 
 	return ret;
 }

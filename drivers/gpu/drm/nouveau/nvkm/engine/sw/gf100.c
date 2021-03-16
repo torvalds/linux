@@ -149,7 +149,7 @@ gf100_sw = {
 };
 
 int
-gf100_sw_new(struct nvkm_device *device, int index, struct nvkm_sw **psw)
+gf100_sw_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_sw **psw)
 {
-	return nvkm_sw_new_(&gf100_sw, device, index, psw);
+	return nvkm_sw_new_(&gf100_sw, device, type, inst, psw);
 }

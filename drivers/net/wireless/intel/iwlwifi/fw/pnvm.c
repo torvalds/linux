@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
-/******************************************************************************
- *
- * Copyright(c) 2020 Intel Corporation
- *
- *****************************************************************************/
+/*
+ * Copyright(c) 2020-2021 Intel Corporation
+ */
 
 #include "iwl-drv.h"
 #include "pnvm.h"
@@ -12,6 +10,7 @@
 #include "fw/api/commands.h"
 #include "fw/api/nvm-reg.h"
 #include "fw/api/alive.h"
+#include <linux/efi.h>
 
 struct iwl_pnvm_section {
 	__le32 offset;
@@ -198,13 +197,13 @@ static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
 				     le32_to_cpu(sku_id->data[1]),
 				     le32_to_cpu(sku_id->data[2]));
 
+			data += sizeof(*tlv) + ALIGN(tlv_len, 4);
+			len -= ALIGN(tlv_len, 4);
+
 			if (trans->sku_id[0] == le32_to_cpu(sku_id->data[0]) &&
 			    trans->sku_id[1] == le32_to_cpu(sku_id->data[1]) &&
 			    trans->sku_id[2] == le32_to_cpu(sku_id->data[2])) {
 				int ret;
-
-				data += sizeof(*tlv) + ALIGN(tlv_len, 4);
-				len -= ALIGN(tlv_len, 4);
 
 				ret = iwl_pnvm_handle_section(trans, data, len);
 				if (!ret)
@@ -221,23 +220,88 @@ static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
 	return -ENOENT;
 }
 
-int iwl_pnvm_load(struct iwl_trans *trans,
-		  struct iwl_notif_wait_data *notif_wait)
+#if defined(CONFIG_EFI)
+
+#define IWL_EFI_VAR_GUID EFI_GUID(0x92daaf2f, 0xc02b, 0x455b,	\
+				  0xb2, 0xec, 0xf5, 0xa3,	\
+				  0x59, 0x4f, 0x4a, 0xea)
+
+#define IWL_UEFI_OEM_PNVM_NAME	L"UefiCnvWlanOemSignedPnvm"
+
+#define IWL_HARDCODED_PNVM_SIZE 4096
+
+struct pnvm_sku_package {
+	u8 rev;
+	u8 reserved1[3];
+	u32 total_size;
+	u8 n_skus;
+	u8 reserved2[11];
+	u8 data[];
+};
+
+static int iwl_pnvm_get_from_efi(struct iwl_trans *trans,
+				 u8 **data, size_t *len)
+{
+	struct efivar_entry *pnvm_efivar;
+	struct pnvm_sku_package *package;
+	unsigned long package_size;
+	int err;
+
+	pnvm_efivar = kzalloc(sizeof(*pnvm_efivar), GFP_KERNEL);
+	if (!pnvm_efivar)
+		return -ENOMEM;
+
+	memcpy(&pnvm_efivar->var.VariableName, IWL_UEFI_OEM_PNVM_NAME,
+	       sizeof(IWL_UEFI_OEM_PNVM_NAME));
+	pnvm_efivar->var.VendorGuid = IWL_EFI_VAR_GUID;
+
+	/*
+	 * TODO: we hardcode a maximum length here, because reading
+	 * from the UEFI is not working.  To implement this properly,
+	 * we have to call efivar_entry_size().
+	 */
+	package_size = IWL_HARDCODED_PNVM_SIZE;
+
+	package = kmalloc(package_size, GFP_KERNEL);
+	if (!package) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	err = efivar_entry_get(pnvm_efivar, NULL, &package_size, package);
+	if (err) {
+		IWL_DEBUG_FW(trans,
+			     "PNVM UEFI variable not found %d (len %lu)\n",
+			     err, package_size);
+		goto out;
+	}
+
+	IWL_DEBUG_FW(trans, "Read PNVM fro UEFI with size %lu\n", package_size);
+
+	*data = kmemdup(package->data, *len, GFP_KERNEL);
+	if (!*data)
+		err = -ENOMEM;
+	*len = package_size - sizeof(*package);
+
+out:
+	kfree(package);
+	kfree(pnvm_efivar);
+
+	return err;
+}
+#else /* CONFIG_EFI */
+static inline int iwl_pnvm_get_from_efi(struct iwl_trans *trans,
+					u8 **data, size_t *len)
+{
+	return -EOPNOTSUPP;
+}
+#endif /* CONFIG_EFI */
+
+static int iwl_pnvm_get_from_fs(struct iwl_trans *trans, u8 **data, size_t *len)
 {
 	const struct firmware *pnvm;
-	struct iwl_notification_wait pnvm_wait;
-	static const u16 ntf_cmds[] = { WIDE_ID(REGULATORY_AND_NVM_GROUP,
-						PNVM_INIT_COMPLETE_NTFY) };
 	char pnvm_name[64];
 	int ret;
-
-	/* if the SKU_ID is empty, there's nothing to do */
-	if (!trans->sku_id[0] && !trans->sku_id[1] && !trans->sku_id[2])
-		return 0;
-
-	/* if we already have it, nothing to do either */
-	if (trans->pnvm_loaded)
-		return 0;
 
 	/*
 	 * The prefix unfortunately includes a hyphen at the end, so
@@ -254,12 +318,67 @@ int iwl_pnvm_load(struct iwl_trans *trans,
 	if (ret) {
 		IWL_DEBUG_FW(trans, "PNVM file %s not found %d\n",
 			     pnvm_name, ret);
-	} else {
-		iwl_pnvm_parse(trans, pnvm->data, pnvm->size);
-
-		release_firmware(pnvm);
+		return ret;
 	}
 
+	*data = kmemdup(pnvm->data, pnvm->size, GFP_KERNEL);
+	if (!*data)
+		return -ENOMEM;
+
+	*len = pnvm->size;
+
+	return 0;
+}
+
+int iwl_pnvm_load(struct iwl_trans *trans,
+		  struct iwl_notif_wait_data *notif_wait)
+{
+	u8 *data;
+	size_t len;
+	struct iwl_notification_wait pnvm_wait;
+	static const u16 ntf_cmds[] = { WIDE_ID(REGULATORY_AND_NVM_GROUP,
+						PNVM_INIT_COMPLETE_NTFY) };
+	int ret;
+
+	/* if the SKU_ID is empty, there's nothing to do */
+	if (!trans->sku_id[0] && !trans->sku_id[1] && !trans->sku_id[2])
+		return 0;
+
+	/*
+	 * If we already loaded (or tried to load) it before, we just
+	 * need to set it again.
+	 */
+	if (trans->pnvm_loaded) {
+		ret = iwl_trans_set_pnvm(trans, NULL, 0);
+		if (ret)
+			return ret;
+		goto skip_parse;
+	}
+
+	/* First attempt to get the PNVM from BIOS */
+	ret = iwl_pnvm_get_from_efi(trans, &data, &len);
+	if (!ret)
+		goto parse;
+
+	/* If it's not available, try from the filesystem */
+	ret = iwl_pnvm_get_from_fs(trans, &data, &len);
+	if (ret) {
+		/*
+		 * Pretend we've loaded it - at least we've tried and
+		 * couldn't load it at all, so there's no point in
+		 * trying again over and over.
+		 */
+		trans->pnvm_loaded = true;
+
+		goto skip_parse;
+	}
+
+parse:
+	iwl_pnvm_parse(trans, data, len);
+
+	kfree(data);
+
+skip_parse:
 	iwl_init_notification_wait(notif_wait, &pnvm_wait,
 				   ntf_cmds, ARRAY_SIZE(ntf_cmds),
 				   iwl_pnvm_complete_fn, trans);

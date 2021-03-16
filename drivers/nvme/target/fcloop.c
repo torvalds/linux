@@ -1501,7 +1501,8 @@ static ssize_t
 fcloop_set_cmd_drop(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	int opcode, starting, amount;
+	unsigned int opcode;
+	int starting, amount;
 
 	if (sscanf(buf, "%x:%d:%d", &opcode, &starting, &amount) != 3)
 		return -EBADRQC;
@@ -1544,7 +1545,7 @@ static struct attribute *fcloop_dev_attrs[] = {
 	NULL
 };
 
-static struct attribute_group fclopp_dev_attrs_group = {
+static const struct attribute_group fclopp_dev_attrs_group = {
 	.attrs		= fcloop_dev_attrs,
 };
 
@@ -1588,8 +1589,8 @@ out_destroy_class:
 
 static void __exit fcloop_exit(void)
 {
-	struct fcloop_lport *lport;
-	struct fcloop_nport *nport;
+	struct fcloop_lport *lport = NULL;
+	struct fcloop_nport *nport = NULL;
 	struct fcloop_tport *tport;
 	struct fcloop_rport *rport;
 	unsigned long flags;

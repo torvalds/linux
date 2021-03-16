@@ -1033,7 +1033,9 @@ speakup + keypad 3, you would hear:
 The speakup key is depressed, so the name of the key state is speakup.
 This part of the message comes from the states collection.
 
-14.2.  Loading Your Own Messages
+14.2.  Changing language
+
+14.2.1. Loading Your Own Messages
 
 The files under the i18n subdirectory all follow the same format.
 They consist of lines, with one message per line.
@@ -1066,8 +1068,50 @@ echo '1 azul' > /speakup/i18n/colors
 The next time that Speakup says message 1 from the colors group, it will
 say "azul", rather than "blue."
 
+14.2.2. Choose a language
+
 In the future, translations into various languages will be made available,
-and most users will just load the files necessary for their language.
+and most users will just load the files necessary for their language. So far,
+only French language is available beyond native Canadian English language.
+
+French is only available after you are logged in.
+
+Canadian English is the default language. To toggle another language,
+download the source of Speakup and untar it in your home directory. The
+following command should let you do this:
+
+tar xvjf speakup-<version>.tar.bz2
+
+where <version> is the version number of the application.
+
+Next, change to the newly created directory, then into the tools/ directory, and
+run the script speakup_setlocale. You are asked the language that you want to
+use. Type the number associated to your language (e.g. fr for French) then press
+Enter. Needed files are copied in the i18n directory.
+
+Note: the speakupconf must be installed on your system so that settings are saved.
+Otherwise, you will have an error: your language will be loaded but you will
+have to run the script again every time Speakup restarts.
+See section 16.1. for information about speakupconf.
+
+You will have to repeat these steps for any change of locale, i.e. if you wish
+change the speakup's language or charset (iso-8859-15 ou UTF-8).
+
+If you wish store the settings, note that at your next login, you will need to
+do:
+
+speakup load
+
+Alternatively, you can add the above line to your file
+~/.bashrc or ~/.bash_profile.
+
+If your system administrator ran himself the script, all the users will be able
+to change from English to the language choosed by root and do directly
+speakupconf load (or add this to the ~/.bashrc or
+~/.bash_profile file). If there are several languages to handle, the
+administrator (or every user) will have to run the first steps until speakupconf
+save, choosing the appropriate language, in every user's home directory. Every
+user will then be able to do speakupconf load, Speakup will load his own settings.
 
 14.3.  No Support for Non-Western-European Languages
 

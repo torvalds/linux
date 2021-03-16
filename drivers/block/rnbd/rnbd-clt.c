@@ -375,12 +375,19 @@ static struct rnbd_iu *rnbd_get_iu(struct rnbd_clt_session *sess,
 	init_waitqueue_head(&iu->comp.wait);
 	iu->comp.errno = INT_MAX;
 
+	if (sg_alloc_table(&iu->sgt, 1, GFP_KERNEL)) {
+		rnbd_put_permit(sess, permit);
+		kfree(iu);
+		return NULL;
+	}
+
 	return iu;
 }
 
 static void rnbd_put_iu(struct rnbd_clt_session *sess, struct rnbd_iu *iu)
 {
 	if (atomic_dec_and_test(&iu->refcount)) {
+		sg_free_table(&iu->sgt);
 		rnbd_put_permit(sess, iu->permit);
 		kfree(iu);
 	}
@@ -487,8 +494,6 @@ static int send_msg_close(struct rnbd_clt_dev *dev, u32 device_id, bool wait)
 	iu->buf = NULL;
 	iu->dev = dev;
 
-	sg_alloc_table(&iu->sgt, 1, GFP_KERNEL);
-
 	msg.hdr.type	= cpu_to_le16(RNBD_MSG_CLOSE);
 	msg.device_id	= cpu_to_le32(device_id);
 
@@ -502,7 +507,6 @@ static int send_msg_close(struct rnbd_clt_dev *dev, u32 device_id, bool wait)
 		err = errno;
 	}
 
-	sg_free_table(&iu->sgt);
 	rnbd_put_iu(sess, iu);
 	return err;
 }
@@ -575,7 +579,6 @@ static int send_msg_open(struct rnbd_clt_dev *dev, bool wait)
 	iu->buf = rsp;
 	iu->dev = dev;
 
-	sg_alloc_table(&iu->sgt, 1, GFP_KERNEL);
 	sg_init_one(iu->sgt.sgl, rsp, sizeof(*rsp));
 
 	msg.hdr.type	= cpu_to_le16(RNBD_MSG_OPEN);
@@ -594,7 +597,6 @@ static int send_msg_open(struct rnbd_clt_dev *dev, bool wait)
 		err = errno;
 	}
 
-	sg_free_table(&iu->sgt);
 	rnbd_put_iu(sess, iu);
 	return err;
 }
@@ -622,8 +624,6 @@ static int send_msg_sess_info(struct rnbd_clt_session *sess, bool wait)
 
 	iu->buf = rsp;
 	iu->sess = sess;
-
-	sg_alloc_table(&iu->sgt, 1, GFP_KERNEL);
 	sg_init_one(iu->sgt.sgl, rsp, sizeof(*rsp));
 
 	msg.hdr.type = cpu_to_le16(RNBD_MSG_SESS_INFO);
@@ -650,7 +650,6 @@ put_iu:
 	} else {
 		err = errno;
 	}
-	sg_free_table(&iu->sgt);
 	rnbd_put_iu(sess, iu);
 	return err;
 }
@@ -1698,7 +1697,8 @@ static void rnbd_destroy_sessions(void)
 	 */
 
 	list_for_each_entry_safe(sess, sn, &sess_list, list) {
-		WARN_ON(!rnbd_clt_get_sess(sess));
+		if (!rnbd_clt_get_sess(sess))
+			continue;
 		close_rtrs(sess);
 		list_for_each_entry_safe(dev, tn, &sess->devs_list, list) {
 			/*

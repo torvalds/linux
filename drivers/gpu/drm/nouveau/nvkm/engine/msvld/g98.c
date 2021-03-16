@@ -43,8 +43,8 @@ g98_msvld = {
 };
 
 int
-g98_msvld_new(struct nvkm_device *device, int index,
+g98_msvld_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	      struct nvkm_engine **pengine)
 {
-	return nvkm_msvld_new_(&g98_msvld, device, index, pengine);
+	return nvkm_msvld_new_(&g98_msvld, device, type, inst, pengine);
 }

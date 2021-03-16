@@ -76,6 +76,7 @@ config NFSD_V4
 	select CRYPTO_MD5
 	select CRYPTO_SHA256
 	select GRACE_PERIOD
+	select NFS_V4_2_SSC_HELPER if NFS_V4_2
 	help
 	  This option enables support in your system's NFS server for
 	  version 4 of the NFS protocol (RFC 3530).

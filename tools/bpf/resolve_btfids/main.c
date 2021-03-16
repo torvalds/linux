@@ -139,6 +139,8 @@ int eprintf(int level, int var, const char *fmt, ...)
 #define pr_debug2(fmt, ...) pr_debugN(2, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_err(fmt, ...) \
 	eprintf(0, verbose, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_info(fmt, ...) \
+	eprintf(0, verbose, pr_fmt(fmt), ##__VA_ARGS__)
 
 static bool is_btf_id(const char *name)
 {
@@ -257,6 +259,11 @@ static struct btf_id *add_symbol(struct rb_root *root, char *name, size_t size)
 
 	return btf_id__add(root, id, false);
 }
+
+/* Older libelf.h and glibc elf.h might not yet define the ELF compression types. */
+#ifndef SHF_COMPRESSED
+#define SHF_COMPRESSED (1 << 11) /* Section with compressed data. */
+#endif
 
 /*
  * The data of compressed section should be aligned to 4
@@ -472,7 +479,7 @@ static int symbols_resolve(struct object *obj)
 	int nr_funcs    = obj->nr_funcs;
 	int err, type_id;
 	struct btf *btf;
-	__u32 nr;
+	__u32 nr_types;
 
 	btf = btf__parse(obj->btf ?: obj->path, NULL);
 	err = libbpf_get_error(btf);
@@ -483,12 +490,12 @@ static int symbols_resolve(struct object *obj)
 	}
 
 	err = -1;
-	nr  = btf__get_nr_types(btf);
+	nr_types = btf__get_nr_types(btf);
 
 	/*
 	 * Iterate all the BTF types and search for collected symbol IDs.
 	 */
-	for (type_id = 1; type_id <= nr; type_id++) {
+	for (type_id = 1; type_id <= nr_types; type_id++) {
 		const struct btf_type *type;
 		struct rb_root *root;
 		struct btf_id *id;
@@ -526,8 +533,13 @@ static int symbols_resolve(struct object *obj)
 
 		id = btf_id__find(root, str);
 		if (id) {
-			id->id = type_id;
-			(*nr)--;
+			if (id->id) {
+				pr_info("WARN: multiple IDs found for '%s': %d, %d - using %d\n",
+					str, id->id, type_id, id->id);
+			} else {
+				id->id = type_id;
+				(*nr)--;
+			}
 		}
 	}
 

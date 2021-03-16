@@ -66,10 +66,16 @@ static void hyperv_flush_tlb_others(const struct cpumask *cpus,
 	if (!hv_hypercall_pg)
 		goto do_native;
 
-	if (cpumask_empty(cpus))
-		return;
-
 	local_irq_save(flags);
+
+	/*
+	 * Only check the mask _after_ interrupt has been disabled to avoid the
+	 * mask changing under our feet.
+	 */
+	if (cpumask_empty(cpus)) {
+		local_irq_restore(flags);
+		return;
+	}
 
 	flush_pcpu = (struct hv_tlb_flush **)
 		     this_cpu_ptr(hyperv_pcpu_input_arg);

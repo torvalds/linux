@@ -850,6 +850,10 @@ static int __init pmac_add_bridge(struct device_node *dev)
 	/* Fixup "bus-range" OF property */
 	fixup_bus_range(dev);
 
+	/* create pci_dn's for DT nodes under this PHB */
+	if (IS_ENABLED(CONFIG_PPC64))
+		pci_devs_phb_init_dynamic(hose);
+
 	return 0;
 }
 

@@ -321,42 +321,76 @@ AES_FUNC_END(aes_cbc_cts_decrypt)
 
 	/*
 	 * aes_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		   int blocks, u8 ctr[])
+	 *		   int bytes, u8 ctr[], u8 finalbuf[])
 	 */
 
 AES_FUNC_START(aes_ctr_encrypt)
 	stp		x29, x30, [sp, #-16]!
 	mov		x29, sp
 
-	enc_prepare	w3, x2, x6
+	enc_prepare	w3, x2, x12
 	ld1		{vctr.16b}, [x5]
 
-	umov		x6, vctr.d[1]		/* keep swabbed ctr in reg */
-	rev		x6, x6
-	cmn		w6, w4			/* 32 bit overflow? */
-	bcs		.Lctrloop
+	umov		x12, vctr.d[1]		/* keep swabbed ctr in reg */
+	rev		x12, x12
+
 .LctrloopNx:
-	subs		w4, w4, #MAX_STRIDE
-	bmi		.Lctr1x
-	add		w7, w6, #1
+	add		w7, w4, #15
+	sub		w4, w4, #MAX_STRIDE << 4
+	lsr		w7, w7, #4
+	mov		w8, #MAX_STRIDE
+	cmp		w7, w8
+	csel		w7, w7, w8, lt
+	adds		x12, x12, x7
+
 	mov		v0.16b, vctr.16b
-	add		w8, w6, #2
 	mov		v1.16b, vctr.16b
-	add		w9, w6, #3
 	mov		v2.16b, vctr.16b
-	add		w9, w6, #3
-	rev		w7, w7
 	mov		v3.16b, vctr.16b
-	rev		w8, w8
 ST5(	mov		v4.16b, vctr.16b		)
-	mov		v1.s[3], w7
-	rev		w9, w9
-ST5(	add		w10, w6, #4			)
-	mov		v2.s[3], w8
-ST5(	rev		w10, w10			)
-	mov		v3.s[3], w9
-ST5(	mov		v4.s[3], w10			)
-	ld1		{v5.16b-v7.16b}, [x1], #48	/* get 3 input blocks */
+	bcs		0f
+
+	.subsection	1
+	/* apply carry to outgoing counter */
+0:	umov		x8, vctr.d[0]
+	rev		x8, x8
+	add		x8, x8, #1
+	rev		x8, x8
+	ins		vctr.d[0], x8
+
+	/* apply carry to N counter blocks for N := x12 */
+	adr		x16, 1f
+	sub		x16, x16, x12, lsl #3
+	br		x16
+	hint		34			// bti c
+	mov		v0.d[0], vctr.d[0]
+	hint		34			// bti c
+	mov		v1.d[0], vctr.d[0]
+	hint		34			// bti c
+	mov		v2.d[0], vctr.d[0]
+	hint		34			// bti c
+	mov		v3.d[0], vctr.d[0]
+ST5(	hint		34				)
+ST5(	mov		v4.d[0], vctr.d[0]		)
+1:	b		2f
+	.previous
+
+2:	rev		x7, x12
+	ins		vctr.d[1], x7
+	sub		x7, x12, #MAX_STRIDE - 1
+	sub		x8, x12, #MAX_STRIDE - 2
+	sub		x9, x12, #MAX_STRIDE - 3
+	rev		x7, x7
+	rev		x8, x8
+	mov		v1.d[1], x7
+	rev		x9, x9
+ST5(	sub		x10, x12, #MAX_STRIDE - 4	)
+	mov		v2.d[1], x8
+ST5(	rev		x10, x10			)
+	mov		v3.d[1], x9
+ST5(	mov		v4.d[1], x10			)
+	tbnz		w4, #31, .Lctrtail
+	ld1		{v5.16b-v7.16b}, [x1], #48
 ST4(	bl		aes_encrypt_block4x		)
 ST5(	bl		aes_encrypt_block5x		)
 	eor		v0.16b, v5.16b, v0.16b
@@ -368,47 +402,72 @@ ST5(	ld1		{v5.16b-v6.16b}, [x1], #32	)
 ST5(	eor		v4.16b, v6.16b, v4.16b		)
 	st1		{v0.16b-v3.16b}, [x0], #64
 ST5(	st1		{v4.16b}, [x0], #16		)
-	add		x6, x6, #MAX_STRIDE
-	rev		x7, x6
-	ins		vctr.d[1], x7
 	cbz		w4, .Lctrout
 	b		.LctrloopNx
-.Lctr1x:
-	adds		w4, w4, #MAX_STRIDE
-	beq		.Lctrout
-.Lctrloop:
-	mov		v0.16b, vctr.16b
-	encrypt_block	v0, w3, x2, x8, w7
-
-	adds		x6, x6, #1		/* increment BE ctr */
-	rev		x7, x6
-	ins		vctr.d[1], x7
-	bcs		.Lctrcarry		/* overflow? */
-
-.Lctrcarrydone:
-	subs		w4, w4, #1
-	bmi		.Lctrtailblock		/* blocks <0 means tail block */
-	ld1		{v3.16b}, [x1], #16
-	eor		v3.16b, v0.16b, v3.16b
-	st1		{v3.16b}, [x0], #16
-	bne		.Lctrloop
 
 .Lctrout:
 	st1		{vctr.16b}, [x5]	/* return next CTR value */
 	ldp		x29, x30, [sp], #16
 	ret
 
-.Lctrtailblock:
-	st1		{v0.16b}, [x0]
+.Lctrtail:
+	/* XOR up to MAX_STRIDE * 16 - 1 bytes of in/output with v0 ... v3/v4 */
+	mov		x16, #16
+	ands		x13, x4, #0xf
+	csel		x13, x13, x16, ne
+
+ST5(	cmp		w4, #64 - (MAX_STRIDE << 4)	)
+ST5(	csel		x14, x16, xzr, gt		)
+	cmp		w4, #48 - (MAX_STRIDE << 4)
+	csel		x15, x16, xzr, gt
+	cmp		w4, #32 - (MAX_STRIDE << 4)
+	csel		x16, x16, xzr, gt
+	cmp		w4, #16 - (MAX_STRIDE << 4)
+	ble		.Lctrtail1x
+
+	adr_l		x12, .Lcts_permute_table
+	add		x12, x12, x13
+
+ST5(	ld1		{v5.16b}, [x1], x14		)
+	ld1		{v6.16b}, [x1], x15
+	ld1		{v7.16b}, [x1], x16
+
+ST4(	bl		aes_encrypt_block4x		)
+ST5(	bl		aes_encrypt_block5x		)
+
+	ld1		{v8.16b}, [x1], x13
+	ld1		{v9.16b}, [x1]
+	ld1		{v10.16b}, [x12]
+
+ST4(	eor		v6.16b, v6.16b, v0.16b		)
+ST4(	eor		v7.16b, v7.16b, v1.16b		)
+ST4(	tbl		v3.16b, {v3.16b}, v10.16b	)
+ST4(	eor		v8.16b, v8.16b, v2.16b		)
+ST4(	eor		v9.16b, v9.16b, v3.16b		)
+
+ST5(	eor		v5.16b, v5.16b, v0.16b		)
+ST5(	eor		v6.16b, v6.16b, v1.16b		)
+ST5(	tbl		v4.16b, {v4.16b}, v10.16b	)
+ST5(	eor		v7.16b, v7.16b, v2.16b		)
+ST5(	eor		v8.16b, v8.16b, v3.16b		)
+ST5(	eor		v9.16b, v9.16b, v4.16b		)
+
+ST5(	st1		{v5.16b}, [x0], x14		)
+	st1		{v6.16b}, [x0], x15
+	st1		{v7.16b}, [x0], x16
+	add		x13, x13, x0
+	st1		{v9.16b}, [x13]		// overlapping stores
+	st1		{v8.16b}, [x0]
 	b		.Lctrout
 
-.Lctrcarry:
-	umov		x7, vctr.d[0]		/* load upper word of ctr  */
-	rev		x7, x7			/* ... to handle the carry */
-	add		x7, x7, #1
-	rev		x7, x7
-	ins		vctr.d[0], x7
-	b		.Lctrcarrydone
+.Lctrtail1x:
+	csel		x0, x0, x6, eq		// use finalbuf if less than a full block
+	ld1		{v5.16b}, [x1]
+ST5(	mov		v3.16b, v4.16b			)
+	encrypt_block	v3, w3, x2, x8, w7
+	eor		v5.16b, v5.16b, v3.16b
+	st1		{v5.16b}, [x0]
+	b		.Lctrout
 AES_FUNC_END(aes_ctr_encrypt)
 
 
@@ -619,61 +678,47 @@ AES_FUNC_END(aes_xts_decrypt)
 	 *		  int blocks, u8 dg[], int enc_before, int enc_after)
 	 */
 AES_FUNC_START(aes_mac_update)
-	frame_push	6
-
-	mov		x19, x0
-	mov		x20, x1
-	mov		x21, x2
-	mov		x22, x3
-	mov		x23, x4
-	mov		x24, x6
-
-	ld1		{v0.16b}, [x23]			/* get dg */
+	ld1		{v0.16b}, [x4]			/* get dg */
 	enc_prepare	w2, x1, x7
 	cbz		w5, .Lmacloop4x
 
 	encrypt_block	v0, w2, x1, x7, w8
 
 .Lmacloop4x:
-	subs		w22, w22, #4
+	subs		w3, w3, #4
 	bmi		.Lmac1x
-	ld1		{v1.16b-v4.16b}, [x19], #64	/* get next pt block */
+	ld1		{v1.16b-v4.16b}, [x0], #64	/* get next pt block */
 	eor		v0.16b, v0.16b, v1.16b		/* ..and xor with dg */
-	encrypt_block	v0, w21, x20, x7, w8
+	encrypt_block	v0, w2, x1, x7, w8
 	eor		v0.16b, v0.16b, v2.16b
-	encrypt_block	v0, w21, x20, x7, w8
+	encrypt_block	v0, w2, x1, x7, w8
 	eor		v0.16b, v0.16b, v3.16b
-	encrypt_block	v0, w21, x20, x7, w8
+	encrypt_block	v0, w2, x1, x7, w8
 	eor		v0.16b, v0.16b, v4.16b
-	cmp		w22, wzr
-	csinv		x5, x24, xzr, eq
+	cmp		w3, wzr
+	csinv		x5, x6, xzr, eq
 	cbz		w5, .Lmacout
-	encrypt_block	v0, w21, x20, x7, w8
-	st1		{v0.16b}, [x23]			/* return dg */
-	cond_yield_neon	.Lmacrestart
+	encrypt_block	v0, w2, x1, x7, w8
+	st1		{v0.16b}, [x4]			/* return dg */
+	cond_yield	.Lmacout, x7
 	b		.Lmacloop4x
 .Lmac1x:
-	add		w22, w22, #4
+	add		w3, w3, #4
 .Lmacloop:
-	cbz		w22, .Lmacout
-	ld1		{v1.16b}, [x19], #16		/* get next pt block */
+	cbz		w3, .Lmacout
+	ld1		{v1.16b}, [x0], #16		/* get next pt block */
 	eor		v0.16b, v0.16b, v1.16b		/* ..and xor with dg */
 
-	subs		w22, w22, #1
-	csinv		x5, x24, xzr, eq
+	subs		w3, w3, #1
+	csinv		x5, x6, xzr, eq
 	cbz		w5, .Lmacout
 
 .Lmacenc:
-	encrypt_block	v0, w21, x20, x7, w8
+	encrypt_block	v0, w2, x1, x7, w8
 	b		.Lmacloop
 
 .Lmacout:
-	st1		{v0.16b}, [x23]			/* return dg */
-	frame_pop
+	st1		{v0.16b}, [x4]			/* return dg */
+	mov		w0, w3
 	ret
-
-.Lmacrestart:
-	ld1		{v0.16b}, [x23]			/* get dg */
-	enc_prepare	w21, x20, x0
-	b		.Lmacloop4x
 AES_FUNC_END(aes_mac_update)

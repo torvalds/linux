@@ -201,8 +201,8 @@ EXPORT_SYMBOL(rdma_restrack_parent_name);
 /**
  * rdma_restrack_new() - Initializes new restrack entry to allow _put() interface
  * to release memory in fully automatic way.
- * @res - Entry to initialize
- * @type - REstrack type
+ * @res: Entry to initialize
+ * @type: REstrack type
  */
 void rdma_restrack_new(struct rdma_restrack_entry *res,
 		       enum rdma_restrack_type type)
@@ -254,6 +254,7 @@ void rdma_restrack_add(struct rdma_restrack_entry *res)
 	} else {
 		ret = xa_alloc_cyclic(&rt->xa, &res->id, res, xa_limit_32b,
 				      &rt->next_id, GFP_KERNEL);
+		ret = (ret < 0) ? ret : 0;
 	}
 
 out:

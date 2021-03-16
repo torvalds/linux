@@ -23,7 +23,7 @@ ip -net "$ns0" addr add 127.0.0.1 dev lo
 
 trap cleanup EXIT
 
-currentyear=$(date +%G)
+currentyear=$(date +%Y)
 lastyear=$((currentyear-1))
 ip netns exec "$ns0" nft -f /dev/stdin <<EOF
 table inet filter {

@@ -10,6 +10,7 @@ util/python.c
 util/cap.c
 util/evlist.c
 util/evsel.c
+util/evsel_fprintf.c
 util/perf_event_attr_fprintf.c
 util/cpumap.c
 util/memswap.c
@@ -35,3 +36,4 @@ util/symbol_fprintf.c
 util/units.c
 util/affinity.c
 util/rwsem.c
+util/hashmap.c

@@ -9,8 +9,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <time.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <sys/types.h>
@@ -20,8 +18,9 @@
 #include <linux/bitops.h>
 #include <asm/barrier.h>
 
-#include "test_util.h"
 #include "kvm_util.h"
+#include "test_util.h"
+#include "guest_modes.h"
 #include "processor.h"
 
 #define VCPU_ID				1
@@ -673,9 +672,15 @@ static struct kvm_vm *create_vm(enum vm_guest_mode mode, uint32_t vcpuid,
 #define DIRTY_MEM_BITS 30 /* 1G */
 #define PAGE_SHIFT_4K  12
 
-static void run_test(enum vm_guest_mode mode, unsigned long iterations,
-		     unsigned long interval, uint64_t phys_offset)
+struct test_params {
+	unsigned long iterations;
+	unsigned long interval;
+	uint64_t phys_offset;
+};
+
+static void run_test(enum vm_guest_mode mode, void *arg)
 {
+	struct test_params *p = arg;
 	struct kvm_vm *vm;
 	unsigned long *bmap;
 
@@ -709,12 +714,12 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	host_page_size = getpagesize();
 	host_num_pages = vm_num_host_pages(mode, guest_num_pages);
 
-	if (!phys_offset) {
+	if (!p->phys_offset) {
 		guest_test_phys_mem = (vm_get_max_gfn(vm) -
 				       guest_num_pages) * guest_page_size;
 		guest_test_phys_mem &= ~(host_page_size - 1);
 	} else {
-		guest_test_phys_mem = phys_offset;
+		guest_test_phys_mem = p->phys_offset;
 	}
 
 #ifdef __s390x__
@@ -758,9 +763,9 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 
 	pthread_create(&vcpu_thread, NULL, vcpu_worker, vm);
 
-	while (iteration < iterations) {
+	while (iteration < p->iterations) {
 		/* Give the vcpu thread some time to dirty some pages */
-		usleep(interval * 1000);
+		usleep(p->interval * 1000);
 		log_mode_collect_dirty_pages(vm, TEST_MEM_SLOT_INDEX,
 					     bmap, host_num_pages);
 		vm_dirty_log_verify(mode, bmap);
@@ -783,20 +788,8 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	kvm_vm_free(vm);
 }
 
-struct guest_mode {
-	bool supported;
-	bool enabled;
-};
-static struct guest_mode guest_modes[NUM_VM_MODES];
-
-#define guest_mode_init(mode, supported, enabled) ({ \
-	guest_modes[mode] = (struct guest_mode){ supported, enabled }; \
-})
-
 static void help(char *name)
 {
-	int i;
-
 	puts("");
 	printf("usage: %s [-h] [-i iterations] [-I interval] "
 	       "[-p offset] [-m mode]\n", name);
@@ -813,51 +806,23 @@ static void help(char *name)
 	printf(" -M: specify the host logging mode "
 	       "(default: run all log modes).  Supported modes: \n\t");
 	log_modes_dump();
-	printf(" -m: specify the guest mode ID to test "
-	       "(default: test all supported modes)\n"
-	       "     This option may be used multiple times.\n"
-	       "     Guest mode IDs:\n");
-	for (i = 0; i < NUM_VM_MODES; ++i) {
-		printf("         %d:    %s%s\n", i, vm_guest_mode_string(i),
-		       guest_modes[i].supported ? " (supported)" : "");
-	}
+	guest_modes_help();
 	puts("");
 	exit(0);
 }
 
 int main(int argc, char *argv[])
 {
-	unsigned long iterations = TEST_HOST_LOOP_N;
-	unsigned long interval = TEST_HOST_LOOP_INTERVAL;
-	bool mode_selected = false;
-	uint64_t phys_offset = 0;
-	unsigned int mode;
-	int opt, i, j;
+	struct test_params p = {
+		.iterations = TEST_HOST_LOOP_N,
+		.interval = TEST_HOST_LOOP_INTERVAL,
+	};
+	int opt, i;
 
 	sem_init(&dirty_ring_vcpu_stop, 0, 0);
 	sem_init(&dirty_ring_vcpu_cont, 0, 0);
 
-#ifdef __x86_64__
-	guest_mode_init(VM_MODE_PXXV48_4K, true, true);
-#endif
-#ifdef __aarch64__
-	guest_mode_init(VM_MODE_P40V48_4K, true, true);
-	guest_mode_init(VM_MODE_P40V48_64K, true, true);
-
-	{
-		unsigned int limit = kvm_check_cap(KVM_CAP_ARM_VM_IPA_SIZE);
-
-		if (limit >= 52)
-			guest_mode_init(VM_MODE_P52V48_64K, true, true);
-		if (limit >= 48) {
-			guest_mode_init(VM_MODE_P48V48_4K, true, true);
-			guest_mode_init(VM_MODE_P48V48_64K, true, true);
-		}
-	}
-#endif
-#ifdef __s390x__
-	guest_mode_init(VM_MODE_P40V48_4K, true, true);
-#endif
+	guest_modes_append_default();
 
 	while ((opt = getopt(argc, argv, "c:hi:I:p:m:M:")) != -1) {
 		switch (opt) {
@@ -865,24 +830,16 @@ int main(int argc, char *argv[])
 			test_dirty_ring_count = strtol(optarg, NULL, 10);
 			break;
 		case 'i':
-			iterations = strtol(optarg, NULL, 10);
+			p.iterations = strtol(optarg, NULL, 10);
 			break;
 		case 'I':
-			interval = strtol(optarg, NULL, 10);
+			p.interval = strtol(optarg, NULL, 10);
 			break;
 		case 'p':
-			phys_offset = strtoull(optarg, NULL, 0);
+			p.phys_offset = strtoull(optarg, NULL, 0);
 			break;
 		case 'm':
-			if (!mode_selected) {
-				for (i = 0; i < NUM_VM_MODES; ++i)
-					guest_modes[i].enabled = false;
-				mode_selected = true;
-			}
-			mode = strtoul(optarg, NULL, 10);
-			TEST_ASSERT(mode < NUM_VM_MODES,
-				    "Guest mode ID %d too big", mode);
-			guest_modes[mode].enabled = true;
+			guest_modes_cmdline(optarg);
 			break;
 		case 'M':
 			if (!strcmp(optarg, "all")) {
@@ -911,32 +868,24 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	TEST_ASSERT(iterations > 2, "Iterations must be greater than two");
-	TEST_ASSERT(interval > 0, "Interval must be greater than zero");
+	TEST_ASSERT(p.iterations > 2, "Iterations must be greater than two");
+	TEST_ASSERT(p.interval > 0, "Interval must be greater than zero");
 
 	pr_info("Test iterations: %"PRIu64", interval: %"PRIu64" (ms)\n",
-		iterations, interval);
+		p.iterations, p.interval);
 
 	srandom(time(0));
 
-	for (i = 0; i < NUM_VM_MODES; ++i) {
-		if (!guest_modes[i].enabled)
-			continue;
-		TEST_ASSERT(guest_modes[i].supported,
-			    "Guest mode ID %d (%s) not supported.",
-			    i, vm_guest_mode_string(i));
-		if (host_log_mode_option == LOG_MODE_ALL) {
-			/* Run each log mode */
-			for (j = 0; j < LOG_MODE_NUM; j++) {
-				pr_info("Testing Log Mode '%s'\n",
-					log_modes[j].name);
-				host_log_mode = j;
-				run_test(i, iterations, interval, phys_offset);
-			}
-		} else {
-			host_log_mode = host_log_mode_option;
-			run_test(i, iterations, interval, phys_offset);
+	if (host_log_mode_option == LOG_MODE_ALL) {
+		/* Run each log mode */
+		for (i = 0; i < LOG_MODE_NUM; i++) {
+			pr_info("Testing Log Mode '%s'\n", log_modes[i].name);
+			host_log_mode = i;
+			for_each_guest_mode(run_test, &p);
 		}
+	} else {
+		host_log_mode = host_log_mode_option;
+		for_each_guest_mode(run_test, &p);
 	}
 
 	return 0;

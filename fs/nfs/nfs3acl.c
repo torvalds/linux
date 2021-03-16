@@ -111,6 +111,7 @@ struct posix_acl *nfs3_get_acl(struct inode *inode, int type)
 			fallthrough;
 		case -ENOTSUPP:
 			status = -EOPNOTSUPP;
+			goto getout;
 		default:
 			goto getout;
 	}
@@ -251,7 +252,8 @@ int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 
 }
 
-int nfs3_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int nfs3_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+		 struct posix_acl *acl, int type)
 {
 	struct posix_acl *orig = acl, *dfacl = NULL, *alloc;
 	int status;

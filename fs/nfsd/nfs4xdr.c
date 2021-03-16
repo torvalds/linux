@@ -147,6 +147,25 @@ svcxdr_dupstr(struct nfsd4_compoundargs *argp, void *buf, u32 len)
 	return p;
 }
 
+static void *
+svcxdr_savemem(struct nfsd4_compoundargs *argp, __be32 *p, u32 len)
+{
+	__be32 *tmp;
+
+	/*
+	 * The location of the decoded data item is stable,
+	 * so @p is OK to use. This is the common case.
+	 */
+	if (p != argp->xdr->scratch.iov_base)
+		return p;
+
+	tmp = svcxdr_tmpalloc(argp, len);
+	if (!tmp)
+		return NULL;
+	memcpy(tmp, p, len);
+	return tmp;
+}
+
 /*
  * NFSv4 basic data type decoders
  */
@@ -183,11 +202,10 @@ nfsd4_decode_opaque(struct nfsd4_compoundargs *argp, struct xdr_netobj *o)
 	p = xdr_inline_decode(argp->xdr, len);
 	if (!p)
 		return nfserr_bad_xdr;
-	o->data = svcxdr_tmpalloc(argp, len);
+	o->data = svcxdr_savemem(argp, p, len);
 	if (!o->data)
 		return nfserr_jukebox;
 	o->len = len;
-	memcpy(o->data, p, len);
 
 	return nfs_ok;
 }
@@ -205,10 +223,9 @@ nfsd4_decode_component4(struct nfsd4_compoundargs *argp, char **namp, u32 *lenp)
 	status = check_filename((char *)p, *lenp);
 	if (status)
 		return status;
-	*namp = svcxdr_tmpalloc(argp, *lenp);
+	*namp = svcxdr_savemem(argp, p, *lenp);
 	if (!*namp)
 		return nfserr_jukebox;
-	memcpy(*namp, p, *lenp);
 
 	return nfs_ok;
 }
@@ -1200,10 +1217,9 @@ nfsd4_decode_putfh(struct nfsd4_compoundargs *argp, struct nfsd4_putfh *putfh)
 	p = xdr_inline_decode(argp->xdr, putfh->pf_fhlen);
 	if (!p)
 		return nfserr_bad_xdr;
-	putfh->pf_fhval = svcxdr_tmpalloc(argp, putfh->pf_fhlen);
+	putfh->pf_fhval = svcxdr_savemem(argp, p, putfh->pf_fhlen);
 	if (!putfh->pf_fhval)
 		return nfserr_jukebox;
-	memcpy(putfh->pf_fhval, p, putfh->pf_fhlen);
 
 	return nfs_ok;
 }
@@ -1318,24 +1334,20 @@ nfsd4_decode_setclientid(struct nfsd4_compoundargs *argp, struct nfsd4_setclient
 	p = xdr_inline_decode(argp->xdr, setclientid->se_callback_netid_len);
 	if (!p)
 		return nfserr_bad_xdr;
-	setclientid->se_callback_netid_val = svcxdr_tmpalloc(argp,
+	setclientid->se_callback_netid_val = svcxdr_savemem(argp, p,
 						setclientid->se_callback_netid_len);
 	if (!setclientid->se_callback_netid_val)
 		return nfserr_jukebox;
-	memcpy(setclientid->se_callback_netid_val, p,
-	       setclientid->se_callback_netid_len);
 
 	if (xdr_stream_decode_u32(argp->xdr, &setclientid->se_callback_addr_len) < 0)
 		return nfserr_bad_xdr;
 	p = xdr_inline_decode(argp->xdr, setclientid->se_callback_addr_len);
 	if (!p)
 		return nfserr_bad_xdr;
-	setclientid->se_callback_addr_val = svcxdr_tmpalloc(argp,
+	setclientid->se_callback_addr_val = svcxdr_savemem(argp, p,
 						setclientid->se_callback_addr_len);
 	if (!setclientid->se_callback_addr_val)
 		return nfserr_jukebox;
-	memcpy(setclientid->se_callback_addr_val, p,
-	       setclientid->se_callback_addr_len);
 	if (xdr_stream_decode_u32(argp->xdr, &setclientid->se_callback_ident) < 0)
 		return nfserr_bad_xdr;
 
@@ -1375,10 +1387,9 @@ nfsd4_decode_verify(struct nfsd4_compoundargs *argp, struct nfsd4_verify *verify
 	p = xdr_inline_decode(argp->xdr, verify->ve_attrlen);
 	if (!p)
 		return nfserr_bad_xdr;
-	verify->ve_attrval = svcxdr_tmpalloc(argp, verify->ve_attrlen);
+	verify->ve_attrval = svcxdr_savemem(argp, p, verify->ve_attrlen);
 	if (!verify->ve_attrval)
 		return nfserr_jukebox;
-	memcpy(verify->ve_attrval, p, verify->ve_attrlen);
 
 	return nfs_ok;
 }
@@ -2333,10 +2344,9 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 		p = xdr_inline_decode(argp->xdr, argp->taglen);
 		if (!p)
 			return 0;
-		argp->tag = svcxdr_tmpalloc(argp, argp->taglen);
+		argp->tag = svcxdr_savemem(argp, p, argp->taglen);
 		if (!argp->tag)
 			return 0;
-		memcpy(argp->tag, p, argp->taglen);
 		max_reply += xdr_align_size(argp->taglen);
 	}
 
@@ -4756,6 +4766,7 @@ nfsd4_encode_read_plus_data(struct nfsd4_compoundres *resp,
 			    resp->rqstp->rq_vec, read->rd_vlen, maxcount, eof);
 	if (nfserr)
 		return nfserr;
+	xdr_truncate_encode(xdr, starting_len + 16 + xdr_align_size(*maxcount));
 
 	tmp = htonl(NFS4_CONTENT_DATA);
 	write_bytes_to_xdr_buf(xdr->buf, starting_len,      &tmp,   4);
@@ -4763,6 +4774,10 @@ nfsd4_encode_read_plus_data(struct nfsd4_compoundres *resp,
 	write_bytes_to_xdr_buf(xdr->buf, starting_len + 4,  &tmp64, 8);
 	tmp = htonl(*maxcount);
 	write_bytes_to_xdr_buf(xdr->buf, starting_len + 12, &tmp,   4);
+
+	tmp = xdr_zero;
+	write_bytes_to_xdr_buf(xdr->buf, starting_len + 16 + *maxcount, &tmp,
+			       xdr_pad_size(*maxcount));
 	return nfs_ok;
 }
 
@@ -4855,14 +4870,15 @@ out:
 	if (nfserr && segments == 0)
 		xdr_truncate_encode(xdr, starting_len);
 	else {
+		if (nfserr) {
+			xdr_truncate_encode(xdr, last_segment);
+			nfserr = nfs_ok;
+			eof = 0;
+		}
 		tmp = htonl(eof);
 		write_bytes_to_xdr_buf(xdr->buf, starting_len,     &tmp, 4);
 		tmp = htonl(segments);
 		write_bytes_to_xdr_buf(xdr->buf, starting_len + 4, &tmp, 4);
-		if (nfserr) {
-			xdr_truncate_encode(xdr, last_segment);
-			nfserr = nfs_ok;
-		}
 	}
 
 	return nfserr;

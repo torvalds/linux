@@ -647,8 +647,13 @@ static void power_on_plane(
 	if (REG(DC_IP_REQUEST_CNTL)) {
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 1);
-		hws->funcs.dpp_pg_control(hws, plane_id, true);
-		hws->funcs.hubp_pg_control(hws, plane_id, true);
+
+		if (hws->funcs.dpp_pg_control)
+			hws->funcs.dpp_pg_control(hws, plane_id, true);
+
+		if (hws->funcs.hubp_pg_control)
+			hws->funcs.hubp_pg_control(hws, plane_id, true);
+
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 0);
 		DC_LOG_DEBUG(
@@ -1082,8 +1087,13 @@ void dcn10_plane_atomic_power_down(struct dc *dc,
 	if (REG(DC_IP_REQUEST_CNTL)) {
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 1);
-		hws->funcs.dpp_pg_control(hws, dpp->inst, false);
-		hws->funcs.hubp_pg_control(hws, hubp->inst, false);
+
+		if (hws->funcs.dpp_pg_control)
+			hws->funcs.dpp_pg_control(hws, dpp->inst, false);
+
+		if (hws->funcs.hubp_pg_control)
+			hws->funcs.hubp_pg_control(hws, hubp->inst, false);
+
 		dpp->funcs->dpp_reset(dpp);
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 0);
@@ -1214,6 +1224,7 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 			// signals when OTG blanked. This is to prevent pipe from
 			// requesting data while in PSR.
 			tg->funcs->tg_init(tg);
+			hubp->power_gated = true;
 			continue;
 		}
 
@@ -2185,6 +2196,13 @@ static void dcn10_enable_plane(
 	if (dc->debug.sanity_checks) {
 		hws->funcs.verify_allow_pstate_change_high(dc);
 	}
+
+	if (!pipe_ctx->top_pipe
+		&& pipe_ctx->plane_state
+		&& pipe_ctx->plane_state->flip_int_enabled
+		&& pipe_ctx->plane_res.hubp->funcs->hubp_set_flip_int)
+			pipe_ctx->plane_res.hubp->funcs->hubp_set_flip_int(pipe_ctx->plane_res.hubp);
+
 }
 
 void dcn10_program_gamut_remap(struct pipe_ctx *pipe_ctx)
@@ -2624,7 +2642,7 @@ static void dcn10_update_dchubp_dpp(
 	hws->funcs.update_plane_addr(dc, pipe_ctx);
 
 	if (is_pipe_tree_visible(pipe_ctx))
-		hubp->funcs->set_blank(hubp, false);
+		dc->hwss.set_hubp_blank(dc, pipe_ctx, false);
 }
 
 void dcn10_blank_pixel_data(
@@ -3124,7 +3142,7 @@ void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx, struct dc *dc)
 
 	pipe_ctx->stream_res.opp->funcs->opp_program_stereo(
 		pipe_ctx->stream_res.opp,
-		flags.PROGRAM_STEREO == 1 ? true:false,
+		flags.PROGRAM_STEREO == 1,
 		&stream->timing);
 
 	pipe_ctx->stream_res.tg->funcs->program_stereo(
@@ -3135,13 +3153,16 @@ void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx, struct dc *dc)
 	return;
 }
 
-static struct hubp *get_hubp_by_inst(struct resource_pool *res_pool, int mpcc_inst)
+static struct pipe_ctx *get_pipe_ctx_by_hubp_inst(struct dc_state *context, int mpcc_inst)
 {
 	int i;
 
-	for (i = 0; i < res_pool->pipe_count; i++) {
-		if (res_pool->hubps[i]->inst == mpcc_inst)
-			return res_pool->hubps[i];
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (context->res_ctx.pipe_ctx[i].plane_res.hubp
+				&& context->res_ctx.pipe_ctx[i].plane_res.hubp->inst == mpcc_inst) {
+			return &context->res_ctx.pipe_ctx[i];
+		}
+
 	}
 	ASSERT(false);
 	return NULL;
@@ -3164,11 +3185,23 @@ void dcn10_wait_for_mpcc_disconnect(
 
 	for (mpcc_inst = 0; mpcc_inst < MAX_PIPES; mpcc_inst++) {
 		if (pipe_ctx->stream_res.opp->mpcc_disconnect_pending[mpcc_inst]) {
-			struct hubp *hubp = get_hubp_by_inst(res_pool, mpcc_inst);
+			struct pipe_ctx *restore_bottom_pipe;
+			struct pipe_ctx *restore_top_pipe;
+			struct pipe_ctx *inst_pipe_ctx = get_pipe_ctx_by_hubp_inst(dc->current_state, mpcc_inst);
 
+			ASSERT(inst_pipe_ctx);
 			res_pool->mpc->funcs->wait_for_idle(res_pool->mpc, mpcc_inst);
 			pipe_ctx->stream_res.opp->mpcc_disconnect_pending[mpcc_inst] = false;
-			hubp->funcs->set_blank(hubp, true);
+			/*
+			 * Set top and bottom pipes NULL, as we don't want
+			 * to blank those pipes when disconnecting from MPCC
+			 */
+			restore_bottom_pipe = inst_pipe_ctx->bottom_pipe;
+			restore_top_pipe = inst_pipe_ctx->top_pipe;
+			inst_pipe_ctx->top_pipe = inst_pipe_ctx->bottom_pipe = NULL;
+			dc->hwss.set_hubp_blank(dc, inst_pipe_ctx, true);
+			inst_pipe_ctx->top_pipe = restore_top_pipe;
+			inst_pipe_ctx->bottom_pipe = restore_bottom_pipe;
 		}
 	}
 
@@ -3720,4 +3753,11 @@ void dcn10_get_clock(struct dc *dc,
 	if (dc->clk_mgr && dc->clk_mgr->funcs->get_clock)
 				dc->clk_mgr->funcs->get_clock(dc->clk_mgr, context, clock_type, clock_cfg);
 
+}
+
+void dcn10_set_hubp_blank(const struct dc *dc,
+				struct pipe_ctx *pipe_ctx,
+				bool blank_enable)
+{
+	pipe_ctx->plane_res.hubp->funcs->set_blank(pipe_ctx->plane_res.hubp, blank_enable);
 }

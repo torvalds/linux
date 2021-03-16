@@ -7,10 +7,7 @@ C S+fencewmbonceonce+poacquireonce
  * store against a subsequent store?
  *)
 
-{
-	int x;
-	int y;
-}
+{}
 
 P0(int *x, int *y)
 {

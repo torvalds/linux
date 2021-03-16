@@ -1004,7 +1004,7 @@ static int mipi_csis_async_register(struct csi_state *state)
 	struct v4l2_fwnode_endpoint vep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
 	};
-	struct v4l2_async_subdev *asd = NULL;
+	struct v4l2_async_subdev *asd;
 	struct fwnode_handle *ep;
 	int ret;
 
@@ -1024,16 +1024,12 @@ static int mipi_csis_async_register(struct csi_state *state)
 	dev_dbg(state->dev, "data lanes: %d\n", state->bus.num_data_lanes);
 	dev_dbg(state->dev, "flags: 0x%08x\n", state->bus.flags);
 
-	asd = kzalloc(sizeof(*asd), GFP_KERNEL);
-	if (!asd) {
-		ret = -ENOMEM;
+	asd = v4l2_async_notifier_add_fwnode_remote_subdev(
+		&state->notifier, ep, struct v4l2_async_subdev);
+	if (IS_ERR(asd)) {
+		ret = PTR_ERR(asd);
 		goto err_parse;
 	}
-
-	ret = v4l2_async_notifier_add_fwnode_remote_subdev(
-		&state->notifier, ep, asd);
-	if (ret)
-		goto err_parse;
 
 	fwnode_handle_put(ep);
 
@@ -1048,7 +1044,6 @@ static int mipi_csis_async_register(struct csi_state *state)
 
 err_parse:
 	fwnode_handle_put(ep);
-	kfree(asd);
 
 	return ret;
 }

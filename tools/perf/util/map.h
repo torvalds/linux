@@ -104,10 +104,11 @@ void map__init(struct map *map,
 	       u64 start, u64 end, u64 pgoff, struct dso *dso);
 
 struct dso_id;
+struct build_id;
 
 struct map *map__new(struct machine *machine, u64 start, u64 len,
 		     u64 pgoff, struct dso_id *id, u32 prot, u32 flags,
-		     char *filename, struct thread *thread);
+		     struct build_id *bid, char *filename, struct thread *thread);
 struct map *map__new2(u64 start, struct dso *dso);
 void map__delete(struct map *map);
 struct map *map__clone(struct map *map);

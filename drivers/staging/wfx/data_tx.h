@@ -35,6 +35,7 @@ struct tx_policy_cache {
 
 struct wfx_tx_priv {
 	ktime_t xmit_timestamp;
+	unsigned char icv_size;
 };
 
 void wfx_tx_policy_init(struct wfx_vif *wvif);

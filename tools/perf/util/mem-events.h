@@ -9,6 +9,7 @@
 #include <linux/refcount.h>
 #include <linux/perf_event.h>
 #include "stat.h"
+#include "evsel.h"
 
 struct perf_mem_event {
 	bool		record;
@@ -39,6 +40,7 @@ int perf_mem_events__init(void);
 
 char *perf_mem_events__name(int i);
 struct perf_mem_event *perf_mem_events__ptr(int i);
+bool is_mem_loads_aux_event(struct evsel *leader);
 
 void perf_mem_events__list(void);
 
@@ -47,6 +49,7 @@ int perf_mem__tlb_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
 int perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
 int perf_mem__snp_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
 int perf_mem__lck_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
+int perf_mem__blk_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
 
 int perf_script__meminfo_scnprintf(char *bf, size_t size, struct mem_info *mem_info);
 
@@ -76,6 +79,8 @@ struct c2c_stats {
 	u32	rmt_hit;             /* count of loads with remote hit clean; */
 	u32	lcl_dram;            /* count of loads miss to local DRAM */
 	u32	rmt_dram;            /* count of loads miss to remote DRAM */
+	u32	blk_data;            /* count of loads blocked by data */
+	u32	blk_addr;            /* count of loads blocked by address conflict */
 	u32	nomap;               /* count of load/stores with no phys adrs */
 	u32	noparse;             /* count of unparsable data sources */
 };

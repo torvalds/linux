@@ -28,6 +28,7 @@
 #include "gem/i915_gem_context.h"
 #include "gem/selftests/mock_context.h"
 #include "gt/intel_context.h"
+#include "gt/intel_gpu_commands.h"
 
 #include "i915_random.h"
 #include "i915_selftest.h"
@@ -1880,7 +1881,7 @@ static int igt_cs_tlb(void *arg)
 	vma = i915_vma_instance(out, vm, NULL);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
-		goto out_put_batch;
+		goto out_put_out;
 	}
 
 	err = i915_vma_pin(vma, 0, 0,

@@ -869,7 +869,7 @@ ipv6_torture()
 	pid3=$!
 	ip netns exec me ping -f 2001:db8:101::2 >/dev/null 2>&1 &
 	pid4=$!
-	ip netns exec me mausezahn veth1 -B 2001:db8:101::2 -A 2001:db8:91::1 -c 0 -t tcp "dp=1-1023, flags=syn" >/dev/null 2>&1 &
+	ip netns exec me mausezahn -6 veth1 -B 2001:db8:101::2 -A 2001:db8:91::1 -c 0 -t tcp "dp=1-1023, flags=syn" >/dev/null 2>&1 &
 	pid5=$!
 
 	sleep 300
@@ -1523,6 +1523,14 @@ basic()
 	# blackhole nexthop can not have other specs
 	run_cmd "$IP nexthop replace id 2 blackhole dev veth1"
 	log_test $? 2 "Blackhole nexthop with other attributes"
+
+	# blackhole nexthop should not be affected by the state of the loopback
+	# device
+	run_cmd "$IP link set dev lo down"
+	check_nexthop "id 2" "id 2 blackhole"
+	log_test $? 0 "Blackhole nexthop with loopback device down"
+
+	run_cmd "$IP link set dev lo up"
 
 	#
 	# groups

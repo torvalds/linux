@@ -282,9 +282,6 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
 }
 
 #define pkey_mm_init(mm)
-#define thread_pkey_regs_save(thread)
-#define thread_pkey_regs_restore(new_thread, old_thread)
-#define thread_pkey_regs_init(thread)
 #define arch_dup_pkeys(oldmm, mm)
 
 static inline u64 pte_to_hpte_pkey_bits(u64 pteflags, unsigned long flags)

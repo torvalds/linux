@@ -7,14 +7,8 @@ This document outlines the Elf format requirements that livepatch modules must f
 
 .. Table of Contents
 
-   1. Background and motivation
-   2. Livepatch modinfo field
-   3. Livepatch relocation sections
-      3.1 Livepatch relocation section format
-   4. Livepatch symbols
-      4.1 A livepatch module's symbol table
-      4.2 Livepatch symbol format
-   5. Symbol table and Elf section access
+.. contents:: :local:
+
 
 1. Background and motivation
 ============================

@@ -26,13 +26,10 @@
 
 void perf_evlist__init(struct perf_evlist *evlist)
 {
-	int i;
-
-	for (i = 0; i < PERF_EVLIST__HLIST_SIZE; ++i)
-		INIT_HLIST_HEAD(&evlist->heads[i]);
 	INIT_LIST_HEAD(&evlist->entries);
 	evlist->nr_entries = 0;
 	fdarray__init(&evlist->pollfd, 64);
+	perf_evlist__reset_id_hash(evlist);
 }
 
 static void __perf_evlist__propagate_maps(struct perf_evlist *evlist,
@@ -237,6 +234,14 @@ static void perf_evlist__id_hash(struct perf_evlist *evlist,
 	hlist_add_head(&sid->node, &evlist->heads[hash]);
 }
 
+void perf_evlist__reset_id_hash(struct perf_evlist *evlist)
+{
+	int i;
+
+	for (i = 0; i < PERF_EVLIST__HLIST_SIZE; ++i)
+		INIT_HLIST_HEAD(&evlist->heads[i]);
+}
+
 void perf_evlist__id_add(struct perf_evlist *evlist,
 			 struct perf_evsel *evsel,
 			 int cpu, int thread, u64 id)
@@ -367,21 +372,13 @@ static struct perf_mmap* perf_evlist__alloc_mmap(struct perf_evlist *evlist, boo
 	return map;
 }
 
-static void perf_evlist__set_sid_idx(struct perf_evlist *evlist,
-				     struct perf_evsel *evsel, int idx, int cpu,
-				     int thread)
+static void perf_evsel__set_sid_idx(struct perf_evsel *evsel, int idx, int cpu, int thread)
 {
 	struct perf_sample_id *sid = SID(evsel, cpu, thread);
 
 	sid->idx = idx;
-	if (evlist->cpus && cpu >= 0)
-		sid->cpu = evlist->cpus->map[cpu];
-	else
-		sid->cpu = -1;
-	if (!evsel->system_wide && evlist->threads && thread >= 0)
-		sid->tid = perf_thread_map__pid(evlist->threads, thread);
-	else
-		sid->tid = -1;
+	sid->cpu = perf_cpu_map__cpu(evsel->cpus, cpu);
+	sid->tid = perf_thread_map__pid(evsel->threads, thread);
 }
 
 static struct perf_mmap*
@@ -500,8 +497,7 @@ mmap_per_evsel(struct perf_evlist *evlist, struct perf_evlist_mmap_ops *ops,
 			if (perf_evlist__id_add_fd(evlist, evsel, cpu, thread,
 						   fd) < 0)
 				return -1;
-			perf_evlist__set_sid_idx(evlist, evsel, idx, cpu,
-						 thread);
+			perf_evsel__set_sid_idx(evsel, idx, cpu, thread);
 		}
 	}
 

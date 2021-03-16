@@ -31,6 +31,8 @@
 #define CONNECT6_PROG_PATH	"./connect6_prog.o"
 #define SENDMSG4_PROG_PATH	"./sendmsg4_prog.o"
 #define SENDMSG6_PROG_PATH	"./sendmsg6_prog.o"
+#define RECVMSG4_PROG_PATH	"./recvmsg4_prog.o"
+#define RECVMSG6_PROG_PATH	"./recvmsg6_prog.o"
 #define BIND4_PROG_PATH		"./bind4_prog.o"
 #define BIND6_PROG_PATH		"./bind6_prog.o"
 
@@ -94,10 +96,10 @@ static int sendmsg_deny_prog_load(const struct sock_addr_test *test);
 static int recvmsg_allow_prog_load(const struct sock_addr_test *test);
 static int recvmsg_deny_prog_load(const struct sock_addr_test *test);
 static int sendmsg4_rw_asm_prog_load(const struct sock_addr_test *test);
-static int recvmsg4_rw_asm_prog_load(const struct sock_addr_test *test);
+static int recvmsg4_rw_c_prog_load(const struct sock_addr_test *test);
 static int sendmsg4_rw_c_prog_load(const struct sock_addr_test *test);
 static int sendmsg6_rw_asm_prog_load(const struct sock_addr_test *test);
-static int recvmsg6_rw_asm_prog_load(const struct sock_addr_test *test);
+static int recvmsg6_rw_c_prog_load(const struct sock_addr_test *test);
 static int sendmsg6_rw_c_prog_load(const struct sock_addr_test *test);
 static int sendmsg6_rw_v4mapped_prog_load(const struct sock_addr_test *test);
 static int sendmsg6_rw_wildcard_prog_load(const struct sock_addr_test *test);
@@ -573,8 +575,8 @@ static struct sock_addr_test tests[] = {
 		LOAD_REJECT,
 	},
 	{
-		"recvmsg4: rewrite IP & port (asm)",
-		recvmsg4_rw_asm_prog_load,
+		"recvmsg4: rewrite IP & port (C)",
+		recvmsg4_rw_c_prog_load,
 		BPF_CGROUP_UDP4_RECVMSG,
 		BPF_CGROUP_UDP4_RECVMSG,
 		AF_INET,
@@ -587,8 +589,8 @@ static struct sock_addr_test tests[] = {
 		SUCCESS,
 	},
 	{
-		"recvmsg6: rewrite IP & port (asm)",
-		recvmsg6_rw_asm_prog_load,
+		"recvmsg6: rewrite IP & port (C)",
+		recvmsg6_rw_c_prog_load,
 		BPF_CGROUP_UDP6_RECVMSG,
 		BPF_CGROUP_UDP6_RECVMSG,
 		AF_INET6,
@@ -786,45 +788,9 @@ static int sendmsg4_rw_asm_prog_load(const struct sock_addr_test *test)
 	return load_insns(test, insns, sizeof(insns) / sizeof(struct bpf_insn));
 }
 
-static int recvmsg4_rw_asm_prog_load(const struct sock_addr_test *test)
+static int recvmsg4_rw_c_prog_load(const struct sock_addr_test *test)
 {
-	struct sockaddr_in src4_rw_addr;
-
-	if (mk_sockaddr(AF_INET, SERV4_IP, SERV4_PORT,
-			(struct sockaddr *)&src4_rw_addr,
-			sizeof(src4_rw_addr)) == -1)
-		return -1;
-
-	struct bpf_insn insns[] = {
-		BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
-
-		/* if (sk.family == AF_INET && */
-		BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
-			    offsetof(struct bpf_sock_addr, family)),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, AF_INET, 6),
-
-		/*     sk.type == SOCK_DGRAM)  { */
-		BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
-			    offsetof(struct bpf_sock_addr, type)),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, SOCK_DGRAM, 4),
-
-		/*      user_ip4 = src4_rw_addr.sin_addr */
-		BPF_MOV32_IMM(BPF_REG_7, src4_rw_addr.sin_addr.s_addr),
-		BPF_STX_MEM(BPF_W, BPF_REG_6, BPF_REG_7,
-			    offsetof(struct bpf_sock_addr, user_ip4)),
-
-		/*      user_port = src4_rw_addr.sin_port */
-		BPF_MOV32_IMM(BPF_REG_7, src4_rw_addr.sin_port),
-		BPF_STX_MEM(BPF_W, BPF_REG_6, BPF_REG_7,
-			    offsetof(struct bpf_sock_addr, user_port)),
-		/* } */
-
-		/* return 1 */
-		BPF_MOV64_IMM(BPF_REG_0, 1),
-		BPF_EXIT_INSN(),
-	};
-
-	return load_insns(test, insns, sizeof(insns) / sizeof(struct bpf_insn));
+	return load_path(test, RECVMSG4_PROG_PATH);
 }
 
 static int sendmsg4_rw_c_prog_load(const struct sock_addr_test *test)
@@ -890,37 +856,9 @@ static int sendmsg6_rw_asm_prog_load(const struct sock_addr_test *test)
 	return sendmsg6_rw_dst_asm_prog_load(test, SERV6_REWRITE_IP);
 }
 
-static int recvmsg6_rw_asm_prog_load(const struct sock_addr_test *test)
+static int recvmsg6_rw_c_prog_load(const struct sock_addr_test *test)
 {
-	struct sockaddr_in6 src6_rw_addr;
-
-	if (mk_sockaddr(AF_INET6, SERV6_IP, SERV6_PORT,
-			(struct sockaddr *)&src6_rw_addr,
-			sizeof(src6_rw_addr)) == -1)
-		return -1;
-
-	struct bpf_insn insns[] = {
-		BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
-
-		/* if (sk.family == AF_INET6) { */
-		BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
-			    offsetof(struct bpf_sock_addr, family)),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, AF_INET6, 10),
-
-		STORE_IPV6(user_ip6, src6_rw_addr.sin6_addr.s6_addr32),
-
-		/*      user_port = dst6_rw_addr.sin6_port */
-		BPF_MOV32_IMM(BPF_REG_7, src6_rw_addr.sin6_port),
-		BPF_STX_MEM(BPF_W, BPF_REG_6, BPF_REG_7,
-			    offsetof(struct bpf_sock_addr, user_port)),
-		/* } */
-
-		/* return 1 */
-		BPF_MOV64_IMM(BPF_REG_0, 1),
-		BPF_EXIT_INSN(),
-	};
-
-	return load_insns(test, insns, sizeof(insns) / sizeof(struct bpf_insn));
+	return load_path(test, RECVMSG6_PROG_PATH);
 }
 
 static int sendmsg6_rw_v4mapped_prog_load(const struct sock_addr_test *test)

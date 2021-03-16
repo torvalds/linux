@@ -327,7 +327,8 @@ static irqreturn_t snd_bt87x_interrupt(int irq, void *dev_id)
 		current_block = chip->current_line * 16 / chip->lines;
 		irq_block = status >> INT_RISCS_SHIFT;
 		if (current_block != irq_block)
-			chip->current_line = (irq_block * chip->lines + 15) / 16;
+			chip->current_line = DIV_ROUND_UP(irq_block * chip->lines,
+							  16);
 
 		snd_pcm_period_elapsed(chip->substream);
 	}

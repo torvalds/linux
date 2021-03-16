@@ -14,6 +14,7 @@
 #include <linux/debugfs.h>
 #include <linux/dmapool.h>
 #include <linux/iopoll.h>
+#include <linux/irq.h>
 #include <linux/lcm.h>
 #include <linux/libata.h>
 #include <linux/mfd/syscon.h>
@@ -43,6 +44,7 @@
 
 #define HISI_SAS_IOST_ITCT_CACHE_NUM 64
 #define HISI_SAS_IOST_ITCT_CACHE_DW_SZ 10
+#define HISI_SAS_FIFO_DATA_DW_SIZE 32
 
 #define HISI_SAS_STATUS_BUF_SZ (sizeof(struct hisi_sas_status_buffer))
 #define HISI_SAS_COMMAND_TABLE_SZ (sizeof(union hisi_sas_command_table))
@@ -153,6 +155,16 @@ enum hisi_sas_phy_event {
 	HISI_PHYES_NUM,
 };
 
+struct hisi_sas_debugfs_fifo {
+	u32 signal_sel;
+	u32 dump_msk;
+	u32 dump_mode;
+	u32 trigger;
+	u32 trigger_msk;
+	u32 trigger_mode;
+	u32 rd_data[HISI_SAS_FIFO_DATA_DW_SIZE];
+};
+
 struct hisi_sas_phy {
 	struct work_struct	works[HISI_PHYES_NUM];
 	struct hisi_hba	*hisi_hba;
@@ -174,6 +186,9 @@ struct hisi_sas_phy {
 	enum sas_linkrate	maximum_linkrate;
 	int enable;
 	atomic_t down_cnt;
+
+	/* Trace FIFO */
+	struct hisi_sas_debugfs_fifo fifo;
 };
 
 struct hisi_sas_port {
@@ -294,6 +309,7 @@ enum {
 
 struct hisi_sas_hw {
 	int (*hw_init)(struct hisi_hba *hisi_hba);
+	int (*interrupt_preinit)(struct hisi_hba *hisi_hba);
 	void (*setup_itct)(struct hisi_hba *hisi_hba,
 			   struct hisi_sas_device *device);
 	int (*slot_index_alloc)(struct hisi_hba *hisi_hba,
@@ -393,6 +409,8 @@ struct hisi_hba {
 	u32 refclk_frequency_mhz;
 	u8 sas_addr[SAS_ADDR_SIZE];
 
+	int *irq_map; /* v2 hw */
+
 	int n_phy;
 	spinlock_t lock;
 	struct semaphore sem;
@@ -470,6 +488,7 @@ struct hisi_hba {
 	struct dentry *debugfs_dir;
 	struct dentry *debugfs_dump_dentry;
 	struct dentry *debugfs_bist_dentry;
+	struct dentry *debugfs_fifo_dentry;
 };
 
 /* Generic HW DMA host memory structures */
@@ -633,7 +652,8 @@ extern void hisi_sas_scan_start(struct Scsi_Host *shost);
 extern int hisi_sas_host_reset(struct Scsi_Host *shost, int reset_type);
 extern void hisi_sas_phy_enable(struct hisi_hba *hisi_hba, int phy_no,
 				int enable);
-extern void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy);
+extern void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy,
+			      gfp_t gfp_flags);
 extern void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba,
 				    struct sas_task *task,
 				    struct hisi_sas_slot *slot);

@@ -50,7 +50,6 @@ int BPF_PROG(unlink_hook, struct inode *dir, struct dentry *victim)
 	__u32 pid = bpf_get_current_pid_tgid() >> 32;
 	struct local_storage *storage;
 	bool is_self_unlink;
-	int err;
 
 	if (pid != monitored_pid)
 		return 0;
@@ -66,8 +65,27 @@ int BPF_PROG(unlink_hook, struct inode *dir, struct dentry *victim)
 			return -EPERM;
 	}
 
-	storage = bpf_inode_storage_get(&inode_storage_map, victim->d_inode, 0,
-					BPF_LOCAL_STORAGE_GET_F_CREATE);
+	return 0;
+}
+
+SEC("lsm/inode_rename")
+int BPF_PROG(inode_rename, struct inode *old_dir, struct dentry *old_dentry,
+	     struct inode *new_dir, struct dentry *new_dentry,
+	     unsigned int flags)
+{
+	__u32 pid = bpf_get_current_pid_tgid() >> 32;
+	struct local_storage *storage;
+	int err;
+
+	/* new_dentry->d_inode can be NULL when the inode is renamed to a file
+	 * that did not exist before. The helper should be able to handle this
+	 * NULL pointer.
+	 */
+	bpf_inode_storage_get(&inode_storage_map, new_dentry->d_inode, 0,
+			      BPF_LOCAL_STORAGE_GET_F_CREATE);
+
+	storage = bpf_inode_storage_get(&inode_storage_map, old_dentry->d_inode,
+					0, 0);
 	if (!storage)
 		return 0;
 
@@ -76,7 +94,7 @@ int BPF_PROG(unlink_hook, struct inode *dir, struct dentry *victim)
 		inode_storage_result = -1;
 	bpf_spin_unlock(&storage->lock);
 
-	err = bpf_inode_storage_delete(&inode_storage_map, victim->d_inode);
+	err = bpf_inode_storage_delete(&inode_storage_map, old_dentry->d_inode);
 	if (!err)
 		inode_storage_result = err;
 
@@ -133,36 +151,17 @@ int BPF_PROG(socket_post_create, struct socket *sock, int family, int type,
 	return 0;
 }
 
-SEC("lsm/file_open")
-int BPF_PROG(file_open, struct file *file)
-{
-	__u32 pid = bpf_get_current_pid_tgid() >> 32;
-	struct local_storage *storage;
-
-	if (pid != monitored_pid)
-		return 0;
-
-	if (!file->f_inode)
-		return 0;
-
-	storage = bpf_inode_storage_get(&inode_storage_map, file->f_inode, 0,
-					BPF_LOCAL_STORAGE_GET_F_CREATE);
-	if (!storage)
-		return 0;
-
-	bpf_spin_lock(&storage->lock);
-	storage->value = DUMMY_STORAGE_VALUE;
-	bpf_spin_unlock(&storage->lock);
-	return 0;
-}
-
 /* This uses the local storage to remember the inode of the binary that a
  * process was originally executing.
  */
 SEC("lsm/bprm_committed_creds")
 void BPF_PROG(exec, struct linux_binprm *bprm)
 {
+	__u32 pid = bpf_get_current_pid_tgid() >> 32;
 	struct local_storage *storage;
+
+	if (pid != monitored_pid)
+		return;
 
 	storage = bpf_task_storage_get(&task_storage_map,
 				       bpf_get_current_task_btf(), 0,
@@ -172,4 +171,13 @@ void BPF_PROG(exec, struct linux_binprm *bprm)
 		storage->exec_inode = bprm->file->f_inode;
 		bpf_spin_unlock(&storage->lock);
 	}
+
+	storage = bpf_inode_storage_get(&inode_storage_map, bprm->file->f_inode,
+					0, BPF_LOCAL_STORAGE_GET_F_CREATE);
+	if (!storage)
+		return;
+
+	bpf_spin_lock(&storage->lock);
+	storage->value = DUMMY_STORAGE_VALUE;
+	bpf_spin_unlock(&storage->lock);
 }

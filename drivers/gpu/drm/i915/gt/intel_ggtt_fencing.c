@@ -320,12 +320,30 @@ void i915_vma_revoke_fence(struct i915_vma *vma)
 		fence_write(fence);
 }
 
+static bool fence_is_active(const struct i915_fence_reg *fence)
+{
+	return fence->vma && i915_vma_is_active(fence->vma);
+}
+
 static struct i915_fence_reg *fence_find(struct i915_ggtt *ggtt)
 {
-	struct i915_fence_reg *fence;
+	struct i915_fence_reg *active = NULL;
+	struct i915_fence_reg *fence, *fn;
 
-	list_for_each_entry(fence, &ggtt->fence_list, link) {
+	list_for_each_entry_safe(fence, fn, &ggtt->fence_list, link) {
 		GEM_BUG_ON(fence->vma && fence->vma->fence != fence);
+
+		if (fence == active) /* now seen this fence twice */
+			active = ERR_PTR(-EAGAIN);
+
+		/* Prefer idle fences so we do not have to wait on the GPU */
+		if (active != ERR_PTR(-EAGAIN) && fence_is_active(fence)) {
+			if (!active)
+				active = fence;
+
+			list_move_tail(&fence->link, &ggtt->fence_list);
+			continue;
+		}
 
 		if (atomic_read(&fence->pin_count))
 			continue;

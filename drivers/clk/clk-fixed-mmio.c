@@ -55,7 +55,7 @@ static void __init of_fixed_mmio_clk_setup(struct device_node *node)
 }
 CLK_OF_DECLARE(fixed_mmio_clk, "fixed-mmio-clock", of_fixed_mmio_clk_setup);
 
-/**
+/*
  * This is not executed when of_fixed_mmio_clk_setup succeeded.
  */
 static int of_fixed_mmio_clk_probe(struct platform_device *pdev)

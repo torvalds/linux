@@ -381,55 +381,100 @@ out:
 	mutex_unlock(&trampoline_mutex);
 }
 
-/* The logic is similar to BPF_PROG_RUN, but with an explicit
- * rcu_read_lock() and migrate_disable() which are required
- * for the trampoline. The macro is split into
- * call _bpf_prog_enter
- * call prog->bpf_func
- * call __bpf_prog_exit
- */
-u64 notrace __bpf_prog_enter(void)
-	__acquires(RCU)
+#define NO_START_TIME 1
+static u64 notrace bpf_prog_start_time(void)
 {
-	u64 start = 0;
+	u64 start = NO_START_TIME;
 
-	rcu_read_lock();
-	migrate_disable();
-	if (static_branch_unlikely(&bpf_stats_enabled_key))
+	if (static_branch_unlikely(&bpf_stats_enabled_key)) {
 		start = sched_clock();
+		if (unlikely(!start))
+			start = NO_START_TIME;
+	}
 	return start;
 }
 
-void notrace __bpf_prog_exit(struct bpf_prog *prog, u64 start)
-	__releases(RCU)
+static void notrace inc_misses_counter(struct bpf_prog *prog)
+{
+	struct bpf_prog_stats *stats;
+
+	stats = this_cpu_ptr(prog->stats);
+	u64_stats_update_begin(&stats->syncp);
+	stats->misses++;
+	u64_stats_update_end(&stats->syncp);
+}
+
+/* The logic is similar to BPF_PROG_RUN, but with an explicit
+ * rcu_read_lock() and migrate_disable() which are required
+ * for the trampoline. The macro is split into
+ * call __bpf_prog_enter
+ * call prog->bpf_func
+ * call __bpf_prog_exit
+ *
+ * __bpf_prog_enter returns:
+ * 0 - skip execution of the bpf prog
+ * 1 - execute bpf prog
+ * [2..MAX_U64] - excute bpf prog and record execution time.
+ *     This is start time.
+ */
+u64 notrace __bpf_prog_enter(struct bpf_prog *prog)
+	__acquires(RCU)
+{
+	rcu_read_lock();
+	migrate_disable();
+	if (unlikely(__this_cpu_inc_return(*(prog->active)) != 1)) {
+		inc_misses_counter(prog);
+		return 0;
+	}
+	return bpf_prog_start_time();
+}
+
+static void notrace update_prog_stats(struct bpf_prog *prog,
+				      u64 start)
 {
 	struct bpf_prog_stats *stats;
 
 	if (static_branch_unlikely(&bpf_stats_enabled_key) &&
-	    /* static_key could be enabled in __bpf_prog_enter
-	     * and disabled in __bpf_prog_exit.
+	    /* static_key could be enabled in __bpf_prog_enter*
+	     * and disabled in __bpf_prog_exit*.
 	     * And vice versa.
-	     * Hence check that 'start' is not zero.
+	     * Hence check that 'start' is valid.
 	     */
-	    start) {
-		stats = this_cpu_ptr(prog->aux->stats);
+	    start > NO_START_TIME) {
+		stats = this_cpu_ptr(prog->stats);
 		u64_stats_update_begin(&stats->syncp);
 		stats->cnt++;
 		stats->nsecs += sched_clock() - start;
 		u64_stats_update_end(&stats->syncp);
 	}
+}
+
+void notrace __bpf_prog_exit(struct bpf_prog *prog, u64 start)
+	__releases(RCU)
+{
+	update_prog_stats(prog, start);
+	__this_cpu_dec(*(prog->active));
 	migrate_enable();
 	rcu_read_unlock();
 }
 
-void notrace __bpf_prog_enter_sleepable(void)
+u64 notrace __bpf_prog_enter_sleepable(struct bpf_prog *prog)
 {
 	rcu_read_lock_trace();
+	migrate_disable();
 	might_fault();
+	if (unlikely(__this_cpu_inc_return(*(prog->active)) != 1)) {
+		inc_misses_counter(prog);
+		return 0;
+	}
+	return bpf_prog_start_time();
 }
 
-void notrace __bpf_prog_exit_sleepable(void)
+void notrace __bpf_prog_exit_sleepable(struct bpf_prog *prog, u64 start)
 {
+	update_prog_stats(prog, start);
+	__this_cpu_dec(*(prog->active));
+	migrate_enable();
 	rcu_read_unlock_trace();
 }
 

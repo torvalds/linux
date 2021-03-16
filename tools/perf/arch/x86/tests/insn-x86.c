@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
-#include "../../../../arch/x86/include/asm/insn.h"
 #include <string.h>
 
 #include "debug.h"
 #include "tests/tests.h"
 #include "arch-tests.h"
+#include "../../../../arch/x86/include/asm/insn.h"
 
 #include "intel-pt-decoder/intel-pt-insn-decoder.h"
 
@@ -48,6 +48,7 @@ static int get_op(const char *op_str)
 		{"int",     INTEL_PT_OP_INT},
 		{"syscall", INTEL_PT_OP_SYSCALL},
 		{"sysret",  INTEL_PT_OP_SYSRET},
+		{"vmentry",  INTEL_PT_OP_VMENTRY},
 		{NULL, 0},
 	};
 	struct val_data *val;

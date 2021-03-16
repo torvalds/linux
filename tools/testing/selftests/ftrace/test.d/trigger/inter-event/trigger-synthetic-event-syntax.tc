@@ -32,6 +32,10 @@ grep "myevent[[:space:]]u64 var1" synthetic_events
 # it is not possible to add same name event
 ! echo "myevent u64 var2" >> synthetic_events
 
+# make sure !synthetic event doesn't require a field
+echo "!myevent" >> synthetic_events
+echo "myevent u64 var1" >> synthetic_events
+
 # Non-append open will cleanup all events and add new one
 echo "myevent u64 var2" > synthetic_events
 

@@ -676,7 +676,7 @@ static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
 }
 
 static bool tiling_is_valid(struct drm_i915_private *dev_priv,
-			    uint64_t modifier)
+			    u64 modifier)
 {
 	switch (modifier) {
 	case DRM_FORMAT_MOD_LINEAR:

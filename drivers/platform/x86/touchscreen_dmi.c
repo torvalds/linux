@@ -263,6 +263,16 @@ static const struct ts_dmi_data digma_citi_e200_data = {
 	.properties	= digma_citi_e200_props,
 };
 
+static const struct property_entry estar_beauty_hd_props[] = {
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	{ }
+};
+
+static const struct ts_dmi_data estar_beauty_hd_data = {
+	.acpi_name	= "GDIX1001:00",
+	.properties	= estar_beauty_hd_props,
+};
+
 static const struct property_entry gp_electronic_t701_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 960),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 640),
@@ -370,6 +380,23 @@ static const struct property_entry jumper_ezpad_6_m4_props[] = {
 static const struct ts_dmi_data jumper_ezpad_6_m4_data = {
 	.acpi_name	= "MSSL1680:00",
 	.properties	= jumper_ezpad_6_m4_props,
+};
+
+static const struct property_entry jumper_ezpad_7_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-min-x", 4),
+	PROPERTY_ENTRY_U32("touchscreen-min-y", 10),
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 2044),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1526),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl3680-jumper-ezpad-7.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,stuck-controller-bug"),
+	{ }
+};
+
+static const struct ts_dmi_data jumper_ezpad_7_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= jumper_ezpad_7_props,
 };
 
 static const struct property_entry jumper_ezpad_mini3_props[] = {
@@ -943,6 +970,14 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 		},
 	},
 	{
+		/* Estar Beauty HD (MID 7316R) */
+		.driver_data = (void *)&estar_beauty_hd_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Estar"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "eSTAR BEAUTY HD Intel Quad core"),
+		},
+	},
+	{
 		/* GP-electronic T701 */
 		.driver_data = (void *)&gp_electronic_t701_data,
 		.matches = {
@@ -1014,6 +1049,16 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "EZpad"),
 			/* Jumper8.S106x.A00C.1066 with the version dropped */
 			DMI_MATCH(DMI_BIOS_VERSION, "Jumper8.S106x"),
+		},
+	},
+	{
+		/* Jumper EZpad 7 */
+		.driver_data = (void *)&jumper_ezpad_7_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Jumper"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "EZpad"),
+			/* Jumper12x.WJ2012.bsBKRCP05 with the version dropped */
+			DMI_MATCH(DMI_BIOS_VERSION, "Jumper12x.WJ2012.bsBKRCP"),
 		},
 	},
 	{

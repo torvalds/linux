@@ -58,10 +58,10 @@
 /* Forward declarations */
 struct amdgpu_device;
 struct drm_device;
-struct amdgpu_dm_irq_handler_data;
 struct dc;
 struct amdgpu_bo;
 struct dmub_srv;
+struct dc_plane_state;
 
 struct common_irq_params {
 	struct amdgpu_device *adev;
@@ -90,6 +90,20 @@ struct dm_compressor_info {
 	void *cpu_addr;
 	struct amdgpu_bo *bo_ptr;
 	uint64_t gpu_addr;
+};
+
+/**
+ * struct vblank_workqueue - Works to be executed in a separate thread during vblank
+ * @mall_work: work for mall stutter
+ * @dm: amdgpu display manager device
+ * @otg_inst: otg instance of which vblank is being set
+ * @enable: true if enable vblank
+ */
+struct vblank_workqueue {
+	struct work_struct mall_work;
+	struct amdgpu_display_manager *dm;
+	int otg_inst;
+	bool enable;
 };
 
 /**
@@ -244,6 +258,15 @@ struct amdgpu_display_manager {
 	struct mutex audio_lock;
 
 	/**
+	 * @vblank_work_lock:
+	 *
+	 * Guards access to deferred vblank work state.
+	 */
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	spinlock_t vblank_lock;
+#endif
+
+	/**
 	 * @audio_component:
 	 *
 	 * Used to notify ELD changes to sound driver.
@@ -321,6 +344,10 @@ struct amdgpu_display_manager {
 	struct hdcp_workqueue *hdcp_workqueue;
 #endif
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	struct vblank_workqueue *vblank_workqueue;
+#endif
+
 	struct drm_atomic_state *cached_state;
 	struct dc_state *cached_dc_state;
 
@@ -336,32 +363,13 @@ struct amdgpu_display_manager {
 	 */
 	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;
 
-#ifdef CONFIG_DEBUG_FS
 	/**
-	 * @crc_win_x_start_property:
+	 * @active_vblank_irq_count:
 	 *
-	 * X start of the crc calculation window
+	 * number of currently active vblank irqs
 	 */
-	struct drm_property *crc_win_x_start_property;
-	/**
-	 * @crc_win_y_start_property:
-	 *
-	 * Y start of the crc calculation window
-	 */
-	struct drm_property *crc_win_y_start_property;
-	/**
-	 * @crc_win_x_end_property:
-	 *
-	 * X end of the crc calculation window
-	 */
-	struct drm_property *crc_win_x_end_property;
-	/**
-	 * @crc_win_y_end_property:
-	 *
-	 * Y end of the crc calculation window
-	 */
-	struct drm_property *crc_win_y_end_property;
-#endif
+	uint32_t active_vblank_irq_count;
+
 	/**
 	 * @mst_encoders:
 	 *
@@ -438,24 +446,10 @@ struct amdgpu_dm_connector {
 
 extern const struct amdgpu_ip_block_version dm_ip_block;
 
-struct amdgpu_framebuffer;
-struct amdgpu_display_manager;
-struct dc_validation_set;
-struct dc_plane_state;
-
 struct dm_plane_state {
 	struct drm_plane_state base;
 	struct dc_plane_state *dc_state;
 };
-
-#ifdef CONFIG_DEBUG_FS
-struct crc_rec {
-	uint16_t x_start;
-	uint16_t y_start;
-	uint16_t x_end;
-	uint16_t y_end;
-	};
-#endif
 
 struct dm_crtc_state {
 	struct drm_crtc_state base;
@@ -479,9 +473,6 @@ struct dm_crtc_state {
 	struct dc_info_packet vrr_infopacket;
 
 	int abm_level;
-#ifdef CONFIG_DEBUG_FS
-	struct crc_rec crc_window;
-#endif
 };
 
 #define to_dm_crtc_state(x) container_of(x, struct dm_crtc_state, base)

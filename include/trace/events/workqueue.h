@@ -30,7 +30,7 @@ TRACE_EVENT(workqueue_queue_work,
 	TP_STRUCT__entry(
 		__field( void *,	work	)
 		__field( void *,	function)
-		__field( void *,	workqueue)
+		__field( const char *,	workqueue)
 		__field( unsigned int,	req_cpu	)
 		__field( unsigned int,	cpu	)
 	),
@@ -38,12 +38,12 @@ TRACE_EVENT(workqueue_queue_work,
 	TP_fast_assign(
 		__entry->work		= work;
 		__entry->function	= work->func;
-		__entry->workqueue	= pwq->wq;
+		__entry->workqueue	= pwq->wq->name;
 		__entry->req_cpu	= req_cpu;
 		__entry->cpu		= pwq->pool->cpu;
 	),
 
-	TP_printk("work struct=%p function=%ps workqueue=%p req_cpu=%u cpu=%u",
+	TP_printk("work struct=%p function=%ps workqueue=%s req_cpu=%u cpu=%u",
 		  __entry->work, __entry->function, __entry->workqueue,
 		  __entry->req_cpu, __entry->cpu)
 );

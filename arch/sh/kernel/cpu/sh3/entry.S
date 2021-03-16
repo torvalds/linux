@@ -14,7 +14,6 @@
 #include <cpu/mmu_context.h>
 #include <asm/page.h>
 #include <asm/cache.h>
-#include <asm/thread_info.h>
 
 ! NOTE:
 ! GNU as (as of 2.9.1) changes bf/s into bt/s and bra, when the address

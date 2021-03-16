@@ -43,14 +43,20 @@
 
 &i2c0 {
 	pinctrl-0 = <&pinctrl_i2c0_default>;
-	pinctrl-names = "default";
+	pinctrl-1 = <&pinctrl_i2c0_gpio>;
+	pinctrl-names = "default", "gpio";
+	sda-gpios = <&pioA PIN_PD21 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&pioA PIN_PD22 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 };
 
 &i2c1 {
 	dmas = <0>, <0>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c1_default>;
+	pinctrl-1 = <&pinctrl_i2c1_gpio>;
+	sda-gpios = <&pioA PIN_PD19 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&pioA PIN_PD20 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 
 	mcp16502@5b {
@@ -258,9 +264,21 @@
 		bias-disable;
 	};
 
+	pinctrl_i2c0_gpio: i2c0_gpio {
+		pinmux = <PIN_PD21__GPIO>,
+			 <PIN_PD22__GPIO>;
+		bias-disable;
+	};
+
 	pinctrl_i2c1_default: i2c1_default {
 		pinmux = <PIN_PD19__TWD1>,
 			 <PIN_PD20__TWCK1>;
+		bias-disable;
+	};
+
+	pinctrl_i2c1_gpio: i2c1_gpio {
+		pinmux = <PIN_PD19__GPIO>,
+			 <PIN_PD20__GPIO>;
 		bias-disable;
 	};
 

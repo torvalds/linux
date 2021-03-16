@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2020, Konrad Dybcio
+ * Copyright (c) 2020, Konrad Dybcio <konrad.dybcio@somainline.org>
  */
 
 /dts-v1/;
@@ -11,3 +11,5 @@
 	model = "Sony Xperia Z5";
 	compatible = "sony,sumire-row", "qcom,msm8994";
 };
+
+/delete-node/ &pm8994_l19;

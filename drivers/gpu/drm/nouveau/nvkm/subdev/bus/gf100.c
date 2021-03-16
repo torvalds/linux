@@ -40,7 +40,7 @@ gf100_bus_intr(struct nvkm_bus *bus)
 			   (addr & 0x00000002) ? "write" : "read", data,
 			   (addr & 0x00fffffc),
 			   (stat & 0x00000002) ? "!ENGINE " : "",
-			   (stat & 0x00000004) ? "IBUS " : "",
+			   (stat & 0x00000004) ? "PRIVRING " : "",
 			   (stat & 0x00000008) ? "TIMEOUT " : "");
 
 		nvkm_wr32(device, 0x009084, 0x00000000);
@@ -69,7 +69,8 @@ gf100_bus = {
 };
 
 int
-gf100_bus_new(struct nvkm_device *device, int index, struct nvkm_bus **pbus)
+gf100_bus_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_bus **pbus)
 {
-	return nvkm_bus_new_(&gf100_bus, device, index, pbus);
+	return nvkm_bus_new_(&gf100_bus, device, type, inst, pbus);
 }

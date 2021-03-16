@@ -11,7 +11,7 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 
-#define MS_SENSORS_TP_PROM_WORDS_NB		7
+#define MS_SENSORS_TP_PROM_WORDS_NB		8
 
 /**
  * struct ms_ht_dev - Humidity/Temperature sensor device structure
@@ -26,6 +26,16 @@ struct ms_ht_dev {
 };
 
 /**
+ * struct ms_hw_data - Temperature/Pressure sensor hardware data
+ * @prom_len:		number of words in the PROM
+ * @max_res_index:	maximum sensor resolution index
+ */
+struct ms_tp_hw_data {
+	u8 prom_len;
+	u8 max_res_index;
+};
+
+/**
  * struct ms_tp_dev - Temperature/Pressure sensor device structure
  * @client:	i2c client
  * @lock:	lock protecting the i2c conversion
@@ -36,7 +46,8 @@ struct ms_ht_dev {
 struct ms_tp_dev {
 	struct i2c_client *client;
 	struct mutex lock;
-	u16 prom[MS_SENSORS_TP_PROM_WORDS_NB + 1];
+	const struct ms_tp_hw_data *hw;
+	u16 prom[MS_SENSORS_TP_PROM_WORDS_NB];
 	u8 res_index;
 };
 

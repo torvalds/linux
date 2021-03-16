@@ -148,14 +148,12 @@ properties:
           - maxim,max31730
             # mCube 3-axis 8-bit digital accelerometer
           - mcube,mc3230
-            # MEMSIC magnetometer
-          - memsic,mmc35240
-            # MEMSIC 2-axis 8-bit digital accelerometer
-          - memsic,mxc6225
             # Measurement Specialities I2C temperature and humidity sensor
           - meas,htu21
             # Measurement Specialities I2C pressure and temperature sensor
           - meas,ms5637
+            # Measurement Specialities I2C pressure and temperature sensor
+          - meas,ms5803
             # Measurement Specialities I2C pressure and temperature sensor
           - meas,ms5805
             # Measurement Specialities I2C pressure and temperature sensor
@@ -166,6 +164,10 @@ properties:
           - meas,ms8607-temppressure
             # Measurement Specialties temperature sensor
           - meas,tsys01
+            # MEMSIC magnetometer
+          - memsic,mmc35240
+            # MEMSIC 2-axis 8-bit digital accelerometer
+          - memsic,mxc6225
             # Microchip differential I2C ADC, 1 Channel, 18 bit
           - microchip,mcp3421
             # Microchip differential I2C ADC, 2 Channel, 18 bit

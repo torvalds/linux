@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 2013 - 2018 Intel Corporation. */
+/* Copyright(c) 2013 - 2021 Intel Corporation. */
 
 #ifndef _I40E_ADMINQ_CMD_H_
 #define _I40E_ADMINQ_CMD_H_
@@ -1080,6 +1080,7 @@ struct i40e_aqc_add_remove_control_packet_filter {
 #define I40E_AQC_ADD_CONTROL_PACKET_FLAGS_IGNORE_MAC	0x0001
 #define I40E_AQC_ADD_CONTROL_PACKET_FLAGS_DROP		0x0002
 #define I40E_AQC_ADD_CONTROL_PACKET_FLAGS_TX		0x0008
+#define I40E_AQC_ADD_CONTROL_PACKET_FLAGS_RX		0x0000
 	__le16	seid;
 	__le16	queue;
 	u8	reserved[2];
@@ -2184,6 +2185,14 @@ I40E_CHECK_STRUCT_LEN(0x20, i40e_aqc_get_cee_dcb_cfg_resp);
  *	Used to replace the local MIB of a given LLDP agent. e.g. DCBx
  */
 struct i40e_aqc_lldp_set_local_mib {
+#define SET_LOCAL_MIB_AC_TYPE_DCBX_SHIFT	0
+#define SET_LOCAL_MIB_AC_TYPE_DCBX_MASK	(1 << \
+					SET_LOCAL_MIB_AC_TYPE_DCBX_SHIFT)
+#define SET_LOCAL_MIB_AC_TYPE_LOCAL_MIB	0x0
+#define SET_LOCAL_MIB_AC_TYPE_NON_WILLING_APPS_SHIFT	(1)
+#define SET_LOCAL_MIB_AC_TYPE_NON_WILLING_APPS_MASK	(1 << \
+				SET_LOCAL_MIB_AC_TYPE_NON_WILLING_APPS_SHIFT)
+#define SET_LOCAL_MIB_AC_TYPE_NON_WILLING_APPS		0x1
 	u8	type;
 	u8	reserved0;
 	__le16	length;

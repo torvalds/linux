@@ -289,7 +289,8 @@ extern int ntfs_show_options(struct seq_file *sf, struct dentry *root);
 extern int ntfs_truncate(struct inode *vi);
 extern void ntfs_truncate_vfs(struct inode *vi);
 
-extern int ntfs_setattr(struct dentry *dentry, struct iattr *attr);
+extern int ntfs_setattr(struct user_namespace *mnt_userns,
+			struct dentry *dentry, struct iattr *attr);
 
 extern int __ntfs_write_inode(struct inode *vi, int sync);
 

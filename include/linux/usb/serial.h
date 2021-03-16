@@ -260,7 +260,7 @@ struct usb_serial_driver {
 	void (*release)(struct usb_serial *serial);
 
 	int (*port_probe)(struct usb_serial_port *port);
-	int (*port_remove)(struct usb_serial_port *port);
+	void (*port_remove)(struct usb_serial_port *port);
 
 	int (*suspend)(struct usb_serial *serial, pm_message_t message);
 	int (*resume)(struct usb_serial *serial);

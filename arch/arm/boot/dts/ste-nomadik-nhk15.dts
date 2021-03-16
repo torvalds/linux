@@ -195,7 +195,7 @@
 			pinctrl-0 = <&uart0_nhk_mode>;
 			status = "okay";
 		};
-		mmcsd: sdi@101f6000 {
+		mmcsd: mmc@101f6000 {
 			cd-gpios = <&stmpe_gpio44 7 GPIO_ACTIVE_LOW>;
 			wp-gpios = <&stmpe_gpio44 18 GPIO_ACTIVE_HIGH>;
 		};

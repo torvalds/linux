@@ -49,6 +49,7 @@
 #include <linux/sunrpc/rpc_rdma_cid.h>
 #include <linux/sunrpc/svc_rdma_pcl.h>
 
+#include <linux/percpu_counter.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
 
@@ -65,15 +66,10 @@ extern unsigned int svcrdma_max_requests;
 extern unsigned int svcrdma_max_bc_requests;
 extern unsigned int svcrdma_max_req_size;
 
-extern atomic_t rdma_stat_recv;
-extern atomic_t rdma_stat_read;
-extern atomic_t rdma_stat_write;
-extern atomic_t rdma_stat_sq_starve;
-extern atomic_t rdma_stat_rq_starve;
-extern atomic_t rdma_stat_rq_poll;
-extern atomic_t rdma_stat_rq_prod;
-extern atomic_t rdma_stat_sq_poll;
-extern atomic_t rdma_stat_sq_prod;
+extern struct percpu_counter svcrdma_stat_read;
+extern struct percpu_counter svcrdma_stat_recv;
+extern struct percpu_counter svcrdma_stat_sq_starve;
+extern struct percpu_counter svcrdma_stat_write;
 
 struct svcxprt_rdma {
 	struct svc_xprt      sc_xprt;		/* SVC transport structure */
@@ -108,6 +104,7 @@ struct svcxprt_rdma {
 
 	wait_queue_head_t    sc_send_wait;	/* SQ exhaustion waitlist */
 	unsigned long	     sc_flags;
+	u32		     sc_pending_recvs;
 	struct list_head     sc_read_complete_q;
 	struct work_struct   sc_work;
 

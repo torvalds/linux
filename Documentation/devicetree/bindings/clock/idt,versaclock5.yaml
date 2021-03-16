@@ -59,6 +59,12 @@ properties:
     minItems: 1
     maxItems: 2
 
+  idt,xtal-load-femtofarads:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 9000
+    maximum: 22760
+    description: Optional load capacitor for XTAL1 and XTAL2
+
 patternProperties:
   "^OUT[1-4]$":
     type: object

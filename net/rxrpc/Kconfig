@@ -8,6 +8,7 @@ config AF_RXRPC
 	depends on INET
 	select CRYPTO
 	select KEYS
+	select NET_UDP_TUNNEL
 	help
 	  Say Y or M here to include support for RxRPC session sockets (just
 	  the transport part, not the presentation part: (un)marshalling is

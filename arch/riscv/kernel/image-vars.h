@@ -3,7 +3,7 @@
  * Copyright (C) 2020 Western Digital Corporation or its affiliates.
  * Linker script variables to be set after section resolution, as
  * ld.lld does not like variables assigned before SECTIONS is processed.
- * Based on arch/arm64/kerne/image-vars.h
+ * Based on arch/arm64/kernel/image-vars.h
  */
 #ifndef __RISCV_KERNEL_IMAGE_VARS_H
 #define __RISCV_KERNEL_IMAGE_VARS_H

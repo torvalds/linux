@@ -29,6 +29,7 @@
 #include <linux/random.h>
 #include <linux/export.h>
 #include <linux/init_task.h>
+#include <linux/entry-common.h>
 #include <asm/cpu_mf.h>
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -43,9 +44,22 @@
 #include <asm/unwind.h>
 #include "entry.h"
 
-asmlinkage void ret_from_fork(void) asm ("ret_from_fork");
+void ret_from_fork(void) asm("ret_from_fork");
 
-extern void kernel_thread_starter(void);
+void __ret_from_fork(struct task_struct *prev, struct pt_regs *regs)
+{
+	void (*func)(void *arg);
+
+	schedule_tail(prev);
+
+	if (!user_mode(regs)) {
+		/* Kernel thread */
+		func = (void *)regs->gprs[9];
+		func((void *)regs->gprs[10]);
+	}
+	clear_pt_regs_flag(regs, PIF_SYSCALL);
+	syscall_exit_to_user_mode(regs);
+}
 
 void flush_thread(void)
 {
@@ -108,22 +122,24 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 	p->thread.last_break = 1;
 
 	frame->sf.back_chain = 0;
+	frame->sf.gprs[5] = (unsigned long)frame + sizeof(struct stack_frame);
+	frame->sf.gprs[6] = (unsigned long)p;
 	/* new return point is ret_from_fork */
-	frame->sf.gprs[8] = (unsigned long) ret_from_fork;
+	frame->sf.gprs[8] = (unsigned long)ret_from_fork;
 	/* fake return stack for resume(), don't go back to schedule */
-	frame->sf.gprs[9] = (unsigned long) frame;
+	frame->sf.gprs[9] = (unsigned long)frame;
 
 	/* Store access registers to kernel stack of new process. */
-	if (unlikely(p->flags & PF_KTHREAD)) {
+	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
 		/* kernel thread */
 		memset(&frame->childregs, 0, sizeof(struct pt_regs));
 		frame->childregs.psw.mask = PSW_KERNEL_BITS | PSW_MASK_DAT |
 				PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
 		frame->childregs.psw.addr =
-				(unsigned long) kernel_thread_starter;
+				(unsigned long)__ret_from_fork;
 		frame->childregs.gprs[9] = new_stackp; /* function */
 		frame->childregs.gprs[10] = arg;
-		frame->childregs.gprs[11] = (unsigned long) do_exit;
+		frame->childregs.gprs[11] = (unsigned long)do_exit;
 		frame->childregs.orig_gpr2 = -1;
 
 		return 0;
@@ -153,7 +169,7 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 	return 0;
 }
 
-asmlinkage void execve_tail(void)
+void execve_tail(void)
 {
 	current->thread.fpu.fpc = 0;
 	asm volatile("sfpc %0" : : "d" (0));

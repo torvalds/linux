@@ -183,7 +183,7 @@ void exit_thread(struct task_struct *tsk)
 #ifndef CONFIG_SMP
 	if (last_task_used_math == tsk) {
 #else
-	if (test_ti_thread_flag(task_thread_info(tsk), TIF_USEDFPU)) {
+	if (test_tsk_thread_flag(tsk, TIF_USEDFPU)) {
 #endif
 		/* Keep process from leaving FPU in a bogon state. */
 		put_psr(get_psr() | PSR_EF);
@@ -215,16 +215,6 @@ void flush_thread(void)
 #else
 		clear_thread_flag(TIF_USEDFPU);
 #endif
-	}
-
-	/* This task is no longer a kernel thread. */
-	if (current->thread.flags & SPARC_FLAG_KTHREAD) {
-		current->thread.flags &= ~SPARC_FLAG_KTHREAD;
-
-		/* We must fixup kregs as well. */
-		/* XXX This was not fixed for ti for a while, worked. Unused? */
-		current->thread.kregs = (struct pt_regs *)
-		    (task_stack_page(current) + (THREAD_SIZE - TRACEREG_SZ));
 	}
 }
 
@@ -309,11 +299,10 @@ int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
 	ti->ksp = (unsigned long) new_stack;
 	p->thread.kregs = childregs;
 
-	if (unlikely(p->flags & PF_KTHREAD)) {
+	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
 		extern int nwindows;
 		unsigned long psr;
 		memset(new_stack, 0, STACKFRAME_SZ + TRACEREG_SZ);
-		p->thread.flags |= SPARC_FLAG_KTHREAD;
 		p->thread.current_ds = KERNEL_DS;
 		ti->kpc = (((unsigned long) ret_from_kernel_thread) - 0x8);
 		childregs->u_regs[UREG_G1] = sp; /* function */
@@ -325,7 +314,6 @@ int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
 	}
 	memcpy(new_stack, (char *)regs - STACKFRAME_SZ, STACKFRAME_SZ + TRACEREG_SZ);
 	childregs->u_regs[UREG_FP] = sp;
-	p->thread.flags &= ~SPARC_FLAG_KTHREAD;
 	p->thread.current_ds = USER_DS;
 	ti->kpc = (((unsigned long) ret_from_fork) - 0x8);
 	ti->kpsr = current->thread.fork_kpsr | PSR_PIL;

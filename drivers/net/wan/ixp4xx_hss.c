@@ -323,7 +323,7 @@ struct desc {
 
 static int ports_open;
 static struct dma_pool *dma_pool;
-static spinlock_t npe_lock;
+static DEFINE_SPINLOCK(npe_lock);
 
 static const struct {
 	int tx, txdone, rx, rxfree;
@@ -1401,8 +1401,6 @@ static int __init hss_init_module(void)
 	     (IXP4XX_FEATURE_HDLC | IXP4XX_FEATURE_HSS)) !=
 	    (IXP4XX_FEATURE_HDLC | IXP4XX_FEATURE_HSS))
 		return -ENODEV;
-
-	spin_lock_init(&npe_lock);
 
 	return platform_driver_register(&ixp4xx_hss_driver);
 }

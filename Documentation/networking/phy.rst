@@ -216,7 +216,7 @@ put into an unsupported state.
 Lastly, once the controller is ready to handle network traffic, you call
 phy_start(phydev).  This tells the PAL that you are ready, and configures the
 PHY to connect to the network. If the MAC interrupt of your network driver
-also handles PHY status changes, just set phydev->irq to PHY_IGNORE_INTERRUPT
+also handles PHY status changes, just set phydev->irq to PHY_MAC_INTERRUPT
 before you call phy_start and use phy_mac_interrupt() from the network
 driver. If you don't want to use interrupts, set phydev->irq to PHY_POLL.
 phy_start() enables the PHY interrupts (if applicable) and starts the
@@ -267,6 +267,12 @@ Some of the interface modes are described below:
     duplex, pause or other settings.  This is dependent on the MAC and/or
     PHY behaviour.
 
+``PHY_INTERFACE_MODE_5GBASER``
+    This is the IEEE 802.3 Clause 129 defined 5GBASE-R protocol. It is
+    identical to the 10GBASE-R protocol defined in Clause 49, with the
+    exception that it operates at half the frequency. Please refer to the
+    IEEE standard for the definition.
+
 ``PHY_INTERFACE_MODE_10GBASER``
     This is the IEEE 802.3 Clause 49 defined 10GBASE-R protocol used with
     various different mediums. Please refer to the IEEE standard for a
@@ -285,6 +291,11 @@ Some of the interface modes are described below:
 
     Note: due to legacy usage, some 10GBASE-R usage incorrectly makes
     use of this definition.
+
+``PHY_INTERFACE_MODE_100BASEX``
+    This defines IEEE 802.3 Clause 24.  The link operates at a fixed data
+    rate of 125Mpbs using a 4B/5B encoding scheme, resulting in an underlying
+    data rate of 100Mpbs.
 
 Pause frames / flow control
 ===========================

@@ -1343,7 +1343,7 @@ static struct snd_soc_dai_driver lm49453_dai[] = {
 			.formats = LM49453_FORMATS,
 		},
 		.ops = &lm49453_headset_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.name = "LM49453 Speaker",

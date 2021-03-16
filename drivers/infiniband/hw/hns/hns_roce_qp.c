@@ -209,7 +209,7 @@ static int alloc_qpn(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 
 		hr_qp->doorbell_qpn = 1;
 	} else {
-		spin_lock(&qp_table->bank_lock);
+		mutex_lock(&qp_table->bank_mutex);
 		bankid = get_least_load_bankid_for_qp(qp_table->bank);
 
 		ret = alloc_qpn_with_bankid(&qp_table->bank[bankid], bankid,
@@ -217,12 +217,12 @@ static int alloc_qpn(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 		if (ret) {
 			ibdev_err(&hr_dev->ib_dev,
 				  "failed to alloc QPN, ret = %d\n", ret);
-			spin_unlock(&qp_table->bank_lock);
+			mutex_unlock(&qp_table->bank_mutex);
 			return ret;
 		}
 
 		qp_table->bank[bankid].inuse++;
-		spin_unlock(&qp_table->bank_lock);
+		mutex_unlock(&qp_table->bank_mutex);
 
 		hr_qp->doorbell_qpn = (u32)num;
 	}
@@ -408,14 +408,37 @@ static void free_qpn(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 
 	ida_free(&hr_dev->qp_table.bank[bankid].ida, hr_qp->qpn >> 3);
 
-	spin_lock(&hr_dev->qp_table.bank_lock);
+	mutex_lock(&hr_dev->qp_table.bank_mutex);
 	hr_dev->qp_table.bank[bankid].inuse--;
-	spin_unlock(&hr_dev->qp_table.bank_lock);
+	mutex_unlock(&hr_dev->qp_table.bank_mutex);
+}
+
+static u32 proc_rq_sge(struct hns_roce_dev *dev, struct hns_roce_qp *hr_qp,
+		       bool user)
+{
+	u32 max_sge = dev->caps.max_rq_sg;
+
+	if (dev->pci_dev->revision >= PCI_REVISION_ID_HIP09)
+		return max_sge;
+
+	/* Reserve SGEs only for HIP08 in kernel; The userspace driver will
+	 * calculate number of max_sge with reserved SGEs when allocating wqe
+	 * buf, so there is no need to do this again in kernel. But the number
+	 * may exceed the capacity of SGEs recorded in the firmware, so the
+	 * kernel driver should just adapt the value accordingly.
+	 */
+	if (user)
+		max_sge = roundup_pow_of_two(max_sge + 1);
+	else
+		hr_qp->rq.rsv_sge = 1;
+
+	return max_sge;
 }
 
 static int set_rq_size(struct hns_roce_dev *hr_dev, struct ib_qp_cap *cap,
-		       struct hns_roce_qp *hr_qp, int has_rq)
+		       struct hns_roce_qp *hr_qp, int has_rq, bool user)
 {
+	u32 max_sge = proc_rq_sge(hr_dev, hr_qp, user);
 	u32 cnt;
 
 	/* If srq exist, set zero for relative number of rq */
@@ -431,8 +454,9 @@ static int set_rq_size(struct hns_roce_dev *hr_dev, struct ib_qp_cap *cap,
 
 	/* Check the validity of QP support capacity */
 	if (!cap->max_recv_wr || cap->max_recv_wr > hr_dev->caps.max_wqes ||
-	    cap->max_recv_sge > hr_dev->caps.max_rq_sg) {
-		ibdev_err(&hr_dev->ib_dev, "RQ config error, depth=%u, sge=%d\n",
+	    cap->max_recv_sge > max_sge) {
+		ibdev_err(&hr_dev->ib_dev,
+			  "RQ config error, depth = %u, sge = %u\n",
 			  cap->max_recv_wr, cap->max_recv_sge);
 		return -EINVAL;
 	}
@@ -444,7 +468,8 @@ static int set_rq_size(struct hns_roce_dev *hr_dev, struct ib_qp_cap *cap,
 		return -EINVAL;
 	}
 
-	hr_qp->rq.max_gs = roundup_pow_of_two(max(1U, cap->max_recv_sge));
+	hr_qp->rq.max_gs = roundup_pow_of_two(max(1U, cap->max_recv_sge) +
+					      hr_qp->rq.rsv_sge);
 
 	if (hr_dev->caps.max_rq_sg <= HNS_ROCE_SGE_IN_WQE)
 		hr_qp->rq.wqe_shift = ilog2(hr_dev->caps.max_rq_desc_sz);
@@ -459,7 +484,7 @@ static int set_rq_size(struct hns_roce_dev *hr_dev, struct ib_qp_cap *cap,
 		hr_qp->rq_inl_buf.wqe_cnt = 0;
 
 	cap->max_recv_wr = cnt;
-	cap->max_recv_sge = hr_qp->rq.max_gs;
+	cap->max_recv_sge = hr_qp->rq.max_gs - hr_qp->rq.rsv_sge;
 
 	return 0;
 }
@@ -599,7 +624,6 @@ static int set_wqe_buf_attr(struct hns_roce_dev *hr_dev,
 		return -EINVAL;
 
 	buf_attr->page_shift = HNS_HW_PAGE_SHIFT + hr_dev->caps.mtt_buf_pg_sz;
-	buf_attr->fixed_page = true;
 	buf_attr->region_count = idx;
 
 	return 0;
@@ -919,7 +943,7 @@ static int set_qp_param(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 		hr_qp->sq_signal_bits = IB_SIGNAL_REQ_WR;
 
 	ret = set_rq_size(hr_dev, &init_attr->cap, hr_qp,
-			  hns_roce_qp_has_rq(init_attr));
+			  hns_roce_qp_has_rq(init_attr), !!udata);
 	if (ret) {
 		ibdev_err(ibdev, "failed to set user RQ size, ret = %d.\n",
 			  ret);
@@ -1371,6 +1395,7 @@ int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev)
 	unsigned int i;
 
 	mutex_init(&qp_table->scc_mutex);
+	mutex_init(&qp_table->bank_mutex);
 	xa_init(&hr_dev->qp_table_xa);
 
 	reserved_from_bot = hr_dev->caps.reserved_qps;

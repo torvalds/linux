@@ -55,9 +55,8 @@ struct pe_map_bar_entry {
 	__be32     reserved;  /* Reserved Space */
 };
 
-int pseries_send_map_pe(struct pci_dev *pdev,
-			u16 num_vfs,
-			struct pe_map_bar_entry *vf_pe_array)
+static int pseries_send_map_pe(struct pci_dev *pdev, u16 num_vfs,
+			       struct pe_map_bar_entry *vf_pe_array)
 {
 	struct pci_dn *pdn;
 	int rc;
@@ -88,7 +87,7 @@ int pseries_send_map_pe(struct pci_dev *pdev,
 	return rc;
 }
 
-void pseries_set_pe_num(struct pci_dev *pdev, u16 vf_index, __be16 pe_num)
+static void pseries_set_pe_num(struct pci_dev *pdev, u16 vf_index, __be16 pe_num)
 {
 	struct pci_dn *pdn;
 
@@ -102,7 +101,7 @@ void pseries_set_pe_num(struct pci_dev *pdev, u16 vf_index, __be16 pe_num)
 		pdn->pe_num_map[vf_index]);
 }
 
-int pseries_associate_pes(struct pci_dev *pdev, u16 num_vfs)
+static int pseries_associate_pes(struct pci_dev *pdev, u16 num_vfs)
 {
 	struct pci_dn *pdn;
 	int i, rc, vf_index;
@@ -146,7 +145,7 @@ int pseries_associate_pes(struct pci_dev *pdev, u16 num_vfs)
 	return rc;
 }
 
-int pseries_pci_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
+static int pseries_pci_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 {
 	struct pci_dn         *pdn;
 	int                    rc;
@@ -189,14 +188,14 @@ int pseries_pci_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 	return rc;
 }
 
-int pseries_pcibios_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
+static int pseries_pcibios_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 {
 	/* Allocate PCI data */
 	add_sriov_vf_pdns(pdev);
 	return pseries_pci_sriov_enable(pdev, num_vfs);
 }
 
-int pseries_pcibios_sriov_disable(struct pci_dev *pdev)
+static int pseries_pcibios_sriov_disable(struct pci_dev *pdev)
 {
 	struct pci_dn         *pdn;
 

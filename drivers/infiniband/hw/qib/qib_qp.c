@@ -207,7 +207,7 @@ bail:
 	return ret;
 }
 
-/**
+/*
  * qib_free_all_qps - check for QPs still in use
  */
 unsigned qib_free_all_qps(struct rvt_dev_info *rdi)
@@ -376,9 +376,9 @@ void qib_flush_qp_waiters(struct rvt_qp *qp)
 
 /**
  * qib_check_send_wqe - validate wr/wqe
- * @qp - The qp
- * @wqe - The built wqe
- * @call_send - Determine if the send should be posted or scheduled
+ * @qp: The qp
+ * @wqe: The built wqe
+ * @call_send: Determine if the send should be posted or scheduled
  *
  * Returns 0 on success, -EINVAL on failure
  */
@@ -418,8 +418,8 @@ static const char * const qp_type_str[] = {
 
 /**
  * qib_qp_iter_print - print information to seq_file
- * @s - the seq_file
- * @iter - the iterator
+ * @s: the seq_file
+ * @iter: the iterator
  */
 void qib_qp_iter_print(struct seq_file *s, struct rvt_qp_iter *iter)
 {

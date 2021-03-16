@@ -314,11 +314,7 @@ err_clk:
 
 static void sdhci_brcmstb_shutdown(struct platform_device *pdev)
 {
-	int ret;
-
-	ret = sdhci_pltfm_unregister(pdev);
-	if (ret)
-		dev_err(&pdev->dev, "failed to shutdown\n");
+	sdhci_pltfm_suspend(&pdev->dev);
 }
 
 MODULE_DEVICE_TABLE(of, sdhci_brcm_of_match);

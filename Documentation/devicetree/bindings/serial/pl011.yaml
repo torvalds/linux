@@ -19,7 +19,6 @@ select:
       contains:
         enum:
           - arm,pl011
-          - zte,zx296702-uart
   required:
     - compatible
 
@@ -30,7 +29,6 @@ properties:
           - const: arm,pl011
           - const: arm,primecell
       - items:
-          - const: zte,zx296702-uart
           - const: arm,primecell
 
   reg:
@@ -88,14 +86,12 @@ properties:
     description:
       Rate at which poll occurs when auto-poll is set.
       default 100ms.
-    $ref: /schemas/types.yaml#/definitions/uint32
     default: 100
 
   poll-timeout-ms:
     description:
       Poll timeout when auto-poll is set, default
       3000ms.
-    $ref: /schemas/types.yaml#/definitions/uint32
     default: 3000
 
 required:

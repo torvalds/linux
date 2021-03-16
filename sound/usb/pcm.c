@@ -270,10 +270,7 @@ static int snd_usb_pcm_sync_stop(struct snd_pcm_substream *substream)
 {
 	struct snd_usb_substream *subs = substream->runtime->private_data;
 
-	if (!snd_usb_lock_shutdown(subs->stream->chip)) {
-		sync_pending_stops(subs);
-		snd_usb_unlock_shutdown(subs->stream->chip);
-	}
+	sync_pending_stops(subs);
 	return 0;
 }
 
@@ -663,7 +660,7 @@ static int hw_check_valid_format(struct snd_usb_substream *subs,
 	check_fmts.bits[1] = (u32)(fp->formats >> 32);
 	snd_mask_intersect(&check_fmts, fmts);
 	if (snd_mask_empty(&check_fmts)) {
-		hwc_debug("   > check: no supported format %d\n", fp->format);
+		hwc_debug("   > check: no supported format 0x%llx\n", fp->formats);
 		return 0;
 	}
 	/* check the channels */
@@ -775,23 +772,10 @@ static int hw_rule_channels(struct snd_pcm_hw_params *params,
 	return apply_hw_params_minmax(it, rmin, rmax);
 }
 
-static int hw_rule_format(struct snd_pcm_hw_params *params,
-			  struct snd_pcm_hw_rule *rule)
+static int apply_hw_params_format_bits(struct snd_mask *fmt, u64 fbits)
 {
-	struct snd_usb_substream *subs = rule->private;
-	const struct audioformat *fp;
-	struct snd_mask *fmt = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
-	u64 fbits;
 	u32 oldbits[2];
 	int changed;
-
-	hwc_debug("hw_rule_format: %x:%x\n", fmt->bits[0], fmt->bits[1]);
-	fbits = 0;
-	list_for_each_entry(fp, &subs->fmt_list, list) {
-		if (!hw_check_valid_format(subs, params, fp))
-			continue;
-		fbits |= fp->formats;
-	}
 
 	oldbits[0] = fmt->bits[0];
 	oldbits[1] = fmt->bits[1];
@@ -804,6 +788,24 @@ static int hw_rule_format(struct snd_pcm_hw_params *params,
 	changed = (oldbits[0] != fmt->bits[0] || oldbits[1] != fmt->bits[1]);
 	hwc_debug("  --> %x:%x (changed = %d)\n", fmt->bits[0], fmt->bits[1], changed);
 	return changed;
+}
+
+static int hw_rule_format(struct snd_pcm_hw_params *params,
+			  struct snd_pcm_hw_rule *rule)
+{
+	struct snd_usb_substream *subs = rule->private;
+	const struct audioformat *fp;
+	struct snd_mask *fmt = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+	u64 fbits;
+
+	hwc_debug("hw_rule_format: %x:%x\n", fmt->bits[0], fmt->bits[1]);
+	fbits = 0;
+	list_for_each_entry(fp, &subs->fmt_list, list) {
+		if (!hw_check_valid_format(subs, params, fp))
+			continue;
+		fbits |= fp->formats;
+	}
+	return apply_hw_params_format_bits(fmt, fbits);
 }
 
 static int hw_rule_period_time(struct snd_pcm_hw_params *params,
@@ -833,64 +835,98 @@ static int hw_rule_period_time(struct snd_pcm_hw_params *params,
 	return apply_hw_params_minmax(it, pmin, UINT_MAX);
 }
 
-/* apply PCM hw constraints from the concurrent sync EP */
-static int apply_hw_constraint_from_sync(struct snd_pcm_runtime *runtime,
-					 struct snd_usb_substream *subs)
+/* get the EP or the sync EP for implicit fb when it's already set up */
+static const struct snd_usb_endpoint *
+get_sync_ep_from_substream(struct snd_usb_substream *subs)
 {
 	struct snd_usb_audio *chip = subs->stream->chip;
-	struct snd_usb_endpoint *ep;
 	const struct audioformat *fp;
-	int err;
+	const struct snd_usb_endpoint *ep;
 
 	list_for_each_entry(fp, &subs->fmt_list, list) {
 		ep = snd_usb_get_endpoint(chip, fp->endpoint);
-		if (ep && ep->cur_rate)
-			goto found;
+		if (ep && ep->cur_audiofmt) {
+			/* if EP is already opened solely for this substream,
+			 * we still allow us to change the parameter; otherwise
+			 * this substream has to follow the existing parameter
+			 */
+			if (ep->cur_audiofmt != subs->cur_audiofmt || ep->opened > 1)
+				return ep;
+		}
 		if (!fp->implicit_fb)
 			continue;
 		/* for the implicit fb, check the sync ep as well */
 		ep = snd_usb_get_endpoint(chip, fp->sync_ep);
-		if (ep && ep->cur_rate)
-			goto found;
+		if (ep && ep->cur_audiofmt)
+			return ep;
 	}
-	return 0;
+	return NULL;
+}
 
- found:
-	if (!find_format(&subs->fmt_list, ep->cur_format, ep->cur_rate,
-			 ep->cur_channels, false, NULL)) {
-		usb_audio_dbg(chip, "EP 0x%x being used, but not applicable\n",
-			      ep->ep_num);
+/* additional hw constraints for implicit feedback mode */
+static int hw_rule_format_implicit_fb(struct snd_pcm_hw_params *params,
+				      struct snd_pcm_hw_rule *rule)
+{
+	struct snd_usb_substream *subs = rule->private;
+	const struct snd_usb_endpoint *ep;
+	struct snd_mask *fmt = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+
+	ep = get_sync_ep_from_substream(subs);
+	if (!ep)
 		return 0;
-	}
 
-	usb_audio_dbg(chip, "EP 0x%x being used, using fixed params:\n",
-		      ep->ep_num);
-	usb_audio_dbg(chip, "rate=%d, period_size=%d, periods=%d\n",
-		      ep->cur_rate, ep->cur_period_frames,
-		      ep->cur_buffer_periods);
+	hwc_debug("applying %s\n", __func__);
+	return apply_hw_params_format_bits(fmt, pcm_format_to_bits(ep->cur_format));
+}
 
-	runtime->hw.formats = subs->formats;
-	runtime->hw.rate_min = runtime->hw.rate_max = ep->cur_rate;
-	runtime->hw.rates = SNDRV_PCM_RATE_KNOT;
-	runtime->hw.periods_min = runtime->hw.periods_max =
-		ep->cur_buffer_periods;
+static int hw_rule_rate_implicit_fb(struct snd_pcm_hw_params *params,
+				    struct snd_pcm_hw_rule *rule)
+{
+	struct snd_usb_substream *subs = rule->private;
+	const struct snd_usb_endpoint *ep;
+	struct snd_interval *it;
 
-	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-				  hw_rule_channels, subs,
-				  SNDRV_PCM_HW_PARAM_FORMAT,
-				  SNDRV_PCM_HW_PARAM_RATE,
-				  -1);
-	if (err < 0)
-		return err;
+	ep = get_sync_ep_from_substream(subs);
+	if (!ep)
+		return 0;
 
-	err = snd_pcm_hw_constraint_minmax(runtime,
-					   SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
-					   ep->cur_period_frames,
-					   ep->cur_period_frames);
-	if (err < 0)
-		return err;
+	hwc_debug("applying %s\n", __func__);
+	it = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
+	return apply_hw_params_minmax(it, ep->cur_rate, ep->cur_rate);
+}
 
-	return 1; /* notify the finding */
+static int hw_rule_period_size_implicit_fb(struct snd_pcm_hw_params *params,
+					   struct snd_pcm_hw_rule *rule)
+{
+	struct snd_usb_substream *subs = rule->private;
+	const struct snd_usb_endpoint *ep;
+	struct snd_interval *it;
+
+	ep = get_sync_ep_from_substream(subs);
+	if (!ep)
+		return 0;
+
+	hwc_debug("applying %s\n", __func__);
+	it = hw_param_interval(params, SNDRV_PCM_HW_PARAM_PERIOD_SIZE);
+	return apply_hw_params_minmax(it, ep->cur_period_frames,
+				      ep->cur_period_frames);
+}
+
+static int hw_rule_periods_implicit_fb(struct snd_pcm_hw_params *params,
+				       struct snd_pcm_hw_rule *rule)
+{
+	struct snd_usb_substream *subs = rule->private;
+	const struct snd_usb_endpoint *ep;
+	struct snd_interval *it;
+
+	ep = get_sync_ep_from_substream(subs);
+	if (!ep)
+		return 0;
+
+	hwc_debug("applying %s\n", __func__);
+	it = hw_param_interval(params, SNDRV_PCM_HW_PARAM_PERIODS);
+	return apply_hw_params_minmax(it, ep->cur_buffer_periods,
+				      ep->cur_buffer_periods);
 }
 
 /*
@@ -899,19 +935,10 @@ static int apply_hw_constraint_from_sync(struct snd_pcm_runtime *runtime,
 
 static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substream *subs)
 {
-	struct snd_usb_audio *chip = subs->stream->chip;
 	const struct audioformat *fp;
 	unsigned int pt, ptmin;
 	int param_period_time_if_needed = -1;
 	int err;
-
-	mutex_lock(&chip->mutex);
-	err = apply_hw_constraint_from_sync(runtime, subs);
-	mutex_unlock(&chip->mutex);
-	if (err < 0)
-		return err;
-	if (err > 0) /* found the matching? */
-		goto add_extra_rules;
 
 	runtime->hw.formats = subs->formats;
 
@@ -957,6 +984,7 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 
 	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
 				  hw_rule_rate, subs,
+				  SNDRV_PCM_HW_PARAM_RATE,
 				  SNDRV_PCM_HW_PARAM_FORMAT,
 				  SNDRV_PCM_HW_PARAM_CHANNELS,
 				  param_period_time_if_needed,
@@ -964,9 +992,9 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 	if (err < 0)
 		return err;
 
-add_extra_rules:
 	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
 				  hw_rule_channels, subs,
+				  SNDRV_PCM_HW_PARAM_CHANNELS,
 				  SNDRV_PCM_HW_PARAM_FORMAT,
 				  SNDRV_PCM_HW_PARAM_RATE,
 				  param_period_time_if_needed,
@@ -975,6 +1003,7 @@ add_extra_rules:
 		return err;
 	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_FORMAT,
 				  hw_rule_format, subs,
+				  SNDRV_PCM_HW_PARAM_FORMAT,
 				  SNDRV_PCM_HW_PARAM_RATE,
 				  SNDRV_PCM_HW_PARAM_CHANNELS,
 				  param_period_time_if_needed,
@@ -992,6 +1021,28 @@ add_extra_rules:
 		if (err < 0)
 			return err;
 	}
+
+	/* additional hw constraints for implicit fb */
+	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_FORMAT,
+				  hw_rule_format_implicit_fb, subs,
+				  SNDRV_PCM_HW_PARAM_FORMAT, -1);
+	if (err < 0)
+		return err;
+	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+				  hw_rule_rate_implicit_fb, subs,
+				  SNDRV_PCM_HW_PARAM_RATE, -1);
+	if (err < 0)
+		return err;
+	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+				  hw_rule_period_size_implicit_fb, subs,
+				  SNDRV_PCM_HW_PARAM_PERIOD_SIZE, -1);
+	if (err < 0)
+		return err;
+	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_PERIODS,
+				  hw_rule_periods_implicit_fb, subs,
+				  SNDRV_PCM_HW_PARAM_PERIODS, -1);
+	if (err < 0)
+		return err;
 
 	return 0;
 }
@@ -1510,7 +1561,7 @@ void snd_usb_preallocate_buffer(struct snd_usb_substream *subs)
 {
 	struct snd_pcm *pcm = subs->stream->pcm;
 	struct snd_pcm_substream *s = pcm->streams[subs->direction].substream;
-	struct device *dev = subs->dev->bus->controller;
+	struct device *dev = subs->dev->bus->sysdev;
 
 	if (snd_usb_use_vmalloc)
 		snd_pcm_set_managed_buffer(s, SNDRV_DMA_TYPE_VMALLOC,

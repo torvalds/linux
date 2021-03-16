@@ -702,7 +702,7 @@ static int fanotify_find_path(int dfd, const char __user *filename,
 	}
 
 	/* you can only watch an inode if you have read permissions on it */
-	ret = inode_permission(path->dentry->d_inode, MAY_READ);
+	ret = path_permission(path, MAY_READ);
 	if (ret) {
 		path_put(path);
 		goto out;
@@ -976,7 +976,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 		f_flags |= O_NONBLOCK;
 
 	/* fsnotify_alloc_group takes a ref.  Dropped in fanotify_release */
-	group = fsnotify_alloc_group(&fanotify_fsnotify_ops);
+	group = fsnotify_alloc_user_group(&fanotify_fsnotify_ops);
 	if (IS_ERR(group)) {
 		free_uid(user);
 		return PTR_ERR(group);
@@ -1285,26 +1285,23 @@ fput_and_out:
 	return ret;
 }
 
+#ifndef CONFIG_ARCH_SPLIT_ARG64
 SYSCALL_DEFINE5(fanotify_mark, int, fanotify_fd, unsigned int, flags,
 			      __u64, mask, int, dfd,
 			      const char  __user *, pathname)
 {
 	return do_fanotify_mark(fanotify_fd, flags, mask, dfd, pathname);
 }
+#endif
 
-#ifdef CONFIG_COMPAT
-COMPAT_SYSCALL_DEFINE6(fanotify_mark,
+#if defined(CONFIG_ARCH_SPLIT_ARG64) || defined(CONFIG_COMPAT)
+SYSCALL32_DEFINE6(fanotify_mark,
 				int, fanotify_fd, unsigned int, flags,
-				__u32, mask0, __u32, mask1, int, dfd,
+				SC_ARG64(mask), int, dfd,
 				const char  __user *, pathname)
 {
-	return do_fanotify_mark(fanotify_fd, flags,
-#ifdef __BIG_ENDIAN
-				((__u64)mask0 << 32) | mask1,
-#else
-				((__u64)mask1 << 32) | mask0,
-#endif
-				 dfd, pathname);
+	return do_fanotify_mark(fanotify_fd, flags, SC_VAL64(__u64, mask),
+				dfd, pathname);
 }
 #endif
 

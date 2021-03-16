@@ -104,7 +104,6 @@
 			MX6SLL_PAD_KEY_ROW7__GPIO4_IO07		0x79
 			MX6SLL_PAD_ECSPI2_MOSI__GPIO4_IO13	0x79
 			MX6SLL_PAD_KEY_COL5__GPIO4_IO02		0x79
-			MX6SLL_PAD_KEY_ROW6__GPIO4_IO05		0x79
 		>;
 	};
 
@@ -167,6 +166,13 @@
 		fsl,pins = <
 			MX6SLL_PAD_UART1_TXD__UART1_DCE_TX 0x1b0b1
 			MX6SLL_PAD_UART1_RXD__UART1_DCE_RX 0x1b0b1
+		>;
+	};
+
+	pinctrl_uart4: uart4grp {
+		fsl,pins = <
+			MX6SLL_PAD_KEY_ROW6__UART4_DCE_TX 0x1b0b1
+			MX6SLL_PAD_KEY_COL6__UART4_DCE_RX 0x1b0b1
 		>;
 	};
 
@@ -300,6 +306,11 @@
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
+};
+
+&uart4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart4>;
 };
 
 &usdhc2 {
