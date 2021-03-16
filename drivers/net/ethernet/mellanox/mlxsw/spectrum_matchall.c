@@ -417,12 +417,8 @@ static int mlxsw_sp2_mall_sample_add(struct mlxsw_sp *mlxsw_sp,
 		.session_id = MLXSW_SP_SPAN_SESSION_ID_SAMPLING,
 	};
 	u32 rate = mall_entry->sample.params.rate;
+	enum mlxsw_sp_span_trigger span_trigger;
 	int err;
-
-	if (!mall_entry->ingress) {
-		NL_SET_ERR_MSG(extack, "Sampling is not supported on egress");
-		return -EOPNOTSUPP;
-	}
 
 	err = mlxsw_sp_span_agent_get(mlxsw_sp, &mall_entry->sample.span_id,
 				      &agent_parms);
@@ -431,16 +427,19 @@ static int mlxsw_sp2_mall_sample_add(struct mlxsw_sp *mlxsw_sp,
 		return err;
 	}
 
-	err = mlxsw_sp_span_analyzed_port_get(mlxsw_sp_port, true);
+	err = mlxsw_sp_span_analyzed_port_get(mlxsw_sp_port,
+					      mall_entry->ingress);
 	if (err) {
 		NL_SET_ERR_MSG(extack, "Failed to get analyzed port");
 		goto err_analyzed_port_get;
 	}
 
+	span_trigger = mall_entry->ingress ? MLXSW_SP_SPAN_TRIGGER_INGRESS :
+					     MLXSW_SP_SPAN_TRIGGER_EGRESS;
 	trigger_parms.span_id = mall_entry->sample.span_id;
 	trigger_parms.probability_rate = rate;
-	err = mlxsw_sp_span_agent_bind(mlxsw_sp, MLXSW_SP_SPAN_TRIGGER_INGRESS,
-				       mlxsw_sp_port, &trigger_parms);
+	err = mlxsw_sp_span_agent_bind(mlxsw_sp, span_trigger, mlxsw_sp_port,
+				       &trigger_parms);
 	if (err) {
 		NL_SET_ERR_MSG(extack, "Failed to bind SPAN agent");
 		goto err_agent_bind;
@@ -449,7 +448,7 @@ static int mlxsw_sp2_mall_sample_add(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 
 err_agent_bind:
-	mlxsw_sp_span_analyzed_port_put(mlxsw_sp_port, true);
+	mlxsw_sp_span_analyzed_port_put(mlxsw_sp_port, mall_entry->ingress);
 err_analyzed_port_get:
 	mlxsw_sp_span_agent_put(mlxsw_sp, mall_entry->sample.span_id);
 	return err;
@@ -460,11 +459,14 @@ static void mlxsw_sp2_mall_sample_del(struct mlxsw_sp *mlxsw_sp,
 				      struct mlxsw_sp_mall_entry *mall_entry)
 {
 	struct mlxsw_sp_span_trigger_parms trigger_parms = {};
+	enum mlxsw_sp_span_trigger span_trigger;
 
+	span_trigger = mall_entry->ingress ? MLXSW_SP_SPAN_TRIGGER_INGRESS :
+					     MLXSW_SP_SPAN_TRIGGER_EGRESS;
 	trigger_parms.span_id = mall_entry->sample.span_id;
-	mlxsw_sp_span_agent_unbind(mlxsw_sp, MLXSW_SP_SPAN_TRIGGER_INGRESS,
-				   mlxsw_sp_port, &trigger_parms);
-	mlxsw_sp_span_analyzed_port_put(mlxsw_sp_port, true);
+	mlxsw_sp_span_agent_unbind(mlxsw_sp, span_trigger, mlxsw_sp_port,
+				   &trigger_parms);
+	mlxsw_sp_span_analyzed_port_put(mlxsw_sp_port, mall_entry->ingress);
 	mlxsw_sp_span_agent_put(mlxsw_sp, mall_entry->sample.span_id);
 }
 
