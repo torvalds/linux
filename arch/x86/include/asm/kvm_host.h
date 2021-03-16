@@ -884,12 +884,29 @@ struct kvm_hv_syndbg {
 	u64 options;
 };
 
+/* Current state of Hyper-V TSC page clocksource */
+enum hv_tsc_page_status {
+	/* TSC page was not set up or disabled */
+	HV_TSC_PAGE_UNSET = 0,
+	/* TSC page MSR was written by the guest, update pending */
+	HV_TSC_PAGE_GUEST_CHANGED,
+	/* TSC page MSR was written by KVM userspace, update pending */
+	HV_TSC_PAGE_HOST_CHANGED,
+	/* TSC page was properly set up and is currently active  */
+	HV_TSC_PAGE_SET,
+	/* TSC page is currently being updated and therefore is inactive */
+	HV_TSC_PAGE_UPDATING,
+	/* TSC page was set up with an inaccessible GPA */
+	HV_TSC_PAGE_BROKEN,
+};
+
 /* Hyper-V emulation context */
 struct kvm_hv {
 	struct mutex hv_lock;
 	u64 hv_guest_os_id;
 	u64 hv_hypercall;
 	u64 hv_tsc_page;
+	enum hv_tsc_page_status hv_tsc_page_status;
 
 	/* Hyper-v based guest crash (NT kernel bugcheck) parameters */
 	u64 hv_crash_param[HV_X64_MSR_CRASH_PARAMS];
