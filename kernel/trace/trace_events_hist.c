@@ -5484,7 +5484,7 @@ static int hist_register_trigger(char *glob, struct event_trigger_ops *ops,
 			goto out;
 		}
 
-		tracing_set_time_stamp_abs(file->tr, true);
+		tracing_set_filter_buffering(file->tr, true);
 	}
 
 	if (named_data)
@@ -5592,7 +5592,7 @@ static void hist_unregister_trigger(char *glob, struct event_trigger_ops *ops,
 
 	if (hist_data->enable_timestamps) {
 		if (!hist_data->remove || unregistered)
-			tracing_set_time_stamp_abs(file->tr, false);
+			tracing_set_filter_buffering(file->tr, false);
 	}
 }
 
@@ -5639,7 +5639,7 @@ static void hist_unreg_all(struct trace_event_file *file)
 
 			update_cond_flag(file);
 			if (hist_data->enable_timestamps)
-				tracing_set_time_stamp_abs(file->tr, false);
+				tracing_set_filter_buffering(file->tr, false);
 			if (test->ops->free)
 				test->ops->free(test->ops, test);
 		}

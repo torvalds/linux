@@ -352,7 +352,7 @@ struct trace_array {
 	/* function tracing enabled */
 	int			function_enabled;
 #endif
-	int			time_stamp_abs_ref;
+	int			no_filter_buffering_ref;
 	struct list_head	hist_vars;
 #ifdef CONFIG_TRACER_SNAPSHOT
 	struct cond_snapshot	*cond_snapshot;
@@ -372,7 +372,7 @@ extern int tracing_check_open_get_tr(struct trace_array *tr);
 extern struct trace_array *trace_array_find(const char *instance);
 extern struct trace_array *trace_array_find_get(const char *instance);
 
-extern int tracing_set_time_stamp_abs(struct trace_array *tr, bool abs);
+extern int tracing_set_filter_buffering(struct trace_array *tr, bool set);
 extern int tracing_set_clock(struct trace_array *tr, const char *clockstr);
 
 extern bool trace_clock_in_ns(struct trace_array *tr);
