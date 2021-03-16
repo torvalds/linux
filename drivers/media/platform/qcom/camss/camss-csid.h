@@ -56,6 +56,10 @@ enum csid_testgen_mode {
 	CSID_PAYLOAD_MODE_RANDOM = 5,
 	CSID_PAYLOAD_MODE_USER_SPECIFIED = 6,
 	CSID_PAYLOAD_MODE_NUM_SUPPORTED_GEN1 = 6, /* excluding disabled */
+	CSID_PAYLOAD_MODE_COMPLEX_PATTERN = 7,
+	CSID_PAYLOAD_MODE_COLOR_BOX = 8,
+	CSID_PAYLOAD_MODE_COLOR_BARS = 9,
+	CSID_PAYLOAD_MODE_NUM_SUPPORTED_GEN2 = 9, /* excluding disabled */
 };
 
 struct csid_format {
@@ -201,5 +205,7 @@ extern const char * const csid_testgen_modes[];
 
 extern const struct csid_hw_ops csid_ops_4_1;
 extern const struct csid_hw_ops csid_ops_4_7;
+extern const struct csid_hw_ops csid_ops_170;
+
 
 #endif /* QC_MSM_CAMSS_CSID_H */
