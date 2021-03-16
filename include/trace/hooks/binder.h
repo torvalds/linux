@@ -22,10 +22,17 @@ DECLARE_HOOK(android_vh_binder_set_priority,
 DECLARE_HOOK(android_vh_binder_restore_priority,
 	TP_PROTO(struct binder_transaction *t, struct task_struct *task),
 	TP_ARGS(t, task));
+struct binder_proc;
+struct binder_thread;
 DECLARE_HOOK(android_vh_binder_wakeup_ilocked,
-	TP_PROTO(struct task_struct *task),
-	TP_ARGS(task));
-
+	TP_PROTO(struct task_struct *task, bool sync, struct binder_proc *proc),
+	TP_ARGS(task, sync, proc));
+DECLARE_HOOK(android_vh_binder_wait_for_work,
+	TP_PROTO(bool do_proc_work, struct binder_thread *tsk, struct binder_proc *proc),
+	TP_ARGS(do_proc_work, tsk, proc));
+DECLARE_HOOK(android_vh_sync_txn_recvd,
+	TP_PROTO(struct task_struct *tsk, struct task_struct *from),
+	TP_ARGS(tsk, from));
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_BINDER_H */
