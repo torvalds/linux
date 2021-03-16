@@ -1933,6 +1933,9 @@ N: Kukjin Kim
 E: kgene@kernel.org
 D: Samsung S3C, S5P and Exynos ARM architectures
 
+N: Milo Kim
+D: TI LP855x, LP8727 and LP8788 drivers
+
 N: Sangbeom Kim
 E: sbkim73@samsung.com
 D: Samsung SoC Audio (ASoC) drivers
