@@ -7,6 +7,7 @@
 /dts-v1/;
 
 #include "rk3568-nvr.dtsi"
+#include <dt-bindings/clock/rk618-cru.h>
 
 / {
 	model = "Rockchip RK3568 NVR DEMO V10 Board";
@@ -195,6 +196,64 @@
 		spk-ctl-gpios = <&gpio2 RK_PA5 GPIO_ACTIVE_HIGH>;
 		#sound-dai-cells = <0>;
 	};
+
+	rk618@50 {
+		compatible = "rockchip,rk618";
+		reg = <0x50>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s3m1_mclk &rk618_int>;
+		clocks = <&cru I2S3_MCLKOUT>;
+		clock-names = "clkin";
+		assigned-clocks =<&cru I2S3_MCLKOUT>, <&cru I2S3_MCLK_IOE>;
+		assigned-clock-parents = <&cru I2S3_MCLKOUT_TX>, <&cru I2S3_MCLKOUT>;
+		assigned-clock-rates = <11289600>;
+		reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_LOW>;
+		status = "okay";
+
+		clock: cru {
+			compatible = "rockchip,rk618-cru";
+			clocks = <&cru I2S3_MCLKOUT>, <&cru DCLK_VOP2>;
+			clock-names = "clkin", "lcdc0_dclkp";
+			assigned-clocks = <&clock SCALER_PLLIN_CLK>,
+			<&clock VIF_PLLIN_CLK>,
+			<&clock SCALER_CLK>,
+			<&clock VIF0_PRE_CLK>,
+			<&clock CODEC_CLK>,
+			<&clock DITHER_CLK>;
+			assigned-clock-parents = <&cru I2S3_MCLKOUT_TX>,
+			<&clock LCDC0_CLK>,
+			<&clock SCALER_PLL_CLK>,
+			<&clock VIF_PLL_CLK>,
+			<&cru I2S3_MCLKOUT>,
+			<&clock VIF0_CLK>;
+			#clock-cells = <1>;
+			status = "okay";
+		};
+
+		hdmi {
+			compatible = "rockchip,rk618-hdmi";
+			clocks = <&clock HDMI_CLK>;
+			clock-names = "hdmi";
+			assigned-clocks = <&clock HDMI_CLK>;
+			assigned-clock-parents = <&clock VIF0_CLK>;
+			interrupt-parent = <&gpio0>;
+			interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					hdmi_in_rgb: endpoint {
+						remote-endpoint = <&rgb_out_hdmi>;
+					};
+				};
+			};
+		};
+	};
 };
 
 &mdio0 {
@@ -333,6 +392,25 @@
 	};
 };
 
+&rgb {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcdc_ctl>;
+	ports {
+		port@1 {
+			reg = <1>;
+
+			rgb_out_hdmi: endpoint {
+				remote-endpoint = <&hdmi_in_rgb>;
+			};
+		};
+	};
+};
+
+&rgb_in_vp2 {
+	status = "okay";
+};
+
 &sata1 {
 	status = "okay";
 };
@@ -342,14 +420,24 @@
 };
 
 &pinctrl {
-	stata {
-		sata_pm_reset: sata-pm-reset {
-			rockchip,pins = <4 RK_PD2 RK_FUNC_GPIO &pcfg_output_high>;
+	rk618 {
+		rk618_reset: rk618-reeset {
+			rockchip,pins = <1 RK_PB2 RK_FUNC_GPIO &pcfg_output_high>;
+		};
+		rk618_int: rk618-int {
+			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+
 	rtc {
 		rtc_int: rtc-int {
 			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	sata {
+		sata_pm_reset: sata-pm-reset {
+			rockchip,pins = <4 RK_PD2 RK_FUNC_GPIO &pcfg_output_high>;
 		};
 	};
 };
