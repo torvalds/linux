@@ -179,8 +179,13 @@ amdgpu-y += \
 	smuio_v11_0_6.o \
 	smuio_v13_0.o
 
+# add reset block
+amdgpu-y += \
+	amdgpu_reset.o
+
 # add amdkfd interfaces
 amdgpu-y += amdgpu_amdkfd.o
+
 
 ifneq ($(CONFIG_HSA_AMD),)
 AMDKFD_PATH := ../amdkfd
