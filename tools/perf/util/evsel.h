@@ -20,6 +20,8 @@ union perf_event;
 struct bpf_counter_ops;
 struct target;
 struct hashmap;
+struct bperf_leader_bpf;
+struct bperf_follower_bpf;
 
 typedef int (evsel__sb_cb_t)(union perf_event *event, void *data);
 
@@ -130,8 +132,24 @@ struct evsel {
 	 * See also evsel__has_callchain().
 	 */
 	__u64			synth_sample_type;
-	struct list_head	bpf_counter_list;
+
+	/*
+	 * bpf_counter_ops serves two use cases:
+	 *   1. perf-stat -b          counting events used byBPF programs
+	 *   2. perf-stat --use-bpf   use BPF programs to aggregate counts
+	 */
 	struct bpf_counter_ops	*bpf_counter_ops;
+
+	/* for perf-stat -b */
+	struct list_head	bpf_counter_list;
+
+	/* for perf-stat --use-bpf */
+	int			bperf_leader_prog_fd;
+	int			bperf_leader_link_fd;
+	union {
+		struct bperf_leader_bpf *leader_skel;
+		struct bperf_follower_bpf *follower_skel;
+	};
 };
 
 struct perf_missing_features {

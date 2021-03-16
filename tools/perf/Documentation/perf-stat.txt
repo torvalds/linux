@@ -93,6 +93,17 @@ report::
 
         1.102235068 seconds time elapsed
 
+--bpf-counters::
+	Use BPF programs to aggregate readings from perf_events.  This
+	allows multiple perf-stat sessions that are counting the same metric (cycles,
+	instructions, etc.) to share hardware counters.
+
+--bpf-attr-map::
+	With option "--bpf-counters", different perf-stat sessions share
+	information about shared BPF programs and maps via a pinned hashmap.
+	Use "--bpf-attr-map" to specify the path of this pinned hashmap.
+	The default path is /sys/fs/bpf/perf_attr_map.
+
 ifdef::HAVE_LIBPFM[]
 --pfm-events events::
 Select a PMU event using libpfm4 syntax (see http://perfmon2.sf.net)

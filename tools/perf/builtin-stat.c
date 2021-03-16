@@ -792,6 +792,12 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 	}
 
 	evlist__for_each_cpu (evsel_list, i, cpu) {
+		/*
+		 * bperf calls evsel__open_per_cpu() in bperf__load(), so
+		 * no need to call it again here.
+		 */
+		if (target.use_bpf)
+			break;
 		affinity__set(&affinity, cpu);
 
 		evlist__for_each_entry(evsel_list, counter) {
@@ -1146,6 +1152,10 @@ static struct option stat_options[] = {
 #ifdef HAVE_BPF_SKEL
 	OPT_STRING('b', "bpf-prog", &target.bpf_str, "bpf-prog-id",
 		   "stat events on existing bpf program id"),
+	OPT_BOOLEAN(0, "bpf-counters", &target.use_bpf,
+		    "use bpf program to count events"),
+	OPT_STRING(0, "bpf-attr-map", &target.attr_map, "attr-map-path",
+		   "path to perf_event_attr map"),
 #endif
 	OPT_BOOLEAN('a', "all-cpus", &target.system_wide,
 		    "system-wide collection from all CPUs"),

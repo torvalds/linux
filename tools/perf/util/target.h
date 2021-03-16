@@ -16,6 +16,8 @@ struct target {
 	bool	     uses_mmap;
 	bool	     default_per_cpu;
 	bool	     per_thread;
+	bool	     use_bpf;
+	const char   *attr_map;
 };
 
 enum target_errno {
@@ -66,7 +68,7 @@ static inline bool target__has_cpu(struct target *target)
 
 static inline bool target__has_bpf(struct target *target)
 {
-	return target->bpf_str;
+	return target->bpf_str || target->use_bpf;
 }
 
 static inline bool target__none(struct target *target)
