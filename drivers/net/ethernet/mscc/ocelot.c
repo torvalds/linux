@@ -2051,6 +2051,9 @@ int ocelot_init(struct ocelot *ocelot)
 
 		ocelot_write_rix(ocelot, val, ANA_PGID_PGID, i);
 	}
+
+	ocelot_write_rix(ocelot, 0, ANA_PGID_PGID, PGID_BLACKHOLE);
+
 	/* Allow broadcast and unknown L2 multicast to the CPU. */
 	ocelot_rmw_rix(ocelot, ANA_PGID_PGID_PGID(BIT(ocelot->num_phys_ports)),
 		       ANA_PGID_PGID_PGID(BIT(ocelot->num_phys_ports)),
