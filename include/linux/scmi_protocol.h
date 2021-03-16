@@ -61,7 +61,7 @@ struct scmi_device;
 struct scmi_protocol_handle;
 
 /**
- * struct scmi_clk_ops - represents the various operations provided
+ * struct scmi_clk_proto_ops - represents the various operations provided
  *	by SCMI Clock Protocol
  *
  * @count_get: get the count of clocks provided by SCMI
@@ -71,8 +71,21 @@ struct scmi_protocol_handle;
  * @enable: enables the specified clock
  * @disable: disables the specified clock
  */
+struct scmi_clk_proto_ops {
+	int (*count_get)(const struct scmi_protocol_handle *ph);
+
+	const struct scmi_clock_info *(*info_get)
+		(const struct scmi_protocol_handle *ph, u32 clk_id);
+	int (*rate_get)(const struct scmi_protocol_handle *ph, u32 clk_id,
+			u64 *rate);
+	int (*rate_set)(const struct scmi_protocol_handle *ph, u32 clk_id,
+			u64 rate);
+	int (*enable)(const struct scmi_protocol_handle *ph, u32 clk_id);
+	int (*disable)(const struct scmi_protocol_handle *ph, u32 clk_id);
+};
+
 struct scmi_clk_ops {
-	int (*count_get)(const struct scmi_handle *handle);
+	int (*count_get)(const struct scmi_handle *hamdle);
 
 	const struct scmi_clock_info *(*info_get)
 		(const struct scmi_handle *handle, u32 clk_id);
@@ -613,8 +626,6 @@ struct scmi_notify_ops {
  *		       operations and a dedicated protocol handler
  * @devm_protocol_put: devres managed method to release a protocol
  * @notify_ops: pointer to set of notifications related operations
- * @clk_priv: pointer to private data structure specific to clock
- *	protocol(for internal use only)
  * @sensor_priv: pointer to private data structure specific to sensors
  *	protocol(for internal use only)
  * @reset_priv: pointer to private data structure specific to reset
@@ -639,7 +650,6 @@ struct scmi_handle {
 
 	const struct scmi_notify_ops *notify_ops;
 	/* for protocol internal use */
-	void *clk_priv;
 	void *sensor_priv;
 	void *reset_priv;
 	void *voltage_priv;
