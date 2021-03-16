@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
 RUN apt-get update
 RUN apt-get install -y software-properties-common
@@ -23,6 +23,8 @@ RUN apt-get install -y bash-completion
 RUN apt-get install -y build-essential
 RUN apt-get install -y bison
 RUN apt-get install -y flex
+RUN apt-get install -y gdb
+RUN apt-get install -y asciinema
 
 RUN apt-get -y clean
 
@@ -41,3 +43,4 @@ RUN sed -i.bkp -e \
 
 USER ubuntu
 WORKDIR /home/ubuntu/
+RUN echo add-auto-load-safe-path /linux/scripts/gdb/vmlinux-gdb.py > ~/.gdbinit
