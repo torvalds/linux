@@ -883,10 +883,11 @@ out:
 	mutex_unlock(&info->protocols_mtx);
 }
 
-void scmi_setup_protocol_implemented(const struct scmi_handle *handle,
+void scmi_setup_protocol_implemented(const struct scmi_protocol_handle *ph,
 				     u8 *prot_imp)
 {
-	struct scmi_info *info = handle_to_scmi_info(handle);
+	const struct scmi_protocol_instance *pi = ph_to_pi(ph);
+	struct scmi_info *info = handle_to_scmi_info(pi->handle);
 
 	info->protocols_imp = prot_imp;
 }
@@ -1263,9 +1264,14 @@ static int scmi_probe(struct platform_device *pdev)
 	if (scmi_notification_init(handle))
 		dev_err(dev, "SCMI Notifications NOT available.\n");
 
-	ret = scmi_base_protocol_init(handle);
+	/*
+	 * Trigger SCMI Base protocol initialization.
+	 * It's mandatory and won't be ever released/deinit until the
+	 * SCMI stack is shutdown/unloaded as a whole.
+	 */
+	ret = scmi_protocol_acquire(handle, SCMI_PROTOCOL_BASE);
 	if (ret) {
-		dev_err(dev, "unable to communicate with SCMI(%d)\n", ret);
+		dev_err(dev, "unable to communicate with SCMI\n");
 		return ret;
 	}
 

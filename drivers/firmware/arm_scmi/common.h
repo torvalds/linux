@@ -221,10 +221,9 @@ int scmi_handle_put(const struct scmi_handle *handle);
 struct scmi_handle *scmi_handle_get(struct device *dev);
 void scmi_set_handle(struct scmi_device *scmi_dev);
 int scmi_version_get(const struct scmi_handle *h, u8 protocol, u32 *version);
-void scmi_setup_protocol_implemented(const struct scmi_handle *handle,
+void scmi_setup_protocol_implemented(const struct scmi_protocol_handle *ph,
 				     u8 *prot_imp);
 
-int scmi_base_protocol_init(struct scmi_handle *h);
 typedef int (*scmi_prot_init_fn_t)(struct scmi_handle *);
 typedef int (*scmi_prot_init_ph_fn_t)(const struct scmi_protocol_handle *);
 
