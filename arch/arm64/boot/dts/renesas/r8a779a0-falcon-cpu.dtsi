@@ -12,6 +12,14 @@
 	model = "Renesas Falcon CPU board";
 	compatible = "renesas,falcon-cpu", "renesas,r8a779a0";
 
+	aliases {
+		serial0 = &scif0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	memory@48000000 {
 		device_type = "memory";
 		/* first 128MB is reserved for secure area. */

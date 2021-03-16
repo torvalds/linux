@@ -16,11 +16,6 @@
 
 	aliases {
 		ethernet0 = &avb0;
-		serial0 = &scif0;
-	};
-
-	chosen {
-		stdout-path = "serial0:115200n8";
 	};
 };
 
