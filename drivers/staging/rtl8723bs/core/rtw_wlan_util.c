@@ -1809,15 +1809,7 @@ void process_addba_req(struct adapter *padapter, u8 *paddba_req, u8 *addr)
 
 		preorder_ctrl = &psta->recvreorder_ctrl[tid];
 
-		#ifdef CONFIG_UPDATE_INDICATE_SEQ_WHILE_PROCESS_ADDBA_REQ
-		preorder_ctrl->indicate_seq = start_seq;
-		#ifdef DBG_RX_SEQ
-		DBG_871X("DBG_RX_SEQ %s:%d IndicateSeq: %d, start_seq: %d\n", __func__, __LINE__,
-			preorder_ctrl->indicate_seq, start_seq);
-		#endif
-		#else
 		preorder_ctrl->indicate_seq = 0xffff;
-		#endif
 
 		preorder_ctrl->enable = pmlmeinfo->accept_addba_req;
 	}
