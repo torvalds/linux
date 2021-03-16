@@ -608,12 +608,12 @@ static void cryp_dma_done(struct cryp_ctx *ctx)
 	chan = ctx->device->dma.chan_mem2cryp;
 	dmaengine_terminate_all(chan);
 	dma_unmap_sg(chan->device->dev, ctx->device->dma.sg_src,
-		     ctx->device->dma.sg_src_len, DMA_TO_DEVICE);
+		     ctx->device->dma.nents_src, DMA_TO_DEVICE);
 
 	chan = ctx->device->dma.chan_cryp2mem;
 	dmaengine_terminate_all(chan);
 	dma_unmap_sg(chan->device->dev, ctx->device->dma.sg_dst,
-		     ctx->device->dma.sg_dst_len, DMA_FROM_DEVICE);
+		     ctx->device->dma.nents_dst, DMA_FROM_DEVICE);
 }
 
 static int cryp_dma_write(struct cryp_ctx *ctx, struct scatterlist *sg,

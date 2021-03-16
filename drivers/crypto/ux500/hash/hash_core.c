@@ -190,7 +190,7 @@ static void hash_dma_done(struct hash_ctx *ctx)
 	chan = ctx->device->dma.chan_mem2hash;
 	dmaengine_terminate_all(chan);
 	dma_unmap_sg(chan->device->dev, ctx->device->dma.sg,
-		     ctx->device->dma.sg_len, DMA_TO_DEVICE);
+		     ctx->device->dma.nents, DMA_TO_DEVICE);
 }
 
 static int hash_dma_write(struct hash_ctx *ctx,
