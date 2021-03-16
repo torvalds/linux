@@ -122,7 +122,7 @@ static int _ecdsa_verify(struct ecc_ctx *ctx, const u64 *hash, const u64 *r, con
 
 	/* res.x = res.x mod n (if res.x > order) */
 	if (unlikely(vli_cmp(res.x, curve->n, ndigits) == 1))
-		/* faster alternative for NIST p256 & p192 */
+		/* faster alternative for NIST p384, p256 & p192 */
 		vli_sub(res.x, res.x, curve->n, ndigits);
 
 	if (!vli_cmp(res.x, r, ndigits))
@@ -265,6 +265,28 @@ static unsigned int ecdsa_max_size(struct crypto_akcipher *tfm)
 	return ctx->pub_key.ndigits << ECC_DIGITS_TO_BYTES_SHIFT;
 }
 
+static int ecdsa_nist_p384_init_tfm(struct crypto_akcipher *tfm)
+{
+	struct ecc_ctx *ctx = akcipher_tfm_ctx(tfm);
+
+	return ecdsa_ecc_ctx_init(ctx, ECC_CURVE_NIST_P384);
+}
+
+static struct akcipher_alg ecdsa_nist_p384 = {
+	.verify = ecdsa_verify,
+	.set_pub_key = ecdsa_set_pub_key,
+	.max_size = ecdsa_max_size,
+	.init = ecdsa_nist_p384_init_tfm,
+	.exit = ecdsa_exit_tfm,
+	.base = {
+		.cra_name = "ecdsa-nist-p384",
+		.cra_driver_name = "ecdsa-nist-p384-generic",
+		.cra_priority = 100,
+		.cra_module = THIS_MODULE,
+		.cra_ctxsize = sizeof(struct ecc_ctx),
+	},
+};
+
 static int ecdsa_nist_p256_init_tfm(struct crypto_akcipher *tfm)
 {
 	struct ecc_ctx *ctx = akcipher_tfm_ctx(tfm);
@@ -321,7 +343,15 @@ static int ecdsa_init(void)
 	ret = crypto_register_akcipher(&ecdsa_nist_p256);
 	if (ret)
 		goto nist_p256_error;
+
+	ret = crypto_register_akcipher(&ecdsa_nist_p384);
+	if (ret)
+		goto nist_p384_error;
+
 	return 0;
+
+nist_p384_error:
+	crypto_unregister_akcipher(&ecdsa_nist_p256);
 
 nist_p256_error:
 	if (ecdsa_nist_p192_registered)
@@ -334,6 +364,7 @@ static void ecdsa_exit(void)
 	if (ecdsa_nist_p192_registered)
 		crypto_unregister_akcipher(&ecdsa_nist_p192);
 	crypto_unregister_akcipher(&ecdsa_nist_p256);
+	crypto_unregister_akcipher(&ecdsa_nist_p384);
 }
 
 subsys_initcall(ecdsa_init);
