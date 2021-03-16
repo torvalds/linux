@@ -143,15 +143,6 @@ struct scmi_xfer {
 	struct completion *async_done;
 };
 
-void scmi_xfer_put(const struct scmi_handle *h, struct scmi_xfer *xfer);
-int scmi_do_xfer(const struct scmi_handle *h, struct scmi_xfer *xfer);
-int scmi_do_xfer_with_response(const struct scmi_handle *h,
-			       struct scmi_xfer *xfer);
-int scmi_xfer_get_init(const struct scmi_handle *h, u8 msg_id, u8 prot_id,
-		       size_t tx_size, size_t rx_size, struct scmi_xfer **p);
-void scmi_reset_rx_to_maxsz(const struct scmi_handle *handle,
-			    struct scmi_xfer *xfer);
-
 struct scmi_xfer_ops;
 
 /**
@@ -180,11 +171,6 @@ struct scmi_protocol_handle {
 	int (*set_priv)(const struct scmi_protocol_handle *ph, void *priv);
 	void *(*get_priv)(const struct scmi_protocol_handle *ph);
 };
-
-const struct scmi_protocol_handle *
-scmi_map_protocol_handle(const struct scmi_handle *handle, u8 prot_id);
-
-struct scmi_handle *scmi_map_scmi_handle(const struct scmi_protocol_handle *ph);
 
 /**
  * struct scmi_xfer_ops  - References to the core SCMI xfer operations.
@@ -220,7 +206,6 @@ scmi_revision_area_get(const struct scmi_protocol_handle *ph);
 int scmi_handle_put(const struct scmi_handle *handle);
 struct scmi_handle *scmi_handle_get(struct device *dev);
 void scmi_set_handle(struct scmi_device *scmi_dev);
-int scmi_version_get(const struct scmi_handle *h, u8 protocol, u32 *version);
 void scmi_setup_protocol_implemented(const struct scmi_protocol_handle *ph,
 				     u8 *prot_imp);
 
