@@ -226,10 +226,6 @@ struct recv_priv {
 	struct tasklet_struct recv_tasklet;
 	struct sk_buff_head free_recv_skb_queue;
 	struct sk_buff_head rx_skb_queue;
-#ifdef CONFIG_RX_INDICATE_QUEUE
-	struct task rx_indicate_tasklet;
-	struct ifqueue rx_indicate_queue;
-#endif	/*  CONFIG_RX_INDICATE_QUEUE */
 
 	u8 *pallocated_recv_buf;
 	u8 *precv_buf;    /*  4 alignment */
