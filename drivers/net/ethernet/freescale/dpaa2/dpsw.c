@@ -397,7 +397,7 @@ int dpsw_if_set_link_cfg(struct fsl_mc_io *mc_io,
  * @if_id:	Interface id
  * @state:	Link state	1 - linkup, 0 - link down or disconnected
  *
- * @Return	'0' on Success; Error code otherwise.
+ * Return:	'0' on Success; Error code otherwise.
  */
 int dpsw_if_get_link_state(struct fsl_mc_io *mc_io,
 			   u32 cmd_flags,
@@ -1354,74 +1354,6 @@ int dpsw_if_get_port_mac_addr(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 		mac_addr[5 - i] = rsp_params->mac_addr[i];
 
 	return 0;
-}
-
-/**
- * dpsw_if_get_primary_mac_addr()
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPSW object
- * @if_id:	Interface Identifier
- * @mac_addr:	MAC address of the physical port, if any, otherwise 0
- *
- * Return:	Completion status. '0' on Success; Error code otherwise.
- */
-int dpsw_if_get_primary_mac_addr(struct fsl_mc_io *mc_io, u32 cmd_flags,
-				 u16 token, u16 if_id, u8 mac_addr[6])
-{
-	struct dpsw_rsp_if_get_mac_addr *rsp_params;
-	struct fsl_mc_command cmd = { 0 };
-	struct dpsw_cmd_if *cmd_params;
-	int err, i;
-
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPSW_CMDID_IF_SET_PRIMARY_MAC_ADDR,
-					  cmd_flags,
-					  token);
-	cmd_params = (struct dpsw_cmd_if *)cmd.params;
-	cmd_params->if_id = cpu_to_le16(if_id);
-
-	/* send command to mc*/
-	err = mc_send_command(mc_io, &cmd);
-	if (err)
-		return err;
-
-	/* retrieve response parameters */
-	rsp_params = (struct dpsw_rsp_if_get_mac_addr *)cmd.params;
-	for (i = 0; i < 6; i++)
-		mac_addr[5 - i] = rsp_params->mac_addr[i];
-
-	return 0;
-}
-
-/**
- * dpsw_if_set_primary_mac_addr()
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPSW object
- * @if_id:	Interface Identifier
- * @mac_addr:	MAC address of the physical port, if any, otherwise 0
- *
- * Return:	Completion status. '0' on Success; Error code otherwise.
- */
-int dpsw_if_set_primary_mac_addr(struct fsl_mc_io *mc_io, u32 cmd_flags,
-				 u16 token, u16 if_id, u8 mac_addr[6])
-{
-	struct dpsw_cmd_if_set_mac_addr *cmd_params;
-	struct fsl_mc_command cmd = { 0 };
-	int i;
-
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPSW_CMDID_IF_SET_PRIMARY_MAC_ADDR,
-					  cmd_flags,
-					  token);
-	cmd_params = (struct dpsw_cmd_if_set_mac_addr *)cmd.params;
-	cmd_params->if_id = cpu_to_le16(if_id);
-	for (i = 0; i < 6; i++)
-		cmd_params->mac_addr[i] = mac_addr[5 - i];
-
-	/* send command to mc*/
-	return mc_send_command(mc_io, &cmd);
 }
 
 /**

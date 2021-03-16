@@ -75,8 +75,6 @@
 #define DPSW_CMDID_FDB_DUMP                 DPSW_CMD_ID(0x08A)
 
 #define DPSW_CMDID_IF_GET_PORT_MAC_ADDR     DPSW_CMD_ID(0x0A7)
-#define DPSW_CMDID_IF_GET_PRIMARY_MAC_ADDR  DPSW_CMD_ID(0x0A8)
-#define DPSW_CMDID_IF_SET_PRIMARY_MAC_ADDR  DPSW_CMD_ID(0x0A9)
 
 #define DPSW_CMDID_CTRL_IF_GET_ATTR         DPSW_CMD_ID(0x0A0)
 #define DPSW_CMDID_CTRL_IF_SET_POOLS        DPSW_CMD_ID(0x0A1)
@@ -440,11 +438,6 @@ struct dpsw_rsp_get_api_version {
 
 struct dpsw_rsp_if_get_mac_addr {
 	__le16 pad;
-	u8 mac_addr[6];
-};
-
-struct dpsw_cmd_if_set_mac_addr {
-	__le16 if_id;
 	u8 mac_addr[6];
 };
 
