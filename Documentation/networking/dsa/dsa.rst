@@ -757,6 +757,36 @@ can optionally populate ``ds->num_lag_ids`` from the ``dsa_switch_ops::setup``
 method. The LAG ID associated with a bonding/team interface can then be
 retrieved by a DSA switch driver using the ``dsa_lag_id`` function.
 
+IEC 62439-2 (MRP)
+-----------------
+
+The Media Redundancy Protocol is a topology management protocol optimized for
+fast fault recovery time for ring networks, which has some components
+implemented as a function of the bridge driver. MRP uses management PDUs
+(Test, Topology, LinkDown/Up, Option) sent at a multicast destination MAC
+address range of 01:15:4e:00:00:0x and with an EtherType of 0x88e3.
+Depending on the node's role in the ring (MRM: Media Redundancy Manager,
+MRC: Media Redundancy Client, MRA: Media Redundancy Automanager), certain MRP
+PDUs might need to be terminated locally and others might need to be forwarded.
+An MRM might also benefit from offloading to hardware the creation and
+transmission of certain MRP PDUs (Test).
+
+Normally an MRP instance can be created on top of any network interface,
+however in the case of a device with an offloaded data path such as DSA, it is
+necessary for the hardware, even if it is not MRP-aware, to be able to extract
+the MRP PDUs from the fabric before the driver can proceed with the software
+implementation. DSA today has no driver which is MRP-aware, therefore it only
+listens for the bare minimum switchdev objects required for the software assist
+to work properly. The operations are detailed below.
+
+- ``port_mrp_add`` and ``port_mrp_del``: notifies driver when an MRP instance
+  with a certain ring ID, priority, primary port and secondary port is
+  created/deleted.
+- ``port_mrp_add_ring_role`` and ``port_mrp_del_ring_role``: function invoked
+  when an MRP instance changes ring roles between MRM or MRC. This affects
+  which MRP PDUs should be trapped to software and which should be autonomously
+  forwarded.
+
 TODO
 ====
 
