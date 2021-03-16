@@ -215,6 +215,8 @@ struct scmi_xfer_ops {
 			 struct scmi_xfer *xfer);
 };
 
+struct scmi_revision_info *
+scmi_revision_area_get(const struct scmi_protocol_handle *ph);
 int scmi_handle_put(const struct scmi_handle *handle);
 struct scmi_handle *scmi_handle_get(struct device *dev);
 void scmi_set_handle(struct scmi_device *scmi_dev);
