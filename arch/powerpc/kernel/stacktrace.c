@@ -27,13 +27,13 @@
  * Save stack-backtrace addresses into a stack_trace buffer.
  */
 static void save_context_stack(struct stack_trace *trace, unsigned long sp,
-			struct task_struct *tsk, int savesched)
+			struct task_struct *task, int savesched)
 {
 	for (;;) {
 		unsigned long *stack = (unsigned long *) sp;
 		unsigned long newsp, ip;
 
-		if (!validate_sp(sp, tsk, STACK_FRAME_OVERHEAD))
+		if (!validate_sp(sp, task, STACK_FRAME_OVERHEAD))
 			return;
 
 		newsp = stack[0];
@@ -94,18 +94,18 @@ EXPORT_SYMBOL_GPL(save_stack_trace_regs);
  *
  * If the task is not 'current', the caller *must* ensure the task is inactive.
  */
-static int __save_stack_trace_tsk_reliable(struct task_struct *tsk,
+static int __save_stack_trace_tsk_reliable(struct task_struct *task,
 					   struct stack_trace *trace)
 {
 	unsigned long sp;
 	unsigned long newsp;
-	unsigned long stack_page = (unsigned long)task_stack_page(tsk);
+	unsigned long stack_page = (unsigned long)task_stack_page(task);
 	unsigned long stack_end;
 	int graph_idx = 0;
 	bool firstframe;
 
 	stack_end = stack_page + THREAD_SIZE;
-	if (!is_idle_task(tsk)) {
+	if (!is_idle_task(task)) {
 		/*
 		 * For user tasks, this is the SP value loaded on
 		 * kernel entry, see "PACAKSAVE(r13)" in _switch() and
@@ -129,10 +129,10 @@ static int __save_stack_trace_tsk_reliable(struct task_struct *tsk,
 		stack_end -= STACK_FRAME_OVERHEAD;
 	}
 
-	if (tsk == current)
+	if (task == current)
 		sp = current_stack_frame();
 	else
-		sp = tsk->thread.ksp;
+		sp = task->thread.ksp;
 
 	if (sp < stack_page + sizeof(struct thread_struct) ||
 	    sp > stack_end - STACK_FRAME_MIN_SIZE) {
@@ -181,7 +181,7 @@ static int __save_stack_trace_tsk_reliable(struct task_struct *tsk,
 		 * FIXME: IMHO these tests do not belong in
 		 * arch-dependent code, they are generic.
 		 */
-		ip = ftrace_graph_ret_addr(tsk, &graph_idx, ip, stack);
+		ip = ftrace_graph_ret_addr(task, &graph_idx, ip, stack);
 #ifdef CONFIG_KPROBES
 		/*
 		 * Mark stacktraces with kretprobed functions on them
