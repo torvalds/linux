@@ -635,6 +635,19 @@ scmi_alloc_init_protocol_instance(struct scmi_info *info,
 	if (ret != proto->id)
 		goto clean;
 
+	/*
+	 * Warn but ignore events registration errors since we do not want
+	 * to skip whole protocols if their notifications are messed up.
+	 */
+	if (pi->proto->events) {
+		ret = scmi_register_protocol_events(handle, pi->proto->id,
+						    pi->proto->events);
+		if (ret)
+			dev_warn(handle->dev,
+				 "Protocol:%X - Events Registration Failed - err:%d\n",
+				 pi->proto->id, ret);
+	}
+
 	devres_close_group(handle->dev, pi->gid);
 	dev_dbg(handle->dev, "Initialized protocol: 0x%X\n", pi->proto->id);
 
@@ -718,6 +731,9 @@ void scmi_protocol_release(struct scmi_handle *handle, u8 protocol_id)
 
 	if (refcount_dec_and_test(&pi->users)) {
 		void *gid = pi->gid;
+
+		if (pi->proto->events)
+			scmi_deregister_protocol_events(handle, protocol_id);
 
 		if (pi->proto->instance_deinit)
 			pi->proto->instance_deinit(handle);

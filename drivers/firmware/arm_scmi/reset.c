@@ -257,6 +257,16 @@ static void *scmi_reset_fill_custom_report(const struct scmi_handle *handle,
 	return r;
 }
 
+static int scmi_reset_get_num_sources(const struct scmi_handle *handle)
+{
+	struct scmi_reset_info *pinfo = handle->reset_priv;
+
+	if (!pinfo)
+		return -EINVAL;
+
+	return pinfo->num_domains;
+}
+
 static const struct scmi_event reset_events[] = {
 	{
 		.id = SCMI_EVENT_RESET_ISSUED,
@@ -266,8 +276,16 @@ static const struct scmi_event reset_events[] = {
 };
 
 static const struct scmi_event_ops reset_event_ops = {
+	.get_num_sources = scmi_reset_get_num_sources,
 	.set_notify_enabled = scmi_reset_set_notify_enabled,
 	.fill_custom_report = scmi_reset_fill_custom_report,
+};
+
+static const struct scmi_protocol_events reset_protocol_events = {
+	.queue_sz = SCMI_PROTO_QUEUE_SZ,
+	.ops = &reset_event_ops,
+	.evts = reset_events,
+	.num_events = ARRAY_SIZE(reset_events),
 };
 
 static int scmi_reset_protocol_init(struct scmi_handle *handle)
@@ -298,12 +316,6 @@ static int scmi_reset_protocol_init(struct scmi_handle *handle)
 		scmi_reset_domain_attributes_get(handle, domain, dom);
 	}
 
-	scmi_register_protocol_events(handle,
-				      SCMI_PROTOCOL_RESET, SCMI_PROTO_QUEUE_SZ,
-				      &reset_event_ops, reset_events,
-				      ARRAY_SIZE(reset_events),
-				      pinfo->num_domains);
-
 	pinfo->version = version;
 	handle->reset_ops = &reset_ops;
 	handle->reset_priv = pinfo;
@@ -315,6 +327,7 @@ static const struct scmi_protocol scmi_reset = {
 	.id = SCMI_PROTOCOL_RESET,
 	.init = &scmi_reset_protocol_init,
 	.ops = &reset_ops,
+	.events = &reset_protocol_events,
 };
 
 DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(reset, scmi_reset)

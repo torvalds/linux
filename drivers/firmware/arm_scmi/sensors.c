@@ -920,6 +920,13 @@ static void *scmi_sensor_fill_custom_report(const struct scmi_handle *handle,
 	return rep;
 }
 
+static int scmi_sensor_get_num_sources(const struct scmi_handle *handle)
+{
+	struct sensors_info *si = handle->sensor_priv;
+
+	return si->num_sensors;
+}
+
 static const struct scmi_event sensor_events[] = {
 	{
 		.id = SCMI_EVENT_SENSOR_TRIP_POINT_EVENT,
@@ -939,8 +946,16 @@ static const struct scmi_event sensor_events[] = {
 };
 
 static const struct scmi_event_ops sensor_event_ops = {
+	.get_num_sources = scmi_sensor_get_num_sources,
 	.set_notify_enabled = scmi_sensor_set_notify_enabled,
 	.fill_custom_report = scmi_sensor_fill_custom_report,
+};
+
+static const struct scmi_protocol_events sensor_protocol_events = {
+	.queue_sz = SCMI_PROTO_QUEUE_SZ,
+	.ops = &sensor_event_ops,
+	.evts = sensor_events,
+	.num_events = ARRAY_SIZE(sensor_events),
 };
 
 static int scmi_sensors_protocol_init(struct scmi_handle *handle)
@@ -971,12 +986,6 @@ static int scmi_sensors_protocol_init(struct scmi_handle *handle)
 	if (ret)
 		return ret;
 
-	scmi_register_protocol_events(handle,
-				      SCMI_PROTOCOL_SENSOR, SCMI_PROTO_QUEUE_SZ,
-				      &sensor_event_ops, sensor_events,
-				      ARRAY_SIZE(sensor_events),
-				      sinfo->num_sensors);
-
 	handle->sensor_priv = sinfo;
 	handle->sensor_ops = &sensor_ops;
 
@@ -987,6 +996,7 @@ static const struct scmi_protocol scmi_sensors = {
 	.id = SCMI_PROTOCOL_SENSOR,
 	.init = &scmi_sensors_protocol_init,
 	.ops = &sensor_ops,
+	.events = &sensor_protocol_events,
 };
 
 DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(sensors, scmi_sensors)

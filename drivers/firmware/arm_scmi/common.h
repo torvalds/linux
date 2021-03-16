@@ -226,6 +226,7 @@ typedef int (*scmi_prot_init_fn_t)(struct scmi_handle *);
  * @instance_deinit: Optional protocol de-initialization function.
  * @ops: Optional reference to the operations provided by the protocol and
  *	 exposed in scmi_protocol.h.
+ * @events: An optional reference to the events supported by this protocol.
  */
 struct scmi_protocol {
 	const u8				id;
@@ -233,6 +234,7 @@ struct scmi_protocol {
 	const scmi_prot_init_fn_t		instance_init;
 	const scmi_prot_init_fn_t		instance_deinit;
 	const void				*ops;
+	const struct scmi_protocol_events	*events;
 };
 
 int __init scmi_bus_init(void);

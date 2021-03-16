@@ -2,7 +2,7 @@
 /*
  * System Control and Management Interface (SCMI) Notification support
  *
- * Copyright (C) 2020 ARM Ltd.
+ * Copyright (C) 2020-2021 ARM Ltd.
  */
 /**
  * DOC: Theory of operation
@@ -733,14 +733,9 @@ scmi_allocate_registered_events_desc(struct scmi_notify_instance *ni,
 /**
  * scmi_register_protocol_events()  - Register Protocol Events with the core
  * @handle: The handle identifying the platform instance against which the
- *	    the protocol's events are registered
+ *	    protocol's events are registered
  * @proto_id: Protocol ID
- * @queue_sz: Size in bytes of the associated queue to be allocated
- * @ops: Protocol specific event-related operations
- * @evt: Event descriptor array
- * @num_events: Number of events in @evt array
- * @num_sources: Number of possible sources for this protocol on this
- *		 platform.
+ * @ee: A structure describing the events supported by this protocol.
  *
  * Used by SCMI Protocols initialization code to register with the notification
  * core the list of supported events and their descriptors: takes care to
@@ -749,18 +744,18 @@ scmi_allocate_registered_events_desc(struct scmi_notify_instance *ni,
  *
  * Return: 0 on Success
  */
-int scmi_register_protocol_events(const struct scmi_handle *handle,
-				  u8 proto_id, size_t queue_sz,
-				  const struct scmi_event_ops *ops,
-				  const struct scmi_event *evt, int num_events,
-				  int num_sources)
+int scmi_register_protocol_events(const struct scmi_handle *handle, u8 proto_id,
+				  const struct scmi_protocol_events *ee)
 {
 	int i;
+	unsigned int num_sources;
 	size_t payld_sz = 0;
 	struct scmi_registered_events_desc *pd;
 	struct scmi_notify_instance *ni;
+	const struct scmi_event *evt;
 
-	if (!ops || !evt)
+	if (!ee || !ee->ops || !ee->evts ||
+	    (!ee->num_sources && !ee->ops->get_num_sources))
 		return -EINVAL;
 
 	/* Ensure notify_priv is updated */
@@ -769,40 +764,49 @@ int scmi_register_protocol_events(const struct scmi_handle *handle,
 		return -ENOMEM;
 	ni = handle->notify_priv;
 
-	/* Attach to the notification main devres group */
-	if (!devres_open_group(ni->handle->dev, ni->gid, GFP_KERNEL))
-		return -ENOMEM;
+	/* num_sources cannot be <= 0 */
+	if (ee->num_sources) {
+		num_sources = ee->num_sources;
+	} else {
+		int nsrc = ee->ops->get_num_sources(handle);
 
-	for (i = 0; i < num_events; i++)
+		if (nsrc <= 0)
+			return -EINVAL;
+		num_sources = nsrc;
+	}
+
+	evt = ee->evts;
+	for (i = 0; i < ee->num_events; i++)
 		payld_sz = max_t(size_t, payld_sz, evt[i].max_payld_sz);
 	payld_sz += sizeof(struct scmi_event_header);
 
-	pd = scmi_allocate_registered_events_desc(ni, proto_id, queue_sz,
-						  payld_sz, num_events, ops);
+	pd = scmi_allocate_registered_events_desc(ni, proto_id, ee->queue_sz,
+						  payld_sz, ee->num_events,
+						  ee->ops);
 	if (IS_ERR(pd))
-		goto err;
+		return PTR_ERR(pd);
 
-	for (i = 0; i < num_events; i++, evt++) {
+	for (i = 0; i < ee->num_events; i++, evt++) {
 		struct scmi_registered_event *r_evt;
 
 		r_evt = devm_kzalloc(ni->handle->dev, sizeof(*r_evt),
 				     GFP_KERNEL);
 		if (!r_evt)
-			goto err;
+			return -ENOMEM;
 		r_evt->proto = pd;
 		r_evt->evt = evt;
 
 		r_evt->sources = devm_kcalloc(ni->handle->dev, num_sources,
 					      sizeof(refcount_t), GFP_KERNEL);
 		if (!r_evt->sources)
-			goto err;
+			return -ENOMEM;
 		r_evt->num_sources = num_sources;
 		mutex_init(&r_evt->sources_mtx);
 
 		r_evt->report = devm_kzalloc(ni->handle->dev,
 					     evt->max_report_sz, GFP_KERNEL);
 		if (!r_evt->report)
-			goto err;
+			return -ENOMEM;
 
 		pd->registered_events[i] = r_evt;
 		/* Ensure events are updated */
@@ -816,8 +820,6 @@ int scmi_register_protocol_events(const struct scmi_handle *handle,
 	/* Ensure protocols are updated */
 	smp_wmb();
 
-	devres_close_group(ni->handle->dev, ni->gid);
-
 	/*
 	 * Finalize any pending events' handler which could have been waiting
 	 * for this protocol's events registration.
@@ -825,13 +827,35 @@ int scmi_register_protocol_events(const struct scmi_handle *handle,
 	schedule_work(&ni->init_work);
 
 	return 0;
+}
 
-err:
-	dev_warn(handle->dev, "Proto:%X - Registration Failed !\n", proto_id);
-	/* A failing protocol registration does not trigger full failure */
-	devres_close_group(ni->handle->dev, ni->gid);
+/**
+ * scmi_deregister_protocol_events  - Deregister protocol events with the core
+ * @handle: The handle identifying the platform instance against which the
+ *	    protocol's events are registered
+ * @proto_id: Protocol ID
+ */
+void scmi_deregister_protocol_events(const struct scmi_handle *handle,
+				     u8 proto_id)
+{
+	struct scmi_notify_instance *ni;
+	struct scmi_registered_events_desc *pd;
 
-	return -ENOMEM;
+	/* Ensure notify_priv is updated */
+	smp_rmb();
+	if (!handle->notify_priv)
+		return;
+
+	ni = handle->notify_priv;
+	pd = ni->registered_protocols[proto_id];
+	if (!pd)
+		return;
+
+	ni->registered_protocols[proto_id] = NULL;
+	/* Ensure protocols are updated */
+	smp_wmb();
+
+	cancel_work_sync(&pd->equeue.notify_work);
 }
 
 /**

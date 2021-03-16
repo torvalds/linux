@@ -246,6 +246,16 @@ static void *scmi_power_fill_custom_report(const struct scmi_handle *handle,
 	return r;
 }
 
+static int scmi_power_get_num_sources(const struct scmi_handle *handle)
+{
+	struct scmi_power_info *pinfo = handle->power_priv;
+
+	if (!pinfo)
+		return -EINVAL;
+
+	return pinfo->num_domains;
+}
+
 static const struct scmi_event power_events[] = {
 	{
 		.id = SCMI_EVENT_POWER_STATE_CHANGED,
@@ -256,8 +266,16 @@ static const struct scmi_event power_events[] = {
 };
 
 static const struct scmi_event_ops power_event_ops = {
+	.get_num_sources = scmi_power_get_num_sources,
 	.set_notify_enabled = scmi_power_set_notify_enabled,
 	.fill_custom_report = scmi_power_fill_custom_report,
+};
+
+static const struct scmi_protocol_events power_protocol_events = {
+	.queue_sz = SCMI_PROTO_QUEUE_SZ,
+	.ops = &power_event_ops,
+	.evts = power_events,
+	.num_events = ARRAY_SIZE(power_events),
 };
 
 static int scmi_power_protocol_init(struct scmi_handle *handle)
@@ -288,12 +306,6 @@ static int scmi_power_protocol_init(struct scmi_handle *handle)
 		scmi_power_domain_attributes_get(handle, domain, dom);
 	}
 
-	scmi_register_protocol_events(handle,
-				      SCMI_PROTOCOL_POWER, SCMI_PROTO_QUEUE_SZ,
-				      &power_event_ops, power_events,
-				      ARRAY_SIZE(power_events),
-				      pinfo->num_domains);
-
 	pinfo->version = version;
 	handle->power_ops = &power_ops;
 	handle->power_priv = pinfo;
@@ -305,6 +317,7 @@ static const struct scmi_protocol scmi_power = {
 	.id = SCMI_PROTOCOL_POWER,
 	.init = &scmi_power_protocol_init,
 	.ops = &power_ops,
+	.events = &power_protocol_events,
 };
 
 DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(power, scmi_power)
