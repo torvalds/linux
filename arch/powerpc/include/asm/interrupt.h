@@ -21,9 +21,6 @@ static inline void nap_adjust_return(struct pt_regs *regs)
 }
 
 struct interrupt_state {
-#ifdef CONFIG_PPC_BOOK3E_64
-	enum ctx_state ctx_state;
-#endif
 };
 
 static inline void booke_restore_dbcr0(void)
@@ -56,9 +53,7 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs, struct interrup
 	if (irq_soft_mask_set_return(IRQS_ALL_DISABLED) == IRQS_ENABLED)
 		trace_hardirqs_off();
 	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
-#endif
 
-#ifdef CONFIG_PPC_BOOK3S_64
 	if (user_mode(regs)) {
 		CT_WARN_ON(ct_state() != CONTEXT_USER);
 		user_exit_irqoff();
@@ -73,12 +68,6 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs, struct interrup
 		if (TRAP(regs) != 0x700)
 			CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
 	}
-#endif
-
-#ifdef CONFIG_PPC_BOOK3E_64
-	state->ctx_state = exception_enter();
-	if (user_mode(regs))
-		account_cpu_user_entry();
 #endif
 
 	booke_restore_dbcr0();
@@ -100,25 +89,8 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs, struct interrup
  */
 static inline void interrupt_exit_prepare(struct pt_regs *regs, struct interrupt_state *state)
 {
-#ifdef CONFIG_PPC_BOOK3E_64
-	exception_exit(state->ctx_state);
-#endif
-
 	if (user_mode(regs))
 		kuep_unlock();
-	/*
-	 * Book3S exits to user via interrupt_exit_user_prepare(), which does
-	 * context tracking, which is a cleaner way to handle PREEMPT=y
-	 * and avoid context entry/exit in e.g., preempt_schedule_irq()),
-	 * which is likely to be where the core code wants to end up.
-	 *
-	 * The above comment explains why we can't do the
-	 *
-	 *     if (user_mode(regs))
-	 *         user_exit_irqoff();
-	 *
-	 * sequence here.
-	 */
 }
 
 static inline void interrupt_async_enter_prepare(struct pt_regs *regs, struct interrupt_state *state)

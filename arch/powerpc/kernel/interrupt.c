@@ -235,10 +235,6 @@ static notrace void booke_load_dbcr0(void)
 #endif
 }
 
-/* temporary hack for context tracking, removed in later patch */
-#include <linux/sched/debug.h>
-asmlinkage __visible void __sched schedule_user(void);
-
 /*
  * This should be called after a syscall returns, with r3 the return value
  * from the syscall. If this function returns non-zero, the system call
@@ -296,11 +292,7 @@ again:
 	while (unlikely(ti_flags & (_TIF_USER_WORK_MASK & ~_TIF_RESTORE_TM))) {
 		local_irq_enable();
 		if (ti_flags & _TIF_NEED_RESCHED) {
-#ifdef CONFIG_PPC_BOOK3E_64
-			schedule_user();
-#else
 			schedule();
-#endif
 		} else {
 			/*
 			 * SIGPENDING must restore signal handler function
@@ -375,9 +367,7 @@ notrace unsigned long interrupt_exit_user_prepare(struct pt_regs *regs, unsigned
 	BUG_ON(!(regs->msr & MSR_PR));
 	BUG_ON(!FULL_REGS(regs));
 	BUG_ON(arch_irq_disabled_regs(regs));
-#ifdef CONFIG_PPC_BOOK3S_64
 	CT_WARN_ON(ct_state() == CONTEXT_USER);
-#endif
 
 	/*
 	 * We don't need to restore AMR on the way back to userspace for KUAP.
@@ -392,11 +382,7 @@ again:
 	while (unlikely(ti_flags & (_TIF_USER_WORK_MASK & ~_TIF_RESTORE_TM))) {
 		local_irq_enable(); /* returning to user: may enable */
 		if (ti_flags & _TIF_NEED_RESCHED) {
-#ifdef CONFIG_PPC_BOOK3E_64
-			schedule_user();
-#else
 			schedule();
-#endif
 		} else {
 			if (ti_flags & _TIF_SIGPENDING)
 				ret |= _TIF_RESTOREALL;
@@ -464,7 +450,7 @@ notrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs, unsign
 	 * CT_WARN_ON comes here via program_check_exception,
 	 * so avoid recursion.
 	 */
-	if (IS_ENABLED(CONFIG_BOOKS) && TRAP(regs) != 0x700)
+	if (TRAP(regs) != 0x700)
 		CT_WARN_ON(ct_state() == CONTEXT_USER);
 
 	kuap = kuap_get_and_assert_locked();
