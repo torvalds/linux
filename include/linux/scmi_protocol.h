@@ -84,19 +84,6 @@ struct scmi_clk_proto_ops {
 	int (*disable)(const struct scmi_protocol_handle *ph, u32 clk_id);
 };
 
-struct scmi_clk_ops {
-	int (*count_get)(const struct scmi_handle *hamdle);
-
-	const struct scmi_clock_info *(*info_get)
-		(const struct scmi_handle *handle, u32 clk_id);
-	int (*rate_get)(const struct scmi_handle *handle, u32 clk_id,
-			u64 *rate);
-	int (*rate_set)(const struct scmi_handle *handle, u32 clk_id,
-			u64 rate);
-	int (*enable)(const struct scmi_handle *handle, u32 clk_id);
-	int (*disable)(const struct scmi_handle *handle, u32 clk_id);
-};
-
 /**
  * struct scmi_perf_proto_ops - represents the various operations provided
  *	by SCMI Performance Protocol
@@ -618,7 +605,6 @@ struct scmi_notify_ops {
  *
  * @dev: pointer to the SCMI device
  * @version: pointer to the structure containing SCMI version information
- * @clk_ops: pointer to set of clock protocol operations
  * @sensor_ops: pointer to set of sensor protocol operations
  * @reset_ops: pointer to set of reset protocol operations
  * @voltage_ops: pointer to set of voltage protocol operations
@@ -638,7 +624,6 @@ struct scmi_notify_ops {
 struct scmi_handle {
 	struct device *dev;
 	struct scmi_revision_info *version;
-	const struct scmi_clk_ops *clk_ops;
 	const struct scmi_sensor_ops *sensor_ops;
 	const struct scmi_reset_ops *reset_ops;
 	const struct scmi_voltage_ops *voltage_ops;
