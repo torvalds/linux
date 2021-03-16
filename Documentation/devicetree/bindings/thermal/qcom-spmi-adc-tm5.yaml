@@ -59,7 +59,6 @@ patternProperties:
 
     properties:
       reg:
-        $ref: /schemas/types.yaml#/definitions/uint32
         description: Specify the sensor channel. There are 8 channels in PMIC5's ADC TM
         minimum: 0
         maximum: 7

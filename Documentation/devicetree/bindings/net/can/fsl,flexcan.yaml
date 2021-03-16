@@ -57,7 +57,6 @@ properties:
       - const: per
 
   clock-frequency:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       The oscillator frequency driving the flexcan device, filled in by the
       boot loader. This property should only be used the used operating system
