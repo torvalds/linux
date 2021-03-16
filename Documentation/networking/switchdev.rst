@@ -181,18 +181,41 @@ To offloading L2 bridging, the switchdev driver/device should support:
 Static FDB Entries
 ^^^^^^^^^^^^^^^^^^
 
-The switchdev driver should implement ndo_fdb_add, ndo_fdb_del and ndo_fdb_dump
-to support static FDB entries installed to the device.  Static bridge FDB
-entries are installed, for example, using iproute2 bridge cmd::
+A driver which implements the ``ndo_fdb_add``, ``ndo_fdb_del`` and
+``ndo_fdb_dump`` operations is able to support the command below, which adds a
+static bridge FDB entry::
 
-	bridge fdb add ADDR dev DEV [vlan VID] [self]
+        bridge fdb add dev DEV ADDRESS [vlan VID] [self] static
 
-The driver should use the helper switchdev_port_fdb_xxx ops for ndo_fdb_xxx
-ops, and handle add/delete/dump of SWITCHDEV_OBJ_ID_PORT_FDB object using
-switchdev_port_obj_xxx ops.
+(the "static" keyword is non-optional: if not specified, the entry defaults to
+being "local", which means that it should not be forwarded)
 
-XXX: what should be done if offloading this rule to hardware fails (for
-example, due to full capacity in hardware tables) ?
+The "self" keyword (optional because it is implicit) has the role of
+instructing the kernel to fulfill the operation through the ``ndo_fdb_add``
+implementation of the ``DEV`` device itself. If ``DEV`` is a bridge port, this
+will bypass the bridge and therefore leave the software database out of sync
+with the hardware one.
+
+To avoid this, the "master" keyword can be used::
+
+        bridge fdb add dev DEV ADDRESS [vlan VID] master static
+
+The above command instructs the kernel to search for a master interface of
+``DEV`` and fulfill the operation through the ``ndo_fdb_add`` method of that.
+This time, the bridge generates a ``SWITCHDEV_FDB_ADD_TO_DEVICE`` notification
+which the port driver can handle and use it to program its hardware table. This
+way, the software and the hardware database will both contain this static FDB
+entry.
+
+Note: for new switchdev drivers that offload the Linux bridge, implementing the
+``ndo_fdb_add`` and ``ndo_fdb_del`` bridge bypass methods is strongly
+discouraged: all static FDB entries should be added on a bridge port using the
+"master" flag. The ``ndo_fdb_dump`` is an exception and can be implemented to
+visualize the hardware tables, if the device does not have an interrupt for
+notifying the operating system of newly learned/forgotten dynamic FDB
+addresses. In that case, the hardware FDB might end up having entries that the
+software FDB does not, and implementing ``ndo_fdb_dump`` is the only way to see
+them.
 
 Note: by default, the bridge does not filter on VLAN and only bridges untagged
 traffic.  To enable VLAN support, turn on VLAN filtering::
