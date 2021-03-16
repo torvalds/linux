@@ -15,6 +15,7 @@
  */
 
 #include <linux/bitmap.h>
+#include <linux/device.h>
 #include <linux/export.h>
 #include <linux/idr.h>
 #include <linux/io.h>
@@ -755,6 +756,95 @@ scmi_is_protocol_implemented(const struct scmi_handle *handle, u8 prot_id)
 	return false;
 }
 
+struct scmi_protocol_devres {
+	struct scmi_handle *handle;
+	u8 protocol_id;
+};
+
+static void scmi_devm_release_protocol(struct device *dev, void *res)
+{
+	struct scmi_protocol_devres *dres = res;
+
+	scmi_protocol_release(dres->handle, dres->protocol_id);
+}
+
+/**
+ * scmi_devm_protocol_get  - Devres managed get protocol operations and handle
+ * @sdev: A reference to an scmi_device whose embedded struct device is to
+ *	  be used for devres accounting.
+ * @protocol_id: The protocol being requested.
+ * @ph: A pointer reference used to pass back the associated protocol handle.
+ *
+ * Get hold of a protocol accounting for its usage, eventually triggering its
+ * initialization, and returning the protocol specific operations and related
+ * protocol handle which will be used as first argument in most of the
+ * protocols operations methods.
+ * Being a devres based managed method, protocol hold will be automatically
+ * released, and possibly de-initialized on last user, once the SCMI driver
+ * owning the scmi_device is unbound from it.
+ *
+ * Return: A reference to the requested protocol operations or error.
+ *	   Must be checked for errors by caller.
+ */
+static const void __must_check *
+scmi_devm_protocol_get(struct scmi_device *sdev, u8 protocol_id,
+		       struct scmi_protocol_handle **ph)
+{
+	struct scmi_protocol_instance *pi;
+	struct scmi_protocol_devres *dres;
+	struct scmi_handle *handle = sdev->handle;
+
+	if (!ph)
+		return ERR_PTR(-EINVAL);
+
+	dres = devres_alloc(scmi_devm_release_protocol,
+			    sizeof(*dres), GFP_KERNEL);
+	if (!dres)
+		return ERR_PTR(-ENOMEM);
+
+	pi = scmi_get_protocol_instance(handle, protocol_id);
+	if (IS_ERR(pi)) {
+		devres_free(dres);
+		return pi;
+	}
+
+	dres->handle = handle;
+	dres->protocol_id = protocol_id;
+	devres_add(&sdev->dev, dres);
+
+	*ph = &pi->ph;
+
+	return pi->proto->ops;
+}
+
+static int scmi_devm_protocol_match(struct device *dev, void *res, void *data)
+{
+	struct scmi_protocol_devres *dres = res;
+
+	if (WARN_ON(!dres || !data))
+		return 0;
+
+	return dres->protocol_id == *((u8 *)data);
+}
+
+/**
+ * scmi_devm_protocol_put  - Devres managed put protocol operations and handle
+ * @sdev: A reference to an scmi_device whose embedded struct device is to
+ *	  be used for devres accounting.
+ * @protocol_id: The protocol being requested.
+ *
+ * Explicitly release a protocol hold previously obtained calling the above
+ * @scmi_devm_protocol_get.
+ */
+static void scmi_devm_protocol_put(struct scmi_device *sdev, u8 protocol_id)
+{
+	int ret;
+
+	ret = devres_release(&sdev->dev, scmi_devm_release_protocol,
+			     scmi_devm_protocol_match, &protocol_id);
+	WARN_ON(ret);
+}
+
 /**
  * scmi_handle_get() - Get the SCMI handle for a device
  *
@@ -1009,6 +1099,8 @@ static int scmi_probe(struct platform_device *pdev)
 	handle = &info->handle;
 	handle->dev = info->dev;
 	handle->version = &info->version;
+	handle->devm_protocol_get = scmi_devm_protocol_get;
+	handle->devm_protocol_put = scmi_devm_protocol_put;
 
 	ret = scmi_txrx_setup(info, dev, SCMI_PROTOCOL_BASE);
 	if (ret)

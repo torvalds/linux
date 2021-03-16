@@ -57,6 +57,8 @@ struct scmi_clock_info {
 };
 
 struct scmi_handle;
+struct scmi_device;
+struct scmi_protocol_handle;
 
 /**
  * struct scmi_clk_ops - represents the various operations provided
@@ -593,6 +595,9 @@ struct scmi_notify_ops {
  * @sensor_ops: pointer to set of sensor protocol operations
  * @reset_ops: pointer to set of reset protocol operations
  * @voltage_ops: pointer to set of voltage protocol operations
+ * @devm_protocol_get: devres managed method to acquire a protocol and get specific
+ *		       operations and a dedicated protocol handler
+ * @devm_protocol_put: devres managed method to release a protocol
  * @notify_ops: pointer to set of notifications related operations
  * @perf_priv: pointer to private data structure specific to performance
  *	protocol(for internal use only)
@@ -618,6 +623,12 @@ struct scmi_handle {
 	const struct scmi_sensor_ops *sensor_ops;
 	const struct scmi_reset_ops *reset_ops;
 	const struct scmi_voltage_ops *voltage_ops;
+
+	const void __must_check *
+		(*devm_protocol_get)(struct scmi_device *sdev, u8 proto,
+				     struct scmi_protocol_handle **ph);
+	void (*devm_protocol_put)(struct scmi_device *sdev, u8 proto);
+
 	const struct scmi_notify_ops *notify_ops;
 	/* for protocol internal use */
 	void *perf_priv;
