@@ -50,6 +50,7 @@
 #include <asm/setup.h>
 #include <asm/rtas.h>
 #include <asm/iommu.h>
+#include <asm/security_features.h>
 #include <asm/serial.h>
 #include <asm/cache.h>
 #include <asm/page.h>
@@ -949,8 +950,8 @@ static bool no_rfi_flush;
 static bool no_entry_flush;
 static bool no_uaccess_flush;
 bool rfi_flush;
-bool entry_flush;
-bool uaccess_flush;
+static bool entry_flush;
+static bool uaccess_flush;
 DEFINE_STATIC_KEY_FALSE(uaccess_flush_key);
 EXPORT_SYMBOL(uaccess_flush_key);
 
