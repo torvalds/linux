@@ -1137,6 +1137,29 @@ out_unlock:
 	mutex_unlock(&hv->hv_lock);
 }
 
+void kvm_hv_invalidate_tsc_page(struct kvm *kvm)
+{
+	struct kvm_hv *hv = to_kvm_hv(kvm);
+	u64 gfn;
+
+	if (!(hv->hv_tsc_page & HV_X64_MSR_TSC_REFERENCE_ENABLE))
+		return;
+
+	mutex_lock(&hv->hv_lock);
+
+	if (!(hv->hv_tsc_page & HV_X64_MSR_TSC_REFERENCE_ENABLE))
+		goto out_unlock;
+
+	gfn = hv->hv_tsc_page >> HV_X64_MSR_TSC_REFERENCE_ADDRESS_SHIFT;
+
+	hv->tsc_ref.tsc_sequence = 0;
+	kvm_write_guest(kvm, gfn_to_gpa(gfn),
+			&hv->tsc_ref, sizeof(hv->tsc_ref.tsc_sequence));
+
+out_unlock:
+	mutex_unlock(&hv->hv_lock);
+}
+
 static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 			     bool host)
 {

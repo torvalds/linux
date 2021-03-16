@@ -2551,6 +2551,8 @@ static void kvm_gen_update_masterclock(struct kvm *kvm)
 	struct kvm_vcpu *vcpu;
 	struct kvm_arch *ka = &kvm->arch;
 
+	kvm_hv_invalidate_tsc_page(kvm);
+
 	spin_lock(&ka->pvclock_gtod_sync_lock);
 	kvm_make_mclock_inprogress_request(kvm);
 	/* no guest entries from this point */
