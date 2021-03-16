@@ -124,9 +124,9 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 
 	if (is_dx_dir(inode)) {
 		err = ext4_dx_readdir(file, ctx);
-		if (err != ERR_BAD_DX_DIR) {
+		if (err != ERR_BAD_DX_DIR)
 			return err;
-		}
+
 		/* Can we just clear INDEX flag to ignore htree information? */
 		if (!ext4_has_metadata_csum(sb)) {
 			/*
