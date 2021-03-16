@@ -287,6 +287,17 @@ EXPORT_SYMBOL_GPL(ring_buffer_event_data);
 #define TS_MASK		((1ULL << TS_SHIFT) - 1)
 #define TS_DELTA_TEST	(~TS_MASK)
 
+static u64 rb_event_time_stamp(struct ring_buffer_event *event)
+{
+	u64 ts;
+
+	ts = event->array[0];
+	ts <<= TS_SHIFT;
+	ts += event->time_delta;
+
+	return ts;
+}
+
 /**
  * ring_buffer_event_time_stamp - return the event's extended timestamp
  * @event: the event to get the timestamp of
@@ -299,13 +310,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_event_data);
  */
 u64 ring_buffer_event_time_stamp(struct ring_buffer_event *event)
 {
-	u64 ts;
-
-	ts = event->array[0];
-	ts <<= TS_SHIFT;
-	ts += event->time_delta;
-
-	return ts;
+	return rb_event_time_stamp(event);
 }
 
 /* Flag when events were overwritten */
@@ -2766,7 +2771,7 @@ static u64 rb_time_delta(struct ring_buffer_event *event)
 		return 0;
 
 	case RINGBUF_TYPE_TIME_EXTEND:
-		return ring_buffer_event_time_stamp(event);
+		return rb_event_time_stamp(event);
 
 	case RINGBUF_TYPE_TIME_STAMP:
 		return 0;
@@ -3212,13 +3217,13 @@ static void dump_buffer_page(struct buffer_data_page *bpage,
 		switch (event->type_len) {
 
 		case RINGBUF_TYPE_TIME_EXTEND:
-			delta = ring_buffer_event_time_stamp(event);
+			delta = rb_event_time_stamp(event);
 			ts += delta;
 			pr_warn("  [%lld] delta:%lld TIME EXTEND\n", ts, delta);
 			break;
 
 		case RINGBUF_TYPE_TIME_STAMP:
-			delta = ring_buffer_event_time_stamp(event);
+			delta = rb_event_time_stamp(event);
 			ts = delta;
 			pr_warn("  [%lld] absolute:%lld TIME STAMP\n", ts, delta);
 			break;
@@ -3289,12 +3294,12 @@ static void check_buffer(struct ring_buffer_per_cpu *cpu_buffer,
 		switch (event->type_len) {
 
 		case RINGBUF_TYPE_TIME_EXTEND:
-			delta = ring_buffer_event_time_stamp(event);
+			delta = rb_event_time_stamp(event);
 			ts += delta;
 			break;
 
 		case RINGBUF_TYPE_TIME_STAMP:
-			delta = ring_buffer_event_time_stamp(event);
+			delta = rb_event_time_stamp(event);
 			ts = delta;
 			break;
 
@@ -4256,12 +4261,12 @@ rb_update_read_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 		return;
 
 	case RINGBUF_TYPE_TIME_EXTEND:
-		delta = ring_buffer_event_time_stamp(event);
+		delta = rb_event_time_stamp(event);
 		cpu_buffer->read_stamp += delta;
 		return;
 
 	case RINGBUF_TYPE_TIME_STAMP:
-		delta = ring_buffer_event_time_stamp(event);
+		delta = rb_event_time_stamp(event);
 		cpu_buffer->read_stamp = delta;
 		return;
 
@@ -4286,12 +4291,12 @@ rb_update_iter_read_stamp(struct ring_buffer_iter *iter,
 		return;
 
 	case RINGBUF_TYPE_TIME_EXTEND:
-		delta = ring_buffer_event_time_stamp(event);
+		delta = rb_event_time_stamp(event);
 		iter->read_stamp += delta;
 		return;
 
 	case RINGBUF_TYPE_TIME_STAMP:
-		delta = ring_buffer_event_time_stamp(event);
+		delta = rb_event_time_stamp(event);
 		iter->read_stamp = delta;
 		return;
 
@@ -4544,7 +4549,7 @@ rb_buffer_peek(struct ring_buffer_per_cpu *cpu_buffer, u64 *ts,
 
 	case RINGBUF_TYPE_TIME_STAMP:
 		if (ts) {
-			*ts = ring_buffer_event_time_stamp(event);
+			*ts = rb_event_time_stamp(event);
 			ring_buffer_normalize_time_stamp(cpu_buffer->buffer,
 							 cpu_buffer->cpu, ts);
 		}
@@ -4635,7 +4640,7 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 
 	case RINGBUF_TYPE_TIME_STAMP:
 		if (ts) {
-			*ts = ring_buffer_event_time_stamp(event);
+			*ts = rb_event_time_stamp(event);
 			ring_buffer_normalize_time_stamp(cpu_buffer->buffer,
 							 cpu_buffer->cpu, ts);
 		}
