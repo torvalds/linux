@@ -125,6 +125,8 @@
 };
 
 &combphy1_usq {
+	assigned-clocks = <&pmucru CLK_PCIEPHY1_REF>;
+	assigned-clock-rates = <100000000>;
 	status = "okay";
 };
 
