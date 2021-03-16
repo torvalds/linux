@@ -182,7 +182,7 @@ const char *__bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 
 	if (type != BKEY_TYPE_btree &&
 	    btree_type_has_snapshots(type) &&
-	    k.k->p.snapshot != U32_MAX)
+	    !k.k->p.snapshot)
 		return "invalid snapshot field";
 
 	if (type != BKEY_TYPE_btree &&

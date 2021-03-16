@@ -677,6 +677,9 @@ static void bch2_btree_iter_verify(struct btree_iter *iter)
 
 static void bch2_btree_iter_verify_entry_exit(struct btree_iter *iter)
 {
+	BUG_ON((iter->flags & BTREE_ITER_FILTER_SNAPSHOTS) &&
+	       !iter->pos.snapshot);
+
 	BUG_ON(!(iter->flags & BTREE_ITER_ALL_SNAPSHOTS) &&
 	       iter->pos.snapshot != iter->snapshot);
 
@@ -2522,20 +2525,13 @@ static void __bch2_trans_iter_init(struct btree_trans *trans,
 	    btree_node_type_is_extents(btree_id))
 		flags |= BTREE_ITER_IS_EXTENTS;
 
-	if (!btree_type_has_snapshots(btree_id) &&
-	    !(flags & __BTREE_ITER_ALL_SNAPSHOTS))
+	if (!(flags & __BTREE_ITER_ALL_SNAPSHOTS) &&
+	    !btree_type_has_snapshots(btree_id))
 		flags &= ~BTREE_ITER_ALL_SNAPSHOTS;
-#if 0
-	/* let's have this be explicitly set: */
-	if ((flags & BTREE_ITER_TYPE) != BTREE_ITER_NODES &&
-	    btree_type_has_snapshots(btree_id) &&
-	    !(flags & BTREE_ITER_ALL_SNAPSHOTS))
-		flags |= BTREE_ITER_FILTER_SNAPSHOTS;
-#endif
 
-	if (!(flags & BTREE_ITER_ALL_SNAPSHOTS))
-		pos.snapshot = btree_type_has_snapshots(btree_id)
-			? U32_MAX : 0;
+	if (!(flags & BTREE_ITER_ALL_SNAPSHOTS) &&
+	    btree_type_has_snapshots(btree_id))
+		flags |= BTREE_ITER_FILTER_SNAPSHOTS;
 
 	iter->trans	= trans;
 	iter->path	= NULL;
