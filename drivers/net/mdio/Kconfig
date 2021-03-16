@@ -200,6 +200,17 @@ config MDIO_BUS_MUX_MESON_G12A
 	  the amlogic g12a SoC. The multiplexers connects either the external
 	  or the internal MDIO bus to the parent bus.
 
+config MDIO_BUS_MUX_BCM6368
+	tristate "Broadcom BCM6368 MDIO bus multiplexers"
+	depends on OF && OF_MDIO && (BMIPS_GENERIC || COMPILE_TEST)
+	select MDIO_BUS_MUX
+	default BMIPS_GENERIC
+	help
+	  This module provides a driver for MDIO bus multiplexers found in
+	  BCM6368 based Broadcom SoCs. This multiplexer connects one of several
+	  child MDIO bus to a parent bus. Buses could be internal as well as
+	  external and selection logic lies inside the same multiplexer.
+
 config MDIO_BUS_MUX_BCM_IPROC
 	tristate "Broadcom iProc based MDIO bus multiplexers"
 	depends on OF && OF_MDIO && (ARCH_BCM_IPROC || COMPILE_TEST)
