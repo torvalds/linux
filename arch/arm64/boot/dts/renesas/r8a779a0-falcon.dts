@@ -27,8 +27,3 @@
 		pagesize = <8>;
 	};
 };
-
-&rwdt {
-	timeout-sec = <60>;
-	status = "okay";
-};
