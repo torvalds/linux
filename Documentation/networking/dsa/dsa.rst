@@ -619,6 +619,17 @@ Bridge layer
   computing a STP state change based on current and asked parameters and perform
   the relevant ageing based on the intersection results
 
+- ``port_bridge_flags``: bridge layer function invoked when a port must
+  configure its settings for e.g. flooding of unknown traffic or source address
+  learning. The switch driver is responsible for initial setup of the
+  standalone ports with address learning disabled and egress flooding of all
+  types of traffic, then the DSA core notifies of any change to the bridge port
+  flags when the port joins and leaves a bridge. DSA does not currently manage
+  the bridge port flags for the CPU port. The assumption is that address
+  learning should be statically enabled (if supported by the hardware) on the
+  CPU port, and flooding towards the CPU port should also be enabled, due to a
+  lack of an explicit address filtering mechanism in the DSA core.
+
 Bridge VLAN filtering
 ---------------------
 
