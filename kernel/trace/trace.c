@@ -6763,7 +6763,7 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	if (tr->trace_marker_file && !list_empty(&tr->trace_marker_file->triggers)) {
 		/* do not add \n before testing triggers, but add \0 */
 		entry->buf[cnt] = '\0';
-		tt = event_triggers_call(tr->trace_marker_file, entry, event);
+		tt = event_triggers_call(tr->trace_marker_file, buffer, entry, event);
 	}
 
 	if (entry->buf[cnt - 1] != '\n') {
