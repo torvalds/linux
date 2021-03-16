@@ -4911,6 +4911,18 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.kpp = __VECS(ecdh_tv_template)
 		}
 	}, {
+		.alg = "ecdsa-nist-p192",
+		.test = alg_test_akcipher,
+		.suite = {
+			.akcipher = __VECS(ecdsa_nist_p192_tv_template)
+		}
+	}, {
+		.alg = "ecdsa-nist-p256",
+		.test = alg_test_akcipher,
+		.suite = {
+			.akcipher = __VECS(ecdsa_nist_p256_tv_template)
+		}
+	}, {
 		.alg = "ecrdsa",
 		.test = alg_test_akcipher,
 		.suite = {
