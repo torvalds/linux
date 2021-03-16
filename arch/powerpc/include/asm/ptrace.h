@@ -185,20 +185,25 @@ static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)
 #define current_pt_regs() \
 	((struct pt_regs *)((unsigned long)task_stack_page(current) + THREAD_SIZE) - 1)
 
+/*
+ * The 4 low bits (0xf) are available as flags to overload the trap word,
+ * because interrupt vectors have minimum alignment of 0x10. TRAP_FLAGS_MASK
+ * must cover the bits used as flags, including bit 0 which is used as the
+ * "norestart" bit.
+ */
 #ifdef __powerpc64__
-#define TRAP_FLAGS_MASK		0x10
-#define TRAP(regs)		((regs)->trap & ~TRAP_FLAGS_MASK)
+#define TRAP_FLAGS_MASK		0x1
 #else
 /*
  * On 4xx we use bit 1 in the trap word to indicate whether the exception
  * is a critical exception (1 means it is).
  */
-#define TRAP_FLAGS_MASK		0x1E
-#define TRAP(regs)		((regs)->trap & ~TRAP_FLAGS_MASK)
+#define TRAP_FLAGS_MASK		0xf
 #define IS_CRITICAL_EXC(regs)	(((regs)->trap & 2) != 0)
 #define IS_MCHECK_EXC(regs)	(((regs)->trap & 4) != 0)
 #define IS_DEBUG_EXC(regs)	(((regs)->trap & 8) != 0)
 #endif /* __powerpc64__ */
+#define TRAP(regs)		((regs)->trap & ~TRAP_FLAGS_MASK)
 
 static __always_inline void set_trap(struct pt_regs *regs, unsigned long val)
 {
@@ -222,12 +227,12 @@ static inline bool trap_is_syscall(struct pt_regs *regs)
 
 static inline bool trap_norestart(struct pt_regs *regs)
 {
-	return regs->trap & 0x10;
+	return regs->trap & 0x1;
 }
 
 static __always_inline void set_trap_norestart(struct pt_regs *regs)
 {
-	regs->trap |= 0x10;
+	regs->trap |= 0x1;
 }
 
 #define arch_has_single_step()	(1)
