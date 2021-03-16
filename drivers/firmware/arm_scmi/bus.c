@@ -66,27 +66,11 @@ const struct scmi_protocol *scmi_protocol_get(int protocol_id)
 	return proto;
 }
 
-static int scmi_protocol_init(int protocol_id, struct scmi_handle *handle)
-{
-	const struct scmi_protocol *proto;
-
-	proto = scmi_protocol_get(protocol_id);
-	if (!proto)
-		return -EINVAL;
-	return proto->init(handle);
-}
-
-static int scmi_protocol_dummy_init(struct scmi_handle *handle)
-{
-	return 0;
-}
-
 static int scmi_dev_probe(struct device *dev)
 {
 	struct scmi_driver *scmi_drv = to_scmi_driver(dev->driver);
 	struct scmi_device *scmi_dev = to_scmi_dev(dev);
 	const struct scmi_device_id *id;
-	int ret;
 
 	id = scmi_dev_match_id(scmi_dev, scmi_drv);
 	if (!id)
@@ -94,14 +78,6 @@ static int scmi_dev_probe(struct device *dev)
 
 	if (!scmi_dev->handle)
 		return -EPROBE_DEFER;
-
-	ret = scmi_protocol_init(scmi_dev->protocol_id, scmi_dev->handle);
-	if (ret)
-		return ret;
-
-	/* Skip protocol initialisation for additional devices */
-	idr_replace(&scmi_protocols, &scmi_protocol_dummy_init,
-		    scmi_dev->protocol_id);
 
 	return scmi_drv->probe(scmi_dev);
 }
@@ -219,7 +195,7 @@ int scmi_protocol_register(const struct scmi_protocol *proto)
 		return -EINVAL;
 	}
 
-	if (!proto->init && !proto->instance_init) {
+	if (!proto->instance_init) {
 		pr_err("missing init for protocol 0x%x\n", proto->id);
 		return -EINVAL;
 	}

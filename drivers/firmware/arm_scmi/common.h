@@ -224,14 +224,12 @@ int scmi_version_get(const struct scmi_handle *h, u8 protocol, u32 *version);
 void scmi_setup_protocol_implemented(const struct scmi_protocol_handle *ph,
 				     u8 *prot_imp);
 
-typedef int (*scmi_prot_init_fn_t)(struct scmi_handle *);
 typedef int (*scmi_prot_init_ph_fn_t)(const struct scmi_protocol_handle *);
 
 /**
  * struct scmi_protocol  - Protocol descriptor
  * @id: Protocol ID.
- * @init: Mandatory protocol initialization function.
- * @instance_init: Optional protocol instance initialization function.
+ * @instance_init: Mandatory protocol initialization function.
  * @instance_deinit: Optional protocol de-initialization function.
  * @ops: Optional reference to the operations provided by the protocol and
  *	 exposed in scmi_protocol.h.
@@ -239,7 +237,6 @@ typedef int (*scmi_prot_init_ph_fn_t)(const struct scmi_protocol_handle *);
  */
 struct scmi_protocol {
 	const u8				id;
-	const scmi_prot_init_fn_t		init;
 	const scmi_prot_init_ph_fn_t		instance_init;
 	const scmi_prot_init_ph_fn_t		instance_deinit;
 	const void				*ops;
