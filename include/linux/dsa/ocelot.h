@@ -160,11 +160,6 @@ static inline void ocelot_xfh_get_src_port(void *extraction, u64 *src_port)
 	packing(extraction, src_port, 46, 43, OCELOT_TAG_LEN, UNPACK, 0);
 }
 
-static inline void ocelot_xfh_get_cpuq(void *extraction, u64 *cpuq)
-{
-	packing(extraction, cpuq, 28, 20, OCELOT_TAG_LEN, UNPACK, 0);
-}
-
 static inline void ocelot_xfh_get_qos_class(void *extraction, u64 *qos_class)
 {
 	packing(extraction, qos_class, 19, 17, OCELOT_TAG_LEN, UNPACK, 0);
