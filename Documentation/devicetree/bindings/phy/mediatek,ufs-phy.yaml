@@ -22,6 +22,7 @@ properties:
     pattern: "^ufs-phy@[0-9a-f]+$"
 
   compatible:
+    enum: mediatek,mt8195-ufsphy
     const: mediatek,mt8183-ufsphy
 
   reg:
