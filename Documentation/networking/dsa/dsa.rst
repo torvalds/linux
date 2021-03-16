@@ -699,5 +699,3 @@ Other hanging fruits
 
 - allowing more than one CPU/management interface:
   http://comments.gmane.org/gmane.linux.network/365657
-- porting more drivers from other vendors:
-  http://comments.gmane.org/gmane.linux.network/365510
