@@ -8,6 +8,7 @@
 #define pr_fmt(fmt) "SCMI Notifications SENSOR - " fmt
 
 #include <linux/bitfield.h>
+#include <linux/module.h>
 #include <linux/scmi_protocol.h>
 
 #include "common.h"
@@ -990,6 +991,7 @@ static int scmi_sensors_protocol_init(const struct scmi_protocol_handle *ph)
 
 static const struct scmi_protocol scmi_sensors = {
 	.id = SCMI_PROTOCOL_SENSOR,
+	.owner = THIS_MODULE,
 	.instance_init = &scmi_sensors_protocol_init,
 	.ops = &sensor_proto_ops,
 	.events = &sensor_protocol_events,

@@ -660,7 +660,8 @@ scmi_revision_area_get(const struct scmi_protocol_handle *ph)
  *
  * Context: Assumes to be called with @protocols_mtx already acquired.
  * Return: A reference to a freshly allocated and initialized protocol instance
- *	   or ERR_PTR on failure.
+ *	   or ERR_PTR on failure. On failure the @proto reference is at first
+ *	   put using @scmi_protocol_put() before releasing all the devres group.
  */
 static struct scmi_protocol_instance *
 scmi_alloc_init_protocol_instance(struct scmi_info *info,
@@ -673,8 +674,10 @@ scmi_alloc_init_protocol_instance(struct scmi_info *info,
 
 	/* Protocol specific devres group */
 	gid = devres_open_group(handle->dev, NULL, GFP_KERNEL);
-	if (!gid)
+	if (!gid) {
+		scmi_protocol_put(proto->id);
 		goto out;
+	}
 
 	pi = devm_kzalloc(handle->dev, sizeof(*pi), GFP_KERNEL);
 	if (!pi)
@@ -718,6 +721,8 @@ scmi_alloc_init_protocol_instance(struct scmi_info *info,
 	return pi;
 
 clean:
+	/* Take care to put the protocol module's owner before releasing all */
+	scmi_protocol_put(proto->id);
 	devres_release_group(handle->dev, gid);
 out:
 	return ERR_PTR(ret);
@@ -732,7 +737,9 @@ out:
  * instance, allocate and initialize all the needed structures while handling
  * resource allocation with a dedicated per-protocol devres subgroup.
  *
- * Return: A reference to an initialized protocol instance or error on failure.
+ * Return: A reference to an initialized protocol instance or error on failure:
+ *	   in particular returns -EPROBE_DEFER when the desired protocol could
+ *	   NOT be found.
  */
 static struct scmi_protocol_instance * __must_check
 scmi_get_protocol_instance(const struct scmi_handle *handle, u8 protocol_id)
@@ -753,7 +760,7 @@ scmi_get_protocol_instance(const struct scmi_handle *handle, u8 protocol_id)
 		if (proto)
 			pi = scmi_alloc_init_protocol_instance(info, proto);
 		else
-			pi = ERR_PTR(-ENODEV);
+			pi = ERR_PTR(-EPROBE_DEFER);
 	}
 	mutex_unlock(&info->protocols_mtx);
 
@@ -803,6 +810,8 @@ void scmi_protocol_release(const struct scmi_handle *handle, u8 protocol_id)
 			pi->proto->instance_deinit(&pi->ph);
 
 		idr_remove(&info->protocols, protocol_id);
+
+		scmi_protocol_put(protocol_id);
 
 		devres_release_group(handle->dev, gid);
 		dev_dbg(handle->dev, "De-Initialized protocol: 0x%X\n",

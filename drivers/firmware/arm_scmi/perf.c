@@ -11,6 +11,7 @@
 #include <linux/of.h>
 #include <linux/io.h>
 #include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/scmi_protocol.h>
@@ -909,6 +910,7 @@ static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 
 static const struct scmi_protocol scmi_perf = {
 	.id = SCMI_PROTOCOL_PERF,
+	.owner = THIS_MODULE,
 	.instance_init = &scmi_perf_protocol_init,
 	.ops = &perf_proto_ops,
 	.events = &perf_protocol_events,

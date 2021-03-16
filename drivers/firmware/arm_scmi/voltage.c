@@ -5,6 +5,7 @@
  * Copyright (C) 2020-2021 ARM Ltd.
  */
 
+#include <linux/module.h>
 #include <linux/scmi_protocol.h>
 
 #include "common.h"
@@ -371,6 +372,7 @@ static int scmi_voltage_protocol_init(const struct scmi_protocol_handle *ph)
 
 static const struct scmi_protocol scmi_voltage = {
 	.id = SCMI_PROTOCOL_VOLTAGE,
+	.owner = THIS_MODULE,
 	.instance_init = &scmi_voltage_protocol_init,
 	.ops = &voltage_proto_ops,
 };

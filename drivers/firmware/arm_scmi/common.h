@@ -14,6 +14,7 @@
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/scmi_protocol.h>
 #include <linux/types.h>
 
@@ -214,6 +215,7 @@ typedef int (*scmi_prot_init_ph_fn_t)(const struct scmi_protocol_handle *);
 /**
  * struct scmi_protocol  - Protocol descriptor
  * @id: Protocol ID.
+ * @owner: Module reference if any.
  * @instance_init: Mandatory protocol initialization function.
  * @instance_deinit: Optional protocol de-initialization function.
  * @ops: Optional reference to the operations provided by the protocol and
@@ -222,6 +224,7 @@ typedef int (*scmi_prot_init_ph_fn_t)(const struct scmi_protocol_handle *);
  */
 struct scmi_protocol {
 	const u8				id;
+	struct module				*owner;
 	const scmi_prot_init_ph_fn_t		instance_init;
 	const scmi_prot_init_ph_fn_t		instance_deinit;
 	const void				*ops;
@@ -257,6 +260,7 @@ void __exit scmi_##name##_unregister(void)			\
 }
 
 const struct scmi_protocol *scmi_protocol_get(int protocol_id);
+void scmi_protocol_put(int protocol_id);
 
 int scmi_protocol_acquire(const struct scmi_handle *handle, u8 protocol_id);
 void scmi_protocol_release(const struct scmi_handle *handle, u8 protocol_id);

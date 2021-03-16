@@ -7,6 +7,7 @@
 
 #define pr_fmt(fmt) "SCMI Notifications SYSTEM - " fmt
 
+#include <linux/module.h>
 #include <linux/scmi_protocol.h>
 
 #include "common.h"
@@ -130,6 +131,7 @@ static int scmi_system_protocol_init(const struct scmi_protocol_handle *ph)
 
 static const struct scmi_protocol scmi_system = {
 	.id = SCMI_PROTOCOL_SYSTEM,
+	.owner = THIS_MODULE,
 	.instance_init = &scmi_system_protocol_init,
 	.ops = NULL,
 	.events = &system_protocol_events,

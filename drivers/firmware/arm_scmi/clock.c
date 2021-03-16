@@ -5,6 +5,7 @@
  * Copyright (C) 2018-2021 ARM Ltd.
  */
 
+#include <linux/module.h>
 #include <linux/sort.h>
 
 #include "common.h"
@@ -367,6 +368,7 @@ static int scmi_clock_protocol_init(const struct scmi_protocol_handle *ph)
 
 static const struct scmi_protocol scmi_clock = {
 	.id = SCMI_PROTOCOL_CLOCK,
+	.owner = THIS_MODULE,
 	.instance_init = &scmi_clock_protocol_init,
 	.ops = &clk_proto_ops,
 };
