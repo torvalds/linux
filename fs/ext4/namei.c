@@ -3873,6 +3873,7 @@ static int ext4_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 		retval = ext4_mark_inode_dirty(handle, whiteout);
 		if (unlikely(retval))
 			goto end_rename;
+
 	}
 	if (!new.bh) {
 		retval = ext4_add_entry(handle, new.dentry, old.inode);
@@ -3946,6 +3947,8 @@ static int ext4_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 			ext4_fc_track_unlink(handle, new.dentry);
 		__ext4_fc_track_link(handle, old.inode, new.dentry);
 		__ext4_fc_track_unlink(handle, old.inode, old.dentry);
+		if (whiteout)
+			__ext4_fc_track_create(handle, whiteout, old.dentry);
 	}
 
 	if (new.inode) {
