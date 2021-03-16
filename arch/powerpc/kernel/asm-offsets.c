@@ -282,21 +282,11 @@ int main(void)
 	OFFSET(PACAHWCPUID, paca_struct, hw_cpu_id);
 	OFFSET(PACAKEXECSTATE, paca_struct, kexec_state);
 	OFFSET(PACA_DSCR_DEFAULT, paca_struct, dscr_default);
-	OFFSET(ACCOUNT_STARTTIME, paca_struct, accounting.starttime);
-	OFFSET(ACCOUNT_STARTTIME_USER, paca_struct, accounting.starttime_user);
-	OFFSET(ACCOUNT_USER_TIME, paca_struct, accounting.utime);
-	OFFSET(ACCOUNT_SYSTEM_TIME, paca_struct, accounting.stime);
 #ifdef CONFIG_PPC_BOOK3E
 	OFFSET(PACA_TRAP_SAVE, paca_struct, trap_save);
 #endif
 	OFFSET(PACA_SPRG_VDSO, paca_struct, sprg_vdso);
 #else /* CONFIG_PPC64 */
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
-	OFFSET(ACCOUNT_STARTTIME, thread_info, accounting.starttime);
-	OFFSET(ACCOUNT_STARTTIME_USER, thread_info, accounting.starttime_user);
-	OFFSET(ACCOUNT_USER_TIME, thread_info, accounting.utime);
-	OFFSET(ACCOUNT_SYSTEM_TIME, thread_info, accounting.stime);
-#endif
 #endif /* CONFIG_PPC64 */
 
 	/* RTAS */
