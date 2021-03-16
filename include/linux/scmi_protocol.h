@@ -128,7 +128,7 @@ struct scmi_perf_proto_ops {
 };
 
 /**
- * struct scmi_power_ops - represents the various operations provided
+ * struct scmi_power_proto_ops - represents the various operations provided
  *	by SCMI Power Protocol
  *
  * @num_domains_get: get the count of power domains provided by SCMI
@@ -136,9 +136,9 @@ struct scmi_perf_proto_ops {
  * @state_set: sets the power state of a power domain
  * @state_get: gets the power state of a power domain
  */
-struct scmi_power_ops {
-	int (*num_domains_get)(const struct scmi_handle *handle);
-	char *(*name_get)(const struct scmi_handle *handle, u32 domain);
+struct scmi_power_proto_ops {
+	int (*num_domains_get)(const struct scmi_protocol_handle *ph);
+	char *(*name_get)(const struct scmi_protocol_handle *ph, u32 domain);
 #define SCMI_POWER_STATE_TYPE_SHIFT	30
 #define SCMI_POWER_STATE_ID_MASK	(BIT(28) - 1)
 #define SCMI_POWER_STATE_PARAM(type, id) \
@@ -146,6 +146,15 @@ struct scmi_power_ops {
 		((id) & SCMI_POWER_STATE_ID_MASK))
 #define SCMI_POWER_STATE_GENERIC_ON	SCMI_POWER_STATE_PARAM(0, 0)
 #define SCMI_POWER_STATE_GENERIC_OFF	SCMI_POWER_STATE_PARAM(1, 0)
+	int (*state_set)(const struct scmi_protocol_handle *ph, u32 domain,
+			 u32 state);
+	int (*state_get)(const struct scmi_protocol_handle *ph, u32 domain,
+			 u32 *state);
+};
+
+struct scmi_power_ops {
+	int (*num_domains_get)(const struct scmi_handle *handle);
+	char *(*name_get)(const struct scmi_handle *handle, u32 domain);
 	int (*state_set)(const struct scmi_handle *handle, u32 domain,
 			 u32 state);
 	int (*state_get)(const struct scmi_handle *handle, u32 domain,
@@ -616,8 +625,6 @@ struct scmi_notify_ops {
  * @notify_ops: pointer to set of notifications related operations
  * @clk_priv: pointer to private data structure specific to clock
  *	protocol(for internal use only)
- * @power_priv: pointer to private data structure specific to power
- *	protocol(for internal use only)
  * @sensor_priv: pointer to private data structure specific to sensors
  *	protocol(for internal use only)
  * @reset_priv: pointer to private data structure specific to reset
@@ -644,7 +651,6 @@ struct scmi_handle {
 	const struct scmi_notify_ops *notify_ops;
 	/* for protocol internal use */
 	void *clk_priv;
-	void *power_priv;
 	void *sensor_priv;
 	void *reset_priv;
 	void *voltage_priv;
