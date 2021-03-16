@@ -3386,15 +3386,19 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 			int is_dead_root = 0;
 
 			/*
-			 * this is an orphan in the tree root. Currently these
+			 * This is an orphan in the tree root. Currently these
 			 * could come from 2 sources:
-			 *  a) a snapshot deletion in progress
+			 *  a) a root (snapshot/subvolume) deletion in progress
 			 *  b) a free space cache inode
-			 * We need to distinguish those two, as the snapshot
-			 * orphan must not get deleted.
-			 * find_dead_roots already ran before us, so if this
-			 * is a snapshot deletion, we should find the root
-			 * in the fs_roots radix tree.
+			 * We need to distinguish those two, as the orphan item
+			 * for a root must not get deleted before the deletion
+			 * of the snapshot/subvolume's tree completes.
+			 *
+			 * btrfs_find_orphan_roots() ran before us, which has
+			 * found all deleted roots and loaded them into
+			 * fs_info->fs_roots_radix. So here we can find if an
+			 * orphan item corresponds to a deleted root by looking
+			 * up the root from that radix tree.
 			 */
 
 			spin_lock(&fs_info->fs_roots_radix_lock);
