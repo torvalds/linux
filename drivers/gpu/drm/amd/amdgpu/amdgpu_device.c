@@ -2693,10 +2693,8 @@ static int amdgpu_device_ip_suspend_phase1(struct amdgpu_device *adev)
 {
 	int i, r;
 
-	if (!adev->in_s0ix || amdgpu_in_reset(adev)) {
-		amdgpu_device_set_pg_state(adev, AMD_PG_STATE_UNGATE);
-		amdgpu_device_set_cg_state(adev, AMD_CG_STATE_UNGATE);
-	}
+	amdgpu_device_set_pg_state(adev, AMD_PG_STATE_UNGATE);
+	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_UNGATE);
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.valid)
