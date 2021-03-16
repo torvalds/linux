@@ -394,6 +394,19 @@ static void hns_roce_disassociate_ucontext(struct ib_ucontext *ibcontext)
 {
 }
 
+static void hns_roce_get_fw_ver(struct ib_device *device, char *str)
+{
+	u64 fw_ver = to_hr_dev(device)->caps.fw_ver;
+	unsigned int major, minor, sub_minor;
+
+	major = upper_32_bits(fw_ver);
+	minor = high_16_bits(lower_32_bits(fw_ver));
+	sub_minor = low_16_bits(fw_ver);
+
+	snprintf(str, IB_FW_VERSION_NAME_MAX, "%u.%u.%04u", major, minor,
+		 sub_minor);
+}
+
 static void hns_roce_unregister_device(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_ib_iboe *iboe = &hr_dev->iboe;
@@ -409,6 +422,7 @@ static const struct ib_device_ops hns_roce_dev_ops = {
 	.uverbs_abi_ver = 1,
 	.uverbs_no_driver_id_binding = 1,
 
+	.get_dev_fw_str = hns_roce_get_fw_ver,
 	.add_gid = hns_roce_add_gid,
 	.alloc_pd = hns_roce_alloc_pd,
 	.alloc_ucontext = hns_roce_alloc_ucontext,
