@@ -2514,7 +2514,7 @@ static int ath11k_qmi_event_load_bdf(struct ath11k_qmi *qmi)
 
 	ret = ath11k_qmi_request_target_cap(ab);
 	if (ret < 0) {
-		ath11k_warn(ab, "failed to requeqst qmi target capabilities: %d\n",
+		ath11k_warn(ab, "failed to request qmi target capabilities: %d\n",
 			    ret);
 		return ret;
 	}
