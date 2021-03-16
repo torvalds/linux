@@ -1032,9 +1032,7 @@ static int zonefs_open_zone(struct inode *inode)
 
 	mutex_lock(&zi->i_truncate_mutex);
 
-	zi->i_wr_refcnt++;
-	if (zi->i_wr_refcnt == 1) {
-
+	if (!zi->i_wr_refcnt) {
 		if (atomic_inc_return(&sbi->s_open_zones) > sbi->s_max_open_zones) {
 			atomic_dec(&sbi->s_open_zones);
 			ret = -EBUSY;
@@ -1044,13 +1042,14 @@ static int zonefs_open_zone(struct inode *inode)
 		if (i_size_read(inode) < zi->i_max_size) {
 			ret = zonefs_zone_mgmt(inode, REQ_OP_ZONE_OPEN);
 			if (ret) {
-				zi->i_wr_refcnt--;
 				atomic_dec(&sbi->s_open_zones);
 				goto unlock;
 			}
 			zi->i_flags |= ZONEFS_ZONE_OPEN;
 		}
 	}
+
+	zi->i_wr_refcnt++;
 
 unlock:
 	mutex_unlock(&zi->i_truncate_mutex);
