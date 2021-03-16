@@ -1,9 +1,7 @@
 config LEDS_LGM
        tristate "LED support for LGM SoC series"
-       depends on GPIOLIB
-       depends on LEDS_CLASS
-       depends on MFD_SYSCON
-       depends on OF
+       depends on X86 || COMPILE_TEST
+       depends on GPIOLIB && LEDS_CLASS && MFD_SYSCON && OF
        help
          This option enables support for LEDs connected to GPIO lines on
          Lightning Mountain (LGM) SoC. Lightning Mountain is a AnyWAN
