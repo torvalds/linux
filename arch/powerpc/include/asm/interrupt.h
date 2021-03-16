@@ -444,7 +444,7 @@ DECLARE_INTERRUPT_HANDLER(do_bad_slb_fault);
 DECLARE_INTERRUPT_HANDLER_RAW(do_hash_fault);
 
 /* fault.c */
-DECLARE_INTERRUPT_HANDLER_RET(do_page_fault);
+DECLARE_INTERRUPT_HANDLER(do_page_fault);
 DECLARE_INTERRUPT_HANDLER(do_bad_page_fault_segv);
 
 /* process.c */

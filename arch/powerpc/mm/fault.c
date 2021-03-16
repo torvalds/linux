@@ -539,36 +539,25 @@ retry:
 }
 NOKPROBE_SYMBOL(___do_page_fault);
 
-static long __do_page_fault(struct pt_regs *regs)
+static __always_inline void __do_page_fault(struct pt_regs *regs)
 {
-	const struct exception_table_entry *entry;
 	long err;
 
 	err = ___do_page_fault(regs, regs->dar, regs->dsisr);
-	if (likely(!err))
-		return err;
-
-	entry = search_exception_tables(regs->nip);
-	if (likely(entry)) {
-		instruction_pointer_set(regs, extable_fixup(entry));
-		return 0;
-	} else {
-		__bad_page_fault(regs, err);
-		return 0;
-	}
+	if (unlikely(err))
+		bad_page_fault(regs, err);
 }
-NOKPROBE_SYMBOL(__do_page_fault);
 
-DEFINE_INTERRUPT_HANDLER_RET(do_page_fault)
+DEFINE_INTERRUPT_HANDLER(do_page_fault)
 {
-	return __do_page_fault(regs);
+	__do_page_fault(regs);
 }
 
 #ifdef CONFIG_PPC_BOOK3S_64
 /* Same as do_page_fault but interrupt entry has already run in do_hash_fault */
-long hash__do_page_fault(struct pt_regs *regs)
+void hash__do_page_fault(struct pt_regs *regs)
 {
-	return __do_page_fault(regs);
+	__do_page_fault(regs);
 }
 NOKPROBE_SYMBOL(hash__do_page_fault);
 #endif
@@ -578,7 +567,7 @@ NOKPROBE_SYMBOL(hash__do_page_fault);
  * It is called from the DSI and ISI handlers in head.S and from some
  * of the procedures in traps.c.
  */
-void __bad_page_fault(struct pt_regs *regs, int sig)
+static void __bad_page_fault(struct pt_regs *regs, int sig)
 {
 	int is_write = page_fault_is_write(regs->dsisr);
 

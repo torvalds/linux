@@ -1583,10 +1583,11 @@ DEFINE_INTERRUPT_HANDLER_RET(__do_hash_fault)
 DEFINE_INTERRUPT_HANDLER_RAW(do_hash_fault)
 {
 	unsigned long dsisr = regs->dsisr;
-	long err;
 
-	if (unlikely(dsisr & (DSISR_BAD_FAULT_64S | DSISR_KEYFAULT)))
-		goto page_fault;
+	if (unlikely(dsisr & (DSISR_BAD_FAULT_64S | DSISR_KEYFAULT))) {
+		hash__do_page_fault(regs);
+		return 0;
+	}
 
 	/*
 	 * If we are in an "NMI" (e.g., an interrupt when soft-disabled), then
@@ -1606,13 +1607,10 @@ DEFINE_INTERRUPT_HANDLER_RAW(do_hash_fault)
 		return 0;
 	}
 
-	err = __do_hash_fault(regs);
-	if (err) {
-page_fault:
-		err = hash__do_page_fault(regs);
-	}
+	if (__do_hash_fault(regs))
+		hash__do_page_fault(regs);
 
-	return err;
+	return 0;
 }
 
 #ifdef CONFIG_PPC_MM_SLICES
