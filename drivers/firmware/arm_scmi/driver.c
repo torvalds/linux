@@ -72,18 +72,27 @@ struct scmi_xfers_info {
 
 /**
  * struct scmi_protocol_instance  - Describe an initialized protocol instance.
+ * @handle: Reference to the SCMI handle associated to this protocol instance.
  * @proto: A reference to the protocol descriptor.
  * @gid: A reference for per-protocol devres management.
  * @users: A refcount to track effective users of this protocol.
+ * @priv: Reference for optional protocol private data.
+ * @ph: An embedded protocol handle that will be passed down to protocol
+ *	initialization code to identify this instance.
  *
  * Each protocol is initialized independently once for each SCMI platform in
  * which is defined by DT and implemented by the SCMI server fw.
  */
 struct scmi_protocol_instance {
+	const struct scmi_handle	*handle;
 	const struct scmi_protocol	*proto;
 	void				*gid;
 	refcount_t			users;
+	void				*priv;
+	struct scmi_protocol_handle	ph;
 };
+
+#define ph_to_pi(h)	container_of(h, struct scmi_protocol_instance, ph)
 
 /**
  * struct scmi_info - Structure representing a SCMI instance
@@ -544,6 +553,38 @@ int scmi_version_get(const struct scmi_handle *handle, u8 protocol,
 }
 
 /**
+ * scmi_set_protocol_priv  - Set protocol specific data at init time
+ *
+ * @ph: A reference to the protocol handle.
+ * @priv: The private data to set.
+ *
+ * Return: 0 on Success
+ */
+static int scmi_set_protocol_priv(const struct scmi_protocol_handle *ph,
+				  void *priv)
+{
+	struct scmi_protocol_instance *pi = ph_to_pi(ph);
+
+	pi->priv = priv;
+
+	return 0;
+}
+
+/**
+ * scmi_get_protocol_priv  - Set protocol specific data at init time
+ *
+ * @ph: A reference to the protocol handle.
+ *
+ * Return: Protocol private data if any was set.
+ */
+static void *scmi_get_protocol_priv(const struct scmi_protocol_handle *ph)
+{
+	const struct scmi_protocol_instance *pi = ph_to_pi(ph);
+
+	return pi->priv;
+}
+
+/**
  * scmi_alloc_init_protocol_instance  - Allocate and initialize a protocol
  * instance descriptor.
  * @info: The reference to the related SCMI instance.
@@ -578,6 +619,10 @@ scmi_alloc_init_protocol_instance(struct scmi_info *info,
 
 	pi->gid = gid;
 	pi->proto = proto;
+	pi->handle = handle;
+	pi->ph.dev = handle->dev;
+	pi->ph.set_priv = scmi_set_protocol_priv;
+	pi->ph.get_priv = scmi_get_protocol_priv;
 	refcount_set(&pi->users, 1);
 	/* proto->init is assured NON NULL by scmi_protocol_register */
 	ret = pi->proto->instance_init(handle);
