@@ -2227,6 +2227,22 @@ static bool fw_load_skip_check(struct psp_context *psp,
 	return false;
 }
 
+int psp_load_fw_list(struct psp_context *psp,
+		     struct amdgpu_firmware_info **ucode_list, int ucode_count)
+{
+	int ret = 0, i;
+	struct amdgpu_firmware_info *ucode;
+
+	for (i = 0; i < ucode_count; ++i) {
+		ucode = ucode_list[i];
+		psp_print_fw_hdr(psp, ucode);
+		ret = psp_execute_np_fw_load(psp, ucode);
+		if (ret)
+			return ret;
+	}
+	return ret;
+}
+
 static int psp_np_fw_load(struct psp_context *psp)
 {
 	int i, ret;
