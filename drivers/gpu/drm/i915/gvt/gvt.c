@@ -203,6 +203,22 @@ static void init_device_info(struct intel_gvt *gvt)
 	info->msi_cap_offset = pdev->msi_cap;
 }
 
+static void intel_gvt_test_and_emulate_vblank(struct intel_gvt *gvt)
+{
+	struct intel_vgpu *vgpu;
+	int id;
+
+	mutex_lock(&gvt->lock);
+	idr_for_each_entry((&(gvt)->vgpu_idr), (vgpu), (id)) {
+		if (test_and_clear_bit(INTEL_GVT_REQUEST_EMULATE_VBLANK + id,
+				       (void *)&gvt->service_request)) {
+			if (vgpu->active)
+				intel_vgpu_emulate_vblank(vgpu);
+		}
+	}
+	mutex_unlock(&gvt->lock);
+}
+
 static int gvt_service_thread(void *data)
 {
 	struct intel_gvt *gvt = (struct intel_gvt *)data;
@@ -220,9 +236,7 @@ static int gvt_service_thread(void *data)
 		if (WARN_ONCE(ret, "service thread is waken up by signal.\n"))
 			continue;
 
-		if (test_and_clear_bit(INTEL_GVT_REQUEST_EMULATE_VBLANK,
-					(void *)&gvt->service_request))
-			intel_gvt_emulate_vblank(gvt);
+		intel_gvt_test_and_emulate_vblank(gvt);
 
 		if (test_bit(INTEL_GVT_REQUEST_SCHED,
 				(void *)&gvt->service_request) ||
@@ -278,7 +292,6 @@ void intel_gvt_clean_device(struct drm_i915_private *i915)
 	intel_gvt_clean_sched_policy(gvt);
 	intel_gvt_clean_workload_scheduler(gvt);
 	intel_gvt_clean_gtt(gvt);
-	intel_gvt_clean_irq(gvt);
 	intel_gvt_free_firmware(gvt);
 	intel_gvt_clean_mmio_info(gvt);
 	idr_destroy(&gvt->vgpu_idr);
@@ -337,7 +350,7 @@ int intel_gvt_init_device(struct drm_i915_private *i915)
 
 	ret = intel_gvt_init_gtt(gvt);
 	if (ret)
-		goto out_clean_irq;
+		goto out_free_firmware;
 
 	ret = intel_gvt_init_workload_scheduler(gvt);
 	if (ret)
@@ -392,8 +405,6 @@ out_clean_workload_scheduler:
 	intel_gvt_clean_workload_scheduler(gvt);
 out_clean_gtt:
 	intel_gvt_clean_gtt(gvt);
-out_clean_irq:
-	intel_gvt_clean_irq(gvt);
 out_free_firmware:
 	intel_gvt_free_firmware(gvt);
 out_clean_mmio_info:
