@@ -1445,12 +1445,15 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 
 /* Iterate across keys (in leaf nodes only) */
 
-static void btree_iter_pos_changed(struct btree_iter *iter, int cmp)
+static void btree_iter_set_search_pos(struct btree_iter *iter, struct bpos new_pos)
 {
+	int cmp = bkey_cmp(new_pos, iter->real_pos);
 	unsigned l = iter->level;
 
 	if (!cmp)
 		goto out;
+
+	iter->real_pos = new_pos;
 
 	if (unlikely(btree_iter_type(iter) == BTREE_ITER_CACHED)) {
 		btree_node_unlock(iter, 0);
@@ -1481,15 +1484,6 @@ out:
 		btree_iter_set_dirty(iter, BTREE_ITER_NEED_TRAVERSE);
 	else
 		btree_iter_set_dirty(iter, BTREE_ITER_NEED_PEEK);
-}
-
-static void btree_iter_set_search_pos(struct btree_iter *iter, struct bpos new_pos)
-{
-	int cmp = bkey_cmp(new_pos, iter->real_pos);
-
-	iter->real_pos = new_pos;
-
-	btree_iter_pos_changed(iter, cmp);
 
 	bch2_btree_iter_verify(iter);
 }
