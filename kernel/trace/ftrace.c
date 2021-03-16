@@ -5045,6 +5045,20 @@ struct ftrace_direct_func *ftrace_find_direct_func(unsigned long addr)
 	return NULL;
 }
 
+static struct ftrace_direct_func *ftrace_alloc_direct_func(unsigned long addr)
+{
+	struct ftrace_direct_func *direct;
+
+	direct = kmalloc(sizeof(*direct), GFP_KERNEL);
+	if (!direct)
+		return NULL;
+	direct->addr = addr;
+	direct->count = 0;
+	list_add_rcu(&direct->next, &ftrace_direct_funcs);
+	ftrace_direct_func_count++;
+	return direct;
+}
+
 /**
  * register_ftrace_direct - Call a custom trampoline directly
  * @ip: The address of the nop at the beginning of a function
@@ -5120,15 +5134,11 @@ int register_ftrace_direct(unsigned long ip, unsigned long addr)
 
 	direct = ftrace_find_direct_func(addr);
 	if (!direct) {
-		direct = kmalloc(sizeof(*direct), GFP_KERNEL);
+		direct = ftrace_alloc_direct_func(addr);
 		if (!direct) {
 			kfree(entry);
 			goto out_unlock;
 		}
-		direct->addr = addr;
-		direct->count = 0;
-		list_add_rcu(&direct->next, &ftrace_direct_funcs);
-		ftrace_direct_func_count++;
 	}
 
 	entry->ip = ip;
@@ -5329,6 +5339,7 @@ int __weak ftrace_modify_direct_caller(struct ftrace_func_entry *entry,
 int modify_ftrace_direct(unsigned long ip,
 			 unsigned long old_addr, unsigned long new_addr)
 {
+	struct ftrace_direct_func *direct, *new_direct = NULL;
 	struct ftrace_func_entry *entry;
 	struct dyn_ftrace *rec;
 	int ret = -ENODEV;
@@ -5344,6 +5355,20 @@ int modify_ftrace_direct(unsigned long ip,
 	if (entry->direct != old_addr)
 		goto out_unlock;
 
+	direct = ftrace_find_direct_func(old_addr);
+	if (WARN_ON(!direct))
+		goto out_unlock;
+	if (direct->count > 1) {
+		ret = -ENOMEM;
+		new_direct = ftrace_alloc_direct_func(new_addr);
+		if (!new_direct)
+			goto out_unlock;
+		direct->count--;
+		new_direct->count++;
+	} else {
+		direct->addr = new_addr;
+	}
+
 	/*
 	 * If there's no other ftrace callback on the rec->ip location,
 	 * then it can be changed directly by the architecture.
@@ -5355,6 +5380,14 @@ int modify_ftrace_direct(unsigned long ip,
 	} else {
 		entry->direct = new_addr;
 		ret = 0;
+	}
+
+	if (unlikely(ret && new_direct)) {
+		direct->count++;
+		list_del_rcu(&new_direct->next);
+		synchronize_rcu_tasks();
+		kfree(new_direct);
+		ftrace_direct_func_count--;
 	}
 
  out_unlock:
