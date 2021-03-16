@@ -1401,10 +1401,6 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		break;
 	}
 
-	/* Following cases refer to regs->gpr[], so we need all regs */
-	if (!FULL_REGS(regs))
-		return -1;
-
 	rd = (word >> 21) & 0x1f;
 	ra = (word >> 16) & 0x1f;
 	rb = (word >> 11) & 0x1f;

@@ -1448,11 +1448,9 @@ static void print_msr_bits(unsigned long val)
 #ifdef CONFIG_PPC64
 #define REG		"%016lx"
 #define REGS_PER_LINE	4
-#define LAST_VOLATILE	13
 #else
 #define REG		"%08lx"
 #define REGS_PER_LINE	8
-#define LAST_VOLATILE	12
 #endif
 
 static void __show_regs(struct pt_regs *regs)
@@ -1488,8 +1486,6 @@ static void __show_regs(struct pt_regs *regs)
 		if ((i % REGS_PER_LINE) == 0)
 			pr_cont("\nGPR%02d: ", i);
 		pr_cont(REG " ", regs->gpr[i]);
-		if (i == LAST_VOLATILE && !FULL_REGS(regs))
-			break;
 	}
 	pr_cont("\n");
 	/*
@@ -1692,7 +1688,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	} else {
 		/* user thread */
 		struct pt_regs *regs = current_pt_regs();
-		CHECK_FULL_REGS(regs);
 		*childregs = *regs;
 		if (usp)
 			childregs->gpr[1] = usp;
@@ -1796,13 +1791,6 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	regs->xer = 0;
 	regs->ccr = 0;
 	regs->gpr[1] = sp;
-
-	/*
-	 * We have just cleared all the nonvolatile GPRs, so make
-	 * FULL_REGS(regs) return true.  This is necessary to allow
-	 * ptrace to examine the thread immediately after exec.
-	 */
-	SET_FULL_REGS(regs);
 
 #ifdef CONFIG_PPC32
 	regs->mq = 0;

@@ -172,7 +172,6 @@ static long notrace __unsafe_setup_sigcontext(struct sigcontext __user *sc,
 	}
 #endif /* CONFIG_VSX */
 	unsafe_put_user(&sc->gp_regs, &sc->regs, efault_out);
-	WARN_ON(!FULL_REGS(regs));
 	unsafe_copy_to_user(&sc->gp_regs, regs, GP_REGS_SIZE, efault_out);
 	unsafe_put_user(msr, &sc->gp_regs[PT_MSR], efault_out);
 	unsafe_put_user(softe, &sc->gp_regs[PT_SOFTE], efault_out);
@@ -309,7 +308,6 @@ static long setup_tm_sigcontexts(struct sigcontext __user *sc,
 
 	err |= __put_user(&sc->gp_regs, &sc->regs);
 	err |= __put_user(&tm_sc->gp_regs, &tm_sc->regs);
-	WARN_ON(!FULL_REGS(regs));
 	err |= __copy_to_user(&tm_sc->gp_regs, regs, GP_REGS_SIZE);
 	err |= __copy_to_user(&sc->gp_regs,
 			      &tsk->thread.ckpt_regs, GP_REGS_SIZE);

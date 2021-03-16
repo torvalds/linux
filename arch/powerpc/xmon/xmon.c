@@ -1815,25 +1815,16 @@ static void prregs(struct pt_regs *fp)
 	}
 
 #ifdef CONFIG_PPC64
-	if (FULL_REGS(fp)) {
-		for (n = 0; n < 16; ++n)
-			printf("R%.2d = "REG"   R%.2d = "REG"\n",
-			       n, fp->gpr[n], n+16, fp->gpr[n+16]);
-	} else {
-		for (n = 0; n < 7; ++n)
-			printf("R%.2d = "REG"   R%.2d = "REG"\n",
-			       n, fp->gpr[n], n+7, fp->gpr[n+7]);
-	}
+#define R_PER_LINE 2
 #else
-	for (n = 0; n < 32; ++n) {
-		printf("R%.2d = %.8lx%s", n, fp->gpr[n],
-		       (n & 3) == 3? "\n": "   ");
-		if (n == 12 && !FULL_REGS(fp)) {
-			printf("\n");
-			break;
-		}
-	}
+#define R_PER_LINE 4
 #endif
+
+	for (n = 0; n < 32; ++n) {
+		printf("R%.2d = "REG"%s", n, fp->gpr[n],
+			(n % R_PER_LINE) == R_PER_LINE - 1 ? "\n" : "   ");
+	}
+
 	printf("pc  = ");
 	xmon_print_symbol(fp->nip, " ", "\n");
 	if (!trap_is_syscall(fp) && cpu_has_feature(CPU_FTR_CFAR)) {

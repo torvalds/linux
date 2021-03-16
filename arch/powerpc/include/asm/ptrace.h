@@ -188,29 +188,16 @@ static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)
 #ifdef __powerpc64__
 #define TRAP_FLAGS_MASK		0x10
 #define TRAP(regs)		((regs)->trap & ~TRAP_FLAGS_MASK)
-#define FULL_REGS(regs)		true
-#define SET_FULL_REGS(regs)	do { } while (0)
-#define CHECK_FULL_REGS(regs)	do { } while (0)
-#define NV_REG_POISON		0xdeadbeefdeadbeefUL
 #else
 /*
- * We use the least-significant bit of the trap field to indicate
- * whether we have saved the full set of registers, or only a
- * partial set.  A 1 there means the partial set.
- * On 4xx we use the next bit to indicate whether the exception
+ * On 4xx we use bit 1 in the trap word to indicate whether the exception
  * is a critical exception (1 means it is).
  */
-#define TRAP_FLAGS_MASK		0x1F
+#define TRAP_FLAGS_MASK		0x1E
 #define TRAP(regs)		((regs)->trap & ~TRAP_FLAGS_MASK)
-#define FULL_REGS(regs)		true
-#define SET_FULL_REGS(regs)	do { } while (0)
 #define IS_CRITICAL_EXC(regs)	(((regs)->trap & 2) != 0)
 #define IS_MCHECK_EXC(regs)	(((regs)->trap & 4) != 0)
 #define IS_DEBUG_EXC(regs)	(((regs)->trap & 8) != 0)
-#define NV_REG_POISON		0xdeadbeef
-#define CHECK_FULL_REGS(regs)						      \
-do {									      \
-} while (0)
 #endif /* __powerpc64__ */
 
 static __always_inline void set_trap(struct pt_regs *regs, unsigned long val)
