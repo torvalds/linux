@@ -772,12 +772,6 @@ int ocelot_xtr_poll_frame(struct ocelot *ocelot, int grp, struct sk_buff **nskb)
 
 	skb->protocol = eth_type_trans(skb, dev);
 
-#if IS_ENABLED(CONFIG_BRIDGE_MRP)
-	if (skb->protocol == cpu_to_be16(ETH_P_MRP) &&
-	    cpuq & BIT(OCELOT_MRP_CPUQ))
-		skb->offload_fwd_mark = 0;
-#endif
-
 	*nskb = skb;
 
 	return 0;

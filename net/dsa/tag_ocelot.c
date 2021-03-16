@@ -128,12 +128,6 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 	skb->offload_fwd_mark = 1;
 	skb->priority = qos_class;
 
-#if IS_ENABLED(CONFIG_BRIDGE_MRP)
-	if (eth_hdr(skb)->h_proto == cpu_to_be16(ETH_P_MRP) &&
-	    cpuq & BIT(OCELOT_MRP_CPUQ))
-		skb->offload_fwd_mark = 0;
-#endif
-
 	/* Ocelot switches copy frames unmodified to the CPU. However, it is
 	 * possible for the user to request a VLAN modification through
 	 * VCAP_IS1_ACT_VID_REPLACE_ENA. In this case, what will happen is that

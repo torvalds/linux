@@ -613,6 +613,8 @@ struct ocelot_port {
 
 	struct net_device		*bond;
 	bool				lag_tx_active;
+
+	u16				mrp_ring_id;
 };
 
 struct ocelot {
@@ -681,12 +683,6 @@ struct ocelot {
 	/* Protects the PTP clock */
 	spinlock_t			ptp_clock_lock;
 	struct ptp_pin_desc		ptp_pins[OCELOT_PTP_PINS_NUM];
-
-#if IS_ENABLED(CONFIG_BRIDGE_MRP)
-	u16				mrp_ring_id;
-	struct net_device		*mrp_p_port;
-	struct net_device		*mrp_s_port;
-#endif
 };
 
 struct ocelot_policer {
