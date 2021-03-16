@@ -787,6 +787,38 @@ to work properly. The operations are detailed below.
   which MRP PDUs should be trapped to software and which should be autonomously
   forwarded.
 
+IEC 62439-3 (HSR/PRP)
+---------------------
+
+The Parallel Redundancy Protocol (PRP) is a network redundancy protocol which
+works by duplicating and sequence numbering packets through two independent L2
+networks (which are unaware of the PRP tail tags carried in the packets), and
+eliminating the duplicates at the receiver. The High-availability Seamless
+Redundancy (HSR) protocol is similar in concept, except all nodes that carry
+the redundant traffic are aware of the fact that it is HSR-tagged (because HSR
+uses a header with an EtherType of 0x892f) and are physically connected in a
+ring topology. Both HSR and PRP use supervision frames for monitoring the
+health of the network and for discovery of other nodes.
+
+In Linux, both HSR and PRP are implemented in the hsr driver, which
+instantiates a virtual, stackable network interface with two member ports.
+The driver only implements the basic roles of DANH (Doubly Attached Node
+implementing HSR) and DANP (Doubly Attached Node implementing PRP); the roles
+of RedBox and QuadBox are not implemented (therefore, bridging a hsr network
+interface with a physical switch port does not produce the expected result).
+
+A driver which is able of offloading certain functions of a DANP or DANH should
+declare the corresponding netdev features as indicated by the documentation at
+``Documentation/networking/netdev-features.rst``. Additionally, the following
+methods must be implemented:
+
+- ``port_hsr_join``: function invoked when a given switch port is added to a
+  DANP/DANH. The driver may return ``-EOPNOTSUPP`` and in this case, DSA will
+  fall back to a software implementation where all traffic from this port is
+  sent to the CPU.
+- ``port_hsr_leave``: function invoked when a given switch port leaves a
+  DANP/DANH and returns to normal operation as a standalone port.
+
 TODO
 ====
 
