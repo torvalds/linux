@@ -16,6 +16,7 @@
 #include <linux/in6.h>
 #include <linux/notifier.h>
 #include <linux/net_namespace.h>
+#include <linux/spinlock.h>
 #include <net/psample.h>
 #include <net/pkt_cls.h>
 #include <net/red.h>
@@ -149,6 +150,7 @@ struct mlxsw_sp {
 	const unsigned char *mac_mask;
 	struct mlxsw_sp_upper *lags;
 	struct mlxsw_sp_port_mapping **port_mapping;
+	struct rhashtable sample_trigger_ht;
 	struct mlxsw_sp_sb *sb;
 	struct mlxsw_sp_bridge *bridge;
 	struct mlxsw_sp_router *router;
@@ -232,6 +234,23 @@ struct mlxsw_sp_port_pcpu_stats {
 	u64			tx_bytes;
 	struct u64_stats_sync	syncp;
 	u32			tx_dropped;
+};
+
+enum mlxsw_sp_sample_trigger_type {
+	MLXSW_SP_SAMPLE_TRIGGER_TYPE_INGRESS,
+	MLXSW_SP_SAMPLE_TRIGGER_TYPE_EGRESS,
+};
+
+struct mlxsw_sp_sample_trigger {
+	enum mlxsw_sp_sample_trigger_type type;
+	u8 local_port;
+};
+
+struct mlxsw_sp_sample_params {
+	struct psample_group *psample_group;
+	u32 trunc_size;
+	u32 rate;
+	bool truncate;
 };
 
 struct mlxsw_sp_port_sample {
@@ -534,6 +553,17 @@ void mlxsw_sp_hdroom_bufs_reset_sizes(struct mlxsw_sp_port *mlxsw_sp_port,
 				      struct mlxsw_sp_hdroom *hdroom);
 int mlxsw_sp_hdroom_configure(struct mlxsw_sp_port *mlxsw_sp_port,
 			      const struct mlxsw_sp_hdroom *hdroom);
+struct mlxsw_sp_sample_params *
+mlxsw_sp_sample_trigger_params_lookup(struct mlxsw_sp *mlxsw_sp,
+				      const struct mlxsw_sp_sample_trigger *trigger);
+int
+mlxsw_sp_sample_trigger_params_set(struct mlxsw_sp *mlxsw_sp,
+				   const struct mlxsw_sp_sample_trigger *trigger,
+				   const struct mlxsw_sp_sample_params *params,
+				   struct netlink_ext_ack *extack);
+void
+mlxsw_sp_sample_trigger_params_unset(struct mlxsw_sp *mlxsw_sp,
+				     const struct mlxsw_sp_sample_trigger *trigger);
 
 extern const struct mlxsw_sp_sb_vals mlxsw_sp1_sb_vals;
 extern const struct mlxsw_sp_sb_vals mlxsw_sp2_sb_vals;

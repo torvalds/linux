@@ -23,6 +23,8 @@
 #include <linux/netlink.h>
 #include <linux/jhash.h>
 #include <linux/log2.h>
+#include <linux/refcount.h>
+#include <linux/rhashtable.h>
 #include <net/switchdev.h>
 #include <net/pkt_cls.h>
 #include <net/netevent.h>
@@ -2550,6 +2552,142 @@ static const struct mlxsw_sp_ptp_ops mlxsw_sp2_ptp_ops = {
 	.get_stats	= mlxsw_sp2_get_stats,
 };
 
+struct mlxsw_sp_sample_trigger_node {
+	struct mlxsw_sp_sample_trigger trigger;
+	struct mlxsw_sp_sample_params params;
+	struct rhash_head ht_node;
+	struct rcu_head rcu;
+	refcount_t refcount;
+};
+
+static const struct rhashtable_params mlxsw_sp_sample_trigger_ht_params = {
+	.key_offset = offsetof(struct mlxsw_sp_sample_trigger_node, trigger),
+	.head_offset = offsetof(struct mlxsw_sp_sample_trigger_node, ht_node),
+	.key_len = sizeof(struct mlxsw_sp_sample_trigger),
+	.automatic_shrinking = true,
+};
+
+static void
+mlxsw_sp_sample_trigger_key_init(struct mlxsw_sp_sample_trigger *key,
+				 const struct mlxsw_sp_sample_trigger *trigger)
+{
+	memset(key, 0, sizeof(*key));
+	key->type = trigger->type;
+	key->local_port = trigger->local_port;
+}
+
+/* RCU read lock must be held */
+struct mlxsw_sp_sample_params *
+mlxsw_sp_sample_trigger_params_lookup(struct mlxsw_sp *mlxsw_sp,
+				      const struct mlxsw_sp_sample_trigger *trigger)
+{
+	struct mlxsw_sp_sample_trigger_node *trigger_node;
+	struct mlxsw_sp_sample_trigger key;
+
+	mlxsw_sp_sample_trigger_key_init(&key, trigger);
+	trigger_node = rhashtable_lookup(&mlxsw_sp->sample_trigger_ht, &key,
+					 mlxsw_sp_sample_trigger_ht_params);
+	if (!trigger_node)
+		return NULL;
+
+	return &trigger_node->params;
+}
+
+static int
+mlxsw_sp_sample_trigger_node_init(struct mlxsw_sp *mlxsw_sp,
+				  const struct mlxsw_sp_sample_trigger *trigger,
+				  const struct mlxsw_sp_sample_params *params)
+{
+	struct mlxsw_sp_sample_trigger_node *trigger_node;
+	int err;
+
+	trigger_node = kzalloc(sizeof(*trigger_node), GFP_KERNEL);
+	if (!trigger_node)
+		return -ENOMEM;
+
+	trigger_node->trigger = *trigger;
+	trigger_node->params = *params;
+	refcount_set(&trigger_node->refcount, 1);
+
+	err = rhashtable_insert_fast(&mlxsw_sp->sample_trigger_ht,
+				     &trigger_node->ht_node,
+				     mlxsw_sp_sample_trigger_ht_params);
+	if (err)
+		goto err_rhashtable_insert;
+
+	return 0;
+
+err_rhashtable_insert:
+	kfree(trigger_node);
+	return err;
+}
+
+static void
+mlxsw_sp_sample_trigger_node_fini(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_sample_trigger_node *trigger_node)
+{
+	rhashtable_remove_fast(&mlxsw_sp->sample_trigger_ht,
+			       &trigger_node->ht_node,
+			       mlxsw_sp_sample_trigger_ht_params);
+	kfree_rcu(trigger_node, rcu);
+}
+
+int
+mlxsw_sp_sample_trigger_params_set(struct mlxsw_sp *mlxsw_sp,
+				   const struct mlxsw_sp_sample_trigger *trigger,
+				   const struct mlxsw_sp_sample_params *params,
+				   struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp_sample_trigger_node *trigger_node;
+	struct mlxsw_sp_sample_trigger key;
+
+	ASSERT_RTNL();
+
+	mlxsw_sp_sample_trigger_key_init(&key, trigger);
+
+	trigger_node = rhashtable_lookup_fast(&mlxsw_sp->sample_trigger_ht,
+					      &key,
+					      mlxsw_sp_sample_trigger_ht_params);
+	if (!trigger_node)
+		return mlxsw_sp_sample_trigger_node_init(mlxsw_sp, &key,
+							 params);
+
+	if (trigger_node->params.psample_group != params->psample_group ||
+	    trigger_node->params.truncate != params->truncate ||
+	    trigger_node->params.rate != params->rate ||
+	    trigger_node->params.trunc_size != params->trunc_size) {
+		NL_SET_ERR_MSG_MOD(extack, "Sampling parameters do not match for an existing sampling trigger");
+		return -EINVAL;
+	}
+
+	refcount_inc(&trigger_node->refcount);
+
+	return 0;
+}
+
+void
+mlxsw_sp_sample_trigger_params_unset(struct mlxsw_sp *mlxsw_sp,
+				     const struct mlxsw_sp_sample_trigger *trigger)
+{
+	struct mlxsw_sp_sample_trigger_node *trigger_node;
+	struct mlxsw_sp_sample_trigger key;
+
+	ASSERT_RTNL();
+
+	mlxsw_sp_sample_trigger_key_init(&key, trigger);
+
+	trigger_node = rhashtable_lookup_fast(&mlxsw_sp->sample_trigger_ht,
+					      &key,
+					      mlxsw_sp_sample_trigger_ht_params);
+	if (!trigger_node)
+		return;
+
+	if (!refcount_dec_and_test(&trigger_node->refcount))
+		return;
+
+	mlxsw_sp_sample_trigger_node_fini(mlxsw_sp, trigger_node);
+}
+
 static int mlxsw_sp_netdevice_event(struct notifier_block *unused,
 				    unsigned long event, void *ptr);
 
@@ -2704,6 +2842,13 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_port_module_info_init;
 	}
 
+	err = rhashtable_init(&mlxsw_sp->sample_trigger_ht,
+			      &mlxsw_sp_sample_trigger_ht_params);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to init sampling trigger hashtable\n");
+		goto err_sample_trigger_init;
+	}
+
 	err = mlxsw_sp_ports_create(mlxsw_sp);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to create ports\n");
@@ -2713,6 +2858,8 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	return 0;
 
 err_ports_create:
+	rhashtable_destroy(&mlxsw_sp->sample_trigger_ht);
+err_sample_trigger_init:
 	mlxsw_sp_port_module_info_fini(mlxsw_sp);
 err_port_module_info_init:
 	mlxsw_sp_dpipe_fini(mlxsw_sp);
@@ -2847,6 +2994,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 
 	mlxsw_sp_ports_remove(mlxsw_sp);
+	rhashtable_destroy(&mlxsw_sp->sample_trigger_ht);
 	mlxsw_sp_port_module_info_fini(mlxsw_sp);
 	mlxsw_sp_dpipe_fini(mlxsw_sp);
 	unregister_netdevice_notifier_net(mlxsw_sp_net(mlxsw_sp),
