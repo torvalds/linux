@@ -465,6 +465,67 @@ static const struct resources vfe_res_660[] = {
 	}
 };
 
+static const struct resources vfe_res_845[] = {
+	/* VFE0 */
+	{
+		.regulator = { NULL },
+		.clock = { "camnoc_axi", "cpas_ahb", "slow_ahb_src",
+				"soc_ahb", "vfe0", "vfe0_axi",
+				"vfe0_src", "csi0",
+				"csi0_src"},
+		.clock_rate = { { 0 },
+				{ 0 },
+				{ 80000000 },
+				{ 0 },
+				{ 19200000, 100000000, 320000000, 404000000, 480000000, 600000000 },
+				{ 0 },
+				{ 320000000 },
+				{ 19200000, 75000000, 384000000, 538666667 },
+				{ 384000000 } },
+		.reg = { "vfe0" },
+		.interrupt = { "vfe0" }
+	},
+
+	/* VFE1 */
+	{
+		.regulator = { NULL },
+		.clock = { "camnoc_axi", "cpas_ahb", "slow_ahb_src",
+				"soc_ahb", "vfe1", "vfe1_axi",
+				"vfe1_src", "csi1",
+				"csi1_src"},
+		.clock_rate = { { 0 },
+				{ 0 },
+				{ 80000000 },
+				{ 0 },
+				{ 19200000, 100000000, 320000000, 404000000, 480000000, 600000000 },
+				{ 0 },
+				{ 320000000 },
+				{ 19200000, 75000000, 384000000, 538666667 },
+				{ 384000000 } },
+		.reg = { "vfe1" },
+		.interrupt = { "vfe1" }
+	},
+
+	/* VFE-lite */
+	{
+		.regulator = { NULL },
+		.clock = { "camnoc_axi", "cpas_ahb", "slow_ahb_src",
+				"soc_ahb", "vfe_lite",
+				"vfe_lite_src", "csi2",
+				"csi2_src"},
+		.clock_rate = { { 0 },
+				{ 0 },
+				{ 80000000 },
+				{ 0 },
+				{ 19200000, 100000000, 320000000, 404000000, 480000000, 600000000 },
+				{ 320000000 },
+				{ 19200000, 75000000, 384000000, 538666667 },
+				{ 384000000 } },
+		.reg = { "vfe_lite" },
+		.interrupt = { "vfe_lite" }
+	}
+};
+
 /*
  * camss_add_clock_margin - Add margin to clock frequency rate
  * @rate: Clock frequency rate

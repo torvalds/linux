@@ -96,6 +96,32 @@ static const struct vfe_format formats_pix_8x96[] = {
 	{ MEDIA_BUS_FMT_YVYU8_2X8, 8 },
 };
 
+static const struct vfe_format formats_rdi_845[] = {
+	{ MEDIA_BUS_FMT_UYVY8_2X8, 8 },
+	{ MEDIA_BUS_FMT_VYUY8_2X8, 8 },
+	{ MEDIA_BUS_FMT_YUYV8_2X8, 8 },
+	{ MEDIA_BUS_FMT_YVYU8_2X8, 8 },
+	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SRGGB8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SBGGR10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SGBRG10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SGRBG10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE, 16 },
+	{ MEDIA_BUS_FMT_SBGGR12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SGBRG12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SGRBG12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SRGGB12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SBGGR14_1X14, 14 },
+	{ MEDIA_BUS_FMT_SGBRG14_1X14, 14 },
+	{ MEDIA_BUS_FMT_SGRBG14_1X14, 14 },
+	{ MEDIA_BUS_FMT_SRGGB14_1X14, 14 },
+	{ MEDIA_BUS_FMT_Y10_1X10, 10 },
+	{ MEDIA_BUS_FMT_Y10_2X8_PADHI_LE, 16 },
+};
+
 /*
  * vfe_get_bpp - map media bus format to bits per pixel
  * @formats: supported media bus formats array
@@ -192,7 +218,8 @@ static u32 vfe_src_pad_code(struct vfe_line *line, u32 sink_code,
 			return sink_code;
 		}
 	else if (vfe->camss->version == CAMSS_8x96 ||
-		 vfe->camss->version == CAMSS_660)
+		 vfe->camss->version == CAMSS_660 ||
+		 vfe->camss->version == CAMSS_845)
 		switch (sink_code) {
 		case MEDIA_BUS_FMT_YUYV8_2X8:
 		{
@@ -256,13 +283,7 @@ static u32 vfe_src_pad_code(struct vfe_line *line, u32 sink_code,
 		return 0;
 }
 
-/*
- * vfe_reset - Trigger reset on VFE module and wait to complete
- * @vfe: VFE device
- *
- * Return 0 on success or a negative error code otherwise
- */
-static int vfe_reset(struct vfe_device *vfe)
+int vfe_reset(struct vfe_device *vfe)
 {
 	unsigned long time;
 
@@ -429,7 +450,8 @@ static int vfe_set_clock_rates(struct vfe_device *vfe)
 		struct camss_clock *clock = &vfe->clock[i];
 
 		if (!strcmp(clock->name, "vfe0") ||
-		    !strcmp(clock->name, "vfe1")) {
+		    !strcmp(clock->name, "vfe1") ||
+		    !strcmp(clock->name, "vfe_lite")) {
 			u64 min_rate = 0;
 			long rate;
 
@@ -1268,6 +1290,10 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 	case CAMSS_660:
 		vfe->ops = &vfe_ops_4_8;
 		break;
+
+	case CAMSS_845:
+		vfe->ops = &vfe_ops_170;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1379,6 +1405,9 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 				l->formats = formats_rdi_8x96;
 				l->nformats = ARRAY_SIZE(formats_rdi_8x96);
 			}
+		} else if (camss->version == CAMSS_845) {
+			l->formats = formats_rdi_845;
+			l->nformats = ARRAY_SIZE(formats_rdi_845);
 		} else {
 			return -EINVAL;
 		}

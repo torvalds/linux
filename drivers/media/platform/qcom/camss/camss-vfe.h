@@ -43,7 +43,8 @@ enum vfe_output_state {
 	VFE_OUTPUT_SINGLE,
 	VFE_OUTPUT_CONTINUOUS,
 	VFE_OUTPUT_IDLE,
-	VFE_OUTPUT_STOPPING
+	VFE_OUTPUT_STOPPING,
+	VFE_OUTPUT_ON,
 };
 
 enum vfe_line_id {
@@ -51,6 +52,7 @@ enum vfe_line_id {
 	VFE_LINE_RDI0 = 0,
 	VFE_LINE_RDI1 = 1,
 	VFE_LINE_RDI2 = 2,
+	VFE_LINE_NUM_GEN2 = 3,
 	VFE_LINE_PIX = 3,
 	VFE_LINE_NUM_GEN1 = 4,
 	VFE_LINE_NUM_MAX = 4
@@ -71,6 +73,9 @@ struct vfe_output {
 			int active_buf;
 			int wait_sof;
 		} gen1;
+		struct {
+			int active_num;
+		} gen2;
 	};
 	enum vfe_output_state state;
 	unsigned int sequence;
@@ -168,14 +173,6 @@ void vfe_buf_add_pending(struct vfe_output *output, struct camss_buffer *buffer)
 
 struct camss_buffer *vfe_buf_get_pending(struct vfe_output *output);
 
-/*
- * vfe_disable - Disable streaming on VFE line
- * @line: VFE line
- *
- * Return 0 on success or a negative error code otherwise
- */
-int vfe_disable(struct vfe_line *line);
-
 int vfe_flush_buffers(struct camss_video *vid, enum vb2_buffer_state state);
 
 /*
@@ -190,8 +187,17 @@ int vfe_put_output(struct vfe_line *line);
 int vfe_release_wm(struct vfe_device *vfe, u8 wm);
 int vfe_reserve_wm(struct vfe_device *vfe, enum vfe_line_id line_id);
 
+/*
+ * vfe_reset - Trigger reset on VFE module and wait to complete
+ * @vfe: VFE device
+ *
+ * Return 0 on success or a negative error code otherwise
+ */
+int vfe_reset(struct vfe_device *vfe);
+
 extern const struct vfe_hw_ops vfe_ops_4_1;
 extern const struct vfe_hw_ops vfe_ops_4_7;
 extern const struct vfe_hw_ops vfe_ops_4_8;
+extern const struct vfe_hw_ops vfe_ops_170;
 
 #endif /* QC_MSM_CAMSS_VFE_H */
