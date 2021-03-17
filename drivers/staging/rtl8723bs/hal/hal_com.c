@@ -1006,7 +1006,7 @@ void hw_var_port_switch(struct adapter *adapter)
 void SetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 {
 	struct hal_com_data *hal_data = GET_HAL_DATA(adapter);
-	struct DM_ODM_T *odm = &(hal_data->odmpriv);
+	struct dm_odm_t *odm = &(hal_data->odmpriv);
 
 	switch (variable) {
 	case HW_VAR_PORT_SWITCH:
@@ -1086,7 +1086,7 @@ void SetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 void GetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 {
 	struct hal_com_data *hal_data = GET_HAL_DATA(adapter);
-	struct DM_ODM_T *odm = &(hal_data->odmpriv);
+	struct dm_odm_t *odm = &(hal_data->odmpriv);
 
 	switch (variable) {
 	case HW_VAR_BASIC_RATE:
@@ -1117,7 +1117,7 @@ u8 SetHalDefVar(
 )
 {
 	struct hal_com_data *hal_data = GET_HAL_DATA(adapter);
-	struct DM_ODM_T *odm = &(hal_data->odmpriv);
+	struct dm_odm_t *odm = &(hal_data->odmpriv);
 	u8 bResult = _SUCCESS;
 
 	switch (variable) {
@@ -1202,7 +1202,7 @@ u8 GetHalDefVar(
 )
 {
 	struct hal_com_data *hal_data = GET_HAL_DATA(adapter);
-	struct DM_ODM_T *odm = &(hal_data->odmpriv);
+	struct dm_odm_t *odm = &(hal_data->odmpriv);
 	u8 bResult = _SUCCESS;
 
 	switch (variable) {
@@ -1273,7 +1273,7 @@ void SetHalODMVar(
 )
 {
 	struct hal_com_data	*pHalData = GET_HAL_DATA(Adapter);
-	struct DM_ODM_T *podmpriv = &pHalData->odmpriv;
+	struct dm_odm_t *podmpriv = &pHalData->odmpriv;
 	/* _irqL irqL; */
 	switch (eVariable) {
 	case HAL_ODM_STA_INFO:

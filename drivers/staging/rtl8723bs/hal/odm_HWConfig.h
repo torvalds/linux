@@ -122,31 +122,31 @@ struct phy_status_rpt_8812_t {
 
 
 void ODM_PhyStatusQuery(
-	struct DM_ODM_T *pDM_Odm,
+	struct dm_odm_t *pDM_Odm,
 	struct odm_phy_info *pPhyInfo,
 	u8 *pPhyStatus,
 	struct odm_packet_info *pPktinfo
 );
 
-enum hal_status ODM_ConfigRFWithTxPwrTrackHeaderFile(struct DM_ODM_T *pDM_Odm);
+enum hal_status ODM_ConfigRFWithTxPwrTrackHeaderFile(struct dm_odm_t *pDM_Odm);
 
 enum hal_status ODM_ConfigRFWithHeaderFile(
-	struct DM_ODM_T *pDM_Odm,
+	struct dm_odm_t *pDM_Odm,
 	enum ODM_RF_Config_Type ConfigType,
-	enum ODM_RF_RADIO_PATH_E eRFPath
+	enum odm_rf_radio_path_e eRFPath
 );
 
 enum hal_status ODM_ConfigBBWithHeaderFile(
-	struct DM_ODM_T *pDM_Odm, enum ODM_BB_Config_Type ConfigType
+	struct dm_odm_t *pDM_Odm, enum ODM_BB_Config_Type ConfigType
 );
 
 enum hal_status ODM_ConfigFWWithHeaderFile(
-	struct DM_ODM_T *pDM_Odm,
+	struct dm_odm_t *pDM_Odm,
 	enum ODM_FW_Config_Type ConfigType,
 	u8 *pFirmware,
 	u32 *pSize
 );
 
-s32 odm_SignalScaleMapping(struct DM_ODM_T *pDM_Odm, s32 CurrSig);
+s32 odm_SignalScaleMapping(struct dm_odm_t *pDM_Odm, s32 CurrSig);
 
 #endif

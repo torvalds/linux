@@ -11,7 +11,7 @@
 
 void odm_NHMCounterStatisticsInit(void *pDM_VOID)
 {
-	struct DM_ODM_T	*pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t	*pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 
 	/* PHY parameters initialize for n series */
 	rtw_write16(pDM_Odm->Adapter, ODM_REG_NHM_TIMER_11N+2, 0x2710);	/* 0x894[31:16]= 0x2710	Time duration for NHM unit: 4us, 0x2710 =40ms */
@@ -27,7 +27,7 @@ void odm_NHMCounterStatisticsInit(void *pDM_VOID)
 
 void odm_NHMCounterStatistics(void *pDM_VOID)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 
 	/*  Get NHM report */
 	odm_GetNHMCounterStatistics(pDM_Odm);
@@ -38,7 +38,7 @@ void odm_NHMCounterStatistics(void *pDM_VOID)
 
 void odm_GetNHMCounterStatistics(void *pDM_VOID)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	u32 value32 = 0;
 
 	value32 = PHY_QueryBBReg(pDM_Odm->Adapter, ODM_REG_NHM_CNT_11N, bMaskDWord);
@@ -48,7 +48,7 @@ void odm_GetNHMCounterStatistics(void *pDM_VOID)
 
 void odm_NHMCounterStatisticsReset(void *pDM_VOID)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 
 	PHY_SetBBReg(pDM_Odm->Adapter, ODM_REG_NHM_TH9_TH10_11N, BIT1, 0);
 	PHY_SetBBReg(pDM_Odm->Adapter, ODM_REG_NHM_TH9_TH10_11N, BIT1, 1);
@@ -56,7 +56,7 @@ void odm_NHMCounterStatisticsReset(void *pDM_VOID)
 
 void odm_NHMBBInit(void *pDM_VOID)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 
 	pDM_Odm->adaptivity_flag = 0;
 	pDM_Odm->tolerance_cnt = 3;
@@ -69,7 +69,7 @@ void odm_NHMBBInit(void *pDM_VOID)
 /*  */
 void odm_NHMBB(void *pDM_VOID)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	/* u8 test_status; */
 	/* struct false_ALARM_STATISTICS *pFalseAlmCnt = &pDM_Odm->FalseAlmCnt; */
 
@@ -133,7 +133,7 @@ void odm_NHMBB(void *pDM_VOID)
 
 void odm_SearchPwdBLowerBound(void *pDM_VOID, u8 IGI_target)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	u32 value32 = 0;
 	u8 cnt, IGI;
 	bool bAdjust = true;
@@ -205,7 +205,7 @@ void odm_SearchPwdBLowerBound(void *pDM_VOID, u8 IGI_target)
 
 void odm_AdaptivityInit(void *pDM_VOID)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 
 	if (pDM_Odm->Carrier_Sense_enable == false)
 		pDM_Odm->TH_L2H_ini = 0xf7; /*  -7 */
@@ -233,7 +233,7 @@ void odm_AdaptivityInit(void *pDM_VOID)
 
 void odm_Adaptivity(void *pDM_VOID, u8 IGI)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	s8 TH_L2H_dmc, TH_H2L_dmc;
 	s8 Diff, IGI_target;
 	bool EDCCA_State = false;
@@ -322,7 +322,7 @@ void odm_Adaptivity(void *pDM_VOID, u8 IGI)
 
 void ODM_Write_DIG(void *pDM_VOID, u8 CurrentIGI)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
 
 	if (pDM_DigTable->bStopDIG) {
@@ -362,7 +362,7 @@ void odm_PauseDIG(
 	u8 IGIValue
 )
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
 	static bool bPaused;
 
@@ -435,7 +435,7 @@ void odm_PauseDIG(
 
 bool odm_DigAbort(void *pDM_VOID)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 
 	/* SupportAbility */
 	if (!(pDM_Odm->SupportAbility & ODM_BB_FA_CNT)) {
@@ -466,7 +466,7 @@ bool odm_DigAbort(void *pDM_VOID)
 
 void odm_DIGInit(void *pDM_VOID)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
 
 	pDM_DigTable->bStopDIG = false;
@@ -504,7 +504,7 @@ void odm_DIGInit(void *pDM_VOID)
 
 void odm_DIG(void *pDM_VOID)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 
 	/*  Common parameters */
 	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
@@ -823,7 +823,7 @@ void odm_DIG(void *pDM_VOID)
 
 void odm_DIGbyRSSI_LPS(void *pDM_VOID)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	struct false_ALARM_STATISTICS *pFalseAlmCnt = &pDM_Odm->FalseAlmCnt;
 
 	u8 RSSI_Lower = DM_DIG_MIN_NIC;   /* 0x1E or 0x1C */
@@ -892,7 +892,7 @@ void odm_DIGbyRSSI_LPS(void *pDM_VOID)
 
 void odm_FalseAlarmCounterStatistics(void *pDM_VOID)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	struct false_ALARM_STATISTICS *FalseAlmCnt = &pDM_Odm->FalseAlmCnt;
 	u32 ret_value;
 
@@ -1062,7 +1062,7 @@ void odm_FAThresholdCheck(
 	u32 *dm_FA_thres
 )
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 
 	if (pDM_Odm->bLinked && (bPerformance || bDFSBand)) {
 		/*  For NIC */
@@ -1078,7 +1078,7 @@ void odm_FAThresholdCheck(
 
 u8 odm_ForbiddenIGICheck(void *pDM_VOID, u8 DIG_Dynamic_MIN, u8 CurrentIGI)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
 	struct false_ALARM_STATISTICS *pFalseAlmCnt = &pDM_Odm->FalseAlmCnt;
 	u8 rx_gain_range_min = pDM_DigTable->rx_gain_range_min;
@@ -1134,7 +1134,7 @@ u8 odm_ForbiddenIGICheck(void *pDM_VOID, u8 DIG_Dynamic_MIN, u8 CurrentIGI)
 
 void odm_CCKPacketDetectionThresh(void *pDM_VOID)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	struct false_ALARM_STATISTICS *FalseAlmCnt = &pDM_Odm->FalseAlmCnt;
 	u8 CurCCK_CCAThres;
 
@@ -1195,7 +1195,7 @@ void odm_CCKPacketDetectionThresh(void *pDM_VOID)
 
 void ODM_Write_CCK_CCA_Thres(void *pDM_VOID, u8 CurCCK_CCAThres)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
 
 	/* modify by Guo.Mingzhi 2012-01-03 */

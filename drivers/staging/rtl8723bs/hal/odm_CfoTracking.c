@@ -9,7 +9,7 @@
 
 static void odm_SetCrystalCap(void *pDM_VOID, u8 CrystalCap)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	struct cfo_tracking *pCfoTrack = &pDM_Odm->DM_CfoTrack;
 
 	if (pCfoTrack->CrystalCap == CrystalCap)
@@ -39,7 +39,7 @@ static void odm_SetCrystalCap(void *pDM_VOID, u8 CrystalCap)
 
 static u8 odm_GetDefaultCrytaltalCap(void *pDM_VOID)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 
 	struct adapter *Adapter = pDM_Odm->Adapter;
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
@@ -49,7 +49,7 @@ static u8 odm_GetDefaultCrytaltalCap(void *pDM_VOID)
 
 static void odm_SetATCStatus(void *pDM_VOID, bool ATCStatus)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	struct cfo_tracking *pCfoTrack = &pDM_Odm->DM_CfoTrack;
 
 	if (pCfoTrack->bATCStatus == ATCStatus)
@@ -67,7 +67,7 @@ static void odm_SetATCStatus(void *pDM_VOID, bool ATCStatus)
 static bool odm_GetATCStatus(void *pDM_VOID)
 {
 	bool ATCStatus;
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 
 	ATCStatus = (bool)PHY_QueryBBReg(
 		pDM_Odm->Adapter,
@@ -79,7 +79,7 @@ static bool odm_GetATCStatus(void *pDM_VOID)
 
 void ODM_CfoTrackingReset(void *pDM_VOID)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	struct cfo_tracking *pCfoTrack = &pDM_Odm->DM_CfoTrack;
 
 	pCfoTrack->DefXCap = odm_GetDefaultCrytaltalCap(pDM_Odm);
@@ -91,7 +91,7 @@ void ODM_CfoTrackingReset(void *pDM_VOID)
 
 void ODM_CfoTrackingInit(void *pDM_VOID)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	struct cfo_tracking *pCfoTrack = &pDM_Odm->DM_CfoTrack;
 
 	pCfoTrack->DefXCap =
@@ -118,7 +118,7 @@ void ODM_CfoTrackingInit(void *pDM_VOID)
 
 void ODM_CfoTracking(void *pDM_VOID)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	struct cfo_tracking *pCfoTrack = &pDM_Odm->DM_CfoTrack;
 	int CFO_kHz_A, CFO_kHz_B, CFO_ave = 0;
 	int CFO_ave_diff;
@@ -297,7 +297,7 @@ void ODM_CfoTracking(void *pDM_VOID)
 
 void ODM_ParsingCFO(void *pDM_VOID, void *pPktinfo_VOID, s8 *pcfotail)
 {
-	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
+	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	struct odm_packet_info *pPktinfo = pPktinfo_VOID;
 	struct cfo_tracking *pCfoTrack = &pDM_Odm->DM_CfoTrack;
 	u8 i;
