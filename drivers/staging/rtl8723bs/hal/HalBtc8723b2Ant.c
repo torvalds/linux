@@ -15,10 +15,10 @@ do {									      \
 } while (0)
 
 /*  Global variables, these are static variables */
-static struct COEX_DM_8723B_2ANT GLCoexDm8723b2Ant;
-static struct COEX_DM_8723B_2ANT *pCoexDm = &GLCoexDm8723b2Ant;
-static struct COEX_STA_8723B_2ANT GLCoexSta8723b2Ant;
-static struct COEX_STA_8723B_2ANT *pCoexSta = &GLCoexSta8723b2Ant;
+static struct coex_dm_8723b_2ant GLCoexDm8723b2Ant;
+static struct coex_dm_8723b_2ant *pCoexDm = &GLCoexDm8723b2Ant;
+static struct coex_sta_8723b_2ant GLCoexSta8723b2Ant;
+static struct coex_sta_8723b_2ant *pCoexSta = &GLCoexSta8723b2Ant;
 
 static const char *const GLBtInfoSrc8723b2Ant[] = {
 	"BT Info[wifi fw]",

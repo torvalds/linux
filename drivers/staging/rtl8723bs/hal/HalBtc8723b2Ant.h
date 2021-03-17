@@ -16,14 +16,14 @@
 
 #define		BTC_RSSI_COEX_THRESH_TOL_8723B_2ANT		2
 
-enum BT_INFO_SRC_8723B_2ANT {
+enum bt_info_src_8723b_2ant {
 	BT_INFO_SRC_8723B_2ANT_WIFI_FW        = 0x0,
 	BT_INFO_SRC_8723B_2ANT_BT_RSP         = 0x1,
 	BT_INFO_SRC_8723B_2ANT_BT_ACTIVE_SEND = 0x2,
 	BT_INFO_SRC_8723B_2ANT_MAX
 };
 
-enum BT_8723B_2ANT_BT_STATUS {
+enum bt_8723b_2ant_bt_status {
 	BT_8723B_2ANT_BT_STATUS_NON_CONNECTED_IDLE = 0x0,
 	BT_8723B_2ANT_BT_STATUS_CONNECTED_IDLE     = 0x1,
 	BT_8723B_2ANT_BT_STATUS_INQ_PAGE           = 0x2,
@@ -33,7 +33,7 @@ enum BT_8723B_2ANT_BT_STATUS {
 	BT_8723B_2ANT_BT_STATUS_MAX
 };
 
-enum BT_8723B_2ANT_COEX_ALGO {
+enum bt_8723b_2ant_coex_algo {
 	BT_8723B_2ANT_COEX_ALGO_UNDEFINED       = 0x0,
 	BT_8723B_2ANT_COEX_ALGO_SCO             = 0x1,
 	BT_8723B_2ANT_COEX_ALGO_HID             = 0x2,
@@ -48,7 +48,7 @@ enum BT_8723B_2ANT_COEX_ALGO {
 	BT_8723B_2ANT_COEX_ALGO_MAX             = 0xb,
 };
 
-struct COEX_DM_8723B_2ANT {
+struct coex_dm_8723b_2ant {
 	/*  fw mechanism */
 	u8 preBtDecPwrLvl;
 	u8 curBtDecPwrLvl;
@@ -101,7 +101,7 @@ struct COEX_DM_8723B_2ANT {
 	u32 backup0x948;
 };
 
-struct COEX_STA_8723B_2ANT {
+struct coex_sta_8723b_2ant {
 	bool bBtLinkExist;
 	bool bScoExist;
 	bool bA2dpExist;
