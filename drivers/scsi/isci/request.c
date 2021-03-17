@@ -481,7 +481,7 @@ static void scu_ssp_task_request_construct_task_context(struct isci_request *ire
  * scu_sata_request_construct_task_context()
  * This method is will fill in the SCU Task Context for any type of SATA
  *    request.  This is called from the various SATA constructors.
- * @sci_req: The general IO request object which is to be used in
+ * @ireq: The general IO request object which is to be used in
  *    constructing the SCU task context.
  * @task_context: The buffer pointer for the SCU task context which is being
  *    constructed.
