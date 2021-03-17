@@ -479,6 +479,7 @@ is not possible.
   be added to a second bridge, which includes other switch ports or software
   interfaces. Some approaches to ensure that the forwarding domain for traffic
   belonging to the VLAN upper interfaces are managed properly:
+
     * If forwarding destinations can be managed per VLAN, the hardware could be
       configured to map all traffic, except the packets tagged with a VID
       belonging to a VLAN upper interface, to an internal VID corresponding to
