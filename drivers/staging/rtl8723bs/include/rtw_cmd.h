@@ -158,7 +158,7 @@ enum rtw_drvextra_cmd_id {
 	MAX_WK_CID
 };
 
-enum LPS_CTRL_TYPE {
+enum lps_ctrl_type {
 	LPS_CTRL_SCAN = 0,
 	LPS_CTRL_JOINBSS = 1,
 	LPS_CTRL_CONNECT = 2,
@@ -168,7 +168,7 @@ enum LPS_CTRL_TYPE {
 	LPS_CTRL_TRAFFIC_BUSY = 6,
 };
 
-enum RFINTFS {
+enum rfintfs {
 	SWSI,
 	HWSI,
 	HWPI,
