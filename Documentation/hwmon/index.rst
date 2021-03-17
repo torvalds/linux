@@ -45,6 +45,7 @@ Hardware Monitoring Kernel Drivers
    aspeed-pwm-tacho
    bcm54140
    bel-pfe
+   bpa-rs600
    bt1-pvt
    coretemp
    corsair-cpro
