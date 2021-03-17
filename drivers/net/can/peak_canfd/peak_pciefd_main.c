@@ -21,7 +21,6 @@
 
 MODULE_AUTHOR("Stephane Grosjean <s.grosjean@peak-system.com>");
 MODULE_DESCRIPTION("Socket-CAN driver for PEAK PCAN PCIe/M.2 FD family cards");
-MODULE_SUPPORTED_DEVICE("PEAK PCAN PCIe/M.2 FD CAN cards");
 MODULE_LICENSE("GPL v2");
 
 #define PCIEFD_DRV_NAME		"peak_pciefd"
