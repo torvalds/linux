@@ -807,6 +807,13 @@ struct pptable_funcs {
 	int (*check_fw_status)(struct smu_context *smu);
 
 	/**
+	 * @set_mp1_state: put SMU into a correct state for comming
+	 *                 resume from runpm or gpu reset.
+	 */
+	int (*set_mp1_state)(struct smu_context *smu,
+			     enum pp_mp1_state mp1_state);
+
+	/**
 	 * @setup_pptable: Initialize the power play table and populate it with
 	 *                 default values.
 	 */

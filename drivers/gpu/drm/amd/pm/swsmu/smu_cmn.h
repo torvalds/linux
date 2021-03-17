@@ -99,5 +99,8 @@ int smu_cmn_get_metrics_table(struct smu_context *smu,
 
 void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev);
 
+int smu_cmn_set_mp1_state(struct smu_context *smu,
+			  enum pp_mp1_state mp1_state);
+
 #endif
 #endif

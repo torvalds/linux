@@ -1460,6 +1460,19 @@ static bool aldebaran_is_mode2_reset_supported(struct smu_context *smu)
 	return true;
 }
 
+static int aldebaran_set_mp1_state(struct smu_context *smu,
+				   enum pp_mp1_state mp1_state)
+{
+	switch (mp1_state) {
+	case PP_MP1_STATE_UNLOAD:
+		return smu_cmn_set_mp1_state(smu, mp1_state);
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct pptable_funcs aldebaran_ppt_funcs = {
 	/* init dpm */
 	.get_allowed_feature_mask = aldebaran_get_allowed_feature_mask,
@@ -1518,6 +1531,7 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.mode2_reset_is_support = aldebaran_is_mode2_reset_supported,
 	.mode1_reset = smu_v13_0_mode1_reset,
 	.mode2_reset = smu_v13_0_mode2_reset,
+	.set_mp1_state = aldebaran_set_mp1_state,
 };
 
 void aldebaran_set_ppt_funcs(struct smu_context *smu)
