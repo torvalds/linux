@@ -143,6 +143,8 @@ then
 	usage
 fi
 rm -f "$rundir"/*/{console.log,console.log.diags,qemu_pid,qemu-retval,Warnings,kvm-test-1-run.sh.out,kvm-test-1-run-qemu.sh.out,vmlinux} "$rundir"/log
+touch "$rundir/log"
+echo $scriptname $args | tee -a "$rundir/log"
 echo $oldrun > "$rundir/re-run"
 if ! test -d "$rundir/../../bin"
 then
@@ -178,12 +180,5 @@ then
 	echo ---- Dryrun complete, directory: $rundir | tee -a "$rundir/log"
 else
 	( cd "$rundir"; sh $T/runbatches.sh )
-	kcsan-collapse.sh "$rundir" | tee -a "$rundir/log"
-	echo | tee -a "$rundir/log"
-	echo ---- Results directory: $rundir | tee -a "$rundir/log"
-	kvm-recheck.sh "$rundir" > $T/kvm-recheck.sh.out 2>&1
-	ret=$?
-	cat $T/kvm-recheck.sh.out | tee -a "$rundir/log"
-	echo " --- Done at `date` (`get_starttime_duration $starttime`) exitcode $ret" | tee -a "$rundir/log"
-	exit $ret
+	kvm-end-run-stats.sh "$rundir" "$starttime"
 fi
