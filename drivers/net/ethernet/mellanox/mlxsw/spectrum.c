@@ -402,6 +402,22 @@ int mlxsw_sp_ethtype_to_sver_type(u16 ethtype, u8 *p_sver_type)
 	return 0;
 }
 
+int mlxsw_sp_port_egress_ethtype_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				     u16 ethtype)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char spevet_pl[MLXSW_REG_SPEVET_LEN];
+	u8 sver_type;
+	int err;
+
+	err = mlxsw_sp_ethtype_to_sver_type(ethtype, &sver_type);
+	if (err)
+		return err;
+
+	mlxsw_reg_spevet_pack(spevet_pl, mlxsw_sp_port->local_port, sver_type);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spevet), spevet_pl);
+}
+
 static int __mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				    u16 vid, u16 ethtype)
 {
