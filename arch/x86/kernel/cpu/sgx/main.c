@@ -26,39 +26,43 @@ static LIST_HEAD(sgx_active_page_list);
 
 static DEFINE_SPINLOCK(sgx_reclaimer_lock);
 
+static LIST_HEAD(sgx_dirty_page_list);
+
 /*
- * Reset dirty EPC pages to uninitialized state. Laundry can be left with SECS
- * pages whose child pages blocked EREMOVE.
+ * Reset post-kexec EPC pages to the uninitialized state. The pages are removed
+ * from the input list, and made available for the page allocator. SECS pages
+ * prepending their children in the input list are left intact.
  */
-static void sgx_sanitize_section(struct sgx_epc_section *section)
+static void __sgx_sanitize_pages(struct list_head *dirty_page_list)
 {
 	struct sgx_epc_page *page;
 	LIST_HEAD(dirty);
 	int ret;
 
-	/* init_laundry_list is thread-local, no need for a lock: */
-	while (!list_empty(&section->init_laundry_list)) {
+	/* dirty_page_list is thread-local, no need for a lock: */
+	while (!list_empty(dirty_page_list)) {
 		if (kthread_should_stop())
 			return;
 
-		/* needed for access to ->page_list: */
-		spin_lock(&section->lock);
-
-		page = list_first_entry(&section->init_laundry_list,
-					struct sgx_epc_page, list);
+		page = list_first_entry(dirty_page_list, struct sgx_epc_page, list);
 
 		ret = __eremove(sgx_get_epc_virt_addr(page));
-		if (!ret)
-			list_move(&page->list, &section->page_list);
-		else
+		if (!ret) {
+			/*
+			 * page is now sanitized.  Make it available via the SGX
+			 * page allocator:
+			 */
+			list_del(&page->list);
+			sgx_free_epc_page(page);
+		} else {
+			/* The page is not yet clean - move to the dirty list. */
 			list_move_tail(&page->list, &dirty);
-
-		spin_unlock(&section->lock);
+		}
 
 		cond_resched();
 	}
 
-	list_splice(&dirty, &section->init_laundry_list);
+	list_splice(&dirty, dirty_page_list);
 }
 
 static bool sgx_reclaimer_age(struct sgx_epc_page *epc_page)
@@ -405,24 +409,17 @@ static bool sgx_should_reclaim(unsigned long watermark)
 
 static int ksgxd(void *p)
 {
-	int i;
-
 	set_freezable();
 
 	/*
 	 * Sanitize pages in order to recover from kexec(). The 2nd pass is
 	 * required for SECS pages, whose child pages blocked EREMOVE.
 	 */
-	for (i = 0; i < sgx_nr_epc_sections; i++)
-		sgx_sanitize_section(&sgx_epc_sections[i]);
+	__sgx_sanitize_pages(&sgx_dirty_page_list);
+	__sgx_sanitize_pages(&sgx_dirty_page_list);
 
-	for (i = 0; i < sgx_nr_epc_sections; i++) {
-		sgx_sanitize_section(&sgx_epc_sections[i]);
-
-		/* Should never happen. */
-		if (!list_empty(&sgx_epc_sections[i].init_laundry_list))
-			WARN(1, "EPC section %d has unsanitized pages.\n", i);
-	}
+	/* sanity check: */
+	WARN_ON(!list_empty(&sgx_dirty_page_list));
 
 	while (!kthread_should_stop()) {
 		if (try_to_freeze())
@@ -637,13 +634,12 @@ static bool __init sgx_setup_epc_section(u64 phys_addr, u64 size,
 	section->phys_addr = phys_addr;
 	spin_lock_init(&section->lock);
 	INIT_LIST_HEAD(&section->page_list);
-	INIT_LIST_HEAD(&section->init_laundry_list);
 
 	for (i = 0; i < nr_pages; i++) {
 		section->pages[i].section = index;
 		section->pages[i].flags = 0;
 		section->pages[i].owner = NULL;
-		list_add_tail(&section->pages[i].list, &section->init_laundry_list);
+		list_add_tail(&section->pages[i].list, &sgx_dirty_page_list);
 	}
 
 	section->free_cnt = nr_pages;
