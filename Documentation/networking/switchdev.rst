@@ -523,7 +523,7 @@ as untagged packets, since the bridge device does not allow the manipulation of
 VID 0 in its database.
 
 When the bridge has VLAN filtering enabled and a PVID is not configured on the
-ingress port, untagged 802.1p tagged packets must be dropped. When the bridge
+ingress port, untagged and 802.1p tagged packets must be dropped. When the bridge
 has VLAN filtering enabled and a PVID exists on the ingress port, untagged and
 priority-tagged packets must be accepted and forwarded according to the
 bridge's port membership of the PVID VLAN. When the bridge has VLAN filtering
