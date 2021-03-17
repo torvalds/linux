@@ -165,13 +165,13 @@ enum{
 	UP_LINK,
 	DOWN_LINK,
 };
-enum RT_MEDIA_STATUS {
+enum rt_media_status {
 	RT_MEDIA_DISCONNECT = 0,
 	RT_MEDIA_CONNECT       = 1
 };
 
 #define MAX_DLFW_PAGE_SIZE			4096	/*  @ page : 4k bytes */
-enum FIRMWARE_SOURCE {
+enum firmware_source {
 	FW_SOURCE_IMG_FILE = 0,
 	FW_SOURCE_HEADER_FILE = 1,		/* from header file */
 };

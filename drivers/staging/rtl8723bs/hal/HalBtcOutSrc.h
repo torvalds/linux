@@ -540,7 +540,7 @@ void EXhalbtcoutsrc_LpsNotify(struct BTC_COEXIST *pBtCoexist, u8 type);
 void EXhalbtcoutsrc_ScanNotify(struct BTC_COEXIST *pBtCoexist, u8 type);
 void EXhalbtcoutsrc_ConnectNotify(struct BTC_COEXIST *pBtCoexist, u8 action);
 void EXhalbtcoutsrc_MediaStatusNotify(
-	struct BTC_COEXIST *pBtCoexist, enum RT_MEDIA_STATUS mediaStatus
+	struct BTC_COEXIST *pBtCoexist, enum rt_media_status mediaStatus
 );
 void EXhalbtcoutsrc_SpecialPacketNotify(struct BTC_COEXIST *pBtCoexist, u8 pktType);
 void EXhalbtcoutsrc_BtInfoNotify(
