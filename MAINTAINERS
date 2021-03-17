@@ -14314,6 +14314,15 @@ F:	include/linux/pm_*
 F:	include/linux/powercap.h
 F:	kernel/configs/nopm.config
 
+DYNAMIC THERMAL POWER MANAGEMENT (DTPM)
+M:	Daniel Lezcano <daniel.lezcano@kernel.org>
+L:	linux-pm@vger.kernel.org
+S:	Supported
+B:	https://bugzilla.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
+F:	drivers/powercap/dtpm*
+F:	include/linux/dtpm.h
+
 POWER STATE COORDINATION INTERFACE (PSCI)
 M:	Mark Rutland <mark.rutland@arm.com>
 M:	Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
