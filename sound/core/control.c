@@ -28,10 +28,12 @@ struct snd_kctl_ioctl {
 };
 
 static DECLARE_RWSEM(snd_ioctl_rwsem);
+static DECLARE_RWSEM(snd_ctl_layer_rwsem);
 static LIST_HEAD(snd_control_ioctls);
 #ifdef CONFIG_COMPAT
 static LIST_HEAD(snd_control_compat_ioctls);
 #endif
+static struct snd_ctl_layer_ops *snd_ctl_layer;
 
 static int snd_ctl_open(struct inode *inode, struct file *file)
 {
@@ -195,10 +197,15 @@ void snd_ctl_notify_one(struct snd_card *card, unsigned int mask,
 			struct snd_kcontrol *kctl, unsigned int ioff)
 {
 	struct snd_ctl_elem_id id = kctl->id;
+	struct snd_ctl_layer_ops *lops;
 
 	id.index += ioff;
 	id.numid += ioff;
 	snd_ctl_notify(card, mask, &id);
+	down_read(&snd_ctl_layer_rwsem);
+	for (lops = snd_ctl_layer; lops; lops = lops->next)
+		lops->lnotify(card, mask, kctl, ioff);
+	up_read(&snd_ctl_layer_rwsem);
 }
 EXPORT_SYMBOL(snd_ctl_notify_one);
 
@@ -1998,6 +2005,86 @@ EXPORT_SYMBOL_GPL(snd_ctl_get_preferred_subdevice);
 #endif
 
 /*
+ * control layers (audio LED etc.)
+ */
+
+/**
+ * snd_ctl_request_layer - request to use the layer
+ * @module_name: Name of the kernel module (NULL == build-in)
+ *
+ * Return an error code when the module cannot be loaded.
+ */
+int snd_ctl_request_layer(const char *module_name)
+{
+	struct snd_ctl_layer_ops *lops;
+
+	if (module_name == NULL)
+		return 0;
+	down_read(&snd_ctl_layer_rwsem);
+	for (lops = snd_ctl_layer; lops; lops = lops->next)
+		if (strcmp(lops->module_name, module_name) == 0)
+			break;
+	up_read(&snd_ctl_layer_rwsem);
+	if (lops)
+		return 0;
+	return request_module(module_name);
+}
+EXPORT_SYMBOL_GPL(snd_ctl_request_layer);
+
+/**
+ * snd_ctl_register_layer - register new control layer
+ * @lops: operation structure
+ *
+ * The new layer can track all control elements and do additional
+ * operations on top (like audio LED handling).
+ */
+void snd_ctl_register_layer(struct snd_ctl_layer_ops *lops)
+{
+	struct snd_card *card;
+	int card_number;
+
+	down_write(&snd_ctl_layer_rwsem);
+	lops->next = snd_ctl_layer;
+	snd_ctl_layer = lops;
+	up_write(&snd_ctl_layer_rwsem);
+	for (card_number = 0; card_number < SNDRV_CARDS; card_number++) {
+		card = snd_card_ref(card_number);
+		if (card) {
+			down_read(&card->controls_rwsem);
+			lops->lregister(card);
+			up_read(&card->controls_rwsem);
+			snd_card_unref(card);
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(snd_ctl_register_layer);
+
+/**
+ * snd_ctl_disconnect_layer - disconnect control layer
+ * @lops: operation structure
+ *
+ * It is expected that the information about tracked cards
+ * is freed before this call (the disconnect callback is
+ * not called here).
+ */
+void snd_ctl_disconnect_layer(struct snd_ctl_layer_ops *lops)
+{
+	struct snd_ctl_layer_ops *lops2, *prev_lops2;
+
+	down_write(&snd_ctl_layer_rwsem);
+	for (lops2 = snd_ctl_layer, prev_lops2 = NULL; lops2; lops2 = lops2->next)
+		if (lops2 == lops) {
+			if (!prev_lops2)
+				snd_ctl_layer = lops->next;
+			else
+				prev_lops2->next = lops->next;
+			break;
+		}
+	up_write(&snd_ctl_layer_rwsem);
+}
+EXPORT_SYMBOL_GPL(snd_ctl_disconnect_layer);
+
+/*
  *  INIT PART
  */
 
@@ -2020,9 +2107,20 @@ static const struct file_operations snd_ctl_f_ops =
 static int snd_ctl_dev_register(struct snd_device *device)
 {
 	struct snd_card *card = device->device_data;
+	struct snd_ctl_layer_ops *lops;
+	int err;
 
-	return snd_register_device(SNDRV_DEVICE_TYPE_CONTROL, card, -1,
-				   &snd_ctl_f_ops, card, &card->ctl_dev);
+	err = snd_register_device(SNDRV_DEVICE_TYPE_CONTROL, card, -1,
+				  &snd_ctl_f_ops, card, &card->ctl_dev);
+	if (err < 0)
+		return err;
+	down_read(&card->controls_rwsem);
+	down_read(&snd_ctl_layer_rwsem);
+	for (lops = snd_ctl_layer; lops; lops = lops->next)
+		lops->lregister(card);
+	up_read(&snd_ctl_layer_rwsem);
+	up_read(&card->controls_rwsem);
+	return 0;
 }
 
 /*
@@ -2032,6 +2130,7 @@ static int snd_ctl_dev_disconnect(struct snd_device *device)
 {
 	struct snd_card *card = device->device_data;
 	struct snd_ctl_file *ctl;
+	struct snd_ctl_layer_ops *lops;
 	unsigned long flags;
 
 	read_lock_irqsave(&card->ctl_files_rwlock, flags);
@@ -2040,6 +2139,13 @@ static int snd_ctl_dev_disconnect(struct snd_device *device)
 		kill_fasync(&ctl->fasync, SIGIO, POLL_ERR);
 	}
 	read_unlock_irqrestore(&card->ctl_files_rwlock, flags);
+
+	down_read(&card->controls_rwsem);
+	down_read(&snd_ctl_layer_rwsem);
+	for (lops = snd_ctl_layer; lops; lops = lops->next)
+		lops->ldisconnect(card);
+	up_read(&snd_ctl_layer_rwsem);
+	up_read(&card->controls_rwsem);
 
 	return snd_unregister_device(&card->ctl_dev);
 }

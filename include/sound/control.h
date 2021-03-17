@@ -108,6 +108,14 @@ struct snd_ctl_file {
 	struct list_head events;	/* waiting events for read */
 };
 
+struct snd_ctl_layer_ops {
+	struct snd_ctl_layer_ops *next;
+	const char *module_name;
+	void (*lregister)(struct snd_card *card);
+	void (*ldisconnect)(struct snd_card *card);
+	void (*lnotify)(struct snd_card *card, unsigned int mask, struct snd_kcontrol *kctl, unsigned int ioff);
+};
+
 #define snd_ctl_file(n) list_entry(n, struct snd_ctl_file, list)
 
 typedef int (*snd_kctl_ioctl_func_t) (struct snd_card * card,
@@ -139,6 +147,10 @@ int snd_ctl_unregister_ioctl_compat(snd_kctl_ioctl_func_t fcn);
 #define snd_ctl_register_ioctl_compat(fcn)
 #define snd_ctl_unregister_ioctl_compat(fcn)
 #endif
+
+int snd_ctl_request_layer(const char *module_name);
+void snd_ctl_register_layer(struct snd_ctl_layer_ops *lops);
+void snd_ctl_disconnect_layer(struct snd_ctl_layer_ops *lops);
 
 int snd_ctl_get_preferred_subdevice(struct snd_card *card, int type);
 
