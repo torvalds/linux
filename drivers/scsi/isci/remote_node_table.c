@@ -53,17 +53,15 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/**
+/*
  * This file contains the implementation of the SCIC_SDS_REMOTE_NODE_TABLE
  *    public, protected, and private methods.
- *
- *
  */
 #include "remote_node_table.h"
 #include "remote_node_context.h"
 
 /**
- *
+ * sci_remote_node_table_get_group_index()
  * @remote_node_table: This is the remote node index table from which the
  *    selection will be made.
  * @group_table_index: This is the index to the group table from which to
@@ -98,8 +96,8 @@ static u32 sci_remote_node_table_get_group_index(
 }
 
 /**
- *
- * @out]: remote_node_table This the remote node table in which to clear the
+ * sci_remote_node_table_clear_group_index()
+ * @remote_node_table: This the remote node table in which to clear the
  *    selector.
  * @set_index: This is the remote node selector in which the change will be
  *    made.
@@ -128,8 +126,8 @@ static void sci_remote_node_table_clear_group_index(
 }
 
 /**
- *
- * @out]: remote_node_table This the remote node table in which to set the
+ * sci_remote_node_table_set_group_index()
+ * @remote_node_table: This the remote node table in which to set the
  *    selector.
  * @group_table_index: This is the remote node selector in which the change
  *    will be made.
@@ -158,8 +156,8 @@ static void sci_remote_node_table_set_group_index(
 }
 
 /**
- *
- * @out]: remote_node_table This is the remote node table in which to modify
+ * sci_remote_node_table_set_node_index()
+ * @remote_node_table: This is the remote node table in which to modify
  *    the remote node availability.
  * @remote_node_index: This is the remote node index that is being returned to
  *    the table.
@@ -191,8 +189,8 @@ static void sci_remote_node_table_set_node_index(
 }
 
 /**
- *
- * @out]: remote_node_table This is the remote node table from which to clear
+ * sci_remote_node_table_clear_node_index()
+ * @remote_node_table: This is the remote node table from which to clear
  *    the available remote node bit.
  * @remote_node_index: This is the remote node index which is to be cleared
  *    from the table.
@@ -224,8 +222,8 @@ static void sci_remote_node_table_clear_node_index(
 }
 
 /**
- *
- * @out]: remote_node_table The remote node table from which the slot will be
+ * sci_remote_node_table_clear_group()
+ * @remote_node_table: The remote node table from which the slot will be
  *    cleared.
  * @group_index: The index for the slot that is to be cleared.
  *
@@ -253,7 +251,7 @@ static void sci_remote_node_table_clear_group(
 }
 
 /**
- *
+ * sci_remote_node_table_set_group()
  * @remote_node_table:
  *
  * THis method sets an entire remote node group in the remote node table.
@@ -280,7 +278,7 @@ static void sci_remote_node_table_set_group(
 }
 
 /**
- *
+ * sci_remote_node_table_get_group_value()
  * @remote_node_table: This is the remote node table that for which the group
  *    value is to be returned.
  * @group_index: This is the group index to use to find the group value.
@@ -307,8 +305,8 @@ static u8 sci_remote_node_table_get_group_value(
 }
 
 /**
- *
- * @out]: remote_node_table The remote that which is to be initialized.
+ * sci_remote_node_table_initialize()
+ * @remote_node_table: The remote that which is to be initialized.
  * @remote_node_entries: The number of entries to put in the table.
  *
  * This method will initialize the remote node table for use. none
@@ -365,8 +363,8 @@ void sci_remote_node_table_initialize(
 }
 
 /**
- *
- * @out]: remote_node_table The remote node table from which to allocate a
+ * sci_remote_node_table_allocate_single_remote_node()
+ * @remote_node_table: The remote node table from which to allocate a
  *    remote node.
  * @table_index: The group index that is to be used for the search.
  *
@@ -425,7 +423,7 @@ static u16 sci_remote_node_table_allocate_single_remote_node(
 }
 
 /**
- *
+ * sci_remote_node_table_allocate_triple_remote_node()
  * @remote_node_table: This is the remote node table from which to allocate the
  *    remote node entries.
  * @group_table_index: THis is the group table index which must equal two (2)
@@ -462,7 +460,7 @@ static u16 sci_remote_node_table_allocate_triple_remote_node(
 }
 
 /**
- *
+ * sci_remote_node_table_allocate_remote_node()
  * @remote_node_table: This is the remote node table from which the remote node
  *    allocation is to take place.
  * @remote_node_count: This is ther remote node count which is one of
@@ -505,8 +503,9 @@ u16 sci_remote_node_table_allocate_remote_node(
 }
 
 /**
- *
- * @remote_node_table:
+ * sci_remote_node_table_release_single_remote_node()
+ * @remote_node_table: This is the remote node table from which the remote node
+ *    release is to take place.
  *
  * This method will free a single remote node index back to the remote node
  * table.  This routine will update the remote node groups
@@ -550,7 +549,7 @@ static void sci_remote_node_table_release_single_remote_node(
 }
 
 /**
- *
+ * sci_remote_node_table_release_triple_remote_node()
  * @remote_node_table: This is the remote node table to which the remote node
  *    index is to be freed.
  *
@@ -573,7 +572,7 @@ static void sci_remote_node_table_release_triple_remote_node(
 }
 
 /**
- *
+ * sci_remote_node_table_release_remote_node_index()
  * @remote_node_table: The remote node table to which the remote node index is
  *    to be freed.
  * @remote_node_count: This is the count of consecutive remote nodes that are
