@@ -5286,7 +5286,7 @@ static bool io_poll_remove_all(struct io_ring_ctx *ctx, struct task_struct *tsk,
 	return posted != 0;
 }
 
-static int io_poll_cancel(struct io_ring_ctx *ctx, __u64 sqe_addr)
+static struct io_kiocb *io_poll_find(struct io_ring_ctx *ctx, __u64 sqe_addr)
 {
 	struct hlist_head *list;
 	struct io_kiocb *req;
@@ -5295,12 +5295,23 @@ static int io_poll_cancel(struct io_ring_ctx *ctx, __u64 sqe_addr)
 	hlist_for_each_entry(req, list, hash_node) {
 		if (sqe_addr != req->user_data)
 			continue;
-		if (io_poll_remove_one(req))
-			return 0;
-		return -EALREADY;
+		return req;
 	}
 
-	return -ENOENT;
+	return NULL;
+}
+
+static int io_poll_cancel(struct io_ring_ctx *ctx, __u64 sqe_addr)
+{
+	struct io_kiocb *req;
+
+	req = io_poll_find(ctx, sqe_addr);
+	if (!req)
+		return -ENOENT;
+	if (io_poll_remove_one(req))
+		return 0;
+
+	return -EALREADY;
 }
 
 static int io_poll_remove_prep(struct io_kiocb *req,
