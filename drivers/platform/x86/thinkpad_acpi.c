@@ -10496,6 +10496,111 @@ static struct ibm_struct kbdlang_driver_data = {
 	.exit = kbdlang_exit,
 };
 
+/*************************************************************************
+ * DPRC(Dynamic Power Reduction Control) subdriver, for the Lenovo WWAN
+ * and WLAN feature.
+ */
+#define DPRC_GET_WWAN_ANTENNA_TYPE      0x40000
+#define DPRC_WWAN_ANTENNA_TYPE_A_BIT    BIT(4)
+#define DPRC_WWAN_ANTENNA_TYPE_B_BIT    BIT(8)
+static bool has_antennatype;
+static int wwan_antennatype;
+
+static int dprc_command(int command, int *output)
+{
+	acpi_handle dprc_handle;
+
+	if (ACPI_FAILURE(acpi_get_handle(hkey_handle, "DPRC", &dprc_handle))) {
+		/* Platform doesn't support DPRC */
+		return -ENODEV;
+	}
+
+	if (!acpi_evalf(dprc_handle, output, NULL, "dd", command))
+		return -EIO;
+
+	/*
+	 * METHOD_ERR gets returned on devices where few commands are not supported
+	 * for example command to get WWAN Antenna type command is not supported on
+	 * some devices.
+	 */
+	if (*output & METHOD_ERR)
+		return -ENODEV;
+
+	return 0;
+}
+
+static int get_wwan_antenna(int *wwan_antennatype)
+{
+	int output, err;
+
+	/* Get current Antenna type */
+	err = dprc_command(DPRC_GET_WWAN_ANTENNA_TYPE, &output);
+	if (err)
+		return err;
+
+	if (output & DPRC_WWAN_ANTENNA_TYPE_A_BIT)
+		*wwan_antennatype = 1;
+	else if (output & DPRC_WWAN_ANTENNA_TYPE_B_BIT)
+		*wwan_antennatype = 2;
+	else
+		return -ENODEV;
+
+	return 0;
+}
+
+/* sysfs wwan antenna type entry */
+static ssize_t wwan_antenna_type_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	switch (wwan_antennatype) {
+	case 1:
+		return sysfs_emit(buf, "type a\n");
+	case 2:
+		return sysfs_emit(buf, "type b\n");
+	default:
+		return -ENODATA;
+	}
+}
+static DEVICE_ATTR_RO(wwan_antenna_type);
+
+static int tpacpi_dprc_init(struct ibm_init_struct *iibm)
+{
+	int wwanantenna_err, err;
+
+	wwanantenna_err = get_wwan_antenna(&wwan_antennatype);
+	/*
+	 * If support isn't available (ENODEV) then quit, but don't
+	 * return an error.
+	 */
+	if (wwanantenna_err == -ENODEV)
+		return 0;
+
+	/* if there was an error return it */
+	if (wwanantenna_err && (wwanantenna_err != -ENODEV))
+		return wwanantenna_err;
+	else if (!wwanantenna_err)
+		has_antennatype = true;
+
+	if (has_antennatype) {
+		err = sysfs_create_file(&tpacpi_pdev->dev.kobj, &dev_attr_wwan_antenna_type.attr);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+static void dprc_exit(void)
+{
+	if (has_antennatype)
+		sysfs_remove_file(&tpacpi_pdev->dev.kobj, &dev_attr_wwan_antenna_type.attr);
+}
+
+static struct ibm_struct dprc_driver_data = {
+	.name = "dprc",
+	.exit = dprc_exit,
+};
+
 /****************************************************************************
  ****************************************************************************
  *
@@ -10999,6 +11104,10 @@ static struct ibm_init_struct ibms_init[] __initdata = {
 	{
 		.init = tpacpi_kbdlang_init,
 		.data = &kbdlang_driver_data,
+	},
+	{
+		.init = tpacpi_dprc_init,
+		.data = &dprc_driver_data,
 	},
 };
 
