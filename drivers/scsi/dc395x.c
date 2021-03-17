@@ -4341,8 +4341,9 @@ static void adapter_init_chip(struct AdapterCtlBlk *acb)
  * tables etc etc. This basically gets all adapter information all up
  * to date, initialised and gets the chip in sync with it.
  *
- * @host:	This hosts adapter structure
+ * @acb:	The adapter which we are to init.
  * @io_port:	The base I/O port
+ * @io_port_len: The I/O port size
  * @irq:	IRQ
  *
  * Returns 0 if the initialization succeeds, any other value on
