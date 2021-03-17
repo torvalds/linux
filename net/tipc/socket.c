@@ -111,7 +111,6 @@ struct tipc_sock {
 	struct sock sk;
 	u32 conn_type;
 	u32 conn_instance;
-	int published;
 	u32 max_pkt;
 	u32 maxnagle;
 	u32 portid;
@@ -141,6 +140,7 @@ struct tipc_sock {
 	bool expect_ack;
 	bool nodelay;
 	bool group_is_open;
+	bool published;
 };
 
 static int tipc_sk_backlog_rcv(struct sock *sk, struct sk_buff *skb);
@@ -151,8 +151,7 @@ static int tipc_release(struct socket *sock);
 static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags,
 		       bool kern);
 static void tipc_sk_timeout(struct timer_list *t);
-static int tipc_sk_publish(struct tipc_sock *tsk, uint scope,
-			   struct tipc_service_range const *seq);
+static int tipc_sk_publish(struct tipc_sock *tsk, struct tipc_uaddr *ua);
 static int tipc_sk_withdraw(struct tipc_sock *tsk, uint scope,
 			    struct tipc_service_range const *seq);
 static int tipc_sk_leave(struct tipc_sock *tsk);
@@ -677,22 +676,31 @@ static int tipc_release(struct socket *sock)
  */
 static int __tipc_bind(struct socket *sock, struct sockaddr *skaddr, int alen)
 {
-	struct sockaddr_tipc *addr = (struct sockaddr_tipc *)skaddr;
+	struct tipc_uaddr *ua = (struct tipc_uaddr *)skaddr;
 	struct tipc_sock *tsk = tipc_sk(sock->sk);
+	bool unbind = false;
 
 	if (unlikely(!alen))
 		return tipc_sk_withdraw(tsk, 0, NULL);
 
-	if (addr->addrtype == TIPC_SERVICE_ADDR)
-		addr->addr.nameseq.upper = addr->addr.nameseq.lower;
+	if (ua->addrtype == TIPC_SERVICE_ADDR) {
+		ua->addrtype = TIPC_SERVICE_RANGE;
+		ua->sr.upper = ua->sr.lower;
+	}
+	if (ua->scope < 0) {
+		unbind = true;
+		ua->scope = -ua->scope;
+	}
+	/* Users may still use deprecated TIPC_ZONE_SCOPE */
+	if (ua->scope != TIPC_NODE_SCOPE)
+		ua->scope = TIPC_CLUSTER_SCOPE;
 
 	if (tsk->group)
 		return -EACCES;
 
-	if (addr->scope >= 0)
-		return tipc_sk_publish(tsk, addr->scope, &addr->addr.nameseq);
-	else
-		return tipc_sk_withdraw(tsk, -addr->scope, &addr->addr.nameseq);
+	if (unbind)
+		return tipc_sk_withdraw(tsk, ua->scope, &ua->sr);
+	return tipc_sk_publish(tsk, ua);
 }
 
 int tipc_sk_bind(struct socket *sock, struct sockaddr *skaddr, int alen)
@@ -707,18 +715,17 @@ int tipc_sk_bind(struct socket *sock, struct sockaddr *skaddr, int alen)
 
 static int tipc_bind(struct socket *sock, struct sockaddr *skaddr, int alen)
 {
-	struct sockaddr_tipc *addr = (struct sockaddr_tipc *)skaddr;
+	struct tipc_uaddr *ua = (struct tipc_uaddr *)skaddr;
+	u32 atype = ua->addrtype;
 
 	if (alen) {
-		if (alen < sizeof(struct sockaddr_tipc))
+		if (!tipc_uaddr_valid(ua, alen))
 			return -EINVAL;
-		if (addr->family != AF_TIPC)
+		if (atype == TIPC_SOCKET_ADDR)
 			return -EAFNOSUPPORT;
-		if (addr->addrtype > TIPC_SERVICE_ADDR)
-			return -EAFNOSUPPORT;
-		if (addr->addr.nameseq.type < TIPC_RESERVED_TYPES) {
+		if (ua->sr.type < TIPC_RESERVED_TYPES) {
 			pr_warn_once("Can't bind to reserved service type %u\n",
-				     addr->addr.nameseq.type);
+				     ua->sr.type);
 			return -EACCES;
 		}
 	}
@@ -2891,31 +2898,28 @@ static void tipc_sk_timeout(struct timer_list *t)
 	sock_put(sk);
 }
 
-static int tipc_sk_publish(struct tipc_sock *tsk, uint scope,
-			   struct tipc_service_range const *seq)
+static int tipc_sk_publish(struct tipc_sock *tsk, struct tipc_uaddr *ua)
 {
 	struct sock *sk = &tsk->sk;
 	struct net *net = sock_net(sk);
-	struct publication *publ;
+	struct tipc_socket_addr skaddr;
+	struct publication *p;
 	u32 key;
-
-	if (scope != TIPC_NODE_SCOPE)
-		scope = TIPC_CLUSTER_SCOPE;
 
 	if (tipc_sk_connected(sk))
 		return -EINVAL;
 	key = tsk->portid + tsk->pub_count + 1;
 	if (key == tsk->portid)
 		return -EADDRINUSE;
-
-	publ = tipc_nametbl_publish(net, seq->type, seq->lower, seq->upper,
-				    scope, tsk->portid, key);
-	if (unlikely(!publ))
+	skaddr.ref = tsk->portid;
+	skaddr.node = tipc_own_addr(net);
+	p = tipc_nametbl_publish(net, ua, &skaddr, key);
+	if (unlikely(!p))
 		return -EINVAL;
 
-	list_add(&publ->binding_sock, &tsk->publications);
+	list_add(&p->binding_sock, &tsk->publications);
 	tsk->pub_count++;
-	tsk->published = 1;
+	tsk->published = true;
 	return 0;
 }
 
@@ -3067,13 +3071,15 @@ static int tipc_sk_join(struct tipc_sock *tsk, struct tipc_group_req *mreq)
 	struct net *net = sock_net(&tsk->sk);
 	struct tipc_group *grp = tsk->group;
 	struct tipc_msg *hdr = &tsk->phdr;
-	struct tipc_service_range seq;
+	struct tipc_uaddr ua;
 	int rc;
 
 	if (mreq->type < TIPC_RESERVED_TYPES)
 		return -EACCES;
 	if (mreq->scope > TIPC_NODE_SCOPE)
 		return -EINVAL;
+	if (mreq->scope != TIPC_NODE_SCOPE)
+		mreq->scope = TIPC_CLUSTER_SCOPE;
 	if (grp)
 		return -EACCES;
 	grp = tipc_group_create(net, tsk->portid, mreq, &tsk->group_is_open);
@@ -3083,11 +3089,10 @@ static int tipc_sk_join(struct tipc_sock *tsk, struct tipc_group_req *mreq)
 	msg_set_lookup_scope(hdr, mreq->scope);
 	msg_set_nametype(hdr, mreq->type);
 	msg_set_dest_droppable(hdr, true);
-	seq.type = mreq->type;
-	seq.lower = mreq->instance;
-	seq.upper = seq.lower;
 	tipc_nametbl_build_group(net, grp, mreq->type, mreq->scope);
-	rc = tipc_sk_publish(tsk, mreq->scope, &seq);
+	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, mreq->scope,
+		   mreq->type, mreq->instance, mreq->instance);
+	rc = tipc_sk_publish(tsk, &ua);
 	if (rc) {
 		tipc_group_delete(net, grp);
 		tsk->group = NULL;

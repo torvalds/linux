@@ -740,9 +740,8 @@ exit:
 
 /* tipc_nametbl_publish - add service binding to name table
  */
-struct publication *tipc_nametbl_publish(struct net *net, u32 type, u32 lower,
-					 u32 upper, u32 scope, u32 port,
-					 u32 key)
+struct publication *tipc_nametbl_publish(struct net *net, struct tipc_uaddr *ua,
+					 struct tipc_socket_addr *sk, u32 key)
 {
 	struct name_table *nt = tipc_name_table(net);
 	struct tipc_net *tn = tipc_net(net);
@@ -757,8 +756,9 @@ struct publication *tipc_nametbl_publish(struct net *net, u32 type, u32 lower,
 		goto exit;
 	}
 
-	p = tipc_nametbl_insert_publ(net, type, lower, upper, scope,
-				     tipc_own_addr(net), port, key);
+	p = tipc_nametbl_insert_publ(net, ua->sr.type, ua->sr.lower,
+				     ua->sr.upper, ua->scope,
+				     sk->node, sk->ref, key);
 	if (p) {
 		nt->local_publ_count++;
 		skb = tipc_named_publish(net, p);

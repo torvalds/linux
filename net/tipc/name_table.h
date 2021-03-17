@@ -42,6 +42,7 @@ struct tipc_subscription;
 struct tipc_plist;
 struct tipc_nlist;
 struct tipc_group;
+struct tipc_uaddr;
 
 /*
  * TIPC name types reserved for internal TIPC use (both current and planned)
@@ -120,9 +121,8 @@ void tipc_nametbl_lookup_dst_nodes(struct net *net, u32 type, u32 lower,
 bool tipc_nametbl_lookup(struct net *net, u32 type, u32 instance, u32 domain,
 			 struct list_head *dsts, int *dstcnt, u32 exclude,
 			 bool all);
-struct publication *tipc_nametbl_publish(struct net *net, u32 type, u32 lower,
-					 u32 upper, u32 scope, u32 port,
-					 u32 key);
+struct publication *tipc_nametbl_publish(struct net *net, struct tipc_uaddr *ua,
+					 struct tipc_socket_addr *sk, u32 key);
 int tipc_nametbl_withdraw(struct net *net, u32 type, u32 lower, u32 upper,
 			  u32 key);
 struct publication *tipc_nametbl_insert_publ(struct net *net, u32 type,
