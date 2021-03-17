@@ -369,7 +369,7 @@ union recv_frame {
 
 };
 
-enum RX_PACKET_TYPE {
+enum rx_packet_type {
 	NORMAL_RX,/* Normal rx packet */
 	TX_REPORT1,/* CCX */
 	TX_REPORT2,/* TX RPT */
