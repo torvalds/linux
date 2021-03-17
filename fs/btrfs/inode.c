@@ -8166,10 +8166,6 @@ static blk_qc_t btrfs_submit_direct(struct inode *inode, struct iomap *iomap,
 		bio->bi_end_io = btrfs_end_dio_bio;
 		btrfs_io_bio(bio)->logical = file_offset;
 
-		WARN_ON_ONCE(write && btrfs_is_zoned(fs_info) &&
-			     fs_info->max_zone_append_size &&
-			     bio_op(bio) != REQ_OP_ZONE_APPEND);
-
 		if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
 			status = extract_ordered_extent(BTRFS_I(inode), bio,
 							file_offset);
