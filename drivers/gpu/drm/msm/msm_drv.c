@@ -1186,10 +1186,11 @@ static int compare_name_mdp(struct device *dev, void *data)
 	return (strstr(dev_name(dev), "mdp") != NULL);
 }
 
-static int add_display_components(struct device *dev,
+static int add_display_components(struct platform_device *pdev,
 				  struct component_match **matchptr)
 {
 	struct device *mdp_dev;
+	struct device *dev = &pdev->dev;
 	int ret;
 
 	/*
@@ -1198,9 +1199,9 @@ static int add_display_components(struct device *dev,
 	 * Populate the children devices, find the MDP5/DPU node, and then add
 	 * the interfaces to our components list.
 	 */
-	if (of_device_is_compatible(dev->of_node, "qcom,mdss") ||
-	    of_device_is_compatible(dev->of_node, "qcom,sdm845-mdss") ||
-	    of_device_is_compatible(dev->of_node, "qcom,sc7180-mdss")) {
+	switch (get_mdp_ver(pdev)) {
+	case KMS_MDP5:
+	case KMS_DPU:
 		ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
 		if (ret) {
 			DRM_DEV_ERROR(dev, "failed to populate children devices\n");
@@ -1219,9 +1220,11 @@ static int add_display_components(struct device *dev,
 		/* add the MDP component itself */
 		drm_of_component_match_add(dev, matchptr, compare_of,
 					   mdp_dev->of_node);
-	} else {
+		break;
+	case KMS_MDP4:
 		/* MDP4 */
 		mdp_dev = dev;
+		break;
 	}
 
 	ret = add_components_mdp(mdp_dev, matchptr);
@@ -1286,7 +1289,7 @@ static int msm_pdev_probe(struct platform_device *pdev)
 	int ret;
 
 	if (get_mdp_ver(pdev)) {
-		ret = add_display_components(&pdev->dev, &match);
+		ret = add_display_components(pdev, &match);
 		if (ret)
 			return ret;
 	}
