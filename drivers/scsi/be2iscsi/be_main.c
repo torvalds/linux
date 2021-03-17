@@ -4927,7 +4927,7 @@ void beiscsi_start_boot_work(struct beiscsi_hba *phba, unsigned int s_handle)
 }
 
 #define BEISCSI_SYSFS_ISCSI_BOOT_FLAGS	3
-/**
+/*
  * beiscsi_show_boot_tgt_info()
  * Boot flag info for iscsi-utilities
  * Bit 0 Block valid flag
