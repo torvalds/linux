@@ -1,32 +1,9 @@
-=== AB8500 Fuel Gauge Driver ===
-
-AB8500 is a mixed signal multimedia and power management
-device comprising: power and energy-management-module,
-wall-charger, usb-charger, audio codec, general purpose adc,
-tvout, clock management and sim card interface.
-
-Fuelgauge support is part of energy-management-modules, other
-components of this module are:
-main-charger, usb-combo-charger and battery-temperature-monitoring.
-
-The properties below describes the node for fuelgauge driver.
-
-Required Properties:
-- compatible = This shall be: "stericsson,ab8500-fg"
-- battery = Shall be battery specific information
-	Example:
-	ab8500_fg {
-		compatible = "stericsson,ab8500-fg";
-		battery	   = <&ab8500_battery>;
-	};
-
-dependent node:
-	ab8500_battery: ab8500_battery {
-	};
-	This node will provide information on 'thermistor interface' and
-	'battery technology type' used.
+AB85000 PMIC contains a node, which contains shared
+information about the battery connected to the PMIC.
+The node has no compatible property.
 
 Properties of this node are:
+
 thermistor-on-batctrl:
 	A boolean value indicating thermistor interface	to battery
 
@@ -55,4 +32,3 @@ battery-type:
 	ab8500_battery: ab8500_battery {
 		stericsson,battery-type = "LIPO";
 	}
-
