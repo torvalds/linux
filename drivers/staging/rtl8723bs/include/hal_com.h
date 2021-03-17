@@ -241,9 +241,9 @@ void SetHwReg(struct adapter *padapter, u8 variable, u8 *val);
 void GetHwReg(struct adapter *padapter, u8 variable, u8 *val);
 void rtw_hal_check_rxfifo_full(struct adapter *adapter);
 
-u8 SetHalDefVar(struct adapter *adapter, enum HAL_DEF_VARIABLE variable,
+u8 SetHalDefVar(struct adapter *adapter, enum hal_def_variable variable,
 		void *value);
-u8 GetHalDefVar(struct adapter *adapter, enum HAL_DEF_VARIABLE variable,
+u8 GetHalDefVar(struct adapter *adapter, enum hal_def_variable variable,
 		void *value);
 
 bool eqNByte(u8 *str1, u8 *str2, u32 num);
@@ -278,12 +278,12 @@ void rtw_dump_raw_rssi_info(struct adapter *padapter);
 void rtw_bb_rf_gain_offset(struct adapter *padapter);
 
 void GetHalODMVar(struct adapter *Adapter,
-	enum HAL_ODM_VARIABLE		eVariable,
+	enum hal_odm_variable		eVariable,
 	void *pValue1,
 	void *pValue2);
 void SetHalODMVar(
 	struct adapter *Adapter,
-	enum HAL_ODM_VARIABLE		eVariable,
+	enum hal_odm_variable		eVariable,
 	void *pValue1,
 	bool					bSet);
 #endif /* __HAL_COMMON_H__ */

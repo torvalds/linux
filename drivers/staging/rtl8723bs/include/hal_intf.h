@@ -8,14 +8,14 @@
 #define __HAL_INTF_H__
 
 
-enum RTL871X_HCI_TYPE {
+enum rtl871x_hci_type {
 	RTW_PCIE	= BIT0,
 	RTW_USB		= BIT1,
 	RTW_SDIO	= BIT2,
 	RTW_GSPI	= BIT3,
 };
 
-enum HW_VARIABLES {
+enum hw_variables {
 	HW_VAR_MEDIA_STATUS,
 	HW_VAR_MEDIA_STATUS1,
 	HW_VAR_SET_OPMODE,
@@ -115,7 +115,7 @@ enum HW_VARIABLES {
 	HW_VAR_MACID_WAKEUP,
 };
 
-enum HAL_DEF_VARIABLE {
+enum hal_def_variable {
 	HAL_DEF_UNDERCORATEDSMOOTHEDPWDB,
 	HAL_DEF_IS_SUPPORT_ANT_DIV,
 	HAL_DEF_CURRENT_ANTENNA,
@@ -150,14 +150,14 @@ enum HAL_DEF_VARIABLE {
 	HAL_DEF_DBG_RX_INFO_DUMP,
 };
 
-enum HAL_ODM_VARIABLE {
+enum hal_odm_variable {
 	HAL_ODM_STA_INFO,
 	HAL_ODM_P2P_STATE,
 	HAL_ODM_WIFI_DISPLAY_STATE,
 	HAL_ODM_NOISE_MONITOR,
 };
 
-enum HAL_INTF_PS_FUNC {
+enum hal_intf_ps_func {
 	HAL_USB_SELECT_SUSPEND,
 	HAL_MAX_ID,
 };
@@ -213,11 +213,11 @@ struct hal_ops {
 
 	void (*SetHwRegHandlerWithBuf)(struct adapter *padapter, u8 variable, u8 *pbuf, int len);
 
-	u8 (*GetHalDefVarHandler)(struct adapter *padapter, enum HAL_DEF_VARIABLE eVariable, void *pValue);
-	u8 (*SetHalDefVarHandler)(struct adapter *padapter, enum HAL_DEF_VARIABLE eVariable, void *pValue);
+	u8 (*GetHalDefVarHandler)(struct adapter *padapter, enum hal_def_variable eVariable, void *pValue);
+	u8 (*SetHalDefVarHandler)(struct adapter *padapter, enum hal_def_variable eVariable, void *pValue);
 
-	void (*GetHalODMVarHandler)(struct adapter *padapter, enum HAL_ODM_VARIABLE eVariable, void *pValue1, void *pValue2);
-	void (*SetHalODMVarHandler)(struct adapter *padapter, enum HAL_ODM_VARIABLE eVariable, void *pValue1, bool bSet);
+	void (*GetHalODMVarHandler)(struct adapter *padapter, enum hal_odm_variable eVariable, void *pValue1, void *pValue2);
+	void (*SetHalODMVarHandler)(struct adapter *padapter, enum hal_odm_variable eVariable, void *pValue1, bool bSet);
 
 	void (*UpdateRAMaskHandler)(struct adapter *padapter, u32 mac_id, u8 rssi_level);
 	void (*SetBeaconRelatedRegistersHandler)(struct adapter *padapter);
@@ -227,7 +227,7 @@ struct hal_ops {
 	void (*run_thread)(struct adapter *padapter);
 	void (*cancel_thread)(struct adapter *padapter);
 
-	u8 (*interface_ps_func)(struct adapter *padapter, enum HAL_INTF_PS_FUNC efunc_id, u8 *val);
+	u8 (*interface_ps_func)(struct adapter *padapter, enum hal_intf_ps_func efunc_id, u8 *val);
 
 	s32	(*hal_xmit)(struct adapter *padapter, struct xmit_frame *pxmitframe);
 	/*
@@ -260,7 +260,7 @@ struct hal_ops {
 	s32 (*fill_h2c_cmd)(struct adapter *, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer);
 };
 
-enum RT_EEPROM_TYPE {
+enum rt_eeprom_type {
 	EEPROM_93C46,
 	EEPROM_93C56,
 	EEPROM_BOOT_EFUSE,
@@ -330,11 +330,11 @@ void rtw_hal_chip_configure(struct adapter *padapter);
 void rtw_hal_read_chip_info(struct adapter *padapter);
 void rtw_hal_read_chip_version(struct adapter *padapter);
 
-u8 rtw_hal_set_def_var(struct adapter *padapter, enum HAL_DEF_VARIABLE eVariable, void *pValue);
-u8 rtw_hal_get_def_var(struct adapter *padapter, enum HAL_DEF_VARIABLE eVariable, void *pValue);
+u8 rtw_hal_set_def_var(struct adapter *padapter, enum hal_def_variable eVariable, void *pValue);
+u8 rtw_hal_get_def_var(struct adapter *padapter, enum hal_def_variable eVariable, void *pValue);
 
-void rtw_hal_set_odm_var(struct adapter *padapter, enum HAL_ODM_VARIABLE eVariable, void *pValue1, bool bSet);
-void rtw_hal_get_odm_var(struct adapter *padapter, enum HAL_ODM_VARIABLE eVariable, void *pValue1, void *pValue2);
+void rtw_hal_set_odm_var(struct adapter *padapter, enum hal_odm_variable eVariable, void *pValue1, bool bSet);
+void rtw_hal_get_odm_var(struct adapter *padapter, enum hal_odm_variable eVariable, void *pValue1, void *pValue2);
 
 void rtw_hal_enable_interrupt(struct adapter *padapter);
 void rtw_hal_disable_interrupt(struct adapter *padapter);

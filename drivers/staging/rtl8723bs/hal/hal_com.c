@@ -1113,7 +1113,7 @@ void GetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 
 
 u8 SetHalDefVar(
-	struct adapter *adapter, enum HAL_DEF_VARIABLE variable, void *value
+	struct adapter *adapter, enum hal_def_variable variable, void *value
 )
 {
 	struct hal_com_data *hal_data = GET_HAL_DATA(adapter);
@@ -1198,7 +1198,7 @@ u8 SetHalDefVar(
 }
 
 u8 GetHalDefVar(
-	struct adapter *adapter, enum HAL_DEF_VARIABLE variable, void *value
+	struct adapter *adapter, enum hal_def_variable variable, void *value
 )
 {
 	struct hal_com_data *hal_data = GET_HAL_DATA(adapter);
@@ -1254,7 +1254,7 @@ u8 GetHalDefVar(
 
 void GetHalODMVar(
 	struct adapter *Adapter,
-	enum HAL_ODM_VARIABLE eVariable,
+	enum hal_odm_variable eVariable,
 	void *pValue1,
 	void *pValue2
 )
@@ -1267,7 +1267,7 @@ void GetHalODMVar(
 
 void SetHalODMVar(
 	struct adapter *Adapter,
-	enum HAL_ODM_VARIABLE eVariable,
+	enum hal_odm_variable eVariable,
 	void *pValue1,
 	bool bSet
 )

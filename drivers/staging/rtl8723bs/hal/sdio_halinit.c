@@ -1458,7 +1458,7 @@ static void SetHwRegWithBuf8723B(struct adapter *padapter, u8 variable, u8 *pbuf
 /* 		Query setting of specified variable. */
 /*  */
 static u8 GetHalDefVar8723BSDIO(
-	struct adapter *Adapter, enum HAL_DEF_VARIABLE eVariable, void *pValue
+	struct adapter *Adapter, enum hal_def_variable eVariable, void *pValue
 )
 {
 	u8 	bResult = _SUCCESS;
@@ -1486,7 +1486,7 @@ static u8 GetHalDefVar8723BSDIO(
 /* 		Change default setting of specified variable. */
 /*  */
 static u8 SetHalDefVar8723BSDIO(struct adapter *Adapter,
-				enum HAL_DEF_VARIABLE eVariable, void *pValue)
+				enum hal_def_variable eVariable, void *pValue)
 {
 	return SetHalDefVar8723B(Adapter, eVariable, pValue);
 }

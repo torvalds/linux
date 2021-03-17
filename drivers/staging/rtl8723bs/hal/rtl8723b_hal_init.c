@@ -2086,7 +2086,7 @@ static void rtl8723b_SetBeaconRelatedRegisters(struct adapter *padapter)
 
 static void rtl8723b_GetHalODMVar(
 	struct adapter *Adapter,
-	enum HAL_ODM_VARIABLE eVariable,
+	enum hal_odm_variable eVariable,
 	void *pValue1,
 	void *pValue2
 )
@@ -2096,7 +2096,7 @@ static void rtl8723b_GetHalODMVar(
 
 static void rtl8723b_SetHalODMVar(
 	struct adapter *Adapter,
-	enum HAL_ODM_VARIABLE eVariable,
+	enum hal_odm_variable eVariable,
 	void *pValue1,
 	bool bSet
 )
@@ -4304,7 +4304,7 @@ void GetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 /* Description:
  *	Change default setting of specified variable.
  */
-u8 SetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable, void *pval)
+u8 SetHalDefVar8723B(struct adapter *padapter, enum hal_def_variable variable, void *pval)
 {
 	u8 bResult;
 
@@ -4322,7 +4322,7 @@ u8 SetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable, v
 /* Description:
  *	Query setting of specified variable.
  */
-u8 GetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable, void *pval)
+u8 GetHalDefVar8723B(struct adapter *padapter, enum hal_def_variable variable, void *pval)
 {
 	u8 bResult;
 
