@@ -1121,7 +1121,7 @@ struct DM_ODM_T { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 	bool RSSI_test;
 	struct CFO_TRACKING DM_CfoTrack;
 
-	struct EDCA_T DM_EDCA_Table;
+	struct edca_t DM_EDCA_Table;
 	u32 WMMEDCA_BE;
 	struct PATHDIV_T DM_PathDiv;
 	/*  Copy from SD4 structure */

@@ -8,7 +8,7 @@
 #ifndef __ODMEDCATURBOCHECK_H__
 #define __ODMEDCATURBOCHECK_H__
 
-struct EDCA_T { /* _EDCA_TURBO_ */
+struct edca_t { /* _EDCA_TURBO_ */
 	bool bCurrentTurboEDCA;
 	bool bIsCurRDLState;
 
