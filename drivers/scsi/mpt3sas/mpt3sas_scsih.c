@@ -749,9 +749,10 @@ __mpt3sas_get_sdev_by_rphy(struct MPT3SAS_ADAPTER *ioc,
 }
 
 /**
- * mpt3sas_get_sdev_by_addr - get _sas_device object corresponding to provided
+ * __mpt3sas_get_sdev_by_addr - get _sas_device object corresponding to provided
  *				sas address from sas_device_list list
  * @ioc: per adapter object
+ * @sas_address: device sas address
  * @port: port number
  *
  * Search for _sas_device object corresponding to provided sas address,
@@ -4518,7 +4519,7 @@ _scsih_issue_delayed_sas_io_unit_ctrl(struct MPT3SAS_ADAPTER *ioc,
 }
 
 /**
- * _scsih_check_for_pending_internal_cmds - check for pending internal messages
+ * mpt3sas_check_for_pending_internal_cmds - check for pending internal messages
  * @ioc: per adapter object
  * @smid: system request message index
  *
@@ -6174,10 +6175,10 @@ enum hba_port_matched_codes {
  * _scsih_look_and_get_matched_port_entry - Get matched hba port entry
  *					from HBA port table
  * @ioc: per adapter object
- * @port_entry - hba port entry from temporary port table which needs to be
+ * @port_entry: hba port entry from temporary port table which needs to be
  *		searched for matched entry in the HBA port table
- * @matched_port_entry - save matched hba port entry here
- * @count - count of matched entries
+ * @matched_port_entry: save matched hba port entry here
+ * @count: count of matched entries
  *
  * return type of matched entry found.
  */
@@ -6952,6 +6953,7 @@ _scsih_expander_add(struct MPT3SAS_ADAPTER *ioc, u16 handle)
  * mpt3sas_expander_remove - removing expander object
  * @ioc: per adapter object
  * @sas_address: expander sas_address
+ * @port: hba port entry
  */
 void
 mpt3sas_expander_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
@@ -10487,7 +10489,7 @@ _scsih_scan_for_devices_after_reset(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
- * mpt3sas_scsih_reset_handler - reset callback handler (for scsih)
+ * mpt3sas_scsih_pre_reset_handler - reset callback handler (for scsih)
  * @ioc: per adapter object
  *
  * The handler for doing any required cleanup or initialization.
@@ -10528,7 +10530,7 @@ mpt3sas_scsih_clear_outstanding_scsi_tm_commands(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
- * mpt3sas_scsih_reset_handler - reset callback handler (for scsih)
+ * mpt3sas_scsih_reset_done_handler - reset callback handler (for scsih)
  * @ioc: per adapter object
  *
  * The handler for doing any required cleanup or initialization.
@@ -12295,7 +12297,7 @@ scsih_pci_mmio_enabled(struct pci_dev *pdev)
 }
 
 /**
- * scsih__ncq_prio_supp - Check for NCQ command priority support
+ * scsih_ncq_prio_supp - Check for NCQ command priority support
  * @sdev: scsi device struct
  *
  * This is called when a user indicates they would like to enable
