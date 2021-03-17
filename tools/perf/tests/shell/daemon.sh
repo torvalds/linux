@@ -115,8 +115,7 @@ daemon_start()
 
 daemon_exit()
 {
-	local base=$1
-	local config=$2
+	local config=$1
 
 	local line=`perf daemon --config ${config} -x: | head -1`
 	local pid=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $1 }'`
@@ -171,7 +170,7 @@ EOF
 			 ${base}/session-time/ack "0"
 
 	# stop daemon
-	daemon_exit ${base} ${config}
+	daemon_exit ${config}
 
 	rm -rf ${base}
 	rm -f ${config}
@@ -288,7 +287,7 @@ EOF
 	done
 
 	# stop daemon
-	daemon_exit ${base} ${config}
+	daemon_exit ${config}
 
 	rm -rf ${base}
 	rm -f ${config}
@@ -333,7 +332,7 @@ EOF
 	fi
 
 	# stop daemon
-	daemon_exit ${base} ${config}
+	daemon_exit ${config}
 
 	# check that sessions are gone
 	if [ -d "/proc/${pid_size}" ]; then
@@ -374,7 +373,7 @@ EOF
 	perf daemon signal --config ${config}
 
 	# stop daemon
-	daemon_exit ${base} ${config}
+	daemon_exit ${config}
 
 	# count is 2 perf.data for signals and 1 for perf record finished
 	count=`ls ${base}/session-test/ | grep perf.data | wc -l`
@@ -420,7 +419,7 @@ EOF
 	fi
 
 	# stop daemon
-	daemon_exit ${base} ${config}
+	daemon_exit ${config}
 
 	rm -rf ${base}
 	rm -f ${config}
@@ -457,7 +456,7 @@ EOF
 	fi
 
 	# stop daemon
-	daemon_exit ${base} ${config}
+	daemon_exit ${config}
 
 	rm -rf ${base}
 	rm -f ${config}
