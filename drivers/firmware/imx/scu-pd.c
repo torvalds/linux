@@ -29,6 +29,10 @@
  *    The framework needs some proper extension to support multi power
  *    domain cases.
  *
+ *    Update: Genpd assigns the ->of_node for the virtual device before it
+ *    invokes ->attach_dev() callback, hence parsing for device resources via
+ *    DT should work fine.
+ *
  * 2. It also breaks most of current drivers as the driver probe sequence
  *    behavior changed if removing ->power_on|off() callback and use
  *    ->start() and ->stop() instead. genpd_dev_pm_attach will only power
@@ -39,8 +43,11 @@
  *    domain enabled will trigger a HW access error. That means we need fix
  *    most drivers probe sequence with proper runtime pm.
  *
- * In summary, we need fix above two issue before being able to switch to
- * the "single global power domain" way.
+ *    Update: Runtime PM support isn't necessary. Instead, this can easily be
+ *    fixed in drivers by adding a call to dev_pm_domain_start() during probe.
+ *
+ * In summary, the second part needs to be addressed via minor updates to the
+ * relevant drivers, before the "single global power domain" model can be used.
  *
  */
 
