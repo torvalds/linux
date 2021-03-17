@@ -82,7 +82,7 @@ static const char *myrb_raidlevel_name(enum myrb_raidlevel level)
 	return NULL;
 }
 
-/**
+/*
  * myrb_create_mempools - allocates auxiliary data structures
  *
  * Return: true on success, false otherwise.
@@ -134,7 +134,7 @@ static bool myrb_create_mempools(struct pci_dev *pdev, struct myrb_hba *cb)
 	return true;
 }
 
-/**
+/*
  * myrb_destroy_mempools - tears down the memory pools for the controller
  */
 static void myrb_destroy_mempools(struct myrb_hba *cb)
@@ -146,7 +146,7 @@ static void myrb_destroy_mempools(struct myrb_hba *cb)
 	dma_pool_destroy(cb->dcdb_pool);
 }
 
-/**
+/*
  * myrb_reset_cmd - reset command block
  */
 static inline void myrb_reset_cmd(struct myrb_cmdblk *cmd_blk)
@@ -157,7 +157,7 @@ static inline void myrb_reset_cmd(struct myrb_cmdblk *cmd_blk)
 	cmd_blk->status = 0;
 }
 
-/**
+/*
  * myrb_qcmd - queues command block for execution
  */
 static void myrb_qcmd(struct myrb_hba *cb, struct myrb_cmdblk *cmd_blk)
@@ -177,7 +177,7 @@ static void myrb_qcmd(struct myrb_hba *cb, struct myrb_cmdblk *cmd_blk)
 	cb->next_cmd_mbox = next_mbox;
 }
 
-/**
+/*
  * myrb_exec_cmd - executes command block and waits for completion.
  *
  * Return: command status
@@ -198,7 +198,7 @@ static unsigned short myrb_exec_cmd(struct myrb_hba *cb,
 	return cmd_blk->status;
 }
 
-/**
+/*
  * myrb_exec_type3 - executes a type 3 command and waits for completion.
  *
  * Return: command status
@@ -220,7 +220,7 @@ static unsigned short myrb_exec_type3(struct myrb_hba *cb,
 	return status;
 }
 
-/**
+/*
  * myrb_exec_type3D - executes a type 3D command and waits for completion.
  *
  * Return: command status
@@ -332,7 +332,7 @@ static void myrb_get_event(struct myrb_hba *cb, unsigned int event)
 			  ev_buf, ev_addr);
 }
 
-/**
+/*
  * myrb_get_errtable - retrieves the error table from the controller
  *
  * Executes a type 3 command and logs the error table from the controller.
@@ -377,7 +377,7 @@ static void myrb_get_errtable(struct myrb_hba *cb)
 	}
 }
 
-/**
+/*
  * myrb_get_ldev_info - retrieves the logical device table from the controller
  *
  * Executes a type 3 command and updates the logical device table.
@@ -427,7 +427,7 @@ static unsigned short myrb_get_ldev_info(struct myrb_hba *cb)
 	return status;
 }
 
-/**
+/*
  * myrb_get_rbld_progress - get rebuild progress information
  *
  * Executes a type 3 command and returns the rebuild progress
@@ -462,11 +462,10 @@ static unsigned short myrb_get_rbld_progress(struct myrb_hba *cb,
 	return status;
 }
 
-/**
+/*
  * myrb_update_rbld_progress - updates the rebuild status
  *
  * Updates the rebuild status for the attached logical devices.
- *
  */
 static void myrb_update_rbld_progress(struct myrb_hba *cb)
 {
@@ -523,7 +522,7 @@ static void myrb_update_rbld_progress(struct myrb_hba *cb)
 	cb->last_rbld_status = status;
 }
 
-/**
+/*
  * myrb_get_cc_progress - retrieve the rebuild status
  *
  * Execute a type 3 Command and fetch the rebuild / consistency check
@@ -571,7 +570,7 @@ static void myrb_get_cc_progress(struct myrb_hba *cb)
 			  rbld_buf, rbld_addr);
 }
 
-/**
+/*
  * myrb_bgi_control - updates background initialisation status
  *
  * Executes a type 3B command and updates the background initialisation status
@@ -660,7 +659,7 @@ static void myrb_bgi_control(struct myrb_hba *cb)
 			  bgi, bgi_addr);
 }
 
-/**
+/*
  * myrb_hba_enquiry - updates the controller status
  *
  * Executes a DAC_V1_Enquiry command and updates the controller status.
@@ -772,7 +771,7 @@ static unsigned short myrb_hba_enquiry(struct myrb_hba *cb)
 	return MYRB_STATUS_SUCCESS;
 }
 
-/**
+/*
  * myrb_set_pdev_state - sets the device state for a physical device
  *
  * Return: command status
@@ -796,7 +795,7 @@ static unsigned short myrb_set_pdev_state(struct myrb_hba *cb,
 	return status;
 }
 
-/**
+/*
  * myrb_enable_mmio - enables the Memory Mailbox Interface
  *
  * PD and P controller types have no memory mailbox, but still need the
@@ -901,7 +900,7 @@ static bool myrb_enable_mmio(struct myrb_hba *cb, mbox_mmio_init_t mmio_init_fn)
 	return true;
 }
 
-/**
+/*
  * myrb_get_hba_config - reads the configuration information
  *
  * Reads the configuration information from the controller and
@@ -1193,7 +1192,7 @@ out_free:
 	return ret;
 }
 
-/**
+/*
  * myrb_unmap - unmaps controller structures
  */
 static void myrb_unmap(struct myrb_hba *cb)
@@ -1229,7 +1228,7 @@ static void myrb_unmap(struct myrb_hba *cb)
 	}
 }
 
-/**
+/*
  * myrb_cleanup - cleanup controller structures
  */
 static void myrb_cleanup(struct myrb_hba *cb)
@@ -2243,7 +2242,7 @@ static struct scsi_host_template myrb_template = {
 
 /**
  * myrb_is_raid - return boolean indicating device is raid volume
- * @dev the device struct object
+ * @dev: the device struct object
  */
 static int myrb_is_raid(struct device *dev)
 {
@@ -2254,7 +2253,7 @@ static int myrb_is_raid(struct device *dev)
 
 /**
  * myrb_get_resync - get raid volume resync percent complete
- * @dev the device struct object
+ * @dev: the device struct object
  */
 static void myrb_get_resync(struct device *dev)
 {
@@ -2281,7 +2280,7 @@ static void myrb_get_resync(struct device *dev)
 
 /**
  * myrb_get_state - get raid volume status
- * @dev the device struct object
+ * @dev: the device struct object
  */
 static void myrb_get_state(struct device *dev)
 {
@@ -2480,7 +2479,7 @@ static void myrb_monitor(struct work_struct *work)
 	queue_delayed_work(cb->work_q, &cb->monitor_work, interval);
 }
 
-/**
+/*
  * myrb_err_status - reports controller BIOS messages
  *
  * Controller BIOS messages are passed through the Error Status Register
