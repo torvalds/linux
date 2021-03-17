@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 
 u8 PHY_GetTxPowerByRateBase(struct adapter *Adapter, u8 Band, u8 RfPath,
-			    u8 TxNum, enum RATE_SECTION RateSection)
+			    u8 TxNum, enum rate_section RateSection)
 {
 	struct hal_com_data	*pHalData = GET_HAL_DATA(Adapter);
 	u8	value = 0;
@@ -104,7 +104,7 @@ phy_SetTxPowerByRateBase(
 	struct adapter *Adapter,
 	u8 Band,
 	u8 RfPath,
-	enum RATE_SECTION	RateSection,
+	enum rate_section	RateSection,
 	u8 TxNum,
 	u8 Value
 )

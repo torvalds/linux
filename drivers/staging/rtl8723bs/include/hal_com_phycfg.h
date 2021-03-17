@@ -12,7 +12,7 @@
 #define		PathC		0x2
 #define		PathD		0x3
 
-enum RATE_SECTION {
+enum rate_section {
 	CCK = 0,
 	OFDM,
 	HT_MCS0_MCS7,
@@ -25,7 +25,7 @@ enum RATE_SECTION {
 	VHT_4SSMCS0_4SSMCS9,
 };
 
-enum RF_TX_NUM {
+enum rf_tx_num {
 	RF_1TX = 0,
 	RF_2TX,
 	RF_3TX,
@@ -36,7 +36,7 @@ enum RF_TX_NUM {
 
 #define MAX_POWER_INDEX			0x3F
 
-enum _REGULATION_TXPWR_LMT {
+enum _regulation_txpwr_lmt {
 	TXPWR_LMT_FCC = 0,
 	TXPWR_LMT_MKK,
 	TXPWR_LMT_ETSI,
@@ -76,7 +76,7 @@ struct adapter *Adapter,
 u8 		Band,
 u8 		RfPath,
 u8 		TxNum,
-enum RATE_SECTION	RateSection
+enum rate_section	RateSection
 	);
 
 u8
