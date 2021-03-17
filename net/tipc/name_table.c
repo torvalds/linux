@@ -668,21 +668,21 @@ exit:
  * Used on nodes which have received a multicast/broadcast message
  * Returns a list of local sockets
  */
-void tipc_nametbl_lookup_mcast_sockets(struct net *net, u32 type, u32 lower,
-				       u32 upper, u32 scope, bool exact,
-				       struct list_head *dports)
+void tipc_nametbl_lookup_mcast_sockets(struct net *net, struct tipc_uaddr *ua,
+				       bool exact, struct list_head *dports)
 {
 	struct service_range *sr;
 	struct tipc_service *sc;
 	struct publication *p;
+	u32 scope = ua->scope;
 
 	rcu_read_lock();
-	sc = tipc_service_find(net, type);
+	sc = tipc_service_find(net, ua->sr.type);
 	if (!sc)
 		goto exit;
 
 	spin_lock_bh(&sc->lock);
-	service_range_foreach_match(sr, sc, lower, upper) {
+	service_range_foreach_match(sr, sc, ua->sr.lower, ua->sr.upper) {
 		list_for_each_entry(p, &sr->local_publ, local_publ) {
 			if (p->scope == scope || (!exact && p->scope < scope))
 				tipc_dest_push(dports, 0, p->sk.ref);
