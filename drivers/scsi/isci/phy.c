@@ -339,10 +339,11 @@ done:
 }
 
 /**
- * This method returns the port currently containing this phy. If the phy is
- *    currently contained by the dummy port, then the phy is considered to not
- *    be part of a port.
- * @sci_phy: This parameter specifies the phy for which to retrieve the
+ * phy_get_non_dummy_port() - This method returns the port currently containing
+ * this phy. If the phy is currently contained by the dummy port, then the phy
+ * is considered to not be part of a port.
+ *
+ * @iphy: This parameter specifies the phy for which to retrieve the
  *    containing port.
  *
  * This method returns a handle to a port that contains the supplied phy.
@@ -360,10 +361,8 @@ struct isci_port *phy_get_non_dummy_port(struct isci_phy *iphy)
 	return iphy->owning_port;
 }
 
-/**
+/*
  * sci_phy_set_port() - This method will assign a port to the phy object.
- * @out]: iphy This parameter specifies the phy for which to assign a port
- *    object.
  */
 void sci_phy_set_port(
 	struct isci_phy *iphy,
