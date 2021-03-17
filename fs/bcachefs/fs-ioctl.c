@@ -10,7 +10,11 @@
 #include "quota.h"
 
 #include <linux/compat.h>
+#include <linux/fsnotify.h>
 #include <linux/mount.h>
+#include <linux/namei.h>
+#include <linux/security.h>
+#include <linux/writeback.h>
 
 #define FS_IOC_GOINGDOWN	     _IOR('X', 125, __u32)
 #define FSOP_GOING_FLAGS_DEFAULT	0x0	/* going down */
@@ -292,6 +296,154 @@ err:
 	return ret;
 }
 
+static long bch2_ioctl_subvolume_create(struct bch_fs *c, struct file *filp,
+				struct bch_ioctl_subvolume arg)
+{
+	struct inode *dir;
+	struct bch_inode_info *inode;
+	struct user_namespace *s_user_ns;
+	struct dentry *dst_dentry;
+	struct path src_path, dst_path;
+	int how = LOOKUP_FOLLOW;
+	int error;
+	subvol_inum snapshot_src = { 0 };
+	unsigned lookup_flags = 0;
+	unsigned create_flags = BCH_CREATE_SUBVOL;
+
+	if (arg.flags & ~(BCH_SUBVOL_SNAPSHOT_CREATE|
+			  BCH_SUBVOL_SNAPSHOT_RO))
+		return -EINVAL;
+
+	if (!(arg.flags & BCH_SUBVOL_SNAPSHOT_CREATE) &&
+	    (arg.src_ptr ||
+	     (arg.flags & BCH_SUBVOL_SNAPSHOT_RO)))
+		return -EINVAL;
+
+	if (arg.flags & BCH_SUBVOL_SNAPSHOT_CREATE)
+		create_flags |= BCH_CREATE_SNAPSHOT;
+
+	if (arg.flags & BCH_SUBVOL_SNAPSHOT_RO)
+		create_flags |= BCH_CREATE_SNAPSHOT_RO;
+
+	/* why do we need this lock? */
+	down_read(&c->vfs_sb->s_umount);
+
+	if (arg.flags & BCH_SUBVOL_SNAPSHOT_CREATE)
+		sync_inodes_sb(c->vfs_sb);
+retry:
+	if (arg.src_ptr) {
+		error = user_path_at(arg.dirfd,
+				(const char __user *)(unsigned long)arg.src_ptr,
+				how, &src_path);
+		if (error)
+			goto err1;
+
+		if (src_path.dentry->d_sb->s_fs_info != c) {
+			path_put(&src_path);
+			error = -EXDEV;
+			goto err1;
+		}
+
+		snapshot_src = inode_inum(to_bch_ei(src_path.dentry->d_inode));
+	}
+
+	dst_dentry = user_path_create(arg.dirfd,
+			(const char __user *)(unsigned long)arg.dst_ptr,
+			&dst_path, lookup_flags);
+	error = PTR_ERR_OR_ZERO(dst_dentry);
+	if (error)
+		goto err2;
+
+	if (dst_dentry->d_sb->s_fs_info != c) {
+		error = -EXDEV;
+		goto err3;
+	}
+
+	if (dst_dentry->d_inode) {
+		error = -EEXIST;
+		goto err3;
+	}
+
+	dir = dst_path.dentry->d_inode;
+	if (IS_DEADDIR(dir)) {
+		error = -ENOENT;
+		goto err3;
+	}
+
+	s_user_ns = dir->i_sb->s_user_ns;
+	if (!kuid_has_mapping(s_user_ns, current_fsuid()) ||
+	    !kgid_has_mapping(s_user_ns, current_fsgid())) {
+		error = -EOVERFLOW;
+		goto err3;
+	}
+
+	error = inode_permission(file_mnt_idmap(filp),
+				 dir, MAY_WRITE | MAY_EXEC);
+	if (error)
+		goto err3;
+
+	if (!IS_POSIXACL(dir))
+		arg.mode &= ~current_umask();
+
+	error = security_path_mkdir(&dst_path, dst_dentry, arg.mode);
+	if (error)
+		goto err3;
+
+	if ((arg.flags & BCH_SUBVOL_SNAPSHOT_CREATE) &&
+	    !arg.src_ptr)
+		snapshot_src.subvol = to_bch_ei(dir)->ei_inode.bi_subvol;
+
+	inode = __bch2_create(file_mnt_idmap(filp), to_bch_ei(dir),
+			      dst_dentry, arg.mode|S_IFDIR,
+			      0, snapshot_src, create_flags);
+	error = PTR_ERR_OR_ZERO(inode);
+	if (error)
+		goto err3;
+
+	d_instantiate(dst_dentry, &inode->v);
+	fsnotify_mkdir(dir, dst_dentry);
+err3:
+	done_path_create(&dst_path, dst_dentry);
+err2:
+	if (arg.src_ptr)
+		path_put(&src_path);
+
+	if (retry_estale(error, lookup_flags)) {
+		lookup_flags |= LOOKUP_REVAL;
+		goto retry;
+	}
+err1:
+	up_read(&c->vfs_sb->s_umount);
+
+	return error;
+}
+
+static long bch2_ioctl_subvolume_destroy(struct bch_fs *c, struct file *filp,
+				struct bch_ioctl_subvolume arg)
+{
+	struct path path;
+	int ret = 0;
+
+	if (arg.flags)
+		return -EINVAL;
+
+	ret = user_path_at(arg.dirfd,
+			(const char __user *)(unsigned long)arg.dst_ptr,
+			LOOKUP_FOLLOW, &path);
+	if (ret)
+		return ret;
+
+	if (path.dentry->d_sb->s_fs_info != c) {
+		path_put(&path);
+		return -EXDEV;
+	}
+
+	ret = __bch2_unlink(path.dentry->d_parent->d_inode, path.dentry, 1);
+	path_put(&path);
+
+	return ret;
+}
+
 long bch2_fs_file_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
 	struct bch_inode_info *inode = file_bch_inode(file);
@@ -321,6 +473,22 @@ long bch2_fs_file_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 
 	case FS_IOC_GOINGDOWN:
 		return bch2_ioc_goingdown(c, (u32 __user *) arg);
+
+	case BCH_IOCTL_SUBVOLUME_CREATE: {
+		struct bch_ioctl_subvolume i;
+
+		if (copy_from_user(&i, (void __user *) arg, sizeof(i)))
+			return -EFAULT;
+		return bch2_ioctl_subvolume_create(c, file, i);
+	}
+
+	case BCH_IOCTL_SUBVOLUME_DESTROY: {
+		struct bch_ioctl_subvolume i;
+
+		if (copy_from_user(&i, (void __user *) arg, sizeof(i)))
+			return -EFAULT;
+		return bch2_ioctl_subvolume_destroy(c, file, i);
+	}
 
 	default:
 		return bch2_fs_ioctl(c, cmd, (void __user *) arg);

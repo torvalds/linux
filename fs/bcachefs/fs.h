@@ -146,7 +146,7 @@ struct bch_inode_unpacked;
 
 struct bch_inode_info *
 __bch2_create(struct mnt_idmap *, struct bch_inode_info *,
-	      struct dentry *, umode_t, dev_t, unsigned);
+	      struct dentry *, umode_t, dev_t, subvol_inum, unsigned);
 
 int bch2_fs_quota_transfer(struct bch_fs *,
 			   struct bch_inode_info *,
@@ -183,6 +183,7 @@ int __must_check bch2_write_inode(struct bch_fs *, struct bch_inode_info *,
 int bch2_setattr_nonsize(struct mnt_idmap *,
 			 struct bch_inode_info *,
 			 struct iattr *);
+int __bch2_unlink(struct inode *, struct dentry *, int);
 
 void bch2_vfs_exit(void);
 int bch2_vfs_init(void);

@@ -307,7 +307,8 @@ static __always_inline
 int bch2_hash_delete_at(struct btree_trans *trans,
 			const struct bch_hash_desc desc,
 			const struct bch_hash_info *info,
-			struct btree_iter *iter)
+			struct btree_iter *iter,
+			unsigned update_flags)
 {
 	struct bkey_i *delete;
 	int ret;
@@ -325,7 +326,7 @@ int bch2_hash_delete_at(struct btree_trans *trans,
 	delete->k.p = iter->pos;
 	delete->k.type = ret ? KEY_TYPE_hash_whiteout : KEY_TYPE_deleted;
 
-	return bch2_trans_update(trans, iter, delete, 0);
+	return bch2_trans_update(trans, iter, delete, update_flags);
 }
 
 static __always_inline
@@ -342,7 +343,7 @@ int bch2_hash_delete(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	ret = bch2_hash_delete_at(trans, desc, info, &iter);
+	ret = bch2_hash_delete_at(trans, desc, info, &iter, 0);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }

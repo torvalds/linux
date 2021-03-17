@@ -307,7 +307,7 @@ static int __remove_dirent(struct btree_trans *trans, struct bpos pos)
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_dirents, pos, BTREE_ITER_INTENT);
 
 	ret = bch2_hash_delete_at(trans, bch2_dirent_hash_desc,
-				  &dir_hash_info, &iter);
+				  &dir_hash_info, &iter, 0);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
@@ -386,7 +386,8 @@ create_lostfound:
 				      BTREE_INSERT_LAZY_RW,
 			bch2_create_trans(trans, root_inum, &root,
 					  lostfound, &lostfound_str,
-					  0, 0, S_IFDIR|0700, 0, NULL, NULL, 0));
+					  0, 0, S_IFDIR|0700, 0, NULL, NULL,
+					  (subvol_inum) { }, 0));
 		if (ret)
 			bch_err(c, "error creating lost+found: %i", ret);
 	}
@@ -759,7 +760,7 @@ static int fsck_hash_delete_at(struct btree_trans *trans,
 {
 	int ret;
 retry:
-	ret   = bch2_hash_delete_at(trans, desc, info, iter) ?:
+	ret   = bch2_hash_delete_at(trans, desc, info, iter, 0) ?:
 		bch2_trans_commit(trans, NULL, NULL,
 				  BTREE_INSERT_NOFAIL|
 				  BTREE_INSERT_LAZY_RW);

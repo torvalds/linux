@@ -5,6 +5,9 @@
 struct posix_acl;
 
 #define BCH_CREATE_TMPFILE		(1U << 0)
+#define BCH_CREATE_SUBVOL		(1U << 1)
+#define BCH_CREATE_SNAPSHOT		(1U << 2)
+#define BCH_CREATE_SNAPSHOT_RO		(1U << 3)
 
 int bch2_create_trans(struct btree_trans *, subvol_inum,
 		      struct bch_inode_unpacked *,
@@ -13,7 +16,7 @@ int bch2_create_trans(struct btree_trans *, subvol_inum,
 		      uid_t, gid_t, umode_t, dev_t,
 		      struct posix_acl *,
 		      struct posix_acl *,
-		      unsigned);
+		      subvol_inum, unsigned);
 
 int bch2_link_trans(struct btree_trans *,
 		    subvol_inum, struct bch_inode_unpacked *,
@@ -23,7 +26,7 @@ int bch2_link_trans(struct btree_trans *,
 int bch2_unlink_trans(struct btree_trans *, subvol_inum,
 		      struct bch_inode_unpacked *,
 		      struct bch_inode_unpacked *,
-		      const struct qstr *);
+		      const struct qstr *, int);
 
 int bch2_rename_trans(struct btree_trans *,
 		      subvol_inum, struct bch_inode_unpacked *,

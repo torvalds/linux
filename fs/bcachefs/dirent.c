@@ -383,14 +383,6 @@ out:
 	return ret;
 }
 
-int bch2_dirent_delete_at(struct btree_trans *trans,
-			  const struct bch_hash_info *hash_info,
-			  struct btree_iter *iter)
-{
-	return bch2_hash_delete_at(trans, bch2_dirent_hash_desc,
-				   hash_info, iter);
-}
-
 int __bch2_dirent_lookup_trans(struct btree_trans *trans,
 			       struct btree_iter *iter,
 			       subvol_inum dir,

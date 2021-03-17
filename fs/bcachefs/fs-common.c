@@ -11,6 +11,11 @@
 
 #include <linux/posix_acl.h>
 
+static inline int is_subdir_for_nlink(struct bch_inode_unpacked *inode)
+{
+	return S_ISDIR(inode->bi_mode) && !inode->bi_subvol;
+}
+
 int bch2_create_trans(struct btree_trans *trans,
 		      subvol_inum dir,
 		      struct bch_inode_unpacked *dir_u,
@@ -19,6 +24,7 @@ int bch2_create_trans(struct btree_trans *trans,
 		      uid_t uid, gid_t gid, umode_t mode, dev_t rdev,
 		      struct posix_acl *default_acl,
 		      struct posix_acl *acl,
+		      subvol_inum snapshot_src,
 		      unsigned flags)
 {
 	struct bch_fs *c = trans->c;
@@ -27,10 +33,9 @@ int bch2_create_trans(struct btree_trans *trans,
 	subvol_inum new_inum = dir;
 	u64 now = bch2_current_time(c);
 	u64 cpu = raw_smp_processor_id();
-	u64 dir_offset = 0;
 	u64 dir_target;
 	u32 snapshot;
-	unsigned dir_type;
+	unsigned dir_type = mode_to_type(mode);
 	int ret;
 
 	ret = bch2_subvolume_get_snapshot(trans, dir.subvol, &snapshot);
@@ -41,37 +46,122 @@ int bch2_create_trans(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	bch2_inode_init_late(new_inode, now, uid, gid, mode, rdev, dir_u);
+	if (!(flags & BCH_CREATE_SNAPSHOT)) {
+		/* Normal create path - allocate a new inode: */
+		bch2_inode_init_late(new_inode, now, uid, gid, mode, rdev, dir_u);
 
-	if (!name)
-		new_inode->bi_flags |= BCH_INODE_UNLINKED;
+		if (flags & BCH_CREATE_TMPFILE)
+			new_inode->bi_flags |= BCH_INODE_UNLINKED;
 
-	ret = bch2_inode_create(trans, &inode_iter, new_inode, snapshot, cpu);
-	if (ret)
-		goto err;
+		ret = bch2_inode_create(trans, &inode_iter, new_inode, snapshot, cpu);
+		if (ret)
+			goto err;
+
+		snapshot_src = (subvol_inum) { 0 };
+	} else {
+		/*
+		 * Creating a snapshot - we're not allocating a new inode, but
+		 * we do have to lookup the root inode of the subvolume we're
+		 * snapshotting and update it (in the new snapshot):
+		 */
+
+		if (!snapshot_src.inum) {
+			/* Inode wasn't specified, just snapshot: */
+			struct btree_iter subvol_iter;
+			struct bkey_s_c k;
+
+			bch2_trans_iter_init(trans, &subvol_iter, BTREE_ID_subvolumes,
+					     POS(0, snapshot_src.subvol), 0);
+			k = bch2_btree_iter_peek_slot(&subvol_iter);
+
+			ret = bkey_err(k);
+			if (!ret && k.k->type != KEY_TYPE_subvolume) {
+				bch_err(c, "subvolume %u not found",
+					snapshot_src.subvol);
+				ret = -ENOENT;
+			}
+
+			if (!ret)
+				snapshot_src.inum = le64_to_cpu(bkey_s_c_to_subvolume(k).v->inode);
+			bch2_trans_iter_exit(trans, &subvol_iter);
+
+			if (ret)
+				goto err;
+		}
+
+		ret = bch2_inode_peek(trans, &inode_iter, new_inode, snapshot_src,
+				      BTREE_ITER_INTENT);
+		if (ret)
+			goto err;
+
+		if (new_inode->bi_subvol != snapshot_src.subvol) {
+			/* Not a subvolume root: */
+			ret = -EINVAL;
+			goto err;
+		}
+
+		/*
+		 * If we're not root, we have to own the subvolume being
+		 * snapshotted:
+		 */
+		if (uid && new_inode->bi_uid != uid) {
+			ret = -EPERM;
+			goto err;
+		}
+
+		flags |= BCH_CREATE_SUBVOL;
+	}
 
 	new_inum.inum	= new_inode->bi_inum;
 	dir_target	= new_inode->bi_inum;
-	dir_type	= mode_to_type(new_inode->bi_mode);
 
-	if (default_acl) {
-		ret = bch2_set_acl_trans(trans, new_inum, new_inode,
-					 default_acl, ACL_TYPE_DEFAULT);
+	if (flags & BCH_CREATE_SUBVOL) {
+		u32 new_subvol, dir_snapshot;
+
+		ret = bch2_subvolume_create(trans, new_inode->bi_inum,
+					    snapshot_src.subvol,
+					    &new_subvol, &snapshot,
+					    (flags & BCH_CREATE_SNAPSHOT_RO) != 0);
+		if (ret)
+			goto err;
+
+		new_inode->bi_parent_subvol	= dir.subvol;
+		new_inode->bi_subvol		= new_subvol;
+		new_inum.subvol			= new_subvol;
+		dir_target			= new_subvol;
+		dir_type			= DT_SUBVOL;
+
+		ret = bch2_subvolume_get_snapshot(trans, dir.subvol, &dir_snapshot);
+		if (ret)
+			goto err;
+
+		bch2_btree_iter_set_snapshot(&dir_iter, dir_snapshot);
+		ret = bch2_btree_iter_traverse(&dir_iter);
 		if (ret)
 			goto err;
 	}
 
-	if (acl) {
-		ret = bch2_set_acl_trans(trans, new_inum, new_inode,
-					 acl, ACL_TYPE_ACCESS);
-		if (ret)
-			goto err;
+	if (!(flags & BCH_CREATE_SNAPSHOT)) {
+		if (default_acl) {
+			ret = bch2_set_acl_trans(trans, new_inum, new_inode,
+						 default_acl, ACL_TYPE_DEFAULT);
+			if (ret)
+				goto err;
+		}
+
+		if (acl) {
+			ret = bch2_set_acl_trans(trans, new_inum, new_inode,
+						 acl, ACL_TYPE_ACCESS);
+			if (ret)
+				goto err;
+		}
 	}
 
-	if (name) {
+	if (!(flags & BCH_CREATE_TMPFILE)) {
 		struct bch_hash_info dir_hash = bch2_hash_info_init(c, dir_u);
+		u64 dir_offset;
 
-		if (S_ISDIR(new_inode->bi_mode))
+		if (is_subdir_for_nlink(new_inode))
 			dir_u->bi_nlink++;
 		dir_u->bi_mtime = dir_u->bi_ctime = now;
 
@@ -87,11 +177,11 @@ int bch2_create_trans(struct btree_trans *trans,
 					 BCH_HASH_SET_MUST_CREATE);
 		if (ret)
 			goto err;
-	}
 
-	if (c->sb.version >= bcachefs_metadata_version_inode_backpointers) {
-		new_inode->bi_dir		= dir_u->bi_inum;
-		new_inode->bi_dir_offset	= dir_offset;
+		if (c->sb.version >= bcachefs_metadata_version_inode_backpointers) {
+			new_inode->bi_dir		= dir_u->bi_inum;
+			new_inode->bi_dir_offset	= dir_offset;
+		}
 	}
 
 	inode_iter.flags &= ~BTREE_ITER_ALL_SNAPSHOTS;
@@ -160,7 +250,8 @@ int bch2_unlink_trans(struct btree_trans *trans,
 		      subvol_inum dir,
 		      struct bch_inode_unpacked *dir_u,
 		      struct bch_inode_unpacked *inode_u,
-		      const struct qstr *name)
+		      const struct qstr *name,
+		      int deleting_snapshot)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter dir_iter = { NULL };
@@ -169,6 +260,7 @@ int bch2_unlink_trans(struct btree_trans *trans,
 	struct bch_hash_info dir_hash;
 	subvol_inum inum;
 	u64 now = bch2_current_time(c);
+	struct bkey_s_c k;
 	int ret;
 
 	ret = bch2_inode_peek(trans, &dir_iter, dir_u, dir, BTREE_ITER_INTENT);
@@ -187,29 +279,51 @@ int bch2_unlink_trans(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
+	if (deleting_snapshot == 1 && !inode_u->bi_subvol) {
+		ret = -ENOENT;
+		goto err;
+	}
+
+	if (deleting_snapshot <= 0 && S_ISDIR(inode_u->bi_mode)) {
+		ret = bch2_empty_dir_trans(trans, inum);
+		if (ret)
+			goto err;
+	}
+
+	if (inode_u->bi_subvol) {
+		ret = bch2_subvolume_delete(trans, inode_u->bi_subvol,
+					    deleting_snapshot);
+		if (ret)
+			goto err;
+
+		k = bch2_btree_iter_peek_slot(&dirent_iter);
+		ret = bkey_err(k);
+		if (ret)
+			goto err;
+
+		/*
+		 * If we're deleting a subvolume, we need to really delete the
+		 * dirent, not just emit a whiteout in the current snapshot:
+		 */
+		bch2_btree_iter_set_snapshot(&dirent_iter, k.k->p.snapshot);
+		ret = bch2_btree_iter_traverse(&dirent_iter);
+		if (ret)
+			goto err;
+	}
+
 	if (inode_u->bi_dir		== dirent_iter.pos.inode &&
 	    inode_u->bi_dir_offset	== dirent_iter.pos.offset) {
 		inode_u->bi_dir		= 0;
 		inode_u->bi_dir_offset	= 0;
 	}
 
-	if (S_ISDIR(inode_u->bi_mode)) {
-		ret = bch2_empty_dir_trans(trans, inum);
-		if (ret)
-			goto err;
-	}
-
-	if (dir.subvol != inum.subvol) {
-		ret = bch2_subvolume_delete(trans, inum.subvol, false);
-		if (ret)
-			goto err;
-	}
-
 	dir_u->bi_mtime = dir_u->bi_ctime = inode_u->bi_ctime = now;
-	dir_u->bi_nlink -= S_ISDIR(inode_u->bi_mode);
+	dir_u->bi_nlink -= is_subdir_for_nlink(inode_u);
 	bch2_inode_nlink_dec(inode_u);
 
-	ret =   bch2_dirent_delete_at(trans, &dir_hash, &dirent_iter) ?:
+	ret =   bch2_hash_delete_at(trans, bch2_dirent_hash_desc,
+				    &dir_hash, &dirent_iter,
+				    BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
 		bch2_inode_write(trans, &dir_iter, dir_u) ?:
 		bch2_inode_write(trans, &inode_iter, inode_u);
 err:
@@ -348,12 +462,12 @@ int bch2_rename_trans(struct btree_trans *trans,
 		goto err;
 	}
 
-	if (S_ISDIR(src_inode_u->bi_mode)) {
+	if (is_subdir_for_nlink(src_inode_u)) {
 		src_dir_u->bi_nlink--;
 		dst_dir_u->bi_nlink++;
 	}
 
-	if (dst_inum.inum && S_ISDIR(dst_inode_u->bi_mode)) {
+	if (dst_inum.inum && is_subdir_for_nlink(dst_inode_u)) {
 		dst_dir_u->bi_nlink--;
 		src_dir_u->bi_nlink += mode == BCH_RENAME_EXCHANGE;
 	}

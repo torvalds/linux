@@ -240,12 +240,6 @@ struct inode *bch2_vfs_inode_get(struct bch_fs *c, subvol_inum inum)
 	struct bch_inode_info *inode;
 	int ret;
 
-	/*
-	 * debug assert, to be removed when we start creating
-	 * subvolumes/snapshots:
-	 */
-	BUG_ON(inum.subvol != BCACHEFS_ROOT_SUBVOL);
-
 	inode = to_bch_ei(iget5_locked(c->vfs_sb,
 				       bch2_inode_hash(inum),
 				       bch2_iget5_test,
@@ -274,7 +268,8 @@ struct inode *bch2_vfs_inode_get(struct bch_fs *c, subvol_inum inum)
 struct bch_inode_info *
 __bch2_create(struct mnt_idmap *idmap,
 	      struct bch_inode_info *dir, struct dentry *dentry,
-	      umode_t mode, dev_t rdev, unsigned flags)
+	      umode_t mode, dev_t rdev, subvol_inum snapshot_src,
+	      unsigned flags)
 {
 	struct bch_fs *c = dir->v.i_sb->s_fs_info;
 	struct btree_trans trans;
@@ -319,7 +314,7 @@ retry:
 				  from_kuid(i_user_ns(&dir->v), current_fsuid()),
 				  from_kgid(i_user_ns(&dir->v), current_fsgid()),
 				  mode, rdev,
-				  default_acl, acl, flags) ?:
+				  default_acl, acl, snapshot_src, flags) ?:
 		bch2_quota_acct(c, bch_qid(&inode_u), Q_INO, 1,
 				KEY_TYPE_QUOTA_PREALLOC);
 	if (unlikely(ret))
@@ -426,7 +421,8 @@ static int bch2_mknod(struct mnt_idmap *idmap,
 		      umode_t mode, dev_t rdev)
 {
 	struct bch_inode_info *inode =
-		__bch2_create(idmap, to_bch_ei(vdir), dentry, mode, rdev, 0);
+		__bch2_create(idmap, to_bch_ei(vdir), dentry, mode, rdev,
+			      (subvol_inum) { 0 }, 0);
 
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
@@ -493,7 +489,8 @@ static int bch2_link(struct dentry *old_dentry, struct inode *vdir,
 	return 0;
 }
 
-static int bch2_unlink(struct inode *vdir, struct dentry *dentry)
+int __bch2_unlink(struct inode *vdir, struct dentry *dentry,
+		  int deleting_snapshot)
 {
 	struct bch_fs *c = vdir->i_sb->s_fs_info;
 	struct bch_inode_info *dir = to_bch_ei(vdir);
@@ -509,7 +506,8 @@ static int bch2_unlink(struct inode *vdir, struct dentry *dentry)
 			      BTREE_INSERT_NOFAIL,
 			bch2_unlink_trans(&trans,
 					  inode_inum(dir), &dir_u,
-					  &inode_u, &dentry->d_name));
+					  &inode_u, &dentry->d_name,
+					  deleting_snapshot));
 
 	if (likely(!ret)) {
 		BUG_ON(inode_u.bi_inum != inode->v.i_ino);
@@ -527,6 +525,11 @@ static int bch2_unlink(struct inode *vdir, struct dentry *dentry)
 	return ret;
 }
 
+static int bch2_unlink(struct inode *vdir, struct dentry *dentry)
+{
+	return __bch2_unlink(vdir, dentry, -1);
+}
+
 static int bch2_symlink(struct mnt_idmap *idmap,
 			struct inode *vdir, struct dentry *dentry,
 			const char *symname)
@@ -536,7 +539,7 @@ static int bch2_symlink(struct mnt_idmap *idmap,
 	int ret;
 
 	inode = __bch2_create(idmap, dir, dentry, S_IFLNK|S_IRWXUGO, 0,
-			      BCH_CREATE_TMPFILE);
+			      (subvol_inum) { 0 }, BCH_CREATE_TMPFILE);
 	if (unlikely(IS_ERR(inode)))
 		return PTR_ERR(inode);
 
@@ -855,7 +858,7 @@ static int bch2_tmpfile(struct mnt_idmap *idmap,
 	struct bch_inode_info *inode =
 		__bch2_create(idmap, to_bch_ei(vdir),
 			      file->f_path.dentry, mode, 0,
-			      BCH_CREATE_TMPFILE);
+			      (subvol_inum) { 0 }, BCH_CREATE_TMPFILE);
 
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
