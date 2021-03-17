@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/* SPDX-License-Identifier: ((GPL-2.0+ WITH Linux-syscall-note) OR MIT) */
 
 /* Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd */
 
