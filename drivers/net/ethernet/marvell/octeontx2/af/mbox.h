@@ -605,6 +605,7 @@ enum nix_af_status {
 	NIX_AF_INVAL_SSO_PF_FUNC    = -420,
 	NIX_AF_ERR_TX_VTAG_NOSPC    = -421,
 	NIX_AF_ERR_RX_VTAG_INUSE    = -422,
+	NIX_AF_ERR_NPC_KEY_NOT_SUPP = -423,
 };
 
 /* For NIX RX vtag action  */

@@ -597,7 +597,7 @@ static int npc_check_unsupported_flows(struct rvu *rvu, u64 features, u8 intf)
 		dev_info(rvu->dev, "Unsupported flow(s):\n");
 		for_each_set_bit(bit, (unsigned long *)&unsupported, 64)
 			dev_info(rvu->dev, "%s ", npc_get_field_name(bit));
-		return -EOPNOTSUPP;
+		return NIX_AF_ERR_NPC_KEY_NOT_SUPP;
 	}
 
 	return 0;
@@ -1143,8 +1143,9 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 	if (!is_pffunc_af(req->hdr.pcifunc))
 		req->chan_mask = 0xFFF;
 
-	if (npc_check_unsupported_flows(rvu, req->features, req->intf))
-		return -EOPNOTSUPP;
+	err = npc_check_unsupported_flows(rvu, req->features, req->intf);
+	if (err)
+		return err;
 
 	if (npc_mcam_verify_channel(rvu, target, req->intf, req->channel))
 		return -EINVAL;
