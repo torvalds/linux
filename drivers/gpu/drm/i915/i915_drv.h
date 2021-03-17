@@ -593,8 +593,6 @@ struct ddi_vbt_port_info {
 	u8 alternate_aux_channel;
 	u8 alternate_ddc_pin;
 
-	u8 dp_boost_level;
-	u8 hdmi_boost_level;
 	int dp_max_link_rate;		/* 0 for not limited by VBT */
 };
 

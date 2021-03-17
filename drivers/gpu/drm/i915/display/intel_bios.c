@@ -1859,6 +1859,7 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 	const struct child_device_config *child = &devdata->child;
 	struct ddi_vbt_port_info *info;
 	bool is_dvi, is_hdmi, is_dp, is_edp, is_crt, supports_typec_usb, supports_tbt;
+	int dp_boost_level, hdmi_boost_level;
 	enum port port;
 
 	port = dvo_port_to_port(i915, child->dvo_port);
@@ -1949,17 +1950,18 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 		info->max_tmds_clock = max_tmds_clock;
 	}
 
-	/* Parse the I_boost config for SKL and above */
-	if (i915->vbt.version >= 196 && child->iboost) {
-		info->dp_boost_level = translate_iboost(child->dp_iboost_level);
+	/* I_boost config for SKL and above */
+	dp_boost_level = intel_bios_encoder_dp_boost_level(devdata);
+	if (dp_boost_level)
 		drm_dbg_kms(&i915->drm,
 			    "Port %c VBT (e)DP boost level: %d\n",
-			    port_name(port), info->dp_boost_level);
-		info->hdmi_boost_level = translate_iboost(child->hdmi_iboost_level);
+			    port_name(port), dp_boost_level);
+
+	hdmi_boost_level = intel_bios_encoder_hdmi_boost_level(devdata);
+	if (hdmi_boost_level)
 		drm_dbg_kms(&i915->drm,
 			    "Port %c VBT HDMI boost level: %d\n",
-			    port_name(port), info->hdmi_boost_level);
-	}
+			    port_name(port), hdmi_boost_level);
 
 	/* DP max link rate for CNL+ */
 	if (i915->vbt.version >= 216) {
@@ -2904,18 +2906,20 @@ int intel_bios_hdmi_level_shift(struct intel_encoder *encoder)
 	return info->hdmi_level_shift_set ? info->hdmi_level_shift : -1;
 }
 
-int intel_bios_dp_boost_level(struct intel_encoder *encoder)
+int intel_bios_encoder_dp_boost_level(const struct intel_bios_encoder_data *devdata)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	if (!devdata || devdata->i915->vbt.version < 196 || !devdata->child.iboost)
+		return 0;
 
-	return i915->vbt.ddi_port_info[encoder->port].dp_boost_level;
+	return translate_iboost(devdata->child.dp_iboost_level);
 }
 
-int intel_bios_hdmi_boost_level(struct intel_encoder *encoder)
+int intel_bios_encoder_hdmi_boost_level(const struct intel_bios_encoder_data *devdata)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	if (!devdata || devdata->i915->vbt.version < 196 || !devdata->child.iboost)
+		return 0;
 
-	return i915->vbt.ddi_port_info[encoder->port].hdmi_boost_level;
+	return translate_iboost(devdata->child.hdmi_iboost_level);
 }
 
 int intel_bios_dp_max_link_rate(struct intel_encoder *encoder)

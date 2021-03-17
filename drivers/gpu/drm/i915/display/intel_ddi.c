@@ -113,7 +113,7 @@ void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder,
 							      &n_entries);
 
 	/* If we're boosting the current, set bit 31 of trans1 */
-	if (IS_GEN9_BC(dev_priv) && intel_bios_dp_boost_level(encoder))
+	if (IS_GEN9_BC(dev_priv) && intel_bios_encoder_dp_boost_level(encoder->devdata))
 		iboost_bit = DDI_BUF_BALANCE_LEG_ENABLE;
 
 	for (i = 0; i < n_entries; i++) {
@@ -146,7 +146,7 @@ static void intel_prepare_hdmi_ddi_buffers(struct intel_encoder *encoder,
 		level = n_entries - 1;
 
 	/* If we're boosting the current, set bit 31 of trans1 */
-	if (IS_GEN9_BC(dev_priv) && intel_bios_hdmi_boost_level(encoder))
+	if (IS_GEN9_BC(dev_priv) && intel_bios_encoder_hdmi_boost_level(encoder->devdata))
 		iboost_bit = DDI_BUF_BALANCE_LEG_ENABLE;
 
 	/* Entry 9 is for HDMI: */
@@ -905,9 +905,9 @@ static void skl_ddi_set_iboost(struct intel_encoder *encoder,
 	u8 iboost;
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
-		iboost = intel_bios_hdmi_boost_level(encoder);
+		iboost = intel_bios_encoder_hdmi_boost_level(encoder->devdata);
 	else
-		iboost = intel_bios_dp_boost_level(encoder);
+		iboost = intel_bios_encoder_dp_boost_level(encoder->devdata);
 
 	if (iboost == 0) {
 		const struct ddi_buf_trans *ddi_translations;
@@ -4478,6 +4478,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 		return;
 
 	encoder = &dig_port->base;
+	encoder->devdata = devdata;
 
 	if (INTEL_GEN(dev_priv) >= 12) {
 		enum tc_port tc_port = intel_port_to_tc(dev_priv, port);

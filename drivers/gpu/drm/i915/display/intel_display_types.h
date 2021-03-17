@@ -234,6 +234,9 @@ struct intel_encoder {
 	enum intel_display_power_domain power_domain;
 	/* for communication with audio component; protected by av_mutex */
 	const struct drm_connector *audio_connector;
+
+	/* VBT information for this encoder (may be NULL for older platforms) */
+	const struct intel_bios_encoder_data *devdata;
 };
 
 struct intel_panel_bl_funcs {
