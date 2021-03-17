@@ -54,10 +54,58 @@ void tests_cleanup(void)
 	cat_test_cleanup();
 }
 
+static void run_mbm_test(bool has_ben, char **benchmark_cmd, int span,
+			 int cpu_no, char *bw_report)
+{
+	int res;
+
+	ksft_print_msg("Starting MBM BW change ...\n");
+	if (!has_ben)
+		sprintf(benchmark_cmd[5], "%s", MBA_STR);
+	res = mbm_bw_change(span, cpu_no, bw_report, benchmark_cmd);
+	ksft_test_result(!res, "MBM: bw change\n");
+	mbm_test_cleanup();
+}
+
+static void run_mba_test(bool has_ben, char **benchmark_cmd, int span,
+			 int cpu_no, char *bw_report)
+{
+	int res;
+
+	ksft_print_msg("Starting MBA Schemata change ...\n");
+	if (!has_ben)
+		sprintf(benchmark_cmd[1], "%d", span);
+	res = mba_schemata_change(cpu_no, bw_report, benchmark_cmd);
+	ksft_test_result(!res, "MBA: schemata change\n");
+	mba_test_cleanup();
+}
+
+static void run_cmt_test(bool has_ben, char **benchmark_cmd, int cpu_no)
+{
+	int res;
+
+	ksft_print_msg("Starting CMT test ...\n");
+	if (!has_ben)
+		sprintf(benchmark_cmd[5], "%s", CMT_STR);
+	res = cmt_resctrl_val(cpu_no, 5, benchmark_cmd);
+	ksft_test_result(!res, "CMT: test\n");
+	cmt_test_cleanup();
+}
+
+static void run_cat_test(int cpu_no, int no_of_bits)
+{
+	int res;
+
+	ksft_print_msg("Starting CAT test ...\n");
+	res = cat_perf_miss_val(cpu_no, no_of_bits, "L3");
+	ksft_test_result(!res, "CAT: test\n");
+	cat_test_cleanup();
+}
+
 int main(int argc, char **argv)
 {
 	bool has_ben = false, mbm_test = true, mba_test = true, cmt_test = true;
-	int res, c, cpu_no = 1, span = 250, argc_new = argc, i, no_of_bits = 0;
+	int c, cpu_no = 1, span = 250, argc_new = argc, i, no_of_bits = 0;
 	char *benchmark_cmd[BENCHMARK_ARGS], bw_report[64], bm_type[64];
 	char benchmark_cmd_area[BENCHMARK_ARGS][BENCHMARK_ARG_SIZE];
 	int ben_ind, ben_count, tests = 0;
@@ -170,39 +218,17 @@ int main(int argc, char **argv)
 
 	ksft_set_plan(tests ? : 4);
 
-	if (!is_amd && mbm_test) {
-		ksft_print_msg("Starting MBM BW change ...\n");
-		if (!has_ben)
-			sprintf(benchmark_cmd[5], "%s", MBA_STR);
-		res = mbm_bw_change(span, cpu_no, bw_report, benchmark_cmd);
-		ksft_test_result(!res, "MBM: bw change\n");
-		mbm_test_cleanup();
-	}
+	if (!is_amd && mbm_test)
+		run_mbm_test(has_ben, benchmark_cmd, span, cpu_no, bw_report);
 
-	if (!is_amd && mba_test) {
-		ksft_print_msg("Starting MBA Schemata change ...\n");
-		if (!has_ben)
-			sprintf(benchmark_cmd[1], "%d", span);
-		res = mba_schemata_change(cpu_no, bw_report, benchmark_cmd);
-		ksft_test_result(!res, "MBA: schemata change\n");
-		mba_test_cleanup();
-	}
+	if (!is_amd && mba_test)
+		run_mba_test(has_ben, benchmark_cmd, span, cpu_no, bw_report);
 
-	if (cmt_test) {
-		ksft_print_msg("Starting CMT test ...\n");
-		if (!has_ben)
-			sprintf(benchmark_cmd[5], "%s", CMT_STR);
-		res = cmt_resctrl_val(cpu_no, 5, benchmark_cmd);
-		ksft_test_result(!res, "CMT: test\n");
-		cmt_test_cleanup();
-	}
+	if (cmt_test)
+		run_cmt_test(has_ben, benchmark_cmd, cpu_no);
 
-	if (cat_test) {
-		ksft_print_msg("Starting CAT test ...\n");
-		res = cat_perf_miss_val(cpu_no, no_of_bits, "L3");
-		ksft_test_result(!res, "CAT: test\n");
-		cat_test_cleanup();
-	}
+	if (cat_test)
+		run_cat_test(cpu_no, no_of_bits);
 
 	return ksft_exit_pass();
 }
