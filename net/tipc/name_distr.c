@@ -293,30 +293,31 @@ static bool tipc_update_nametbl(struct net *net, struct distr_item *i,
 				u32 node, u32 dtype)
 {
 	struct publication *p = NULL;
-	u32 lower = ntohl(i->lower);
-	u32 upper = ntohl(i->upper);
-	u32 type = ntohl(i->type);
-	u32 port = ntohl(i->port);
+	struct tipc_socket_addr sk;
+	struct tipc_uaddr ua;
 	u32 key = ntohl(i->key);
 
+	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_CLUSTER_SCOPE,
+		   ntohl(i->type), ntohl(i->lower), ntohl(i->upper));
+	sk.ref = ntohl(i->port);
+	sk.node = node;
+
 	if (dtype == PUBLICATION) {
-		p = tipc_nametbl_insert_publ(net, type, lower, upper,
-					     TIPC_CLUSTER_SCOPE, node,
-					     port, key);
+		p = tipc_nametbl_insert_publ(net, &ua, &sk, key);
 		if (p) {
 			tipc_node_subscribe(net, &p->binding_node, node);
 			return true;
 		}
 	} else if (dtype == WITHDRAWAL) {
-		p = tipc_nametbl_remove_publ(net, type, lower,
-					     upper, node, key);
+		p = tipc_nametbl_remove_publ(net, ua.sr.type, ua.sr.lower,
+					     ua.sr.upper, node, key);
 		if (p) {
 			tipc_node_unsubscribe(net, &p->binding_node, node);
 			kfree_rcu(p, rcu);
 			return true;
 		}
-		pr_warn_ratelimited("Failed to remove binding %u,%u from %x\n",
-				    type, lower, node);
+		pr_warn_ratelimited("Failed to remove binding %u,%u from %u\n",
+				    ua.sr.type, ua.sr.lower, node);
 	} else {
 		pr_warn("Unrecognized name table message received\n");
 	}
