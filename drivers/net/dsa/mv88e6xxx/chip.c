@@ -2550,6 +2550,27 @@ static int mv88e6xxx_serdes_power(struct mv88e6xxx_chip *chip, int port,
 	return err;
 }
 
+static int mv88e6xxx_set_egress_port(struct mv88e6xxx_chip *chip,
+				     enum mv88e6xxx_egress_direction direction,
+				     int port)
+{
+	int err;
+
+	if (!chip->info->ops->set_egress_port)
+		return -EOPNOTSUPP;
+
+	err = chip->info->ops->set_egress_port(chip, direction, port);
+	if (err)
+		return err;
+
+	if (direction == MV88E6XXX_EGRESS_DIR_INGRESS)
+		chip->ingress_dest_port = port;
+	else
+		chip->egress_dest_port = port;
+
+	return 0;
+}
+
 static int mv88e6xxx_setup_upstream_port(struct mv88e6xxx_chip *chip, int port)
 {
 	struct dsa_switch *ds = chip->ds;
@@ -2572,19 +2593,17 @@ static int mv88e6xxx_setup_upstream_port(struct mv88e6xxx_chip *chip, int port)
 				return err;
 		}
 
-		if (chip->info->ops->set_egress_port) {
-			err = chip->info->ops->set_egress_port(chip,
+		err = mv88e6xxx_set_egress_port(chip,
 						MV88E6XXX_EGRESS_DIR_INGRESS,
 						upstream_port);
-			if (err)
-				return err;
+		if (err && err != -EOPNOTSUPP)
+			return err;
 
-			err = chip->info->ops->set_egress_port(chip,
+		err = mv88e6xxx_set_egress_port(chip,
 						MV88E6XXX_EGRESS_DIR_EGRESS,
 						upstream_port);
-			if (err)
-				return err;
-		}
+		if (err && err != -EOPNOTSUPP)
+			return err;
 	}
 
 	return 0;
@@ -5338,9 +5357,6 @@ static int mv88e6xxx_port_mirror_add(struct dsa_switch *ds, int port,
 	int i;
 	int err;
 
-	if (!chip->info->ops->set_egress_port)
-		return -EOPNOTSUPP;
-
 	mutex_lock(&chip->reg_lock);
 	if ((ingress ? chip->ingress_dest_port : chip->egress_dest_port) !=
 	    mirror->to_local_port) {
@@ -5355,9 +5371,8 @@ static int mv88e6xxx_port_mirror_add(struct dsa_switch *ds, int port,
 			goto out;
 		}
 
-		err = chip->info->ops->set_egress_port(chip,
-						       direction,
-						       mirror->to_local_port);
+		err = mv88e6xxx_set_egress_port(chip, direction,
+						mirror->to_local_port);
 		if (err)
 			goto out;
 	}
@@ -5390,10 +5405,8 @@ static void mv88e6xxx_port_mirror_del(struct dsa_switch *ds, int port,
 
 	/* Reset egress port when no other mirror is active */
 	if (!other_mirrors) {
-		if (chip->info->ops->set_egress_port(chip,
-						     direction,
-						     dsa_upstream_port(ds,
-								       port)))
+		if (mv88e6xxx_set_egress_port(chip, direction,
+					      dsa_upstream_port(ds, port)))
 			dev_err(ds->dev, "failed to set egress port\n");
 	}
 
