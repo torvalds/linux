@@ -71,7 +71,7 @@ static unsigned char REALTEK_96B_IE[] = {0x00, 0xe0, 0x4c, 0x02, 0x01, 0x20};
 /********************************************************
 ChannelPlan definitions
 *********************************************************/
-static struct RT_CHANNEL_PLAN_2G	RTW_ChannelPlan2G[RT_CHANNEL_DOMAIN_2G_MAX] = {
+static struct rt_channel_plan_2g	RTW_ChannelPlan2G[RT_CHANNEL_DOMAIN_2G_MAX] = {
 	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, 13},		/*  0x00, RT_CHANNEL_DOMAIN_2G_WORLD , Passive scan CH 12, 13 */
 	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, 13},		/*  0x01, RT_CHANNEL_DOMAIN_2G_ETSI1 */
 	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, 11},			/*  0x02, RT_CHANNEL_DOMAIN_2G_FCC1 */
@@ -81,7 +81,7 @@ static struct RT_CHANNEL_PLAN_2G	RTW_ChannelPlan2G[RT_CHANNEL_DOMAIN_2G_MAX] = {
 	{{}, 0},								/*  0x06, RT_CHANNEL_DOMAIN_2G_NULL */
 };
 
-static struct RT_CHANNEL_PLAN_5G	RTW_ChannelPlan5G[RT_CHANNEL_DOMAIN_5G_MAX] = {
+static struct rt_channel_plan_5g	RTW_ChannelPlan5G[RT_CHANNEL_DOMAIN_5G_MAX] = {
 	{{}, 0},																					/*  0x00, RT_CHANNEL_DOMAIN_5G_NULL */
 	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140}, 19},						/*  0x01, RT_CHANNEL_DOMAIN_5G_ETSI1 */
 	{{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165}, 24},	/*  0x02, RT_CHANNEL_DOMAIN_5G_ETSI2 */
@@ -121,7 +121,7 @@ static struct RT_CHANNEL_PLAN_5G	RTW_ChannelPlan5G[RT_CHANNEL_DOMAIN_5G_MAX] = {
 	{{36, 40, 44, 48, 149, 153, 157, 161}, 8},															/*  0x22, RT_CHANNEL_DOMAIN_5G_FCC4_NO_DFS */
 };
 
-static struct RT_CHANNEL_PLAN_MAP	RTW_ChannelPlanMap[RT_CHANNEL_DOMAIN_MAX] = {
+static struct rt_channel_plan_map	RTW_ChannelPlanMap[RT_CHANNEL_DOMAIN_MAX] = {
 	/*  0x00 ~ 0x1F , Old Define ===== */
 	{0x02, 0x20},	/* 0x00, RT_CHANNEL_DOMAIN_FCC */
 	{0x02, 0x0A},	/* 0x01, RT_CHANNEL_DOMAIN_IC */
@@ -209,7 +209,7 @@ static struct RT_CHANNEL_PLAN_MAP	RTW_ChannelPlanMap[RT_CHANNEL_DOMAIN_MAX] = {
 };
 
  /* use the combination for max channel numbers */
-static struct RT_CHANNEL_PLAN_MAP RTW_CHANNEL_PLAN_MAP_REALTEK_DEFINE = {0x03, 0x02};
+static struct rt_channel_plan_map RTW_CHANNEL_PLAN_MAP_REALTEK_DEFINE = {0x03, 0x02};
 
 /* Search the @param ch in given @param ch_set
  * @ch_set: the given channel set
@@ -217,7 +217,7 @@ static struct RT_CHANNEL_PLAN_MAP RTW_CHANNEL_PLAN_MAP_REALTEK_DEFINE = {0x03, 0
  *
  * return the index of channel_num in channel_set, -1 if not found
  */
-int rtw_ch_set_search_ch(struct RT_CHANNEL_INFO *ch_set, const u32 ch)
+int rtw_ch_set_search_ch(struct rt_channel_info *ch_set, const u32 ch)
 {
 	int i;
 
@@ -325,7 +325,7 @@ static void init_mlme_ext_priv_value(struct adapter *padapter)
 	pmlmeext->action_public_dialog_token = 0xff;
 }
 
-static int has_channel(struct RT_CHANNEL_INFO *channel_set,
+static int has_channel(struct rt_channel_info *channel_set,
 					   u8 chanset_size,
 					   u8 chan)
 {
@@ -340,7 +340,7 @@ static int has_channel(struct RT_CHANNEL_INFO *channel_set,
 	return 0;
 }
 
-static void init_channel_list(struct adapter *padapter, struct RT_CHANNEL_INFO *channel_set,
+static void init_channel_list(struct adapter *padapter, struct rt_channel_info *channel_set,
 							  u8 chanset_size,
 							  struct p2p_channels *channel_list)
 {
@@ -392,13 +392,13 @@ static void init_channel_list(struct adapter *padapter, struct RT_CHANNEL_INFO *
 
 }
 
-static u8 init_channel_set(struct adapter *padapter, u8 ChannelPlan, struct RT_CHANNEL_INFO *channel_set)
+static u8 init_channel_set(struct adapter *padapter, u8 ChannelPlan, struct rt_channel_info *channel_set)
 {
 	u8 index, chanset_size = 0;
 	u8 b5GBand = false, b2_4GBand = false;
 	u8 Index2G = 0, Index5G = 0;
 
-	memset(channel_set, 0, sizeof(struct RT_CHANNEL_INFO)*MAX_CHANNEL_NUM);
+	memset(channel_set, 0, sizeof(struct rt_channel_info)*MAX_CHANNEL_NUM);
 
 	if (ChannelPlan >= RT_CHANNEL_DOMAIN_MAX && ChannelPlan != RT_CHANNEL_DOMAIN_REALTEK_DEFINE) {
 		DBG_871X("ChannelPlan ID %x error !!!!!\n", ChannelPlan);
@@ -4616,7 +4616,7 @@ static void process_80211d(struct adapter *padapter, struct wlan_bssid_ex *bssid
 {
 	struct registry_priv *pregistrypriv;
 	struct mlme_ext_priv *pmlmeext;
-	struct RT_CHANNEL_INFO *chplan_new;
+	struct rt_channel_info *chplan_new;
 	u8 channel;
 	u8 i;
 
@@ -4629,8 +4629,8 @@ static void process_80211d(struct adapter *padapter, struct wlan_bssid_ex *bssid
 		(!pmlmeext->update_channel_plan_by_ap_done)) {
 		u8 *ie, *p;
 		u32 len;
-		struct RT_CHANNEL_PLAN chplan_ap;
-		struct RT_CHANNEL_INFO chplan_sta[MAX_CHANNEL_NUM];
+		struct rt_channel_plan chplan_ap;
+		struct rt_channel_info chplan_sta[MAX_CHANNEL_NUM];
 		u8 country[4];
 		u8 fcn; /*  first channel number */
 		u8 noc; /*  number of channel */

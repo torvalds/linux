@@ -113,9 +113,9 @@ extern unsigned char WMM_PARA_OUI[];
 /* 	We just add new channel plan when the new channel plan is different from any of the following */
 /* 	channel plan. */
 /* 	If you just wnat to customize the acitions(scan period or join actions) about one of the channel plan, */
-/* 	customize them in RT_CHANNEL_INFO in the RT_CHANNEL_LIST. */
+/* 	customize them in rt_channel_info in the RT_CHANNEL_LIST. */
 /*  */
-enum RT_CHANNEL_DOMAIN {
+enum rt_channel_domain {
 	/*  old channel plan mapping ===== */
 	RT_CHANNEL_DOMAIN_FCC = 0x00,
 	RT_CHANNEL_DOMAIN_IC = 0x01,
@@ -183,7 +183,7 @@ enum RT_CHANNEL_DOMAIN {
 	RT_CHANNEL_DOMAIN_REALTEK_DEFINE = 0x7F,
 };
 
-enum RT_CHANNEL_DOMAIN_2G {
+enum rt_channel_domain_2g {
 	RT_CHANNEL_DOMAIN_2G_WORLD = 0x00,		/* Worldwird 13 */
 	RT_CHANNEL_DOMAIN_2G_ETSI1 = 0x01,		/* Europe */
 	RT_CHANNEL_DOMAIN_2G_FCC1 = 0x02,		/* US */
@@ -195,7 +195,7 @@ enum RT_CHANNEL_DOMAIN_2G {
 	RT_CHANNEL_DOMAIN_2G_MAX,
 };
 
-enum RT_CHANNEL_DOMAIN_5G {
+enum rt_channel_domain_5g {
 	RT_CHANNEL_DOMAIN_5G_NULL = 0x00,
 	RT_CHANNEL_DOMAIN_5G_ETSI1 = 0x01,		/* Europe */
 	RT_CHANNEL_DOMAIN_5G_ETSI2 = 0x02,		/* Australia, New Zealand */
@@ -238,22 +238,22 @@ enum RT_CHANNEL_DOMAIN_5G {
 
 #define rtw_is_channel_plan_valid(chplan) (chplan < RT_CHANNEL_DOMAIN_MAX || chplan == RT_CHANNEL_DOMAIN_REALTEK_DEFINE)
 
-struct RT_CHANNEL_PLAN {
+struct rt_channel_plan {
 	unsigned char Channel[MAX_CHANNEL_NUM];
 	unsigned char Len;
 };
 
-struct RT_CHANNEL_PLAN_2G {
+struct rt_channel_plan_2g {
 	unsigned char Channel[MAX_CHANNEL_NUM_2G];
 	unsigned char Len;
 };
 
-struct RT_CHANNEL_PLAN_5G {
+struct rt_channel_plan_5g {
 	unsigned char Channel[MAX_CHANNEL_NUM_5G];
 	unsigned char Len;
 };
 
-struct RT_CHANNEL_PLAN_MAP {
+struct rt_channel_plan_map {
 	unsigned char Index2G;
 	unsigned char Index5G;
 };
@@ -270,7 +270,7 @@ enum Associated_AP {
 	maxAP,
 };
 
-enum HT_IOT_PEER_E {
+enum ht_iot_peer_e {
 	HT_IOT_PEER_UNKNOWN			= 0,
 	HT_IOT_PEER_REALTEK			= 1,
 	HT_IOT_PEER_REALTEK_92SE		= 2,
@@ -293,7 +293,7 @@ enum HT_IOT_PEER_E {
 };
 
 
-enum SCAN_STATE {
+enum scan_state {
 	SCAN_DISABLE = 0,
 	SCAN_START = 1,
 	SCAN_TXNULL = 2,
@@ -417,12 +417,12 @@ struct mlme_ext_info {
 };
 
 /*  The channel information about this channel including joining, scanning, and power constraints. */
-struct RT_CHANNEL_INFO {
+struct rt_channel_info {
 	u8 		ChannelNum;		/*  The channel number. */
 	enum rt_scan_type	ScanType;		/*  Scan type such as passive or active scan. */
 };
 
-int rtw_ch_set_search_ch(struct RT_CHANNEL_INFO *ch_set, const u32 ch);
+int rtw_ch_set_search_ch(struct rt_channel_info *ch_set, const u32 ch);
 bool rtw_mlme_band_check(struct adapter *adapter, const u32 ch);
 
 /*  P2P_MAX_REG_CLASSES - Maximum number of regulatory classes */
@@ -474,7 +474,7 @@ struct mlme_ext_priv {
 	unsigned char cur_wireless_mode;	/*  NETWORK_TYPE */
 
 	unsigned char max_chan_nums;
-	struct RT_CHANNEL_INFO		channel_set[MAX_CHANNEL_NUM];
+	struct rt_channel_info		channel_set[MAX_CHANNEL_NUM];
 	struct p2p_channels channel_list;
 	unsigned char basicrate[NumRates];
 	unsigned char datarate[NumRates];
