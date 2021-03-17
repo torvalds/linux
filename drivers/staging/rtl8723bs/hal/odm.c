@@ -417,7 +417,7 @@ void ODM_DMWatchdog(struct DM_ODM_T *pDM_Odm)
 		odm_DIG(pDM_Odm);
 
 	{
-		struct DIG_T *pDM_DigTable = &pDM_Odm->DM_DigTable;
+		struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
 
 		odm_Adaptivity(pDM_Odm, pDM_DigTable->CurIGValue);
 	}

@@ -323,7 +323,7 @@ void odm_Adaptivity(void *pDM_VOID, u8 IGI)
 void ODM_Write_DIG(void *pDM_VOID, u8 CurrentIGI)
 {
 	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
-	struct DIG_T *pDM_DigTable = &pDM_Odm->DM_DigTable;
+	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
 
 	if (pDM_DigTable->bStopDIG) {
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("Stop Writing IGI\n"));
@@ -363,7 +363,7 @@ void odm_PauseDIG(
 )
 {
 	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
-	struct DIG_T *pDM_DigTable = &pDM_Odm->DM_DigTable;
+	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
 	static bool bPaused;
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_PauseDIG() =========>\n"));
@@ -467,7 +467,7 @@ bool odm_DigAbort(void *pDM_VOID)
 void odm_DIGInit(void *pDM_VOID)
 {
 	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
-	struct DIG_T *pDM_DigTable = &pDM_Odm->DM_DigTable;
+	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
 
 	pDM_DigTable->bStopDIG = false;
 	pDM_DigTable->bPSDInProgress = false;
@@ -507,7 +507,7 @@ void odm_DIG(void *pDM_VOID)
 	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
 
 	/*  Common parameters */
-	struct DIG_T *pDM_DigTable = &pDM_Odm->DM_DigTable;
+	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
 	struct false_ALARM_STATISTICS *pFalseAlmCnt = &pDM_Odm->FalseAlmCnt;
 	bool FirstConnect, FirstDisConnect;
 	u8 DIG_MaxOfMin, DIG_Dynamic_MIN;
@@ -1079,7 +1079,7 @@ void odm_FAThresholdCheck(
 u8 odm_ForbiddenIGICheck(void *pDM_VOID, u8 DIG_Dynamic_MIN, u8 CurrentIGI)
 {
 	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
-	struct DIG_T *pDM_DigTable = &pDM_Odm->DM_DigTable;
+	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
 	struct false_ALARM_STATISTICS *pFalseAlmCnt = &pDM_Odm->FalseAlmCnt;
 	u8 rx_gain_range_min = pDM_DigTable->rx_gain_range_min;
 
@@ -1196,7 +1196,7 @@ void odm_CCKPacketDetectionThresh(void *pDM_VOID)
 void ODM_Write_CCK_CCA_Thres(void *pDM_VOID, u8 CurCCK_CCAThres)
 {
 	struct DM_ODM_T *pDM_Odm = (struct DM_ODM_T *)pDM_VOID;
-	struct DIG_T *pDM_DigTable = &pDM_Odm->DM_DigTable;
+	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
 
 	/* modify by Guo.Mingzhi 2012-01-03 */
 	if (pDM_DigTable->CurCCK_CCAThres != CurCCK_CCAThres)

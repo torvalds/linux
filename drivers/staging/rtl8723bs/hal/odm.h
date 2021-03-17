@@ -1110,7 +1110,7 @@ struct DM_ODM_T { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 	/* ODM Structure */
 	/*  */
 	struct FAT_T DM_FatTable;
-	struct DIG_T DM_DigTable;
+	struct dig_t DM_DigTable;
 	struct PS_T DM_PSTable;
 	struct dynamic_primary_CCA DM_PriCCA;
 	struct RXHP_T DM_RXHP_Table;

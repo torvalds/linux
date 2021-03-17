@@ -227,7 +227,7 @@ void rtl8723b_HalDmWatchDog_in_LPS(struct adapter *Adapter)
 	struct mlme_priv *pmlmepriv = &Adapter->mlmepriv;
 	struct dm_priv *pdmpriv = &pHalData->dmpriv;
 	struct DM_ODM_T *pDM_Odm = &pHalData->odmpriv;
-	struct DIG_T *pDM_DigTable = &pDM_Odm->DM_DigTable;
+	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
 	struct sta_priv *pstapriv = &Adapter->stapriv;
 	struct sta_info *psta = NULL;
 

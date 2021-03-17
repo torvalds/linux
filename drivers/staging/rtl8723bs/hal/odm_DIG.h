@@ -8,7 +8,7 @@
 #ifndef __ODMDIG_H__
 #define __ODMDIG_H__
 
-struct DIG_T { /* _Dynamic_Initial_Gain_Threshold_ */
+struct dig_t { /* _Dynamic_Initial_Gain_Threshold_ */
 	bool bStopDIG;
 	bool bPSDInProgress;
 
@@ -77,7 +77,7 @@ struct  false_ALARM_STATISTICS {
 	u32 Cnt_BW_LSC; /* Gary */
 };
 
-enum DM_DIG_OP_E { /* tag_Dynamic_Init_Gain_Operation_Type_Definition */
+enum dm_dig_op_e { /* tag_Dynamic_Init_Gain_Operation_Type_Definition */
 	DIG_TYPE_THRESH_HIGH = 0,
 	DIG_TYPE_THRESH_LOW = 1,
 	DIG_TYPE_BACKOFF = 2,
