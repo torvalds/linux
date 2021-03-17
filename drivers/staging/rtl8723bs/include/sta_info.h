@@ -31,7 +31,7 @@ struct wlan_acl_pool {
 	struct __queue	acl_node_q;
 };
 
-struct RSSI_STA {
+struct rssi_sta {
 	s32	UndecoratedSmoothedPWDB;
 	s32	UndecoratedSmoothedCCK;
 	s32	UndecoratedSmoothedOFDM;
@@ -186,7 +186,7 @@ struct sta_info {
 	u32 assoc_req_len;
 
 	/* for DM */
-	struct RSSI_STA	 rssi_stat;
+	struct rssi_sta	 rssi_stat;
 
 	/* ODM_STA_INFO_T */
 	/*  ================ODM Relative Info ======================= */
