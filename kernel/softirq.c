@@ -531,6 +531,18 @@ void __tasklet_hi_schedule(struct tasklet_struct *t)
 }
 EXPORT_SYMBOL(__tasklet_hi_schedule);
 
+static bool tasklet_should_run(struct tasklet_struct *t)
+{
+	if (test_and_clear_bit(TASKLET_STATE_SCHED, &t->state))
+		return true;
+
+	WARN_ONCE(1, "tasklet SCHED state not set: %s %pS\n",
+		  t->use_callback ? "callback" : "func",
+		  t->use_callback ? (void *)t->callback : (void *)t->func);
+
+	return false;
+}
+
 static void tasklet_action_common(struct softirq_action *a,
 				  struct tasklet_head *tl_head,
 				  unsigned int softirq_nr)
@@ -550,13 +562,12 @@ static void tasklet_action_common(struct softirq_action *a,
 
 		if (tasklet_trylock(t)) {
 			if (!atomic_read(&t->count)) {
-				if (!test_and_clear_bit(TASKLET_STATE_SCHED,
-							&t->state))
-					BUG();
-				if (t->use_callback)
-					t->callback(t);
-				else
-					t->func(t->data);
+				if (tasklet_should_run(t)) {
+					if (t->use_callback)
+						t->callback(t);
+					else
+						t->func(t->data);
+				}
 				tasklet_unlock(t);
 				continue;
 			}
