@@ -4625,8 +4625,8 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 
 	if (intel_phy_is_tc(dev_priv, phy)) {
 		bool is_legacy =
-			!intel_bios_port_supports_typec_usb(dev_priv, port) &&
-			!intel_bios_port_supports_tbt(dev_priv, port);
+			!intel_bios_encoder_supports_typec_usb(devdata) &&
+			!intel_bios_encoder_supports_tbt(devdata);
 
 		intel_tc_port_init(dig_port, is_legacy);
 

@@ -590,9 +590,6 @@ struct ddi_vbt_port_info {
 	u8 hdmi_level_shift;
 	u8 hdmi_level_shift_set:1;
 
-	u8 supports_typec_usb:1;
-	u8 supports_tbt:1;
-
 	u8 alternate_aux_channel;
 	u8 alternate_ddc_pin;
 

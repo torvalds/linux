@@ -1858,7 +1858,7 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 {
 	const struct child_device_config *child = &devdata->child;
 	struct ddi_vbt_port_info *info;
-	bool is_dvi, is_hdmi, is_dp, is_edp, is_crt;
+	bool is_dvi, is_hdmi, is_dp, is_edp, is_crt, supports_typec_usb, supports_tbt;
 	enum port port;
 
 	port = dvo_port_to_port(i915, child->dvo_port);
@@ -1882,17 +1882,14 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 	is_hdmi = intel_bios_encoder_supports_hdmi(devdata);
 	is_edp = intel_bios_encoder_supports_edp(devdata);
 
-	if (i915->vbt.version >= 195)
-		info->supports_typec_usb = child->dp_usb_type_c;
-
-	if (i915->vbt.version >= 209)
-		info->supports_tbt = child->tbt;
+	supports_typec_usb = intel_bios_encoder_supports_typec_usb(devdata);
+	supports_tbt = intel_bios_encoder_supports_tbt(devdata);
 
 	drm_dbg_kms(&i915->drm,
 		    "Port %c VBT info: CRT:%d DVI:%d HDMI:%d DP:%d eDP:%d LSPCON:%d USB-Type-C:%d TBT:%d DSC:%d\n",
 		    port_name(port), is_crt, is_dvi, is_hdmi, is_dp, is_edp,
 		    HAS_LSPCON(i915) && child->lspcon,
-		    info->supports_typec_usb, info->supports_tbt,
+		    supports_typec_usb, supports_tbt,
 		    devdata->dsc != NULL);
 
 	if (is_dvi) {
@@ -2935,15 +2932,14 @@ int intel_bios_alternate_ddc_pin(struct intel_encoder *encoder)
 	return i915->vbt.ddi_port_info[encoder->port].alternate_ddc_pin;
 }
 
-bool intel_bios_port_supports_typec_usb(struct drm_i915_private *i915,
-					enum port port)
+bool intel_bios_encoder_supports_typec_usb(const struct intel_bios_encoder_data *devdata)
 {
-	return i915->vbt.ddi_port_info[port].supports_typec_usb;
+	return devdata->i915->vbt.version >= 195 && devdata->child.dp_usb_type_c;
 }
 
-bool intel_bios_port_supports_tbt(struct drm_i915_private *i915, enum port port)
+bool intel_bios_encoder_supports_tbt(const struct intel_bios_encoder_data *devdata)
 {
-	return i915->vbt.ddi_port_info[port].supports_tbt;
+	return devdata->i915->vbt.version >= 209 && devdata->child.tbt;
 }
 
 const struct intel_bios_encoder_data *
