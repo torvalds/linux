@@ -37,10 +37,10 @@ void detect_amd(void)
 static void cmd_help(void)
 {
 	printf("usage: resctrl_tests [-h] [-b \"benchmark_cmd [options]\"] [-t test list] [-n no_of_bits]\n");
-	printf("\t-b benchmark_cmd [options]: run specified benchmark for MBM, MBA and CQM");
+	printf("\t-b benchmark_cmd [options]: run specified benchmark for MBM, MBA and CMT");
 	printf("\t default benchmark is builtin fill_buf\n");
 	printf("\t-t test list: run tests specified in the test list, ");
-	printf("e.g. -t mbm, mba, cqm, cat\n");
+	printf("e.g. -t mbm, mba, cmt, cat\n");
 	printf("\t-n no_of_bits: run cache tests using specified no of bits in cache bit mask\n");
 	printf("\t-p cpu_no: specify CPU number to run the test. 1 is default\n");
 	printf("\t-h: help\n");
@@ -50,13 +50,13 @@ void tests_cleanup(void)
 {
 	mbm_test_cleanup();
 	mba_test_cleanup();
-	cqm_test_cleanup();
+	cmt_test_cleanup();
 	cat_test_cleanup();
 }
 
 int main(int argc, char **argv)
 {
-	bool has_ben = false, mbm_test = true, mba_test = true, cqm_test = true;
+	bool has_ben = false, mbm_test = true, mba_test = true, cmt_test = true;
 	int res, c, cpu_no = 1, span = 250, argc_new = argc, i, no_of_bits = 5;
 	char *benchmark_cmd[BENCHMARK_ARGS], bw_report[64], bm_type[64];
 	char benchmark_cmd_area[BENCHMARK_ARGS][BENCHMARK_ARG_SIZE];
@@ -82,15 +82,15 @@ int main(int argc, char **argv)
 
 			mbm_test = false;
 			mba_test = false;
-			cqm_test = false;
+			cmt_test = false;
 			cat_test = false;
 			while (token) {
 				if (!strncmp(token, MBM_STR, sizeof(MBM_STR))) {
 					mbm_test = true;
 				} else if (!strncmp(token, MBA_STR, sizeof(MBA_STR))) {
 					mba_test = true;
-				} else if (!strncmp(token, CQM_STR, sizeof(CQM_STR))) {
-					cqm_test = true;
+				} else if (!strncmp(token, CMT_STR, sizeof(CMT_STR))) {
+					cmt_test = true;
 				} else if (!strncmp(token, CAT_STR, sizeof(CAT_STR))) {
 					cat_test = true;
 				} else {
@@ -178,13 +178,13 @@ int main(int argc, char **argv)
 		tests_run++;
 	}
 
-	if (cqm_test) {
-		printf("# Starting CQM test ...\n");
+	if (cmt_test) {
+		printf("# Starting CMT test ...\n");
 		if (!has_ben)
-			sprintf(benchmark_cmd[5], "%s", CQM_STR);
-		res = cqm_resctrl_val(cpu_no, no_of_bits, benchmark_cmd);
-		printf("%sok CQM: test\n", res ? "not " : "");
-		cqm_test_cleanup();
+			sprintf(benchmark_cmd[5], "%s", CMT_STR);
+		res = cmt_resctrl_val(cpu_no, no_of_bits, benchmark_cmd);
+		printf("%sok CMT: test\n", res ? "not " : "");
+		cmt_test_cleanup();
 		tests_run++;
 	}
 

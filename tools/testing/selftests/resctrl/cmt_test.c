@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Cache Monitoring Technology (CQM) test
+ * Cache Monitoring Technology (CMT) test
  *
  * Copyright (C) 2018 Intel Corporation
  *
@@ -11,7 +11,7 @@
 #include "resctrl.h"
 #include <unistd.h>
 
-#define RESULT_FILE_NAME	"result_cqm"
+#define RESULT_FILE_NAME	"result_cmt"
 #define NUM_OF_RUNS		5
 #define MAX_DIFF		2000000
 #define MAX_DIFF_PERCENT	15
@@ -21,7 +21,7 @@ static char cbm_mask[256];
 static unsigned long long_mask;
 static unsigned long cache_size;
 
-static int cqm_setup(int num, ...)
+static int cmt_setup(int num, ...)
 {
 	struct resctrl_val_param *p;
 	va_list param;
@@ -58,7 +58,7 @@ static void show_cache_info(unsigned long sum_llc_occu_resc, int no_of_bits,
 	else
 		res = false;
 
-	printf("%sok CQM: diff within %d, %d\%%\n", res ? "" : "not",
+	printf("%sok CMT: diff within %d, %d\%%\n", res ? "" : "not",
 	       MAX_DIFF, (int)MAX_DIFF_PERCENT);
 
 	printf("# diff: %ld\n", avg_diff);
@@ -106,12 +106,12 @@ static int check_results(struct resctrl_val_param *param, int no_of_bits)
 	return 0;
 }
 
-void cqm_test_cleanup(void)
+void cmt_test_cleanup(void)
 {
 	remove(RESULT_FILE_NAME);
 }
 
-int cqm_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
+int cmt_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
 {
 	int ret, mum_resctrlfs;
 
@@ -122,7 +122,7 @@ int cqm_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
 	if (ret)
 		return ret;
 
-	if (!validate_resctrl_feature_request("cqm"))
+	if (!validate_resctrl_feature_request(CMT_STR))
 		return -1;
 
 	ret = get_cbm_mask("L3", cbm_mask);
@@ -145,7 +145,7 @@ int cqm_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
 	}
 
 	struct resctrl_val_param param = {
-		.resctrl_val	= CQM_STR,
+		.resctrl_val	= CMT_STR,
 		.ctrlgrp	= "c1",
 		.mongrp		= "m1",
 		.cpu_no		= cpu_no,
@@ -154,7 +154,7 @@ int cqm_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
 		.mask		= ~(long_mask << n) & long_mask,
 		.span		= cache_size * n / count_of_bits,
 		.num_of_runs	= 0,
-		.setup		= cqm_setup,
+		.setup		= cmt_setup,
 	};
 
 	if (strcmp(benchmark_cmd[0], "fill_buf") == 0)
@@ -170,7 +170,7 @@ int cqm_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
 	if (ret)
 		return ret;
 
-	cqm_test_cleanup();
+	cmt_test_cleanup();
 
 	return 0;
 }

@@ -64,7 +64,7 @@ struct resctrl_val_param {
 
 #define MBM_STR			"mbm"
 #define MBA_STR			"mba"
-#define CQM_STR			"cqm"
+#define CMT_STR			"cmt"
 #define CAT_STR			"cat"
 
 extern pid_t bm_pid, ppid;
@@ -103,9 +103,9 @@ void ctrlc_handler(int signum, siginfo_t *info, void *ptr);
 int cat_val(struct resctrl_val_param *param);
 void cat_test_cleanup(void);
 int cat_perf_miss_val(int cpu_no, int no_of_bits, char *cache_type);
-int cqm_resctrl_val(int cpu_no, int n, char **benchmark_cmd);
+int cmt_resctrl_val(int cpu_no, int n, char **benchmark_cmd);
 unsigned int count_bits(unsigned long n);
-void cqm_test_cleanup(void);
+void cmt_test_cleanup(void);
 int get_core_sibling(int cpu_no);
 int measure_cache_vals(struct resctrl_val_param *param, int bm_pid);
 

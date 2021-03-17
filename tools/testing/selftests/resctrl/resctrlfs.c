@@ -334,7 +334,7 @@ void run_benchmark(int signum, siginfo_t *info, void *ucontext)
 		operation = atoi(benchmark_cmd[4]);
 		sprintf(resctrl_val, "%s", benchmark_cmd[5]);
 
-		if (strncmp(resctrl_val, CQM_STR, sizeof(CQM_STR)))
+		if (strncmp(resctrl_val, CMT_STR, sizeof(CMT_STR)))
 			buffer_span = span * MB;
 		else
 			buffer_span = span;
@@ -458,8 +458,8 @@ int write_bm_pid_to_resctrl(pid_t bm_pid, char *ctrlgrp, char *mongrp,
 	if (ret)
 		goto out;
 
-	/* Create mon grp and write pid into it for "mbm" and "cqm" test */
-	if (!strncmp(resctrl_val, CQM_STR, sizeof(CQM_STR)) ||
+	/* Create mon grp and write pid into it for "mbm" and "cmt" test */
+	if (!strncmp(resctrl_val, CMT_STR, sizeof(CMT_STR)) ||
 	    !strncmp(resctrl_val, MBM_STR, sizeof(MBM_STR))) {
 		if (strlen(mongrp)) {
 			sprintf(monitorgroup_p, "%s/mon_groups", controlgroup);
@@ -507,7 +507,7 @@ int write_schemata(char *ctrlgrp, char *schemata, int cpu_no, char *resctrl_val)
 
 	if (strncmp(resctrl_val, MBA_STR, sizeof(MBA_STR)) &&
 	    strncmp(resctrl_val, CAT_STR, sizeof(CAT_STR)) &&
-	    strncmp(resctrl_val, CQM_STR, sizeof(CQM_STR)))
+	    strncmp(resctrl_val, CMT_STR, sizeof(CMT_STR)))
 		return -ENOENT;
 
 	if (!schemata) {
@@ -529,7 +529,7 @@ int write_schemata(char *ctrlgrp, char *schemata, int cpu_no, char *resctrl_val)
 		sprintf(controlgroup, "%s/schemata", RESCTRL_PATH);
 
 	if (!strncmp(resctrl_val, CAT_STR, sizeof(CAT_STR)) ||
-	    !strncmp(resctrl_val, CQM_STR, sizeof(CQM_STR)))
+	    !strncmp(resctrl_val, CMT_STR, sizeof(CMT_STR)))
 		sprintf(schema, "%s%d%c%s", "L3:", resource_id, '=', schemata);
 	if (!strncmp(resctrl_val, MBA_STR, sizeof(MBA_STR)))
 		sprintf(schema, "%s%d%c%s", "MB:", resource_id, '=', schemata);
