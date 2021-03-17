@@ -62,6 +62,11 @@ struct resctrl_val_param {
 	int		(*setup)(int num, ...);
 };
 
+#define MBM_STR			"mbm"
+#define MBA_STR			"mba"
+#define CQM_STR			"cqm"
+#define CAT_STR			"cat"
+
 extern pid_t bm_pid, ppid;
 extern int tests_run;
 
