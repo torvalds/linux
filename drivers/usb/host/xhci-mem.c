@@ -394,7 +394,7 @@ static struct xhci_ring *xhci_vendor_alloc_transfer_ring(struct xhci_hcd *xhci,
 	return 0;
 }
 
-static void xhci_vendor_free_transfer_ring(struct xhci_hcd *xhci,
+void xhci_vendor_free_transfer_ring(struct xhci_hcd *xhci,
 		struct xhci_virt_device *virt_dev, unsigned int ep_index)
 {
 	struct xhci_vendor_ops *ops = xhci_vendor_get_ops(xhci);
@@ -403,7 +403,7 @@ static void xhci_vendor_free_transfer_ring(struct xhci_hcd *xhci,
 		ops->free_transfer_ring(xhci, virt_dev, ep_index);
 }
 
-static bool xhci_vendor_is_usb_offload_enabled(struct xhci_hcd *xhci,
+bool xhci_vendor_is_usb_offload_enabled(struct xhci_hcd *xhci,
 		struct xhci_virt_device *virt_dev, unsigned int ep_index)
 {
 	struct xhci_vendor_ops *ops = xhci_vendor_get_ops(xhci);

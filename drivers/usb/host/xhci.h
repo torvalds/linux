@@ -2257,6 +2257,10 @@ struct xhci_vendor_ops *xhci_vendor_get_ops(struct xhci_hcd *xhci);
 
 int xhci_vendor_sync_dev_ctx(struct xhci_hcd *xhci, unsigned int slot_id);
 bool xhci_vendor_usb_offload_skip_urb(struct xhci_hcd *xhci, struct urb *urb);
+void xhci_vendor_free_transfer_ring(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev, unsigned int ep_index);
+bool xhci_vendor_is_usb_offload_enabled(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev, unsigned int ep_index);
 
 /*
  * TODO: As per spec Isochronous IDT transmissions are supported. We bypass
