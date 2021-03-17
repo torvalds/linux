@@ -616,9 +616,6 @@ static void rk_cra_hash_exit(struct crypto_tfm *tfm)
 
 	CRYPTO_TRACE();
 
-	/* clear HASH_CTL */
-	CRYPTO_WRITE(ctx->dev, CRYPTO_HASH_CTL, CRYPTO_WRITE_MASK_ALL | 0);
-
 	if (ctx->fallback_tfm)
 		crypto_free_ahash(ctx->fallback_tfm);
 

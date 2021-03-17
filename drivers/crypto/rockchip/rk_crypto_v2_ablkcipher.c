@@ -70,9 +70,6 @@ static int rk_crypto_irq_handle(int irq, void *dev_id)
 		dev->err = -EFAULT;
 	}
 
-	/* clear BC_CTL */
-	CRYPTO_WRITE(dev, CRYPTO_BC_CTL, 0 | CRYPTO_WRITE_MASK_ALL);
-
 	return 0;
 }
 
