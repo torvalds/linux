@@ -226,7 +226,10 @@ static int
 nv50_head_atomic_check_lut(struct nv50_head *head,
 			   struct nv50_head_atom *asyh)
 {
-	struct nv50_disp *disp = nv50_disp(head->base.base.dev);
+	struct drm_device *dev = head->base.base.dev;
+	struct drm_crtc *crtc = &head->base.base;
+	struct nv50_disp *disp = nv50_disp(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_property_blob *olut = asyh->state.gamma_lut;
 	int size;
 
@@ -256,7 +259,8 @@ nv50_head_atomic_check_lut(struct nv50_head *head,
 	}
 
 	if (!head->func->olut(head, asyh, size)) {
-		DRM_DEBUG_KMS("Invalid olut\n");
+		NV_ATOMIC(drm, "Invalid size %d for gamma on [CRTC:%d:%s]\n",
+			  size, crtc->base.id, crtc->name);
 		return -EINVAL;
 	}
 	asyh->olut.handle = disp->core->chan.vram.handle;
