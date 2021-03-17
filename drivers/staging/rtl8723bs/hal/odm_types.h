@@ -15,7 +15,7 @@
 
 #define GET_ODM(__padapter)	((PDM_ODM_T)(&((GET_HAL_DATA(__padapter))->odmpriv)))
 
-enum HAL_STATUS {
+enum hal_status {
 	HAL_STATUS_SUCCESS,
 	HAL_STATUS_FAILURE,
 	/*RT_STATUS_PENDING,
@@ -30,7 +30,7 @@ enum HAL_STATUS {
 /*  */
 /*  Declare for ODM spin lock definition temporarily from compile pass. */
 /*  */
-enum RT_SPINLOCK_TYPE {
+enum rt_spinlock_type {
 	RT_TX_SPINLOCK = 1,
 	RT_RX_SPINLOCK = 2,
 	RT_RM_SPINLOCK = 3,

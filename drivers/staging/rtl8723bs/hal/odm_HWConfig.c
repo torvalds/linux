@@ -421,7 +421,7 @@ void ODM_PhyStatusQuery(
 /*  */
 /*  */
 
-enum HAL_STATUS ODM_ConfigRFWithHeaderFile(
+enum hal_status ODM_ConfigRFWithHeaderFile(
 	struct DM_ODM_T *pDM_Odm,
 	enum ODM_RF_Config_Type ConfigType,
 	enum ODM_RF_RADIO_PATH_E eRFPath
@@ -441,7 +441,7 @@ enum HAL_STATUS ODM_ConfigRFWithHeaderFile(
 	return HAL_STATUS_SUCCESS;
 }
 
-enum HAL_STATUS ODM_ConfigRFWithTxPwrTrackHeaderFile(struct DM_ODM_T *pDM_Odm)
+enum hal_status ODM_ConfigRFWithTxPwrTrackHeaderFile(struct DM_ODM_T *pDM_Odm)
 {
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
 				 ("===>ODM_ConfigRFWithTxPwrTrackHeaderFile (%s)\n", (pDM_Odm->bIsMPChip) ? "MPChip" : "TestChip"));
@@ -455,7 +455,7 @@ enum HAL_STATUS ODM_ConfigRFWithTxPwrTrackHeaderFile(struct DM_ODM_T *pDM_Odm)
 	return HAL_STATUS_SUCCESS;
 }
 
-enum HAL_STATUS ODM_ConfigBBWithHeaderFile(
+enum hal_status ODM_ConfigBBWithHeaderFile(
 	struct DM_ODM_T *pDM_Odm, enum ODM_BB_Config_Type ConfigType
 )
 {
