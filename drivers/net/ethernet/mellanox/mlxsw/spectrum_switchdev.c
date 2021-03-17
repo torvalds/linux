@@ -2300,9 +2300,56 @@ mlxsw_sp_bridge_8021ad_vxlan_join(struct mlxsw_sp_bridge_device *bridge_device,
 						     vid, ETH_P_8021AD, extack);
 }
 
-static const struct mlxsw_sp_bridge_ops mlxsw_sp_bridge_8021ad_ops = {
+static const struct mlxsw_sp_bridge_ops mlxsw_sp1_bridge_8021ad_ops = {
 	.port_join	= mlxsw_sp_bridge_8021ad_port_join,
 	.port_leave	= mlxsw_sp_bridge_8021ad_port_leave,
+	.vxlan_join	= mlxsw_sp_bridge_8021ad_vxlan_join,
+	.fid_get	= mlxsw_sp_bridge_8021q_fid_get,
+	.fid_lookup	= mlxsw_sp_bridge_8021q_fid_lookup,
+	.fid_vid	= mlxsw_sp_bridge_8021q_fid_vid,
+};
+
+static int
+mlxsw_sp2_bridge_8021ad_port_join(struct mlxsw_sp_bridge_device *bridge_device,
+				  struct mlxsw_sp_bridge_port *bridge_port,
+				  struct mlxsw_sp_port *mlxsw_sp_port,
+				  struct netlink_ext_ack *extack)
+{
+	int err;
+
+	/* The EtherType of decapsulated packets is determined at the egress
+	 * port to allow 802.1d and 802.1ad bridges with VXLAN devices to
+	 * co-exist.
+	 */
+	err = mlxsw_sp_port_egress_ethtype_set(mlxsw_sp_port, ETH_P_8021AD);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_bridge_8021ad_port_join(bridge_device, bridge_port,
+					       mlxsw_sp_port, extack);
+	if (err)
+		goto err_bridge_8021ad_port_join;
+
+	return 0;
+
+err_bridge_8021ad_port_join:
+	mlxsw_sp_port_egress_ethtype_set(mlxsw_sp_port, ETH_P_8021Q);
+	return err;
+}
+
+static void
+mlxsw_sp2_bridge_8021ad_port_leave(struct mlxsw_sp_bridge_device *bridge_device,
+				   struct mlxsw_sp_bridge_port *bridge_port,
+				   struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	mlxsw_sp_bridge_8021ad_port_leave(bridge_device, bridge_port,
+					  mlxsw_sp_port);
+	mlxsw_sp_port_egress_ethtype_set(mlxsw_sp_port, ETH_P_8021Q);
+}
+
+static const struct mlxsw_sp_bridge_ops mlxsw_sp2_bridge_8021ad_ops = {
+	.port_join	= mlxsw_sp2_bridge_8021ad_port_join,
+	.port_leave	= mlxsw_sp2_bridge_8021ad_port_leave,
 	.vxlan_join	= mlxsw_sp_bridge_8021ad_vxlan_join,
 	.fid_get	= mlxsw_sp_bridge_8021q_fid_get,
 	.fid_lookup	= mlxsw_sp_bridge_8021q_fid_lookup,
@@ -3541,6 +3588,7 @@ static void mlxsw_sp_fdb_fini(struct mlxsw_sp *mlxsw_sp)
 
 static void mlxsw_sp1_switchdev_init(struct mlxsw_sp *mlxsw_sp)
 {
+	mlxsw_sp->bridge->bridge_8021ad_ops = &mlxsw_sp1_bridge_8021ad_ops;
 }
 
 const struct mlxsw_sp_switchdev_ops mlxsw_sp1_switchdev_ops = {
@@ -3549,6 +3597,7 @@ const struct mlxsw_sp_switchdev_ops mlxsw_sp1_switchdev_ops = {
 
 static void mlxsw_sp2_switchdev_init(struct mlxsw_sp *mlxsw_sp)
 {
+	mlxsw_sp->bridge->bridge_8021ad_ops = &mlxsw_sp2_bridge_8021ad_ops;
 }
 
 const struct mlxsw_sp_switchdev_ops mlxsw_sp2_switchdev_ops = {
@@ -3569,7 +3618,6 @@ int mlxsw_sp_switchdev_init(struct mlxsw_sp *mlxsw_sp)
 
 	bridge->bridge_8021q_ops = &mlxsw_sp_bridge_8021q_ops;
 	bridge->bridge_8021d_ops = &mlxsw_sp_bridge_8021d_ops;
-	bridge->bridge_8021ad_ops = &mlxsw_sp_bridge_8021ad_ops;
 
 	mlxsw_sp->switchdev_ops->init(mlxsw_sp);
 
