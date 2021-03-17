@@ -76,6 +76,16 @@ config RISCV_PMU_LEGACY
 	  of cycle/instruction counter and doesn't support counter overflow,
 	  or programmable counters. It will be removed in future.
 
+config RISCV_PMU_SBI
+	depends on RISCV_PMU && RISCV_SBI
+	bool "RISC-V PMU based on SBI PMU extension"
+	default y
+	help
+	  Say y if you want to use the CPU performance monitor
+	  using SBI PMU extension on RISC-V based systems. This option provides
+	  full perf feature support i.e. counter overflow, privilege mode
+	  filtering, counter configuration.
+
 config ARM_PMU_ACPI
 	depends on ARM_PMU && ACPI
 	def_bool y
