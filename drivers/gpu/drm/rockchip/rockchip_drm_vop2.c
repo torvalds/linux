@@ -1354,7 +1354,7 @@ static uint16_t vop2_scale_factor(enum scale_mode mode,
 			if (VOP2_BILI_SCL_FAC_CHECK(src, dst, fac))
 				break;
 			fac -= 1;
-			DRM_WARN("down fac cali: src:%d, dst:%d, fac:0x%x\n", src, dst, fac);
+			DRM_DEBUG("down fac cali: src:%d, dst:%d, fac:0x%x\n", src, dst, fac);
 		}
 	} else {
 		fac = VOP2_COMMON_SCL(src, dst);
@@ -1362,7 +1362,7 @@ static uint16_t vop2_scale_factor(enum scale_mode mode,
 			if (VOP2_COMMON_SCL_FAC_CHECK(src, dst, fac))
 				break;
 			fac -= 1;
-			DRM_WARN("up fac cali:  src:%d, dst:%d, fac:0x%x\n", src, dst, fac);
+			DRM_DEBUG("up fac cali:  src:%d, dst:%d, fac:0x%x\n", src, dst, fac);
 		}
 	}
 
