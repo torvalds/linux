@@ -224,6 +224,18 @@ u64 ifcvf_get_features(struct ifcvf_hw *hw)
 	return hw->hw_features;
 }
 
+int ifcvf_verify_min_features(struct ifcvf_hw *hw, u64 features)
+{
+	struct ifcvf_adapter *ifcvf = vf_to_adapter(hw);
+
+	if (!(features & BIT_ULL(VIRTIO_F_ACCESS_PLATFORM)) && features) {
+		IFCVF_ERR(ifcvf->pdev, "VIRTIO_F_ACCESS_PLATFORM is not negotiated\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 void ifcvf_read_net_config(struct ifcvf_hw *hw, u64 offset,
 			   void *dst, int length)
 {

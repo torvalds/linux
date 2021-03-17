@@ -179,6 +179,11 @@ static u64 ifcvf_vdpa_get_features(struct vdpa_device *vdpa_dev)
 static int ifcvf_vdpa_set_features(struct vdpa_device *vdpa_dev, u64 features)
 {
 	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
+	int ret;
+
+	ret = ifcvf_verify_min_features(vf, features);
+	if (ret)
+		return ret;
 
 	vf->req_features = features;
 
