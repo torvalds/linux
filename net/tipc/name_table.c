@@ -416,17 +416,14 @@ static int tipc_publ_sort(void *priv, struct list_head *a,
 static void tipc_service_subscribe(struct tipc_service *service,
 				   struct tipc_subscription *sub)
 {
-	struct tipc_subscr *sb = &sub->evt.s;
 	struct publication *p, *first, *tmp;
 	struct list_head publ_list;
 	struct service_range *sr;
-	struct tipc_service_range r;
-	u32 filter;
+	u32 filter, lower, upper;
 
-	r.type = tipc_sub_read(sb, seq.type);
-	r.lower = tipc_sub_read(sb, seq.lower);
-	r.upper = tipc_sub_read(sb, seq.upper);
-	filter = tipc_sub_read(sb, filter);
+	filter = sub->s.filter;
+	lower = sub->s.seq.lower;
+	upper = sub->s.seq.upper;
 
 	tipc_sub_get(sub);
 	list_add(&sub->service_list, &service->subscriptions);
@@ -435,7 +432,7 @@ static void tipc_service_subscribe(struct tipc_service *service,
 		return;
 
 	INIT_LIST_HEAD(&publ_list);
-	service_range_foreach_match(sr, service, r.lower, r.upper) {
+	service_range_foreach_match(sr, service, lower, upper) {
 		first = NULL;
 		list_for_each_entry(p, &sr->all_publ, all_publ) {
 			if (filter & TIPC_SUB_PORTS)
@@ -826,14 +823,13 @@ void tipc_nametbl_withdraw(struct net *net, struct tipc_uaddr *ua,
 bool tipc_nametbl_subscribe(struct tipc_subscription *sub)
 {
 	struct tipc_net *tn = tipc_net(sub->net);
-	struct tipc_subscr *s = &sub->evt.s;
-	u32 type = tipc_sub_read(s, seq.type);
+	u32 type = sub->s.seq.type;
 	struct tipc_service *sc;
 	struct tipc_uaddr ua;
 	bool res = true;
 
 	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_NODE_SCOPE, type,
-		   tipc_sub_read(s, seq.lower), tipc_sub_read(s, seq.upper));
+		   sub->s.seq.lower, sub->s.seq.upper);
 	spin_lock_bh(&tn->nametbl_lock);
 	sc = tipc_service_find(sub->net, &ua);
 	if (!sc)
@@ -843,9 +839,8 @@ bool tipc_nametbl_subscribe(struct tipc_subscription *sub)
 		tipc_service_subscribe(sc, sub);
 		spin_unlock_bh(&sc->lock);
 	} else {
-		pr_warn("Failed to subscribe for {%u,%u,%u}\n", type,
-			tipc_sub_read(s, seq.lower),
-			tipc_sub_read(s, seq.upper));
+		pr_warn("Failed to subscribe for {%u,%u,%u}\n",
+			type, sub->s.seq.lower, sub->s.seq.upper);
 		res = false;
 	}
 	spin_unlock_bh(&tn->nametbl_lock);
@@ -859,13 +854,11 @@ bool tipc_nametbl_subscribe(struct tipc_subscription *sub)
 void tipc_nametbl_unsubscribe(struct tipc_subscription *sub)
 {
 	struct tipc_net *tn = tipc_net(sub->net);
-	struct tipc_subscr *s = &sub->evt.s;
-	u32 type = tipc_sub_read(s, seq.type);
 	struct tipc_service *sc;
 	struct tipc_uaddr ua;
 
-	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_NODE_SCOPE, type,
-		   tipc_sub_read(s, seq.lower), tipc_sub_read(s, seq.upper));
+	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_NODE_SCOPE,
+		   sub->s.seq.type, sub->s.seq.lower, sub->s.seq.upper);
 	spin_lock_bh(&tn->nametbl_lock);
 	sc = tipc_service_find(sub->net, &ua);
 	if (!sc)

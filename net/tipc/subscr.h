@@ -60,12 +60,13 @@ struct tipc_conn;
  * @lock: serialize up/down and timer events
  */
 struct tipc_subscription {
+	struct tipc_subscr s;
+	struct tipc_event evt;
 	struct kref kref;
 	struct net *net;
 	struct timer_list timer;
 	struct list_head service_list;
 	struct list_head sub_list;
-	struct tipc_event evt;
 	int conid;
 	bool inactive;
 	spinlock_t lock;
