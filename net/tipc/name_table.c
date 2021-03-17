@@ -327,49 +327,48 @@ static struct service_range *tipc_service_create_range(struct tipc_service *sc,
 	return sr;
 }
 
-static struct publication *tipc_service_insert_publ(struct net *net,
-						    struct tipc_service *sc,
-						    u32 type, u32 lower,
-						    u32 upper, u32 scope,
-						    u32 node, u32 port,
-						    u32 key)
+static bool tipc_service_insert_publ(struct net *net,
+				     struct tipc_service *sc,
+				     struct publication *p)
 {
 	struct tipc_subscription *sub, *tmp;
 	struct service_range *sr;
-	struct publication *p;
+	struct publication *_p;
+	u32 node = p->sk.node;
 	bool first = false;
+	bool res = false;
 
-	sr = tipc_service_create_range(sc, lower, upper);
+	spin_lock_bh(&sc->lock);
+	sr = tipc_service_create_range(sc, p->sr.lower, p->sr.upper);
 	if (!sr)
-		goto  err;
+		goto  exit;
 
 	first = list_empty(&sr->all_publ);
 
 	/* Return if the publication already exists */
-	list_for_each_entry(p, &sr->all_publ, all_publ) {
-		if (p->key == key && (!p->sk.node || p->sk.node == node))
-			return NULL;
+	list_for_each_entry(_p, &sr->all_publ, all_publ) {
+		if (_p->key == p->key && (!_p->sk.node || _p->sk.node == node))
+			goto exit;
 	}
 
-	/* Create and insert publication */
-	p = tipc_publ_create(type, lower, upper, scope, node, port, key);
-	if (!p)
-		goto err;
-	/* Suppose there shouldn't be a huge gap btw publs i.e. >INT_MAX */
-	p->id = sc->publ_cnt++;
-	if (in_own_node(net, node))
+	if (in_own_node(net, p->sk.node))
 		list_add(&p->local_publ, &sr->local_publ);
 	list_add(&p->all_publ, &sr->all_publ);
+	p->id = sc->publ_cnt++;
 
 	/* Any subscriptions waiting for notification?  */
 	list_for_each_entry_safe(sub, tmp, &sc->subscriptions, service_list) {
-		tipc_sub_report_overlap(sub, p->sr.lower, p->sr.upper, TIPC_PUBLISHED,
-					p->sk.ref, p->sk.node, p->scope, first);
+		tipc_sub_report_overlap(sub, p->sr.lower, p->sr.upper,
+					TIPC_PUBLISHED, p->sk.ref, p->sk.node,
+					p->scope, first);
 	}
-	return p;
-err:
-	pr_warn("Failed to bind to %u,%u,%u, no memory\n", type, lower, upper);
-	return NULL;
+	res = true;
+exit:
+	if (!res)
+		pr_warn("Failed to bind to %u,%u,%u\n",
+			p->sr.type, p->sr.lower, p->sr.upper);
+	spin_unlock_bh(&sc->lock);
+	return res;
 }
 
 /**
@@ -482,6 +481,10 @@ struct publication *tipc_nametbl_insert_publ(struct net *net, u32 type,
 	struct tipc_service *sc;
 	struct publication *p;
 
+	p = tipc_publ_create(type, lower, upper, scope, node, port, key);
+	if (!p)
+		return NULL;
+
 	if (scope > TIPC_NODE_SCOPE || lower > upper) {
 		pr_debug("Failed to bind illegal {%u,%u,%u} with scope %u\n",
 			 type, lower, upper, scope);
@@ -490,14 +493,10 @@ struct publication *tipc_nametbl_insert_publ(struct net *net, u32 type,
 	sc = tipc_service_find(net, type);
 	if (!sc)
 		sc = tipc_service_create(type, &nt->services[hash(type)]);
-	if (!sc)
-		return NULL;
-
-	spin_lock_bh(&sc->lock);
-	p = tipc_service_insert_publ(net, sc, type, lower, upper,
-				     scope, node, port, key);
-	spin_unlock_bh(&sc->lock);
-	return p;
+	if (sc && tipc_service_insert_publ(net, sc, p))
+		return p;
+	kfree(p);
+	return NULL;
 }
 
 struct publication *tipc_nametbl_remove_publ(struct net *net, u32 type,
