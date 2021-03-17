@@ -275,13 +275,13 @@ static struct tipc_service *tipc_service_create(u32 type, struct hlist_head *hd)
 /*  tipc_service_find_range - find service range matching publication parameters
  */
 static struct service_range *tipc_service_find_range(struct tipc_service *sc,
-						     u32 lower, u32 upper)
+						     struct tipc_uaddr *ua)
 {
 	struct service_range *sr;
 
-	service_range_foreach_match(sr, sc, lower, upper) {
+	service_range_foreach_match(sr, sc, ua->sr.lower, ua->sr.upper) {
 		/* Look for exact match */
-		if (sr->lower == lower && sr->upper == upper)
+		if (sr->lower == ua->sr.lower && sr->upper == ua->sr.upper)
 			return sr;
 	}
 
@@ -289,10 +289,12 @@ static struct service_range *tipc_service_find_range(struct tipc_service *sc,
 }
 
 static struct service_range *tipc_service_create_range(struct tipc_service *sc,
-						       u32 lower, u32 upper)
+						       struct publication *p)
 {
 	struct rb_node **n, *parent = NULL;
 	struct service_range *sr;
+	u32 lower = p->sr.lower;
+	u32 upper = p->sr.upper;
 
 	n = &sc->ranges.rb_node;
 	while (*n) {
@@ -332,7 +334,7 @@ static bool tipc_service_insert_publ(struct net *net,
 	bool res = false;
 
 	spin_lock_bh(&sc->lock);
-	sr = tipc_service_create_range(sc, p->sr.lower, p->sr.upper);
+	sr = tipc_service_create_range(sc, p);
 	if (!sr)
 		goto  exit;
 
@@ -513,7 +515,7 @@ struct publication *tipc_nametbl_remove_publ(struct net *net,
 		return NULL;
 
 	spin_lock_bh(&sc->lock);
-	sr = tipc_service_find_range(sc, lower, upper);
+	sr = tipc_service_find_range(sc, ua);
 	if (!sr)
 		goto exit;
 	p = tipc_service_remove_publ(sr, sk, key);
