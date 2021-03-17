@@ -6,7 +6,6 @@ POST_DEFCONFIG_CMDS="update_config"
 function update_config() {
     ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config \
          -d TEST_KMOD  \
-         -d CPU_BIG_ENDIAN \
          -e UNWINDER_FRAME_POINTER \
 
     (cd ${OUT_DIR} && \
