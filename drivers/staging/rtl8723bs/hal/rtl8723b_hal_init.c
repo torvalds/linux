@@ -2991,7 +2991,7 @@ static u8 fill_txdesc_sectype(struct pkt_attrib *pattrib)
 	return sectype;
 }
 
-static void fill_txdesc_vcs_8723b(struct adapter *padapter, struct pkt_attrib *pattrib, struct TXDESC_8723B *ptxdesc)
+static void fill_txdesc_vcs_8723b(struct adapter *padapter, struct pkt_attrib *pattrib, struct txdesc_8723b *ptxdesc)
 {
 	/* DBG_8192C("cvs_mode =%d\n", pattrib->vcs_mode); */
 
@@ -3024,7 +3024,7 @@ static void fill_txdesc_vcs_8723b(struct adapter *padapter, struct pkt_attrib *p
 	}
 }
 
-static void fill_txdesc_phy_8723b(struct adapter *padapter, struct pkt_attrib *pattrib, struct TXDESC_8723B *ptxdesc)
+static void fill_txdesc_phy_8723b(struct adapter *padapter, struct pkt_attrib *pattrib, struct txdesc_8723b *ptxdesc)
 {
 	/* DBG_8192C("bwmode =%d, ch_off =%d\n", pattrib->bwmode, pattrib->ch_offset); */
 
@@ -3044,7 +3044,7 @@ static void rtl8723b_fill_default_txdesc(
 	struct mlme_ext_priv *pmlmeext;
 	struct mlme_ext_info *pmlmeinfo;
 	struct pkt_attrib *pattrib;
-	struct TXDESC_8723B *ptxdesc;
+	struct txdesc_8723b *ptxdesc;
 	s32 bmcst;
 
 	memset(pbuf, 0, TXDESC_SIZE);
@@ -3057,7 +3057,7 @@ static void rtl8723b_fill_default_txdesc(
 	pattrib = &pxmitframe->attrib;
 	bmcst = IS_MCAST(pattrib->ra);
 
-	ptxdesc = (struct TXDESC_8723B *)pbuf;
+	ptxdesc = (struct txdesc_8723b *)pbuf;
 
 	if (pxmitframe->frame_tag == DATA_FRAMETAG) {
 		u8 drv_userate = 0;

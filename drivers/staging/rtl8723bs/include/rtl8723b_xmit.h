@@ -59,7 +59,7 @@
 /*  */
 /* defined for TX DESC Operation */
 /*  */
-struct TXDESC_8723B {
+struct txdesc_8723b {
 	/*  Offset 0 */
 	u32 pktlen:16;
 	u32 offset:8;
