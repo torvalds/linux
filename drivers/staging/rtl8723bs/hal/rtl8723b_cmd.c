@@ -434,7 +434,7 @@ void CheckFwRsvdPageContent(struct adapter *Adapter)
 {
 }
 
-static void rtl8723b_set_FwRsvdPage_cmd(struct adapter *padapter, struct RSVDPAGE_LOC *rsvdpageloc)
+static void rtl8723b_set_FwRsvdPage_cmd(struct adapter *padapter, struct rsvdpage_loc *rsvdpageloc)
 {
 	u8 u1H2CRsvdPageParm[H2C_RSVDPAGE_LOC_LEN] = {0};
 
@@ -453,7 +453,7 @@ static void rtl8723b_set_FwRsvdPage_cmd(struct adapter *padapter, struct RSVDPAG
 	FillH2CCmd8723B(padapter, H2C_8723B_RSVD_PAGE, H2C_RSVDPAGE_LOC_LEN, u1H2CRsvdPageParm);
 }
 
-static void rtl8723b_set_FwAoacRsvdPage_cmd(struct adapter *padapter, struct RSVDPAGE_LOC *rsvdpageloc)
+static void rtl8723b_set_FwAoacRsvdPage_cmd(struct adapter *padapter, struct rsvdpage_loc *rsvdpageloc)
 {
 }
 
@@ -789,7 +789,7 @@ static void rtl8723b_set_FwRsvdPagePkt(
 	u16 BufIndex, PageSize = 128;
 	u32 TotalPacketLen, MaxRsvdPageBufSize = 0;
 
-	struct RSVDPAGE_LOC RsvdPageLoc;
+	struct rsvdpage_loc RsvdPageLoc;
 
 	/* DBG_871X("%s---->\n", __func__); */
 
@@ -808,7 +808,7 @@ static void rtl8723b_set_FwRsvdPagePkt(
 	}
 
 	ReservedPagePacket = pcmdframe->buf_addr;
-	memset(&RsvdPageLoc, 0, sizeof(struct RSVDPAGE_LOC));
+	memset(&RsvdPageLoc, 0, sizeof(struct rsvdpage_loc));
 
 	/* 3 (1) beacon */
 	BufIndex = TxDescOffset;
@@ -1267,7 +1267,7 @@ static void SetFwRsvdPagePkt_BTCoex(struct adapter *padapter)
 	u8 TotalPageNum = 0, CurtPktPageNum = 0, RsvdPageNum = 0;
 	u16 BufIndex, PageSize;
 	u32 TotalPacketLen, MaxRsvdPageBufSize = 0;
-	struct RSVDPAGE_LOC RsvdPageLoc;
+	struct rsvdpage_loc RsvdPageLoc;
 
 
 /* 	DBG_8192C("+" FUNC_ADPT_FMT "\n", FUNC_ADPT_ARG(padapter)); */
@@ -1287,7 +1287,7 @@ static void SetFwRsvdPagePkt_BTCoex(struct adapter *padapter)
 	}
 
 	ReservedPagePacket = pcmdframe->buf_addr;
-	memset(&RsvdPageLoc, 0, sizeof(struct RSVDPAGE_LOC));
+	memset(&RsvdPageLoc, 0, sizeof(struct rsvdpage_loc));
 
 	/* 3 (1) beacon */
 	BufIndex = TxDescOffset;

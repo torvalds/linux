@@ -180,7 +180,7 @@ enum h2c_cmd {
 /*  */
 /*     Structure    -------------------------------------------------- */
 /*  */
-struct RSVDPAGE_LOC {
+struct rsvdpage_loc {
 	u8 LocProbeRsp;
 	u8 LocPsPoll;
 	u8 LocNullData;
