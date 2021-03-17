@@ -236,6 +236,7 @@ headc57d = {
 	.view = headc37d_view,
 	.mode = headc57d_mode,
 	.olut = headc57d_olut,
+	.ilut_check = head907d_ilut_check,
 	.olut_identity = true,
 	.olut_size = 1024,
 	.olut_set = headc57d_olut_set,
