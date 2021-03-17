@@ -141,7 +141,7 @@ enum { /*  for ips_mode */
 };
 
 /*  Design for pwrctrl_priv.ips_deny, 32 bits for 32 reasons at most */
-enum PS_DENY_REASON {
+enum ps_deny_reason {
 	PS_DENY_DRV_INITIAL = 0,
 	PS_DENY_SCAN,
 	PS_DENY_JOIN,
@@ -192,7 +192,7 @@ struct pwrctrl_priv {
 	u8 pre_ips_type;/*  0: default flow, 1: carddisbale flow */
 
 	/*  ps_deny: if 0, power save is free to go; otherwise deny all kinds of power save. */
-	/*  Use PS_DENY_REASON to decide reason. */
+	/*  Use enum ps_deny_reason to decide reason. */
 	/*  Don't access this variable directly without control function, */
 	/*  and this variable should be protected by lock. */
 	u32 ps_deny;
@@ -290,8 +290,8 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 int rtw_pm_set_ips(struct adapter *padapter, u8 mode);
 int rtw_pm_set_lps(struct adapter *padapter, u8 mode);
 
-void rtw_ps_deny(struct adapter *padapter, enum PS_DENY_REASON reason);
-void rtw_ps_deny_cancel(struct adapter *padapter, enum PS_DENY_REASON reason);
+void rtw_ps_deny(struct adapter *padapter, enum ps_deny_reason reason);
+void rtw_ps_deny_cancel(struct adapter *padapter, enum ps_deny_reason reason);
 u32 rtw_ps_deny_get(struct adapter *padapter);
 
 #endif  /* __RTL871X_PWRCTRL_H_ */

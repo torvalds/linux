@@ -1304,7 +1304,7 @@ int rtw_pm_set_ips(struct adapter *padapter, u8 mode)
  * ATTENTION:
  *This function will request pwrctrl LOCK!
  */
-void rtw_ps_deny(struct adapter *padapter, enum PS_DENY_REASON reason)
+void rtw_ps_deny(struct adapter *padapter, enum ps_deny_reason reason)
 {
 	struct pwrctrl_priv *pwrpriv;
 
@@ -1329,7 +1329,7 @@ void rtw_ps_deny(struct adapter *padapter, enum PS_DENY_REASON reason)
  * ATTENTION:
  *This function will request pwrctrl LOCK!
  */
-void rtw_ps_deny_cancel(struct adapter *padapter, enum PS_DENY_REASON reason)
+void rtw_ps_deny_cancel(struct adapter *padapter, enum ps_deny_reason reason)
 {
 	struct pwrctrl_priv *pwrpriv;
 
