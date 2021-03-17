@@ -253,5 +253,7 @@ int main(int argc, char **argv)
 	if (cat_test)
 		run_cat_test(cpu_no, no_of_bits);
 
+	umount_resctrlfs();
+
 	return ksft_exit_pass();
 }
