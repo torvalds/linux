@@ -358,9 +358,7 @@ static bool tipc_service_insert_publ(struct net *net,
 
 	/* Any subscriptions waiting for notification?  */
 	list_for_each_entry_safe(sub, tmp, &sc->subscriptions, service_list) {
-		tipc_sub_report_overlap(sub, p->sr.lower, p->sr.upper,
-					TIPC_PUBLISHED, p->sk.ref, p->sk.node,
-					p->scope, first);
+		tipc_sub_report_overlap(sub, p, TIPC_PUBLISHED, first);
 	}
 	res = true;
 exit:
@@ -453,9 +451,7 @@ static void tipc_service_subscribe(struct tipc_service *service,
 	/* Sort the publications before reporting */
 	list_sort(NULL, &publ_list, tipc_publ_sort);
 	list_for_each_entry_safe(p, tmp, &publ_list, list) {
-		tipc_sub_report_overlap(sub, p->sr.lower, p->sr.upper,
-					TIPC_PUBLISHED, p->sk.ref, p->sk.node,
-					p->scope, true);
+		tipc_sub_report_overlap(sub, p, TIPC_PUBLISHED, true);
 		list_del_init(&p->list);
 	}
 }
@@ -511,8 +507,6 @@ struct publication *tipc_nametbl_remove_publ(struct net *net,
 	struct publication *p = NULL;
 	struct service_range *sr;
 	struct tipc_service *sc;
-	u32 upper = ua->sr.upper;
-	u32 lower = ua->sr.lower;
 	bool last;
 
 	sc = tipc_service_find(net, ua);
@@ -530,8 +524,7 @@ struct publication *tipc_nametbl_remove_publ(struct net *net,
 	/* Notify any waiting subscriptions */
 	last = list_empty(&sr->all_publ);
 	list_for_each_entry_safe(sub, tmp, &sc->subscriptions, service_list) {
-		tipc_sub_report_overlap(sub, lower, upper, TIPC_WITHDRAWN,
-					sk->ref, sk->node, ua->scope, last);
+		tipc_sub_report_overlap(sub, p, TIPC_WITHDRAWN, last);
 	}
 
 	/* Remove service range item if this was its last publication */
@@ -540,7 +533,7 @@ struct publication *tipc_nametbl_remove_publ(struct net *net,
 		kfree(sr);
 	}
 
-	/* Delete service item if this no more publications and subscriptions */
+	/* Delete service item if no more publications and subscriptions */
 	if (RB_EMPTY_ROOT(&sc->ranges) && list_empty(&sc->subscriptions)) {
 		hlist_del_init_rcu(&sc->service_list);
 		kfree_rcu(sc, rcu);
@@ -839,7 +832,8 @@ bool tipc_nametbl_subscribe(struct tipc_subscription *sub)
 	struct tipc_uaddr ua;
 	bool res = true;
 
-	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_NODE_SCOPE, type, 0, 0);
+	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_NODE_SCOPE, type,
+		   tipc_sub_read(s, seq.lower), tipc_sub_read(s, seq.upper));
 	spin_lock_bh(&tn->nametbl_lock);
 	sc = tipc_service_find(sub->net, &ua);
 	if (!sc)
@@ -870,7 +864,8 @@ void tipc_nametbl_unsubscribe(struct tipc_subscription *sub)
 	struct tipc_service *sc;
 	struct tipc_uaddr ua;
 
-	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_NODE_SCOPE, type, 0, 0);
+	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_NODE_SCOPE, type,
+		   tipc_sub_read(s, seq.lower), tipc_sub_read(s, seq.upper));
 	spin_lock_bh(&tn->nametbl_lock);
 	sc = tipc_service_find(sub->net, &ua);
 	if (!sc)

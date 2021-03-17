@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2003-2017, Ericsson AB
  * Copyright (c) 2005-2007, 2012-2013, Wind River Systems
- * Copyright (c) 2020, Red Hat Inc
+ * Copyright (c) 2020-2021, Red Hat Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,7 @@
 #define TIPC_MAX_SUBSCR         65535
 #define TIPC_MAX_PUBL           65535
 
+struct publication;
 struct tipc_subscription;
 struct tipc_conn;
 
@@ -74,13 +75,9 @@ struct tipc_subscription *tipc_sub_subscribe(struct net *net,
 					     struct tipc_subscr *s,
 					     int conid);
 void tipc_sub_unsubscribe(struct tipc_subscription *sub);
-
-int tipc_sub_check_overlap(struct tipc_service_range *seq,
-			   u32 found_lower, u32 found_upper);
 void tipc_sub_report_overlap(struct tipc_subscription *sub,
-			     u32 found_lower, u32 found_upper,
-			     u32 event, u32 port, u32 node,
-			     u32 scope, int must);
+			     struct publication *p,
+			     u32 event, bool must);
 
 int __net_init tipc_topsrv_init_net(struct net *net);
 void __net_exit tipc_topsrv_exit_net(struct net *net);
