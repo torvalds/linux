@@ -92,6 +92,11 @@ struct mlxsw_sp_rif_ops;
 extern const struct mlxsw_sp_rif_ops *mlxsw_sp1_rif_ops_arr[];
 extern const struct mlxsw_sp_rif_ops *mlxsw_sp2_rif_ops_arr[];
 
+struct mlxsw_sp_switchdev_ops;
+
+extern const struct mlxsw_sp_switchdev_ops mlxsw_sp1_switchdev_ops;
+extern const struct mlxsw_sp_switchdev_ops mlxsw_sp2_switchdev_ops;
+
 enum mlxsw_sp_fid_type {
 	MLXSW_SP_FID_TYPE_8021Q,
 	MLXSW_SP_FID_TYPE_8021D,
@@ -167,6 +172,7 @@ struct mlxsw_sp {
 	struct mlxsw_sp_counter_pool *counter_pool;
 	struct mlxsw_sp_span *span;
 	struct mlxsw_sp_trap *trap;
+	const struct mlxsw_sp_switchdev_ops *switchdev_ops;
 	const struct mlxsw_sp_kvdl_ops *kvdl_ops;
 	const struct mlxsw_afa_ops *afa_ops;
 	const struct mlxsw_afk_ops *afk_ops;

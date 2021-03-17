@@ -98,6 +98,10 @@ struct mlxsw_sp_bridge_ops {
 		       const struct mlxsw_sp_fid *fid);
 };
 
+struct mlxsw_sp_switchdev_ops {
+	void (*init)(struct mlxsw_sp *mlxsw_sp);
+};
+
 static int
 mlxsw_sp_bridge_port_fdb_flush(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_bridge_port *bridge_port,
@@ -3535,6 +3539,22 @@ static void mlxsw_sp_fdb_fini(struct mlxsw_sp *mlxsw_sp)
 	unregister_switchdev_notifier(&mlxsw_sp_switchdev_notifier);
 }
 
+static void mlxsw_sp1_switchdev_init(struct mlxsw_sp *mlxsw_sp)
+{
+}
+
+const struct mlxsw_sp_switchdev_ops mlxsw_sp1_switchdev_ops = {
+	.init	= mlxsw_sp1_switchdev_init,
+};
+
+static void mlxsw_sp2_switchdev_init(struct mlxsw_sp *mlxsw_sp)
+{
+}
+
+const struct mlxsw_sp_switchdev_ops mlxsw_sp2_switchdev_ops = {
+	.init	= mlxsw_sp2_switchdev_init,
+};
+
 int mlxsw_sp_switchdev_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_bridge *bridge;
@@ -3550,6 +3570,8 @@ int mlxsw_sp_switchdev_init(struct mlxsw_sp *mlxsw_sp)
 	bridge->bridge_8021q_ops = &mlxsw_sp_bridge_8021q_ops;
 	bridge->bridge_8021d_ops = &mlxsw_sp_bridge_8021d_ops;
 	bridge->bridge_8021ad_ops = &mlxsw_sp_bridge_8021ad_ops;
+
+	mlxsw_sp->switchdev_ops->init(mlxsw_sp);
 
 	return mlxsw_sp_fdb_init(mlxsw_sp);
 }
