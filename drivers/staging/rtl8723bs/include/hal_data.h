@@ -434,7 +434,7 @@ struct hal_com_data {
 	struct DM_ODM_T		odmpriv;
 
 	/*  For bluetooth co-existance */
-	struct BT_COEXIST		bt_coexist;
+	struct bt_coexist		bt_coexist;
 
 	/*  Interrupt related register information. */
 	u32 		SysIntrStatus;
