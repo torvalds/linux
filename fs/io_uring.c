@@ -486,7 +486,15 @@ struct io_poll_iocb {
 	__poll_t			events;
 	bool				done;
 	bool				canceled;
-	struct wait_queue_entry		wait;
+	bool				update_events;
+	bool				update_user_data;
+	union {
+		struct wait_queue_entry	wait;
+		struct {
+			u64		old_user_data;
+			u64		new_user_data;
+		};
+	};
 };
 
 struct io_poll_remove {
@@ -4911,8 +4919,9 @@ static bool io_poll_complete(struct io_kiocb *req, __poll_t mask, int error)
 	}
 	if (!error)
 		error = mangle_poll(mask);
-	if (!__io_cqring_fill_event(req, error, flags) ||
-	    (req->poll.events & EPOLLONESHOT)) {
+	if (req->poll.events & EPOLLONESHOT)
+		flags = 0;
+	if (!__io_cqring_fill_event(req, error, flags)) {
 		io_poll_remove_waitqs(req);
 		req->poll.done = true;
 		flags = 0;
@@ -4992,6 +5001,7 @@ static void io_init_poll_iocb(struct io_poll_iocb *poll, __poll_t events,
 	poll->head = NULL;
 	poll->done = false;
 	poll->canceled = false;
+	poll->update_events = poll->update_user_data = false;
 #define IO_POLL_UNMASK	(EPOLLERR|EPOLLHUP|EPOLLNVAL|EPOLLRDHUP)
 	/* mask in events that we always want/need */
 	poll->events = events | IO_POLL_UNMASK;
@@ -5370,24 +5380,36 @@ static int io_poll_add_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
-	if (sqe->addr || sqe->ioprio || sqe->off || sqe->buf_index)
+	if (sqe->ioprio || sqe->buf_index)
 		return -EINVAL;
 	flags = READ_ONCE(sqe->len);
-	if (flags & ~IORING_POLL_ADD_MULTI)
+	if (flags & ~(IORING_POLL_ADD_MULTI | IORING_POLL_UPDATE_EVENTS |
+			IORING_POLL_UPDATE_USER_DATA))
 		return -EINVAL;
-
 	events = READ_ONCE(sqe->poll32_events);
 #ifdef __BIG_ENDIAN
 	events = swahw32(events);
 #endif
-	if (!flags)
+	if (!(flags & IORING_POLL_ADD_MULTI))
 		events |= EPOLLONESHOT;
+	poll->update_events = poll->update_user_data = false;
+	if (flags & IORING_POLL_UPDATE_EVENTS) {
+		poll->update_events = true;
+		poll->old_user_data = READ_ONCE(sqe->addr);
+	}
+	if (flags & IORING_POLL_UPDATE_USER_DATA) {
+		poll->update_user_data = true;
+		poll->new_user_data = READ_ONCE(sqe->off);
+	}
+	if (!(poll->update_events || poll->update_user_data) &&
+	     (sqe->off || sqe->addr))
+		return -EINVAL;
 	poll->events = demangle_poll(events) |
 				(events & (EPOLLEXCLUSIVE|EPOLLONESHOT));
 	return 0;
 }
 
-static int io_poll_add(struct io_kiocb *req, unsigned int issue_flags)
+static int __io_poll_add(struct io_kiocb *req)
 {
 	struct io_poll_iocb *poll = &req->poll;
 	struct io_ring_ctx *ctx = req->ctx;
@@ -5411,6 +5433,63 @@ static int io_poll_add(struct io_kiocb *req, unsigned int issue_flags)
 			io_put_req(req);
 	}
 	return ipt.error;
+}
+
+static int io_poll_update(struct io_kiocb *req)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	struct io_kiocb *preq;
+	int ret;
+
+	spin_lock_irq(&ctx->completion_lock);
+	preq = io_poll_find(ctx, req->poll.old_user_data);
+	if (!preq) {
+		ret = -ENOENT;
+		goto err;
+	} else if (preq->opcode != IORING_OP_POLL_ADD) {
+		/* don't allow internal poll updates */
+		ret = -EACCES;
+		goto err;
+	}
+	if (!__io_poll_remove_one(preq, &preq->poll)) {
+		/* in process of completing/removal */
+		ret = -EALREADY;
+		goto err;
+	}
+	/* we now have a detached poll request. reissue. */
+	ret = 0;
+err:
+	spin_unlock_irq(&ctx->completion_lock);
+	if (ret < 0) {
+		req_set_fail_links(req);
+		io_req_complete(req, ret);
+		return 0;
+	}
+	/* only mask one event flags, keep behavior flags */
+	if (req->poll.update_events) {
+		preq->poll.events &= ~0xffff;
+		preq->poll.events |= req->poll.events & 0xffff;
+		preq->poll.events |= IO_POLL_UNMASK;
+	}
+	if (req->poll.update_user_data)
+		preq->user_data = req->poll.new_user_data;
+
+	/* complete update request, we're done with it */
+	io_req_complete(req, ret);
+
+	ret = __io_poll_add(preq);
+	if (ret < 0) {
+		req_set_fail_links(preq);
+		io_req_complete(preq, ret);
+	}
+	return 0;
+}
+
+static int io_poll_add(struct io_kiocb *req, unsigned int issue_flags)
+{
+	if (!req->poll.update_events && !req->poll.update_user_data)
+		return __io_poll_add(req);
+	return io_poll_update(req);
 }
 
 static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
