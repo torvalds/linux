@@ -161,11 +161,12 @@ static const struct iio_info acpi_als_info = {
 
 static int acpi_als_add(struct acpi_device *device)
 {
-	struct acpi_als *als;
+	struct device *dev = &device->dev;
 	struct iio_dev *indio_dev;
+	struct acpi_als *als;
 	int ret;
 
-	indio_dev = devm_iio_device_alloc(&device->dev, sizeof(*als));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*als));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -180,12 +181,12 @@ static int acpi_als_add(struct acpi_device *device)
 	indio_dev->channels = acpi_als_channels;
 	indio_dev->num_channels = ARRAY_SIZE(acpi_als_channels);
 
-	ret = devm_iio_kfifo_buffer_setup(&device->dev, indio_dev,
+	ret = devm_iio_kfifo_buffer_setup(dev, indio_dev,
 					  INDIO_BUFFER_SOFTWARE, NULL);
 	if (ret)
 		return ret;
 
-	return devm_iio_device_register(&device->dev, indio_dev);
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static const struct acpi_device_id acpi_als_device_ids[] = {
