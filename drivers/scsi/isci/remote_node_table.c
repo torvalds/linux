@@ -99,7 +99,7 @@ static u32 sci_remote_node_table_get_group_index(
  * sci_remote_node_table_clear_group_index()
  * @remote_node_table: This the remote node table in which to clear the
  *    selector.
- * @set_index: This is the remote node selector in which the change will be
+ * @group_table_index: This is the remote node selector in which the change will be
  *    made.
  * @group_index: This is the bit index in the table to be modified.
  *
@@ -250,9 +250,8 @@ static void sci_remote_node_table_clear_group(
 	remote_node_table->available_remote_nodes[dword_location] = dword_value;
 }
 
-/**
+/*
  * sci_remote_node_table_set_group()
- * @remote_node_table:
  *
  * THis method sets an entire remote node group in the remote node table.
  */
@@ -366,7 +365,7 @@ void sci_remote_node_table_initialize(
  * sci_remote_node_table_allocate_single_remote_node()
  * @remote_node_table: The remote node table from which to allocate a
  *    remote node.
- * @table_index: The group index that is to be used for the search.
+ * @group_table_index: The group index that is to be used for the search.
  *
  * This method will allocate a single RNi from the remote node table.  The
  * table index will determine from which remote node group table to search.
@@ -426,7 +425,7 @@ static u16 sci_remote_node_table_allocate_single_remote_node(
  * sci_remote_node_table_allocate_triple_remote_node()
  * @remote_node_table: This is the remote node table from which to allocate the
  *    remote node entries.
- * @group_table_index: THis is the group table index which must equal two (2)
+ * @group_table_index: This is the group table index which must equal two (2)
  *    for this operation.
  *
  * This method will allocate three consecutive remote node context entries. If
@@ -506,7 +505,7 @@ u16 sci_remote_node_table_allocate_remote_node(
  * sci_remote_node_table_release_single_remote_node()
  * @remote_node_table: This is the remote node table from which the remote node
  *    release is to take place.
- *
+ * @remote_node_index: This is the remote node index that is being released.
  * This method will free a single remote node index back to the remote node
  * table.  This routine will update the remote node groups
  */
@@ -552,6 +551,7 @@ static void sci_remote_node_table_release_single_remote_node(
  * sci_remote_node_table_release_triple_remote_node()
  * @remote_node_table: This is the remote node table to which the remote node
  *    index is to be freed.
+ * @remote_node_index: This is the remote node index that is being released.
  *
  * This method will release a group of three consecutive remote nodes back to
  * the free remote nodes.
@@ -577,6 +577,7 @@ static void sci_remote_node_table_release_triple_remote_node(
  *    to be freed.
  * @remote_node_count: This is the count of consecutive remote nodes that are
  *    to be freed.
+ * @remote_node_index: This is the remote node index that is being released.
  *
  * This method will release the remote node index back into the remote node
  * table free pool.
