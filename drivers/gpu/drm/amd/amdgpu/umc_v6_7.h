@@ -32,6 +32,6 @@
 
 #define UMC_V6_7_INST_DIST	0x40000
 
-extern const struct amdgpu_umc_funcs umc_v6_7_funcs;
+extern const struct amdgpu_umc_ras_funcs umc_v6_7_ras_funcs;
 
 #endif

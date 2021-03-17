@@ -1155,7 +1155,7 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 		adev->umc.umc_inst_num = UMC_V6_1_UMC_INSTANCE_NUM;
 		adev->umc.channel_offs = UMC_V6_1_PER_CHANNEL_OFFSET_VG20;
 		adev->umc.channel_idx_tbl = &umc_v6_1_channel_idx_tbl[0][0];
-		adev->umc.funcs = &umc_v6_1_funcs;
+		adev->umc.ras_funcs = &umc_v6_1_ras_funcs;
 		break;
 	case CHIP_ARCTURUS:
 		adev->umc.max_ras_err_cnt_per_query = UMC_V6_1_TOTAL_CHANNEL_NUM;
@@ -1163,7 +1163,7 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 		adev->umc.umc_inst_num = UMC_V6_1_UMC_INSTANCE_NUM;
 		adev->umc.channel_offs = UMC_V6_1_PER_CHANNEL_OFFSET_ARCT;
 		adev->umc.channel_idx_tbl = &umc_v6_1_channel_idx_tbl[0][0];
-		adev->umc.funcs = &umc_v6_1_funcs;
+		adev->umc.ras_funcs = &umc_v6_1_ras_funcs;
 		break;
 	default:
 		break;
@@ -1194,12 +1194,6 @@ static int gmc_v9_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	gmc_v9_0_set_gmc_funcs(adev);
-	gmc_v9_0_set_irq_funcs(adev);
-	gmc_v9_0_set_umc_funcs(adev);
-	gmc_v9_0_set_mmhub_funcs(adev);
-	gmc_v9_0_set_gfxhub_funcs(adev);
-
 	if (adev->asic_type == CHIP_VEGA20 ||
 	    adev->asic_type == CHIP_ARCTURUS)
 		adev->gmc.xgmi.supported = true;
@@ -1209,6 +1203,12 @@ static int gmc_v9_0_early_init(void *handle)
 		adev->gmc.xgmi.connected_to_cpu =
 			adev->smuio.funcs->is_host_gpu_xgmi_supported(adev);
 	}
+
+	gmc_v9_0_set_gmc_funcs(adev);
+	gmc_v9_0_set_irq_funcs(adev);
+	gmc_v9_0_set_umc_funcs(adev);
+	gmc_v9_0_set_mmhub_funcs(adev);
+	gmc_v9_0_set_gfxhub_funcs(adev);
 
 	adev->gmc.shared_aperture_start = 0x2000000000000000ULL;
 	adev->gmc.shared_aperture_end =
