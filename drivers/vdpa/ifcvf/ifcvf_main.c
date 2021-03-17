@@ -483,6 +483,11 @@ static struct pci_device_id ifcvf_pci_ids[] = {
 		IFCVF_DEVICE_ID,
 		IFCVF_SUBSYS_VENDOR_ID,
 		IFCVF_SUBSYS_DEVICE_ID) },
+	{ PCI_DEVICE_SUB(C5000X_PL_VENDOR_ID,
+			 C5000X_PL_DEVICE_ID,
+			 C5000X_PL_SUBSYS_VENDOR_ID,
+			 C5000X_PL_SUBSYS_DEVICE_ID) },
+
 	{ 0 },
 };
 MODULE_DEVICE_TABLE(pci, ifcvf_pci_ids);
