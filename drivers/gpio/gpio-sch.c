@@ -7,6 +7,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/bitops.h>
 #include <linux/errno.h>
 #include <linux/gpio/driver.h>
 #include <linux/io.h>
@@ -29,12 +30,22 @@
 #define CORE_BANK_OFFSET	0x00
 #define RESUME_BANK_OFFSET	0x20
 
+/*
+ * iLB datasheet describes GPE0BLK registers, in particular GPE0E.GPIO bit.
+ * Document Number: 328195-001
+ */
+#define GPE0E_GPIO	14
+
 struct sch_gpio {
 	struct gpio_chip chip;
 	struct irq_chip irqchip;
 	spinlock_t lock;
 	unsigned short iobase;
 	unsigned short resume_base;
+
+	/* GPE handling */
+	u32 gpe;
+	acpi_gpe_handler gpe_handler;
 };
 
 static unsigned int sch_gpio_offset(struct sch_gpio *sch, unsigned int gpio,
@@ -229,11 +240,74 @@ static void sch_irq_unmask(struct irq_data *d)
 	sch_irq_mask_unmask(d, 1);
 }
 
+static u32 sch_gpio_gpe_handler(acpi_handle gpe_device, u32 gpe, void *context)
+{
+	struct sch_gpio *sch = context;
+	struct gpio_chip *gc = &sch->chip;
+	unsigned long core_status, resume_status;
+	unsigned long pending;
+	unsigned long flags;
+	int offset;
+	u32 ret;
+
+	spin_lock_irqsave(&sch->lock, flags);
+
+	core_status = inl(sch->iobase + CORE_BANK_OFFSET + GTS);
+	resume_status = inl(sch->iobase + RESUME_BANK_OFFSET + GTS);
+
+	spin_unlock_irqrestore(&sch->lock, flags);
+
+	pending = (resume_status << sch->resume_base) | core_status;
+	for_each_set_bit(offset, &pending, sch->chip.ngpio)
+		generic_handle_irq(irq_find_mapping(gc->irq.domain, offset));
+
+	/* Set returning value depending on whether we handled an interrupt */
+	ret = pending ? ACPI_INTERRUPT_HANDLED : ACPI_INTERRUPT_NOT_HANDLED;
+
+	/* Acknowledge GPE to ACPICA */
+	ret |= ACPI_REENABLE_GPE;
+
+	return ret;
+}
+
+static void sch_gpio_remove_gpe_handler(void *data)
+{
+	struct sch_gpio *sch = data;
+
+	acpi_disable_gpe(NULL, sch->gpe);
+	acpi_remove_gpe_handler(NULL, sch->gpe, sch->gpe_handler);
+}
+
+static int sch_gpio_install_gpe_handler(struct sch_gpio *sch)
+{
+	struct device *dev = sch->chip.parent;
+	acpi_status status;
+
+	status = acpi_install_gpe_handler(NULL, sch->gpe, ACPI_GPE_LEVEL_TRIGGERED,
+					  sch->gpe_handler, sch);
+	if (ACPI_FAILURE(status)) {
+		dev_err(dev, "Failed to install GPE handler for %u: %s\n",
+			sch->gpe, acpi_format_exception(status));
+		return -ENODEV;
+	}
+
+	status = acpi_enable_gpe(NULL, sch->gpe);
+	if (ACPI_FAILURE(status)) {
+		dev_err(dev, "Failed to enable GPE handler for %u: %s\n",
+			sch->gpe, acpi_format_exception(status));
+		acpi_remove_gpe_handler(NULL, sch->gpe, sch->gpe_handler);
+		return -ENODEV;
+	}
+
+	return devm_add_action_or_reset(dev, sch_gpio_remove_gpe_handler, sch);
+}
+
 static int sch_gpio_probe(struct platform_device *pdev)
 {
 	struct gpio_irq_chip *girq;
 	struct sch_gpio *sch;
 	struct resource *res;
+	int ret;
 
 	sch = devm_kzalloc(&pdev->dev, sizeof(*sch), GFP_KERNEL);
 	if (!sch)
@@ -306,6 +380,14 @@ static int sch_gpio_probe(struct platform_device *pdev)
 	girq->parent_handler = NULL;
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_bad_irq;
+
+	/* GPE setup is optional */
+	sch->gpe = GPE0E_GPIO;
+	sch->gpe_handler = sch_gpio_gpe_handler;
+
+	ret = sch_gpio_install_gpe_handler(sch);
+	if (ret)
+		dev_warn(&pdev->dev, "Can't setup GPE, no IRQ support\n");
 
 	return devm_gpiochip_add_data(&pdev->dev, &sch->chip, sch);
 }

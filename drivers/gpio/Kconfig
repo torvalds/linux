@@ -860,7 +860,7 @@ config GPIO_IT87
 
 config GPIO_SCH
 	tristate "Intel SCH/TunnelCreek/Centerton/Quark X1000 GPIO"
-	depends on (X86 || COMPILE_TEST) && PCI
+	depends on (X86 || COMPILE_TEST) && ACPI
 	select GPIOLIB_IRQCHIP
 	select MFD_CORE
 	select LPC_SCH
