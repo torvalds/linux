@@ -169,6 +169,8 @@ patternProperties:
     description: Beckhoff Automation GmbH & Co. KG
   "^bitmain,.*":
     description: Bitmain Technologies
+  "^blutek,.*":
+    description: BluTek Power
   "^boe,.*":
     description: BOE Technology Group Co., Ltd.
   "^bosch,.*":
