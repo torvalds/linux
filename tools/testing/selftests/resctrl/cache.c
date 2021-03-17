@@ -270,3 +270,45 @@ int cat_val(struct resctrl_val_param *param)
 
 	return ret;
 }
+
+/*
+ * show_cache_info:	show cache test result information
+ * @sum_llc_val:	sum of LLC cache result data
+ * @no_of_bits:		number of bits
+ * @cache_span:		cache span in bytes for CMT or in lines for CAT
+ * @max_diff:		max difference
+ * @max_diff_percent:	max difference percentage
+ * @num_of_runs:	number of runs
+ * @platform:		show test information on this platform
+ * @cmt:		CMT test or CAT test
+ *
+ * Return:		0 on success. non-zero on failure.
+ */
+int show_cache_info(unsigned long sum_llc_val, int no_of_bits,
+		    unsigned long cache_span, unsigned long max_diff,
+		    unsigned long max_diff_percent, unsigned long num_of_runs,
+		    bool platform, bool cmt)
+{
+	unsigned long avg_llc_val = 0;
+	float diff_percent;
+	long avg_diff = 0;
+	int ret;
+
+	avg_llc_val = sum_llc_val / (num_of_runs - 1);
+	avg_diff = (long)abs(cache_span - avg_llc_val);
+	diff_percent = ((float)cache_span - avg_llc_val) / cache_span * 100;
+
+	ret = platform && abs((int)diff_percent) > max_diff_percent &&
+	      (cmt ? (abs(avg_diff) > max_diff) : true);
+
+	ksft_print_msg("%s cache miss rate within %d%%\n",
+		       ret ? "Fail:" : "Pass:", max_diff_percent);
+
+	ksft_print_msg("Percent diff=%d\n", abs((int)diff_percent));
+	ksft_print_msg("Number of bits: %d\n", no_of_bits);
+	ksft_print_msg("Average LLC val: %lu\n", avg_llc_val);
+	ksft_print_msg("Cache span (%s): %lu\n", cmt ? "bytes" : "lines",
+		       cache_span);
+
+	return ret;
+}

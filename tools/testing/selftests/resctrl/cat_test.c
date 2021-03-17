@@ -52,30 +52,6 @@ static int cat_setup(int num, ...)
 	return ret;
 }
 
-static int show_cache_info(unsigned long sum_llc_perf_miss, int no_of_bits,
-			   unsigned long span)
-{
-	unsigned long allocated_cache_lines = span / 64;
-	unsigned long avg_llc_perf_miss = 0;
-	float diff_percent;
-	int ret;
-
-	avg_llc_perf_miss = sum_llc_perf_miss / (NUM_OF_RUNS - 1);
-	diff_percent = ((float)allocated_cache_lines - avg_llc_perf_miss) /
-				allocated_cache_lines * 100;
-
-	ret = !is_amd && abs((int)diff_percent) > MAX_DIFF_PERCENT;
-	ksft_print_msg("Cache miss rate %swithin %d%%\n",
-		       ret ? "not " : "", MAX_DIFF_PERCENT);
-
-	ksft_print_msg("Percent diff=%d\n", abs((int)diff_percent));
-	ksft_print_msg("Number of bits: %d\n", no_of_bits);
-	ksft_print_msg("Avg_llc_perf_miss: %lu\n", avg_llc_perf_miss);
-	ksft_print_msg("Allocated cache lines: %lu\n", allocated_cache_lines);
-
-	return ret;
-}
-
 static int check_results(struct resctrl_val_param *param)
 {
 	char *token_array[8], temp[512];
@@ -111,7 +87,9 @@ static int check_results(struct resctrl_val_param *param)
 	fclose(fp);
 	no_of_bits = count_bits(param->mask);
 
-	return show_cache_info(sum_llc_perf_miss, no_of_bits, param->span);
+	return show_cache_info(sum_llc_perf_miss, no_of_bits, param->span / 64,
+			       MAX_DIFF, MAX_DIFF_PERCENT, NUM_OF_RUNS,
+			       !is_amd, false);
 }
 
 void cat_test_cleanup(void)

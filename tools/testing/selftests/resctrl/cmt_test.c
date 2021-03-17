@@ -39,35 +39,6 @@ static int cmt_setup(int num, ...)
 	return 0;
 }
 
-static int show_cache_info(unsigned long sum_llc_occu_resc, int no_of_bits,
-			   unsigned long span)
-{
-	unsigned long avg_llc_occu_resc = 0;
-	float diff_percent;
-	long avg_diff = 0;
-	int ret;
-
-	avg_llc_occu_resc = sum_llc_occu_resc / (NUM_OF_RUNS - 1);
-	avg_diff = (long)abs(span - avg_llc_occu_resc);
-
-	diff_percent = (((float)span - avg_llc_occu_resc) / span) * 100;
-
-	ret = (abs((int)diff_percent) > MAX_DIFF_PERCENT) &&
-	      (abs(avg_diff) > MAX_DIFF);
-
-	ksft_print_msg("%s cache miss diff within %d, %d\%%\n",
-		       ret ? "Fail:" : "Pass:", MAX_DIFF, (int)MAX_DIFF_PERCENT);
-
-	ksft_print_msg("Diff: %ld\n", avg_diff);
-	ksft_print_msg("Percent diff=%d\n", abs((int)diff_percent));
-	ksft_print_msg("Results are displayed in (Bytes)\n");
-	ksft_print_msg("Number of bits: %d\n", no_of_bits);
-	ksft_print_msg("Avg_llc_occu_resc: %lu\n", avg_llc_occu_resc);
-	ksft_print_msg("llc_occu_exp (span): %lu\n", span);
-
-	return ret;
-}
-
 static int check_results(struct resctrl_val_param *param, int no_of_bits)
 {
 	char *token_array[8], temp[512];
@@ -99,7 +70,9 @@ static int check_results(struct resctrl_val_param *param, int no_of_bits)
 	}
 	fclose(fp);
 
-	return show_cache_info(sum_llc_occu_resc, no_of_bits, param->span);
+	return show_cache_info(sum_llc_occu_resc, no_of_bits, param->span,
+			       MAX_DIFF, MAX_DIFF_PERCENT, NUM_OF_RUNS,
+			       true, true);
 }
 
 void cmt_test_cleanup(void)
